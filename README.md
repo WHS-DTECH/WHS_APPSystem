@@ -44,7 +44,7 @@ Recommended environment values:
 - `APP_BASE_URL`: the public Render service URL, for example `https://whs-appsystem.onrender.com`
 - `GOOGLE_REDIRECT_URI`: `${APP_BASE_URL}/auth/google/callback`
 - `DATABASE_URL`: Render Postgres internal connection string
-- `SESSION_SECRET`: long random value
+- `SESSION_SECRET`: long random value. The app also accepts `SECRET_KEY` if that is already set in the Render Environment Group.
 - `ADMIN_EMAILS`: school-owned admin accounts, for example `tech@westlandhigh.school.nz`
 - `GOOGLE_HOSTED_DOMAIN`: optional Google Workspace domain restriction
 

@@ -45,6 +45,10 @@ app.use((req, res, next) => {
   next();
 });
 
+app.get('/healthz', (req, res) => {
+  res.status(200).json({ ok: true });
+});
+
 app.get('/', async (req, res, next) => {
   try {
     const modules = req.user
@@ -225,6 +229,10 @@ async function start() {
     if (!process.env[key]) {
       console.warn(`Missing environment variable: ${key}`);
     }
+  }
+
+  if (!config.sessionSecret) {
+    console.warn('Missing environment variable: SESSION_SECRET or SECRET_KEY');
   }
 
   if (config.databaseUrl) {

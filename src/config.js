@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-const required = ['DATABASE_URL', 'SESSION_SECRET', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'];
+const required = ['DATABASE_URL', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'];
 
 function getConfig() {
   const baseUrl = process.env.APP_BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
@@ -21,7 +21,7 @@ function getConfig() {
     isProduction: process.env.NODE_ENV === 'production',
     port: Number(process.env.PORT || 3000),
     required,
-    sessionSecret: process.env.SESSION_SECRET
+    sessionSecret: process.env.SESSION_SECRET || process.env.SECRET_KEY
   };
 }
 
