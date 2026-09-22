@@ -1,0 +1,31 @@
+<%- include('../partials/header') %>
+
+<section class="page-title">
+  <p class="eyebrow">Administration</p>
+  <h1>App Module Management</h1>
+</section>
+
+<section class="panel">
+  <form class="module-form" action="/admin/modules" method="post">
+    <label>Module key<input name="moduleKey" placeholder="attendance" required></label>
+    <label>Display name<input name="displayName" placeholder="Attendance" required></label>
+    <label>Description<input name="description" placeholder="Attendance tracking and reports"></label>
+    <label>Path<input name="path" placeholder="/modules/attendance"></label>
+    <label class="inline"><input name="isActive" type="checkbox" checked> Active</label>
+    <button class="button button-primary" type="submit">Save module</button>
+  </form>
+</section>
+
+<section class="panel table-panel">
+  <% modules.forEach((module) => { %>
+    <article class="module-row">
+      <div>
+        <strong><%= module.display_name %></strong>
+        <span><%= module.module_key %> · <%= module.path %></span>
+      </div>
+      <span class="status"><%= module.is_active ? 'Active' : 'Inactive' %></span>
+    </article>
+  <% }) %>
+</section>
+
+<%- include('../partials/footer') %>

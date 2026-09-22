@@ -1,0 +1,30 @@
+<%- include('partials/header') %>
+
+<section class="hero">
+  <div>
+    <p class="eyebrow">Westland High School</p>
+    <h1>One login for school app modules.</h1>
+    <p class="lede">Use your school Google account to access the unified WHS app system.</p>
+    <% if (!currentUser) { %>
+      <a class="button button-primary" href="/auth/google">Sign in with Google</a>
+    <% } else { %>
+      <a class="button button-primary" href="/dashboard">Open dashboard</a>
+    <% } %>
+  </div>
+</section>
+
+<% if (currentUser && modules.length) { %>
+  <section class="panel">
+    <h2>Available modules</h2>
+    <div class="grid">
+      <% modules.forEach((module) => { %>
+        <a class="module-card" href="<%= module.path %>">
+          <strong><%= module.display_name %></strong>
+          <span><%= module.description || 'School app module' %></span>
+        </a>
+      <% }) %>
+    </div>
+  </section>
+<% } %>
+
+<%- include('partials/footer') %>

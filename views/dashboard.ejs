@@ -1,0 +1,20 @@
+<%- include('partials/header') %>
+
+<section class="page-title">
+  <p class="eyebrow">Dashboard</p>
+  <h1>Welcome, <%= currentUser.display_name %></h1>
+</section>
+
+<section class="panel">
+  <h2>App modules</h2>
+  <div class="grid">
+    <% modules.forEach((module) => { %>
+      <a class="module-card" href="<%= module.path %>">
+        <strong><%= module.display_name %></strong>
+        <span><%= module.description || 'School app module' %></span>
+      </a>
+    <% }) %>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

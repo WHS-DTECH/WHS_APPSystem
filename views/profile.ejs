@@ -1,0 +1,22 @@
+<%- include('partials/header') %>
+
+<section class="page-title">
+  <p class="eyebrow">User profile</p>
+  <h1><%= currentUser.display_name %></h1>
+</section>
+
+<section class="panel profile">
+  <% if (currentUser.avatar_url) { %>
+    <img src="<%= currentUser.avatar_url %>" alt="" class="avatar">
+  <% } %>
+  <dl>
+    <dt>Email</dt>
+    <dd><%= currentUser.email %></dd>
+    <dt>Roles</dt>
+    <dd><%= currentUser.roles.length ? currentUser.roles.join(', ') : 'No roles assigned' %></dd>
+    <dt>Last login</dt>
+    <dd><%= currentUser.last_login_at ? new Date(currentUser.last_login_at).toLocaleString() : 'Current session' %></dd>
+  </dl>
+</section>
+
+<%- include('partials/footer') %>

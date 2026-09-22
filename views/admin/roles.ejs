@@ -1,0 +1,28 @@
+<%- include('../partials/header') %>
+
+<section class="page-title">
+  <p class="eyebrow">Administration</p>
+  <h1>User Role Permission Management</h1>
+</section>
+
+<section class="panel table-panel">
+  <% roles.forEach((role) => { %>
+    <form class="row-form stacked" action="/admin/roles/<%= role.id %>/permissions" method="post">
+      <div>
+        <strong><%= role.name %></strong>
+        <span><%= role.description %></span>
+      </div>
+      <fieldset class="checks permissions">
+        <% permissions.forEach((permission) => { %>
+          <label>
+            <input type="checkbox" name="permissionIds" value="<%= permission.id %>" <%= role.permissions.includes(permission.key) ? 'checked' : '' %>>
+            <span><%= permission.label %></span>
+          </label>
+        <% }) %>
+      </fieldset>
+      <button class="button" type="submit">Save permissions</button>
+    </form>
+  <% }) %>
+</section>
+
+<%- include('../partials/footer') %>

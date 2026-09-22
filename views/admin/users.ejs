@@ -1,0 +1,28 @@
+<%- include('../partials/header') %>
+
+<section class="page-title">
+  <p class="eyebrow">Administration</p>
+  <h1>Assign User Roles</h1>
+</section>
+
+<section class="panel table-panel">
+  <% users.forEach((user) => { %>
+    <form class="row-form" action="/admin/users/<%= user.id %>/roles" method="post">
+      <div>
+        <strong><%= user.display_name %></strong>
+        <span><%= user.email %></span>
+      </div>
+      <fieldset class="checks">
+        <% roles.forEach((role) => { %>
+          <label>
+            <input type="checkbox" name="roleIds" value="<%= role.id %>" <%= user.roles.includes(role.name) ? 'checked' : '' %>>
+            <%= role.name %>
+          </label>
+        <% }) %>
+      </fieldset>
+      <button class="button" type="submit">Save roles</button>
+    </form>
+  <% }) %>
+</section>
+
+<%- include('../partials/footer') %>
