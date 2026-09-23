@@ -47,13 +47,13 @@ Recommended environment values:
 - `GOOGLE_REDIRECT_URI`: `${APP_BASE_URL}/auth/google/callback`
 - `DATABASE_URL`: Render Postgres internal connection string
 - `SESSION_SECRET`: long random value. The app also accepts `SECRET_KEY` if that is already set in the Render Environment Group.
-- `ADMIN_EMAILS`: `vanessapringle@westlandhigh.school.nz`
+- `ADMIN_EMAILS`: `vanessapringle@westlandhigh.school.nz,tech@westlandhigh.school.nz`
 - `GOOGLE_HOSTED_DOMAIN`: optional Google Workspace domain restriction
 
 In Google Cloud Console, add the same callback URL as an authorised redirect URI.
 
 ## Admin model
 
-The configured `vanessapringle@westlandhigh.school.nz` account is automatically granted `ADMIN`, `Teacher`, and `Student` roles on login, allowing the administrator to toggle between those views. Other users are assigned roles through the admin pages. The public homepage is available without login.
+The configured `vanessapringle@westlandhigh.school.nz` and `tech@westlandhigh.school.nz` accounts are automatically granted `ADMIN`, `Teacher`, and `Student` roles on login, allowing either administrator to toggle between those views. Other users are assigned roles through the admin pages. The public homepage is available without login.
 
 Future systems should be added as modules first, then migrated into routes/controllers under this single application over time.
