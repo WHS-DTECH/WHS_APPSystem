@@ -13,6 +13,7 @@ Unified Westland High School app shell for one Render Web Service, one Postgres 
 - Module management page for future app areas as they are amalgamated.
 - Role-aware dashboards for `Staff`, `Teacher`, `Student`, and `ADMIN` users.
 - Direct teacher-to-module assignments managed by administrators.
+- Initial Learning Sites integration with public entry point and Google-authenticated Relief Planning and ADMIN routes.
 - Initial Kamar Uploader module under the ADMIN dashboard, with term-aware PostgreSQL uploads and history.
 - Docker and Render Blueprint configuration.
 
@@ -58,6 +59,10 @@ In Google Cloud Console, add the same callback URL as an authorised redirect URI
 The configured `vanessapringle@westlandhigh.school.nz` and `tech@westlandhigh.school.nz` accounts are automatically granted `ADMIN`, `Teacher`, and `Student` roles on login, allowing either administrator to toggle between those views. Other users are assigned roles through the admin pages. The public homepage is available without login.
 
 Future systems should be added as modules first, then migrated into routes/controllers under this single application over time.
+
+## Learning Sites module
+
+The public entry point is `/learning-sites`. Relief Planning is protected by the unified Google session and is available to `Teacher` and `ADMIN` users. Learning Site administration is protected by `ADMIN`. The legacy API-key and cookie mechanisms are not reused.
 
 ## Kamar Uploader module
 

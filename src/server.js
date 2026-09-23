@@ -9,6 +9,7 @@ const passport = require('./auth');
 const { pool, query, runMigrations } = require('./db');
 const { ensureAuthenticated, ensureRole } = require('./middleware');
 const kamarUploader = require('./modules/kamarUploader');
+const learningSites = require('./modules/learningSites');
 
 const app = express();
 
@@ -55,6 +56,7 @@ app.get('/healthz', (req, res) => {
 });
 
 app.use('/admin/kamar-uploader', kamarUploader);
+app.use('/learning-sites', learningSites);
 
 app.get('/', async (req, res, next) => {
   try {
