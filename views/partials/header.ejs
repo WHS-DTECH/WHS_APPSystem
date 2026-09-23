@@ -6,7 +6,7 @@
   <title><%= title %> | WHS APPSystem</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
-<body>
+<body class="<%= activeRole ? 'theme-' + activeRole.toLowerCase() : 'theme-public' %>">
   <header class="site-header">
     <a class="brand" href="/">WHS APPSystem</a>
     <nav class="nav">

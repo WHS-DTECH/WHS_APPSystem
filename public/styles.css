@@ -9,13 +9,45 @@
   --gold: #c08a2c;
 }
 
+body.theme-admin {
+  --accent: #0d5c4a;
+  --accent-strong: #093f34;
+  --badge: #e5eee8;
+  --highlight: #c08a2c;
+  --wash: #fff8df;
+}
+
+body.theme-teacher {
+  --accent: #1f5f8b;
+  --accent-strong: #16435f;
+  --badge: #e2eff8;
+  --highlight: #4d91b8;
+  --wash: #eaf5fb;
+}
+
+body.theme-student {
+  --accent: #a35d0a;
+  --accent-strong: #704006;
+  --badge: #fff0d8;
+  --highlight: #d28a2c;
+  --wash: #fff6e8;
+}
+
+body.theme-public {
+  --accent: #0d5c4a;
+  --accent-strong: #093f34;
+  --badge: #e5eee8;
+  --highlight: #c08a2c;
+  --wash: #fff8df;
+}
+
 * {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  background: radial-gradient(circle at top left, #fff8df 0, transparent 34rem), var(--bg);
+  background: radial-gradient(circle at top left, var(--wash) 0, transparent 34rem), var(--bg);
   color: var(--ink);
   font-family: Georgia, 'Times New Roman', serif;
 }
@@ -28,6 +60,7 @@ a {
 .site-header {
   align-items: center;
   border-bottom: 1px solid var(--line);
+  border-top: 4px solid var(--accent);
   display: flex;
   justify-content: space-between;
   padding: 1rem clamp(1rem, 4vw, 3rem);
@@ -103,7 +136,7 @@ a {
 .button:hover,
 .link-button:hover,
 .module-card:hover {
-  border-color: var(--gold);
+  border-color: var(--highlight);
 }
 
 .link-button {
@@ -267,7 +300,7 @@ input[type='checkbox'] {
 }
 
 .role-badge {
-  background: #e5eee8;
+  background: var(--badge);
   border: 1px solid #b8cfc1;
   border-radius: 999px;
   color: var(--accent-strong);
