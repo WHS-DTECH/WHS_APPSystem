@@ -16,6 +16,7 @@
         <% if (isAdmin) { %>
           <a href="/admin">Admin</a>
         <% } %>
+        <span class="role-badge"><%= activeRole %></span>
         <form action="/logout" method="post">
           <button class="link-button" type="submit">Sign out</button>
         </form>

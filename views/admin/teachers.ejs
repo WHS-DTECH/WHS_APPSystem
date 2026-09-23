@@ -1,0 +1,32 @@
+<%- include('../partials/header') %>
+
+<section class="page-title">
+  <p class="eyebrow">Administration</p>
+  <h1>Assign Teacher Modules</h1>
+  <p class="role-line">Teachers only see modules assigned here when they use Teacher view.</p>
+</section>
+
+<section class="panel table-panel">
+  <% if (!teachers.length) { %>
+    <p>No users have been assigned the Teacher role yet.</p>
+  <% } %>
+  <% teachers.forEach((teacher) => { %>
+    <form class="row-form stacked" action="/admin/teachers/<%= teacher.id %>/modules" method="post">
+      <div>
+        <strong><%= teacher.display_name %></strong>
+        <span><%= teacher.email %></span>
+      </div>
+      <fieldset class="checks permissions">
+        <% modules.forEach((module) => { %>
+          <label>
+            <input type="checkbox" name="moduleIds" value="<%= module.id %>" <%= teacher.module_ids.includes(module.id) ? 'checked' : '' %>>
+            <span><%= module.display_name %></span>
+          </label>
+        <% }) %>
+      </fieldset>
+      <button class="button button-primary" type="submit">Save modules</button>
+    </form>
+  <% }) %>
+</section>
+
+<%- include('../partials/footer') %>

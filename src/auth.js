@@ -61,7 +61,7 @@ passport.use(new GoogleStrategy({
     if (config.adminEmails.includes(email)) {
       await query(
         `INSERT INTO user_roles (user_id, role_id)
-         SELECT $1, id FROM roles WHERE name = 'Administrator'
+         SELECT $1, id FROM roles WHERE name IN ('ADMIN', 'Teacher', 'Student')
          ON CONFLICT DO NOTHING`,
         [user.id]
       );

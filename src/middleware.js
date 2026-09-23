@@ -8,7 +8,7 @@ function ensureAuthenticated(req, res, next) {
 
 function ensureRole(roleName) {
   return (req, res, next) => {
-    if (req.user?.roles?.includes(roleName)) {
+    if (req.user?.roles?.includes('ADMIN') || req.user?.roles?.includes(roleName)) {
       return next();
     }
 

@@ -265,3 +265,27 @@ input[type='checkbox'] {
     grid-template-columns: 1fr;
   }
 }
+
+.role-badge {
+  background: #e5eee8;
+  border: 1px solid #b8cfc1;
+  border-radius: 999px;
+  color: var(--accent-strong);
+  font-family: Verdana, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.35rem 0.65rem;
+}
+
+.role-line {
+  color: var(--muted);
+  font-family: Verdana, sans-serif;
+  font-size: 0.9rem;
+}
+
+.view-switcher {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}

@@ -14,9 +14,22 @@
     <dd><%= currentUser.email %></dd>
     <dt>Roles</dt>
     <dd><%= currentUser.roles.length ? currentUser.roles.join(', ') : 'No roles assigned' %></dd>
+    <dt>Active view</dt>
+    <dd><%= activeRole %></dd>
     <dt>Last login</dt>
     <dd><%= currentUser.last_login_at ? new Date(currentUser.last_login_at).toLocaleString() : 'Current session' %></dd>
   </dl>
 </section>
+
+<% if (isAdmin) { %>
+  <section class="panel">
+    <h2>Switch view</h2>
+    <div class="view-switcher">
+      <a class="button" href="/dashboard?view=admin">ADMIN</a>
+      <a class="button" href="/dashboard?view=teacher">Teacher</a>
+      <a class="button" href="/dashboard?view=student">Student</a>
+    </div>
+  </section>
+<% } %>
 
 <%- include('partials/footer') %>

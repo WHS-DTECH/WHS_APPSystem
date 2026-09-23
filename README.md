@@ -11,6 +11,8 @@ Unified Westland High School app shell for one Render Web Service, one Postgres 
 - Assign user roles page.
 - Role permission management page.
 - Module management page for future app areas as they are amalgamated.
+- Role-aware dashboards for `Staff`, `Teacher`, `Student`, and `ADMIN` users.
+- Direct teacher-to-module assignments managed by administrators.
 - Docker and Render Blueprint configuration.
 
 ## Local setup
@@ -52,6 +54,6 @@ In Google Cloud Console, add the same callback URL as an authorised redirect URI
 
 ## Admin model
 
-The first matching email in `ADMIN_EMAILS` is automatically granted the `Administrator` role on login. Additional users can then be managed through the admin pages.
+Matching emails in `ADMIN_EMAILS` are automatically granted `ADMIN`, `Teacher`, and `Student` roles on login, allowing administrators to toggle between those views. Other users are assigned roles through the admin pages. The public homepage is available without login.
 
 Future systems should be added as modules first, then migrated into routes/controllers under this single application over time.

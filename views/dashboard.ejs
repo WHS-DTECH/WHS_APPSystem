@@ -3,7 +3,16 @@
 <section class="page-title">
   <p class="eyebrow">Dashboard</p>
   <h1>Welcome, <%= currentUser.display_name %></h1>
+  <p class="role-line">Viewing as <strong><%= activeRole %></strong></p>
 </section>
+
+<% if (isAdmin) { %>
+  <nav class="view-switcher" aria-label="Dashboard views">
+    <a class="button <%= activeRole === 'ADMIN' ? 'button-primary' : '' %>" href="/dashboard?view=admin">ADMIN view</a>
+    <a class="button <%= activeRole === 'Teacher' ? 'button-primary' : '' %>" href="/dashboard?view=teacher">Teacher view</a>
+    <a class="button <%= activeRole === 'Student' ? 'button-primary' : '' %>" href="/dashboard?view=student">Student view</a>
+  </nav>
+<% } %>
 
 <section class="panel">
   <h2>App modules</h2>

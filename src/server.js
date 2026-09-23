@@ -41,7 +41,10 @@ app.use(passport.session());
 
 app.use((req, res, next) => {
   res.locals.currentUser = req.user;
-  res.locals.isAdmin = req.user?.roles?.includes('Administrator') || false;
+  res.locals.isAdmin = req.user?.roles?.includes('ADMIN') || false;
+  res.locals.activeRole = req.user?.roles?.includes('ADMIN')
+    ? (req.query.view === 'student' ? 'Student' : req.query.view === 'teacher' ? 'Teacher' : 'ADMIN')
+    : req.user?.roles?.find((role) => ['Teacher', 'Student', 'Staff'].includes(role)) || 'Staff';
   next();
 });
 
@@ -84,7 +87,32 @@ app.post('/logout', ensureAuthenticated, (req, res, next) => {
 
 app.get('/dashboard', ensureAuthenticated, async (req, res, next) => {
   try {
-    const modules = (await query('SELECT * FROM modules WHERE is_active = true ORDER BY display_name')).rows;
+    const activeRole = res.locals.activeRole;
+    let modules;
+
+    if (activeRole === 'ADMIN') {
+      modules = (await query('SELECT * FROM modules WHERE is_active = true ORDER BY display_name')).rows;
+    } else if (activeRole === 'Teacher') {
+      modules = (await query(
+        `SELECT modules.*
+         FROM modules
+         INNER JOIN teacher_module_assignments assignments ON assignments.module_id = modules.id
+         WHERE modules.is_active = true AND assignments.user_id = $1
+         ORDER BY modules.display_name`,
+        [req.user.id]
+      )).rows;
+    } else {
+      modules = (await query(
+        `SELECT DISTINCT modules.*
+         FROM modules
+         INNER JOIN role_modules ON role_modules.module_id = modules.id
+         INNER JOIN roles ON roles.id = role_modules.role_id
+         WHERE modules.is_active = true AND roles.name = $1
+         ORDER BY modules.display_name`,
+        [activeRole]
+      )).rows;
+    }
+
     res.render('dashboard', { modules, title: 'Dashboard' });
   } catch (error) {
     next(error);
@@ -95,7 +123,7 @@ app.get('/profile', ensureAuthenticated, (req, res) => {
   res.render('profile', { title: 'User Profile' });
 });
 
-app.get('/admin', ensureAuthenticated, ensureRole('Administrator'), async (req, res, next) => {
+app.get('/admin', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
   try {
     const [users, roles, modules] = await Promise.all([
       query('SELECT COUNT(*)::int AS count FROM users'),
@@ -114,7 +142,7 @@ app.get('/admin', ensureAuthenticated, ensureRole('Administrator'), async (req, 
   }
 });
 
-app.get('/admin/users', ensureAuthenticated, ensureRole('Administrator'), async (req, res, next) => {
+app.get('/admin/users', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
   try {
     const users = (await query(
       `SELECT users.*, COALESCE(array_agg(roles.name) FILTER (WHERE roles.name IS NOT NULL), '{}') AS roles
@@ -132,7 +160,50 @@ app.get('/admin/users', ensureAuthenticated, ensureRole('Administrator'), async 
   }
 });
 
-app.post('/admin/users/:userId/roles', ensureAuthenticated, ensureRole('Administrator'), async (req, res, next) => {
+app.get('/admin/teachers', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
+  try {
+    const teachers = (await query(
+      `SELECT users.id, users.display_name, users.email,
+              COALESCE(array_agg(assignments.module_id) FILTER (WHERE assignments.module_id IS NOT NULL), '{}') AS module_ids
+       FROM users
+       INNER JOIN user_roles ON user_roles.user_id = users.id
+       INNER JOIN roles ON roles.id = user_roles.role_id AND roles.name = 'Teacher'
+       LEFT JOIN teacher_module_assignments assignments ON assignments.user_id = users.id
+       GROUP BY users.id
+       ORDER BY users.email`
+    )).rows;
+    const modules = (await query('SELECT * FROM modules WHERE is_active = true ORDER BY display_name')).rows;
+
+    res.render('admin/teachers', { modules, teachers, title: 'Assign Teacher Modules' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/admin/teachers/:userId/modules', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
+  try {
+    const moduleIds = Array.isArray(req.body.moduleIds)
+      ? req.body.moduleIds
+      : req.body.moduleIds
+        ? [req.body.moduleIds]
+        : [];
+
+    await query('DELETE FROM teacher_module_assignments WHERE user_id = $1', [req.params.userId]);
+
+    for (const moduleId of moduleIds) {
+      await query(
+        'INSERT INTO teacher_module_assignments (user_id, module_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [req.params.userId, moduleId]
+      );
+    }
+
+    res.redirect('/admin/teachers');
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/admin/users/:userId/roles', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
   try {
     const roleIds = Array.isArray(req.body.roleIds)
       ? req.body.roleIds
@@ -152,7 +223,7 @@ app.post('/admin/users/:userId/roles', ensureAuthenticated, ensureRole('Administ
   }
 });
 
-app.get('/admin/roles', ensureAuthenticated, ensureRole('Administrator'), async (req, res, next) => {
+app.get('/admin/roles', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
   try {
     const roles = (await query(
       `SELECT roles.*, COALESCE(array_agg(permissions.key) FILTER (WHERE permissions.key IS NOT NULL), '{}') AS permissions
@@ -170,7 +241,7 @@ app.get('/admin/roles', ensureAuthenticated, ensureRole('Administrator'), async 
   }
 });
 
-app.post('/admin/roles/:roleId/permissions', ensureAuthenticated, ensureRole('Administrator'), async (req, res, next) => {
+app.post('/admin/roles/:roleId/permissions', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
   try {
     const permissionIds = Array.isArray(req.body.permissionIds)
       ? req.body.permissionIds
@@ -190,7 +261,7 @@ app.post('/admin/roles/:roleId/permissions', ensureAuthenticated, ensureRole('Ad
   }
 });
 
-app.get('/admin/modules', ensureAuthenticated, ensureRole('Administrator'), async (req, res, next) => {
+app.get('/admin/modules', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
   try {
     const modules = (await query('SELECT * FROM modules ORDER BY display_name')).rows;
     res.render('admin/modules', { modules, title: 'App Module Management' });
@@ -199,7 +270,7 @@ app.get('/admin/modules', ensureAuthenticated, ensureRole('Administrator'), asyn
   }
 });
 
-app.post('/admin/modules', ensureAuthenticated, ensureRole('Administrator'), async (req, res, next) => {
+app.post('/admin/modules', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
   try {
     await query(
       `INSERT INTO modules (module_key, display_name, description, path, is_active)
