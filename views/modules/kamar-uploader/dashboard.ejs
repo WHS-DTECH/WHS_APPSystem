@@ -1,0 +1,67 @@
+<%- include('../../partials/header') %>
+
+<section class="page-title">
+  <p class="eyebrow">ADMIN module</p>
+  <h1>Kamar Uploader</h1>
+  <p class="role-line">Termly refreshes for Staff, Students, and Timetables. Data is written directly to PostgreSQL.</p>
+</section>
+
+<section class="stats">
+  <article><strong><%= counts.staff %></strong><span>Current staff</span></article>
+  <article><strong><%= counts.students %></strong><span>Current students</span></article>
+  <article><strong><%= counts.student_timetables %></strong><span>Student timetables</span></article>
+  <article><strong><%= counts.staff_timetables %></strong><span>Staff timetables</span></article>
+</section>
+
+<section class="panel">
+  <h2>Database uploads</h2>
+  <div class="kamar-upload-grid">
+    <% [
+      ['staff', 'Staff records', 'Reporting staff list from Kamar.'],
+      ['students', 'Student records', 'Student list and school email details.'],
+      ['student_timetable', 'Student timetables', 'Student timetable summary rows.'],
+      ['staff_timetable', 'Staff timetables', 'Teacher timetable summary rows.']
+    ].forEach(([type, label, description]) => { %>
+      <form class="kamar-upload-card" data-upload-type="<%= type %>">
+        <h3><%= label %></h3>
+        <p><%= description %></p>
+        <label>CSV file<input type="file" name="file" accept=".csv,text/csv" required></label>
+        <div class="kamar-meta-fields">
+          <label>Year<input name="academicYear" type="number" min="2000" max="2100" value="<%= new Date().getFullYear() %>" required></label>
+          <label>Term<select name="term" required><option>Term 1</option><option>Term 2</option><option>Term 3</option><option>Term 4</option></select></label>
+        </div>
+        <button class="button button-primary" type="submit">Upload to database</button>
+        <output class="kamar-upload-status" aria-live="polite"></output>
+      </form>
+    <% }) %>
+  </div>
+</section>
+
+<section class="panel table-panel">
+  <h2>Recent upload runs</h2>
+  <% if (!runs.length) { %>
+    <p>No Kamar uploads have been recorded yet.</p>
+  <% } else { %>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead><tr><th>Type</th><th>Term</th><th>Rows</th><th>Status</th><th>Started</th></tr></thead>
+        <tbody>
+          <% runs.forEach((run) => { %>
+            <tr>
+              <td><%= run.upload_type %></td>
+              <td><%= run.academic_year %> <%= run.term %></td>
+              <td><%= run.row_count %></td>
+              <td><%= run.status %></td>
+              <td><%= new Date(run.started_at).toLocaleString() %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.3/papaparse.min.js"></script>
+<script src="/kamar-uploader.js"></script>
+
+<%- include('../../partials/footer') %>

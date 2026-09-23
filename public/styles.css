@@ -322,3 +322,74 @@ input[type='checkbox'] {
   gap: 0.75rem;
   margin: 1rem 0;
 }
+
+.kamar-upload-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.kamar-upload-card {
+  background: #fffdf8;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.kamar-upload-card h3,
+.kamar-upload-card p {
+  margin: 0;
+}
+
+.kamar-upload-card p {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.kamar-upload-card label {
+  font-family: Verdana, sans-serif;
+  font-size: 0.85rem;
+}
+
+.kamar-meta-fields {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: 1fr 1fr;
+}
+
+.kamar-upload-status {
+  color: var(--accent-strong);
+  font-family: Verdana, sans-serif;
+  font-size: 0.8rem;
+  min-height: 1.2rem;
+}
+
+.kamar-upload-status.error {
+  color: #9b2c2c;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.data-table {
+  border-collapse: collapse;
+  min-width: 680px;
+  width: 100%;
+}
+
+.data-table th,
+.data-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 0.7rem;
+  text-align: left;
+}
+
+.data-table th {
+  color: var(--accent-strong);
+  font-family: Verdana, sans-serif;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}

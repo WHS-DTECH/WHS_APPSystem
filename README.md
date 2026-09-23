@@ -13,6 +13,7 @@ Unified Westland High School app shell for one Render Web Service, one Postgres 
 - Module management page for future app areas as they are amalgamated.
 - Role-aware dashboards for `Staff`, `Teacher`, `Student`, and `ADMIN` users.
 - Direct teacher-to-module assignments managed by administrators.
+- Initial Kamar Uploader module under the ADMIN dashboard, with term-aware PostgreSQL uploads and history.
 - Docker and Render Blueprint configuration.
 
 ## Local setup
@@ -57,3 +58,7 @@ In Google Cloud Console, add the same callback URL as an authorised redirect URI
 The configured `vanessapringle@westlandhigh.school.nz` and `tech@westlandhigh.school.nz` accounts are automatically granted `ADMIN`, `Teacher`, and `Student` roles on login, allowing either administrator to toggle between those views. Other users are assigned roles through the admin pages. The public homepage is available without login.
 
 Future systems should be added as modules first, then migrated into routes/controllers under this single application over time.
+
+## Kamar Uploader module
+
+The first integrated module is available to ADMIN users at `/admin/kamar-uploader`. It accepts parsed CSV rows and writes them directly to the `kamar` PostgreSQL schema. It does not save uploaded files to the application filesystem. The copied legacy source and sample data under `OldSystem - dont push to GIT/` are explicitly excluded from Git.

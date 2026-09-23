@@ -8,6 +8,7 @@ const config = require('./config');
 const passport = require('./auth');
 const { pool, query, runMigrations } = require('./db');
 const { ensureAuthenticated, ensureRole } = require('./middleware');
+const kamarUploader = require('./modules/kamarUploader');
 
 const app = express();
 
@@ -18,6 +19,7 @@ app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300 }));
 app.use(express.urlencoded({ extended: false }));
+app.use(express.json({ limit: '25mb' }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use(session({
   cookie: {
@@ -51,6 +53,8 @@ app.use((req, res, next) => {
 app.get('/healthz', (req, res) => {
   res.status(200).json({ ok: true });
 });
+
+app.use('/admin/kamar-uploader', kamarUploader);
 
 app.get('/', async (req, res, next) => {
   try {
