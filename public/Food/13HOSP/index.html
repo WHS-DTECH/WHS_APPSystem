@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>13HOSP | Food | WHS Learning Sites</title>
+    <meta name="description" content="Westland High School learning sites for staff, students, and whanau.">
+    <link rel="icon" href="/images/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/styles.css?v=20260806a">
+  </head>
+  <body>
+    <header class="topbar page-shell">
+      <div class="topbar-inner">
+        <a class="brand" href="/">
+          <img src="/images/whs%20logo%20circular%20reo%20.png" alt="Westland High School logo">
+          <span class="brand-copy">
+            <span>WHS Learning Sites</span>
+            <span>Shared structure, simpler updates</span>
+          </span>
+        </a>
+
+        <nav class="nav" aria-label="Program navigation">
+          <a href="/DTECH/">DTECH</a>
+          <a href="/COMP/">COMP</a>
+          <a href="/Food/">Food</a>
+          <a href="/Textiles/">Textiles</a>
+          <a href="/WOOD/">Woodwork</a>
+          <a href="/DVC/">DVC</a>
+          <a href="/ReleverPlan/" id="relief-plan-nav" hidden>Relief Plan</a>
+          <a href="/ADMIN/">ADMIN</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="course-masthead">
+  <div class="page-shell course-masthead-inner">
+    <div class="course-kicker">Technology Learning Area</div>
+    <div class="course-title-frame">
+      <h1>
+        
+          
+            <span class="course-title-line">13HOSP</span>
+          
+            <span class="course-title-line">Year 13 Hospitality</span>
+          
+        
+      </h1>
+    </div>
+    
+      <p class="course-summary">13HOSP course page with assessments, resources, and project statements.</p>
+    
+  </div>
+</section>
+
+<section class="page-shell course-panel">
+  
+    <div class="course-block course-assessments">
+      <h2>Assessments</h2>
+      <ul id="course-assessments-list">
+        
+          <li>
+            
+              <span>Replace with assessment 1.</span>
+            
+            
+            
+          </li>
+        
+          <li>
+            
+              <span>Replace with assessment 2.</span>
+            
+            
+            
+          </li>
+        
+          <li>
+            
+              <span>Replace with assessment 3.</span>
+            
+            
+            
+          </li>
+        
+      </ul>
+    </div>
+  
+
+  
+    <nav class="course-chip-row" aria-label="Course resources" id="course-chip-row">
+      
+        
+          
+
+          <a
+            class="course-chip"
+            href="#"
+            
+          >
+            Course overview
+          </a>
+
+          
+        
+          
+            <div class="course-chip-group" aria-label="Assessment-related links">
+          
+
+          <a
+            class="course-chip course-chip-assessment"
+            href="#"
+            
+          >
+            Assessment statement
+          </a>
+
+          
+        
+          
+
+          <a
+            class="course-chip course-chip-assessment"
+            href="#"
+            
+          >
+            Workshop tools
+          </a>
+
+          
+        
+          
+
+          <a
+            class="course-chip course-chip-assessment"
+            href="#"
+            
+          >
+            Project checklist
+          </a>
+
+          
+            </div>
+          
+        
+          
+
+          <a
+            class="course-chip"
+            href="#"
+            
+          >
+            Practical skills
+          </a>
+
+          
+            </div>
+          
+        
+      
+    </nav>
+  
+
+  <details id="course-statement" class="course-statement" open>
+    <summary>
+      <span>Assessment statement</span>
+      <span class="course-chevron" aria-hidden="true"></span>
+    </summary>
+
+    <div class="course-statement-body" id="course-statement-body" data-default-height="1000">
+      
+        <p>
+          Assessment statement available here:
+          <a href="#">Open statement document</a>
+        </p>
+      
+
+      <p class="course-statement-source">
+        Loaded from the Learning Site ADMIN portal.<br>
+        Last Updated: 14 September 2026
+      </p>
+    </div>
+  </details>
+
+  
+</section>
+
+  <script>
+    (async () => {
+      const configuredCourseCode = "";
+
+      if (!configuredCourseCode) {
+        return;
+      }
+
+      const courseCode = configuredCourseCode;
+
+      try {
+        const response = await fetch(`/api/course-content/${courseCode}`, { credentials: "same-origin" });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+
+        if (!data || data.ok === false) {
+          return;
+        }
+
+        const assessmentsList = document.getElementById("course-assessments-list");
+        if (assessmentsList && Array.isArray(data.assessments) && data.assessments.length) {
+          assessmentsList.innerHTML = data.assessments
+            .map((item) => `<li><span>${String(item).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</span></li>`)
+            .join("");
+        }
+
+        const chipRow = document.getElementById("course-chip-row");
+        if (chipRow && Array.isArray(data.assessmentLinks) && data.assessmentLinks.length) {
+          const healthSafetyPath = "/Health-Safety/";
+          const configuredGroupStart = 2;
+          const configuredGroupEnd = 4;
+          const groupStart = configuredGroupStart;
+          const groupEnd = groupStart
+            ? Math.max(configuredGroupEnd, data.assessmentLinks.length - 1)
+            : configuredGroupEnd;
+          let html = "";
+
+          data.assessmentLinks.forEach((link, index) => {
+            const oneBased = index + 1;
+
+            if (groupStart && oneBased === groupStart) {
+              html += `<div class=\"course-chip-group\" aria-label=\"Assessment-related links\">`;
+            }
+
+            const label = String(link.label || "")
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;");
+            const rawUrl = String(link.url || "#").trim();
+            const resolvedUrl = /health\s*&\s*safety/i.test(String(link.label || "")) && (!rawUrl || rawUrl === "#")
+              ? healthSafetyPath
+              : rawUrl;
+            const url = resolvedUrl
+              .replace(/\"/g, "&quot;");
+
+            const className = groupStart && oneBased >= groupStart && oneBased <= groupEnd
+              ? "course-chip course-chip-assessment"
+              : "course-chip";
+
+            html += `<a class=\"${className}\" href=\"${url}\">${label}</a>`;
+
+            const isLastLink = index === data.assessmentLinks.length - 1;
+
+            if (groupEnd && (oneBased === groupEnd || (isLastLink && oneBased >= groupStart))) {
+              html += "</div>";
+            }
+          });
+
+          chipRow.innerHTML = html;
+        }
+
+        const statementBody = document.getElementById("course-statement-body");
+        if (statementBody && data.statementUrl) {
+          const frameWidth = statementBody.clientWidth || 1100;
+          const landscapeA4Height = Math.round(frameWidth / 1.414); // A4 landscape ratio
+          const frameHeight = Math.max(720, Math.min(landscapeA4Height + 40, 980));
+          const fitParams = "page=1&view=FitH&zoom=125&pagemode=none&navpanes=0&toolbar=1";
+          const statementSrc = data.statementUrl.includes("#")
+            ? `${data.statementUrl}&${fitParams}`
+            : `${data.statementUrl}#${fitParams}`;
+          statementBody.innerHTML = `
+            <div class=\"course-embed-frame\">
+              <iframe
+                src=\"${statementSrc}\"
+                title=\"Assessment statement\"
+                loading=\"lazy\"
+                referrerpolicy=\"no-referrer\"
+                style=\"height: ${frameHeight}px;\"
+              ></iframe>
+            </div>
+          `;
+        }
+      } catch (error) {
+        // Keep static course metadata intact when the API is unavailable or the database is not configured.
+      }
+    })();
+  </script>
+
+    </main>
+
+    <footer class="footer page-shell">
+      <section class="site-footer-links" aria-label="Useful links">
+        <article class="site-footer-column">
+          <h2>School Links</h2>
+          <ul>
+            <li><a href="https://www.westlandhigh.school.nz/intranet/our-learning-sites/" target="_blank" rel="noopener noreferrer">Westland High School Learning Sites</a></li>
+            <li><a href="https://www.manaiakalani.org/" target="_blank" rel="noopener noreferrer">Manaiakalani</a></li>
+          </ul>
+        </article>
+
+        <article class="site-footer-column">
+          <h2>Student Links</h2>
+          <ul>
+            <li><a href="https://mystudentdashboard.com/" target="_blank" rel="noopener noreferrer">Hapara Student Dashboard</a></li>
+          </ul>
+        </article>
+
+        <article class="site-footer-column">
+          <h2>Learning Links</h2>
+          <ul>
+            <li><a href="https://www.nzqa.govt.nz/ncea/ncea/" target="_blank" rel="noopener noreferrer">NZQA Exam Hub</a></li>
+            <li><a href="https://studytime.co.nz/exams/" target="_blank" rel="noopener noreferrer">NCEA Past Papers</a></li>
+          </ul>
+        </article>
+      </section>
+
+      <div class="site-footer-updated" id="site-footer-updated">Last Updated:</div>
+    </footer>
+
+    <script>
+      (() => {
+        const reliefPlanNav = document.getElementById("relief-plan-nav");
+        if (reliefPlanNav) {
+          fetch("/api/relief-plan/session", { credentials: "same-origin" })
+            .then((response) => response.json())
+            .then((data) => {
+              reliefPlanNav.hidden = !data.authenticated;
+            })
+            .catch(() => {
+              reliefPlanNav.hidden = true;
+            });
+        }
+
+        const lastUpdatedEl = document.getElementById("site-footer-updated");
+        if (!lastUpdatedEl) {
+          return;
+        }
+
+        const today = new Date();
+        const readableDate = today.toLocaleDateString(undefined, {
+          year: "numeric",
+          month: "long",
+          day: "numeric"
+        });
+
+        lastUpdatedEl.textContent = `Last Updated: ${readableDate}`;
+      })();
+    </script>
+  </body>
+</html>

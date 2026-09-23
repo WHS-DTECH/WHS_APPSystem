@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Home | WHS Learning Sites</title>
+    <meta name="description" content="Westland High School learning sites for staff, students, and whanau.">
+    <link rel="icon" href="/images/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/styles.css?v=20260806a">
+  </head>
+  <body>
+    <header class="topbar page-shell">
+      <div class="topbar-inner">
+        <a class="brand" href="/">
+          <img src="/images/whs%20logo%20circular%20reo%20.png" alt="Westland High School logo">
+          <span class="brand-copy">
+            <span>WHS Learning Sites</span>
+            <span>Shared structure, simpler updates</span>
+          </span>
+        </a>
+
+        <nav class="nav" aria-label="Program navigation">
+          <a href="/DTECH/">DTECH</a>
+          <a href="/COMP/">COMP</a>
+          <a href="/Food/">Food</a>
+          <a href="/Textiles/">Textiles</a>
+          <a href="/WOOD/">Woodwork</a>
+          <a href="/DVC/">DVC</a>
+          <a href="/learning-sites/relief-planning">Relief Plan</a>
+          <a href="/learning-sites/admin">ADMIN</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="page-shell section">
+  <h2 class="section-title">Program pages</h2>
+  <div class="card-grid">
+    <article class="card">
+      <h3><a href="/DTECH/">DTECH</a></h3>
+      <p>Digital learning content, project briefs, course links, and current tasks.</p>
+    </article>
+    <article class="card">
+      <h3><a href="/COMP/">COMP</a></h3>
+      <p>Computing courses, practical coding pathways, and assessment project updates.</p>
+    </article>
+    <article class="card">
+      <h3><a href="/DVC/">DVC</a></h3>
+      <p>Design and visual communication materials, deadlines, and exemplars.</p>
+    </article>
+    <article class="card">
+      <h3><a href="/Food/">Food</a></h3>
+      <p>Recipes, practical routines, safety notes, and assessment information.</p>
+    </article>
+    <article class="card">
+      <h3><a href="/Textiles/">Textiles</a></h3>
+      <p>Project guidance, equipment expectations, pattern resources, and updates.</p>
+    </article>
+    <article class="card">
+      <h3><a href="/WOOD/">Wood</a></h3>
+      <p>Workshop tasks, safety reminders, timelines, and design documentation.</p>
+    </article>
+  </div>
+</section>
+    </main>
+
+    <footer class="footer page-shell">
+      <section class="site-footer-links" aria-label="Useful links">
+        <article class="site-footer-column">
+          <h2>School Links</h2>
+          <ul>
+            <li><a href="https://www.westlandhigh.school.nz/intranet/our-learning-sites/" target="_blank" rel="noopener noreferrer">Westland High School Learning Sites</a></li>
+            <li><a href="https://www.manaiakalani.org/" target="_blank" rel="noopener noreferrer">Manaiakalani</a></li>
+          </ul>
+        </article>
+
+        <article class="site-footer-column">
+          <h2>Student Links</h2>
+          <ul>
+            <li><a href="https://mystudentdashboard.com/" target="_blank" rel="noopener noreferrer">Hapara Student Dashboard</a></li>
+          </ul>
+        </article>
+
+        <article class="site-footer-column">
+          <h2>Learning Links</h2>
+          <ul>
+            <li><a href="https://www.nzqa.govt.nz/ncea/ncea/" target="_blank" rel="noopener noreferrer">NZQA Exam Hub</a></li>
+            <li><a href="https://studytime.co.nz/exams/" target="_blank" rel="noopener noreferrer">NCEA Past Papers</a></li>
+          </ul>
+        </article>
+      </section>
+
+      <div class="site-footer-updated" id="site-footer-updated">Last Updated:</div>
+    </footer>
+
+    <script>
+      (() => {
+        const lastUpdatedEl = document.getElementById("site-footer-updated");
+        if (!lastUpdatedEl) {
+          return;
+        }
+
+        const today = new Date();
+        const readableDate = today.toLocaleDateString(undefined, {
+          year: "numeric",
+          month: "long",
+          day: "numeric"
+        });
+
+        lastUpdatedEl.textContent = `Last Updated: ${readableDate}`;
+      })();
+    </script>
+  </body>
+</html>
