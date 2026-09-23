@@ -1,0 +1,35 @@
+<%- include('../partials/header') %>
+
+<section class="page-title">
+  <p class="eyebrow">ADMIN module</p>
+  <h1>Technology Hub Access</h1>
+  <p class="role-line">Assign individual Google-authenticated Students and Teachers to each discipline page.</p>
+</section>
+
+<section class="stats">
+  <article><strong><%= users.length %></strong><span>Users</span></article>
+  <article><strong><%= assignments %></strong><span>Area assignments</span></article>
+  <article><strong><%= areas.length %></strong><span>Discipline areas</span></article>
+</section>
+
+<section class="panel table-panel">
+  <% users.forEach((user) => { %>
+    <form class="row-form stacked" action="/admin/technology-hub/<%= user.id %>" method="post">
+      <div>
+        <strong><%= user.display_name %></strong>
+        <span><%= user.email %> · <%= user.roles.length ? user.roles.join(', ') : 'No Student/Teacher role' %></span>
+      </div>
+      <fieldset class="checks permissions">
+        <% areas.forEach((area) => { %>
+          <label>
+            <input type="checkbox" name="areaKeys" value="<%= area.key %>" <%= user.area_keys.includes(area.key) ? 'checked' : '' %>>
+            <span><%= area.label %></span>
+          </label>
+        <% }) %>
+      </fieldset>
+      <button class="button button-primary" type="submit">Save access</button>
+    </form>
+  <% }) %>
+</section>
+
+<%- include('../partials/footer') %>

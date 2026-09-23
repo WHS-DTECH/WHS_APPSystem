@@ -14,6 +14,7 @@ Unified Westland High School app shell for one Render Web Service, one Postgres 
 - Role-aware dashboards for `Staff`, `Teacher`, `Student`, and `ADMIN` users.
 - Direct teacher-to-module assignments managed by administrators.
 - Initial Learning Sites integration with public entry point and Google-authenticated Relief Planning and ADMIN routes.
+- Technology Hub public homepage with individually assigned Student and Teacher discipline access.
 - Initial Kamar Uploader module under the ADMIN dashboard, with term-aware PostgreSQL uploads and history.
 - Docker and Render Blueprint configuration.
 
@@ -63,6 +64,10 @@ Future systems should be added as modules first, then migrated into routes/contr
 ## Learning Sites module
 
 The public entry point is `/learning-sites`. Relief Planning is protected by the unified Google session and is available to `Teacher` and `ADMIN` users. Learning Site administration is protected by `ADMIN`. The legacy API-key and cookie mechanisms are not reused.
+
+## Technology Hub module
+
+The Technology Hub homepage is public at `/technology-hub`. Its four discipline pages require a Google-authenticated `Student` or `Teacher` user with an ADMIN-assigned area grant. ADMIN users can manage grants at `/admin/technology-hub`.
 
 ## Kamar Uploader module
 

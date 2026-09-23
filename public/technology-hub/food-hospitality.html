@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en-NZ">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Food and Hospitality | Westland High School Technology Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Lexend:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="icon" href="images/favicon.ico" type="image/x-icon" />
+  <link rel="stylesheet" href="discipline.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <a class="brand" href="index.html">
+        <small>WESTLAND HIGH SCHOOL</small>
+        <strong>Technology Hub</strong>
+      </a>
+      <nav class="topnav" aria-label="Primary">
+        <a href="index.html">Main Hub</a>
+        <a href="#weekly">This Week</a>
+        <a href="#next">What's Next</a>
+        <details class="topnav-dropdown">
+          <summary>Disciplines</summary>
+          <div class="dropdown-menu" role="menu" aria-label="Discipline pages">
+            <a href="textiles.html" role="menuitem">Textiles</a>
+            <a href="food-hospitality.html" role="menuitem">Food and Hospitality</a>
+            <a href="woodwork-furniture.html" role="menuitem">Woodwork and Furniture</a>
+            <a href="digital-technologies.html" role="menuitem">Digital Technologies</a>
+          </div>
+        </details>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <p class="kicker">DISCIPLINE SPACE</p>
+      <h1>Food and Hospitality</h1>
+      <p>
+        Track practical kitchen learning, hospitality routines, and class milestones for this week.
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="#weekly">View Weekly Learning</a>
+        <a class="btn btn-ghost" href="index.html#weekly">Back to Hub Snapshot</a>
+      </div>
+    </section>
+
+    <section id="weekly" class="section">
+      <h2>What is happening this week</h2>
+      <p class="section-intro">
+        Learners are planning and producing menu items with a focus on timing, teamwork, and safe kitchen workflow.
+      </p>
+      <div class="grid-2">
+        <article class="card">
+          <h3>Class focus</h3>
+          <ul>
+            <li>Year 9: knife skills and mise en place routines for soup and bread lab.</li>
+            <li>Year 10: small group cafe simulation with front-of-house roles.</li>
+            <li>Senior classes: adapt recipes to meet dietary requirements.</li>
+          </ul>
+          <p class="notice">Teacher focus: Food safety logging and communication during practical sessions.</p>
+        </article>
+        <article class="card">
+          <h3>Checkpoints</h3>
+          <div class="timeline">
+            <article>
+              <strong>Monday</strong>
+              <span>Kitchen station setup and hygiene checks.</span>
+            </article>
+            <article>
+              <strong>Thursday</strong>
+              <span>Pop-up tasting table for staff at interval.</span>
+            </article>
+            <article>
+              <strong>Friday</strong>
+              <span>Practical observation and reflection log due.</span>
+            </article>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="next" class="section">
+      <h2>Next steps and resources</h2>
+      <p class="section-intro">Review service feedback, refine presentation quality, and plan next menu cycle with class teams.</p>
+      <p class="updated-stamp" data-last-updated></p>
+    </section>
+  </main>
+
+  <footer class="container footer">
+    Westland High School | Food and Hospitality Discipline Space
+  </footer>
+  <script src="discipline.js"></script>
+</body>
+</html>

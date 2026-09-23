@@ -10,6 +10,7 @@ const { pool, query, runMigrations } = require('./db');
 const { ensureAuthenticated, ensureRole } = require('./middleware');
 const kamarUploader = require('./modules/kamarUploader');
 const learningSites = require('./modules/learningSites');
+const { adminRouter: technologyHubAdmin, publicRouter: technologyHubPublic } = require('./modules/technologyHub');
 
 const app = express();
 
@@ -21,7 +22,6 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300 }));
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json({ limit: '25mb' }));
-app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use(session({
   cookie: {
     httpOnly: true,
@@ -57,6 +57,9 @@ app.get('/healthz', (req, res) => {
 
 app.use('/admin/kamar-uploader', kamarUploader);
 app.use('/learning-sites', learningSites);
+app.use('/technology-hub', technologyHubPublic);
+app.use('/admin/technology-hub', technologyHubAdmin);
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.get('/', async (req, res, next) => {
   try {
