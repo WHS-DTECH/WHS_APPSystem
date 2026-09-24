@@ -3,6 +3,7 @@
 <section class="page-title">
   <p class="eyebrow">Administration</p>
   <h1>Assign User Roles</h1>
+  <p>Staff and Student access comes from the current Kamar Staff and Student lists. Use the controls below for additional roles, such as giving a Student Teacher access.</p>
 </section>
 
 <section class="panel table-panel">
@@ -11,6 +12,11 @@
       <div>
         <strong><%= user.display_name %></strong>
         <span><%= user.email %></span>
+        <div class="access-source-list">
+          <% if (user.is_kamar_staff) { %><span class="access-source">Kamar Staff</span><% } %>
+          <% if (user.is_kamar_student) { %><span class="access-source">Kamar Student</span><% } %>
+          <% if (!user.is_kamar_staff && !user.is_kamar_student) { %><span class="access-source access-source-public">Public</span><% } %>
+        </div>
       </div>
       <fieldset class="checks">
         <% roles.forEach((role) => { %>

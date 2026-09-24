@@ -1,6 +1,7 @@
 const express = require('express');
 const { pool, query } = require('../db');
 const { ensureAuthenticated, ensureRole } = require('../middleware');
+const { syncKamarRoles } = require('../roleSync');
 
 const router = express.Router();
 const MAX_ROWS = 1000;
@@ -195,6 +196,13 @@ router.post('/upload/:type', async (req, res) => {
                upload_run_id = EXCLUDED.upload_run_id, updated_at = NOW()`,
             [staffCode, valueByAliases(row, lookup, ['teachername', 'teacher_name', 'staffname', 'name']), JSON.stringify(timetable), meta.academicYear, meta.term, runId]
           );
+        }
+      }
+
+      if (type === 'staff' || type === 'students') {
+        const users = await client.query('SELECT id, email FROM users WHERE is_active = true');
+        for (const user of users.rows) {
+          await syncKamarRoles(client, user.id, user.email);
         }
       }
 

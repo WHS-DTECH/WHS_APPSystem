@@ -2,6 +2,7 @@ const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const config = require('./config');
 const { query } = require('./db');
+const { syncKamarRoles } = require('./roleSync');
 
 passport.serializeUser((user, done) => {
   done(null, user.id);
@@ -59,10 +60,12 @@ if (config.google.isConfigured) {
 
       const user = userResult.rows[0];
 
+      await syncKamarRoles({ query }, user.id, email);
+
       if (config.adminEmails.includes(email)) {
         await query(
-          `INSERT INTO user_roles (user_id, role_id)
-           SELECT $1, id FROM roles WHERE name IN ('ADMIN', 'Teacher', 'Student')
+          `INSERT INTO user_roles (user_id, role_id, assignment_source)
+           SELECT $1, id, 'system' FROM roles WHERE name = 'ADMIN'
            ON CONFLICT DO NOTHING`,
           [user.id]
         );

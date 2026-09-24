@@ -182,16 +182,19 @@ app.get('/admin', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, nex
 app.get('/admin/users', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
   try {
     const users = (await query(
-      `SELECT users.*, COALESCE(array_agg(roles.name) FILTER (WHERE roles.name IS NOT NULL), '{}') AS roles
+      `SELECT users.*,
+              COALESCE(array_agg(DISTINCT roles.name) FILTER (WHERE roles.name IS NOT NULL), '{}') AS roles,
+              EXISTS (SELECT 1 FROM kamar.staff WHERE LOWER(kamar.staff.email_school) = LOWER(users.email) AND kamar.staff.status = 'Current') AS is_kamar_staff,
+              EXISTS (SELECT 1 FROM kamar.students WHERE LOWER(kamar.students.email_school) = LOWER(users.email) AND kamar.students.status = 'Current') AS is_kamar_student
        FROM users
        LEFT JOIN user_roles ON user_roles.user_id = users.id
        LEFT JOIN roles ON roles.id = user_roles.role_id
        GROUP BY users.id
        ORDER BY users.email`
     )).rows;
-    const roles = (await query('SELECT * FROM roles ORDER BY name')).rows;
+     const roles = (await query("SELECT * FROM roles WHERE name NOT IN ('Staff', 'Student') ORDER BY name")).rows;
 
-    res.render('admin/users', { roles, title: 'Assign User Roles', users });
+     res.render('admin/users', { roles, title: 'Assign User Roles', users });
   } catch (error) {
     next(error);
   }
@@ -248,10 +251,19 @@ app.post('/admin/users/:userId/roles', ensureAuthenticated, ensureRole('ADMIN'),
         ? [req.body.roleIds]
         : [];
 
-    await query('DELETE FROM user_roles WHERE user_id = $1', [req.params.userId]);
+    const allowedRoleIds = (await query("SELECT id FROM roles WHERE name NOT IN ('Staff', 'Student')")).rows.map((role) => role.id);
+    const selectedRoleIds = roleIds.filter((roleId) => allowedRoleIds.includes(roleId));
 
-    for (const roleId of roleIds) {
-      await query('INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [req.params.userId, roleId]);
+    await query("DELETE FROM user_roles WHERE user_id = $1 AND assignment_source = 'manual'", [req.params.userId]);
+
+    for (const roleId of selectedRoleIds) {
+      await query(
+        `INSERT INTO user_roles (user_id, role_id, assignment_source)
+         VALUES ($1, $2, 'manual')
+         ON CONFLICT (user_id, role_id)
+         DO UPDATE SET assignment_source = EXCLUDED.assignment_source`,
+        [req.params.userId, roleId]
+      );
     }
 
     res.redirect('/admin/users');
