@@ -1,0 +1,25 @@
+<%- include('../partials/header') %>
+
+<section class="page-title">
+  <p class="eyebrow">ADMIN module</p>
+  <h1>Sewing Hub Access</h1>
+  <p class="role-line">Assign individual Google-authenticated users to the Student and Teacher activity views.</p>
+</section>
+
+<section class="panel table-panel">
+  <% users.forEach((user) => { %>
+    <form class="row-form stacked" action="/sewing-hub/admin/<%= user.id %>" method="post">
+      <div>
+        <strong><%= user.display_name %></strong>
+        <span><%= user.email %> · <%= user.roles.length ? user.roles.join(', ') : 'No Student/Teacher role' %></span>
+      </div>
+      <fieldset class="checks">
+        <label><input type="checkbox" name="accessLevels" value="student" <%= user.access_levels.includes('student') ? 'checked' : '' %>> Student access</label>
+        <label><input type="checkbox" name="accessLevels" value="teacher" <%= user.access_levels.includes('teacher') ? 'checked' : '' %>> Teacher access</label>
+      </fieldset>
+      <button class="button button-primary" type="submit">Save access</button>
+    </form>
+  <% }) %>
+</section>
+
+<%- include('../partials/footer') %>

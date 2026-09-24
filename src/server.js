@@ -11,6 +11,7 @@ const { ensureAuthenticated, ensureRole } = require('./middleware');
 const kamarUploader = require('./modules/kamarUploader');
 const learningSites = require('./modules/learningSites');
 const { adminRouter: technologyHubAdmin, publicRouter: technologyHubPublic } = require('./modules/technologyHub');
+const sewingHub = require('./modules/sewingHub');
 
 const app = express();
 
@@ -59,6 +60,7 @@ app.use('/admin/kamar-uploader', kamarUploader);
 app.use('/learning-sites', learningSites);
 app.use('/technology-hub', technologyHubPublic);
 app.use('/admin/technology-hub', technologyHubAdmin);
+app.use('/sewing-hub', sewingHub);
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.get('/', async (req, res, next) => {

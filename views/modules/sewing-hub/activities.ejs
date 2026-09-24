@@ -1,0 +1,15 @@
+<%- include('../../partials/header') %>
+
+<section class="page-title">
+  <p class="eyebrow">Student / Teacher module</p>
+  <h1>Sewing Hub Activities</h1>
+  <p class="role-line">Google access: <%= currentUser.roles.join(', ') %></p>
+</section>
+
+<section class="panel">
+  <h2>Your activity library is ready</h2>
+  <p>The legacy activity API is still being migrated into the unified PostgreSQL database. Your assigned access is confirmed.</p>
+  <a class="button button-primary" href="<%= legacyUrl %>" target="_blank" rel="noopener noreferrer">Open current activity library</a>
+</section>
+
+<%- include('../../partials/footer') %>

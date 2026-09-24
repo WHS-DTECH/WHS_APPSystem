@@ -15,6 +15,7 @@ Unified Westland High School app shell for one Render Web Service, one Postgres 
 - Direct teacher-to-module assignments managed by administrators.
 - Initial Learning Sites integration with public entry point and Google-authenticated Relief Planning and ADMIN routes.
 - Technology Hub public homepage with individually assigned Student and Teacher discipline access.
+- Sewing Hub public homepage with assigned Student and Teacher activity access.
 - Initial Kamar Uploader module under the ADMIN dashboard, with term-aware PostgreSQL uploads and history.
 - Docker and Render Blueprint configuration.
 
@@ -68,6 +69,10 @@ The public entry point is `/learning-sites`. Relief Planning is protected by the
 ## Technology Hub module
 
 The Technology Hub homepage is public at `/technology-hub`. Its four discipline pages require a Google-authenticated `Student` or `Teacher` user with an ADMIN-assigned area grant. ADMIN users can manage grants at `/admin/technology-hub`.
+
+## Sewing Hub module
+
+The Sewing Hub homepage is public at `/sewing-hub`. Activity access is available at `/sewing-hub/activities` only when the Google-authenticated user has both the matching `Student` or `Teacher` role and an ADMIN-granted Sewing Hub access level. ADMINs manage assignments at `/sewing-hub/admin`. The legacy activity API remains available as a temporary handoff until its data and image storage are migrated into the unified PostgreSQL-backed module.
 
 ## Kamar Uploader module
 
