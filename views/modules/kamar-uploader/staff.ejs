@@ -1,0 +1,62 @@
+<%- include('../../partials/header') %>
+
+<section class="page-title">
+  <p class="eyebrow">Kamar Uploader</p>
+  <h1>Staff Table</h1>
+  <p class="role-line">Search current and previous Staff records to investigate access or upload issues.</p>
+</section>
+
+<section class="panel">
+  <form class="staff-filter-form" method="get" action="/admin/kamar-uploader/staff">
+    <label>
+      Search name, email, or Kamar code
+      <input name="q" value="<%= search %>" placeholder="e.g. surname or email">
+    </label>
+    <label>
+      Status
+      <select name="status">
+        <option value="all" <%= status === 'all' ? 'selected' : '' %>>All records</option>
+        <option value="Current" <%= status === 'Current' ? 'selected' : '' %>>Current only</option>
+        <option value="Not Current" <%= status === 'Not Current' ? 'selected' : '' %>>Not Current only</option>
+      </select>
+    </label>
+    <button class="button button-primary" type="submit">Filter table</button>
+    <a class="button" href="/admin/kamar-uploader/staff">Clear</a>
+  </form>
+</section>
+
+<section class="panel table-panel">
+  <div class="section-heading">
+    <div>
+      <h2>Staff records</h2>
+      <p class="section-note"><%= staff.length %> record<%= staff.length === 1 ? '' : 's' %> shown.</p>
+    </div>
+    <a class="button" href="/admin/kamar-uploader">Back to Kamar Uploader</a>
+  </div>
+  <% if (!staff.length) { %>
+    <p>No staff records match the selected filters.</p>
+  <% } else { %>
+    <div class="table-scroll">
+      <table class="data-table staff-table">
+        <thead>
+          <tr><th>Status</th><th>Code</th><th>Staff member</th><th>Title</th><th>Email</th><th>Upload term</th><th>Upload date</th></tr>
+        </thead>
+        <tbody>
+          <% staff.forEach((person) => { %>
+            <tr>
+              <td><span class="staff-status staff-status-<%= person.status === 'Current' ? 'current' : 'past' %>"><%= person.status %></span></td>
+              <td><%= person.kamar_code %></td>
+              <td><%= person.last_name %>, <%= person.first_name %></td>
+              <td><%= person.title || '-' %></td>
+              <td><%= person.email_school || '-' %></td>
+              <td><%= person.academic_year %> <%= person.term %></td>
+              <td><%= new Date(person.upload_date).toLocaleString() %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</section>
+
+<%- include('../../partials/footer') %>

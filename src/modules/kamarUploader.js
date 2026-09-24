@@ -123,6 +123,35 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+router.get('/staff', async (req, res, next) => {
+  try {
+    const requestedStatus = String(req.query.status || 'all');
+    const status = ['Current', 'Not Current'].includes(requestedStatus) ? requestedStatus : 'all';
+    const search = String(req.query.q || '').trim();
+    const staff = (await query(
+      `SELECT staff.id, staff.kamar_code, staff.last_name, staff.first_name, staff.title,
+              staff.email_school, staff.status, staff.academic_year, staff.term,
+              staff.updated_at, runs.started_at AS upload_date
+       FROM kamar.staff staff
+       INNER JOIN kamar.upload_runs runs ON runs.id = staff.upload_run_id
+       WHERE ($1 = 'all' OR staff.status = $1)
+         AND ($2 = '' OR CONCAT_WS(' ', staff.first_name, staff.last_name, staff.email_school, staff.kamar_code) ILIKE '%' || $2 || '%')
+       ORDER BY CASE WHEN staff.status = 'Current' THEN 0 ELSE 1 END,
+                staff.last_name, staff.first_name, staff.email_school`,
+      [status, search]
+    )).rows;
+
+    res.render('modules/kamar-uploader/staff', {
+      search,
+      staff,
+      status,
+      title: 'Kamar Staff Table'
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.post('/upload/:type', async (req, res) => {
   const allowedTypes = ['staff', 'students', 'student_timetable', 'staff_timetable'];
   const type = String(req.params.type || '');
@@ -143,6 +172,7 @@ router.post('/upload/:type', async (req, res) => {
       const runId = await startRun(client, type, meta, req.user.id, rows.length);
 
       if (type === 'staff') {
+        await client.query("UPDATE kamar.staff SET status = 'Not Current', updated_at = NOW() WHERE status = 'Current'");
         for (const row of rows) {
           const staff = mapRow(row, lookup, STAFF_ALIASES);
           if (!staff.kamar_code) continue;
@@ -156,6 +186,7 @@ router.post('/upload/:type', async (req, res) => {
           );
         }
       } else if (type === 'students') {
+        await client.query("UPDATE kamar.students SET status = 'Not Current', updated_at = NOW() WHERE status = 'Current'");
         for (const row of rows) {
           const student = mapRow(row, lookup, STUDENT_ALIASES);
           if (!student.kamar_id) continue;
