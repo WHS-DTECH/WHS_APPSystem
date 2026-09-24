@@ -1,48 +1,15 @@
 <%- include('../../partials/header') %>
 
-<section class="hero">
-  <div class="hero-grid">
-    <div>
-      <p class="eyebrow">Student / Teacher module</p>
-      <h1>Sewing room<br>activity book</h1>
-      <p class="lede">Practical sewing and textiles activities, from hand stitching basics to garment construction and finishing techniques.</p>
-      <div class="hero-actions">
-        <a class="button button-primary" href="<%= legacyUrl %>" target="_blank" rel="noopener noreferrer">Open current activity library</a>
-      </div>
-    </div>
-    <aside class="hero-panel">
-      <strong>Student access</strong>
-      <div class="meta">
-        <span>Google access</span>
-        <span><%= currentUser.roles.join(', ') %></span>
-      </div>
-    </aside>
-  </div>
+<section class="page-title">
+  <p class="eyebrow">Student / Teacher module</p>
+  <h1>Sewing Hub Activities</h1>
+  <p class="role-line">Google access: <%= currentUser.roles.join(', ') %></p>
 </section>
 
 <section class="panel">
-  <h2>Activities Running This Week: 3–9 May</h2>
-  <div class="activity-wrap">
-    <article class="activity-card">
-      <div class="activity-header">
-        <div class="activity-chip">Material Sampler</div>
-        <div class="activity-chip">Sewing team activity</div>
-      </div>
-
-      <div class="activity-figure" aria-hidden="true"></div>
-
-      <div class="activity-copy">
-        <h3>Material Sampler</h3>
-        <div class="pill-row">
-          <span>Year 9</span>
-          <span>Fabric</span>
-          <span>Textiles</span>
-        </div>
-        <p>A sewing in plain bobbin is a collection of fabric pieces that show different stitches, textures and visual effects. Students can learn to evaluate the qualities of different materials and understand how fabric properties influence garment design and construction.</p>
-        <a class="button button-primary activity-cta" href="<%= legacyUrl %>" target="_blank" rel="noopener noreferrer">Access assessment task</a>
-      </div>
-    </article>
-  </div>
+  <h2>Your activity library is ready</h2>
+  <p>The legacy activity API is still being migrated into the unified PostgreSQL database. Your assigned access is confirmed.</p>
+  <a class="button button-primary" href="<%= legacyUrl %>" target="_blank" rel="noopener noreferrer">Open current activity library</a>
 </section>
 
 <%- include('../../partials/footer') %>

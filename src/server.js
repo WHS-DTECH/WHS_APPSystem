@@ -46,11 +46,9 @@ app.use(passport.session());
 app.use((req, res, next) => {
   res.locals.currentUser = req.user;
   res.locals.isAdmin = req.user?.roles?.includes('ADMIN') || false;
-  res.locals.activeRole = req.user
-    ? (req.user.roles.includes('ADMIN')
-      ? (req.query.view === 'student' ? 'Student' : req.query.view === 'teacher' ? 'Teacher' : 'ADMIN')
-      : req.user.roles.find((role) => ['Teacher', 'Student', 'Staff'].includes(role)) || 'Staff')
-    : 'public';
+  res.locals.activeRole = req.user?.roles?.includes('ADMIN')
+    ? (req.query.view === 'student' ? 'Student' : req.query.view === 'teacher' ? 'Teacher' : 'ADMIN')
+    : req.user?.roles?.find((role) => ['Teacher', 'Student', 'Staff'].includes(role)) || 'Staff';
   next();
 });
 

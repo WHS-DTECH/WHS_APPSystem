@@ -1,26 +1,15 @@
 <%- include('partials/header') %>
 
 <section class="hero">
-  <div class="hero-grid">
-    <div>
-      <p class="eyebrow">Westland High School</p>
-      <h1>One login for school app modules.</h1>
-      <p class="lede">Use your school Google account to access the unified WHS app system.</p>
-      <div class="hero-actions">
-        <% if (!currentUser) { %>
-          <a class="button button-primary" href="/auth/google">Sign in with Google</a>
-        <% } else { %>
-          <a class="button button-primary" href="/dashboard">Open dashboard</a>
-        <% } %>
-      </div>
-    </div>
-    <aside class="hero-panel">
-      <strong>School portal</strong>
-      <div class="meta">
-        <span>Shared access</span>
-        <span>Google login</span>
-      </div>
-    </aside>
+  <div>
+    <p class="eyebrow">Westland High School</p>
+    <h1>One login for school app modules.</h1>
+    <p class="lede">Use your school Google account to access the unified WHS app system.</p>
+    <% if (!currentUser) { %>
+      <a class="button button-primary" href="/auth/google">Sign in with Google</a>
+    <% } else { %>
+      <a class="button button-primary" href="/dashboard">Open dashboard</a>
+    <% } %>
   </div>
 </section>
 
