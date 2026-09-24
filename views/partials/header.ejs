@@ -8,21 +8,26 @@
 </head>
 <body class="<%= activeRole ? 'theme-' + activeRole.toLowerCase() : 'theme-public' %>">
   <header class="site-header">
-    <a class="brand" href="/">WHS APPSystem</a>
-    <nav class="nav">
-      <% if (currentUser) { %>
-        <a href="/dashboard">Dashboard</a>
-        <a href="/profile">Profile</a>
-        <% if (isAdmin) { %>
-          <a href="/admin">Admin</a>
+    <div class="site-header-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>WHS APPSystem</span>
+      </a>
+      <nav class="nav">
+        <% if (currentUser) { %>
+          <a href="/dashboard">Dashboard</a>
+          <a href="/profile">Profile</a>
+          <% if (isAdmin) { %>
+            <a href="/admin">Admin</a>
+          <% } %>
+          <span class="role-badge"><%= activeRole %></span>
+          <form action="/logout" method="post">
+            <button class="link-button" type="submit">Sign out</button>
+          </form>
+        <% } else { %>
+          <a class="button button-primary" href="/auth/google">Sign in with Google</a>
         <% } %>
-        <span class="role-badge"><%= activeRole %></span>
-        <form action="/logout" method="post">
-          <button class="link-button" type="submit">Sign out</button>
-        </form>
-      <% } else { %>
-        <a class="button button-primary" href="/auth/google">Sign in with Google</a>
-      <% } %>
-    </nav>
+      </nav>
+    </div>
   </header>
   <main class="page">
