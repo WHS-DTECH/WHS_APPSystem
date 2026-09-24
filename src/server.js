@@ -56,6 +56,14 @@ app.get('/healthz', (req, res) => {
   res.status(200).json({ ok: true });
 });
 
+app.get('/email-status', (req, res) => {
+  res.json({
+    enabled: config.email.gmail.isConfigured,
+    sender: config.email.gmail.senderEmail || null,
+    recipients: config.email.gmail.defaultRecipients
+  });
+});
+
 app.use('/admin/kamar-uploader', kamarUploader);
 app.use('/learning-sites', learningSites);
 app.use('/technology-hub', technologyHubPublic);

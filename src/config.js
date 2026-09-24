@@ -6,6 +6,10 @@ function getConfig() {
   const baseUrl = process.env.APP_BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const gmailClientId = process.env.GOOGLE_GMAIL_CLIENT_ID;
+  const gmailClientSecret = process.env.GOOGLE_GMAIL_CLIENT_SECRET;
+  const gmailRefreshToken = process.env.GOOGLE_GMAIL_REFRESH_TOKEN;
+  const gmailSenderEmail = process.env.GOOGLE_GMAIL_SENDER_EMAIL || process.env.GMAIL_SENDER_EMAIL;
 
   return {
     appBaseUrl: baseUrl.replace(/\/$/, ''),
@@ -14,6 +18,19 @@ function getConfig() {
       .map((email) => email.trim().toLowerCase())
       .filter(Boolean),
     databaseUrl: process.env.DATABASE_URL,
+    email: {
+      gmail: {
+        clientId: gmailClientId,
+        clientSecret: gmailClientSecret,
+        defaultRecipients: (process.env.GOOGLE_GMAIL_TO || process.env.GMAIL_TO || '')
+          .split(',')
+          .map((email) => email.trim())
+          .filter(Boolean),
+        isConfigured: Boolean(gmailClientId && gmailClientSecret && gmailRefreshToken && gmailSenderEmail),
+        refreshToken: gmailRefreshToken,
+        senderEmail: gmailSenderEmail
+      }
+    },
     google: {
       callbackUrl: process.env.GOOGLE_REDIRECT_URI || `${baseUrl.replace(/\/$/, '')}/auth/google/callback`,
       clientId,
