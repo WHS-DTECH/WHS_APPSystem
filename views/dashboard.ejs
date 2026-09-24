@@ -14,16 +14,116 @@
   </nav>
 <% } %>
 
-<section class="panel">
-  <h2>App modules</h2>
-  <div class="grid">
-    <% modules.forEach((module) => { %>
-      <a class="module-card" href="<%= module.path %>">
-        <strong><%= module.display_name %></strong>
-        <span><%= module.description || 'School app module' %></span>
-      </a>
-    <% }) %>
-  </div>
-</section>
+<% if (isAdmin && activeRole === 'ADMIN') { %>
+  <% const moduleByKey = Object.fromEntries(modules.map((module) => [module.module_key, module])); %>
+  <section class="admin-dashboard" aria-label="Administrator controls">
+    <div class="admin-dashboard-intro">
+      <div>
+        <p class="eyebrow">System command centre</p>
+        <h2>Administration at a glance</h2>
+        <p>Manage people, permissions, hubs, and supporting services from one organised view.</p>
+      </div>
+      <a class="button button-primary" href="/admin">Open admin centre</a>
+    </div>
+
+    <section class="admin-group">
+      <header class="admin-group-header">
+        <div>
+          <p class="eyebrow">Global controls</p>
+          <h2>People &amp; permissions</h2>
+        </div>
+        <span>Access decisions that apply across the application</span>
+      </header>
+      <div class="admin-card-grid">
+        <a class="admin-card" href="/admin/users">
+          <strong>Users &amp; global roles</strong>
+          <span>Assign system-wide roles such as Administrator, Teacher, Student, and Staff.</span>
+          <b>Manage users</b>
+        </a>
+        <a class="admin-card" href="/admin/hub-access">
+          <strong>Global Hub Access</strong>
+          <span>Give each person different roles in different hubs.</span>
+          <b>Assign hub roles</b>
+        </a>
+        <a class="admin-card" href="/admin/roles">
+          <strong>Role permissions</strong>
+          <span>Control the actions attached to global and hub-specific roles.</span>
+          <b>Manage permissions</b>
+        </a>
+        <a class="admin-card" href="/admin/teachers">
+          <strong>Teacher module access</strong>
+          <span>Review the modules currently assigned to teaching staff.</span>
+          <b>Review assignments</b>
+        </a>
+      </div>
+    </section>
+
+    <section class="admin-group admin-group-hubs">
+      <header class="admin-group-header">
+        <div>
+          <p class="eyebrow">Department spaces</p>
+          <h2>Hub Management</h2>
+        </div>
+        <span>Keep each hub's people, content, and permissions together</span>
+      </header>
+      <div class="admin-card-grid admin-hub-grid">
+        <% [
+          { key: 'technology-hub', adminPath: '/admin/technology-hub', label: 'Technology Hub', note: 'DTECH, Food, Textiles, and Woodwork access.' },
+          { key: 'sewing-hub', adminPath: '/sewing-hub/admin', label: 'Sewing Hub', note: 'Sewing activities, access, and future suggestions.' },
+          { key: 'learning-sites', adminPath: '/learning-sites/admin', label: 'Learning Sites', note: 'Learning content and relief planning administration.' }
+        ].forEach((hub) => { const module = moduleByKey[hub.key]; if (module) { %>
+          <article class="admin-card admin-hub-card">
+            <div class="admin-hub-card-heading">
+              <strong><%= hub.label %></strong>
+              <span class="admin-status">Active</span>
+            </div>
+            <span><%= hub.note %></span>
+            <div class="admin-card-actions">
+              <a href="<%= module.path %>">Open hub</a>
+              <a href="<%= hub.adminPath %>">Manage access</a>
+            </div>
+          </article>
+        <% } }); %>
+      </div>
+    </section>
+
+    <section class="admin-group">
+      <header class="admin-group-header">
+        <div>
+          <p class="eyebrow">Operations</p>
+          <h2>System &amp; data services</h2>
+        </div>
+        <span>Supporting services that keep the hubs running</span>
+      </header>
+      <div class="admin-card-grid admin-service-grid">
+        <% const serviceModules = [moduleByKey['kamar-uploader']].filter(Boolean); %>
+        <% serviceModules.forEach((module) => { %>
+          <a class="admin-card" href="<%= module.path %>">
+            <strong><%= module.display_name %></strong>
+            <span><%= module.description || 'School data service' %></span>
+            <b>Open service</b>
+          </a>
+        <% }); %>
+        <a class="admin-card" href="/email-status">
+          <strong>Email service</strong>
+          <span>Check the status of the shared Gmail notification foundation.</span>
+          <b>View status</b>
+        </a>
+      </div>
+    </section>
+  </section>
+<% } else { %>
+  <section class="panel">
+    <h2>App modules</h2>
+    <div class="grid">
+      <% modules.forEach((module) => { %>
+        <a class="module-card" href="<%= module.path %>">
+          <strong><%= module.display_name %></strong>
+          <span><%= module.description || 'School app module' %></span>
+        </a>
+      <% }) %>
+    </div>
+  </section>
+<% } %>
 
 <%- include('partials/footer') %>
