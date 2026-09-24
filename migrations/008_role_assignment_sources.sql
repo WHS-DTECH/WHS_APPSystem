@@ -32,5 +32,25 @@ WHERE assignments.role_id = roles.id
       AND kamar.students.status = 'Current'
   );
 
+INSERT INTO user_roles (user_id, role_id, assignment_source)
+SELECT users.id, roles.id, 'kamar'
+FROM users
+JOIN kamar.staff
+  ON LOWER(kamar.staff.email_school) = LOWER(users.email)
+ AND kamar.staff.status = 'Current'
+JOIN roles ON roles.name = 'Staff'
+ON CONFLICT (user_id, role_id)
+DO UPDATE SET assignment_source = EXCLUDED.assignment_source;
+
+INSERT INTO user_roles (user_id, role_id, assignment_source)
+SELECT users.id, roles.id, 'kamar'
+FROM users
+JOIN kamar.students
+  ON LOWER(kamar.students.email_school) = LOWER(users.email)
+ AND kamar.students.status = 'Current'
+JOIN roles ON roles.name = 'Student'
+ON CONFLICT (user_id, role_id)
+DO UPDATE SET assignment_source = EXCLUDED.assignment_source;
+
 CREATE INDEX IF NOT EXISTS user_roles_assignment_source_idx
   ON user_roles (user_id, assignment_source);
