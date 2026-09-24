@@ -25,4 +25,29 @@
   <% }) %>
 </section>
 
+<section class="page-title">
+  <p class="eyebrow">Hub-specific permissions</p>
+  <h2>Hub Role Permission Management</h2>
+</section>
+
+<section class="panel table-panel">
+  <% hubRoles.forEach((role) => { %>
+    <form class="row-form stacked" action="/admin/hub-roles/<%= role.id %>/permissions" method="post">
+      <div>
+        <strong><%= role.hub_key %> / <%= role.display_name %></strong>
+        <span><%= role.description %></span>
+      </div>
+      <fieldset class="checks permissions">
+        <% hubPermissions.filter((permission) => permission.hub_key === role.hub_key).forEach((permission) => { %>
+          <label>
+            <input type="checkbox" name="permissionIds" value="<%= permission.id %>" <%= role.permissions.includes(permission.permission_key) ? 'checked' : '' %>>
+            <span><%= permission.label %></span>
+          </label>
+        <% }) %>
+      </fieldset>
+      <button class="button" type="submit">Save hub permissions</button>
+    </form>
+  <% }) %>
+</section>
+
 <%- include('../partials/footer') %>

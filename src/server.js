@@ -262,17 +262,34 @@ app.post('/admin/users/:userId/roles', ensureAuthenticated, ensureRole('ADMIN'),
 
 app.get('/admin/roles', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
   try {
-    const roles = (await query(
+    const [rolesResult, permissionsResult, hubRolesResult, hubPermissionsResult] = await Promise.all([
+      query(
       `SELECT roles.*, COALESCE(array_agg(permissions.key) FILTER (WHERE permissions.key IS NOT NULL), '{}') AS permissions
        FROM roles
        LEFT JOIN role_permissions ON role_permissions.role_id = roles.id
        LEFT JOIN permissions ON permissions.id = role_permissions.permission_id
        GROUP BY roles.id
        ORDER BY roles.name`
-    )).rows;
-    const permissions = (await query('SELECT * FROM permissions ORDER BY module_key, key')).rows;
+      ),
+      query('SELECT * FROM permissions ORDER BY module_key, key'),
+      query(
+        `SELECT hub_roles.*, COALESCE(array_agg(hub_permissions.permission_key) FILTER (WHERE hub_permissions.permission_key IS NOT NULL), '{}') AS permissions
+         FROM hub_roles
+         LEFT JOIN hub_role_permissions ON hub_role_permissions.hub_role_id = hub_roles.id
+         LEFT JOIN hub_permissions ON hub_permissions.id = hub_role_permissions.hub_permission_id
+         GROUP BY hub_roles.id
+         ORDER BY hub_roles.hub_key, hub_roles.display_name`
+      ),
+      query('SELECT * FROM hub_permissions ORDER BY hub_key, permission_key')
+    ]);
 
-    res.render('admin/roles', { permissions, roles, title: 'Role Permission Management' });
+    res.render('admin/roles', {
+      hubPermissions: hubPermissionsResult.rows,
+      hubRoles: hubRolesResult.rows,
+      permissions: permissionsResult.rows,
+      roles: rolesResult.rows,
+      title: 'Role Permission Management'
+    });
   } catch (error) {
     next(error);
   }
@@ -293,6 +310,80 @@ app.post('/admin/roles/:roleId/permissions', ensureAuthenticated, ensureRole('AD
     }
 
     res.redirect('/admin/roles');
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/admin/hub-roles/:hubRoleId/permissions', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
+  try {
+    const permissionIds = Array.isArray(req.body.permissionIds)
+      ? req.body.permissionIds
+      : req.body.permissionIds
+        ? [req.body.permissionIds]
+        : [];
+
+    await query('DELETE FROM hub_role_permissions WHERE hub_role_id = $1', [req.params.hubRoleId]);
+
+    for (const permissionId of permissionIds) {
+      await query(
+        `INSERT INTO hub_role_permissions (hub_role_id, hub_permission_id)
+         SELECT $1, id FROM hub_permissions WHERE id = $2
+         ON CONFLICT DO NOTHING`,
+        [req.params.hubRoleId, permissionId]
+      );
+    }
+
+    res.redirect('/admin/roles');
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/admin/hub-access', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
+  try {
+    const [usersResult, hubRolesResult] = await Promise.all([
+      query(
+        `SELECT users.id, users.display_name, users.email,
+                COALESCE(array_agg(DISTINCT assignments.hub_role_id::text) FILTER (WHERE assignments.hub_role_id IS NOT NULL), '{}') AS hub_role_ids
+         FROM users
+         LEFT JOIN user_hub_roles assignments ON assignments.user_id = users.id AND assignments.area_key IS NULL
+         GROUP BY users.id
+         ORDER BY users.email`
+      ),
+      query('SELECT * FROM hub_roles ORDER BY hub_key, display_name')
+    ]);
+
+    res.render('admin/hub-access', {
+      hubRoles: hubRolesResult.rows,
+      title: 'Global Hub Access',
+      users: usersResult.rows
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/admin/hub-access/:userId', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
+  try {
+    const hubRoleIds = Array.isArray(req.body.hubRoleIds)
+      ? req.body.hubRoleIds
+      : req.body.hubRoleIds
+        ? [req.body.hubRoleIds]
+        : [];
+
+    await query('DELETE FROM user_hub_roles WHERE user_id = $1 AND area_key IS NULL', [req.params.userId]);
+
+    for (const hubRoleId of hubRoleIds) {
+      await query(
+        `INSERT INTO user_hub_roles (user_id, hub_role_id, granted_by)
+         SELECT $1, id, $2 FROM hub_roles WHERE id = $3
+         ON CONFLICT DO NOTHING`,
+        [req.params.userId, req.user.id, hubRoleId]
+      );
+    }
+
+    res.redirect('/admin/hub-access');
   } catch (error) {
     next(error);
   }

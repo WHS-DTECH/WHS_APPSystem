@@ -1,0 +1,29 @@
+<%- include('../partials/header') %>
+
+<section class="page-title">
+  <p class="eyebrow">Global administration</p>
+  <h1>Global Hub Access</h1>
+  <p>Assign different roles to the same person in different hubs. Existing Technology Hub area assignments remain managed separately.</p>
+</section>
+
+<section class="panel table-panel">
+  <% users.forEach((user) => { %>
+    <form class="row-form stacked" action="/admin/hub-access/<%= user.id %>" method="post">
+      <div>
+        <strong><%= user.display_name %></strong>
+        <span><%= user.email %></span>
+      </div>
+      <fieldset class="checks permissions">
+        <% hubRoles.forEach((role) => { %>
+          <label>
+            <input type="checkbox" name="hubRoleIds" value="<%= role.id %>" <%= user.hub_role_ids.includes(role.id) ? 'checked' : '' %>>
+            <span><%= role.hub_key %> / <%= role.display_name %></span>
+          </label>
+        <% }) %>
+      </fieldset>
+      <button class="button" type="submit">Save hub access</button>
+    </form>
+  <% }) %>
+</section>
+
+<%- include('../partials/footer') %>
