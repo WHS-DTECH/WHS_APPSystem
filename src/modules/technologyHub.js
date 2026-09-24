@@ -32,7 +32,15 @@ async function canViewArea(req, areaKey) {
 
 const publicRouter = express.Router();
 
-publicRouter.get(['/', '/index.html'], (req, res) => {
+publicRouter.get('/', (req, res) => {
+  if (req.originalUrl.endsWith('/')) {
+    return res.sendFile(path.join(publicDir, 'index.html'));
+  }
+
+  return res.redirect('/technology-hub/');
+});
+
+publicRouter.get('/index.html', (req, res) => {
   res.sendFile(path.join(publicDir, 'index.html'));
 });
 
