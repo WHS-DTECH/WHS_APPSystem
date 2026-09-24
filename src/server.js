@@ -75,16 +75,34 @@ app.get('/', async (req, res, next) => {
   }
 });
 
-app.get('/auth/google', passport.authenticate('google', {
-  hd: config.google.hostedDomain,
-  prompt: 'select_account',
-  scope: ['profile', 'email']
-}));
+app.get('/auth/google', (req, res, next) => {
+  if (!config.google.isConfigured) {
+    return res.status(503).render('error', {
+      title: 'Google login not configured',
+      message: 'Google OAuth is not configured yet. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET before attempting to sign in.'
+    });
+  }
 
-app.get('/auth/google/callback', passport.authenticate('google', {
-  failureRedirect: '/?login=failed',
-  successRedirect: '/dashboard'
-}));
+  return passport.authenticate('google', {
+    hd: config.google.hostedDomain,
+    prompt: 'select_account',
+    scope: ['profile', 'email']
+  })(req, res, next);
+});
+
+app.get('/auth/google/callback', (req, res, next) => {
+  if (!config.google.isConfigured) {
+    return res.status(503).render('error', {
+      title: 'Google login not configured',
+      message: 'Google OAuth is not configured yet. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET before attempting to sign in.'
+    });
+  }
+
+  return passport.authenticate('google', {
+    failureRedirect: '/?login=failed',
+    successRedirect: '/dashboard'
+  })(req, res, next);
+});
 
 app.post('/logout', ensureAuthenticated, (req, res, next) => {
   req.logout((error) => {
@@ -308,13 +326,18 @@ app.use((error, req, res, next) => {
 
 async function start() {
   for (const key of config.required) {
+    if (key === 'SESSION_SECRET' && !config.sessionSecret) {
+      console.warn('Missing environment variable: SESSION_SECRET or SECRET_KEY');
+      continue;
+    }
+
     if (!process.env[key]) {
       console.warn(`Missing environment variable: ${key}`);
     }
   }
 
-  if (!config.sessionSecret) {
-    console.warn('Missing environment variable: SESSION_SECRET or SECRET_KEY');
+  if (!config.google.isConfigured) {
+    console.warn('Google OAuth is not configured: set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET');
   }
 
   if (config.databaseUrl) {

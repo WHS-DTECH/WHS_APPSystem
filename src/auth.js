@@ -25,52 +25,54 @@ passport.deserializeUser(async (id, done) => {
   }
 });
 
-passport.use(new GoogleStrategy({
-  callbackURL: config.google.callbackUrl,
-  clientID: config.google.clientId,
-  clientSecret: config.google.clientSecret,
-  passReqToCallback: false
-}, async (accessToken, refreshToken, profile, done) => {
-  try {
-    const email = profile.emails?.[0]?.value?.toLowerCase();
+if (config.google.isConfigured) {
+  passport.use(new GoogleStrategy({
+    callbackURL: config.google.callbackUrl,
+    clientID: config.google.clientId,
+    clientSecret: config.google.clientSecret,
+    passReqToCallback: false
+  }, async (accessToken, refreshToken, profile, done) => {
+    try {
+      const email = profile.emails?.[0]?.value?.toLowerCase();
 
-    if (!email) {
-      return done(null, false, { message: 'Google account did not provide an email address.' });
-    }
+      if (!email) {
+        return done(null, false, { message: 'Google account did not provide an email address.' });
+      }
 
-    if (config.google.hostedDomain && profile._json?.hd !== config.google.hostedDomain) {
-      return done(null, false, { message: 'This Google account is not in the allowed school domain.' });
-    }
+      if (config.google.hostedDomain && profile._json?.hd !== config.google.hostedDomain) {
+        return done(null, false, { message: 'This Google account is not in the allowed school domain.' });
+      }
 
-    const userResult = await query(
-      `INSERT INTO users (google_id, email, display_name, avatar_url, last_login_at)
-       VALUES ($1, $2, $3, $4, NOW())
-       ON CONFLICT (email)
-       DO UPDATE SET
-         google_id = EXCLUDED.google_id,
-         display_name = EXCLUDED.display_name,
-         avatar_url = EXCLUDED.avatar_url,
-         last_login_at = NOW(),
-         updated_at = NOW()
-       RETURNING *`,
-      [profile.id, email, profile.displayName, profile.photos?.[0]?.value || null]
-    );
-
-    const user = userResult.rows[0];
-
-    if (config.adminEmails.includes(email)) {
-      await query(
-        `INSERT INTO user_roles (user_id, role_id)
-         SELECT $1, id FROM roles WHERE name IN ('ADMIN', 'Teacher', 'Student')
-         ON CONFLICT DO NOTHING`,
-        [user.id]
+      const userResult = await query(
+        `INSERT INTO users (google_id, email, display_name, avatar_url, last_login_at)
+         VALUES ($1, $2, $3, $4, NOW())
+         ON CONFLICT (email)
+         DO UPDATE SET
+           google_id = EXCLUDED.google_id,
+           display_name = EXCLUDED.display_name,
+           avatar_url = EXCLUDED.avatar_url,
+           last_login_at = NOW(),
+           updated_at = NOW()
+         RETURNING *`,
+        [profile.id, email, profile.displayName, profile.photos?.[0]?.value || null]
       );
-    }
 
-    return done(null, user);
-  } catch (error) {
-    return done(error);
-  }
-}));
+      const user = userResult.rows[0];
+
+      if (config.adminEmails.includes(email)) {
+        await query(
+          `INSERT INTO user_roles (user_id, role_id)
+           SELECT $1, id FROM roles WHERE name IN ('ADMIN', 'Teacher', 'Student')
+           ON CONFLICT DO NOTHING`,
+          [user.id]
+        );
+      }
+
+      return done(null, user);
+    } catch (error) {
+      return done(error);
+    }
+  }));
+}
 
 module.exports = passport;
