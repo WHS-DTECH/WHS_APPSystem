@@ -18,6 +18,7 @@ function getConfig() {
       .map((email) => email.trim().toLowerCase())
       .filter(Boolean),
     databaseUrl: process.env.DATABASE_URL,
+    legacySewingDatabaseUrl: process.env.INTEGRATION_SEWING_HUB_DATABASE_URL,
     email: {
       gmail: {
         clientId: gmailClientId,

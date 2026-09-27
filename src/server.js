@@ -7,6 +7,7 @@ const path = require('path');
 const config = require('./config');
 const passport = require('./auth');
 const { pool, query, runMigrations } = require('./db');
+const { importLegacySewingActivities } = require('./legacySewingImport');
 const { ensureAuthenticated, ensureRole } = require('./middleware');
 const kamarUploader = require('./modules/kamarUploader');
 const learningSites = require('./modules/learningSites');
@@ -456,6 +457,11 @@ async function start() {
 
   if (config.databaseUrl) {
     await runMigrations();
+    try {
+      await importLegacySewingActivities();
+    } catch (error) {
+      console.error('Legacy Sewing Hub import skipped:', error.message);
+    }
   }
 
   app.listen(config.port, () => {
