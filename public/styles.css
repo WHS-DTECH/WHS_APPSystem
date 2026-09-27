@@ -653,6 +653,129 @@ dd {
   margin-bottom: 0.55rem;
 }
 
+body.sewing-hub-legacy-body {
+  background: #f1e9f7;
+  color: #2d2241;
+  font-family: "Segoe UI", Tahoma, sans-serif;
+}
+
+.legacy-sewing-hub {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 1.5rem 0 2rem;
+}
+
+.legacy-sewing-header {
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.legacy-sewing-header h1 {
+  margin: 0;
+  font-size: clamp(2.1rem, 4vw, 3.7rem);
+  color: #2b2240;
+}
+
+.legacy-sewing-header .eyebrow {
+  margin: 0 0 0.35rem;
+}
+
+.legacy-sewing-button,
+.legacy-primary-button,
+.legacy-secondary-button {
+  border-radius: 999px;
+  border: 1px solid #765c98;
+  cursor: pointer;
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.legacy-sewing-button,
+.legacy-secondary-button {
+  background: #fff;
+  color: #2d2241;
+  padding: 0.72rem 1.2rem;
+}
+
+.legacy-primary-button {
+  background: linear-gradient(135deg, #7c5ab4, #5d3b88);
+  color: #fff;
+  border-color: #5d3b88;
+  padding: 0.8rem 1.4rem;
+}
+
+.legacy-sewing-panel {
+  background: rgba(255,255,255,0.35);
+  border: 1px solid #d9cfe8;
+  border-radius: 18px;
+  padding: 1.5rem 1.25rem;
+}
+
+.legacy-sewing-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.legacy-sewing-hero h2 {
+  margin: 0;
+  font-size: clamp(2rem, 3vw, 3.2rem);
+  color: #2a2140;
+}
+
+.legacy-sewing-links {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.legacy-sewing-links a {
+  color: #2a2140;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.legacy-sewing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.legacy-sewing-card {
+  background: rgba(255,255,255,0.45);
+  border: 1px solid #d6cce7;
+  border-radius: 14px;
+  padding: 1rem;
+}
+
+.legacy-sewing-card h3 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  color: #2b2240;
+}
+
+.legacy-sewing-card p {
+  margin: 0;
+  color: #4f4760;
+}
+
+.legacy-sewing-actions {
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
 .checks {
   border: 0;
   display: flex;

@@ -5,7 +5,14 @@ const { ensureAuthenticated, ensureRole } = require('../middleware');
 const router = express.Router();
 
 router.get('/', (req, res) => {
-  res.render('modules/sewing-hub/index', { title: 'Sewing Hub' });
+  res.redirect('/sewing-hub/index.html');
+});
+
+router.get('/index.html', (req, res) => {
+  res.render('modules/sewing-hub/index', {
+    legacySewingHubLayout: true,
+    title: 'Sewing Hub'
+  });
 });
 
 router.get('/activities', ensureAuthenticated, async (req, res, next) => {
