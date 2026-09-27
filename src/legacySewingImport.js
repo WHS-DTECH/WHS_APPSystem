@@ -85,10 +85,18 @@ async function importLegacySewingActivities() {
 
   try {
     const hasHubSite = await hasColumn(sourcePool, 'hub_site');
-    const sourceColumns = [...activityColumns, ...(hasHubSite ? ['hub_site'] : ['hub'])];
-    const hubCondition = hasHubSite
-      ? `(UPPER(BTRIM(COALESCE(hub_site, ''))) = ANY($1) OR UPPER(BTRIM(COALESCE(hub, ''))) = ANY($1))`
-      : `UPPER(BTRIM(COALESCE(hub, ''))) = ANY($1)`;
+    const hasHub = await hasColumn(sourcePool, 'hub');
+    const sourceColumns = [...activityColumns, ...(hasHubSite ? ['hub_site'] : []), ...(hasHub ? ['hub'] : [])];
+    const hubColumns = [
+      hasHubSite ? `UPPER(BTRIM(COALESCE(hub_site, ''))) = ANY($1)` : null,
+      hasHub ? `UPPER(BTRIM(COALESCE(hub, ''))) = ANY($1)` : null
+    ].filter(Boolean);
+
+    if (!hubColumns.length) {
+      throw new Error('Legacy activities table has no hub identifier column');
+    }
+
+    const hubCondition = `(${hubColumns.join(' OR ')})`;
     const sourceResult = await sourcePool.query(
       `SELECT ${sourceColumns.join(', ')}
        FROM activities
