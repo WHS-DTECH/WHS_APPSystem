@@ -102,6 +102,30 @@ a {
   max-width: 880px;
 }
 
+.kamar-legacy-hero {
+  margin-bottom: 1.25rem;
+}
+
+.kamar-legacy-hero .role-line {
+  color: var(--muted);
+  font-size: 1.05rem;
+  max-width: 760px;
+}
+
+.kamar-legacy-stats {
+  margin-top: 0.75rem;
+}
+
+.kamar-legacy-stats article {
+  min-height: 110px;
+  display: grid;
+  align-content: center;
+}
+
+.kamar-legacy-stats strong {
+  font-size: clamp(2rem, 3vw, 2.4rem);
+}
+
 .lede {
   color: var(--muted);
   font-size: 1.25rem;

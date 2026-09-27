@@ -5,8 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><%= title %> | WHS APPSystem</title>
   <link rel="stylesheet" href="/styles.css">
+  <% if (typeof legacyKamarLayout !== 'undefined' && legacyKamarLayout) { %>
+    <link rel="stylesheet" href="/kamar-legacy.css">
+  <% } %>
 </head>
-<body class="<%= activeRole ? 'theme-' + activeRole.toLowerCase() : 'theme-public' %>">
+<body class="<%= typeof legacyKamarLayout !== 'undefined' && legacyKamarLayout ? 'home-body' : (activeRole ? 'theme-' + activeRole.toLowerCase() : 'theme-public') %>">
   <header class="site-header">
     <a class="brand" href="/">WHS APPSystem</a>
     <nav class="nav">

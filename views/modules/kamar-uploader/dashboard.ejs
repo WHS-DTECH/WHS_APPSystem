@@ -1,73 +1,121 @@
 <%- include('../../partials/header') %>
 
-<section class="page-title">
-  <p class="eyebrow">ADMIN module</p>
-  <h1>Kamar Uploader</h1>
-  <p class="role-line">Termly refreshes for Staff, Students, and Timetables. Data is written directly to PostgreSQL.</p>
-</section>
-
-<section class="stats">
-  <article><strong><%= counts.staff %></strong><span>Current staff</span></article>
-  <article><strong><%= counts.students %></strong><span>Current students</span></article>
-  <article><strong><%= counts.student_timetables %></strong><span>Student timetables</span></article>
-  <article><strong><%= counts.staff_timetables %></strong><span>Staff timetables</span></article>
-</section>
-
-<section class="panel">
-  <div class="section-heading">
-    <div>
-      <h2>Database uploads</h2>
-      <p class="section-note">Uploading a new Staff or Student list marks the previous current list as Not Current.</p>
+<nav class="top-nav" aria-label="Kamar uploader navigation">
+  <div class="top-nav-inner">
+    <div class="top-nav-links">
+      <a href="/">Home</a>
+      <a href="/admin/kamar-uploader/staff">Staff Upload</a>
+      <a href="/admin/kamar-uploader/staff">Student Upload</a>
+      <a href="/admin/kamar-uploader/staff">Student Timetable</a>
+      <a href="/admin/kamar-uploader/staff">Staff Timetable</a>
+      <a href="/admin">Admin</a>
     </div>
-    <a class="button" href="/admin/kamar-uploader/staff">View Staff Table</a>
+    <div class="top-nav-user">
+      <% if (currentUser) { %>
+        <span class="top-nav-user-chip"><%= currentUser.display_name || currentUser.email %></span>
+        <form action="/logout" method="post" style="display:inline; margin:0;">
+          <button class="top-nav-signout" type="submit">Sign out</button>
+        </form>
+      <% } else { %>
+        <a class="top-nav-signin-link" href="/auth/google">Sign in</a>
+      <% } %>
+    </div>
   </div>
-  <div class="kamar-upload-grid">
-    <% [
-      ['staff', 'Staff records', 'Reporting staff list from Kamar.'],
-      ['students', 'Student records', 'Student list and school email details.'],
-      ['student_timetable', 'Student timetables', 'Student timetable summary rows.'],
-      ['staff_timetable', 'Staff timetables', 'Teacher timetable summary rows.']
-    ].forEach(([type, label, description]) => { %>
-      <form class="kamar-upload-card" data-upload-type="<%= type %>">
-        <h3><%= label %></h3>
-        <p><%= description %></p>
-        <label>CSV file<input type="file" name="file" accept=".csv,text/csv" required></label>
-        <div class="kamar-meta-fields">
-          <label>Year<input name="academicYear" type="number" min="2000" max="2100" value="<%= new Date().getFullYear() %>" required></label>
-          <label>Term<select name="term" required><option>Term 1</option><option>Term 2</option><option>Term 3</option><option>Term 4</option></select></label>
+</nav>
+
+<main class="home-shell">
+  <section class="hero-panel">
+    <div class="hero-text-wrap">
+      <p class="hero-kicker">Westland High School</p>
+      <h1>Kamar Uploader Dashboard</h1>
+      <p class="hero-subtitle">One place to monitor Staff, Student, and Timetable uploads, with secure Google sign-in for school accounts.</p>
+      <div class="hero-actions">
+        <a class="hero-link" href="/admin/kamar-uploader/staff">Open Staff Upload</a>
+        <a class="hero-link" href="/admin/kamar-uploader/staff">Open Student Timetable</a>
+        <a class="hero-link" href="/admin/kamar-uploader/staff">Open Staff Timetable</a>
+      </div>
+    </div>
+    <div class="hero-auth-card">
+      <% if (currentUser) { %>
+        <h2>Signed in</h2>
+        <p>Google sign-in complete.</p>
+        <div class="current-user-panel">
+          <strong><%= currentUser.display_name || currentUser.email %></strong>
+          <span><%= currentUser.email %></span>
+          <span>Role: <%= activeRole || 'ADMIN' %></span>
+          <span>Staff record: Yes</span>
+          <span>Student record: No</span>
         </div>
-        <button class="button button-primary" type="submit">Upload to database</button>
-        <output class="kamar-upload-status" aria-live="polite"></output>
-      </form>
-    <% }) %>
-  </div>
-</section>
-
-<section class="panel table-panel">
-  <h2>Recent upload runs</h2>
-  <% if (!runs.length) { %>
-    <p>No Kamar uploads have been recorded yet.</p>
-  <% } else { %>
-    <div class="table-scroll">
-      <table class="data-table">
-        <thead><tr><th>Type</th><th>Term</th><th>Rows</th><th>Status</th><th>Started</th></tr></thead>
-        <tbody>
-          <% runs.forEach((run) => { %>
-            <tr>
-              <td><%= run.upload_type %></td>
-              <td><%= run.academic_year %> <%= run.term %></td>
-              <td><%= run.row_count %></td>
-              <td><%= run.status %></td>
-              <td><%= new Date(run.started_at).toLocaleString() %></td>
-            </tr>
-          <% }) %>
-        </tbody>
-      </table>
+      <% } else { %>
+        <h2>Sign in</h2>
+        <p>Google sign-in complete.</p>
+        <a class="top-nav-signin-link" href="/auth/google">Sign in with Google</a>
+      <% } %>
     </div>
-  <% } %>
-</section>
+  </section>
 
-<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.3/papaparse.min.js"></script>
-<script src="/kamar-uploader.js"></script>
+  <section class="stats-grid" aria-label="Current upload stats">
+    <article class="stat-card">
+      <h3>Staff</h3>
+      <p class="stat-number"><%= counts.staff %></p>
+      <p class="stat-meta">Total: <%= counts.staff %> | Last upload: <%= new Date(runs[0]?.started_at || Date.now()).toLocaleDateString() %></p>
+    </article>
+    <article class="stat-card">
+      <h3>Students</h3>
+      <p class="stat-number"><%= counts.students %></p>
+      <p class="stat-meta">Total: <%= counts.students %> | Last upload: <%= new Date(runs[0]?.started_at || Date.now()).toLocaleDateString() %></p>
+    </article>
+    <article class="stat-card">
+      <h3>Timetables</h3>
+      <p class="stat-number"><%= counts.student_timetables + counts.staff_timetables %></p>
+      <p class="stat-meta">Last upload: <%= new Date(runs[0]?.started_at || Date.now()).toLocaleDateString() %></p>
+    </article>
+    <article class="stat-card">
+      <h3>Last Refresh</h3>
+      <p class="stat-number"><%= runs[0] ? new Date(runs[0].started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—' %></p>
+      <p class="stat-meta">Server generated timestamp</p>
+    </article>
+  </section>
+
+  <section class="dashboard-panels">
+    <article class="panel">
+      <h2>Upload Paths</h2>
+      <ul class="panel-list">
+        <li>Staff Upload for teacher/staff records.</li>
+        <li>Student Upload for StudentList data and school emails.</li>
+        <li>Student Timetable Upload for class timetable rows.</li>
+        <li>Staff Timetable Upload for teacher timetable sheets.</li>
+      </ul>
+    </article>
+    <article class="panel">
+      <h2>Signed-in User</h2>
+      <div class="current-user-panel">
+        <% if (currentUser) { %>
+          <strong><%= currentUser.display_name || currentUser.email %></strong>
+          <span><%= currentUser.email %></span>
+          <span>Role: <%= activeRole || 'ADMIN' %></span>
+          <span>Staff record: Yes</span>
+          <span>Student record: No</span>
+        <% } else { %>
+          <span>Not signed in.</span>
+        <% } %>
+      </div>
+    </article>
+  </section>
+
+  <section class="project-links-panel" aria-label="WHS projects using Kamar data">
+    <div class="project-links-header">
+      <div>
+        <h2>WHS Projects Using Kamar Data</h2>
+        <p>Quick links to projects that depend on this uploader data.</p>
+      </div>
+    </div>
+    <div class="project-links-list">
+      <div class="project-link-card">
+        <p class="project-link-card-title">No linked projects yet.</p>
+      </div>
+    </div>
+  </section>
+</main>
 
 <%- include('../../partials/footer') %>

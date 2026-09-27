@@ -115,6 +115,7 @@ router.get('/', async (req, res, next) => {
 
     res.render('modules/kamar-uploader/dashboard', {
       counts: counts.rows[0],
+      legacyKamarLayout: true,
       runs: runs.rows,
       title: 'Kamar Uploader'
     });
