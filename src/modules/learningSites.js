@@ -8,11 +8,19 @@ router.get('/', (req, res) => {
 });
 
 router.get('/relief-planning', ensureAuthenticated, ensureRole('Teacher'), (req, res) => {
-  res.render('modules/learning-sites/relief-planning', { title: 'Relief Planning' });
+  res.render('modules/learning-sites/relief-planning', {
+    legacyLearningSitesLayout: true,
+    pageClass: 'learning-sites-legacy',
+    title: 'Relief Planning'
+  });
 });
 
 router.get('/admin', ensureAuthenticated, ensureRole('ADMIN'), (req, res) => {
-  res.render('modules/learning-sites/admin', { title: 'Learning Sites Administration' });
+  res.render('modules/learning-sites/admin', {
+    legacyLearningSitesLayout: true,
+    pageClass: 'learning-sites-legacy',
+    title: 'Learning Sites Administration'
+  });
 });
 
 module.exports = router;

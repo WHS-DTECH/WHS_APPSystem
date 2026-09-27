@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="/kamar-legacy.css">
   <% } %>
 </head>
-<body class="<%= typeof legacyKamarLayout !== 'undefined' && legacyKamarLayout ? 'home-body' : (activeRole ? 'theme-' + activeRole.toLowerCase() : 'theme-public') %>">
+<body class="<%= typeof legacyLearningSitesLayout !== 'undefined' && legacyLearningSitesLayout ? 'learning-sites-legacy-body' : (typeof legacyKamarLayout !== 'undefined' && legacyKamarLayout ? 'home-body' : (activeRole ? 'theme-' + activeRole.toLowerCase() : 'theme-public')) %>">
   <header class="site-header">
     <a class="brand" href="/">WHS APPSystem</a>
     <nav class="nav">

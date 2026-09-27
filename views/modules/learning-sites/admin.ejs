@@ -1,18 +1,222 @@
 <%- include('../../partials/header') %>
 
-<section class="page-title">
-  <p class="eyebrow">ADMIN module</p>
-  <h1>Learning Sites Administration</h1>
-  <p class="role-line">Protected by the unified Google login and ADMIN role.</p>
-</section>
-
-<section class="panel">
-  <h2>Migration boundary</h2>
-  <p>The legacy API-key administration surface is being replaced by the unified ADMIN area. Course content, statements, and Relief Planning data will be moved into shared PostgreSQL tables before the old service is retired.</p>
-  <div class="view-switcher">
-    <a class="button button-primary" href="/admin">Return to ADMIN dashboard</a>
-    <a class="button" href="/learning-sites">Open public entry point</a>
+<div class="learning-sites-legacy">
+  <div class="legacy-header">
+    <h1>HOD Update Dashboard</h1>
+    <button type="button" class="legacy-ghost-button">Sign out</button>
   </div>
-</section>
+
+  <p class="legacy-subtitle">Track Term 1 and Term 3 completion for assessments, PDF statement, safety/practical updates, and topic buttons.</p>
+
+  <div class="legacy-filter-row">
+    <label>
+      <span>Year</span>
+      <select><option>2026</option></select>
+    </label>
+    <label>
+      <span>Term</span>
+      <select><option>T1</option></select>
+    </label>
+    <label>
+      <span>Subject</span>
+      <select><option>All</option></select>
+    </label>
+    <label>
+      <span>Status</span>
+      <select><option>All</option></select>
+    </label>
+    <button type="button" class="legacy-primary-button">Refresh</button>
+  </div>
+
+  <div class="legacy-summary-grid">
+    <div class="legacy-stat-card">
+      <span>Total courses</span>
+      <strong>34</strong>
+    </div>
+    <div class="legacy-stat-card success">
+      <span>Courses complete</span>
+      <strong>1</strong>
+    </div>
+    <div class="legacy-stat-card warning">
+      <span>Courses incomplete</span>
+      <strong>33</strong>
+    </div>
+  </div>
+
+  <div class="legacy-tab-row">
+    <button type="button" class="legacy-tab active">Course Status</button>
+    <button type="button" class="legacy-tab">Uploader</button>
+  </div>
+
+  <section class="legacy-panel table-panel">
+    <h2>Course Status</h2>
+    <div class="legacy-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Course</th>
+            <th>Subject</th>
+            <th>Assessment List</th>
+            <th>Topic Buttons</th>
+            <th>PDF Statement</th>
+            <th>Health &amp; Safety</th>
+            <th>Practical Skills</th>
+            <th>Dashboard</th>
+            <th>Updated by</th>
+            <th>Notes</th>
+            <th>Save</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>11COMP<br><small>Year 11 Computing</small></td>
+            <td>COMP</td>
+            <td><span class="status status-fail">×</span></td>
+            <td><span class="status status-fail">×</span></td>
+            <td><span class="status status-pass">✓</span></td>
+            <td><span class="status status-pass">✓</span></td>
+            <td><span class="status status-pass">✓</span></td>
+            <td><span class="badge amber">AMBER</span></td>
+            <td>Unknown staff</td>
+            <td><input type="text" value="Optional note" aria-label="Optional note"></td>
+            <td><button type="button" class="save-button">Save</button></td>
+          </tr>
+          <tr>
+            <td>12COMP<br><small>Year 12 Computing</small></td>
+            <td>COMP</td>
+            <td><span class="status status-fail">×</span></td>
+            <td><span class="status status-fail">×</span></td>
+            <td><span class="status status-pass">✓</span></td>
+            <td><span class="status status-pass">✓</span></td>
+            <td><span class="status status-pass">✓</span></td>
+            <td><span class="badge amber">AMBER</span></td>
+            <td>Unknown staff</td>
+            <td><input type="text" value="Optional note" aria-label="Optional note"></td>
+            <td><button type="button" class="save-button">Save</button></td>
+          </tr>
+          <tr>
+            <td>13COMP<br><small>Year 13 Computing</small></td>
+            <td>COMP</td>
+            <td><span class="status status-fail">×</span></td>
+            <td><span class="status status-fail">×</span></td>
+            <td><span class="status status-pass">✓</span></td>
+            <td><span class="status status-pass">✓</span></td>
+            <td><span class="status status-pass">✓</span></td>
+            <td><span class="badge amber">AMBER</span></td>
+            <td>Unknown staff</td>
+            <td><input type="text" value="Optional note" aria-label="Optional note"></td>
+            <td><button type="button" class="save-button">Save</button></td>
+          </tr>
+          <tr>
+            <td>11DTECH<br><small>Year 11 Digital Tech</small></td>
+            <td>DTECH</td>
+            <td><span class="status status-pass">✓</span></td>
+            <td><span class="status status-pass">✓</span></td>
+            <td><span class="status status-pass">✓</span></td>
+            <td><span class="status status-pass">✓</span></td>
+            <td><span class="status status-pass">✓</span></td>
+            <td><span class="badge green">GREEN</span></td>
+            <td>Unknown staff</td>
+            <td><input type="text" value="Optional note" aria-label="Optional note"></td>
+            <td><button type="button" class="save-button">Save</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="legacy-plan-panel">
+    <div class="legacy-plan-header-row">
+      <h2>Relief Plan</h2>
+      <button class="legacy-ghost-button" type="button">Sign out</button>
+    </div>
+
+    <div class="legacy-plan-intro">
+      <h3>2027 technology events, observations, and planning anchors from the reliever calendar.</h3>
+      <p>136 events loaded for 2027.</p>
+    </div>
+
+    <div class="legacy-plan-controls">
+      <button type="button" class="legacy-chip">Previous month</button>
+      <button type="button" class="legacy-chip">Today</button>
+      <input type="date" value="2026-09-01" aria-label="Month start date">
+      <button type="button" class="legacy-chip">Next month</button>
+    </div>
+
+    <div class="legacy-calendar-header">September 2026</div>
+
+    <div class="legacy-calendar" aria-label="Relief plan calendar">
+      <div class="day-header">Mon</div>
+      <div class="day-header">Tue</div>
+      <div class="day-header">Wed</div>
+      <div class="day-header">Thu</div>
+      <div class="day-header">Fri</div>
+      <div class="day-header">Sat</div>
+      <div class="day-header">Sun</div>
+
+      <div class="day-cell"><span class="day-number">1</span><span class="empty">No events</span></div>
+      <div class="day-cell"><span class="day-number">2</span><span class="event-pill purple">International Literacy Day</span></div>
+      <div class="day-cell"><span class="day-number">3</span><span class="empty">No events</span></div>
+      <div class="day-cell"><span class="day-number">4</span><span class="empty">No events</span></div>
+      <div class="day-cell"><span class="day-number">5</span><span class="empty">No events</span></div>
+      <div class="day-cell"><span class="day-number">6</span><span class="empty">No events</span></div>
+      <div class="day-cell"><span class="day-number">7</span><span class="event-pill purple">Father's Day</span></div>
+
+      <div class="day-cell"><span class="day-number">8</span><span class="empty">No events</span></div>
+      <div class="day-cell"><span class="day-number">9</span><span class="event-pill purple">International Day of the Deaf</span></div>
+      <div class="day-cell"><span class="day-number">10</span><span class="empty">No events</span></div>
+      <div class="day-cell"><span class="day-number">11</span><span class="empty">No events</span></div>
+      <div class="day-cell"><span class="day-number">12</span><span class="empty">No events</span></div>
+      <div class="day-cell"><span class="day-number">13</span><span class="empty">No events</span></div>
+      <div class="day-cell"><span class="day-number">14</span><span class="empty">No events</span></div>
+
+      <div class="day-cell"><span class="day-number">15</span><span class="empty">No events</span></div>
+      <div class="day-cell"><span class="day-number">16</span><span class="event-pill purple">International Day of Peace</span></div>
+      <div class="day-cell"><span class="day-number">17</span><span class="empty">No events</span></div>
+      <div class="day-cell"><span class="day-number">18</span><span class="empty">No events</span></div>
+      <div class="day-cell"><span class="day-number">19</span><span class="empty">No events</span></div>
+      <div class="day-cell"><span class="day-number">20</span><span class="empty">No events</span></div>
+      <div class="day-cell"><span class="day-number">21</span><span class="empty">No events</span></div>
+
+      <div class="day-cell"><span class="day-number">22</span><span class="event-pill purple">International Day of Sign Languages</span></div>
+      <div class="day-cell"><span class="day-number">23</span><span class="empty">No events</span></div>
+      <div class="day-cell"><span class="day-number">24</span><span class="empty">No events</span></div>
+      <div class="day-cell"><span class="day-number">25</span><span class="empty">No events</span></div>
+      <div class="day-cell"><span class="day-number">26</span><span class="event-pill purple">World Tourism Day</span></div>
+      <div class="day-cell"><span class="day-number">27</span><span class="empty">No events</span></div>
+      <div class="day-cell"><span class="day-number">28</span><span class="empty">No events</span></div>
+
+      <div class="day-cell"><span class="day-number">29</span><span class="empty">No events</span></div>
+      <div class="day-cell"><span class="day-number">30</span><span class="empty">No events</span></div>
+      <div class="day-cell muted"><span class="day-number">1</span><span class="empty">No events</span></div>
+      <div class="day-cell muted"><span class="day-number">2</span><span class="empty">No events</span></div>
+      <div class="day-cell muted"><span class="day-number">3</span><span class="empty">No events</span></div>
+      <div class="day-cell muted"><span class="day-number">4</span><span class="empty">No events</span></div>
+      <div class="day-cell muted"><span class="day-number">5</span><span class="empty">No events</span></div>
+    </div>
+
+    <div class="legacy-detail-box">
+      <h4>Event Details</h4>
+      <p>Select an event in the calendar to view its description and source.</p>
+    </div>
+
+    <div class="legacy-detail-box">
+      <h4>Event Description</h4>
+      <p>Select an event in the calendar to view its description and source.</p>
+    </div>
+
+    <div class="legacy-lesson-wrapper">
+      <h3>Relief Lessons</h3>
+      <ul>
+        <li>JDTECH – Junior Digital Tech</li>
+        <li>MDTECH – Semester 2</li>
+        <li>12DTECH – Year 12 Digital Tech</li>
+        <li>13DTECH – Year 13 Digital Tech</li>
+        <li>11DTECH – Year 11 Digital Tech</li>
+        <li>MDTECH – Semester 1</li>
+      </ul>
+    </div>
+  </section>
+</div>
 
 <%- include('../../partials/footer') %>

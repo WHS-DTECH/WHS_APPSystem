@@ -1,15 +1,96 @@
 <%- include('../../partials/header') %>
 
-<section class="page-title">
-  <p class="eyebrow">Teacher / ADMIN module</p>
-  <h1>Relief Planning</h1>
-  <p class="role-line">Signed in through the unified Google account as <strong><%= activeRole %></strong>.</p>
-</section>
+<div class="learning-sites-legacy">
+  <div class="legacy-header">
+    <h1>Relief Plan</h1>
+    <button type="button" class="legacy-ghost-button">Sign out</button>
+  </div>
 
-<section class="panel">
-  <h2>Google access is connected</h2>
-  <p>The legacy access key is no longer required for this entry point. The calendar data import will be moved into PostgreSQL before this page replaces the legacy Relief Plan calendar.</p>
-  <a class="button button-primary" href="/learning-sites">Back to Learning Sites</a>
-</section>
+  <div class="legacy-plan-intro">
+    <h3>2027 technology events, observations, and planning anchors from the reliever calendar.</h3>
+    <p>136 events loaded for 2027.</p>
+  </div>
+
+  <div class="legacy-plan-controls">
+    <button type="button" class="legacy-chip">Previous month</button>
+    <button type="button" class="legacy-chip">Today</button>
+    <input type="date" value="2026-09-01" aria-label="Month start date">
+    <button type="button" class="legacy-chip">Next month</button>
+  </div>
+
+  <div class="legacy-calendar-header">September 2026</div>
+
+  <div class="legacy-calendar" aria-label="Relief plan calendar">
+    <div class="day-header">Mon</div>
+    <div class="day-header">Tue</div>
+    <div class="day-header">Wed</div>
+    <div class="day-header">Thu</div>
+    <div class="day-header">Fri</div>
+    <div class="day-header">Sat</div>
+    <div class="day-header">Sun</div>
+
+    <div class="day-cell"><span class="day-number">1</span><span class="empty">No events</span></div>
+    <div class="day-cell"><span class="day-number">2</span><span class="event-pill purple">International Literacy Day</span></div>
+    <div class="day-cell"><span class="day-number">3</span><span class="empty">No events</span></div>
+    <div class="day-cell"><span class="day-number">4</span><span class="empty">No events</span></div>
+    <div class="day-cell"><span class="day-number">5</span><span class="empty">No events</span></div>
+    <div class="day-cell"><span class="day-number">6</span><span class="empty">No events</span></div>
+    <div class="day-cell"><span class="day-number">7</span><span class="event-pill purple">Father's Day</span></div>
+
+    <div class="day-cell"><span class="day-number">8</span><span class="empty">No events</span></div>
+    <div class="day-cell"><span class="day-number">9</span><span class="event-pill purple">International Day of the Deaf</span></div>
+    <div class="day-cell"><span class="day-number">10</span><span class="empty">No events</span></div>
+    <div class="day-cell"><span class="day-number">11</span><span class="empty">No events</span></div>
+    <div class="day-cell"><span class="day-number">12</span><span class="empty">No events</span></div>
+    <div class="day-cell"><span class="day-number">13</span><span class="empty">No events</span></div>
+    <div class="day-cell"><span class="day-number">14</span><span class="empty">No events</span></div>
+
+    <div class="day-cell"><span class="day-number">15</span><span class="empty">No events</span></div>
+    <div class="day-cell"><span class="day-number">16</span><span class="event-pill purple">International Day of Peace</span></div>
+    <div class="day-cell"><span class="day-number">17</span><span class="empty">No events</span></div>
+    <div class="day-cell"><span class="day-number">18</span><span class="empty">No events</span></div>
+    <div class="day-cell"><span class="day-number">19</span><span class="empty">No events</span></div>
+    <div class="day-cell"><span class="day-number">20</span><span class="empty">No events</span></div>
+    <div class="day-cell"><span class="day-number">21</span><span class="empty">No events</span></div>
+
+    <div class="day-cell"><span class="day-number">22</span><span class="event-pill purple">International Day of Sign Languages</span></div>
+    <div class="day-cell"><span class="day-number">23</span><span class="empty">No events</span></div>
+    <div class="day-cell"><span class="day-number">24</span><span class="empty">No events</span></div>
+    <div class="day-cell"><span class="day-number">25</span><span class="empty">No events</span></div>
+    <div class="day-cell"><span class="day-number">26</span><span class="event-pill purple">World Tourism Day</span></div>
+    <div class="day-cell"><span class="day-number">27</span><span class="empty">No events</span></div>
+    <div class="day-cell"><span class="day-number">28</span><span class="empty">No events</span></div>
+
+    <div class="day-cell"><span class="day-number">29</span><span class="empty">No events</span></div>
+    <div class="day-cell"><span class="day-number">30</span><span class="empty">No events</span></div>
+    <div class="day-cell muted"><span class="day-number">1</span><span class="empty">No events</span></div>
+    <div class="day-cell muted"><span class="day-number">2</span><span class="empty">No events</span></div>
+    <div class="day-cell muted"><span class="day-number">3</span><span class="empty">No events</span></div>
+    <div class="day-cell muted"><span class="day-number">4</span><span class="empty">No events</span></div>
+    <div class="day-cell muted"><span class="day-number">5</span><span class="empty">No events</span></div>
+  </div>
+
+  <div class="legacy-detail-box">
+    <h4>Event Details</h4>
+    <p>Select an event in the calendar to view its description and source.</p>
+  </div>
+
+  <div class="legacy-detail-box">
+    <h4>Event Description</h4>
+    <p>Select an event in the calendar to view its description and source.</p>
+  </div>
+
+  <div class="legacy-lesson-wrapper">
+    <h3>Relief Lessons</h3>
+    <ul>
+      <li>JDTECH – Junior Digital Tech</li>
+      <li>MDTECH – Semester 2</li>
+      <li>12DTECH – Year 12 Digital Tech</li>
+      <li>13DTECH – Year 13 Digital Tech</li>
+      <li>11DTECH – Year 11 Digital Tech</li>
+      <li>MDTECH – Semester 1</li>
+    </ul>
+  </div>
+</div>
 
 <%- include('../../partials/footer') %>
