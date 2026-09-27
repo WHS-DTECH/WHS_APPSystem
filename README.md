@@ -76,4 +76,4 @@ The Sewing Hub homepage is public at `/sewing-hub`. Activity access is available
 
 ## Kamar Uploader module
 
-The first integrated module is available to ADMIN users at `/admin/kamar-uploader`. It accepts parsed CSV rows and writes them directly to the `kamar` PostgreSQL schema. It does not save uploaded files to the application filesystem. The copied legacy source and sample data under `OldSystem - dont push to GIT/` are explicitly excluded from Git.
+The first integrated module is available to ADMIN users at `/admin/kamar-uploader`. It accepts parsed CSV rows and writes them directly to the `kamar` PostgreSQL schema. It does not save uploaded files to the application filesystem. The copied legacy source and sample data under `LegacySites/` are explicitly excluded from Git.
