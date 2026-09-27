@@ -1,13 +1,13 @@
 // Dynamically loads the enhanced navbar and its assets into #navbar-include.
 (function() {
   var ASSET_VERSION = '20260616b';
-  var NAVBAR_URL = '/navbar2.html?v=' + ASSET_VERSION;
+  var NAVBAR_URL = '/food-room/navbar2.html?v=' + ASSET_VERSION;
   var STYLE_HREFS = [
-    '/navbar2.css'
+    '/food-room/navbar2.css'
   ];
   var SCRIPT_SRCS = [
-    '/navbar2_behavior.js',
-    '/shared/toast.js'
+    '/food-room/navbar2_behavior.js',
+    '/food-room/shared/toast.js'
   ];
 
   function versionedAssetPath(path) {

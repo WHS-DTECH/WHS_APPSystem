@@ -400,7 +400,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Local files should resolve against this app's domain.
     if (/^\/?SavedPDFs\//i.test(normalizedSlashes)) {
-      const path = '/' + normalizedSlashes.replace(/^\/+/, '');
+      const path = '/food-room/' + normalizedSlashes.replace(/^\/+/, '');
       return new URL(path, window.location.origin).toString();
     }
 
