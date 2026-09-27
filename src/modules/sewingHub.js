@@ -1,18 +1,19 @@
 const express = require('express');
+const path = require('path');
 const { query } = require('../db');
 const { ensureAuthenticated, ensureRole } = require('../middleware');
 
 const router = express.Router();
+const legacySewingDir = path.join(__dirname, '..', '..', 'OldSystem - dont push to GIT', 'TECH-SEWING');
+
+router.use(express.static(legacySewingDir));
 
 router.get('/', (req, res) => {
   res.redirect('/sewing-hub/index.html');
 });
 
 router.get('/index.html', (req, res) => {
-  res.render('modules/sewing-hub/index', {
-    legacySewingHubLayout: true,
-    title: 'Sewing Hub'
-  });
+  res.sendFile(path.join(legacySewingDir, 'index.html'));
 });
 
 router.get('/activities', ensureAuthenticated, async (req, res, next) => {
