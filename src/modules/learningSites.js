@@ -4,7 +4,7 @@ const { ensureAuthenticated, ensureRole } = require('../middleware');
 const router = express.Router();
 
 router.get('/', (req, res) => {
-  res.render('modules/learning-sites/index', { title: 'WHS Learning Sites' });
+  res.redirect('/learning-sites-public.html');
 });
 
 router.get('/relief-planning', ensureAuthenticated, ensureRole('Teacher'), (req, res) => {

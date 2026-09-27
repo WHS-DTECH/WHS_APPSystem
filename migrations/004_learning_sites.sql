@@ -1,5 +1,5 @@
 INSERT INTO modules (module_key, display_name, description, path)
-VALUES ('learning-sites', 'WHS Learning Sites', 'Public learning content with protected Relief Planning and administration.', '/learning-sites')
+VALUES ('learning-sites', 'WHS Learning Sites', 'Public learning content with protected Relief Planning and administration.', '/learning-sites-public.html')
 ON CONFLICT (module_key) DO NOTHING;
 
 INSERT INTO permissions (module_key, key, label, description) VALUES
