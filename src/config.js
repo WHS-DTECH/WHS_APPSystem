@@ -18,7 +18,9 @@ function getConfig() {
       .map((email) => email.trim().toLowerCase())
       .filter(Boolean),
     databaseUrl: process.env.DATABASE_URL,
+    legacyFoodRoomDatabaseUrl: process.env.INTEGRATION_FOOD_ROOM_DATABASE_URL,
     legacySewingDatabaseUrl: process.env.INTEGRATION_SEWING_HUB_DATABASE_URL,
+    legacyWorkshopDatabaseUrl: process.env.INTEGRATION_WORKSHOP_DATABASE_URL,
     email: {
       gmail: {
         clientId: gmailClientId,

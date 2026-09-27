@@ -50,6 +50,7 @@ Recommended environment values:
 - `APP_BASE_URL`: the public Render service URL, for example `https://whs-appsystem.onrender.com`
 - `GOOGLE_REDIRECT_URI`: `${APP_BASE_URL}/auth/google/callback`
 - `DATABASE_URL`: Render Postgres internal connection string
+- `INTEGRATION_SEWING_HUB_DATABASE_URL`, `INTEGRATION_WORKSHOP_DATABASE_URL`, and `INTEGRATION_FOOD_ROOM_DATABASE_URL`: read-only legacy source connections held in the `LegacyDatabases` environment group.
 - `SESSION_SECRET`: long random value. The app also accepts `SECRET_KEY` if that is already set in the Render Environment Group.
 - `ADMIN_EMAILS`: `vanessapringle@westlandhigh.school.nz,tech@westlandhigh.school.nz`
 - `GOOGLE_HOSTED_DOMAIN`: optional Google Workspace domain restriction
@@ -60,7 +61,7 @@ In Google Cloud Console, add the same callback URL as an authorised redirect URI
 
 The configured `vanessapringle@westlandhigh.school.nz` and `tech@westlandhigh.school.nz` accounts are automatically granted `ADMIN`, `Teacher`, and `Student` roles on login, allowing either administrator to toggle between those views. Other users are assigned roles through the admin pages. The public homepage is available without login.
 
-Future systems should be added as modules first, then migrated into routes/controllers under this single application over time.
+Future systems should be added as modules first, then migrated into routes/controllers under this single application over time. Legacy database URLs are used for controlled imports; the primary `DATABASE_URL` remains the application source of truth.
 
 ## Learning Sites module
 
