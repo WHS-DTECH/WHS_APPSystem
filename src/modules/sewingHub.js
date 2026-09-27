@@ -25,6 +25,21 @@ const sortOptions = {
   duration: 'duration_hours ASC, name ASC'
 };
 
+apiRouter.get('/me', (req, res) => {
+  const isAdmin = Boolean(req.user?.roles?.includes('ADMIN'));
+  res.json({
+    authenticated: Boolean(req.user),
+    user: req.user
+      ? {
+          initials: req.user.display_name?.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'U',
+          isAdmin,
+          canBrowseActivities: true,
+          canUploadActivity: isAdmin
+        }
+      : null
+  });
+});
+
 function activityConditions(queryParams) {
   const params = [sewingHubKey];
   const conditions = ['hub_site = $1'];

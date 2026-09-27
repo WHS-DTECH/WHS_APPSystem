@@ -73,6 +73,7 @@ async function hasColumn(sourcePool, columnName) {
 
 async function importLegacySewingActivities() {
   if (!config.legacySewingDatabaseUrl) {
+    console.warn('Legacy Sewing Hub import skipped: INTEGRATION_SEWING_HUB_DATABASE_URL is not configured.');
     return;
   }
 
