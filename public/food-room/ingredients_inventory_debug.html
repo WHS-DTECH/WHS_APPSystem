@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Ingredients Inventory Debug Table</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h2>Ingredients Inventory (Raw Database View)</h2>
+  <div id="ingredients-inventory-debug-table"></div>
+  <script>
+    fetch('/api/ingredients/inventory/all')
+      .then(res => res.json())
+      .then(data => {
+        const ingredients = data.ingredients || [];
+        if (!ingredients.length) {
+          document.getElementById('ingredients-inventory-debug-table').innerHTML = '<div>No ingredients found.</div>';
+          return;
+        }
+        let html = '<table border="1" cellpadding="5" style="border-collapse:collapse;">';
+        html += '<tr>' + Object.keys(ingredients[0]).map(k => `<th>${k}</th>`).join('') + '</tr>';
+        for (const row of ingredients) {
+          html += '<tr>' + Object.values(row).map(v => `<td>${v ?? ''}</td>`).join('') + '</tr>';
+        }
+        html += '</table>';
+        document.getElementById('ingredients-inventory-debug-table').innerHTML = html;
+      })
+      .catch(err => {
+        document.getElementById('ingredients-inventory-debug-table').innerHTML = '<div style="color:red;">Failed to load ingredients: ' + err + '</div>';
+      });
+  </script>
+</body>
+</html>

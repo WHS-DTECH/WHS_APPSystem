@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book a Class</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .teacher-embed-mode body {
+            background: #fff;
+            padding-top: 0;
+            margin: 0;
+        }
+        .teacher-embed-mode #navbar-include,
+        .teacher-embed-mode #adminScheduledBookingsSection {
+            display: none !important;
+        }
+        .teacher-embed-mode #qc-sanity-btn,
+        .teacher-embed-mode #qc-toast-container {
+            display: none !important;
+        }
+        .teacher-embed-mode .book-class-app {
+            margin: 0;
+            max-width: 100%;
+            box-shadow: none;
+            border-radius: 0;
+            padding: 0;
+        }
+        .hide-save-booking-mode #saveBookingBtn {
+            display: none !important;
+        }
+        .form-only-mode #teacherTimetableSection,
+        .form-only-mode #classStudentsPanel,
+        .form-only-mode #bookClassHeading,
+        .form-only-mode .book-form-actions-top {
+            display: none !important;
+        }
+        .form-only-mode #bookClassLayout {
+            grid-template-columns: 1fr;
+        }
+        .student-list-only-mode #bookClassHeading,
+        .student-list-only-mode #bookingFormSection,
+        .student-list-only-mode #teacherTimetableSection,
+        .student-list-only-mode #bookClassLayout > .book-class-left {
+            display: none !important;
+        }
+        .student-list-only-mode #bookClassLayout {
+            grid-template-columns: 1fr;
+        }
+        .hide-booking-form-mode #bookingFormSection,
+        .hide-booking-form-mode #bookClassHeading,
+        .hide-booking-form-mode #masterSaveBtn,
+        .hide-booking-form-mode #resetBtn,
+        .hide-booking-form-mode #saveBookingBtn,
+        .hide-booking-form-mode #bookClassLayout > .class-students-panel,
+        .hide-booking-form-mode #classStudentsPanel {
+            display: none !important;
+        }
+        .hide-booking-form-mode #bookClassLayout {
+            grid-template-columns: 1fr;
+        }
+        .hide-booking-form-mode #teacherTimetableDaySelector {
+            display: grid !important;
+            grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+            gap: 0.3rem !important;
+            flex-wrap: nowrap !important;
+        }
+        .hide-booking-form-mode #teacherTimetableDaySelector .teacher-day-btn {
+            width: 100%;
+            min-width: 0;
+            padding: 0.22rem 0.2rem;
+            font-size: 0.74rem;
+            line-height: 1.1;
+            white-space: nowrap;
+        }
+        .hide-student-panel-mode #bookClassLayout {
+            grid-template-columns: 1fr;
+        }
+        .hide-student-panel-mode #classStudentsPanel {
+            display: none !important;
+        }
+        .hide-teacher-timetable-mode #teacherTimetableSection {
+            display: none !important;
+        }
+        .hide-timetable-actions-mode #timetableFormActions {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+        <div id="navbar-include"></div>
+        <script>
+            const embedView = new URLSearchParams(window.location.search).get('view');
+            const hideSaveBooking = new URLSearchParams(window.location.search).get('hide_save_booking') === '1';
+            const formOnly = new URLSearchParams(window.location.search).get('form_only') === '1';
+            const studentListOnly = new URLSearchParams(window.location.search).get('student_list_only') === '1';
+            const hideBookingForm = new URLSearchParams(window.location.search).get('hide_booking_form') === '1';
+            const hideStudentPanel = new URLSearchParams(window.location.search).get('hide_student_panel') === '1';
+            const hideTeacherTimetable = new URLSearchParams(window.location.search).get('hide_teacher_timetable') === '1';
+            const hideTimetableActions = new URLSearchParams(window.location.search).get('hide_timetable_actions') === '1';
+            const isTeacherEmbedMode = embedView === 'teacher_embed';
+            if (isTeacherEmbedMode) {
+                document.documentElement.classList.add('teacher-embed-mode');
+            } else {
+                const navbarLoader = document.createElement('script');
+                navbarLoader.src = 'shared/navbar_loader.js';
+                document.head.appendChild(navbarLoader);
+            }
+            if (hideSaveBooking) {
+                document.documentElement.classList.add('hide-save-booking-mode');
+            }
+            if (formOnly) {
+                document.documentElement.classList.add('form-only-mode');
+            }
+            if (studentListOnly) {
+                document.documentElement.classList.add('student-list-only-mode');
+            }
+            if (hideBookingForm) {
+                document.documentElement.classList.add('hide-booking-form-mode');
+            }
+            if (hideStudentPanel) {
+                document.documentElement.classList.add('hide-student-panel-mode');
+            }
+            if (hideTeacherTimetable) {
+                document.documentElement.classList.add('hide-teacher-timetable-mode');
+            }
+            if (hideTimetableActions) {
+                document.documentElement.classList.add('hide-timetable-actions-mode');
+            }
+        </script>
+    
+    <div class="book-class-app">
+        <div class="book-class-layout" id="bookClassLayout">
+            <div class="book-class-left">
+                <h1 id="bookClassHeading">Book a Slot</h1>
+                <div class="book-form-row" id="bookingFormSection">
+                    <div class="book-form-actions book-form-actions-top">
+                        <button id="saveBookingBtn" class="btn btn-primary">Save booking</button>
+                        <button id="masterSaveBtn" type="button" class="btn btn-success">SAVE</button>
+                        <button id="deleteBookingBtn" type="button" class="btn delete-btn" style="display:none;">DELETE</button>
+                        <button id="resetBtn" type="button" class="btn btn-secondary">RESET</button>
+                    </div>
+                    <div class="book-form-grid">
+                        <div class="book-form-field">
+                            <label for="staffSelect" id="staffSelectLabel">Staff</label>
+                            <select id="staffSelect">
+                                <option>Diplock, Maryke</option>
+                                <option>Holly McKee</option>
+                                <option>Adrienne Reeves</option>
+                                <option>Janet Webster</option>
+                                <option>Vanessa Pringle</option>
+                            </select>
+                        </div>
+                        <div class="book-form-field">
+                            <label for="classSelect">Class</label>
+                            <select id="classSelect">
+                                <option>300HOSP</option>
+                                <option>200HOSP</option>
+                                <option>100HOSP</option>
+                                <option>100DTECH</option>
+                            </select>
+                        </div>
+                        <div class="book-form-field book-form-field-small" id="cookModeField" style="display:none;">
+                            <label for="cookModeSelect">Cook Mode</label>
+                            <select id="cookModeSelect">
+                                <option value="single" selected>Single</option>
+                                <option value="pair">Pair</option>
+                            </select>
+                        </div>
+                        <div class="book-form-field book-form-field-wide" id="partnerStudentField" style="display:none;">
+                            <label for="partnerStudentSelect">Pair Partner</label>
+                            <select id="partnerStudentSelect">
+                                <option value="">Select partner student</option>
+                            </select>
+                            <div style="margin-top:0.35rem;font-size:0.82rem;color:#5a6f84;">Select a class first, then choose your partner.</div>
+                        </div>
+                        <div class="book-form-field">
+                            <label for="dateInput">Booking Date <span id="dateDayOfWeek" style="font-weight:normal;color:#666;"></span></label>
+                            <input type="date" id="dateInput">
+                        </div>
+                        <div class="book-form-field book-form-field-small">
+                            <label for="periodSelect">Period</label>
+                            <select id="periodSelect">
+                                <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+                            </select>
+                        </div>
+                        <div class="book-form-field book-form-field-wide">
+                            <label for="recipeSelect">Recipe</label>
+                            <select id="recipeSelect">
+                                <option>Lemon Curd Muffins Recipe | Chelsea Sugar</option>
+                                <option>Family friendly cottage pie Recipe | Beef + Lamb New Zealand</option>
+                                <option>Perfect Pavlova Recipe | Chelsea Sugar</option>
+                            </select>
+                            <div id="recipeSelectionInfo" style="display:none;margin-top:0.35rem;padding:0.35rem 0.45rem;border-radius:6px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;font-size:0.82rem;"></div>
+                        </div>
+                        <div class="book-form-field book-form-field-small" id="classSizeField">
+                            <label for="classSizeInput">Class Size</label>
+                            <input type="number" id="classSizeInput" value="4" min="1">
+                        </div>
+                        <div class="book-form-field book-form-field-small" id="groupsField">
+                            <label for="groupsInput">Groups</label>
+                            <input type="number" id="groupsInput" value="1" min="1" step="1">
+                        </div>
+                    </div>
+                </div>
+                <div class="scheduled-bookings" id="teacherTimetableSection" style="margin-top:1rem;">
+                    <div id="teacherTimetableDaySelector" class="teacher-timetable-day-selector" style="display:flex;gap:0.35rem;flex-wrap:wrap;margin:0.4rem 0 0.55rem;">
+                        <button type="button" class="teacher-day-btn" data-weekday="1">Mon</button>
+                        <button type="button" class="teacher-day-btn" data-weekday="2">Tue</button>
+                        <button type="button" class="teacher-day-btn" data-weekday="3">Wed</button>
+                        <button type="button" class="teacher-day-btn" data-weekday="4">Thu</button>
+                        <button type="button" class="teacher-day-btn" data-weekday="5">Fri</button>
+                    </div>
+                    <div id="teacherTimetableMeta" class="class-students-meta">Select teacher and date to view timetable.</div>
+                    <div id="teacherTimetableBody"></div>
+                    <div id="timetableStatus" class="ui-state" style="display:none;margin-top:0.6rem;"></div>
+                    <div id="timetableFormActions" class="book-form-actions" style="margin-top:0.75rem;display:none;">
+                        <button id="timetableSaveBtn" type="button" class="btn btn-success" style="font-size:0.9rem;padding:0.4rem 1rem;">SAVE</button>
+                        <button id="timetableDeleteBtn" type="button" class="btn delete-btn" style="font-size:0.9rem;padding:0.4rem 1rem;display:none;">DELETE</button>
+                        <button id="timetableResetBtn" type="button" class="btn btn-secondary" style="font-size:0.9rem;padding:0.4rem 1rem;">RESET</button>
+                    </div>
+                </div>
+                <div class="scheduled-bookings" id="adminScheduledBookingsSection">
+                    <h2>Scheduled Bookings</h2>
+                    <table class="ui-data-table">
+                        <thead>
+                            <tr><th>ID</th><th>Date</th><th>Period</th><th>Staff</th><th>Class</th><th>Class Size</th><th>Recipe</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody id="scheduledBookings"></tbody>
+                    </table>
+                    <div id="bookingStatus" class="ui-state" style="display:none;margin-top:0.6rem;"></div>
+                </div>
+            </div>
+            <aside class="class-students-panel" id="classStudentsPanel">
+                <h2>Students In Selected Class</h2>
+                <div id="classStudentsMeta" class="class-students-meta">Choose a class to view students.</div>
+                <div class="class-students-table-wrap">
+                    <table class="class-students-table">
+                        <thead>
+                            <tr>
+                                <th>ID Number</th>
+                                <th>Student Name</th>
+                                <th>Form Class</th>
+                                <th>Year Level</th>
+                            </tr>
+                        </thead>
+                        <tbody id="classStudentsBody"></tbody>
+                    </table>
+                </div>
+            </aside>
+        </div>
+    </div>
+    <script src="shared/quality_tools.js"></script>
+    <script src="shared/nz_school_calendar.js"></script>
+    <script src="book_a_class.js"></script>
+</body>
+</html>

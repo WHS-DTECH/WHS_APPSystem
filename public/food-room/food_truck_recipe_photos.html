@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Food Truck Recipe Photos</title>
+  <style>
+    :root {
+      --ft-primary: #1f6aa5;
+      --ft-primary-dark: #184f7c;
+      --ft-border: #c9dbee;
+      --ft-card: #ffffff;
+      --ft-bg: linear-gradient(180deg, #edf4fb 0%, #dfeaf6 100%);
+      --ft-text: #17324a;
+      --ft-muted: #587188;
+      --ft-success: #1d7a35;
+      --ft-error: #b33a3a;
+      --ft-warm: #fff7e3;
+      --ft-warm-border: #f0cf83;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--ft-bg);
+      color: var(--ft-text);
+    }
+
+    .ft-wrap {
+      width: min(1120px, calc(100% - 24px));
+      margin: 1rem auto 2rem;
+    }
+
+    .ft-card {
+      background: var(--ft-card);
+      border: 1px solid var(--ft-border);
+      border-left: 4px solid var(--ft-primary);
+      border-radius: 14px;
+      box-shadow: 0 10px 26px rgba(24, 79, 124, 0.08);
+      padding: 1rem;
+    }
+
+    .ft-title {
+      margin: 0;
+      font-size: 2rem;
+      color: #0f3b5f;
+    }
+
+    .ft-sub {
+      margin: 0.35rem 0 1rem;
+      color: var(--ft-muted);
+    }
+
+    .ft-toolbar {
+      display: grid;
+      grid-template-columns: minmax(180px, 240px) auto;
+      gap: 0.75rem;
+      align-items: end;
+      padding: 0.85rem;
+      border: 1px solid var(--ft-border);
+      border-radius: 12px;
+      background: #f7fbff;
+    }
+
+    .ft-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    .ft-field label {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #325472;
+      text-transform: uppercase;
+    }
+
+    .ft-field input {
+      width: 100%;
+      padding: 0.7rem 0.8rem;
+      border: 1px solid var(--ft-border);
+      border-radius: 8px;
+      font: inherit;
+    }
+
+    .ft-toolbar-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      align-items: center;
+    }
+
+    .ft-btn,
+    .ft-link-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      min-height: 42px;
+      padding: 0.7rem 1rem;
+      border: 0;
+      border-radius: 8px;
+      background: var(--ft-primary);
+      color: #fff;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background-color 0.15s ease, transform 0.1s ease;
+    }
+
+    .ft-btn:hover,
+    .ft-link-btn:hover { background: var(--ft-primary-dark); }
+    .ft-btn:active,
+    .ft-link-btn:active { transform: translateY(1px); }
+
+    .ft-btn.secondary,
+    .ft-link-btn.secondary { background: #6d7f92; }
+    .ft-btn.accent { background: #d88c1f; }
+    .ft-btn.accent:hover { background: #b8700f; }
+
+    .ft-note {
+      color: var(--ft-muted);
+      font-size: 0.9rem;
+    }
+
+    .ft-status {
+      min-height: 1.25rem;
+      margin-top: 0.9rem;
+      font-weight: 700;
+      color: var(--ft-primary);
+    }
+
+    .ft-status.success { color: var(--ft-success); }
+    .ft-status.error { color: var(--ft-error); }
+
+    .ft-recipe-meta {
+      margin-top: 1rem;
+      padding: 0.9rem 1rem;
+      border-radius: 12px;
+      border: 1px solid var(--ft-warm-border);
+      background: var(--ft-warm);
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.75rem;
+    }
+
+    .ft-meta-block {
+      min-width: 0;
+    }
+
+    .ft-meta-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #7a5a19;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+
+    .ft-meta-value {
+      margin-top: 0.25rem;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #4c3710;
+      word-break: break-word;
+    }
+
+    .ft-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 0.8rem;
+      margin-top: 1rem;
+    }
+
+    .ft-slot-card {
+      border: 1px solid var(--ft-border);
+      border-radius: 12px;
+      background: #fbfdff;
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      min-width: 0;
+    }
+
+    .ft-slot-card.is-primary {
+      border-color: #d88c1f;
+      box-shadow: 0 0 0 2px rgba(216, 140, 31, 0.15);
+      background: #fff9ef;
+    }
+
+    .ft-slot-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .ft-slot-num {
+      font-weight: 800;
+      color: #244a6a;
+    }
+
+    .ft-slot-badge {
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: #9b5d00;
+      background: #ffe8b5;
+      border-radius: 999px;
+      padding: 0.2rem 0.5rem;
+    }
+
+    .ft-slot-preview {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--ft-border);
+      background: #edf3f8;
+    }
+
+    .ft-slot-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .ft-slot-file {
+      width: 100%;
+      font-size: 0.78rem;
+    }
+
+    .ft-slot-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.4rem;
+    }
+
+    .ft-slot-actions .ft-btn {
+      min-height: 36px;
+      padding: 0.55rem 0.5rem;
+      font-size: 0.82rem;
+    }
+
+    .ft-slot-actions .ft-btn.accent {
+      grid-column: 1 / -1;
+    }
+
+    .ft-slot-status {
+      min-height: 1rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--ft-muted);
+    }
+
+    @media (max-width: 1100px) {
+      .ft-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 780px) {
+      .ft-toolbar,
+      .ft-recipe-meta,
+      .ft-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+
+  <main class="ft-wrap">
+    <section class="ft-card">
+      <h1 class="ft-title">Food Truck: Recipe Photos</h1>
+      <p class="ft-sub">Upload up to five photos for a saved Food Truck recipe and choose which one becomes the recipe details page photo.</p>
+
+      <div class="ft-toolbar">
+        <div class="ft-field">
+          <label for="photoRecipeId">RecipeID</label>
+          <input id="photoRecipeId" type="number" min="1" step="1" placeholder="Enter RecipeID">
+        </div>
+        <div class="ft-toolbar-actions">
+          <button type="button" id="loadRecipeBtn" class="ft-btn">Load Recipe Photos</button>
+          <a href="food_truck_manual_recipe.html" class="ft-link-btn secondary">Back To Recipe Entry</a>
+          <span id="photoPageHint" class="ft-note">Load a saved Food Truck recipe first.</span>
+        </div>
+      </div>
+
+      <div class="ft-recipe-meta" id="photoRecipeMeta" hidden>
+        <div class="ft-meta-block">
+          <div class="ft-meta-label">RecipeID</div>
+          <div class="ft-meta-value" id="photoMetaRecipeId">-</div>
+        </div>
+        <div class="ft-meta-block">
+          <div class="ft-meta-label">Recipe Name</div>
+          <div class="ft-meta-value" id="photoMetaRecipeName">-</div>
+        </div>
+        <div class="ft-meta-block">
+          <div class="ft-meta-label">Primary Details Photo</div>
+          <div class="ft-meta-value" id="photoMetaPrimary">None selected</div>
+        </div>
+      </div>
+
+      <div id="photoPageStatus" class="ft-status"></div>
+      <div id="photoSlotsGrid" class="ft-grid"></div>
+    </section>
+  </main>
+
+  <script>
+    (function() {
+      const recipeIdInput = document.getElementById('photoRecipeId');
+      const loadBtn = document.getElementById('loadRecipeBtn');
+      const hintEl = document.getElementById('photoPageHint');
+      const statusEl = document.getElementById('photoPageStatus');
+      const gridEl = document.getElementById('photoSlotsGrid');
+      const metaEl = document.getElementById('photoRecipeMeta');
+      const metaRecipeIdEl = document.getElementById('photoMetaRecipeId');
+      const metaRecipeNameEl = document.getElementById('photoMetaRecipeName');
+      const metaPrimaryEl = document.getElementById('photoMetaPrimary');
+
+      const FALLBACK_IMAGE = 'https://images.pexels.com/photos/1640774/pexels-photo-1640774.jpeg?auto=compress&cs=tinysrgb&w=1200';
+      let currentRecipeId = null;
+      let currentRecipeName = '';
+      let currentPrimarySlot = null;
+      let ftImages = [null, null, null, null, null];
+
+      const slots = [];
+      for (let slotIndex = 1; slotIndex <= 5; slotIndex += 1) {
+        const card = document.createElement('section');
+        card.className = 'ft-slot-card';
+        card.innerHTML =
+          '<div class="ft-slot-head">' +
+          '  <div class="ft-slot-num">Photo ' + slotIndex + '</div>' +
+          '  <div class="ft-slot-badge" id="slotBadge' + slotIndex + '" hidden>Primary</div>' +
+          '</div>' +
+          '<div class="ft-slot-preview"><img id="slotImg' + slotIndex + '" alt="Recipe photo slot ' + slotIndex + '" src="' + FALLBACK_IMAGE + '"></div>' +
+          '<input id="slotFile' + slotIndex + '" class="ft-slot-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif">' +
+          '<div class="ft-slot-actions">' +
+          '  <button type="button" class="ft-btn" id="slotUpload' + slotIndex + '">Upload</button>' +
+          '  <button type="button" class="ft-btn secondary" id="slotClear' + slotIndex + '">Clear</button>' +
+          '  <button type="button" class="ft-btn accent" id="slotStar' + slotIndex + '">Star Photo</button>' +
+          '</div>' +
+          '<div class="ft-slot-status" id="slotStatus' + slotIndex + '"></div>';
+        gridEl.appendChild(card);
+        slots.push({
+          card,
+          img: document.getElementById('slotImg' + slotIndex),
+          file: document.getElementById('slotFile' + slotIndex),
+          uploadBtn: document.getElementById('slotUpload' + slotIndex),
+          clearBtn: document.getElementById('slotClear' + slotIndex),
+          starBtn: document.getElementById('slotStar' + slotIndex),
+          badge: document.getElementById('slotBadge' + slotIndex),
+          statusEl: document.getElementById('slotStatus' + slotIndex)
+        });
+      }
+
+      function setStatus(message, type) {
+        statusEl.textContent = message || '';
+        statusEl.classList.remove('success', 'error');
+        if (type === 'success') statusEl.classList.add('success');
+        if (type === 'error') statusEl.classList.add('error');
+      }
+
+      function setSlotStatus(idx, message, type) {
+        const slot = slots[idx];
+        if (!slot) return;
+        slot.statusEl.textContent = message || '';
+        slot.statusEl.style.color = type === 'error' ? 'var(--ft-error)' : type === 'success' ? 'var(--ft-success)' : 'var(--ft-muted)';
+      }
+
+      function fileToDataUrl(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(new Error('Failed to read selected image file.'));
+          reader.readAsDataURL(file);
+        });
+      }
+
+      function updateRecipeMeta() {
+        const hasRecipe = Number.isInteger(currentRecipeId) && currentRecipeId > 0;
+        metaEl.hidden = !hasRecipe;
+        if (!hasRecipe) {
+          metaRecipeIdEl.textContent = '-';
+          metaRecipeNameEl.textContent = '-';
+          metaPrimaryEl.textContent = 'None selected';
+          return;
+        }
+        metaRecipeIdEl.textContent = String(currentRecipeId);
+        metaRecipeNameEl.textContent = currentRecipeName || '(Unnamed recipe)';
+        metaPrimaryEl.textContent = currentPrimarySlot ? 'Photo ' + currentPrimarySlot : 'None selected';
+      }
+
+      function updateSlotsUI() {
+        for (let idx = 0; idx < 5; idx += 1) {
+          const slotNumber = idx + 1;
+          const slot = slots[idx];
+          const hasImage = !!ftImages[idx];
+          const isPrimary = Number(currentPrimarySlot) === slotNumber;
+          slot.img.src = ftImages[idx] || FALLBACK_IMAGE;
+          slot.badge.hidden = !isPrimary;
+          slot.card.classList.toggle('is-primary', isPrimary);
+          slot.uploadBtn.disabled = !currentRecipeId;
+          slot.clearBtn.disabled = !currentRecipeId || !hasImage;
+          slot.starBtn.disabled = !currentRecipeId || !hasImage;
+          slot.starBtn.textContent = isPrimary ? 'Starred For Details' : 'Star Photo';
+        }
+        updateRecipeMeta();
+      }
+
+      async function loadRecipe(recipeId, options) {
+        const numericId = Number(recipeId);
+        const opts = options || {};
+        if (!Number.isInteger(numericId) || numericId <= 0) {
+          setStatus('Enter a valid RecipeID first.', 'error');
+          return;
+        }
+        loadBtn.disabled = true;
+        setStatus('Loading recipe photos...', '');
+        try {
+          const res = await fetch('/api/ft/recipe-images/' + numericId, { credentials: 'include' });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || data.success === false) throw new Error((data && data.error) || 'Failed to load recipe photos.');
+          currentRecipeId = Number(data.recipeId || numericId);
+          currentRecipeName = String(data.recipeName || '').trim();
+          currentPrimarySlot = Number(data.primarySlot) || null;
+          ftImages = Array.isArray(data.images) ? data.images.slice(0, 5) : [null, null, null, null, null];
+          while (ftImages.length < 5) ftImages.push(null);
+          sessionStorage.setItem('ftLastRecipeId', String(currentRecipeId));
+          recipeIdInput.value = String(currentRecipeId);
+          hintEl.textContent = 'Loaded RecipeID ' + currentRecipeId + '. Upload new creation photos and star the details image.';
+          updateSlotsUI();
+          setStatus(opts.successMessage || 'Recipe photos loaded.', 'success');
+        } catch (err) {
+          currentRecipeId = null;
+          currentRecipeName = '';
+          currentPrimarySlot = null;
+          ftImages = [null, null, null, null, null];
+          updateSlotsUI();
+          setStatus(err && err.message ? err.message : 'Failed to load recipe photos.', 'error');
+        } finally {
+          loadBtn.disabled = false;
+        }
+      }
+
+      async function updatePrimary(slotNumber, idx) {
+        if (!currentRecipeId) return;
+        try {
+          const res = await fetch('/api/ft/recipe-images/' + currentRecipeId + '/primary', {
+            method: 'PUT',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ slot: slotNumber })
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || data.success === false) throw new Error((data && data.error) || 'Failed to star photo.');
+          currentPrimarySlot = Number(data.primarySlot) || slotNumber;
+          updateSlotsUI();
+          setSlotStatus(idx, 'This photo is now used on the recipe details page.', 'success');
+          setStatus('Primary details photo updated.', 'success');
+        } catch (err) {
+          setSlotStatus(idx, err && err.message ? err.message : 'Failed to star photo.', 'error');
+        }
+      }
+
+      for (let idx = 0; idx < 5; idx += 1) {
+        const slotNumber = idx + 1;
+        const slot = slots[idx];
+
+        slot.uploadBtn.addEventListener('click', async function() {
+          if (!currentRecipeId) {
+            setStatus('Load a recipe first.', 'error');
+            return;
+          }
+          const file = slot.file.files && slot.file.files[0];
+          if (!file) {
+            setSlotStatus(idx, 'Choose a photo first.', 'error');
+            return;
+          }
+          slot.uploadBtn.disabled = true;
+          setSlotStatus(idx, 'Uploading...', '');
+          try {
+            const dataUrl = await fileToDataUrl(file);
+            const res = await fetch('/api/ft/recipe-images/' + currentRecipeId + '/upload', {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ slot: slotNumber, image_data: dataUrl })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data.success === false) throw new Error((data && data.error) || 'Upload failed.');
+            ftImages = Array.isArray(data.images) ? data.images.slice(0, 5) : ftImages;
+            while (ftImages.length < 5) ftImages.push(null);
+            currentPrimarySlot = Number(data.primarySlot) || currentPrimarySlot;
+            slot.file.value = '';
+            updateSlotsUI();
+            setSlotStatus(idx, 'Uploaded successfully.', 'success');
+            setStatus('Photo uploaded.', 'success');
+          } catch (err) {
+            setSlotStatus(idx, err && err.message ? err.message : 'Upload failed.', 'error');
+          } finally {
+            slot.uploadBtn.disabled = false;
+          }
+        });
+
+        slot.clearBtn.addEventListener('click', async function() {
+          if (!currentRecipeId) {
+            setStatus('Load a recipe first.', 'error');
+            return;
+          }
+          slot.clearBtn.disabled = true;
+          setSlotStatus(idx, 'Clearing...', '');
+          try {
+            const res = await fetch('/api/ft/recipe-images/' + currentRecipeId, {
+              method: 'PUT',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ slot: slotNumber, imageUrl: '' })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data.success === false) throw new Error((data && data.error) || 'Clear failed.');
+            ftImages = Array.isArray(data.images) ? data.images.slice(0, 5) : [null, null, null, null, null];
+            while (ftImages.length < 5) ftImages.push(null);
+            currentPrimarySlot = Number(data.primarySlot) || null;
+            updateSlotsUI();
+            setSlotStatus(idx, 'Photo cleared.', 'success');
+            setStatus('Photo removed.', 'success');
+          } catch (err) {
+            setSlotStatus(idx, err && err.message ? err.message : 'Clear failed.', 'error');
+          } finally {
+            slot.clearBtn.disabled = false;
+          }
+        });
+
+        slot.starBtn.addEventListener('click', function() {
+          updatePrimary(slotNumber, idx);
+        });
+      }
+
+      loadBtn.addEventListener('click', function() {
+        loadRecipe(recipeIdInput.value);
+      });
+
+      recipeIdInput.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          loadRecipe(recipeIdInput.value);
+        }
+      });
+
+      updateSlotsUI();
+
+      const params = new URLSearchParams(window.location.search);
+      const recipeFromQuery = params.get('recipeId');
+      const recipeFromSession = sessionStorage.getItem('ftLastRecipeId');
+      const initialRecipeId = recipeFromQuery || recipeFromSession || '';
+      if (initialRecipeId) {
+        recipeIdInput.value = String(initialRecipeId);
+        loadRecipe(initialRecipeId, { successMessage: 'Loaded your latest Food Truck recipe photos.' });
+      }
+    })();
+  </script>
+</body>
+</html>

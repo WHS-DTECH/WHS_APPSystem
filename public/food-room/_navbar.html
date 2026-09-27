@@ -1,0 +1,202 @@
+<header class="navbar-shell">
+  <a href="index.html" class="navbar-brand">Food Room</a>
+
+  <a href="recipe_display.html" class="navbar-core-link" style="font-weight:600;" title="Browse all recipes" data-route="recipes">Browse Recipes</a>
+
+  <button
+    type="button"
+    class="navbar-mobile-toggle"
+    aria-expanded="false"
+    aria-controls="primaryNavbarLinks"
+    aria-label="Toggle navigation menu">
+    <span></span>
+    <span></span>
+    <span></span>
+  </button>
+
+  <nav class="navbar-core" id="primaryNavbarLinks" aria-label="Primary" data-role="authenticated">
+    <a href="browse_practicals.html" class="navbar-core-link" title="Browse the weekly class timetable" data-route="browse_practicals">Browse Practicals</a>
+    <a href="quick_add.html" class="navbar-core-link" title="Add a new recipe" data-route="add_recipes">Add Recipe</a>
+    <a href="add_booking.html" class="navbar-core-link" title="Add a class booking" data-route="booking">Booking</a>
+    <a href="book_the_shopping.html" class="navbar-core-link" title="Plan shopping for bookings" data-route="shopping">Shopping</a>
+  </nav>
+
+  <button
+    type="button"
+    class="navbar-admin-toggle"
+    data-role="planning"
+    aria-expanded="false"
+    aria-controls="planningDrawer">
+    Planning
+  </button>
+
+  <button
+    type="button"
+    class="navbar-admin-toggle"
+    data-role="planning"
+    aria-expanded="false"
+    aria-controls="shoppingDrawer">
+    Shopping
+  </button>
+
+  <button
+    type="button"
+    class="navbar-admin-toggle"
+    data-role="authenticated"
+    data-route="ft_teacher"
+    aria-expanded="false"
+    aria-controls="ftTeacherDrawer">
+    FT Teacher
+  </button>
+
+  <button
+    type="button"
+    class="navbar-admin-toggle"
+    data-role="admin"
+    aria-expanded="false"
+    aria-controls="adminManagementDrawer">
+    Management
+  </button>
+
+  <div class="navbar-account">
+    <a href="#" id="navbarUsername" class="navbar-user-link">User</a>
+    <a href="#" class="navbar-logout-btn">Logout</a>
+  </div>
+</header>
+
+<div id="adminDrawerBackdrop" class="navbar-drawer-backdrop" data-role="admin" hidden></div>
+<div id="planningDrawerBackdrop" class="navbar-drawer-backdrop" data-role="planning" hidden></div>
+<div id="shoppingDrawerBackdrop" class="navbar-drawer-backdrop" data-role="planning" hidden></div>
+<div id="ftTeacherDrawerBackdrop" class="navbar-drawer-backdrop" data-role="authenticated" hidden></div>
+
+<aside id="planningDrawer" class="navbar-admin-drawer" data-role="planning" hidden aria-label="Planning Menu">
+  <div class="navbar-drawer-header">
+    <div class="navbar-drawer-title">Planning</div>
+    <button type="button" class="navbar-drawer-close" aria-label="Close planning menu">×</button>
+  </div>
+
+  <div class="navbar-drawer-links" style="padding-top:0.6rem;">
+    <a href="recipe_calendar_upload.html" class="navbar-submenu-item" data-route="planning">Upload Planners</a>
+    <a href="admin_match_recipes.html" class="navbar-submenu-item" data-route="planning">Match Planner Recipes</a>
+    <a href="admin_prefill_planner.html" class="navbar-submenu-item" data-route="planning">Planner Prefill</a>
+    <a href="add_recipe_manually.html" class="navbar-submenu-item" data-route="planning">Add Recipe Manually</a>
+  </div>
+</aside>
+
+<aside id="shoppingDrawer" class="navbar-admin-drawer" data-role="planning" hidden aria-label="Shopping Menu">
+  <div class="navbar-drawer-header">
+    <div class="navbar-drawer-title">Shopping</div>
+    <button type="button" class="navbar-drawer-close" aria-label="Close shopping menu">×</button>
+  </div>
+
+  <div class="navbar-drawer-links" style="padding-top:0.6rem;">
+    <a href="book_the_shopping.html" class="navbar-submenu-item">Book Shopping</a>
+    <a href="shopping_list_preview.html" class="navbar-submenu-item">Shopping List</a>
+    <a href="shopping_list_upload.html" class="navbar-submenu-item">Upload Shopping List</a>
+    <a href="shopping_review_email.html" class="navbar-submenu-item">Shopping Review Email</a>
+    <a href="shopping_extras.html" class="navbar-submenu-item">Shopping Extras</a>
+    <hr style="border:0;border-top:1px solid #d9e3ee;margin:0.55rem 0;">
+    <a href="shopping_plan_setup.html" class="navbar-submenu-item">Shopping Plan Setup</a>
+    <a href="shopping_plan_editor.html" class="navbar-submenu-item">Shopping Plan Editor</a>
+    <a href="shopping_plan_technician.html" class="navbar-submenu-item">Technician Shopping View</a>
+    <a href="shopping_plan_lead_teacher.html" class="navbar-submenu-item">Lead Teacher Shopping View</a>
+  </div>
+</aside>
+
+<aside id="adminManagementDrawer" class="navbar-admin-drawer" data-role="admin" hidden aria-label="Management Menu">
+  <div class="navbar-drawer-header">
+    <div class="navbar-drawer-title">Management</div>
+    <button type="button" class="navbar-drawer-close" aria-label="Close management menu">×</button>
+  </div>
+
+  <details class="navbar-drawer-group" open>
+    <summary>Recipes</summary>
+    <div class="navbar-drawer-links">
+      <a href="add_recipe.html" class="navbar-submenu-item">Load Recipe</a>
+      <a href="add_recipe_manually.html" class="navbar-submenu-item">Add Recipe Manually</a>
+      <a href="admin_recipe_images.html" class="navbar-submenu-item">Recipe Photos</a>
+      <a href="recipe_setup_main.html" class="navbar-submenu-item">Recipe Setup</a>
+      <a href="calculate_servings.html" class="navbar-submenu-item">Calculate Servings</a>
+      <a href="recipe_extraction.html" class="navbar-submenu-item">Recipe Extraction</a>
+      <a href="extractor_title.html" class="navbar-submenu-item">Extractor: Title</a>
+      <a href="extractor_raw.html" class="navbar-submenu-item">Extractor: Raw</a>
+      <a href="extractor_raw_folder_link.html" class="navbar-submenu-item">Extractor: Raw Folder Link</a>
+      <a href="extractor_ingredient.html" class="navbar-submenu-item">Extractor: Ingredients</a>
+      <a href="extractor_instructions.html" class="navbar-submenu-item">Extractor: Instructions</a>
+      <a href="extractor_serving_size.html" class="navbar-submenu-item">Extractor: Serving Size</a>
+      <a href="recipe_publish.html" class="navbar-submenu-item">Publish Recipes</a>
+    </div>
+  </details>
+
+  <details class="navbar-drawer-group">
+    <summary>Food Truck</summary>
+    <div class="navbar-drawer-links">
+      <a href="food_truck_manual_recipe.html" class="navbar-submenu-item">Add Recipe Manually</a>
+      <a href="food_truck_recipe_photos.html" class="navbar-submenu-item">Recipe Photos</a>
+    </div>
+  </details>
+
+  <details class="navbar-drawer-group">
+    <summary>Ingredients & Catering</summary>
+    <div class="navbar-drawer-links">
+      <a href="ingredients_directory.html" class="navbar-submenu-item">Ingredients Directory</a>
+      <a href="admin_aisle_category.html" class="navbar-submenu-item">Load Aisle Categories</a>
+      <a href="admin_food_brands.html" class="navbar-submenu-item">Load Food Brands</a>
+      <a href="admin_aisle_keywords.html" class="navbar-submenu-item">Load Aisle Keywords</a>
+      <a href="calculate_qty.html" class="navbar-submenu-item">Calculate Qty</a>
+    </div>
+  </details>
+
+  <details class="navbar-drawer-group">
+    <summary>Staff & Classes</summary>
+    <div class="navbar-drawer-links">
+      <a href="schedule_calendar.html" class="navbar-submenu-item">Load Booking</a>
+      <a href="book_a_class.html" class="navbar-submenu-item">Book Class</a>
+      <a href="staff_upload.html" class="navbar-submenu-item">Upload Staff</a>
+      <a href="timetable_upload.html" class="navbar-submenu-item">Upload Timetable</a>
+      <a href="uploadSubjects.html" class="navbar-submenu-item">Upload Subjects</a>
+      <a href="student_upload.html" class="navbar-submenu-item">Upload Students</a>
+    </div>
+  </details>
+
+  <details class="navbar-drawer-group">
+    <summary>Settings</summary>
+    <div class="navbar-drawer-links">
+      <a href="admin_dashboard.html" class="navbar-submenu-item">📊 Admin Dashboard</a>
+      <a href="admin_user_roles.html" class="navbar-submenu-item">User Roles</a>
+      <a href="admin_permissions.html" class="navbar-submenu-item">Permissions</a>
+      <a href="admin_department.html" class="navbar-submenu-item">Department</a>
+    </div>
+  </details>
+
+  <details class="navbar-drawer-group">
+    <summary>Operations</summary>
+    <div class="navbar-drawer-links">
+      <a href="ops_dashboard.html" class="navbar-submenu-item">Workflow Dashboard</a>
+      <a href="ops_review_queue.html" class="navbar-submenu-item">Review Queue</a>
+      <a href="ops_job_status.html" class="navbar-submenu-item">Job Status</a>
+      <a href="ops_import_history.html" class="navbar-submenu-item">Import History</a>
+      <a href="ops_publish_queue.html" class="navbar-submenu-item">Publish Review Queue</a>
+      <a href="ops_my_work.html" class="navbar-submenu-item">My Recipes And Classes</a>
+      <a href="ops_exceptions.html" class="navbar-submenu-item">Quick Exceptions</a>
+      <a href="ops_recipe_compare.html" class="navbar-submenu-item">Recipe Compare</a>
+      <a href="ops_shopping_readiness.html" class="navbar-submenu-item">Shopping Readiness</a>
+      <a href="ops_account_settings.html" class="navbar-submenu-item">Auth And Account Settings</a>
+      <a href="ops_duplicate_detection.html" class="navbar-submenu-item">Duplicate Detection</a>
+      <a href="ops_data_health.html" class="navbar-submenu-item">Data Health</a>
+    </div>
+  </details>
+</aside>
+
+<aside id="ftTeacherDrawer" class="navbar-admin-drawer" data-role="authenticated" hidden aria-label="FT Teacher Menu">
+  <div class="navbar-drawer-header">
+    <div class="navbar-drawer-title">FT Teacher</div>
+    <button type="button" class="navbar-drawer-close" aria-label="Close FT Teacher menu">×</button>
+  </div>
+
+  <div class="navbar-drawer-links" style="padding-top:0.6rem;">
+    <a href="add_food_truck_booking.html" class="navbar-submenu-item" data-route="ft_teacher">Add Food Truck Booking</a>
+    <a href="food_truck_teacher_recipes.html" class="navbar-submenu-item" data-route="ft_teacher">Recipe Moderation List</a>
+    <a href="teacher_booking_slots.html" class="navbar-submenu-item" data-route="ft_teacher">Teacher Calendar List</a>
+  </div>
+</aside>

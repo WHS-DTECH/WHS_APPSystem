@@ -1,0 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap');
+
+/* Shared style.css placeholder to resolve 404 errors. */
+body {
+  font-family: 'Lexend', sans-serif;
+  background: #fff;
+  color: #222;
+}

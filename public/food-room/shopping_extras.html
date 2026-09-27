@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shopping Extras</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .se-wrap { max-width: 860px; margin: 2rem auto; padding: 0 1rem; }
+    .se-title { font-size: 1.55rem; font-weight: 700; color: #1a3a5c; margin: 0 0 0.3rem; }
+    .se-sub { color: #555; margin: 0 0 1.5rem; font-size: 0.95rem; }
+    .se-card {
+      background: #fff;
+      border: 1px solid #cdd8e3;
+      border-radius: 8px;
+      padding: 1.25rem 1.4rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .se-card-title {
+      font-size: 1.1rem; font-weight: 700; color: #1a3a5c;
+      margin: 0 0 0.25rem;
+    }
+    .se-card-sub { color: #666; font-size: 0.87rem; margin: 0 0 1rem; }
+    .se-week-row {
+      display: flex; flex-wrap: wrap; gap: 0.6rem;
+      align-items: center; margin-bottom: 1rem;
+    }
+    .se-week-row label { font-size: 0.9rem; font-weight: 600; color: #333; }
+    .se-week-row input[type="date"] {
+      padding: 0.38rem 0.6rem; border: 1px solid #b0bec5;
+      border-radius: 5px; font-size: 0.93rem;
+    }
+    .se-table { width: 100%; border-collapse: collapse; margin-bottom: 0.75rem; }
+    .se-table th {
+      background: #2a6099; color: #fff; text-align: left;
+      padding: 0.45rem 0.6rem; font-size: 0.88rem;
+    }
+    .se-table td { padding: 0.35rem 0.5rem; border-bottom: 1px solid #e8eef4; }
+    .se-table tbody tr:hover { background: #f5f9fd; }
+    .se-table input[type="text"] {
+      width: 100%; border: 1px solid #c5d3dc; border-radius: 4px;
+      padding: 0.3rem 0.45rem; font-size: 0.91rem; box-sizing: border-box;
+    }
+    .se-table input[type="text"]:focus { outline: none; border-color: #2a6099; }
+    .se-del-btn {
+      background: #c0392b; color: #fff; border: none;
+      border-radius: 4px; padding: 0.28rem 0.6rem; cursor: pointer;
+      font-size: 0.82rem;
+    }
+    .se-del-btn:hover { background: #a93226; }
+    .se-btn-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+    .se-btn {
+      padding: 0.45rem 1rem; border: none; border-radius: 5px;
+      cursor: pointer; font-size: 0.9rem; font-weight: 600;
+    }
+    .se-btn.primary { background: #2a6099; color: #fff; }
+    .se-btn.primary:hover { background: #1d4f7c; }
+    .se-btn.secondary { background: #6d7f92; color: #fff; }
+    .se-btn.secondary:hover { background: #5a6a79; }
+    .se-btn.success { background: #27ae60; color: #fff; }
+    .se-btn.success:hover { background: #1e8449; }
+    .se-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .se-status {
+      margin-top: 0.5rem; min-height: 1.1rem;
+      font-size: 0.9rem; font-weight: 600;
+    }
+    .se-status.ok { color: #1e8449; }
+    .se-status.error { color: #c0392b; }
+    .se-empty { color: #888; font-style: italic; font-size: 0.9rem; padding: 0.5rem 0; }
+    @media (max-width: 600px) {
+      .se-week-row { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+
+  <datalist id="seCategories">
+    <option value="Meat">
+    <option value="Dairy">
+    <option value="Dairy &amp; Pastry">
+    <option value="Dry Ingredients">
+    <option value="Produce">
+    <option value="Pantry">
+    <option value="Cleaning Products">
+    <option value="Bakery">
+    <option value="Frozen">
+    <option value="Other">
+  </datalist>
+
+  <main class="se-wrap">
+    <h1 class="se-title">Shopping Extras</h1>
+    <p class="se-sub">
+      Manage extra items that appear in Book Shopping beyond the calculated recipe ingredients —
+      cleaning products, ordering items, pantry staples, etc.
+      <a href="book_the_shopping.html" style="margin-left:0.5rem;">← Back to Book Shopping</a>
+    </p>
+
+    <!-- Standing Items -->
+    <section class="se-card">
+      <div class="se-card-title">Standing Items</div>
+      <div class="se-card-sub">Always shown in Book Shopping every week (e.g. cleaning supplies, regular ordering items).</div>
+      <table class="se-table">
+        <thead><tr><th style="width:220px;">Category</th><th>Item</th><th style="width:60px;"></th></tr></thead>
+        <tbody id="standingBody"></tbody>
+      </table>
+      <p id="standingEmpty" class="se-empty" hidden>No standing items yet. Click "+ Add Item" below.</p>
+      <div class="se-btn-row">
+        <button type="button" class="se-btn secondary" id="addStandingBtn">+ Add Item</button>
+        <button type="button" class="se-btn success" id="saveStandingBtn">Save Standing Items</button>
+      </div>
+      <div id="standingStatus" class="se-status"></div>
+    </section>
+
+    <!-- Week Extras -->
+    <section class="se-card">
+      <div class="se-card-title">This Week's Extras</div>
+      <div class="se-card-sub">Items specific to one week — loaded from the Teacher Comparison or added manually.</div>
+      <div class="se-week-row">
+        <label for="weekDateInput">Week ending (Friday):</label>
+        <input type="date" id="weekDateInput">
+        <button type="button" class="se-btn primary" id="loadWeekBtn">Load</button>
+        <button type="button" class="se-btn secondary" id="loadFromComparisonBtn" title="Pre-fill with Teacher-Only items sent from Match Shopping Lists">
+          Load from Teacher Comparison
+        </button>
+      </div>
+      <table class="se-table">
+        <thead><tr><th style="width:220px;">Category</th><th>Item</th><th style="width:60px;"></th></tr></thead>
+        <tbody id="weekBody"></tbody>
+      </table>
+      <p id="weekEmpty" class="se-empty" hidden>No week items yet. Click "+ Add Item" or load from Teacher Comparison.</p>
+      <div class="se-btn-row">
+        <button type="button" class="se-btn secondary" id="addWeekBtn">+ Add Item</button>
+        <button type="button" class="se-btn success" id="saveWeekBtn">Save Week Items</button>
+      </div>
+      <div id="weekStatus" class="se-status"></div>
+    </section>
+  </main>
+
+  <script>
+  (function () {
+    const standingBody = document.getElementById('standingBody');
+    const standingEmpty = document.getElementById('standingEmpty');
+    const standingStatus = document.getElementById('standingStatus');
+    const weekBody = document.getElementById('weekBody');
+    const weekEmpty = document.getElementById('weekEmpty');
+    const weekStatus = document.getElementById('weekStatus');
+    const weekDateInput = document.getElementById('weekDateInput');
+
+    function escHtml(s) {
+      return String(s || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function setStatus(el, msg, type) {
+      el.textContent = msg || '';
+      el.className = 'se-status' + (type ? ' ' + type : '');
+    }
+
+    // Default week date to the coming Friday
+    function defaultFriday() {
+      const d = new Date();
+      const day = d.getDay(); // 0=Sun, 5=Fri
+      const diff = day <= 5 ? 5 - day : 6; // days until next Friday (or today if Fri)
+      d.setDate(d.getDate() + diff);
+      return d.toISOString().slice(0, 10);
+    }
+
+    weekDateInput.value = defaultFriday();
+
+    function makeRow(category, itemText, tbody, deleteCallback) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="text" value="${escHtml(category)}" list="seCategories" placeholder="Category" aria-label="Category"></td>
+        <td><input type="text" value="${escHtml(itemText)}" placeholder="Item description" aria-label="Item"></td>
+        <td><button type="button" class="se-del-btn" aria-label="Delete row">✕</button></td>
+      `;
+      tr.querySelector('.se-del-btn').addEventListener('click', function () {
+        tr.remove();
+        if (typeof deleteCallback === 'function') deleteCallback();
+      });
+      tbody.appendChild(tr);
+    }
+
+    function updateEmpty(tbody, emptyEl) {
+      emptyEl.hidden = tbody.rows.length > 0;
+    }
+
+    function collectRows(tbody) {
+      const rows = [];
+      for (const tr of tbody.rows) {
+        const inputs = tr.querySelectorAll('input[type="text"]');
+        const category = String(inputs[0] ? inputs[0].value : '').trim() || 'Other';
+        const item_text = String(inputs[1] ? inputs[1].value : '').trim();
+        if (item_text) rows.push({ category, item_text });
+      }
+      return rows;
+    }
+
+    function renderStanding(rows) {
+      standingBody.innerHTML = '';
+      (rows || []).forEach((r) => {
+        makeRow(r.category, r.item_text, standingBody, () => updateEmpty(standingBody, standingEmpty));
+      });
+      updateEmpty(standingBody, standingEmpty);
+    }
+
+    function renderWeek(rows) {
+      weekBody.innerHTML = '';
+      (rows || []).forEach((r) => {
+        makeRow(r.category, r.item_text, weekBody, () => updateEmpty(weekBody, weekEmpty));
+      });
+      updateEmpty(weekBody, weekEmpty);
+    }
+
+    async function loadStanding() {
+      try {
+        const res = await fetch('/api/shopping-extras', { credentials: 'include' });
+        const data = await res.json().catch(() => ({}));
+        renderStanding(data.standing || []);
+      } catch (err) {
+        setStatus(standingStatus, 'Failed to load standing items: ' + err.message, 'error');
+      }
+    }
+
+    async function loadWeek() {
+      const weekDate = weekDateInput.value.trim();
+      if (!weekDate) {
+        setStatus(weekStatus, 'Enter a week ending date first.', 'error');
+        return;
+      }
+      setStatus(weekStatus, '', '');
+      try {
+        const res = await fetch('/api/shopping-extras?week_date=' + encodeURIComponent(weekDate), { credentials: 'include' });
+        const data = await res.json().catch(() => ({}));
+        renderWeek(data.week || []);
+        if ((data.week || []).length === 0) {
+          setStatus(weekStatus, 'No saved extras for this week yet.', '');
+        }
+      } catch (err) {
+        setStatus(weekStatus, 'Failed to load week extras: ' + err.message, 'error');
+      }
+    }
+
+    async function saveSection(scope, statusEl, rows) {
+      const weekDate = weekDateInput.value.trim();
+      if (scope === 'week' && !weekDate) {
+        setStatus(statusEl, 'Enter a week ending date before saving.', 'error');
+        return;
+      }
+      statusEl.textContent = 'Saving…';
+      try {
+        const res = await fetch('/api/shopping-extras/save', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scope, week_date: weekDate || null, rows })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.success === false) {
+          throw new Error(data.error || 'Save failed.');
+        }
+        setStatus(statusEl, 'Saved (' + rows.length + ' item' + (rows.length !== 1 ? 's' : '') + ').', 'ok');
+      } catch (err) {
+        setStatus(statusEl, 'Error: ' + err.message, 'error');
+      }
+    }
+
+    // Standing
+    document.getElementById('addStandingBtn').addEventListener('click', function () {
+      makeRow('Other', '', standingBody, () => updateEmpty(standingBody, standingEmpty));
+      updateEmpty(standingBody, standingEmpty);
+    });
+    document.getElementById('saveStandingBtn').addEventListener('click', async function () {
+      const rows = collectRows(standingBody);
+      await saveSection('standing', standingStatus, rows);
+    });
+
+    // Week
+    document.getElementById('addWeekBtn').addEventListener('click', function () {
+      makeRow('Other', '', weekBody, () => updateEmpty(weekBody, weekEmpty));
+      updateEmpty(weekBody, weekEmpty);
+    });
+    document.getElementById('loadWeekBtn').addEventListener('click', loadWeek);
+    document.getElementById('saveWeekBtn').addEventListener('click', async function () {
+      const rows = collectRows(weekBody);
+      await saveSection('week', weekStatus, rows);
+    });
+
+    // Load from Teacher Comparison (sessionStorage)
+    document.getElementById('loadFromComparisonBtn').addEventListener('click', function () {
+      let importData = null;
+      try {
+        const raw = sessionStorage.getItem('shoppingExtrasImport');
+        importData = raw ? JSON.parse(raw) : null;
+      } catch (_) {}
+
+      if (!importData || !Array.isArray(importData.items) || !importData.items.length) {
+        setStatus(weekStatus, 'No Teacher-Only items found. Run a comparison on the Match Shopping Lists page first, then click "Send to Shopping Extras".', 'error');
+        return;
+      }
+
+      // Set week date if provided
+      if (importData.weekDate && !weekDateInput.value) {
+        weekDateInput.value = importData.weekDate;
+      }
+
+      // Append rows (don't wipe existing ones — user may have added manual rows)
+      importData.items.forEach((item) => {
+        makeRow(item.category || 'Other', item.item_text || item.raw || '', weekBody, () => updateEmpty(weekBody, weekEmpty));
+      });
+      updateEmpty(weekBody, weekEmpty);
+      setStatus(weekStatus, importData.items.length + ' item(s) loaded from Teacher Comparison. Review, edit, then click "Save Week Items".', 'ok');
+
+      // Clear so re-clicking doesn't double-add
+      try { sessionStorage.removeItem('shoppingExtrasImport'); } catch (_) {}
+    });
+
+    // Auto-check for comparison import on page load
+    (function checkAutoImport() {
+      let importData = null;
+      try {
+        const raw = sessionStorage.getItem('shoppingExtrasImport');
+        importData = raw ? JSON.parse(raw) : null;
+      } catch (_) {}
+      if (importData && Array.isArray(importData.items) && importData.items.length) {
+        const btn = document.getElementById('loadFromComparisonBtn');
+        btn.style.background = '#e67e22';
+        btn.title = importData.items.length + ' Teacher-Only items ready to load';
+        btn.textContent = 'Load from Teacher Comparison (' + importData.items.length + ')';
+        if (importData.weekDate) {
+          weekDateInput.value = importData.weekDate;
+        }
+      }
+    })();
+
+    // Initial load
+    loadStanding();
+    loadWeek();
+  })();
+  </script>
+</body>
+</html>

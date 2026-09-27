@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Details</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .recipe-details-container {
+            max-width: 800px;
+            margin: 40px auto;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            display: flex;
+            flex-wrap: wrap;
+            overflow: hidden;
+        }
+        .recipe-image-section {
+            flex: 1 1 250px;
+            min-width: 250px;
+            background: #f7e7d3;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 32px 16px;
+            justify-content: flex-start;
+        }
+        .recipe-image-section img {
+            width: 180px;
+            height: 180px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            background: #fff;
+        }
+        .ingredients-list, .topping-list {
+            margin: 0 0 16px 0;
+            padding: 0 0 0 18px;
+            font-size: 1rem;
+        }
+        .ingredients-title, .topping-title {
+            font-weight: bold;
+            margin-top: 12px;
+            margin-bottom: 4px;
+        }
+        .recipe-main-section {
+            flex: 2 1 350px;
+            min-width: 320px;
+            padding: 32px 32px 32px 24px;
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+        .recipe-title {
+            font-size: 2.2rem;
+            font-family: 'Georgia', serif;
+            font-weight: bold;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+        .recipe-description {
+            font-size: 1.1rem;
+            color: #444;
+            margin-bottom: 18px;
+        }
+        .recipe-meta {
+            display: flex;
+            gap: 32px;
+            margin-bottom: 18px;
+            font-size: 1rem;
+        }
+        .recipe-meta span {
+            display: block;
+            color: #666;
+        }
+        .instructions-title {
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 6px;
+            margin-top: 18px;
+        }
+        .instructions-list {
+            margin: 0 0 0 18px;
+            padding: 0;
+            font-size: 1rem;
+        }
+        @media (max-width: 900px) {
+            .recipe-details-container {
+                flex-direction: column;
+                max-width: 98vw;
+            }
+            .recipe-main-section, .recipe-image-section {
+                min-width: 0;
+                width: 100%;
+                padding: 24px 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div style="max-width: 900px; margin: 0 auto;">
+        <nav class="navbar">
+            <a href="index.html">Food Room</a>
+            <a href="recipe_book_setup.html">Recipe Book</a>
+            <a href="book_a_class.html">Book a Class</a>
+            <a href="book_the_shopping.html">Book the Shopping</a>
+            <a href="catering_grid.html">Catering</a>
+            <a href="admin_permissions.html">Admin</a>
+            <span class="navbar-user">Vanessa Pringle <a href="#" class="logout-btn">Logout</a></span>
+        </nav>
+        <div class="recipe-details-container">
+        <div class="recipe-image-section">
+            <img id="recipeImage" src="/default_recipe.jpg" alt="Recipe Image">
+            <div class="ingredients-title">INGREDIENTS</div>
+            <ul class="ingredients-list" id="ingredientsList"></ul>
+            <div class="topping-title" id="toppingTitle" style="display:none;">For the Topping:</div>
+            <ul class="topping-list" id="toppingList" style="display:none;"></ul>
+        </div>
+        <div class="recipe-main-section">
+            <div class="recipe-title" id="recipeTitle">Recipe Title</div>
+            <div class="recipe-description" id="recipeDescription">Recipe description goes here.</div>
+            <div class="recipe-meta">
+                <span>PREP TIME<br><span id="prepTime">-</span></span>
+                <span>COOK TIME<br><span id="cookTime">-</span></span>
+                <span>READY IN<br><span id="readyIn">-</span></span>
+            </div>
+            <div class="instructions-title">INSTRUCTIONS</div>
+            <ol class="instructions-list" id="instructionsList"></ol>
+        </div>
+    </div>
+        <a href="index.html" class="back-btn" style="display:block;text-align:center;margin:24px auto 0 auto;">&larr; Back to Recipe Book</a>
+    </div>
+    <script src="recipe.js"></script>
+</body>
+</html>

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book the Shopping</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="navbar-include"></div>
+    <script src="shared/navbar_loader.js"></script>
+    <main class="shopping-app shopping-page">
+        <section id="shoppingTransitionBanner" style="max-width:1200px;margin:1rem auto 0;padding:0 1rem;">
+            <div style="background:#fff6e6;border:1px solid #f5cf90;border-left:6px solid #d17a00;border-radius:10px;padding:0.9rem 1rem;display:flex;gap:0.75rem;justify-content:space-between;align-items:center;flex-wrap:wrap;">
+                <div>
+                    <strong style="display:block;color:#7a3f00;">Teacher-First Shopping is available</strong>
+                    <span style="color:#5b3a1d;font-size:0.95rem;">Try the new weekly draft → finalize workflow while keeping this legacy page available.</span>
+                </div>
+                <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                    <a href="shopping_plan_setup.html" class="btn btn-primary" style="text-decoration:none;">Open Teacher-First Setup</a>
+                    <button id="setTeacherFirstDefaultBtn" type="button" class="btn btn-secondary">Set New Flow as Default</button>
+                </div>
+            </div>
+        </section>
+
+        <div class="shopping-layout-wrap">
+            <section class="shopping-calendar-column">
+                <div class="calendar-app">
+                    <h1>Schedule Calendar</h1>
+                    <div class="shopping-teacher-quick-select">
+                        <label for="quickSelectTeacher">Quick select teacher:</label>
+                        <select id="quickSelectTeacher" aria-label="Quick select teacher bookings"></select>
+                        <button id="selectTeacherBookingsBtn" class="btn btn-secondary" type="button">Select Teacher</button>
+                        <button id="clearTeacherSelectionBtn" class="btn btn-secondary" type="button">Clear</button>
+                    </div>
+                    <div class="add-booking-toolbar shopping-calendar-header">
+                        <div id="calendarWeekLabel" class="add-booking-week-label">Week of ...</div>
+                        <div class="add-booking-toolbar-actions">
+                            <button id="prevWeekBtn">&larr; Previous</button>
+                            <button id="todayBtn">Today</button>
+                            <button id="nextWeekBtn">Next &rarr;</button>
+                            <button id="printScheduleByRecipeBtn" class="add-booking-print-btn" type="button">Print Calendar by Recipe</button>
+                            <select id="scheduleViewModeSelect" title="Calendar cell display mode" style="padding:0.4rem 0.6rem;border:1px solid #90a4ae;border-radius:5px;font-size:0.92rem;background:#fff;cursor:pointer;">
+                                <option value="class">Show: Class</option>
+                                <option value="recipe">Show: Recipe</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="calendar-wrap">
+                        <table class="calendar-table" id="scheduleCalendarTable"></table>
+                    </div>
+                </div>
+            </section>
+
+            <section class="shopping-list-column">
+                <div id="shoppingListTabs" class="ui-action-bar shopping-tabs">
+                    <button id="tabByTeacher" class="shopping-tab btn btn-secondary active shopping-tab-active">Shopping List by Teacher</button>
+                    <button id="tabByCategory" class="shopping-tab btn btn-secondary">Shopping List by Category</button>
+                </div>
+
+                <div id="tabContentByTeacher">
+                    <div class="shopping-print-action">
+                        <button id="printByTeacherBtn" class="btn btn-primary">Print</button>
+                    </div>
+                    <div id="printByTeacherArea" class="ui-card shopping-print-area">
+                        <div class="shopping-panel-title">Shopping List by Teacher</div>
+                        <div id="by-teacher-ingredients"></div>
+                    </div>
+                </div>
+
+                <div id="tabContentByCategory" style="display:none;">
+                    <div class="shopping-print-action">
+                        <button id="printByCategoryBtn" class="btn btn-success">Print</button>
+                    </div>
+                    <div id="printByCategoryArea" class="ui-card shopping-print-area">
+                        <div class="shopping-panel-title">Shopping List by Category</div>
+                        <div id="by-category-ingredients"></div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+        <!-- Shopping List Buttons always visible (fixed bar) -->
+    <div id="shoppingListButtonBar" class="ui-action-bar shopping-bottom-bar">
+        <button id="generateByTeacherBtn" class="btn btn-primary shopping-bottom-btn">Generate Shopping List by Teacher</button>
+        <button id="generateByCategoryBtn" class="btn btn-success shopping-bottom-btn">Generate Shopping List by Category</button>
+        <button id="autoWeekListBtn" class="btn btn-primary shopping-bottom-btn" data-theme="dark">Auto Week List + Print</button>
+        <button id="loadTeacherExtrasBtn" class="btn btn-secondary shopping-bottom-btn">Load Teacher Extras</button>
+
+            <!-- Teacher Extras panel (below the main shopping layout) -->
+            <div id="teacherExtrasPanel" style="max-width:900px;margin:1.5rem auto 2rem;padding:0 1rem;display:none;">
+                <div style="background:#fff;border:1px solid #cdd8e3;border-radius:8px;padding:1.1rem 1.3rem;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.9rem;">
+                        <h2 style="margin:0;font-size:1.05rem;font-weight:700;color:#1a3a5c;">Teacher Extras</h2>
+                        <a href="shopping_extras.html" style="font-size:0.87rem;">Edit Extras →</a>
+                    </div>
+                    <div id="teacherExtrasContent"><em style="color:#888;">Click "Load Teacher Extras" in the button bar below.</em></div>
+                </div>
+            </div>
+
+    </div>
+        <script src="shared/nz_school_calendar.js"></script>
+        <script src="schedule_calendar.js"></script>
+        <script src="book_the_shopping_compare_stripfooditem.js"></script>
+    <style>
+    @media print {
+        @page { margin: 10mm; }
+        body * { visibility: hidden !important; }
+        #printArea, #printArea * { visibility: visible !important; }
+        #printArea { position: absolute; left: 0; top: 0; width: 100vw; background: #fff; color: #000; z-index: 9999; }
+        #printArea h1, #printArea h2, #printArea h3 { margin: 0.5em 0; }
+        #printArea table { width: 100%; border-collapse: collapse; }
+        #printArea th, #printArea td {
+            border: 1px solid #888;
+            padding: 0.3em 0.55em;
+            white-space: normal !important;
+            word-break: break-word;
+            vertical-align: top;
+            font-size: 0.92em;
+        }
+        #printArea th { background: #e3e3e3; }
+        #printArea tr:nth-child(even) { background: #f6f8fa; }
+    }
+    </style>
+    <script src="shared/quality_tools.js"></script>
+    <script src="book_the_shopping.js"></script>
+
+        <script>
+        (function () {
+            var setDefaultBtn = document.getElementById('setTeacherFirstDefaultBtn');
+            var loadExtrasBtn = document.getElementById('loadTeacherExtrasBtn');
+            var extrasPanel = document.getElementById('teacherExtrasPanel');
+            var extrasContent = document.getElementById('teacherExtrasContent');
+
+            function escHtml(s) {
+                return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            }
+
+            function getFridayDate() {
+                // Use currentMonday from schedule_calendar.js if available
+                var base = (typeof currentMonday !== 'undefined' && currentMonday instanceof Date)
+                    ? new Date(currentMonday)
+                    : new Date();
+                var day = base.getDay();
+                var diff = day <= 5 ? 5 - day : 6;
+                base.setDate(base.getDate() + diff);
+                return base.toISOString().slice(0, 10);
+            }
+
+            function renderExtras(standing, week) {
+                var all = [];
+                // Week-specific first, then standing
+                (week || []).forEach(function(r) { all.push(r); });
+                (standing || []).forEach(function(r) { all.push(r); });
+                if (!all.length) {
+                    extrasContent.innerHTML = '<em style="color:#888;">No extras saved for this week. <a href="shopping_extras.html">Add some →</a></em>';
+                    return;
+                }
+                var byCategory = {};
+                all.forEach(function(r) {
+                    var cat = String(r.category || 'Other');
+                    if (!byCategory[cat]) byCategory[cat] = [];
+                    byCategory[cat].push(r);
+                });
+                var html = '';
+                Object.keys(byCategory).forEach(function(cat) {
+                    html += '<h4 style="margin:0.55rem 0 0.2rem;color:#1a3a5c;font-size:0.88rem;">' + escHtml(cat) + '</h4>';
+                    html += '<table style="width:100%;border-collapse:collapse;margin-bottom:0.4rem;">';
+                    byCategory[cat].forEach(function(r, idx) {
+                        var bg = idx % 2 === 0 ? '#fff' : '#f5f9fd';
+                        var badge = r.is_standing ? ' <span style="font-size:0.75rem;background:#e3edf7;color:#1a3a5c;border-radius:3px;padding:0 4px;">standing</span>' : '';
+                        html += '<tr style="background:' + bg + '">';
+                        html += '<td style="padding:0.3rem 0.5rem;font-size:0.91rem;">' + escHtml(r.item_text) + badge + '</td>';
+                        html += '</tr>';
+                    });
+                    html += '</table>';
+                });
+                extrasContent.innerHTML = html;
+            }
+
+            if (setDefaultBtn) {
+                setDefaultBtn.addEventListener('click', function () {
+                    try {
+                        localStorage.setItem('shopping_workflow_default', 'teacher_first');
+                        sessionStorage.setItem('shopping_workflow_default', 'teacher_first');
+                    } catch (_) {}
+                    if (window.nb2Nav && typeof window.nb2Nav.setShoppingDefault === 'function') {
+                        window.nb2Nav.setShoppingDefault('teacher_first');
+                    }
+                    if (window.showToast) {
+                        window.showToast('Navigation default updated to Teacher-First Shopping.', 'success');
+                    } else {
+                        setDefaultBtn.textContent = 'Default Set';
+                    }
+                });
+            }
+
+            if (loadExtrasBtn) {
+                loadExtrasBtn.addEventListener('click', async function () {
+                    var friday = getFridayDate();
+                    extrasPanel.style.display = '';
+                    extrasContent.innerHTML = '<em>Loading…</em>';
+                    try {
+                        var res = await fetch('/api/shopping-extras?week_date=' + encodeURIComponent(friday), { credentials: 'include' });
+                        var data = await res.json().catch(function(){ return {}; });
+                        renderExtras(data.standing || [], data.week || []);
+                    } catch (err) {
+                        extrasContent.innerHTML = '<span style="color:#c0392b;">Failed to load extras: ' + escHtml(err.message) + '</span>';
+                    }
+                });
+            }
+        })();
+        </script>
+</body>
+</html>

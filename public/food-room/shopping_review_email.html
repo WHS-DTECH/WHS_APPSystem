@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shopping Review Email</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .page{max-width:1100px;margin:24px auto 56px;padding:0 1rem;}
+    .card{background:#fff;border:1px solid #d8dee6;border-radius:14px;box-shadow:0 8px 24px rgba(15,23,42,0.07);padding:1.2rem 1.4rem;margin-bottom:1rem;}
+    .title{margin:0 0 0.2rem;font-size:1.5rem;color:#1f2937;}
+    .sub{margin:0 0 0.9rem;color:#4b5563;font-size:0.95rem;}
+    .row{display:flex;gap:0.7rem;flex-wrap:wrap;align-items:flex-end;}
+    .field{flex:1 1 220px;min-width:220px;}
+    .field label{display:block;font-size:0.82rem;font-weight:700;color:#334155;margin:0 0 0.28rem;}
+    .field input,.field select{width:100%;border:1px solid #cfd9e8;border-radius:8px;padding:0.55rem 0.65rem;font-size:0.95rem;background:#fff;box-sizing:border-box;}
+    .btn{border:none;border-radius:8px;padding:0.55rem 0.9rem;font-size:0.9rem;font-weight:700;cursor:pointer;}
+    .btn-primary{background:#1d4ed8;color:#fff;}
+    .btn-primary:hover{background:#1e40af;}
+    .btn-green{background:#047857;color:#fff;}
+    .btn-green:hover{background:#065f46;}
+    .btn-muted{background:#475569;color:#fff;}
+    .btn-muted:hover{background:#334155;}
+    .btn-danger{background:#b91c1c;color:#fff;}
+    .btn-danger:hover{background:#991b1b;}
+    .btn:disabled{opacity:0.45;cursor:not-allowed;}
+    .status{margin-top:0.7rem;min-height:1.2rem;font-size:0.9rem;color:#334155;}
+    .status.ok{color:#166534;}
+    .status.error{color:#b91c1c;}
+    .table-wrap{overflow:auto;margin-top:0.5rem;}
+    table{width:100%;border-collapse:collapse;font-size:0.88rem;}
+    th{background:#1d4ed8;color:#fff;padding:0.45rem 0.5rem;text-align:left;white-space:nowrap;}
+    td{border:1px solid #e2e8f0;padding:0.42rem 0.5rem;vertical-align:top;}
+    tr:nth-child(even) td{background:#f8fafc;}
+    .pill{display:inline-block;padding:2px 7px;border-radius:999px;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;}
+    .pill-pending{background:#fef3c7;color:#92400e;}
+    .pill-sent{background:#dcfce7;color:#166534;}
+    .pill-failed{background:#fee2e2;color:#991b1b;}
+    .pill-cancelled{background:#e5e7eb;color:#374151;}
+    .actions{display:flex;gap:0.35rem;flex-wrap:wrap;}
+    .smtp-badge{display:inline-flex;align-items:center;gap:0.45rem;padding:0.35rem 0.6rem;border-radius:999px;font-size:0.8rem;font-weight:700;}
+    .smtp-badge.ok{background:#dcfce7;color:#166534;}
+    .smtp-badge.error{background:#fee2e2;color:#991b1b;}
+    .smtp-badge.neutral{background:#e2e8f0;color:#334155;}
+    .mini-actions{display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.7rem;}
+    @media (max-width:760px){.field{min-width:100%;}}
+  </style>
+</head>
+<body>
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+
+  <div class="page">
+    <h1 class="title">Shopping Review Email</h1>
+    <p class="sub">Send the structured shopping review email now, or schedule it for a future date/time.</p>
+
+    <div class="card">
+      <div id="smtpStatusBadge" class="smtp-badge neutral">Checking SMTP status...</div>
+      <div id="smtpStatusText" class="sub" style="margin:0.55rem 0 0;">This confirms whether scheduled review emails can be sent from Render.</div>
+      <div class="mini-actions">
+        <button type="button" id="smtpTestBtn" class="btn btn-muted" style="padding:0.45rem 0.75rem;font-size:0.82rem;">Send Test Email</button>
+      </div>
+      <div id="smtpTestStatus" class="status" style="margin-top:0.45rem;min-height:1rem;"></div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <div class="field" style="flex:2 1 360px;min-width:320px;">
+          <label for="savedListSelect">Saved Shopping List</label>
+          <select id="savedListSelect">
+            <option value="">Loading saved lists...</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="triggerAt">Trigger Date/Time</label>
+          <input type="datetime-local" id="triggerAt">
+        </div>
+      </div>
+      <div class="row" style="margin-top:0.7rem;">
+        <button type="button" id="sendNowBtn" class="btn btn-green">Send Review Email Now</button>
+        <button type="button" id="scheduleBtn" class="btn btn-primary">Schedule Email</button>
+        <button type="button" id="refreshBtn" class="btn btn-muted">Refresh Schedules</button>
+      </div>
+      <div id="status" class="status"></div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between;align-items:center;">
+        <h2 style="margin:0;font-size:1.08rem;color:#1f2937;">Scheduled Emails</h2>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Trigger</th>
+              <th>Status</th>
+              <th>List</th>
+              <th>Recipient</th>
+              <th>Sent At</th>
+              <th>Message ID</th>
+              <th>Error</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="scheduleTableBody">
+            <tr><td colspan="7" style="text-align:center;color:#64748b;">Loading schedules...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      const savedListSelect = document.getElementById('savedListSelect');
+      const triggerAtInput = document.getElementById('triggerAt');
+      const sendNowBtn = document.getElementById('sendNowBtn');
+      const scheduleBtn = document.getElementById('scheduleBtn');
+      const refreshBtn = document.getElementById('refreshBtn');
+      const statusEl = document.getElementById('status');
+      const smtpTestStatusEl = document.getElementById('smtpTestStatus');
+      const scheduleTableBody = document.getElementById('scheduleTableBody');
+      const smtpStatusBadge = document.getElementById('smtpStatusBadge');
+      const smtpStatusText = document.getElementById('smtpStatusText');
+      const smtpTestBtn = document.getElementById('smtpTestBtn');
+
+      function setWorkflowControlsEnabled(enabled) {
+        sendNowBtn.disabled = !enabled;
+        scheduleBtn.disabled = !enabled;
+        smtpTestBtn.disabled = !enabled;
+      }
+
+      function esc(str) {
+        return String(str == null ? '' : str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function getCurrentEmail() {
+        try {
+          const raw = sessionStorage.getItem('currentStaffUser');
+          const parsed = raw ? JSON.parse(raw) : null;
+          return String(parsed && parsed.email_school ? parsed.email_school : '').trim().toLowerCase();
+        } catch (_) {
+          return '';
+        }
+      }
+
+      function setStatus(message, type) {
+        statusEl.className = 'status' + (type ? ' ' + type : '');
+        statusEl.textContent = message || '';
+      }
+
+      function setSmtpTestStatus(message, type) {
+        smtpTestStatusEl.className = 'status' + (type ? ' ' + type : '');
+        smtpTestStatusEl.textContent = message || '';
+      }
+
+      function fmtDate(value) {
+        if (!value) return '-';
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return String(value);
+        return d.toLocaleString();
+      }
+
+      function isoLocalNow() {
+        const d = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      }
+
+      async function requestJson(url, options) {
+        const email = getCurrentEmail();
+        const settings = options || {};
+        const headers = Object.assign({ 'Content-Type': 'application/json' }, settings.headers || {});
+        if (email) headers['x-user-email'] = email;
+
+        const resp = await fetch(url, Object.assign({}, settings, { credentials: 'include', headers }));
+        let payload = null;
+        try { payload = await resp.json(); } catch (_) { payload = null; }
+        if (!resp.ok || (payload && payload.success === false)) {
+          throw new Error(payload && payload.error ? payload.error : `Request failed (${resp.status})`);
+        }
+        return payload || {};
+      }
+
+      function renderSchedules(rows) {
+        const list = Array.isArray(rows) ? rows : [];
+        if (!list.length) {
+          scheduleTableBody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#64748b;">No schedules yet.</td></tr>';
+          return;
+        }
+
+        scheduleTableBody.innerHTML = list.map((row) => {
+          const status = String(row.status || '').toLowerCase();
+          const pillClass = status === 'sent' ? 'pill-sent' : status === 'failed' ? 'pill-failed' : status === 'cancelled' ? 'pill-cancelled' : 'pill-pending';
+          const title = String(row.title || 'Shopping List').trim();
+          const week = String(row.week_info || '').trim();
+          const info = week ? `${title} (${week})` : title;
+          const canRun = status === 'pending';
+          const msgId = String(row.message_id || '').trim();
+          const msgIdDisplay = msgId ? msgId.substring(0, 16) + (msgId.length > 16 ? '...' : '') : '-';
+          return `
+            <tr>
+              <td>${Number(row.id) || '-'}</td>
+              <td>${esc(fmtDate(row.trigger_at))}</td>
+              <td><span class="pill ${pillClass}">${esc(status || 'pending')}</span></td>
+              <td>${esc(info)}</td>
+              <td>${esc(row.recipient_email || '-')}</td>
+              <td>${esc(fmtDate(row.sent_at))}</td>
+              <td title="${esc(msgId)}">${esc(msgIdDisplay)}</td>
+              <td>${esc(row.last_error || '')}</td>
+              <td>
+                <div class="actions">
+                  ${canRun ? `<button class="btn btn-primary" style="padding:0.35rem 0.55rem;font-size:0.76rem;" data-action="run" data-id="${Number(row.id)}">Run Now</button>` : ''}
+                  ${canRun ? `<button class="btn btn-danger" style="padding:0.35rem 0.55rem;font-size:0.76rem;" data-action="cancel" data-id="${Number(row.id)}">Cancel</button>` : ''}
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      async function loadSavedLists() {
+        try {
+          const data = await requestJson('/api/saved-shopping-lists');
+          const lists = Array.isArray(data.lists) ? data.lists : [];
+          if (!lists.length) {
+            savedListSelect.innerHTML = '<option value="">No saved shopping lists</option>';
+            return;
+          }
+
+          savedListSelect.innerHTML = lists.map((row) => {
+            const title = String(row.title || 'Shopping List').trim();
+            const week = String(row.week_info || '').trim();
+            const label = week ? `${title} - ${week}` : title;
+            return `<option value="${Number(row.id)}">${esc(label)}</option>`;
+          }).join('');
+        } catch (err) {
+          savedListSelect.innerHTML = '<option value="">Failed to load saved lists</option>';
+          setStatus(err.message || 'Failed to load saved lists.', 'error');
+        }
+      }
+
+      async function loadSchedules() {
+        try {
+          const data = await requestJson('/api/shopping-workflow-email/schedules');
+          renderSchedules(data.schedules || []);
+        } catch (err) {
+          scheduleTableBody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:#b91c1c;">${esc(err.message || 'Failed to load schedules.')}</td></tr>`;
+          setStatus(err.message || 'Failed to load schedules.', 'error');
+        }
+      }
+
+      async function loadSmtpStatus() {
+        try {
+          const data = await requestJson('/api/shopping-workflow-email/status');
+          const ok = Boolean(data.smtpReady);
+          smtpStatusBadge.className = 'smtp-badge ' + (ok ? 'ok' : 'error');
+          smtpStatusBadge.textContent = ok ? 'SMTP Ready' : 'SMTP Not Ready';
+          const channel = String(data.smtpChannel || 'smtp').toUpperCase();
+          const resendSource = data.resendApiConfigured ? String(data.resendApiSource || 'RESEND_API_KEY') : '-';
+          const resendFlags = `Resend API: ${data.resendApiConfigured ? 'yes' : 'no'} (${resendSource}) | Resend From: ${data.resendFromConfigured ? 'yes' : 'no'}`;
+          smtpTestBtn.textContent = channel === 'RESEND' ? 'Send Resend Test' : 'Send SMTP Test';
+          smtpStatusText.textContent = ok
+            ? `Channel: ${channel} | Sender: ${data.fromAddress || 'configured'} | Test recipient: ${data.testRecipient || 'vanessapringle@westlandhigh.school.nz'}`
+            : `Channel: ${channel} | ${data.smtpError || 'SMTP is not ready.'} | ${resendFlags}`;
+          setWorkflowControlsEnabled(ok);
+          if (!ok) {
+            setSmtpTestStatus('SMTP test is unavailable until channel status is ready.', 'error');
+          } else {
+            setSmtpTestStatus('', '');
+          }
+        } catch (err) {
+          smtpStatusBadge.className = 'smtp-badge neutral';
+          smtpStatusBadge.textContent = 'SMTP Unknown';
+          smtpStatusText.textContent = err.message || 'Unable to load SMTP status.';
+          setWorkflowControlsEnabled(false);
+          setSmtpTestStatus('SMTP test status unavailable.', 'error');
+        }
+      }
+
+      async function sendNow() {
+        const savedListId = Number(savedListSelect.value || 0);
+        if (!savedListId) {
+          setStatus('Select a saved shopping list first.', 'error');
+          return;
+        }
+
+        sendNowBtn.disabled = true;
+        setStatus('Sending shopping list email...', '');
+        try {
+          const data = await requestJson('/api/shopping-workflow-email/send-list-now', {
+            method: 'POST',
+            body: JSON.stringify({ savedListId })
+          });
+          const accepted = Number(data.acceptedCount || 0);
+          const rejected = Number(data.rejectedCount || 0);
+          const msgId = String(data.messageId || '').trim();
+          const details = msgId ? ` Message ID: ${msgId}` : '';
+          setStatus(`Shopping list email accepted: ${accepted}, rejected: ${rejected}. Recipient: ${data.recipientEmail || 'test recipient'}.${details}`, 'ok');
+          await loadSchedules();
+        } catch (err) {
+          setStatus(err.message || 'Failed to send shopping list email.', 'error');
+        }
+        sendNowBtn.disabled = false;
+      }
+
+      async function sendSmtpTest() {
+        smtpTestBtn.disabled = true;
+        setSmtpTestStatus('Sending SMTP test email...', '');
+        try {
+          const data = await requestJson('/api/shopping-workflow-email/send-smtp-test', {
+            method: 'POST',
+            body: JSON.stringify({})
+          });
+          const accepted = Number(data.acceptedCount || 0);
+          const rejected = Number(data.rejectedCount || 0);
+          const msgId = String(data.messageId || '').trim();
+          const details = msgId ? ` Message ID: ${msgId}` : '';
+          setSmtpTestStatus(`SMTP test accepted: ${accepted}, rejected: ${rejected}. Recipient: ${data.recipientEmail || 'configured recipient'}.${details}`, 'ok');
+        } catch (err) {
+          setSmtpTestStatus(err.message || 'Failed to send SMTP test email.', 'error');
+        }
+        smtpTestBtn.disabled = false;
+      }
+
+      async function scheduleEmail() {
+        const savedListId = Number(savedListSelect.value || 0);
+        const triggerAt = String(triggerAtInput.value || '').trim();
+
+        if (!savedListId) {
+          setStatus('Select a saved shopping list first.', 'error');
+          return;
+        }
+        if (!triggerAt) {
+          setStatus('Set a trigger date and time first.', 'error');
+          return;
+        }
+
+        scheduleBtn.disabled = true;
+        setStatus('Saving schedule...', '');
+        try {
+          await requestJson('/api/shopping-workflow-email/schedules', {
+            method: 'POST',
+            body: JSON.stringify({ savedListId, triggerAt })
+          });
+          setStatus('Schedule saved.', 'ok');
+          await loadSchedules();
+        } catch (err) {
+          setStatus(err.message || 'Failed to schedule email.', 'error');
+        }
+        scheduleBtn.disabled = false;
+      }
+
+      async function runScheduleNow(id) {
+        setStatus('Running schedule now...', '');
+        try {
+          await requestJson(`/api/shopping-workflow-email/schedules/${encodeURIComponent(String(id))}/run-now`, { method: 'POST' });
+          setStatus('Scheduled email sent.', 'ok');
+          await loadSchedules();
+        } catch (err) {
+          setStatus(err.message || 'Failed to run schedule.', 'error');
+        }
+      }
+
+      async function cancelSchedule(id) {
+        const ok = window.confirm('Cancel this scheduled email?');
+        if (!ok) return;
+        setStatus('Cancelling schedule...', '');
+        try {
+          await requestJson(`/api/shopping-workflow-email/schedules/${encodeURIComponent(String(id))}/cancel`, { method: 'POST' });
+          setStatus('Schedule cancelled.', 'ok');
+          await loadSchedules();
+        } catch (err) {
+          setStatus(err.message || 'Failed to cancel schedule.', 'error');
+        }
+      }
+
+      scheduleTableBody.addEventListener('click', (event) => {
+        const btn = event.target.closest('button[data-action][data-id]');
+        if (!btn) return;
+        const action = btn.getAttribute('data-action');
+        const id = Number(btn.getAttribute('data-id') || 0);
+        if (!id) return;
+
+        if (action === 'run') {
+          runScheduleNow(id);
+        } else if (action === 'cancel') {
+          cancelSchedule(id);
+        }
+      });
+
+      sendNowBtn.addEventListener('click', sendNow);
+      scheduleBtn.addEventListener('click', scheduleEmail);
+      refreshBtn.addEventListener('click', loadSchedules);
+      smtpTestBtn.addEventListener('click', sendSmtpTest);
+
+      setWorkflowControlsEnabled(false);
+      triggerAtInput.value = isoLocalNow();
+      loadSavedLists();
+      loadSchedules();
+      loadSmtpStatus();
+    })();
+  </script>
+</body>
+</html>

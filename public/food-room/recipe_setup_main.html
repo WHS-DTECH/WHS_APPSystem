@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Recipe Setup Main</title>
+	<link rel="stylesheet" href="../shared/style.css">
+	<style>
+		#publishedRecipesTable td ol,
+		#publishedRecipesTable td ul {
+			margin: 0;
+			padding-left: 1.2rem;
+		}
+		#publishedRecipesTable td li {
+			margin: 0.2rem 0;
+			line-height: 1.35;
+		}
+	</style>
+</head>
+<body>
+	<!-- Shared Navbar Include -->
+	<div id="navbar-include"></div>
+	<script src="shared/navbar_loader.js"></script>
+	<div class="setup-card" style="max-width:400px;margin:40px auto;text-align:center;">
+		<h2>Recipe Setup</h2>
+		<p>Select how you want to upload a recipe:</p>
+		<button class="setup-btn" style="width:100%;margin-bottom:1rem;" onclick="location.href='upload_manual.html'">Manual Upload</button>
+		<button class="setup-btn" style="width:100%;margin-bottom:1rem;" onclick="location.href='upload_pdf.html'">PDF Upload</button>
+		<button class="setup-btn" style="width:100%;" onclick="location.href='upload_url.html'">URL Upload</button>
+	</div>
+
+	<!-- Published Recipes Table (recipe_display) -->
+	<div class="setup-card" style="max-width:1100px;margin:40px auto 0 auto;text-align:left;">
+		<h2 style="font-size:1.3rem;color:#1976d2;margin-bottom:0.7rem;">Published Recipes Table</h2>
+		<div style="margin-bottom:1rem;color:#555;">These are the published recipes from the recipe_display table.</div>
+		<div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.6rem;">
+			<label for="publishedRecipeFilter" style="font-weight:600;">Filter Recipe:</label>
+			<select id="publishedRecipeFilter" style="min-width:320px;padding:0.45rem 0.55rem;border:1px solid #ccc;border-radius:6px;background:#fff;">
+				<option value="">All Published Recipes</option>
+			</select>
+		</div>
+		<table id="publishedRecipesTable" style="width:100%;margin-top:1rem;border-collapse:collapse;">
+			<thead>
+				<tr style="background:#f5f5f5;">
+					<th style="padding:0.5rem 0.7rem;border:1px solid #eee;">ID</th>
+					<th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Name</th>
+					<th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Ingredients</th>
+					<th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Serving Size</th>
+					<th style="padding:0.5rem 0.7rem;border:1px solid #eee;">URL</th>
+					<th style="padding:0.5rem 0.7rem;border:1px solid #eee;min-width:320px;width:34%;">Instructions</th>
+					<th style="padding:0.5rem 0.7rem;border:1px solid #eee;">RecipeID</th>
+					<th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Actions</th>
+				</tr>
+			</thead>
+			<tbody>
+				<!-- Populated by JS -->
+			</tbody>
+		</table>
+	</div>
+
+	<script>
+	let publishedRecipesData = [];
+	let selectedPublishedRecipe = '';
+
+	function escapeHtml(value) {
+		if (value === undefined || value === null) return '';
+		return String(value)
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;')
+			.replace(/'/g, '&#39;');
+	}
+
+	function sanitizeListHtml(value) {
+		return String(value || '')
+			.replace(/<script[\s\S]*?<\/script>/gi, '')
+			.replace(/\son\w+="[^"]*"/gi, '')
+			.replace(/\son\w+='[^']*'/gi, '');
+	}
+
+	function renderListOrTextCell(value) {
+		const text = String(value || '');
+		if (/<(ol|ul|li)\b/i.test(text)) {
+			return sanitizeListHtml(text);
+		}
+		return escapeHtml(text);
+	}
+
+	function populatePublishedRecipeFilter(rows) {
+		const select = document.getElementById('publishedRecipeFilter');
+		if (!select) return;
+
+		const prevValue = selectedPublishedRecipe;
+		select.innerHTML = '<option value="">All Published Recipes</option>';
+
+		const sortedRowsForFilter = [...rows].sort((a, b) => {
+			const aRecipeId = Number(a.recipeid) || 0;
+			const bRecipeId = Number(b.recipeid) || 0;
+			if (aRecipeId !== bRecipeId) return aRecipeId - bRecipeId;
+			return String(a.name || '').localeCompare(String(b.name || ''));
+		});
+
+		sortedRowsForFilter.forEach(row => {
+			const recipeId = row.recipeid !== undefined && row.recipeid !== null ? String(row.recipeid) : '';
+			if (!recipeId) return;
+			const name = row.name ? String(row.name).trim() : '(No name)';
+			const option = document.createElement('option');
+			option.value = recipeId;
+			option.textContent = `${recipeId} - ${name}`;
+			select.appendChild(option);
+		});
+
+		if (prevValue && Array.from(select.options).some(o => o.value === prevValue)) {
+			select.value = prevValue;
+			selectedPublishedRecipe = prevValue;
+		} else {
+			select.value = '';
+			selectedPublishedRecipe = '';
+		}
+	}
+
+	function renderPublishedRecipes() {
+		const tbody = document.querySelector('#publishedRecipesTable tbody');
+		if (!tbody) return;
+
+		tbody.innerHTML = '';
+		const filteredRows = selectedPublishedRecipe
+			? publishedRecipesData.filter(row => String(row.recipeid || '') === selectedPublishedRecipe)
+			: [...publishedRecipesData];
+
+		const sortedRows = filteredRows.sort((a, b) => {
+			const aRecipeId = Number(a.recipeid) || 0;
+			const bRecipeId = Number(b.recipeid) || 0;
+			if (bRecipeId !== aRecipeId) return bRecipeId - aRecipeId;
+			return (Number(b.id) || 0) - (Number(a.id) || 0);
+		});
+
+		sortedRows.forEach(row => {
+			const tr = document.createElement('tr');
+			tr.innerHTML = `
+				<td style='border:1px solid #eee;padding:0.5rem 0.7rem;'>${escapeHtml(row.id)}</td>
+				<td style='border:1px solid #eee;padding:0.5rem 0.7rem;'>${escapeHtml(row.name || '')}</td>
+				<td style='border:1px solid #eee;padding:0.5rem 0.7rem;'>${renderListOrTextCell(row.ingredients || '')}</td>
+				<td style='border:1px solid #eee;padding:0.5rem 0.7rem;'>${escapeHtml(row.serving_size || '')}</td>
+				<td style='border:1px solid #eee;padding:0.5rem 0.7rem;'>${row.url ? `<a href='${escapeHtml(row.url)}' target='_blank'>Link</a>` : ''}</td>
+				<td style='border:1px solid #eee;padding:0.5rem 0.7rem;min-width:320px;width:34%;'>${renderListOrTextCell(row.instructions || '')}</td>
+				<td style='border:1px solid #eee;padding:0.5rem 0.7rem;'>${escapeHtml(row.recipeid || '')}</td>
+				<td style='border:1px solid #eee;padding:0.5rem 0.7rem;text-align:center;'>
+					<button class='unpublish-recipe-btn' data-id='${row.id}' style='background:#e53935;color:#fff;border:none;padding:0.4rem 0.8rem;border-radius:4px;cursor:pointer;'>Unpublish</button>
+				</td>
+			`;
+			tbody.appendChild(tr);
+		});
+
+		if (!sortedRows.length) {
+				tbody.innerHTML = `<tr><td colspan="8" style="border:1px solid #eee;padding:0.8rem;color:#666;">No published recipes found for selected filter.</td></tr>`;
+		}
+	}
+
+	// Fetch and render published recipes from recipe_display table
+	function fetchAndRenderPublishedRecipes() {
+		fetch('/api/recipes/display-table')
+			.then(res => res.json())
+			.then(data => {
+				publishedRecipesData = Array.isArray(data) ? data : [];
+				populatePublishedRecipeFilter(publishedRecipesData);
+				renderPublishedRecipes();
+			});
+	}
+	document.addEventListener('DOMContentLoaded', function() {
+		const select = document.getElementById('publishedRecipeFilter');
+		if (select) {
+			select.addEventListener('change', function() {
+				selectedPublishedRecipe = this.value;
+				renderPublishedRecipes();
+			});
+		}
+		fetchAndRenderPublishedRecipes();
+	});
+	// Display/Unpublish button event handler for published recipes table
+	document.body.addEventListener('click', async function(e) {
+		if (e.target && e.target.classList.contains('display-recipe-btn')) {
+			const recipeId = e.target.getAttribute('data-id');
+			if (!recipeId) return;
+			if (!confirm('Display this recipe? This will copy it to the recipe_display table.')) return;
+			const resp = await fetch(`/api/recipes/${recipeId}/display`, { method: 'POST' });
+			const data = await resp.json();
+			if (data.success) {
+				alert('Recipe sent to display table!');
+				fetchAndRenderPublishedRecipes();
+			} else {
+				alert('Failed to display recipe: ' + (data.error || 'Unknown error'));
+			}
+		}
+		if (e.target && e.target.classList.contains('unpublish-recipe-btn')) {
+			const recipeId = e.target.getAttribute('data-id');
+			if (!recipeId) return;
+			if (!confirm('Unpublish this recipe? This will remove it from the recipe_display table.')) return;
+			const resp = await fetch(`/api/recipes/display-table/${recipeId}`, { method: 'DELETE' });
+			const data = await resp.json();
+			if (data.success) {
+				alert('Recipe unpublished!');
+				fetchAndRenderPublishedRecipes();
+			} else {
+				alert('Failed to unpublish recipe: ' + (data.error || 'Unknown error'));
+			}
+		}
+	});
+	</script>
+</body>
+</html>

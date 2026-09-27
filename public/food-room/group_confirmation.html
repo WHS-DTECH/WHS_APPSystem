@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Group Confirmation</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .gc-page {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 1.25rem 1.25rem 3rem;
+    }
+    .gc-page-hd {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.25rem;
+    }
+    .gc-page-hd h1 {
+      margin: 0 0 0.2rem;
+    }
+    .gc-subtitle {
+      font-size: 0.9rem;
+      color: #6b7280;
+      margin: 0;
+    }
+    .gc-back-link {
+      color: #1976d2;
+      text-decoration: none;
+      font-size: 0.88rem;
+      font-weight: 600;
+      white-space: nowrap;
+      align-self: flex-start;
+      padding-top: 0.35rem;
+    }
+    .gc-back-link:hover { text-decoration: underline; }
+    .gc-banner {
+      background: linear-gradient(135deg, #1e40af 0%, #1976d2 100%);
+      color: #fff;
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+    .gc-banner-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      margin-bottom: 0.2rem;
+    }
+    .gc-banner-sub {
+      font-size: 0.86rem;
+      opacity: 0.9;
+    }
+    .gc-wrap {
+      overflow-x: auto;
+    }
+    #gcTable {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 600px;
+    }
+    #gcTable thead tr {
+      background: #f8fafc;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    #gcTable thead th {
+      padding: 0.45rem 0.6rem;
+      text-align: left;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    #gcTable tbody tr {
+      border-bottom: 1px solid #f1f5f9;
+      transition: background 0.1s;
+    }
+    #gcTable tbody tr:hover { background: #f8fafc; }
+    #gcTable td {
+      padding: 0.55rem 0.6rem;
+      vertical-align: middle;
+    }
+    .gc-class-name {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #1f2937;
+      white-space: nowrap;
+    }
+    .gc-teacher {
+      font-size: 0.82rem;
+      color: #4b5563;
+    }
+    .gc-date {
+      font-size: 0.82rem;
+      color: #4b5563;
+      white-space: nowrap;
+    }
+    .gc-size {
+      font-size: 0.88rem;
+      text-align: center;
+      color: #374151;
+    }
+    .gc-btns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+      align-items: center;
+    }
+    .gc-btn {
+      padding: 0.22rem 0.55rem;
+      border: 1px solid #d1d5db;
+      border-radius: 999px;
+      background: #f9fafb;
+      font-size: 0.8rem;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      font-family: inherit;
+    }
+    .gc-btn:hover { border-color: #1976d2; color: #1976d2; }
+    .gc-btn.selected {
+      background: #1976d2;
+      color: #fff;
+      border-color: #1976d2;
+    }
+    .gc-custom-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      font-size: 0.8rem;
+      color: #6b7280;
+    }
+    .gc-custom-input {
+      width: 48px;
+      padding: 0.18rem 0.3rem;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-family: inherit;
+    }
+    .gc-result {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #9ca3af;
+      text-align: center;
+    }
+    .gc-result.set { color: #059669; }
+    .gc-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+      padding-top: 0.85rem;
+      border-top: 1px solid #e5e7eb;
+    }
+    .gc-status {
+      font-size: 0.82rem;
+      color: #dc2626;
+      min-height: 1.1rem;
+    }
+    .gc-save-btn {
+      padding: 0.5rem 1.5rem;
+      border: none;
+      background: #1976d2;
+      color: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 700;
+      font-family: inherit;
+      transition: background 0.15s;
+    }
+    .gc-save-btn:hover { background: #1565c0; }
+    .gc-save-btn:disabled { background: #93c5fd; cursor: default; }
+    .gc-empty {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: #6b7280;
+    }
+    .gc-empty-icon {
+      font-size: 3rem;
+      display: block;
+      margin-bottom: 0.75rem;
+    }
+    .gc-empty-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #059669;
+      margin-bottom: 0.4rem;
+    }
+    .gc-loading {
+      text-align: center;
+      padding: 2rem;
+      color: #6b7280;
+      font-size: 0.9rem;
+    }
+    .gc-week-nav {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .gc-week-nav label {
+      font-size: 0.85rem;
+      color: #374151;
+      font-weight: 600;
+    }
+    .gc-week-btn {
+      padding: 0.3rem 0.75rem;
+      border: 1px solid #d1d5db;
+      border-radius: 5px;
+      background: #f9fafb;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.82rem;
+      transition: border-color 0.15s;
+    }
+    .gc-week-btn:hover { border-color: #1976d2; color: #1976d2; }
+    .gc-week-label {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #1f2937;
+      min-width: 180px;
+    }
+    .gc-filter-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .gc-filter-wrap label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #374151;
+    }
+    .gc-filter-btn {
+      padding: 0.35rem 0.85rem;
+      border: 1px solid #d1d5db;
+      border-radius: 5px;
+      background: #f9fafb;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.82rem;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .gc-filter-btn:hover { border-color: #1976d2; color: #1976d2; }
+    .gc-filter-btn.active { background: #1976d2; color: #fff; border-color: #1976d2; }
+  </style>
+</head>
+<body>
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+
+  <main class="gc-page">
+    <div class="gc-page-hd">
+      <div>
+        <h1>Group Confirmation</h1>
+        <p class="gc-subtitle">Set group types for upcoming classes so shopping lists can be generated.</p>
+      </div>
+      <a href="add_booking.html" class="gc-back-link">← Back to Calendar</a>
+    </div>
+
+    <div id="gcBanner" class="gc-banner" style="display:none"></div>
+
+    <div class="gc-week-nav">
+      <button type="button" class="gc-week-btn" id="gcPrevWeekBtn">← Earlier</button>
+      <span id="gcWeekLabel" class="gc-week-label">Loading…</span>
+      <button type="button" class="gc-week-btn" id="gcNextWeekBtn">Later →</button>
+    </div>
+
+    <div class="gc-filter-wrap" id="gcFilters" style="display:none">
+      <label>View:</label>
+      <button type="button" class="gc-filter-btn active" data-filter="unassigned">Unassigned Groups</button>
+      <button type="button" class="gc-filter-btn" data-filter="all">All Groups</button>
+      <button type="button" class="gc-filter-btn" data-filter="byclass">All by School/Class</button>
+    </div>
+
+    <div id="gcLoading" class="gc-loading">Loading bookings…</div>
+
+    <div id="gcEmpty" class="gc-empty" style="display:none">
+      <span class="gc-empty-icon">✓</span>
+      <div class="gc-empty-title">All groups confirmed!</div>
+      <p>There are no unconfirmed classes for this week. Great work.</p>
+      <a href="add_booking.html" style="color:#1976d2;font-weight:600;">View Calendar →</a>
+    </div>
+
+    <div id="gcContent" style="display:none">
+      <div class="gc-wrap">
+        <table id="gcTable">
+          <thead>
+            <tr>
+              <th>Class</th>
+              <th>Teacher</th>
+              <th>Date / Period</th>
+              <th style="text-align:center;">Class Size</th>
+              <th style="text-align:center;">Auto-Set Groups</th>
+              <th>Group Type</th>
+              <th style="text-align:center;">No. of Groups</th>
+            </tr>
+          </thead>
+          <tbody id="gcTbody"></tbody>
+        </table>
+      </div>
+      <div id="gcStatus" class="gc-status"></div>
+      <div class="gc-footer">
+        <div style="font-size:0.78rem;color:#6b7280;">Rows left blank will be skipped.</div>
+        <button type="button" class="gc-save-btn" id="gcSaveBtn">Save Groups</button>
+      </div>
+    </div>
+  </main>
+
+  <script src="shared/task_sidebar.js?v=20260508a"></script>
+  <script>
+    (function () {
+      'use strict';
+
+      function escHtml(str) {
+        return String(str || '')
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      }
+
+      function getMonday(date) {
+        const d = new Date(date);
+        d.setHours(0, 0, 0, 0);
+        const day = d.getDay();
+        d.setDate(d.getDate() - (day + 6) % 7);
+        return d;
+      }
+
+      function toIso(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+
+      // Default to 2 weeks ahead (same as the original popup)
+      let targetMonday = getMonday(new Date());
+      targetMonday.setDate(targetMonday.getDate() + 14);
+
+      // If URL has ?week=YYYY-MM-DD use that instead
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const w = params.get('week');
+        if (w && /^\d{4}-\d{2}-\d{2}$/.test(w)) {
+          const d = new Date(w + 'T00:00:00');
+          if (!isNaN(d.getTime())) targetMonday = getMonday(d);
+        }
+      })();
+
+      const selections = {};
+      let currentFilter = 'unassigned';
+      let currentBookingsById = new Map();
+
+      function asNumber(value) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : null;
+      }
+
+      function buildDesiredServingsIngredients(rows, desiredServings) {
+        return (Array.isArray(rows) ? rows : []).map((row) => {
+          const baseQty = Number.parseFloat(String(row.measure_qty || '').trim());
+          const calculatedQty = Number.isFinite(baseQty) ? (baseQty * desiredServings).toString() : String(row.measure_qty || '');
+          return {
+            ingredient_id: row.id,
+            ingredient_name: row.ingredient_name,
+            measure_qty: row.measure_qty,
+            measure_unit: row.measure_unit,
+            fooditem: row.fooditem,
+            calculated_qty: calculatedQty,
+            stripFoodItem: row.stripfooditem || row.strip_fooditem || row.fooditem || row.ingredient_name || '',
+            aisle_category_id: row.aisle_category_id || ''
+          };
+        });
+      }
+
+      async function triggerDesiredServingsForBookings(savedEntries) {
+        const result = { generated: 0, skipped: 0, failed: 0 };
+        const validEntries = (Array.isArray(savedEntries) ? savedEntries : []).filter((entry) => {
+          const booking = currentBookingsById.get(String(entry.bookingId));
+          if (!booking) return false;
+          const recipeId = asNumber(booking.recipe_id);
+          const classSize = asNumber(booking.class_size);
+          const groups = asNumber(entry.groupCount);
+          return Number.isInteger(recipeId) && recipeId > 0 && Number.isFinite(classSize) && classSize > 0 && Number.isFinite(groups) && groups > 0;
+        });
+
+        if (!validEntries.length) {
+          result.skipped = (Array.isArray(savedEntries) ? savedEntries.length : 0);
+          return result;
+        }
+
+        const uniqueRecipeIds = Array.from(new Set(validEntries
+          .map((entry) => {
+            const booking = currentBookingsById.get(String(entry.bookingId));
+            return Number(booking && booking.recipe_id);
+          })
+          .filter((id) => Number.isInteger(id) && id > 0)
+        ));
+
+        await Promise.all(uniqueRecipeIds.map(async (recipeId) => {
+          try {
+            await fetch('/api/ingredients/inventory/sync', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ recipeId, reseed: true })
+            });
+          } catch (_) {
+            // Best effort. Save can still work if inventory is already available.
+          }
+        }));
+
+        let inventoryRows = [];
+        try {
+          const inventoryRes = await fetch('/api/ingredients/inventory/all');
+          const inventoryPayload = await inventoryRes.json().catch(() => ({}));
+          inventoryRows = Array.isArray(inventoryPayload)
+            ? inventoryPayload
+            : (Array.isArray(inventoryPayload.data) ? inventoryPayload.data : (Array.isArray(inventoryPayload.ingredients) ? inventoryPayload.ingredients : []));
+        } catch (_) {
+          inventoryRows = [];
+        }
+
+        for (const entry of validEntries) {
+          const booking = currentBookingsById.get(String(entry.bookingId));
+          const recipeId = Number(booking.recipe_id);
+          const classSize = Number(booking.class_size);
+          const groups = Number(entry.groupCount);
+          const desiredServings = Math.ceil(classSize / groups);
+          const recipeIngredients = inventoryRows.filter((row) => Number(row.recipe_id) === recipeId);
+
+          if (!recipeIngredients.length) {
+            result.skipped += 1;
+            continue;
+          }
+
+          try {
+            const saveRes = await fetch('/api/ingredients/desired_servings_ingredients/save', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                booking_id: booking.id,
+                teacher: booking.staff_name || '',
+                staff_id: booking.staff_id || '',
+                class_name: booking.class_name || '',
+                class_date: booking.booking_date || '',
+                class_size: classSize,
+                groups,
+                desired_servings: desiredServings,
+                recipe_id: recipeId,
+                ingredients: buildDesiredServingsIngredients(recipeIngredients, desiredServings)
+              })
+            });
+            const payload = await saveRes.json().catch(() => ({}));
+            if (saveRes.ok && payload && payload.success) result.generated += 1;
+            else result.failed += 1;
+          } catch (_) {
+            result.failed += 1;
+          }
+        }
+
+        result.skipped += ((Array.isArray(savedEntries) ? savedEntries.length : 0) - validEntries.length);
+        return result;
+      }
+
+      function formatWeekLabel(monday) {
+        const friday = new Date(monday);
+        friday.setDate(monday.getDate() + 4);
+        const opts = { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' };
+        const start = monday.toLocaleDateString('en-NZ', { day: 'numeric', month: 'long' });
+        const end = friday.toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' });
+        return `Week of ${start} – ${end}`;
+      }
+
+      function renderTable(bookings, firstName) {
+        document.getElementById('gcLoading').style.display = 'none';
+        document.getElementById('gcWeekLabel').textContent = formatWeekLabel(targetMonday);
+        document.getElementById('gcFilters').style.display = '';
+
+        if (!bookings.length) {
+          document.getElementById('gcEmpty').style.display = '';
+          document.getElementById('gcContent').style.display = 'none';
+          document.getElementById('gcBanner').style.display = 'none';
+          return;
+        }
+
+        document.getElementById('gcEmpty').style.display = 'none';
+        document.getElementById('gcContent').style.display = '';
+
+        const banner = document.getElementById('gcBanner');
+        banner.style.display = '';
+        const weekLabel = targetMonday.toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' });
+        const bannerText = currentFilter === 'unassigned' 
+          ? `You have <strong>${bookings.length}</strong> class${bookings.length !== 1 ? 'es' : ''} in the week of <strong>${escHtml(weekLabel)}</strong> without group sizes set.`
+          : `You are viewing <strong>${bookings.length}</strong> class${bookings.length !== 1 ? 'es' : ''} in the week of <strong>${escHtml(weekLabel)}</strong>.`;
+        banner.innerHTML = `
+          <div class="gc-banner-title">Hi, ${escHtml(firstName)}! ${currentFilter === 'unassigned' ? 'Groups confirmation needed' : 'Group overview'}</div>
+          <div class="gc-banner-sub">${bannerText}
+          The Lead Teacher needs this to generate shopping lists. Please confirm the group type for each class.</div>
+        `;
+
+        bookings.forEach(b => { if (selections[b.id] === undefined) selections[b.id] = b.groups ? Number(b.groups) : null; });
+
+        const btnBase = 'gc-btn';
+        const tbody = document.getElementById('gcTbody');
+        tbody.innerHTML = bookings.map(b => {
+          const id = b.id;
+          const cs = Number(b.class_size) || 0;
+          const pairsN = cs ? Math.ceil(cs / 2) : '?';
+          const threesN = cs ? Math.ceil(cs / 3) : '?';
+          const indiN = cs || '?';
+          let dateLabel = '';
+          try {
+            dateLabel = new Date(String(b.booking_date || '').slice(0, 10) + 'T00:00:00')
+              .toLocaleDateString('en-NZ', { weekday: 'short', day: 'numeric', month: 'short' });
+          } catch (_) { dateLabel = String(b.booking_date || '').slice(0, 10); }
+          const autoGroups = b.groups ? escHtml(String(b.groups)) : '--';
+          const isDisabled = currentFilter !== 'unassigned' && b.groups;
+          return `<tr data-booking-id="${id}">
+            <td class="gc-class-name">${escHtml(String(b.class_name || ''))}</td>
+            <td class="gc-teacher">${escHtml(String(b.staff_name || ''))}</td>
+            <td class="gc-date">${escHtml(dateLabel)} P${escHtml(String(b.period || ''))}</td>
+            <td class="gc-size">${cs || '?'}</td>
+            <td style="text-align:center;font-weight:600;color:#059669;">${autoGroups}</td>
+            <td>
+              <div class="gc-btns" ${isDisabled ? 'style="opacity:0.5;pointer-events:none;"' : ''}>
+                <button type="button" class="${btnBase} gc-preset-btn" data-id="${id}" data-count="${pairsN}" title="Groups of 2" ${isDisabled ? 'disabled' : ''}>Pairs (${pairsN})</button>
+                <button type="button" class="${btnBase} gc-preset-btn" data-id="${id}" data-count="${indiN}" title="Each student individually" ${isDisabled ? 'disabled' : ''}>Individuals (${indiN})</button>
+                <button type="button" class="${btnBase} gc-preset-btn" data-id="${id}" data-count="${threesN}" title="Groups of 3" ${isDisabled ? 'disabled' : ''}>Threes (${threesN})</button>
+                <span class="gc-custom-wrap">Custom: <input type="number" class="gc-custom-input" data-id="${id}" min="1" max="99" placeholder="#" ${isDisabled ? 'disabled' : ''}></span>
+              </div>
+            </td>
+            <td><span class="gc-result" data-id="${id}" ${b.groups ? 'style="color:#059669;font-weight:600;"' : ''}>${b.groups ? escHtml(String(b.groups)) : '--'}</span></td>
+          </tr>`;
+        }).join('');
+      }
+
+      function setSelection(bookingId, count, sourceBtn) {
+        const n = Number(count);
+        const valid = Number.isFinite(n) && n > 0;
+        selections[bookingId] = valid ? n : null;
+        const row = document.querySelector(`tr[data-booking-id="${bookingId}"]`);
+        if (!row) return;
+        row.querySelectorAll('.gc-preset-btn').forEach(b => {
+          b.classList.toggle('selected', b === sourceBtn);
+        });
+        const el = row.querySelector(`.gc-result[data-id="${bookingId}"]`);
+        if (el) {
+          el.textContent = valid ? String(n) : '--';
+          el.classList.toggle('set', valid);
+        }
+      }
+
+      async function loadBookings() {
+        document.getElementById('gcLoading').style.display = '';
+        document.getElementById('gcEmpty').style.display = 'none';
+        document.getElementById('gcContent').style.display = 'none';
+        document.getElementById('gcBanner').style.display = 'none';
+        document.getElementById('gcStatus').textContent = '';
+
+        const start = toIso(targetMonday);
+        const endDate = new Date(targetMonday);
+        endDate.setDate(endDate.getDate() + 6);
+        const end = toIso(endDate);
+
+        document.getElementById('gcWeekLabel').textContent = formatWeekLabel(targetMonday);
+
+        try {
+          const [bookingsData, meData] = await Promise.all([
+            fetch(`/api/bookings/all?start=${start}&end=${end}`).then(r => r.json()),
+            fetch('/api/auth/me', { credentials: 'include' }).then(r => r.ok ? r.json() : {}).catch(() => ({}))
+          ]);
+
+          const allBookings = Array.isArray(bookingsData.bookings) ? bookingsData.bookings : [];
+          const nonPlannerBookings = allBookings.filter(b => String(b.period || '').toLowerCase() !== 'planner');
+          currentBookingsById = new Map(nonPlannerBookings.map((b) => [String(b.id), b]));
+          
+          let filtered = [];
+          if (currentFilter === 'unassigned') {
+            filtered = nonPlannerBookings.filter(b => b.groups == null || String(b.groups).trim() === '');
+          } else if (currentFilter === 'all') {
+            filtered = nonPlannerBookings;
+          } else if (currentFilter === 'byclass') {
+            filtered = nonPlannerBookings.sort((a, b) => {
+              const aClass = String(a.class_name || '');
+              const bClass = String(b.class_name || '');
+              if (aClass !== bClass) return aClass.localeCompare(bClass);
+              return (a.booking_date || '').localeCompare(b.booking_date || '');
+            });
+          }
+
+          const firstName = (meData && meData.user && meData.user.name)
+            ? String(meData.user.name).split(' ')[0]
+            : 'Teacher';
+
+          renderTable(filtered, firstName);
+        } catch (err) {
+          document.getElementById('gcLoading').style.display = 'none';
+          document.getElementById('gcStatus').textContent = 'Error loading bookings: ' + (err.message || 'Unknown error');
+        }
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        loadBookings();
+
+        document.getElementById('gcPrevWeekBtn').onclick = () => {
+          targetMonday = new Date(targetMonday);
+          targetMonday.setDate(targetMonday.getDate() - 7);
+          loadBookings();
+        };
+
+        document.getElementById('gcNextWeekBtn').onclick = () => {
+          targetMonday = new Date(targetMonday);
+          targetMonday.setDate(targetMonday.getDate() + 7);
+          loadBookings();
+        };
+
+        document.querySelectorAll('.gc-filter-btn').forEach(btn => {
+          btn.onclick = () => {
+            const filter = btn.dataset.filter;
+            if (filter && filter !== currentFilter) {
+              currentFilter = filter;
+              document.querySelectorAll('.gc-filter-btn').forEach(b => b.classList.remove('active'));
+              btn.classList.add('active');
+              loadBookings();
+            }
+          };
+        });
+
+        document.getElementById('gcTable').addEventListener('click', (e) => {
+          const btn = e.target.closest('.gc-preset-btn');
+          if (!btn) return;
+          const bookingId = btn.dataset.id;
+          const count = Number(btn.dataset.count);
+          if (!bookingId || !Number.isFinite(count) || count <= 0) return;
+          const row = document.querySelector(`tr[data-booking-id="${bookingId}"]`);
+          if (row) { const ci = row.querySelector('.gc-custom-input'); if (ci) ci.value = ''; }
+          setSelection(bookingId, count, btn);
+        });
+
+        document.getElementById('gcTable').addEventListener('input', (e) => {
+          if (!e.target.classList.contains('gc-custom-input')) return;
+          const bookingId = e.target.dataset.id;
+          const val = parseInt(e.target.value, 10);
+          const row = document.querySelector(`tr[data-booking-id="${bookingId}"]`);
+          if (row) row.querySelectorAll('.gc-preset-btn').forEach(b => b.classList.remove('selected'));
+          setSelection(bookingId, val, null);
+        });
+
+        document.getElementById('gcSaveBtn').onclick = async () => {
+          const toSave = Object.entries(selections).filter(([, v]) => v != null && Number.isFinite(Number(v)) && Number(v) > 0);
+          const statusEl = document.getElementById('gcStatus');
+          if (!toSave.length) {
+            statusEl.textContent = 'Select a group type for at least one class to save.';
+            return;
+          }
+          const saveBtn = document.getElementById('gcSaveBtn');
+          saveBtn.disabled = true;
+          saveBtn.textContent = 'Saving…';
+          statusEl.textContent = '';
+
+          let saved = 0, failed = 0;
+          const savedEntries = [];
+          await Promise.all(toSave.map(async ([bookingId, groupCount]) => {
+            try {
+              const r = await fetch(`/api/bookings/${bookingId}/groups`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ groups: groupCount })
+              });
+              if (r.ok) {
+                saved++;
+                savedEntries.push({ bookingId, groupCount: Number(groupCount) });
+              } else {
+                failed++;
+              }
+            } catch (_) { failed++; }
+          }));
+
+          const calcSummary = savedEntries.length ? await triggerDesiredServingsForBookings(savedEntries) : { generated: 0, skipped: 0, failed: 0 };
+
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Save Groups';
+
+          if (saved > 0) {
+            statusEl.style.color = '#059669';
+            statusEl.textContent = `✓ Groups saved for ${saved} booking${saved !== 1 ? 's' : ''}. ` +
+              `Desired servings generated for ${calcSummary.generated}.` +
+              (calcSummary.skipped > 0 ? ` Skipped ${calcSummary.skipped} (missing recipe/class size/inventory).` : '');
+            // Reload to reflect saved state
+            await loadBookings();
+          }
+          if (failed > 0) {
+            statusEl.style.color = '#dc2626';
+            statusEl.textContent += ` ${failed} update${failed !== 1 ? 's' : ''} failed — try again.`;
+          } else if (calcSummary.failed > 0) {
+            statusEl.style.color = '#dc2626';
+            statusEl.textContent += ` ${calcSummary.failed} desired-servings save${calcSummary.failed !== 1 ? 's' : ''} failed.`;
+          }
+        };
+      });
+    })();
+  </script>
+</body>
+</html>

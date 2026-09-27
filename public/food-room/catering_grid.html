@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catering (Calendar Grid)</title>
+    <link rel="stylesheet" href="../shared/style.css">
+</head>
+<body>
+    <div id="navbar-include"></div>
+    <script src="../shared/navbar_loader.js"></script>
+
+    <div class="catering-app">
+        <h1>Catering (Calendar Grid)</h1>
+        <div class="calendar-grid-wrap">
+            <table class="calendar-grid-table" id="calendarGridTable"></table>
+        </div>
+        <div class="catering-bottom-row">
+            <div class="selected-booking-panel">
+                <h3>Selected Booking</h3>
+                <div id="selectedBooking"></div>
+                <label>Desired Servings: <input type="number" id="servingsInput" value="12" min="1" style="width:60px;"></label>
+                <button id="calcBtn">Calculate</button>
+                <button id="singleBtn">Single Serve</button>
+            </div>
+            <div class="recipe-details-panel">
+                <h3>Recipe Details</h3>
+                <div id="recipeDetails"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="catering_grid.js"></script>
+</body>
+</html>

@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Confirm Recipe Ingredients</title>
+	<link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+	<link rel="stylesheet" href="shared/design_tokens.css">
+	<link rel="stylesheet" href="shared/base.css">
+	<link rel="stylesheet" href="shared/components.css">
+	<link rel="stylesheet" href="admin_styles.css">
+	<style>
+		.confirmation-container {
+			max-width: 800px;
+			margin: 20px auto;
+			padding: 20px;
+		}
+		.ingredient-list {
+			list-style-type: none;
+			padding: 0;
+			margin: 15px 0;
+		}
+		.ingredient-list li {
+			padding: 8px 12px;
+			margin: 4px 0;
+			background: #f5f5f5;
+			border-left: 4px solid #2e7d32;
+			border-radius: 2px;
+		}
+		.ingredient-list li:hover {
+			background: #e8e8e8;
+		}
+		.header-section {
+			margin-bottom: 25px;
+		}
+		.recipe-title {
+			font-size: 28px;
+			font-weight: 600;
+			color: #1b1b1b;
+			margin: 10px 0;
+		}
+		.recipe-info {
+			font-size: 14px;
+			color: #666;
+			margin: 5px 0;
+		}
+		.ingredients-section {
+			background: #fafafa;
+			padding: 20px;
+			border-radius: 6px;
+			border: 1px solid #e0e0e0;
+			margin: 20px 0;
+		}
+		.section-title {
+			font-size: 18px;
+			font-weight: 600;
+			color: #1b1b1b;
+			margin-bottom: 15px;
+		}
+		.action-buttons {
+			display: flex;
+			gap: 10px;
+			margin-top: 25px;
+			justify-content: center;
+		}
+		.btn-confirm {
+			background: #2e7d32;
+			color: white;
+			border: none;
+			padding: 10px 24px;
+			border-radius: 4px;
+			font-size: 14px;
+			font-weight: 600;
+			cursor: pointer;
+			transition: background 0.2s;
+		}
+		.btn-confirm:hover {
+			background: #1b5e20;
+		}
+		.btn-reject {
+			background: #e53935;
+			color: white;
+			border: none;
+			padding: 10px 24px;
+			border-radius: 4px;
+			font-size: 14px;
+			font-weight: 600;
+			cursor: pointer;
+			transition: background 0.2s;
+		}
+		.btn-reject:hover {
+			background: #b71c1c;
+		}
+		.btn-unpublish {
+			background: #6d4c41;
+			color: white;
+			border: none;
+			padding: 10px 24px;
+			border-radius: 4px;
+			font-size: 14px;
+			font-weight: 600;
+			cursor: pointer;
+			transition: background 0.2s;
+		}
+		.btn-unpublish:hover {
+			background: #4e342e;
+		}
+		.btn-edit {
+			background: #1976d2;
+			color: white;
+			border: none;
+			padding: 8px 16px;
+			border-radius: 4px;
+			font-size: 13px;
+			cursor: pointer;
+			transition: background 0.2s;
+		}
+		.btn-edit:hover {
+			background: #1565c0;
+		}
+		.btn-save {
+			background: #2e7d32;
+			color: white;
+			border: none;
+			padding: 8px 16px;
+			border-radius: 4px;
+			font-size: 13px;
+			cursor: pointer;
+		}
+		.btn-cancel {
+			background: #666;
+			color: white;
+			border: none;
+			padding: 8px 16px;
+			border-radius: 4px;
+			font-size: 13px;
+			cursor: pointer;
+		}
+		.ingredients-editor {
+			width: 100%;
+			box-sizing: border-box;
+			padding: 0.6rem 0.75rem;
+			border: 1px solid #b8c3cc;
+			border-radius: 6px;
+			font-size: 0.95rem;
+			line-height: 1.45;
+			resize: vertical;
+			margin-top: 0.6rem;
+		}
+		.status-message {
+			padding: 12px;
+			border-radius: 4px;
+			margin: 15px 0;
+			font-size: 14px;
+		}
+		.status-success {
+			background: #e8f5e9;
+			color: #1b5e20;
+			border: 1px solid #81c784;
+		}
+		.status-error {
+			background: #ffebee;
+			color: #b71c1c;
+			border: 1px solid #e57373;
+		}
+		.status-info {
+			background: #e3f2fd;
+			color: #1565c0;
+			border: 1px solid #64b5f6;
+		}
+		.loading-spinner {
+			display: inline-block;
+			width: 16px;
+			height: 16px;
+			border: 2px solid rgba(0,0,0,0.1);
+			border-top: 2px solid #1976d2;
+			border-radius: 50%;
+			animation: spin 0.6s linear infinite;
+		}
+		@keyframes spin {
+			to { transform: rotate(360deg); }
+		}
+		.no-ingredients {
+			text-align: center;
+			color: #999;
+			padding: 30px;
+			font-style: italic;
+		}
+	</style>
+</head>
+<body>
+	<div id="navbar-include"></div>
+	<script src="../shared/navbar_loader.js"></script>
+	
+	<div class="confirmation-container">
+		<div class="header-section">
+			<h1>Confirm Recipe Ingredients</h1>
+			<div class="recipe-info">
+				Please review the loaded ingredients for this recipe. Confirm they are correct before publishing.
+			</div>
+		</div>
+
+		<div id="statusMessage" style="display: none;"></div>
+
+		<div id="recipeDetails" style="display: none;">
+			<div class="recipe-title" id="recipeName"></div>
+			<div class="recipe-info">
+				<strong>Recipe ID:</strong> <span id="recipeId"></span>
+			</div>
+			<div class="recipe-info">
+				<strong>Status:</strong> <span id="recipeStatus" style="display: inline-block; padding: 2px 8px; background: #fff3cd; border-radius: 3px;"></span>
+			</div>
+
+			<div class="ingredients-section">
+				<div class="section-title">Ingredients</div>
+				<div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+					<button id="editIngredientsBtn" class="btn-edit">Edit Ingredients</button>
+					<button id="saveIngredientsBtn" class="btn-save" style="display:none;">Save Ingredients</button>
+					<button id="cancelIngredientsBtn" class="btn-cancel" style="display:none;">Cancel</button>
+				</div>
+				<textarea id="ingredientsEditor" class="ingredients-editor" rows="10" style="display:none;" placeholder="One ingredient per line"></textarea>
+				<ul id="ingredientsList" class="ingredient-list"></ul>
+				<div id="noIngredientsMsg" class="no-ingredients"></div>
+			</div>
+
+			<div class="action-buttons">
+				<button id="confirmBtn" class="btn-confirm">✓ Ingredients Correct - Proceed to Publish</button>
+				<button id="rejectBtn" class="btn-reject">✗ Fix Ingredients</button>
+				<button id="unpublishBtn" class="btn-unpublish">Unpublish Recipe</button>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		const API_BASE = '/api';
+		let currentRecipeId = null;
+		let currentRecipeData = null;
+		let bulkQueue = null;
+		let isBulkMode = false;
+		let isEditingIngredients = false;
+		let hasPendingIngredientSave = false;
+
+		function showStatus(message, type = 'info') {
+			const statusEl = document.getElementById('statusMessage');
+			statusEl.textContent = message;
+			statusEl.className = `status-message status-${type}`;
+			statusEl.style.display = 'block';
+		}
+
+		function hideStatus() {
+			const statusEl = document.getElementById('statusMessage');
+			statusEl.style.display = 'none';
+		}
+
+		async function fetchRecipeById(recipeId) {
+			const candidateUrls = [
+				`${API_BASE}/recipes/${recipeId}`,
+				`${API_BASE}/recipes/recipes/${recipeId}`
+			];
+
+			let lastError = 'Recipe not found';
+			for (const url of candidateUrls) {
+				try {
+					const response = await fetch(url);
+					let payload = null;
+					try {
+						payload = await response.json();
+					} catch (_) {
+						payload = null;
+					}
+
+					if (!response.ok) {
+						lastError = (payload && (payload.error || payload.message))
+							? String(payload.error || payload.message)
+							: `Failed to load recipe (${response.status})`;
+						continue;
+					}
+
+					// Supports both response shapes:
+					// 1) { success: true, recipe: {...} }
+					// 2) { ...recipeFields }
+					if (payload && typeof payload === 'object') {
+						if (payload.success === true && payload.recipe) {
+							return payload.recipe;
+						}
+						if (payload.id || payload.name || payload.ingredients_display || payload.ingredients_extracted) {
+							return payload;
+						}
+					}
+
+					lastError = (payload && (payload.error || payload.message))
+						? String(payload.error || payload.message)
+						: 'Recipe not found';
+				} catch (err) {
+					lastError = err && err.message ? err.message : 'Network error while loading recipe';
+				}
+			}
+
+			throw new Error(lastError);
+		}
+
+		function getNextBulkRecipeIdAfter(currentId) {
+			if (!bulkQueue || !Array.isArray(bulkQueue.ids) || !bulkQueue.ids.length) return null;
+			const numericIds = bulkQueue.ids.map(id => Number(id)).filter(id => Number.isInteger(id) && id > 0);
+			const currentNum = Number(currentId);
+			const currentIndex = numericIds.indexOf(currentNum);
+			if (currentIndex < 0) return numericIds.length ? numericIds[0] : null;
+			if (currentIndex + 1 >= numericIds.length) return null;
+			return numericIds[currentIndex + 1];
+		}
+
+		function parseIngredientsToList(ingredientsText) {
+			const raw = String(ingredientsText || '').trim();
+			if (!raw) return [];
+
+			// Convert common HTML break markers to line breaks before extracting text.
+			const normalizedHtml = raw
+				.replace(/<br\s*\/?>/gi, '\n')
+				.replace(/<\/p>/gi, '\n')
+				.replace(/<p[^>]*>/gi, '')
+				.replace(/<\/li>/gi, '\n')
+				.replace(/<li[^>]*>/gi, '');
+
+			const temp = document.createElement('div');
+			temp.innerHTML = normalizedHtml;
+			const plainText = String(temp.textContent || temp.innerText || '');
+
+			const lines = plainText
+				.split(/\r?\n/)
+				.map(line => line.trim())
+				.filter(line => line.length > 0);
+
+			const continuationPhrase = /^(?:finely|roughly|coarsely|thinly|thickly|peeled|chopped|diced|minced|sliced|grated|melted|softened|drained|rinsed|beaten|crumbled|optional|plus|for\b|to\b|and\b|or\b|room\s+temperature\b|to\s+serve\b|for\s+garnish\b|for\s+serving\b|for\s+dusting\b|for\s+sprinkling\b)/i;
+			const quantityStart = /^(?:\d+(?:\s+\d+\/\d+)?|\d+\/\d+|\d*\.\d+|[¼½¾⅐⅑⅒⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]|a\b|an\b|one\b|two\b|three\b|four\b|five\b|six\b|seven\b|eight\b|nine\b|ten\b)/i;
+			const merged = [];
+
+			lines.forEach((line) => {
+				const looksLikeContinuation = continuationPhrase.test(line)
+					|| (!quantityStart.test(line) && line.split(/\s+/).length <= 3);
+				if (merged.length > 0 && looksLikeContinuation) {
+					merged[merged.length - 1] = `${merged[merged.length - 1]}, ${line}`;
+					return;
+				}
+				merged.push(line);
+			});
+
+			return merged;
+		}
+
+		function getCurrentIngredientsText() {
+			return String(currentRecipeData?.ingredients_display || currentRecipeData?.ingredients_extracted || '').trim();
+		}
+
+		function updateConfirmButtonState() {
+			const confirmBtn = document.getElementById('confirmBtn');
+			if (!confirmBtn) return;
+			const shouldDisable = Boolean(isEditingIngredients || hasPendingIngredientSave);
+			confirmBtn.disabled = shouldDisable;
+			confirmBtn.title = shouldDisable ? 'Save Ingredients before confirming.' : '';
+		}
+
+		function setEditMode(enabled) {
+			isEditingIngredients = enabled;
+			const editBtn = document.getElementById('editIngredientsBtn');
+			const saveBtn = document.getElementById('saveIngredientsBtn');
+			const cancelBtn = document.getElementById('cancelIngredientsBtn');
+			const editor = document.getElementById('ingredientsEditor');
+			const list = document.getElementById('ingredientsList');
+			const noIngredientsMsg = document.getElementById('noIngredientsMsg');
+
+			if (enabled) {
+				hasPendingIngredientSave = true;
+				const listLines = parseIngredientsToList(getCurrentIngredientsText());
+				editor.value = listLines.join('\n');
+				editor.style.display = 'block';
+				list.style.display = 'none';
+				noIngredientsMsg.style.display = 'none';
+				editBtn.style.display = 'none';
+				saveBtn.style.display = 'inline-block';
+				cancelBtn.style.display = 'inline-block';
+				editor.focus();
+				updateConfirmButtonState();
+				return;
+			}
+
+			editor.style.display = 'none';
+			list.style.display = 'block';
+			editBtn.style.display = 'inline-block';
+			saveBtn.style.display = 'none';
+			cancelBtn.style.display = 'none';
+			updateConfirmButtonState();
+		}
+
+		async function saveEditedIngredients() {
+			if (!currentRecipeId || !currentRecipeData) return;
+			const editor = document.getElementById('ingredientsEditor');
+			const saveBtn = document.getElementById('saveIngredientsBtn');
+			const text = String(editor.value || '').trim();
+
+			saveBtn.disabled = true;
+			try {
+				const response = await fetch(`${API_BASE}/recipes/${currentRecipeId}/ingredients-display`, {
+					method: 'PUT',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ ingredients_display: text })
+				});
+
+				const payload = await response.json();
+				if (!response.ok || !payload?.success) {
+					throw new Error(payload?.error || `Failed to save ingredients (${response.status})`);
+				}
+
+				currentRecipeData.ingredients_display = payload?.recipe?.ingredients_display ?? text;
+				hasPendingIngredientSave = false;
+				setEditMode(false);
+				renderRecipeDetails();
+				showStatus('Ingredients saved on this recipe.', 'success');
+			} catch (err) {
+				showStatus(`Could not save ingredients: ${err.message}`, 'error');
+			} finally {
+				saveBtn.disabled = false;
+			}
+		}
+
+		async function unpublishCurrentRecipe() {
+			if (!currentRecipeId) return;
+			const unpublishBtn = document.getElementById('unpublishBtn');
+			unpublishBtn.disabled = true;
+
+			try {
+				const response = await fetch(`${API_BASE}/recipes/display-by-recipe/${currentRecipeId}`, {
+					method: 'DELETE'
+				});
+				const payload = await response.json().catch(() => ({}));
+				if (!response.ok || !payload?.success) {
+					throw new Error(payload?.error || `Failed to unpublish recipe (${response.status})`);
+				}
+
+				showStatus(`Recipe ${currentRecipeId} unpublished from published recipes.`, 'success');
+				if (advanceBulkQueueIfNeeded()) return;
+				window.location.href = '/recipe_publish.html';
+				return;
+			} catch (err) {
+				showStatus(`Could not unpublish recipe: ${err.message}`, 'error');
+			} finally {
+				unpublishBtn.disabled = false;
+			}
+		}
+
+		function advanceBulkQueueIfNeeded() {
+			if (!isBulkMode || !bulkQueue) return false;
+			const nextRecipeId = getNextBulkRecipeIdAfter(currentRecipeId);
+			if (nextRecipeId) {
+				bulkQueue.completed = Number(bulkQueue.completed || 0) + 1;
+				bulkQueue.current = Number(nextRecipeId);
+				sessionStorage.setItem('bulkReVerifyQueue', JSON.stringify(bulkQueue));
+				window.location.href = `/recipe_ingredients_confirmation.html?recipe_id=${nextRecipeId}&bulk_mode=true`;
+				return true;
+			}
+			sessionStorage.removeItem('bulkReVerifyQueue');
+			window.location.href = '/recipe_publish.html';
+			return true;
+		}
+
+		async function flagRecipeIngredientIssue(recipeId) {
+			const response = await fetch(`${API_BASE}/recipes/${recipeId}/flag-ingredients-issue`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ note: 'Flagged from confirmation screen via Fix Ingredients.' })
+			});
+			const payload = await response.json().catch(() => ({}));
+			if (!response.ok || !payload?.success) {
+				throw new Error(payload?.error || `Failed to flag recipe issue (${response.status})`);
+			}
+		}
+
+		async function markRecipeVerified(recipeId) {
+			try {
+				const response = await fetch(`${API_BASE}/recipes/${recipeId}/verify`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ verified: true })
+				});
+				if (!response.ok) {
+					console.warn(`Failed to mark recipe ${recipeId} as verified`);
+				}
+			} catch (err) {
+				console.warn(`Error marking recipe as verified:`, err);
+			}
+		}
+
+		async function loadRecipeDetails() {
+			try {
+				const params = new URLSearchParams(window.location.search);
+				currentRecipeId = params.get('recipe_id');
+				isBulkMode = params.get('bulk_mode') === 'true';
+
+				// Check if there's a bulk queue
+				const queueStr = sessionStorage.getItem('bulkReVerifyQueue');
+				if (queueStr && isBulkMode) {
+					try {
+						bulkQueue = JSON.parse(queueStr);
+					} catch (e) {
+						console.warn('Could not parse bulk queue');
+					}
+				}
+				
+				if (!currentRecipeId) {
+					showStatus('No recipe ID provided. Please use the publish workflow.', 'error');
+					return;
+				}
+
+				showStatus('Loading recipe ingredients...');
+				currentRecipeData = await fetchRecipeById(currentRecipeId);
+
+				renderRecipeDetails();
+				hideStatus();
+			} catch (err) {
+				if (isBulkMode && bulkQueue) {
+					const nextRecipeId = getNextBulkRecipeIdAfter(currentRecipeId);
+					if (nextRecipeId) {
+						showStatus(`Recipe ${currentRecipeId} could not be loaded (${err.message}). Skipping to ${nextRecipeId}...`, 'info');
+						window.location.href = `/recipe_ingredients_confirmation.html?recipe_id=${nextRecipeId}&bulk_mode=true`;
+						return;
+					}
+				}
+
+				showStatus(`Error loading recipe ${currentRecipeId}: ${err.message}`, 'error');
+				console.error('Load error:', err);
+			}
+		}
+
+		function renderRecipeDetails() {
+			if (!currentRecipeData) return;
+
+			document.getElementById('recipeName').textContent = currentRecipeData.name || 'Unnamed Recipe';
+			document.getElementById('recipeId').textContent = currentRecipeData.id;
+			
+			let statusText = 'Review Before Publish';
+			if (isBulkMode && bulkQueue) {
+				statusText = `Bulk Re-Verify (${bulkQueue.completed + 1} of ${bulkQueue.total})`;
+			}
+			document.getElementById('recipeStatus').textContent = statusText;
+			document.getElementById('recipeDetails').style.display = 'block';
+
+			const ingredientsList = document.getElementById('ingredientsList');
+			const noIngredientsMsg = document.getElementById('noIngredientsMsg');
+			ingredientsList.innerHTML = '';
+
+			// Get ingredients from ingredients_display (cleaned) or ingredients_extracted
+			const ingredientsText = currentRecipeData.ingredients_display || currentRecipeData.ingredients_extracted || '';
+			
+			if (!ingredientsText.trim()) {
+				noIngredientsMsg.textContent = 'No ingredients loaded for this recipe.';
+				noIngredientsMsg.style.display = 'block';
+				return;
+			}
+
+			noIngredientsMsg.style.display = 'none';
+
+			const ingredients = parseIngredientsToList(ingredientsText);
+
+			ingredients.forEach(ingredient => {
+				const li = document.createElement('li');
+				li.textContent = ingredient;
+				ingredientsList.appendChild(li);
+			});
+
+			if (!isEditingIngredients) {
+				setEditMode(false);
+			}
+			updateConfirmButtonState();
+		}
+
+		document.getElementById('confirmBtn').addEventListener('click', async () => {
+			if (!currentRecipeId) return;
+
+			try {
+				const confirmBtn = document.getElementById('confirmBtn');
+				confirmBtn.disabled = true;
+				confirmBtn.textContent = 'Processing...';
+
+				// Mark recipe as verified with timestamp
+				await markRecipeVerified(currentRecipeId);
+				if (advanceBulkQueueIfNeeded()) return;
+
+				// Single recipe mode - go to recipe_publish.html to complete publish
+				window.location.href = `/recipe_publish.html?resume_publish=${currentRecipeId}`;
+			} catch (err) {
+				showStatus(`Error confirming ingredients: ${err.message}`, 'error');
+				document.getElementById('confirmBtn').disabled = false;
+				document.getElementById('confirmBtn').textContent = '✓ Ingredients Correct - Proceed to Publish';
+			}
+		});
+
+		document.getElementById('rejectBtn').addEventListener('click', async () => {
+			if (!currentRecipeId) return;
+			const rejectBtn = document.getElementById('rejectBtn');
+			rejectBtn.disabled = true;
+			rejectBtn.textContent = 'Flagging...';
+			try {
+				await flagRecipeIngredientIssue(currentRecipeId);
+				showStatus(`Recipe ${currentRecipeId} flagged for ingredient fixes.`, 'success');
+				if (advanceBulkQueueIfNeeded()) return;
+				window.location.href = '/recipe_publish.html';
+			} catch (err) {
+				showStatus(`Could not flag recipe issue: ${err.message}`, 'error');
+				rejectBtn.disabled = false;
+				rejectBtn.textContent = '✗ Fix Ingredients';
+			}
+		});
+
+		document.getElementById('editIngredientsBtn').addEventListener('click', () => {
+			if (!currentRecipeId) return;
+			setEditMode(true);
+		});
+
+		document.getElementById('saveIngredientsBtn').addEventListener('click', async () => {
+			await saveEditedIngredients();
+		});
+
+		document.getElementById('ingredientsEditor').addEventListener('input', () => {
+			hasPendingIngredientSave = true;
+			updateConfirmButtonState();
+		});
+
+		document.getElementById('cancelIngredientsBtn').addEventListener('click', () => {
+			hasPendingIngredientSave = false;
+			setEditMode(false);
+			hideStatus();
+		});
+
+		document.getElementById('unpublishBtn').addEventListener('click', async () => {
+			if (!currentRecipeId) return;
+			if (!confirm(`Unpublish Recipe ID ${currentRecipeId}?\n\nThis removes it from published recipes so it can be re-entered from scratch.`)) {
+				return;
+			}
+			await unpublishCurrentRecipe();
+		});
+
+		// Load recipe details on page load
+		window.addEventListener('load', loadRecipeDetails);
+	</script>
+</body>
+</html>

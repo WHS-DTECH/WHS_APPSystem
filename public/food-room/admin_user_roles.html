@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Role Management</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="navbar-include"></div>
+    <script src="shared/navbar_loader.js"></script>
+    <div class="admin-user-roles-app">
+        <h1>User Role Management</h1>
+        <p>Assign additional roles to users beyond their primary staff code role.</p>
+        <div class="success-msg" id="roleStatusMsg" style="display:none;"></div>
+        <a href="admin_landing_page.html" class="back-btn">&larr; Back to Admin</a>
+        <a href="admin_permissions.html" class="route-btn">Manage Role Permissions</a>
+        <div class="admin-user-roles-grid">
+            <div class="left-column">
+                <div class="info-box" id="userProfilePanel">
+                    <strong>User Profile</strong>
+                    <div id="userProfileContent">Select a user to view staff profile, department, and weekly timetable.</div>
+                </div>
+            </div>
+
+            <div class="right-column">
+                <div class="add-role-box">
+                    <h2>Add Role to User</h2>
+                    <label>User Type:</label>
+                    <select id="userTypeSelect">
+                        <option value="staff" selected>Staff</option>
+                        <option value="student">Student</option>
+                    </select>
+                    <label id="userIdentifierLabel">User Email:</label>
+                    <select id="userEmailSelect"><option value="">-- Select a user --</option></select>
+                    <input id="userEmailInput" type="email" placeholder="user@example.com">
+                    <label>Role to Add:</label>
+                    <select id="roleSelect"><option value="">-- Select a role --</option></select>
+                    <button class="add-role-btn" id="addRoleBtn">Add Role</button>
+                </div>
+
+                <div class="user-roles-table-box">
+                    <h2>Users with Additional Roles</h2>
+                    <table class="user-roles-table">
+                        <thead><tr><th>Type</th><th>User</th><th>Additional Roles</th><th>Actions</th></tr></thead>
+                        <tbody id="userRolesBody"></tbody>
+                    </table>
+                </div>
+
+                <div class="info-box" id="publicAccessAuditPanel">
+                    <strong>Public Access Audit</strong>
+                    <p style="margin:0.4rem 0 0.7rem 0;">Checks current staff/student CSV identities and lists school-domain accounts that still resolve to Public Access.</p>
+                    <button class="route-btn" id="runPublicAccessAuditBtn" type="button">Run Public Access Audit</button>
+                    <div id="publicAccessAuditResults" style="margin-top:0.7rem;color:#35506e;">No audit run yet.</div>
+                </div>
+
+                <div class="info-box blue">
+                    <strong>How It Works</strong>
+                    <ul>
+                        <li><b>Primary Role:</b> Users automatically get their primary role from their staff code in the teachers table</li>
+                        <li><b>Additional Roles:</b> You can assign extra roles here to give users access to more features</li>
+                        <li><b>Combined Access:</b> Users will have access to all routes allowed by any of their roles</li>
+                        <li><b>Example:</b> A teacher can be given Admin role to access admin features without changing their staff code</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="admin_user_roles.js"></script>
+</body>
+</html>

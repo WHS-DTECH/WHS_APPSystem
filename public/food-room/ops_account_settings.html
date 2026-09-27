@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auth And Account Settings</title>
+  <link rel="stylesheet" href="shared/design_tokens.css">
+  <link rel="stylesheet" href="shared/base.css">
+  <link rel="stylesheet" href="shared/components.css">
+  <link rel="stylesheet" href="shared/ops_workspace.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="shared/navbar_loader.js"></script>
+</head>
+<body class="ops-body" data-ops-page="account_settings">
+  <nav class="ops-breadcrumbs" aria-label="Breadcrumb">
+    <a href="ops_dashboard.html">Dashboard</a> &gt; <span aria-current="page">Account Settings</span>
+  </nav>
+  <main class="ops-page" aria-label="Auth And Account Settings Main Content">
+    <section class="ops-hero" aria-labelledby="opsTitle" tabindex="0">
+      <h1 id="opsTitle" class="ops-title">Auth And Account Settings</h1>
+      <p id="opsSubtitle" class="ops-subtitle"></p>
+      <div id="opsChipRow" class="ops-chip-row" role="status" aria-live="polite"></div>
+    </section>
+    <section id="opsSummary" aria-label="Summary Statistics"></section>
+    <section class="ops-grid two-column" aria-label="Auth And Account Settings Content Grid">
+      <div id="opsPrimary" class="ops-grid" tabindex="0" aria-label="Primary Content"></div>
+      <aside id="opsSecondary" class="ops-grid" tabindex="0" aria-label="Secondary Content"></aside>
+    </section>
+  </main>
+  <script src="shared/ops_workspace.js"></script>
+  <script src="shared/ops_pages.js"></script>
+  <footer style="text-align:center;margin:2.5em 0 0 0;font-size:0.98em;color:#5d7186;">
+    <span title="This application is powered by Render.com for database and backend hosting.">Powered by <a href="https://render.com/" target="_blank" rel="noopener" style="color:#214f78;text-decoration:underline;">Render</a></span>
+    <span style="margin-left:1.2em;font-size:0.92em;">&mdash; All data and API connectivity managed via Render PostgreSQL</span>
+  </footer>
+</body>
+</html>

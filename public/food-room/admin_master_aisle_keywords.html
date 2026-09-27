@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - Master Aisle Keywords</title>
+  <link rel="stylesheet" href="admin_styles.css">
+  <style>
+    .mk-app {
+      max-width: 1080px;
+      margin: 32px auto;
+      background: #fff;
+      border-radius: 12px;
+      padding: 1.25rem 1.25rem 1.4rem;
+      border: 1px solid #d9e1ea;
+    }
+    .mk-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.9rem;
+      margin-bottom: 1rem;
+    }
+    @media (max-width: 900px) {
+      .mk-grid { grid-template-columns: 1fr; }
+    }
+    .mk-card {
+      border: 1px solid #d9e1ea;
+      border-radius: 10px;
+      padding: 0.85rem;
+      background: #f8fbff;
+    }
+    .mk-title {
+      margin: 0 0 0.65rem;
+      color: #1f4b7a;
+      font-size: 1.03rem;
+    }
+    .mk-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .mk-input,
+    .mk-select {
+      border: 1px solid #b8c7d8;
+      border-radius: 7px;
+      padding: 0.42rem 0.55rem;
+      background: #fff;
+      font-size: 0.92rem;
+    }
+    .mk-input { flex: 1 1 210px; }
+    .mk-select { flex: 1 1 160px; min-width: 150px; }
+    .mk-btn {
+      border: none;
+      border-radius: 7px;
+      padding: 0.44rem 0.72rem;
+      font-size: 0.86rem;
+      cursor: pointer;
+      color: #fff;
+      background: #1d4ed8;
+      white-space: nowrap;
+    }
+    .mk-btn.secondary { background: #475569; }
+    .mk-btn.warn { background: #f59e0b; color: #111827; }
+    .mk-btn.danger { background: #dc2626; }
+
+    .mk-status {
+      min-height: 1.2rem;
+      font-size: 0.9rem;
+      color: #1f2937;
+      margin-bottom: 0.65rem;
+      font-weight: 600;
+    }
+    .mk-status.error { color: #991b1b; }
+    .mk-status.ok { color: #166534; }
+
+    .mk-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+    .mk-table th,
+    .mk-table td {
+      border: 1px solid #d9e1ea;
+      padding: 0.42rem 0.5rem;
+      vertical-align: top;
+    }
+    .mk-table th {
+      background: #1d4ed8;
+      color: #fff;
+      text-align: left;
+      font-size: 0.82rem;
+    }
+    .mk-tag {
+      display: inline-block;
+      border: 1px solid #93c5fd;
+      background: #eff6ff;
+      color: #1e3a8a;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      padding: 0.15rem 0.45rem;
+      margin: 0.1rem 0.22rem 0.1rem 0;
+      white-space: nowrap;
+    }
+    .mk-empty {
+      color: #64748b;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+
+  <main class="mk-app">
+    <h1 style="margin-top:0;color:#1f4b7a;">Master Aisle Keywords</h1>
+    <p style="margin-top:0;color:#475569;font-size:0.92rem;">Create master keywords (e.g. Meat, Seafood) and group member keywords under them without changing existing aisle matching behavior.</p>
+
+    <section class="mk-grid">
+      <article class="mk-card">
+        <h2 class="mk-title">Add Master Keyword</h2>
+        <div class="mk-row">
+          <input id="masterNameInput" class="mk-input" type="text" placeholder="Master name (e.g. Seafood)">
+          <select id="masterCategorySelect" class="mk-select"></select>
+          <button id="addMasterBtn" class="mk-btn" type="button">Add Master</button>
+        </div>
+      </article>
+
+      <article class="mk-card">
+        <h2 class="mk-title">Add Member Keyword</h2>
+        <div class="mk-row">
+          <select id="memberMasterSelect" class="mk-select"></select>
+          <input id="memberKeywordInput" class="mk-input" type="text" placeholder="Keyword (e.g. Mussels)">
+          <button id="addMemberBtn" class="mk-btn" type="button">Add Member</button>
+        </div>
+      </article>
+
+      <article class="mk-card">
+        <h2 class="mk-title">Link Aisle Category To Master</h2>
+        <div class="mk-row">
+          <select id="linkMasterSelect" class="mk-select"></select>
+          <select id="linkCategorySelect" class="mk-select"></select>
+          <button id="addLinkedCategoryBtn" class="mk-btn" type="button">Link Category</button>
+        </div>
+      </article>
+    </section>
+
+    <div id="masterStatus" class="mk-status"></div>
+
+    <section>
+      <table class="mk-table">
+        <thead>
+          <tr>
+            <th style="width:170px;">Master</th>
+            <th style="width:150px;">Primary Aisle</th>
+            <th style="width:220px;">Linked Aisle Categories</th>
+            <th>Member Keywords</th>
+            <th style="width:250px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="mastersBody">
+          <tr><td colspan="5" class="mk-empty">Loading master keywords...</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="admin_master_aisle_keywords.js"></script>
+</body>
+</html>

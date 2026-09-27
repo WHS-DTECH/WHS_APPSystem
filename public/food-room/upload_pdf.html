@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>PDF Recipe Upload</title>
+	<link rel="stylesheet" href="style.css">
+</head>
+<body>
+	<div id="navbar-include"></div>
+	<script src="shared/navbar_loader.js"></script>
+	<div class="setup-card main-content-margins">
+		<h2>Upload Recipes - PDF</h2>
+		<div class="setup-section">
+			<div class="setup-section-title">Load Recipe (PDF)</div>
+			<div class="setup-section-desc">Import recipe from a PDF file.</div>
+			<label class="recipe-url-label standout-label">Source File:</label>
+			<div class="upload-area" id="pdfUploadArea" style="display:inline-block;min-width:380px;max-width:560px;margin-right:0.5rem;vertical-align:middle;">Drag & drop or click to select PDF</div>
+			<input type="file" id="pdfInput" accept=".pdf" style="display:none;">
+			<button id="uploadPdfBtn" class="setup-btn upload-url-btn standout-btn">Upload PDF</button>
+			<button id="uploadAndSyncPdfBtn" class="setup-btn" style="margin-left:0.5rem;background:#5e35b1;color:#fff;border:none;padding:0.4rem 1rem;border-radius:4px;cursor:pointer;">Upload + Sync</button>
+			<button id="syncUploadedToRecipesBtnPdf" class="setup-btn" style="margin-left:0.5rem;background:#388e3c;color:#fff;border:none;padding:0.4rem 1rem;border-radius:4px;cursor:pointer;">Sync Uploaded Recipes to Recipes Table</button>
+			<div id="uploadPdfStatusBanner" style="display:none;margin-top:0.6rem;padding:0.55rem 0.7rem;border-radius:4px;font-size:0.92rem;"></div>
+		</div>
+
+		<div class="setup-section">
+			<div class="setup-section-title">Uploaded PDFs</div>
+			<div class="setup-section-desc">View details of uploaded PDF recipes.</div>
+			<table id="uploadedPdfTable" style="width:100%;margin-top:1rem;border-collapse:collapse;">
+				<thead>
+					<tr style="background:#f5f5f5;">
+						<th style="padding:0.5rem 0.7rem;border:1px solid #eee;">ID</th>
+						<th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Recipe Title</th>
+						<th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Upload Type</th>
+						<th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Source File</th>
+						<th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Uploaded By</th>
+						<th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Upload Date</th>
+						<th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Actions</th>
+					</tr>
+				</thead>
+				<tbody></tbody>
+			</table>
+		</div>
+	</div>
+	<script src="upload_pdf.js"></script>
+</body>
+</html>

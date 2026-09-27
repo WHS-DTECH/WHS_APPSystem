@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shopping Plan Editor</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .spe-wrap { max-width: 1240px; margin: 1.5rem auto 2.2rem; padding: 0 1rem; }
+    .spe-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.7rem; align-items: end; margin-bottom: 0.9rem; }
+    .spe-title { margin: 0; color: #163a58; font-size: 1.72rem; }
+    .spe-sub { margin: 0.35rem 0 0; color: #4a6074; }
+    .spe-card {
+      background: #fff;
+      border: 1px solid #c8d5e2;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(8, 34, 56, 0.08);
+      padding: 0.95rem 1.05rem;
+      margin-bottom: 0.9rem;
+    }
+    .spe-row { display: flex; flex-wrap: wrap; gap: 0.55rem; align-items: end; }
+    .spe-field { display: flex; flex-direction: column; gap: 0.3rem; min-width: 210px; }
+    .spe-field label { font-size: 0.9rem; font-weight: 700; color: #2a4254; }
+    .spe-field input, .spe-field select {
+      border: 1px solid #b7c7d7;
+      border-radius: 7px;
+      padding: 0.45rem 0.55rem;
+      font: inherit;
+    }
+    .spe-btn {
+      border: none;
+      border-radius: 7px;
+      padding: 0.54rem 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .spe-btn.primary { background: #1e6daa; color: #fff; }
+    .spe-btn.primary:hover { background: #165b8f; }
+    .spe-btn.secondary { background: #617789; color: #fff; }
+    .spe-btn.secondary:hover { background: #516474; }
+    .spe-btn.success { background: #1d8754; color: #fff; }
+    .spe-btn.success:hover { background: #166a42; }
+    .spe-btn.warn { background: #b66e19; color: #fff; }
+    .spe-btn.warn:hover { background: #955912; }
+    .spe-table-wrap { overflow-x: auto; }
+    .spe-table { width: 100%; border-collapse: collapse; min-width: 1120px; }
+    .spe-table th { background: #225d8f; color: #fff; text-align: left; padding: 0.48rem 0.5rem; font-size: 0.85rem; }
+    .spe-table td { border-bottom: 1px solid #e4ecf3; padding: 0.35rem 0.45rem; vertical-align: top; }
+    .spe-table tr:nth-child(even) { background: #f8fbff; }
+    .spe-table th:nth-child(3),
+    .spe-table td:nth-child(3) {
+      min-width: 320px;
+      width: 320px;
+    }
+    .spe-table input {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #b8c9d9;
+      border-radius: 6px;
+      padding: 0.3rem 0.42rem;
+      font: inherit;
+      font-size: 0.9rem;
+    }
+    .spe-number { text-align: right; font-variant-numeric: tabular-nums; }
+    .spe-del { background: #bf3e37; color: #fff; border: none; border-radius: 5px; padding: 0.28rem 0.5rem; cursor: pointer; font-size: 0.8rem; }
+    .spe-del:hover { background: #a8342d; }
+    .spe-status { min-height: 1.2rem; margin-top: 0.45rem; font-weight: 700; font-size: 0.92rem; }
+    .spe-status.ok { color: #1e7b4a; }
+    .spe-status.err { color: #b62c2c; }
+    .spe-warning {
+      border-left: 4px solid #c27918;
+      background: #fff6e8;
+      padding: 0.65rem 0.72rem;
+      border-radius: 6px;
+      margin-bottom: 0.45rem;
+      color: #663f0d;
+      font-size: 0.9rem;
+    }
+    .spe-muted { color: #62788a; font-size: 0.9rem; }
+    .spe-workflow {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.65rem;
+      margin-top: 0.6rem;
+    }
+    .spe-chip {
+      border: 1px solid #d5e1ec;
+      border-radius: 8px;
+      background: #f8fbff;
+      padding: 0.55rem 0.6rem;
+      font-size: 0.86rem;
+      color: #294356;
+    }
+    .spe-chip strong { display: block; color: #173852; margin-bottom: 0.2rem; }
+    .spe-linkrow { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.6rem; }
+    .spe-linkbtn {
+      display: inline-block;
+      padding: 0.35rem 0.65rem;
+      border: 1px solid #b9cadc;
+      border-radius: 999px;
+      text-decoration: none;
+      color: #1b4f7a;
+      background: #fff;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+    .spe-linkbtn:hover { border-color: #1e6daa; color: #144a75; }
+    .spe-kpi { font-size: 1.02rem; font-weight: 800; color: #163a58; }
+    .spe-control-card {
+      background: linear-gradient(180deg, #f7fbff 0%, #ffffff 100%);
+      border-color: #b8cde0;
+    }
+    .spe-control-layout {
+      display: grid;
+      grid-template-columns: minmax(260px, 1.15fr) minmax(280px, 1.1fr) minmax(280px, 1.35fr);
+      gap: 0.75rem;
+      align-items: start;
+    }
+    .spe-control-block {
+      background: #ffffff;
+      border: 1px solid #d6e3ef;
+      border-radius: 9px;
+      padding: 0.7rem 0.75rem;
+    }
+    .spe-control-title {
+      margin: 0;
+      font-size: 0.84rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: #38546b;
+      font-weight: 800;
+    }
+    .spe-control-note {
+      margin: 0.25rem 0 0.6rem;
+      font-size: 0.84rem;
+      color: #5e7689;
+    }
+    .spe-field.tight { min-width: 100%; }
+    .spe-buffer-grid {
+      display: grid;
+      grid-template-columns: minmax(130px, 170px) minmax(180px, 1fr);
+      gap: 0.55rem;
+      align-items: end;
+    }
+    .spe-actions-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(140px, 1fr));
+      gap: 0.45rem;
+    }
+    .spe-actions-grid .spe-btn {
+      width: 100%;
+      text-align: center;
+      padding: 0.5rem 0.65rem;
+    }
+    .spe-actions-grid .spe-btn.warn {
+      grid-column: span 2;
+      font-size: 1rem;
+      padding: 0.62rem 0.7rem;
+    }
+    .spe-top-meta {
+      margin-top: 0.7rem;
+      padding-top: 0.6rem;
+      border-top: 1px dashed #c8d7e5;
+    }
+    @media (max-width: 860px) {
+      .spe-head { align-items: start; }
+      .spe-control-layout { grid-template-columns: 1fr; }
+      .spe-buffer-grid { grid-template-columns: 1fr; }
+      .spe-actions-grid { grid-template-columns: 1fr; }
+      .spe-actions-grid .spe-btn.warn { grid-column: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+  <main class="spe-wrap">
+    <section class="spe-head">
+      <div>
+        <h1 class="spe-title">Shopping Plan Editor</h1>
+        <p class="spe-sub">Edit teacher quantities, notes, and categories before finalizing the technician ordering view.</p>
+      </div>
+      <div>
+        <a href="shopping_plan_setup.html" class="spe-muted">Create new weekly plan</a>
+      </div>
+    </section>
+
+    <section class="spe-card spe-control-card">
+      <div class="spe-control-layout">
+        <div class="spe-control-block">
+          <p class="spe-control-title">1. Select Plan</p>
+          <p class="spe-control-note">Pick the weekly plan, then load it into the editor.</p>
+          <div class="spe-field tight">
+            <label for="planSelect">Plan</label>
+            <select id="planSelect"></select>
+          </div>
+          <div style="margin-top:0.55rem;">
+            <button id="loadPlanBtn" class="spe-btn primary" type="button">Load Plan</button>
+          </div>
+        </div>
+
+        <div class="spe-control-block" hidden>
+          <p class="spe-control-title">2. Safety Buffer</p>
+          <p class="spe-control-note">Optional uplift before finalization.</p>
+          <div class="spe-buffer-grid">
+            <div class="spe-field tight">
+              <label for="defaultBufferInput">Default %</label>
+              <input id="defaultBufferInput" type="number" min="0" step="0.1" placeholder="Optional">
+            </div>
+            <div class="spe-field tight">
+              <label for="categoryBufferInput">Category overrides (JSON)</label>
+              <input id="categoryBufferInput" type="text" placeholder='{"Produce":5,"Dairy":3}'>
+            </div>
+          </div>
+        </div>
+
+        <div class="spe-control-block">
+          <p class="spe-control-title">3. Actions</p>
+          <p class="spe-control-note">Update draft items, then finalize and move to technician view.</p>
+          <div class="spe-actions-grid">
+            <button id="generateDraftBtn" class="spe-btn secondary" type="button">Regenerate Draft</button>
+            <button id="fixLegacyUnitsBtn" class="spe-btn secondary" type="button">Fix Legacy Units</button>
+            <button id="addRowBtn" class="spe-btn secondary" type="button">Add Manual Row</button>
+            <button id="saveBtn" class="spe-btn success" type="button">Save Draft</button>
+            <button id="finalizeBtn" class="spe-btn warn" type="button">Finalize Plan</button>
+          </div>
+        </div>
+      </div>
+      <div class="spe-top-meta">
+        <div class="spe-status" id="topStatus"></div>
+        <p class="spe-muted" id="planMeta"></p>
+      </div>
+    </section>
+
+    <section class="spe-card" id="warningPanel">
+      <strong>Warnings</strong>
+      <div id="warningList" style="margin-top:0.45rem;"></div>
+    </section>
+
+    <section class="spe-card" id="workflowPanel">
+      <div class="spe-row" style="justify-content:space-between;align-items:center;">
+        <strong>Shopping Workflow Health</strong>
+        <button id="preflightBtn" class="spe-btn secondary" type="button">Run Preflight</button>
+      </div>
+      <div class="spe-workflow" id="workflowCards">
+        <div class="spe-chip"><strong>Plan Classes</strong><span class="spe-kpi" id="wfClasses">-</span></div>
+        <div class="spe-chip"><strong>Missing Groups</strong><span class="spe-kpi" id="wfGroups">-</span></div>
+        <div class="spe-chip"><strong>Missing Class Size</strong><span class="spe-kpi" id="wfClassSize">-</span></div>
+        <div class="spe-chip"><strong>Missing Recipe Link</strong><span class="spe-kpi" id="wfRecipe">-</span></div>
+        <div class="spe-chip"><strong>Missing Desired Servings</strong><span class="spe-kpi" id="wfDesired">-</span></div>
+      </div>
+      <div class="spe-linkrow">
+        <a class="spe-linkbtn" href="group_confirmation.html" target="_blank" rel="noopener">Group Confirmation</a>
+        <a class="spe-linkbtn" href="calculate_servings.html" target="_blank" rel="noopener">Calculate Servings</a>
+        <a class="spe-linkbtn" href="calculate_qty.html" target="_blank" rel="noopener">Calculate Qty</a>
+        <a class="spe-linkbtn" href="admin_aisle_category.html" target="_blank" rel="noopener">Load Aisle Categories</a>
+        <a class="spe-linkbtn" href="admin_aisle_keywords.html" target="_blank" rel="noopener">Load Aisle Keywords</a>
+        <a class="spe-linkbtn" href="ingredients_directory.html" target="_blank" rel="noopener">Ingredients Directory</a>
+      </div>
+    </section>
+
+    <section class="spe-card">
+      <div class="spe-row" style="justify-content:space-between;align-items:center;margin-bottom:0.55rem;">
+        <strong>Draft Items</strong>
+        <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.88rem;color:#2a4254;">
+          <input id="showAllRowsCheckbox" type="checkbox" style="accent-color:#1e6daa;">
+          <span>Show non-actionable rows</span>
+        </label>
+      </div>
+      <div class="spe-table-wrap">
+        <table class="spe-table" aria-label="Shopping plan items editor">
+          <thead>
+            <tr>
+              <th style="width:180px;">Category</th>
+              <th style="width:180px;">Sub Aisle</th>
+              <th>Item</th>
+              <th style="width:90px;">Unit</th>
+              <th style="width:115px;">Calculated Qty</th>
+              <th style="width:115px;">Teacher Qty</th>
+              <th style="width:110px;">Final Qty</th>
+              <th style="width:240px;">Notes</th>
+              <th style="width:70px;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="itemsBody">
+            <tr><td colspan="9" class="spe-muted">Load a plan to edit items.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+  (function () {
+    const planSelect = document.getElementById('planSelect');
+    const loadPlanBtn = document.getElementById('loadPlanBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const finalizeBtn = document.getElementById('finalizeBtn');
+    const generateDraftBtn = document.getElementById('generateDraftBtn');
+    const fixLegacyUnitsBtn = document.getElementById('fixLegacyUnitsBtn');
+    const addRowBtn = document.getElementById('addRowBtn');
+    const itemsBody = document.getElementById('itemsBody');
+    const topStatus = document.getElementById('topStatus');
+    const warningPanel = document.getElementById('warningPanel');
+    const warningList = document.getElementById('warningList');
+    const planMeta = document.getElementById('planMeta');
+    const defaultBufferInput = document.getElementById('defaultBufferInput');
+    const categoryBufferInput = document.getElementById('categoryBufferInput');
+    const showAllRowsCheckbox = document.getElementById('showAllRowsCheckbox');
+    const preflightBtn = document.getElementById('preflightBtn');
+
+    let currentPlan = null;
+    let rowsModel = [];
+    let planClassesModel = [];
+    const deletedIds = new Set();
+    const showAllRowsStorageKey = 'shoppingPlanEditorShowAllRows';
+
+    function getQueryPlanId() {
+      const q = new URLSearchParams(window.location.search);
+      const id = Number(q.get('plan_id'));
+      return Number.isInteger(id) && id > 0 ? id : null;
+    }
+
+    function esc(s) {
+      return String(s || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function setStatus(msg, type) {
+      topStatus.textContent = msg || '';
+      topStatus.className = 'spe-status' + (type ? ' ' + type : '');
+    }
+
+    function numValue(v) {
+      if (v === null || v === undefined || v === '') return null;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function toDateOnly(value) {
+      const raw = String(value || '').trim();
+      if (!raw) return '';
+      const isoLike = raw.slice(0, 10);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(isoLike)) return isoLike;
+      const d = new Date(raw);
+      if (Number.isNaN(d.getTime())) return '';
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + day;
+    }
+
+    function formatHumanDate(value) {
+      const iso = toDateOnly(value);
+      if (!iso) return String(value || '');
+      const d = new Date(iso + 'T00:00:00');
+      if (Number.isNaN(d.getTime())) return iso;
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return String(d.getDate()) + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
+    }
+
+    function formatPlanStatus(statusValue) {
+      const status = String(statusValue || '').trim().toLowerCase();
+      if (!status) return 'Unknown';
+      return status.charAt(0).toUpperCase() + status.slice(1);
+    }
+
+    function renderWarnings(warnings) {
+      const list = Array.isArray(warnings) ? warnings : [];
+      if (!list.length) {
+        warningList.innerHTML = '<div class="spe-muted">No warnings on this draft.</div>';
+        return;
+      }
+      warningList.innerHTML = list.map((w) => '<div class="spe-warning">' + esc(w) + '</div>').join('');
+    }
+
+    function setWorkflowKpi(id, value) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = String(value);
+    }
+
+    function weekWindowFromFriday(fridayStr) {
+      const friday = new Date(String(fridayStr || '').slice(0, 10) + 'T00:00:00');
+      if (Number.isNaN(friday.getTime())) return null;
+      const monday = new Date(friday);
+      monday.setDate(friday.getDate() - 4);
+      const iso = (d) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return y + '-' + m + '-' + day;
+      };
+      return { start: iso(monday), end: iso(friday) };
+    }
+
+    async function runPreflight() {
+      if (!currentPlan) return;
+      const week = weekWindowFromFriday(currentPlan.week_ending);
+      if (!week) {
+        setStatus('Cannot compute week range for preflight.', 'err');
+        return;
+      }
+
+      setStatus('Running preflight checks...', '');
+      const bookingIds = new Set((planClassesModel || []).map((c) => Number(c.booking_id)).filter(Number.isInteger));
+      setWorkflowKpi('wfClasses', bookingIds.size);
+
+      let bookings = [];
+      try {
+        const bResp = await fetch('/api/bookings/all?start=' + week.start + '&end=' + week.end + '&fields=calendar', { credentials: 'include' });
+        const bPayload = await bResp.json().catch(() => ({}));
+        bookings = Array.isArray(bPayload.bookings) ? bPayload.bookings : [];
+      } catch (_) { bookings = []; }
+
+      const inPlan = bookings.filter((b) => bookingIds.has(Number(b.id)));
+      const missingGroups = inPlan.filter((b) => b.groups == null || String(b.groups).trim() === '').length;
+      const missingClassSize = inPlan.filter((b) => b.class_size == null || String(b.class_size).trim() === '').length;
+      const missingRecipe = inPlan.filter((b) => !String(b.recipe_id || '').trim()).length;
+
+      setWorkflowKpi('wfGroups', missingGroups);
+      setWorkflowKpi('wfClassSize', missingClassSize);
+      setWorkflowKpi('wfRecipe', missingRecipe);
+
+      let missingDesiredServings = 0;
+      try {
+        const rResp = await fetch('/api/bookings/admin/resave-candidates?startDate=' + week.start + '&endDate=' + week.end + '&limit=1000', { credentials: 'include' });
+        const rPayload = await rResp.json().catch(() => ({}));
+        const candidates = Array.isArray(rPayload.candidates) ? rPayload.candidates : [];
+        missingDesiredServings = candidates.filter((c) => bookingIds.has(Number(c.booking_id))).length;
+      } catch (_) {
+        missingDesiredServings = 0;
+      }
+      setWorkflowKpi('wfDesired', missingDesiredServings);
+      setStatus('Preflight complete.', 'ok');
+    }
+
+    function renderItems() {
+      const filteredRows = rowsModel.filter((r) => {
+        if (showAllRowsCheckbox && showAllRowsCheckbox.checked) return true;
+        if (String(r.source_type || '').toLowerCase() === 'manual') return true;
+        const calc = Number(r.calculated_qty);
+        const teacher = Number(r.teacher_qty);
+        const final = Number(r.final_qty);
+        return (Number.isFinite(calc) && calc > 0) || (Number.isFinite(teacher) && teacher > 0) || (Number.isFinite(final) && final > 0);
+      });
+
+      if (!filteredRows.length) {
+        itemsBody.innerHTML = '<tr><td colspan="9" class="spe-muted">No rows in this plan yet.</td></tr>';
+        return;
+      }
+
+      itemsBody.innerHTML = filteredRows.map((r) => {
+        const i = rowsModel.indexOf(r);
+        const calculated = r.calculated_qty !== null && r.calculated_qty !== undefined ? Number(r.calculated_qty) : null;
+        const teacher = r.teacher_qty !== null && r.teacher_qty !== undefined ? Number(r.teacher_qty) : null;
+        const previewFinal = teacher !== null && Number.isFinite(teacher) ? teacher : (calculated !== null && Number.isFinite(calculated) ? calculated : '');
+        return '<tr data-index="' + i + '">' +
+          '<td><input data-f="category" value="' + esc(r.category || 'Uncategorised') + '"></td>' +
+          '<td><input data-f="sub_aisle" value="' + esc(r.sub_aisle || '') + '"></td>' +
+          '<td><input data-f="item_name" value="' + esc(r.item_name || '') + '" ' + (r.id ? 'disabled' : '') + '></td>' +
+          '<td><input data-f="base_unit" value="' + esc(r.base_unit || '') + '"></td>' +
+          '<td class="spe-number">' + (calculated !== null && Number.isFinite(calculated) ? calculated : '') + '</td>' +
+          '<td><input class="spe-number" data-f="teacher_qty" value="' + esc(r.teacher_qty !== null && r.teacher_qty !== undefined ? r.teacher_qty : '') + '"></td>' +
+          '<td class="spe-number">' + (previewFinal !== '' ? previewFinal : '') + '</td>' +
+          '<td><input data-f="notes" value="' + esc(r.notes || '') + '"></td>' +
+          '<td><button class="spe-del" data-action="del">Delete</button></td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    function wireRowEvents() {
+      itemsBody.querySelectorAll('input[data-f]').forEach((input) => {
+        input.addEventListener('input', (ev) => {
+          const tr = ev.target.closest('tr');
+          const i = Number(tr.getAttribute('data-index'));
+          const f = ev.target.getAttribute('data-f');
+          if (!Number.isInteger(i) || !rowsModel[i]) return;
+          rowsModel[i][f] = ev.target.value;
+          if (f === 'teacher_qty') {
+            renderItems();
+            wireRowEvents();
+          }
+        });
+      });
+      itemsBody.querySelectorAll('button[data-action="del"]').forEach((btn) => {
+        btn.addEventListener('click', (ev) => {
+          const tr = ev.target.closest('tr');
+          const i = Number(tr.getAttribute('data-index'));
+          if (!Number.isInteger(i) || !rowsModel[i]) return;
+          if (rowsModel[i].id) deletedIds.add(Number(rowsModel[i].id));
+          rowsModel.splice(i, 1);
+          renderItems();
+          wireRowEvents();
+        });
+      });
+    }
+
+    async function loadPlanList(selectId) {
+      const resp = await fetch('/api/shopping-plan', { credentials: 'include' });
+      const payload = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(payload.error || 'Failed to load plan list');
+
+      const plans = Array.isArray(payload.plans) ? payload.plans : [];
+      planSelect.innerHTML = plans.map((p) => {
+        const label = 'Week ending ' + formatHumanDate(p.week_ending)
+          + ' | Version ' + String(p.version || '')
+          + ' | ' + formatPlanStatus(p.status)
+          + ' | Plan #' + String(p.id || '');
+        return '<option value="' + Number(p.id) + '">' + esc(label) + '</option>';
+      }).join('');
+
+      if (selectId && plans.some((p) => Number(p.id) === Number(selectId))) {
+        planSelect.value = String(selectId);
+      }
+    }
+
+    async function loadPlan(planId) {
+      setStatus('Loading plan...', '');
+      const resp = await fetch('/api/shopping-plan/' + planId, { credentials: 'include' });
+      const payload = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(payload.error || 'Failed to load plan.');
+
+      currentPlan = payload.plan;
+      planClassesModel = Array.isArray(payload.classes) ? payload.classes : [];
+      deletedIds.clear();
+      rowsModel = (Array.isArray(payload.items) ? payload.items : []).map((r) => Object.assign({}, r));
+      renderWarnings(payload.warnings || []);
+      renderItems();
+      wireRowEvents();
+
+      planMeta.textContent = 'Plan #' + currentPlan.id
+        + ' | Week ending: ' + formatHumanDate(currentPlan.week_ending)
+        + ' | Version: ' + currentPlan.version
+        + ' | Status: ' + formatPlanStatus(currentPlan.status);
+      finalizeBtn.disabled = currentPlan.status !== 'draft';
+      generateDraftBtn.disabled = currentPlan.status !== 'draft';
+      if (fixLegacyUnitsBtn) fixLegacyUnitsBtn.disabled = currentPlan.status !== 'draft';
+      saveBtn.disabled = currentPlan.status !== 'draft';
+      addRowBtn.disabled = currentPlan.status !== 'draft';
+
+      if (currentPlan.status !== 'draft') {
+        setStatus('Plan is finalized. Reopen it from API to edit further.', 'ok');
+      } else {
+        setStatus('Draft loaded.', 'ok');
+      }
+
+      try { await runPreflight(); } catch (_) { /* non-blocking */ }
+    }
+
+    async function saveDraft() {
+      if (!currentPlan) return;
+      if (currentPlan.status !== 'draft') {
+        setStatus('Plan is finalized and cannot be edited.', 'err');
+        return;
+      }
+
+      const updates = [];
+      const adds = [];
+      rowsModel.forEach((r) => {
+        const payloadRow = {
+          category: String(r.category || '').trim() || 'Uncategorised',
+          sub_aisle: String(r.sub_aisle || '').trim() || null,
+          base_unit: String(r.base_unit || '').trim() || null,
+          teacher_qty: String(r.teacher_qty || '').trim() === '' ? null : numValue(r.teacher_qty),
+          notes: String(r.notes || '').trim() || null
+        };
+
+        if (r.id) {
+          updates.push(Object.assign({ id: Number(r.id) }, payloadRow));
+        } else {
+          adds.push(Object.assign({ item_name: String(r.item_name || '').trim() }, payloadRow));
+        }
+      });
+
+      setStatus('Saving changes...', '');
+      const resp = await fetch('/api/shopping-plan/' + currentPlan.id + '/items', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ updates, adds, deletes: Array.from(deletedIds) })
+      });
+      const payload = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(payload.error || 'Save failed.');
+      setStatus('Draft saved.', 'ok');
+      await loadPlan(currentPlan.id);
+    }
+
+    async function regenerateDraft() {
+      if (!currentPlan) return;
+      setStatus('Regenerating draft totals...', '');
+      const resp = await fetch('/api/shopping-plan/' + currentPlan.id + '/generate-draft', {
+        method: 'POST',
+        credentials: 'include'
+      });
+      const payload = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(payload.error || 'Generate draft failed.');
+      if (Array.isArray(payload.warnings) && payload.warnings.length) {
+        renderWarnings(payload.warnings);
+      }
+      const generated = Number(payload.items_generated || 0);
+      const autofilled = Number(payload.autofilled_classes || 0);
+      const skippedAutofill = Number(payload.skipped_autofill_classes || 0);
+      let msg = 'Draft totals regenerated: ' + generated + ' item(s).';
+      if (autofilled > 0) {
+        msg += ' Auto-filled desired servings for ' + autofilled + ' class(es).';
+      }
+      if (skippedAutofill > 0) {
+        msg += ' ' + skippedAutofill + ' class(es) still need recipe, class size, groups, or inventory ingredients.';
+      }
+      setStatus(msg, 'ok');
+      await loadPlan(currentPlan.id);
+    }
+
+    async function fixLegacyUnits() {
+      if (!currentPlan) return;
+      if (currentPlan.status !== 'draft') {
+        setStatus('Plan is finalized and cannot be repaired.', 'err');
+        return;
+      }
+
+      setStatus('Repairing legacy unit rows...', '');
+      const resp = await fetch('/api/shopping-plan/' + currentPlan.id + '/fix-legacy-units', {
+        method: 'POST',
+        credentials: 'include'
+      });
+      const payload = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(payload.error || 'Legacy unit repair failed.');
+
+      const updated = Number(payload.updated || 0);
+      const units = Number(payload.units_inferred || 0);
+      const names = Number(payload.names_cleaned || 0);
+      setStatus('Legacy unit repair complete: ' + updated + ' row(s) updated, ' + units + ' unit(s) inferred, ' + names + ' name(s) cleaned.', 'ok');
+      await loadPlan(currentPlan.id);
+    }
+
+    async function finalizePlan() {
+      if (!currentPlan) return;
+      if (!confirm('Finalize this shopping plan? This locks the final quantities for technician view.')) return;
+
+      const categoryBufferRaw = String(categoryBufferInput.value || '').trim();
+      let categoryBuffer = {};
+      if (categoryBufferRaw) {
+        try {
+          const parsed = JSON.parse(categoryBufferRaw);
+          if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            throw new Error('Category buffer JSON must be an object like {"Produce":5}.');
+          }
+          categoryBuffer = parsed;
+        } catch (err) {
+          throw new Error('Invalid category buffer JSON: ' + err.message);
+        }
+      }
+
+      const defaultBufferRaw = String(defaultBufferInput.value || '').trim();
+      const hasDefaultBuffer = defaultBufferRaw !== '' && Number.isFinite(Number(defaultBufferRaw)) && Number(defaultBufferRaw) >= 0;
+      const hasCategoryBuffer = Object.keys(categoryBuffer).length > 0;
+
+      setStatus('Finalizing...', '');
+      const resp = await fetch('/api/shopping-plan/' + currentPlan.id + '/finalize', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          use_safety_buffer: hasDefaultBuffer || hasCategoryBuffer,
+          default_safety_buffer_percent: hasDefaultBuffer ? Number(defaultBufferRaw) : null,
+          safety_buffer_by_category: categoryBuffer
+        })
+      });
+      const payload = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        if (Array.isArray(payload.errors) && payload.errors.length) {
+          warningList.innerHTML = payload.errors.map((e) => '<div class="spe-warning">' + esc(e) + '</div>').join('');
+          throw new Error('Finalize blocked by validation errors.');
+        }
+        throw new Error(payload.error || 'Finalize failed.');
+      }
+      if (Array.isArray(payload.warnings) && payload.warnings.length) {
+        renderWarnings(payload.warnings);
+      }
+      setStatus('Plan finalized. Technician view is now ready.', 'ok');
+      await loadPlan(currentPlan.id);
+      window.location.href = 'shopping_plan_technician.html?plan_id=' + encodeURIComponent(String(currentPlan.id));
+    }
+
+    function addManualRow() {
+      if (!currentPlan || currentPlan.status !== 'draft') return;
+      rowsModel.unshift({
+        id: null,
+        category: 'Uncategorised',
+        sub_aisle: '',
+        item_name: '',
+        base_unit: '',
+        calculated_qty: null,
+        teacher_qty: null,
+        final_qty: null,
+        source_type: 'manual',
+        notes: ''
+      });
+      renderItems();
+      wireRowEvents();
+    }
+
+    loadPlanBtn.addEventListener('click', async () => {
+      try {
+        const planId = Number(planSelect.value);
+        if (!Number.isInteger(planId) || planId <= 0) throw new Error('Select a valid plan.');
+        await loadPlan(planId);
+      } catch (err) {
+        setStatus(err.message, 'err');
+      }
+    });
+
+    saveBtn.addEventListener('click', async () => {
+      try { await saveDraft(); } catch (err) { setStatus(err.message, 'err'); }
+    });
+    generateDraftBtn.addEventListener('click', async () => {
+      try { await regenerateDraft(); } catch (err) { setStatus(err.message, 'err'); }
+    });
+    if (fixLegacyUnitsBtn) {
+      fixLegacyUnitsBtn.addEventListener('click', async () => {
+        try { await fixLegacyUnits(); } catch (err) { setStatus(err.message, 'err'); }
+      });
+    }
+    finalizeBtn.addEventListener('click', async () => {
+      try { await finalizePlan(); } catch (err) { setStatus(err.message, 'err'); }
+    });
+    addRowBtn.addEventListener('click', addManualRow);
+    preflightBtn.addEventListener('click', async () => {
+      try { await runPreflight(); } catch (err) { setStatus(err.message || 'Preflight failed.', 'err'); }
+    });
+
+    if (showAllRowsCheckbox) {
+      showAllRowsCheckbox.checked = localStorage.getItem(showAllRowsStorageKey) === '1';
+      showAllRowsCheckbox.addEventListener('change', () => {
+        localStorage.setItem(showAllRowsStorageKey, showAllRowsCheckbox.checked ? '1' : '0');
+        renderItems();
+        wireRowEvents();
+      });
+    }
+
+    (async function init() {
+      try {
+        const requested = getQueryPlanId();
+        await loadPlanList(requested);
+        const idToLoad = requested || Number(planSelect.value);
+        if (Number.isInteger(idToLoad) && idToLoad > 0) await loadPlan(idToLoad);
+      } catch (err) {
+        setStatus('Startup failed: ' + err.message, 'err');
+        warningPanel.hidden = true;
+      }
+    })();
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit Shopping List</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .sl-page {
+      max-width: 1260px;
+      margin: 24px auto 60px;
+      padding: 0 1rem;
+    }
+    .sl-card {
+      background: #fff;
+      border: 1px solid #d8dee6;
+      border-radius: 14px;
+      box-shadow: 0 8px 24px rgba(15,23,42,0.07);
+      padding: 1.5rem 1.75rem;
+      margin-bottom: 1.5rem;
+    }
+    .sl-card h2 {
+      margin: 0 0 0.25rem;
+      font-size: 1.2rem;
+      color: #1f2937;
+    }
+    .sl-card-sub {
+      font-size: 0.91rem;
+      color: #4a5568;
+      margin-bottom: 1rem;
+    }
+    .sl-upload-row,
+    .sl-toolbar,
+    .sl-header-row {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .sl-upload-row input[type="file"],
+    .sl-select {
+      flex: 1 1 260px;
+      border: 1px solid #d0d7de;
+      border-radius: 7px;
+      padding: 0.45rem 0.7rem;
+      font-size: 0.97rem;
+      background: #fff;
+    }
+    .sl-filter-row {
+      margin-top: 0.75rem;
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .sl-filter-row .sl-select,
+    .sl-filter-row .sl-date-input {
+      flex: 1 1 180px;
+      border: 1px solid #d0d7de;
+      border-radius: 7px;
+      padding: 0.45rem 0.7rem;
+      font-size: 0.95rem;
+      background: #fff;
+    }
+    .sl-btn {
+      background: #1976d2;
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      padding: 0.5rem 1rem;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .sl-btn:hover { background: #1565c0; }
+    .sl-btn:disabled { background: #90a4ae; cursor: default; }
+    .sl-btn-secondary { background: #475569; }
+    .sl-btn-secondary:hover { background: #334155; }
+    .sl-btn-danger { background: #dc2626; }
+    .sl-btn-danger:hover { background: #b91c1c; }
+    .sl-status {
+      margin-top: 0.7rem;
+      font-size: 0.95rem;
+      color: #374151;
+      min-height: 1.4em;
+    }
+    .sl-status.error { color: #c62828; }
+    .sl-status.ok { color: #2e7d32; }
+    .sl-output { display: none; }
+    .sl-output.visible { display: block; }
+    .sl-doc-header {
+      background: #1e3a5f;
+      color: #fff;
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1rem;
+    }
+    .sl-header-input {
+      border: 1px solid rgba(255,255,255,0.35);
+      background: rgba(255,255,255,0.08);
+      color: #fff;
+      border-radius: 8px;
+      padding: 0.55rem 0.7rem;
+      font-size: 1rem;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .sl-header-input::placeholder { color: rgba(255,255,255,0.7); }
+    .sl-header-title { flex: 1 1 460px; }
+    .sl-header-week { flex: 1 1 280px; }
+    .sl-week-field {
+      flex: 1 1 110px;
+      min-width: 110px;
+    }
+    .sl-week-field-label {
+      display: block;
+      margin: 0 0 0.22rem;
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.92);
+      letter-spacing: 0.01em;
+    }
+    .sl-toolbar {
+      margin-bottom: 1rem;
+      justify-content: space-between;
+    }
+    .sl-toolbar-group {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .sl-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+    }
+    @media (max-width: 760px) {
+      .sl-grid { grid-template-columns: 1fr; }
+    }
+    .sl-category-card {
+      background: #fff;
+      border: 1px solid #d0d7de;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 8px 18px rgba(15,23,42,0.06);
+    }
+    .sl-category-head {
+      background: #1976d2;
+      color: #fff;
+      padding: 0.5rem 0.75rem;
+      display: flex;
+      gap: 0.6rem;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .sl-category-title-input {
+      flex: 1 1 auto;
+      border: 1px solid rgba(255,255,255,0.4);
+      background: rgba(255,255,255,0.12);
+      color: #fff;
+      border-radius: 7px;
+      padding: 0.42rem 0.6rem;
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+    .sl-category-title-input::placeholder { color: rgba(255,255,255,0.7); }
+    .sl-category-body { padding: 0.75rem; }
+    .sl-section {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 0.65rem;
+      margin-bottom: 0.75rem;
+      background: #f8fbff;
+    }
+    .sl-section-row {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.55rem;
+      align-items: center;
+    }
+    .sl-field {
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      padding: 0.45rem 0.6rem;
+      font-size: 0.9rem;
+      box-sizing: border-box;
+      width: 100%;
+      background: #fff;
+    }
+    .sl-day-input { flex: 1 1 160px; font-weight: 700; }
+    .sl-sublabel-input { flex: 1 1 160px; }
+    .sl-items-textarea {
+      min-height: 92px;
+      resize: vertical;
+      line-height: 1.45;
+      font-family: inherit;
+    }
+    .sl-section-actions,
+    .sl-category-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .sl-mini-btn {
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      color: #1e293b;
+      border-radius: 6px;
+      padding: 0.32rem 0.55rem;
+      font-size: 0.78rem;
+      cursor: pointer;
+    }
+    .sl-mini-btn:hover { background: #eff6ff; }
+    .sl-mini-btn-danger { border-color: #fca5a5; color: #991b1b; }
+    .sl-summary-section { margin-bottom: 1.25rem; }
+    .sl-summary-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #1e3a5f;
+      margin: 0 0 0.6rem;
+    }
+    .sl-summary-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+    }
+    .sl-summary-table th {
+      background: #1976d2;
+      color: #fff;
+      padding: 0.45rem 0.75rem;
+      text-align: left;
+      font-size: 0.85rem;
+    }
+    .sl-summary-table td {
+      border: 1px solid #e2e8f0;
+      padding: 0.45rem 0.55rem;
+      vertical-align: top;
+      background: #fff;
+    }
+    .sl-empty-note {
+      color: #64748b;
+      font-style: italic;
+      font-size: 0.9rem;
+    }
+    @media print {
+      #navbar-include,
+      .sl-card:first-of-type,
+      .sl-toolbar .sl-btn,
+      .sl-mini-btn,
+      .sl-category-actions,
+      .sl-section-actions {
+        display: none !important;
+      }
+      .sl-page { margin: 0; padding: 0.5rem; }
+      .sl-grid { grid-template-columns: 1fr 1fr; }
+      .sl-doc-header,
+      .sl-category-head,
+      .sl-summary-table th {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .sl-doc-header { background: #1e3a5f !important; color: #fff !important; }
+      .sl-category-head { background: #1976d2 !important; color: #fff !important; }
+      .sl-header-input,
+      .sl-category-title-input,
+      .sl-field {
+        border: none !important;
+        background: transparent !important;
+        color: inherit !important;
+        padding: 0 !important;
+      }
+      .sl-section { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div id="navbar-include"></div>
+
+  <div class="sl-page">
+    <h1 style="margin:0 0 0.25rem;color:#1f2937;font-size:1.5rem;">Edit Shopping List</h1>
+    <p style="color:#4a5568;font-size:0.95rem;margin:0 0 1.25rem;">Select a saved shopping list, edit the printed layout, and print the final version for the technician.</p>
+
+    <div class="sl-card">
+      <h2>Select or Start a List</h2>
+      <div class="sl-card-sub">Choose a shopping list saved from Upload Shopping List, or start with a blank editable layout.</div>
+      <div class="sl-upload-row">
+        <select id="savedListSelect" class="sl-select" aria-label="Select saved shopping list">
+          <option value="">Loading saved shopping lists...</option>
+        </select>
+        <button type="button" id="refreshListsBtn" class="sl-btn sl-btn-secondary">Refresh</button>
+        <button type="button" id="blankBtn" class="sl-btn sl-btn-secondary">Start Blank</button>
+      </div>
+      <div class="sl-filter-row">
+        <select id="filterTermSelect" class="sl-select" aria-label="Filter saved lists by term">
+          <option value="">All terms</option>
+          <option value="1">Term 1</option>
+          <option value="2">Term 2</option>
+          <option value="3">Term 3</option>
+          <option value="4">Term 4</option>
+        </select>
+        <select id="filterWeekSelect" class="sl-select" aria-label="Filter saved lists by week">
+          <option value="">All weeks</option>
+          <option value="1">Week 1</option>
+          <option value="2">Week 2</option>
+          <option value="3">Week 3</option>
+          <option value="4">Week 4</option>
+          <option value="5">Week 5</option>
+          <option value="6">Week 6</option>
+          <option value="7">Week 7</option>
+          <option value="8">Week 8</option>
+          <option value="9">Week 9</option>
+          <option value="10">Week 10</option>
+          <option value="11">Week 11</option>
+          <option value="12">Week 12</option>
+          <option value="13">Week 13</option>
+        </select>
+        <input id="filterDateInput" class="sl-date-input" type="text" placeholder="Date ending: 1 May" aria-label="Filter saved lists by date ending">
+        <button type="button" id="clearWeekFiltersBtn" class="sl-btn sl-btn-secondary">Clear Filters</button>
+      </div>
+      <div id="parseStatus" class="sl-status"></div>
+    </div>
+
+    <div id="slOutput" class="sl-output">
+      <div class="sl-doc-header">
+        <div class="sl-header-row">
+          <div class="sl-header-title">
+            <input id="slDocTitleInput" class="sl-header-input" type="text" placeholder="Shopping list title">
+          </div>
+          <div class="sl-header-week sl-header-row">
+            <div class="sl-week-field">
+              <label class="sl-week-field-label" for="slTermSelect">Term</label>
+              <select id="slTermSelect" class="sl-header-input" aria-label="Term selector">
+                <option value="">Term</option>
+                <option value="1">Term 1</option>
+                <option value="2">Term 2</option>
+                <option value="3">Term 3</option>
+                <option value="4">Term 4</option>
+              </select>
+            </div>
+            <div class="sl-week-field">
+              <label class="sl-week-field-label" for="slWeekSelect">Week</label>
+              <select id="slWeekSelect" class="sl-header-input" aria-label="Week selector">
+                <option value="">Week</option>
+                <option value="1">Week 1</option>
+                <option value="2">Week 2</option>
+                <option value="3">Week 3</option>
+                <option value="4">Week 4</option>
+                <option value="5">Week 5</option>
+                <option value="6">Week 6</option>
+                <option value="7">Week 7</option>
+                <option value="8">Week 8</option>
+                <option value="9">Week 9</option>
+                <option value="10">Week 10</option>
+                <option value="11">Week 11</option>
+                <option value="12">Week 12</option>
+                <option value="13">Week 13</option>
+              </select>
+            </div>
+            <div class="sl-week-field" style="flex:1 1 180px;min-width:180px;">
+              <label class="sl-week-field-label" for="slWeekDateInput">Date ending</label>
+              <input id="slWeekDateInput" class="sl-header-input" type="text" placeholder="1 May" aria-label="Week date ending selector">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sl-toolbar">
+        <div class="sl-toolbar-group">
+          <strong style="font-size:1rem;color:#1e3a5f;">Edit Shopping List</strong>
+          <span class="sl-empty-note">One item per line inside each section.</span>
+          <span id="currentListMeta" class="sl-empty-note"></span>
+        </div>
+        <div class="sl-toolbar-group">
+          <button type="button" id="saveBtn" class="sl-btn">Save Changes</button>
+          <button type="button" id="addCategoryBtn" class="sl-btn">Add Category</button>
+          <button type="button" id="addSummaryRowBtn" class="sl-btn sl-btn-secondary">Add Class / Recipe Row</button>
+          <button type="button" id="printBtn" class="sl-btn sl-btn-secondary">Print</button>
+        </div>
+      </div>
+
+      <div id="slGrid" class="sl-grid"></div>
+
+      <div id="slSummarySection" class="sl-summary-section">
+        <div class="sl-summary-title">Classes &amp; Recipes</div>
+        <table class="sl-summary-table">
+          <thead>
+            <tr>
+              <th>Name and date of class</th>
+              <th>Recipe being made</th>
+              <th style="width:88px;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="slSummaryBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="shared/navbar_loader.js"></script>
+  <script>
+    (function () {
+      'use strict';
+
+      const savedListSelect = document.getElementById('savedListSelect');
+      const refreshListsBtn = document.getElementById('refreshListsBtn');
+      const blankBtn = document.getElementById('blankBtn');
+      const filterTermSelect = document.getElementById('filterTermSelect');
+      const filterWeekSelect = document.getElementById('filterWeekSelect');
+      const filterDateInput = document.getElementById('filterDateInput');
+      const clearWeekFiltersBtn = document.getElementById('clearWeekFiltersBtn');
+      const parseStatus = document.getElementById('parseStatus');
+      const slOutput = document.getElementById('slOutput');
+      const slGrid = document.getElementById('slGrid');
+      const slSummaryBody = document.getElementById('slSummaryBody');
+      const printBtn = document.getElementById('printBtn');
+      const saveBtn = document.getElementById('saveBtn');
+      const addCategoryBtn = document.getElementById('addCategoryBtn');
+      const addSummaryRowBtn = document.getElementById('addSummaryRowBtn');
+      const slDocTitleInput = document.getElementById('slDocTitleInput');
+      const slTermSelect = document.getElementById('slTermSelect');
+      const slWeekSelect = document.getElementById('slWeekSelect');
+      const slWeekDateInput = document.getElementById('slWeekDateInput');
+      const currentListMeta = document.getElementById('currentListMeta');
+
+      let shoppingState = createBlankState();
+      let currentSavedListId = null;
+      let currentSourceFilename = '';
+      let allSavedLists = [];
+      let allFoodTruckBookings = null;
+      let autoPopulateInFlight = false;
+
+      function escHtml(str) {
+        return String(str == null ? '' : str)
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+      }
+
+      function createBlankSection(label) {
+        return { label: label || 'General', sublabel: '', items: [] };
+      }
+
+      function createBlankCategory(name) {
+        return { name: name || 'New Category', sections: [createBlankSection('General')] };
+      }
+
+      function createBlankState() {
+        return {
+          title: 'Shopping List',
+          weekInfo: '',
+          term: '',
+          week: '',
+          weekDate: '',
+          columns: [[], []],
+          classRecipeRows: []
+        };
+      }
+
+      function normalizeWeekMeta(state) {
+        if (!state || typeof state !== 'object') return createBlankState();
+        return Object.assign(createBlankState(), state, {
+          term: String(state.term || '').trim(),
+          week: String(state.week || '').trim(),
+          weekDate: String(state.weekDate || '').trim().replace(/\s+/g, ' ')
+        });
+      }
+
+      function parseWeekMetaFromText(inputText) {
+        var text = String(inputText || '').trim();
+        var out = { term: '', week: '', weekDate: '' };
+        if (!text) return out;
+
+        var termMatch = text.match(/\bterm\s*(\d{1,2})\b/i) || text.match(/\bt\s*(\d{1,2})\b/i);
+        if (termMatch) out.term = String(termMatch[1]);
+
+        var weekMatch = text.match(/\bweek\s*(\d{1,2})\b/i);
+        if (weekMatch) out.week = String(weekMatch[1]);
+
+        var dateEndingMatch = text.match(/date\s*ending\s*[:\-]?\s*([^|,;]+)/i);
+        if (dateEndingMatch) {
+          out.weekDate = String(dateEndingMatch[1] || '').trim();
+        } else {
+          var isoDateMatch = text.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+          if (isoDateMatch) {
+            out.weekDate = isoDateMatch[1];
+          } else {
+            var shortDateMatch = text.match(/\b(\d{1,2}\s*[A-Za-z]{3,9})\b/);
+            if (shortDateMatch) out.weekDate = String(shortDateMatch[1] || '').trim();
+          }
+        }
+        return out;
+      }
+
+      function parseWeekMetaFromFilename(filename) {
+        var cleanName = String(filename || '')
+          .replace(/\.docx$/i, '')
+          .replace(/[._-]+/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        return parseWeekMetaFromText(cleanName);
+      }
+
+      function buildWeekInfo(state) {
+        var parts = [];
+        if (state.term) parts.push('Term ' + state.term);
+        if (state.week) parts.push('Week ' + state.week);
+        if (state.weekDate) parts.push('Date ending: ' + state.weekDate);
+        return parts.join(' | ');
+      }
+
+      function requestJson(url, options) {
+        var settings = options || {};
+        var headers = Object.assign({ 'Content-Type': 'application/json' }, settings.headers || {});
+        return fetch(url, Object.assign({}, settings, {
+          credentials: 'include',
+          headers: headers
+        })).then(async function (response) {
+          var payload = null;
+          try {
+            payload = await response.json();
+          } catch (err) {
+            payload = null;
+          }
+          if (!response.ok || (payload && payload.success === false)) {
+            throw new Error(payload && payload.error ? payload.error : ('Request failed (' + response.status + ')'));
+          }
+          return payload || {};
+        });
+      }
+
+      function setStatus(message, type) {
+        parseStatus.className = 'sl-status' + (type ? ' ' + type : '');
+        parseStatus.textContent = message || '';
+      }
+
+      function formatDateTime(value) {
+        if (!value) return '';
+        var date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+        return date.toLocaleString();
+      }
+
+      function toIsoDate(date) {
+        var year = date.getFullYear();
+        var month = String(date.getMonth() + 1).padStart(2, '0');
+        var day = String(date.getDate()).padStart(2, '0');
+        return year + '-' + month + '-' + day;
+      }
+
+      function parseWeekEndingDate(text) {
+        var input = String(text || '').trim();
+        if (!input) return null;
+
+        var iso = input.match(/(\d{4}-\d{2}-\d{2})/);
+        if (iso) {
+          var isoDate = new Date(iso[1] + 'T00:00:00');
+          return Number.isNaN(isoDate.getTime()) ? null : isoDate;
+        }
+
+        var compact = input.match(/(\d{1,2})\s*([A-Za-z]{3,9})(?:\s+(\d{4}))?/);
+        if (!compact) return null;
+
+        var day = Number(compact[1]);
+        var monthName = String(compact[2] || '').toLowerCase();
+        var monthMap = {
+          jan: 0, january: 0,
+          feb: 1, february: 1,
+          mar: 2, march: 2,
+          apr: 3, april: 3,
+          may: 4,
+          jun: 5, june: 5,
+          jul: 6, july: 6,
+          aug: 7, august: 7,
+          sep: 8, sept: 8, september: 8,
+          oct: 9, october: 9,
+          nov: 10, november: 10,
+          dec: 11, december: 11
+        };
+        if (!Number.isFinite(day) || monthMap[monthName] == null) return null;
+
+        var year = compact[3] ? Number(compact[3]) : (new Date()).getFullYear();
+        var parsed = new Date(year, monthMap[monthName], day);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+      }
+
+      function weekdayLabel(dateObj) {
+        var names = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        return names[dateObj.getDay()] || '';
+      }
+
+      function normalizeSummaryRows(rows) {
+        return (Array.isArray(rows) ? rows : []).map(function (row) {
+          var classInfo = String(row && row.classInfo || '').trim().replace(/\s+/g, ' ').toLowerCase();
+          var recipe = String(row && row.recipe || '').trim().replace(/\s+/g, ' ').toLowerCase();
+          return classInfo + '|' + recipe;
+        });
+      }
+
+      function hasSummaryDifference(beforeRows, afterRows) {
+        var a = normalizeSummaryRows(beforeRows);
+        var b = normalizeSummaryRows(afterRows);
+        if (a.length !== b.length) return true;
+        for (var i = 0; i < a.length; i += 1) {
+          if (a[i] !== b[i]) return true;
+        }
+        return false;
+      }
+
+      async function fetchFoodTruckBookings() {
+        if (Array.isArray(allFoodTruckBookings)) return allFoodTruckBookings;
+        var data = await requestJson('/api/bookings/all?planner_stream=Food%20Truck');
+        allFoodTruckBookings = Array.isArray(data.bookings) ? data.bookings : [];
+        return allFoodTruckBookings;
+      }
+
+      function deriveWeekRangeFromState(state) {
+        var endingDate = parseWeekEndingDate(state && state.weekDate);
+        if (!endingDate) return null;
+
+        var friday = new Date(endingDate.getFullYear(), endingDate.getMonth(), endingDate.getDate());
+        var monday = new Date(friday);
+        monday.setDate(friday.getDate() - 4);
+        monday.setHours(0, 0, 0, 0);
+        friday.setHours(0, 0, 0, 0);
+
+        return { monday: monday, friday: friday };
+      }
+
+      function buildClassRecipeRowsFromBookings(bookings, monday, friday) {
+        var startIso = toIsoDate(monday);
+        var endIso = toIsoDate(friday);
+
+        var rows = bookings
+          .filter(function (row) {
+            var dateKey = String(row && row.booking_date || '').slice(0, 10);
+            if (!dateKey) return false;
+            return dateKey >= startIso && dateKey <= endIso;
+          })
+          .sort(function (a, b) {
+            var dateA = String(a && a.booking_date || '');
+            var dateB = String(b && b.booking_date || '');
+            if (dateA !== dateB) return dateA.localeCompare(dateB);
+            var periodA = Number(a && a.period || 0);
+            var periodB = Number(b && b.period || 0);
+            if (periodA !== periodB) return periodA - periodB;
+            return String(a && a.class_name || '').localeCompare(String(b && b.class_name || ''));
+          })
+          .map(function (row) {
+            var dateKey = String(row && row.booking_date || '').slice(0, 10);
+            var day = new Date(dateKey + 'T00:00:00');
+            var dayLabel = Number.isNaN(day.getTime()) ? '' : weekdayLabel(day);
+            var className = String(row && row.class_name || '').trim();
+            return {
+              classInfo: (dayLabel ? (dayLabel + ':  ') : '') + className,
+              recipe: String(row && row.recipe || '').trim()
+            };
+          });
+
+        return rows;
+      }
+
+      async function autoPopulateSummaryFromCalendar() {
+        if (autoPopulateInFlight) return;
+        if (!shoppingState.term || !shoppingState.week || !shoppingState.weekDate) return;
+
+        var range = deriveWeekRangeFromState(shoppingState);
+        if (!range) {
+          setStatus('Set a valid Date ending value (for example: 1 May) to auto-load Classes & Recipes.', '');
+          return;
+        }
+
+        autoPopulateInFlight = true;
+        try {
+          var bookings = await fetchFoodTruckBookings();
+          var generatedRows = buildClassRecipeRowsFromBookings(bookings, range.monday, range.friday);
+          if (!generatedRows.length) {
+            setStatus('No Add Booking classes were found for the selected week range.', '');
+            autoPopulateInFlight = false;
+            return;
+          }
+
+          var previousRows = Array.isArray(shoppingState.classRecipeRows) ? shoppingState.classRecipeRows.slice() : [];
+          var changed = hasSummaryDifference(previousRows, generatedRows);
+
+          shoppingState.classRecipeRows = generatedRows;
+          renderSummaryTable();
+
+          if (changed && previousRows.length) {
+            window.alert('Classes & Recipes were updated from Add Booking calendar and differences were found. Please review the changes in the table.');
+          }
+
+          setStatus('Classes & Recipes auto-populated from Add Booking for week ending ' + shoppingState.weekDate + '.', 'ok');
+        } catch (err) {
+          setStatus('Could not auto-populate Classes & Recipes: ' + (err.message || String(err)), 'error');
+        }
+        autoPopulateInFlight = false;
+      }
+
+      function formatSavedListOption(list) {
+        var parts = [list.title || 'Shopping List'];
+        var term = String(list.term || '').trim();
+        var week = String(list.week || '').trim();
+        var weekDate = String(list.week_date || list.weekDate || '').trim();
+        if (term) parts.push('Term ' + term);
+        if (week) parts.push('Week ' + week);
+        if (weekDate) parts.push(weekDate);
+        if (!term && !week && !weekDate && list.week_info) parts.push(list.week_info);
+        if (list.created_by_name) parts.push(list.created_by_name);
+        return parts.join(' - ');
+      }
+
+      function getInitialSavedListId() {
+        var params = new URLSearchParams(window.location.search || '');
+        return params.get('saved_list_id') || '';
+      }
+
+      function updateCurrentListMeta(list) {
+        if (!list || !list.id) {
+          currentListMeta.textContent = 'Unsaved list';
+          return;
+        }
+        var meta = ['Saved list #' + list.id];
+        if (list.createdByName || list.created_by_name) meta.push('by ' + (list.createdByName || list.created_by_name));
+        var updatedAt = list.updatedAt || list.updated_at;
+        if (updatedAt) meta.push('updated ' + formatDateTime(updatedAt));
+        currentListMeta.textContent = meta.join(' | ');
+      }
+
+      async function refreshSavedLists(selectedId) {
+        savedListSelect.disabled = true;
+        try {
+          var data = await requestJson('/api/saved-shopping-lists');
+          allSavedLists = Array.isArray(data.lists) ? data.lists : [];
+          var filterTerm = String(filterTermSelect.value || '').trim();
+          var filterWeek = String(filterWeekSelect.value || '').trim();
+          var filterDate = String(filterDateInput.value || '').trim().toLowerCase();
+
+          var lists = allSavedLists.filter(function (list) {
+            var listTerm = String(list.term || '').trim();
+            var listWeek = String(list.week || '').trim();
+            var listDate = String(list.week_date || '').trim();
+
+            if ((!listTerm || !listWeek || !listDate) && list.week_info) {
+              var parsed = parseWeekMetaFromText(list.week_info);
+              if (!listTerm) listTerm = parsed.term;
+              if (!listWeek) listWeek = parsed.week;
+              if (!listDate) listDate = parsed.weekDate;
+            }
+
+            if ((!listTerm || !listWeek || !listDate) && list.source_filename) {
+              var parsedFromName = parseWeekMetaFromFilename(list.source_filename);
+              if (!listTerm) listTerm = parsedFromName.term;
+              if (!listWeek) listWeek = parsedFromName.week;
+              if (!listDate) listDate = parsedFromName.weekDate;
+            }
+
+            if (filterTerm && filterTerm !== listTerm) return false;
+            if (filterWeek && filterWeek !== listWeek) return false;
+            if (filterDate && filterDate !== String(listDate || '').trim().toLowerCase()) return false;
+            return true;
+          });
+
+          savedListSelect.innerHTML = '<option value="">Select a saved shopping list...</option>' + lists.map(function (list) {
+            var selected = String(selectedId || '') === String(list.id) ? ' selected' : '';
+            return '<option value="' + escHtml(String(list.id)) + '"' + selected + '>' + escHtml(formatSavedListOption(list)) + '</option>';
+          }).join('');
+          if (!lists.length) {
+            if (allSavedLists.length) {
+              setStatus('No saved lists match the selected Term/Week/Date filters.', '');
+            } else {
+              setStatus('No saved shopping lists yet. Use Upload Shopping List to import one.', '');
+            }
+          }
+        } catch (err) {
+          savedListSelect.innerHTML = '<option value="">Unable to load saved shopping lists</option>';
+          setStatus('Error: ' + (err.message || String(err)), 'error');
+        }
+        savedListSelect.disabled = false;
+      }
+
+      async function loadSavedList(listId) {
+        if (!listId) return;
+        setStatus('Loading shopping list...', '');
+        savedListSelect.disabled = true;
+        try {
+          var data = await requestJson('/api/saved-shopping-lists/' + encodeURIComponent(listId));
+          currentSavedListId = data.list.id;
+          currentSourceFilename = data.list.sourceFilename || '';
+          var state = normalizeWeekMeta(data.list.state || {});
+          if ((!state.term || !state.week || !state.weekDate) && data.list.weekInfo) {
+            var parsed = parseWeekMetaFromText(data.list.weekInfo);
+            if (!state.term) state.term = parsed.term;
+            if (!state.week) state.week = parsed.week;
+            if (!state.weekDate) state.weekDate = parsed.weekDate;
+          }
+          if ((!state.term || !state.week || !state.weekDate) && data.list.sourceFilename) {
+            var parsedFileMeta = parseWeekMetaFromFilename(data.list.sourceFilename);
+            if (!state.term) state.term = parsedFileMeta.term;
+            if (!state.week) state.week = parsedFileMeta.week;
+            if (!state.weekDate) state.weekDate = parsedFileMeta.weekDate;
+          }
+          state.weekInfo = buildWeekInfo(state);
+          loadState(state, { scroll: true });
+          updateCurrentListMeta(data.list);
+          setStatus('Loaded "' + (data.list.title || 'Shopping List') + '".', 'ok');
+        } catch (err) {
+          setStatus('Error: ' + (err.message || String(err)), 'error');
+        }
+        savedListSelect.disabled = false;
+      }
+
+      function ensureSectionItems(section) {
+        return Array.isArray(section.items) ? section.items : [];
+      }
+
+      function renderSummaryTable() {
+        if (!shoppingState.classRecipeRows.length) {
+          slSummaryBody.innerHTML = '<tr><td colspan="3" class="sl-empty-note">No class / recipe rows yet.</td></tr>';
+          return;
+        }
+
+        slSummaryBody.innerHTML = shoppingState.classRecipeRows.map(function (row, rowIndex) {
+          return '<tr>'
+            + '<td><input class="sl-field sl-summary-input" data-summary-index="' + rowIndex + '" data-summary-field="classInfo" value="' + escHtml(row.classInfo || '') + '" placeholder="Name and date of class"></td>'
+            + '<td><input class="sl-field sl-summary-input" data-summary-index="' + rowIndex + '" data-summary-field="recipe" value="' + escHtml(row.recipe || '') + '" placeholder="Recipe being made"></td>'
+            + '<td><button type="button" class="sl-mini-btn sl-mini-btn-danger" data-remove-summary="' + rowIndex + '">Remove</button></td>'
+            + '</tr>';
+        }).join('');
+      }
+
+      function renderCategoryCard(category, columnIndex, categoryIndex) {
+        var sectionsHtml = (category.sections || []).map(function (section, sectionIndex) {
+          return '<div class="sl-section">'
+            + '<div class="sl-section-row">'
+            + '<input class="sl-field sl-day-input" data-column-index="' + columnIndex + '" data-category-index="' + categoryIndex + '" data-section-index="' + sectionIndex + '" data-field="label" value="' + escHtml(section.label || '') + '" placeholder="Day or section label">'
+            + '<input class="sl-field sl-sublabel-input" data-column-index="' + columnIndex + '" data-category-index="' + categoryIndex + '" data-section-index="' + sectionIndex + '" data-field="sublabel" value="' + escHtml(section.sublabel || '') + '" placeholder="Optional sub-label">'
+            + '</div>'
+            + '<textarea class="sl-field sl-items-textarea" data-column-index="' + columnIndex + '" data-category-index="' + categoryIndex + '" data-section-index="' + sectionIndex + '" data-field="items" placeholder="One shopping item per line">' + escHtml(ensureSectionItems(section).join('\n')) + '</textarea>'
+            + '<div class="sl-section-actions" style="margin-top:0.5rem;">'
+            + '<button type="button" class="sl-mini-btn sl-mini-btn-danger" data-remove-section="' + columnIndex + ':' + categoryIndex + ':' + sectionIndex + '">Remove Section</button>'
+            + '</div>'
+            + '</div>';
+        }).join('');
+
+        return '<div class="sl-category-card">'
+          + '<div class="sl-category-head">'
+          + '<input class="sl-category-title-input" data-column-index="' + columnIndex + '" data-category-index="' + categoryIndex + '" data-category-field="name" value="' + escHtml(category.name || '') + '" placeholder="Category name">'
+          + '<div class="sl-category-actions">'
+          + '<button type="button" class="sl-mini-btn" data-add-section="' + columnIndex + ':' + categoryIndex + '">Add Section</button>'
+          + '<button type="button" class="sl-mini-btn sl-mini-btn-danger" data-remove-category="' + columnIndex + ':' + categoryIndex + '">Remove</button>'
+          + '</div>'
+          + '</div>'
+          + '<div class="sl-category-body">'
+          + (sectionsHtml || '<div class="sl-empty-note">No sections yet.</div>')
+          + '</div>'
+          + '</div>';
+      }
+
+      function renderEditor() {
+        slDocTitleInput.value = shoppingState.title || '';
+        slTermSelect.value = shoppingState.term || '';
+        slWeekSelect.value = shoppingState.week || '';
+        slWeekDateInput.value = shoppingState.weekDate || '';
+
+        var maxLen = Math.max(shoppingState.columns[0].length, shoppingState.columns[1].length, 1);
+        var html = '';
+        for (var index = 0; index < maxLen; index += 1) {
+          var left = shoppingState.columns[0][index] || null;
+          var right = shoppingState.columns[1][index] || null;
+          html += left ? renderCategoryCard(left, 0, index) : '<div></div>';
+          html += right ? renderCategoryCard(right, 1, index) : '<div></div>';
+        }
+        slGrid.innerHTML = html;
+        renderSummaryTable();
+        slOutput.classList.add('visible');
+      }
+
+      function getCategory(columnIndex, categoryIndex) {
+        if (!shoppingState.columns[columnIndex]) return null;
+        return shoppingState.columns[columnIndex][categoryIndex] || null;
+      }
+
+      function handleGridInput(event) {
+        var target = event.target;
+        if (!target) return;
+
+        if (target.matches('[data-category-field="name"]')) {
+          var category = getCategory(Number(target.dataset.columnIndex), Number(target.dataset.categoryIndex));
+          if (category) category.name = target.value;
+          return;
+        }
+
+        if (target.matches('[data-field]')) {
+          var category = getCategory(Number(target.dataset.columnIndex), Number(target.dataset.categoryIndex));
+          if (!category) return;
+          var section = category.sections[Number(target.dataset.sectionIndex)];
+          if (!section) return;
+
+          var field = target.dataset.field;
+          if (field === 'items') {
+            section.items = String(target.value || '').split('\n').map(function (item) { return item.trim(); }).filter(Boolean);
+          } else {
+            section[field] = target.value;
+          }
+        }
+      }
+
+      function handleSummaryInput(event) {
+        var target = event.target;
+        if (!target || !target.matches('.sl-summary-input')) return;
+        var row = shoppingState.classRecipeRows[Number(target.dataset.summaryIndex)];
+        if (!row) return;
+        row[target.dataset.summaryField] = target.value;
+      }
+
+      function loadState(nextState, options) {
+        shoppingState = normalizeWeekMeta(nextState);
+        renderEditor();
+        if (!options || options.scroll !== false) {
+          slOutput.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+
+      savedListSelect.addEventListener('change', function () {
+        if (!savedListSelect.value) return;
+        loadSavedList(savedListSelect.value);
+      });
+
+      refreshListsBtn.addEventListener('click', function () {
+        refreshSavedLists(currentSavedListId);
+      });
+
+      filterTermSelect.addEventListener('change', function () {
+        refreshSavedLists(currentSavedListId);
+      });
+
+      filterWeekSelect.addEventListener('change', function () {
+        refreshSavedLists(currentSavedListId);
+      });
+
+      filterDateInput.addEventListener('input', function () {
+        refreshSavedLists(currentSavedListId);
+      });
+
+      clearWeekFiltersBtn.addEventListener('click', function () {
+        filterTermSelect.value = '';
+        filterWeekSelect.value = '';
+        filterDateInput.value = '';
+        refreshSavedLists(currentSavedListId);
+      });
+
+      blankBtn.addEventListener('click', function () {
+        currentSavedListId = null;
+        currentSourceFilename = '';
+        savedListSelect.value = '';
+        loadState(createBlankState());
+        updateCurrentListMeta(null);
+        setStatus('Blank shopping list ready to edit.', 'ok');
+      });
+
+      slDocTitleInput.addEventListener('input', function () {
+        shoppingState.title = slDocTitleInput.value;
+      });
+
+      slTermSelect.addEventListener('change', function () {
+        shoppingState.term = slTermSelect.value;
+        shoppingState.weekInfo = buildWeekInfo(shoppingState);
+        autoPopulateSummaryFromCalendar();
+      });
+
+      slWeekSelect.addEventListener('change', function () {
+        shoppingState.week = slWeekSelect.value;
+        shoppingState.weekInfo = buildWeekInfo(shoppingState);
+        autoPopulateSummaryFromCalendar();
+      });
+
+      slWeekDateInput.addEventListener('change', function () {
+        shoppingState.weekDate = slWeekDateInput.value;
+        shoppingState.weekInfo = buildWeekInfo(shoppingState);
+        autoPopulateSummaryFromCalendar();
+      });
+
+      slGrid.addEventListener('input', handleGridInput);
+      slSummaryBody.addEventListener('input', handleSummaryInput);
+
+      slGrid.addEventListener('click', function (event) {
+        var target = event.target;
+        if (!target) return;
+
+        if (target.matches('[data-add-section]')) {
+          var parts = target.dataset.addSection.split(':').map(Number);
+          var category = getCategory(parts[0], parts[1]);
+          if (!category) return;
+          category.sections.push(createBlankSection('General'));
+          renderEditor();
+          return;
+        }
+
+        if (target.matches('[data-remove-category]')) {
+          var removeCategoryParts = target.dataset.removeCategory.split(':').map(Number);
+          shoppingState.columns[removeCategoryParts[0]].splice(removeCategoryParts[1], 1);
+          renderEditor();
+          return;
+        }
+
+        if (target.matches('[data-remove-section]')) {
+          var removeSectionParts = target.dataset.removeSection.split(':').map(Number);
+          var category = getCategory(removeSectionParts[0], removeSectionParts[1]);
+          if (!category) return;
+          category.sections.splice(removeSectionParts[2], 1);
+          if (!category.sections.length) category.sections.push(createBlankSection('General'));
+          renderEditor();
+        }
+      });
+
+      slSummaryBody.addEventListener('click', function (event) {
+        var target = event.target;
+        if (!target) return;
+        if (target.matches('[data-remove-summary]')) {
+          shoppingState.classRecipeRows.splice(Number(target.dataset.removeSummary), 1);
+          renderSummaryTable();
+        }
+      });
+
+      addCategoryBtn.addEventListener('click', function () {
+        var targetColumn = shoppingState.columns[0].length <= shoppingState.columns[1].length ? 0 : 1;
+        shoppingState.columns[targetColumn].push(createBlankCategory('New Category'));
+        renderEditor();
+      });
+
+      addSummaryRowBtn.addEventListener('click', function () {
+        shoppingState.classRecipeRows.push({ classInfo: '', recipe: '' });
+        renderSummaryTable();
+      });
+
+      saveBtn.addEventListener('click', async function () {
+        saveBtn.disabled = true;
+        setStatus(currentSavedListId ? 'Saving changes...' : 'Saving new shopping list...', '');
+        try {
+          var isUpdate = Boolean(currentSavedListId);
+          var payload = {
+            title: shoppingState.title,
+            weekInfo: buildWeekInfo(shoppingState),
+            term: shoppingState.term,
+            week: shoppingState.week,
+            weekDate: shoppingState.weekDate,
+            sourceFilename: currentSourceFilename,
+            state: shoppingState
+          };
+          var url = isUpdate
+            ? '/api/saved-shopping-lists/' + encodeURIComponent(currentSavedListId)
+            : '/api/saved-shopping-lists';
+          var method = isUpdate ? 'PUT' : 'POST';
+          var data = await requestJson(url, {
+            method: method,
+            body: JSON.stringify(payload)
+          });
+          currentSavedListId = data.list.id;
+          await refreshSavedLists(currentSavedListId);
+          savedListSelect.value = String(currentSavedListId);
+          updateCurrentListMeta(data.list);
+          setStatus(isUpdate ? 'Shopping list changes saved.' : 'Shopping list saved to the shared list selector.', 'ok');
+        } catch (err) {
+          setStatus('Error: ' + (err.message || String(err)), 'error');
+        }
+        saveBtn.disabled = false;
+      });
+
+      printBtn.addEventListener('click', function () {
+        window.print();
+      });
+
+        var initialSavedListId = getInitialSavedListId();
+      loadState(createBlankState());
+      updateCurrentListMeta(null);
+        refreshSavedLists(initialSavedListId).then(function () {
+          if (initialSavedListId) {
+            savedListSelect.value = initialSavedListId;
+            loadSavedList(initialSavedListId);
+          }
+        });
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Title Text Extractor</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .extractor-app {
+            max-width: 1200px;
+            margin: 2rem auto;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+            padding: 1.5rem 2rem 2rem 2rem;
+            display: flex;
+            gap: 2rem;
+        }
+        .extractor-left {
+            flex: 1 1 60%;
+        }
+        .extractor-right {
+            flex: 1 1 40%;
+        }
+        .extractor-nav {
+            display: flex;
+            gap: 1.2rem;
+            margin-bottom: 1.5rem;
+        }
+        .extractor-nav button {
+            padding: 1.2rem 2.2rem;
+            font-size: 1.1rem;
+            border-radius: 8px;
+            border: 1px solid #bbb;
+            background: #f5f8fa;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .extractor-nav button.active {
+            background: #1976d2;
+            color: #fff;
+            border-color: #1976d2;
+        }
+        .extractor-header {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1.2rem;
+        }
+        .extractor-btn {
+            background: #1976d2;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            padding: 0.6rem 1.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-bottom: 1.2rem;
+        }
+        .extractor-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        .extractor-table th, .extractor-table td {
+            border: 1px solid #bbb;
+            padding: 0.7rem 0.5rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+        .extractor-table th {
+            background: #f5f8fa;
+            font-weight: 600;
+        }
+        .extractor-status {
+            display: inline-block;
+            padding: 0.2rem 0.7rem;
+            border-radius: 5px;
+            font-size: 0.98rem;
+            color: #fff;
+            background: #43a047;
+            margin-left: 0.5rem;
+        }
+        .extractor-status.unsolved {
+            background: #e53935;
+        }
+        .extractor-result {
+            max-width: 350px;
+            white-space: pre-line;
+            font-size: 0.98rem;
+        }
+        .raw-data-section {
+            margin-top: 2rem;
+        }
+        .raw-data-title {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        .raw-data-box {
+            background: #f5f8fa;
+            border: 1px solid #bbb;
+            border-radius: 6px;
+            padding: 1rem;
+            font-family: monospace;
+            font-size: 0.98rem;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow: auto;
+        }
+        .solution-box {
+            background: #f5f8fa;
+            border: 1px solid #bbb;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 1.2rem;
+        }
+        .solution-label {
+            font-weight: bold;
+            margin-bottom: 0.3rem;
+            display: block;
+        }
+        .solution-input {
+            width: 100%;
+            padding: 0.5rem;
+            margin-bottom: 0.7rem;
+            font-size: 1rem;
+        }
+        .solution-btn {
+            background: #e040fb;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            padding: 0.5rem 1.2rem;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+        .extractor-two-col {
+            display: grid;
+            grid-template-columns: 1.6fr 1fr;
+            gap: 1.2rem;
+            align-items: start;
+        }
+        .extractor-col-left,
+        .extractor-col-right {
+            min-width: 0;
+        }
+        .solution-section {
+            background: #faf6ff;
+            border: 1px solid #d8b5ef;
+            border-radius: 8px;
+            padding: 0.8rem;
+            margin-bottom: 1rem;
+        }
+        .runner-grid {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            margin-bottom: 0.8rem;
+        }
+        .runner-box {
+            border: 1px solid #d7e3f4;
+            border-radius: 8px;
+            background: #f8fbff;
+            padding: 0.8rem;
+            min-width: 260px;
+            flex: 1;
+        }
+        .auto-result-box {
+            margin-bottom: 0.9rem;
+            border: 1px solid #cfd8dc;
+            border-radius: 8px;
+            background: #fafcff;
+            padding: 0.8rem;
+        }
+        @media (max-width: 980px) {
+            .extractor-two-col {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+        <div id="navbar-include"></div>
+    <script src="shared/navbar_loader.js"></script>
+        <div class="extractor-card" style="margin-left:40px;margin-right:40px;">
+            <h2>Title Extraction Strategies</h2>
+            <div class="extractor-section">
+                <label for="recipeSelect">Choose Recipe URL:</label>
+                <select id="recipeSelect">
+                    <option value="">-- Select a recipe --</option>
+                </select>
+                <div class="runner-grid">
+                    <div class="runner-box">
+                        <div style="font-weight:600; margin-bottom:0.5rem;">Step-by-step</div>
+                        <button class="extractor-btn" id="startStepByStepBtn">Start Step-by-Step</button>
+                    </div>
+                    <div class="runner-box">
+                        <div style="font-weight:600; margin-bottom:0.5rem;">Auto Extract</div>
+                        <button class="extractor-btn" id="titleAutoExtractBtn" style="background:#00897b;">Title Auto Extract (Strategy 1)</button>
+                    </div>
+                </div>
+                <div id="titleAutoResultBox" class="auto-result-box" style="display:none;">
+                    <div style="font-weight:600; margin-bottom:0.4rem;">Auto Extract Result</div>
+                    <div id="titleAutoResultText" style="margin-bottom:0.7rem;"></div>
+                    <button class="extractor-btn" id="titleAutoAcceptSendBtn" style="background:#8000b0;">Accept and Send Solution</button>
+                    <button class="extractor-btn" id="titleAutoDeclineBtn" style="background:#e53935; margin-left:0.5rem;">Decline (Return to Title Extractor)</button>
+                </div>
+            </div>
+            <div class="extractor-section">
+                <div class="extractor-two-col">
+                    <div class="extractor-col-left">
+                        <h3>Title Extraction Strategies</h3>
+                        <ul id="strategyList" style="margin-bottom:1.2rem;">
+                            <li><b>Look for &lt;title&gt; tag</b>: Extracts the text inside the first &lt;title&gt; tag in the HTML.</li>
+                            <li><b>Look for &lt;h1&gt; tag</b>: Extracts the text inside the first &lt;h1&gt; tag in the HTML.</li>
+                            <li><b>Look for JSON-LD Recipe name</b>: Extracts the <code>name</code> property from a <code>Recipe</code> object in <code>&lt;script type="application/ld+json"&gt;</code> or similar JSON blocks.</li>
+                            <li><b>First non-empty line</b>: Finds and returns the first non-empty line in the raw data.</li>
+                            <li><b>Fallback: Any text before &lt;body&gt;</b>: Extracts any text that appears before the &lt;body&gt; tag, with HTML tags removed.</li>
+                        </ul>
+                        <div id="stepControls" style="margin-bottom:1.2rem;">
+                            <div id="currentStrategyName" style="font-weight:bold;"></div>
+                            <div id="currentStrategyResult" style="margin:0.5rem 0;"></div>
+                            <button class="extractor-btn" id="acceptResultBtn">Accept</button>
+                            <button class="extractor-btn" id="continueBtn">Continue</button>
+                        </div>
+                        <table id="strategyTable">
+                            <thead>
+                                <tr>
+                                    <th>Strategy</th>
+                                    <th>Applied</th>
+                                    <th>Result</th>
+                                    <th>Solved</th>
+                                </tr>
+                            </thead>
+                            <tbody id="titleExtractorTableBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="extractor-col-right">
+                        <div class="solution-section">
+                            <div style="font-weight:bold; color:#8000b0; margin-bottom:0.3rem;">Solution</div>
+                            <textarea id="solutionBox" style="width:100%; min-height:180px; resize:vertical; border-radius:6px; border:1px solid #bbb; font-size:1.05rem; padding:0.5rem;"></textarea>
+                            <button class="extractor-btn" id="sendSolutionBtn" style="background:#8000b0; color:#fff; margin-top:0.5rem; width:100%;">SEND SOLUTION</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="raw-data-title">Raw Data (HTML/Text)</div>
+                <textarea id="rawDataBox" style="width:100%; min-height:60px; resize:vertical; border-radius:6px; border:1px solid #bbb; font-size:1.1rem; padding:0.5rem;"></textarea>
+            </div>
+        </div>
+        <script src="title_extractor.js?v=20260410a"></script>
+</body>
+</html>

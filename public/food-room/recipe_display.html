@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recipe Details</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      background:
+        radial-gradient(circle at 8% 10%, #dff2ff 0%, transparent 40%),
+        radial-gradient(circle at 92% 5%, #ffe8cd 0%, transparent 46%),
+        #f4f8fc;
+    }
+
+    .recipe-detail-shell {
+      width: min(1180px, calc(100vw - 1.2rem));
+      margin: 1rem auto 2rem;
+    }
+
+    .recipe-hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+      gap: 1rem;
+      background: linear-gradient(135deg, #0f4f8b 0%, #2f84ca 60%, #fbab59 100%);
+      border-radius: 18px;
+      box-shadow: 0 18px 34px rgba(15, 23, 42, 0.22);
+      overflow: hidden;
+      color: #fff;
+    }
+
+    .recipe-hero-copy {
+      padding: 1.3rem 1.4rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+      min-width: 0;
+    }
+
+    .recipe-kicker {
+      margin: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      font-size: 0.78rem;
+      font-weight: 700;
+      opacity: 0.94;
+    }
+
+    .recipe-title {
+      margin: 0;
+      font-size: clamp(1.45rem, 2.2vw, 2.25rem);
+      line-height: 1.15;
+      word-break: break-word;
+      color: #ffffff;
+    }
+
+    .recipe-meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      align-items: center;
+    }
+
+    .recipe-pill {
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.45);
+      background: rgba(255,255,255,0.16);
+      padding: 0.28rem 0.62rem;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .recipe-hero-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: fit-content;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.65);
+      color: #fff;
+      text-decoration: none;
+      font-weight: 700;
+      padding: 0.5rem 0.8rem;
+      background: rgba(255,255,255,0.12);
+    }
+
+    .recipe-hero-image-wrap {
+      min-height: 250px;
+    }
+
+    .recipe-hero-image {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+      background: #d8e8f7;
+    }
+
+    .recipe-content-grid {
+      margin-top: 1rem;
+      display: grid;
+      grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.2fr);
+      gap: 1rem;
+    }
+
+    .recipe-panel {
+      background: #fff;
+      border: 1px solid #d9e5f0;
+      border-radius: 14px;
+      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.09);
+      padding: 1rem;
+      min-width: 0;
+    }
+
+    .panel-title {
+      margin: 0 0 0.55rem;
+      font-size: 1.07rem;
+      color: #15324c;
+      letter-spacing: 0.02em;
+    }
+
+    .panel-subtitle {
+      margin: 0 0 0.65rem;
+      font-size: 0.84rem;
+      color: #5d748c;
+    }
+
+    .ingredient-list,
+    .instruction-list {
+      margin: 0;
+      padding-left: 1.1rem;
+      color: #1f2f3f;
+      line-height: 1.45;
+      font-size: 0.94rem;
+      white-space: normal;
+    }
+
+    .ingredient-list li,
+    .instruction-list li {
+      margin: 0.34rem 0;
+    }
+
+    .instruction-text-fallback {
+      margin: 0;
+      color: #1f2f3f;
+      line-height: 1.5;
+      font-size: 0.94rem;
+      white-space: pre-line;
+    }
+
+    @media (max-width: 920px) {
+      .recipe-hero {
+        grid-template-columns: 1fr;
+      }
+
+      .recipe-hero-image-wrap {
+        min-height: 200px;
+      }
+
+      .recipe-content-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .recipe-detail-wrapper {
+        grid-template-columns: 1fr;
+      }
+
+      .recipe-nav-sidebar {
+        max-height: 300px;
+        order: -1;
+      }
+    }
+
+    .recipe-detail-wrapper {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 1rem;
+    }
+
+    .recipe-nav-sidebar {
+      background: #fff;
+      border: 1px solid #d9e5f0;
+      border-radius: 14px;
+      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.09);
+      padding: 1rem;
+      height: fit-content;
+      position: sticky;
+      top: 1rem;
+    }
+
+    .nav-sidebar-header {
+      margin: 0 0 0.8rem;
+      font-size: 1.07rem;
+      color: #15324c;
+      letter-spacing: 0.02em;
+      font-weight: 700;
+    }
+
+    .nav-button-group {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .nav-btn {
+      flex: 1;
+      border: 1px solid #d9e5f0;
+      background: #f8fafb;
+      color: #15324c;
+      border-radius: 8px;
+      padding: 0.5rem;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .nav-btn:hover:not(:disabled) {
+      background: #e6f1ff;
+      border-color: #2f84ca;
+      color: #0f4f8b;
+    }
+
+    .nav-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .recipe-counter {
+      text-align: center;
+      font-size: 0.8rem;
+      color: #5d748c;
+      margin-bottom: 1rem;
+    }
+
+    #recipeSearchInput {
+      width: 100%;
+      border: 1px solid #d9e5f0;
+      border-radius: 8px;
+      padding: 0.5rem;
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+      box-sizing: border-box;
+    }
+
+    #recipeNavigationList {
+      max-height: 500px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .recipe-nav-item {
+      padding: 0.7rem;
+      background: #f8fafb;
+      border: 1px solid #e8ecf1;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .recipe-nav-item:hover {
+      background: #e6f1ff;
+      border-color: #2f84ca;
+    }
+
+    .recipe-nav-item.active {
+      background: #2f84ca;
+      border-color: #0f4f8b;
+      color: #fff;
+    }
+
+    .recipe-nav-name {
+      font-weight: 600;
+      font-size: 0.9rem;
+      margin-bottom: 0.25rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .recipe-nav-id {
+      font-size: 0.75rem;
+      opacity: 0.7;
+    }
+
+    .recipe-nav-item.active .recipe-nav-id {
+      opacity: 0.95;
+    }
+
+    .recipe-versions-dock {
+      position: fixed;
+      right: max(0.8rem, calc((100vw - 1180px) / 2 - 320px));
+      top: 5.4rem;
+      width: 300px;
+      max-height: calc(100vh - 6.2rem);
+      overflow: hidden;
+      display: none;
+      flex-direction: column;
+      background: #fff;
+      border: 1px solid #d9e5f0;
+      border-radius: 14px;
+      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.12);
+      z-index: 20;
+    }
+
+    .recipe-versions-dock.active {
+      display: flex;
+    }
+
+    .recipe-versions-head {
+      padding: 0.8rem 0.9rem;
+      border-bottom: 1px solid #e4edf6;
+      background: #f5f9ff;
+    }
+
+    .recipe-versions-title {
+      margin: 0;
+      font-size: 0.96rem;
+      color: #15324c;
+      font-weight: 700;
+    }
+
+    .recipe-versions-subtitle {
+      margin: 0.2rem 0 0;
+      font-size: 0.78rem;
+      color: #5d748c;
+    }
+
+    .recipe-versions-list {
+      padding: 0.65rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.48rem;
+    }
+
+    .recipe-version-item {
+      width: 100%;
+      text-align: left;
+      border: 1px solid #dce7f2;
+      background: #f8fbff;
+      border-radius: 9px;
+      padding: 0.55rem 0.62rem;
+      cursor: pointer;
+      transition: border-color 0.18s ease, background 0.18s ease;
+    }
+
+    .recipe-version-item:hover {
+      border-color: #7fb2de;
+      background: #edf6ff;
+    }
+
+    .recipe-version-name {
+      margin: 0;
+      font-size: 0.84rem;
+      font-weight: 700;
+      color: #15324c;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .recipe-version-meta {
+      margin: 0.22rem 0 0;
+      font-size: 0.74rem;
+      color: #5d748c;
+    }
+
+    @media (max-width: 1480px) {
+      .recipe-versions-dock {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+
+  <main class="recipe-detail-shell">
+    <section class="recipe-hero">
+      <div class="recipe-hero-copy">
+        <p class="recipe-kicker">Student Kitchen Recipe</p>
+        <h1 id="recipeTitle" class="recipe-title">Recipe Details</h1>
+        <div class="recipe-meta-row">
+          <span id="recipeIdPill" class="recipe-pill">RecipeID: -</span>
+          <span id="recipeCategory" class="recipe-pill">Student Favourites</span>
+          <span id="recipeServings" class="recipe-pill">Serving Size: -</span>
+          <span id="recipeSource" class="recipe-pill">Source: -</span>
+        </div>
+        <a id="recipeUrlLink" class="recipe-hero-link" href="#" target="_blank" rel="noopener noreferrer" style="display:none;">Open Original Recipe</a>
+        <a id="teacherDetailsLink" class="recipe-hero-link" href="#" style="display:none;background:#0f766e;">Teacher Details</a>
+        <button id="adminEditBtn" class="recipe-hero-link" style="display:none;background:#1976d2;color:#fff;border:none;cursor:pointer;margin-top:0.5rem;">Edit Recipe</button>
+      </div>
+
+      <div class="recipe-hero-image-wrap">
+        <img id="recipeHeroImg" class="recipe-hero-image" alt="Recipe image" loading="lazy">
+      </div>
+    </section>
+
+    <div class="recipe-detail-wrapper">
+      <aside class="recipe-nav-sidebar">
+        <h3 class="nav-sidebar-header">Browse Recipes</h3>
+        <div class="nav-button-group">
+          <button id="prevRecipeBtn" class="nav-btn">← Prev</button>
+          <button id="nextRecipeBtn" class="nav-btn">Next →</button>
+        </div>
+        <div class="recipe-counter" id="recipeCounter">- / -</div>
+        <input id="recipeSearchInput" type="text" placeholder="Search recipes..." aria-label="Search recipes">
+        <div id="recipeNavigationList"></div>
+      </aside>
+
+      <section class="recipe-content-grid">
+        <article class="recipe-panel">
+          <h2 class="panel-title">Ingredients</h2>
+          <p class="panel-subtitle">What students prepare for this dish.</p>
+          <ul id="ingredientsList" class="ingredient-list"></ul>
+        </article>
+
+        <article class="recipe-panel">
+          <h2 class="panel-title">Instructions</h2>
+          <p class="panel-subtitle">Step-by-step cooking method.</p>
+          <ol id="instructionsList" class="instruction-list"></ol>
+          <p id="instructionsFallback" class="instruction-text-fallback" style="display:none;"></p>
+        </article>
+      </section>
+    </div>
+  </main>
+
+  <aside id="recipeVersionsDock" class="recipe-versions-dock" aria-label="Recipe versions" style="display:none;">
+    <div class="recipe-versions-head">
+      <h3 class="recipe-versions-title">Other Versions</h3>
+      <p class="recipe-versions-subtitle">Click a version to open its details.</p>
+    </div>
+    <div id="recipeVersionsList" class="recipe-versions-list"></div>
+  </aside>
+
+  <div id="adminEditPanel" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);z-index:9000;overflow-y:auto;padding:2rem 1rem;">
+    <div style="background:#fff;max-width:700px;margin:0 auto;border-radius:10px;padding:2rem;box-shadow:0 4px 32px rgba(0,0,0,0.25);">
+      <h2 style="margin:0 0 1.2rem;color:#17324a;font-size:1.4rem;">Edit Recipe</h2>
+      <div id="adminEditStatus" style="margin-bottom:0.8rem;font-size:0.93rem;color:#1d4f79;"></div>
+
+      <label style="display:block;font-weight:600;margin-bottom:0.25rem;color:#17324a;">Recipe Name</label>
+      <input id="editName" type="text" style="width:100%;box-sizing:border-box;padding:0.5rem 0.7rem;border:1px solid #b0bec5;border-radius:6px;font-size:1rem;margin-bottom:1rem;">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+        <div>
+          <label style="display:block;font-weight:600;margin-bottom:0.25rem;color:#17324a;">Serving Size</label>
+          <input id="editServingSize" type="text" style="width:100%;box-sizing:border-box;padding:0.5rem 0.7rem;border:1px solid #b0bec5;border-radius:6px;font-size:1rem;">
+        </div>
+        <div>
+          <label style="display:block;font-weight:600;margin-bottom:0.25rem;color:#17324a;">Source URL</label>
+          <input id="editUrl" type="text" placeholder="https://..." style="width:100%;box-sizing:border-box;padding:0.5rem 0.7rem;border:1px solid #b0bec5;border-radius:6px;font-size:1rem;">
+        </div>
+      </div>
+
+      <label style="display:block;font-weight:600;margin-bottom:0.25rem;color:#17324a;">Ingredients <span style="font-weight:400;color:#516375;">(one per line)</span></label>
+      <textarea id="editIngredients" rows="10" style="width:100%;box-sizing:border-box;padding:0.5rem 0.7rem;border:1px solid #b0bec5;border-radius:6px;font-size:0.95rem;font-family:inherit;margin-bottom:1rem;resize:vertical;"></textarea>
+
+      <label style="display:block;font-weight:600;margin-bottom:0.25rem;color:#17324a;">Instructions <span style="font-weight:400;color:#516375;">(one step per line)</span></label>
+      <textarea id="editInstructions" rows="12" style="width:100%;box-sizing:border-box;padding:0.5rem 0.7rem;border:1px solid #b0bec5;border-radius:6px;font-size:0.95rem;font-family:inherit;margin-bottom:1.5rem;resize:vertical;"></textarea>
+
+      <div style="display:flex;gap:0.75rem;justify-content:flex-end;">
+        <button id="adminEditCancelBtn" type="button" style="padding:0.55rem 1.3rem;border:1px solid #b0bec5;border-radius:6px;background:#fff;cursor:pointer;font-size:0.97rem;">Cancel</button>
+        <button id="adminEditSaveBtn" type="button" style="padding:0.55rem 1.5rem;border:none;border-radius:6px;background:#1976d2;color:#fff;font-weight:700;cursor:pointer;font-size:0.97rem;">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="display_recipe_details.js"></script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timetable CSV Upload</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="navbar-include"></div>
+    <script src="shared/navbar_loader.js"></script>
+    <div class="container" style="max-width:600px;margin:2rem auto;background:#fff;padding:2rem;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+        <h1>Timetable Upload</h1>
+        <details style="margin:0 0 1rem; border:1px solid #d8dee6; border-radius:10px; padding:0.75rem 0.9rem; background:#f8fbff;">
+            <summary style="cursor:pointer; font-weight:700; color:#1f2937;">How to export Timetable CSV from Kamar</summary>
+            <ol style="margin:0.8rem 0 0; padding-left:1.2rem; color:#1f2937;">
+                <li style="margin-bottom:0.6rem;">
+                    In Kamar, open <strong>Reporting</strong> and select <strong>Timetable</strong>.
+                </li>
+                <li style="margin-bottom:0.6rem;">
+                    Open the <strong>Teachers</strong> tab and choose <strong>Teacher Timetables</strong> (or <strong>Timetable Summary</strong> if your school uses that export).
+                </li>
+                <li style="margin-bottom:0.6rem;">
+                    Set the timetable options for the term/week/cycle/day you want included.
+                </li>
+                <li style="margin-bottom:0.6rem;">
+                    Open the <strong>Actions</strong> menu, choose <strong>Spreadsheet</strong>, then generate the export.
+                </li>
+                <li>
+                    In the <strong>Download Files</strong> popup, click the CSV filename to download it, then upload that file here.
+                </li>
+            </ol>
+        </details>
+        <form id="uploadForm">
+            <label for="csvFile">Upload Timetable CSV File:</label>
+            <input type="file" id="csvFile" accept=".csv" required />
+            <button type="submit">Upload</button>
+        </form>
+        <div id="uploadResult" style="margin-top:1.5rem;"></div>
+    </div>
+    <div id="timetableTableContainer" style="max-width:1400px;margin:2rem auto;padding:0 2rem;overflow-x:auto;"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="timetable_upload.js"></script>
+</body>
+</html>

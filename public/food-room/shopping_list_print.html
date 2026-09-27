@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Shopping List</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Lexend', Arial, sans-serif;
+            background: #fff;
+            color: #111;
+            margin: 0;
+            padding: 0;
+        }
+        .print-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem 2.5rem;
+        }
+        .header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 2px solid #aaa;
+            margin-bottom: 1.2rem;
+        }
+        .header-row img {
+            height: 60px;
+        }
+        .header-title {
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 0;
+        }
+        .header-date {
+            font-size: 1.1rem;
+            margin-top: 0.3rem;
+        }
+        .section-row {
+            display: flex;
+            gap: 2.5rem;
+            margin-bottom: 2rem;
+        }
+        .section {
+            flex: 1 1 0;
+        }
+        .section h3 {
+            margin-top: 0;
+            margin-bottom: 0.7rem;
+            font-size: 1.15rem;
+        }
+        .btn-group {
+            margin-bottom: 1rem;
+        }
+        .btn-group button {
+            margin-right: 0.5rem;
+            padding: 0.3rem 0.8rem;
+            font-size: 1rem;
+        }
+        ul, ol {
+            margin: 0.2rem 0 0.7rem 1.2rem;
+        }
+        .teacher-block {
+            margin-bottom: 1.2rem;
+        }
+        .teacher-block ul {
+            margin-bottom: 0.5rem;
+        }
+        @media print {
+            .btn-group, .no-print { display: none !important; }
+            body { background: #fff !important; }
+            .print-container { box-shadow: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="print-container">
+        <div class="header-row">
+            <div>
+                <div class="header-title">Weekly Shopping List</div>
+                <div class="header-date">Week of 15/12/25 to 19/12/25</div>
+            </div>
+            <div>Printed:</div>
+        </div>
+        <div class="section-row">
+            <div class="section">
+                <h3>Selected Bookings</h3>
+                <div class="btn-group no-print">
+                    <button>Select All</button>
+                    <button>Clear</button>
+                    <button>Generate Shopping List</button>
+                    <button>Auto Generate</button>
+                </div>
+                <ul>
+                    <li>300HOSP | Chocolate Chip Cookies | P3 | 2025-12-16</li>
+                    <li>SDFOOD | Apple and Sultana Crumble | P4 | 2025-12-18</li>
+                    <li>300HOSP | Cauliflower Cheese | P4 | 2025-12-19</li>
+                </ul>
+                <h3>Master Shopping List</h3>
+                <div><b>Other</b></div>
+                <ul>
+                    <li>1-2 tblsp fresh breadcrumbs — 0</li>
+                    <li>apples — 2 no.</li>
+                    <li>Baking soda — 1 tsp</li>
+                    <li>Black pepper — 0</li>
+                    <li>brown or white sugar — 30 g</li>
+                    <li>Brown sugar — 0.75 cup</li>
+                    <li>butter — 50 butter</li>
+                    <li>Butter (softened) — 1 cup</li>
+                    <li>butter or margarine — 60 g</li>
+                    <li>cheese — 100 grated</li>
+                    <li>Chocolate chips — 2 cups</li>
+                    <li>Don't forget a container to take your cauliflower cheese home in — 0</li>
+                    <li>Eggs — 2 whole</li>
+                    <li>flour — 80 g</li>
+                    <li>Flour — 2 cups</li>
+                    <li>Granulated sugar — 0.5 cup</li>
+                    <li>milk — 500 milk</li>
+                    <li>oats — 40 g</li>
+                    <li>of cauliflower OR 1 head of broccoli OR a mix of both — 1 head</li>
+                    <li>Salt — 0.5 tsp</li>
+                    <li>sultanas — 50 g</li>
+                    <li>Vanilla extract — 1 tsp</li>
+                </ul>
+            </div>
+            <div class="section">
+                <h3>Shopping List</h3>
+                <div class="teacher-block">
+                    <b>Teacher: Pringle</b>
+                    <ul>
+                        <li>300HOSP | Chocolate Chip Cookies | P3 | 2025-12-16</li>
+                        <li>SDFOOD | Apple and Sultana Crumble | P4 | 2025-12-18</li>
+                    </ul>
+                    <div><b>Other</b></div>
+                    <ul>
+                        <li>apples — 2 no.</li>
+                        <li>Baking soda — 1 tsp</li>
+                        <li>brown or white sugar — 30 g</li>
+                        <li>Brown sugar — 0.75 cup</li>
+                        <li>Butter (softened) — 1 cup</li>
+                        <li>butter or margarine — 60 g</li>
+                        <li>Chocolate chips — 2 cups</li>
+                        <li>Eggs — 2 whole</li>
+                        <li>flour — 80 g</li>
+                        <li>Flour — 2 cups</li>
+                        <li>Granulated sugar — 0.5 cup</li>
+                        <li>oats — 40 g</li>
+                        <li>Salt — 0.5 tsp</li>
+                        <li>sultanas — 50 g</li>
+                        <li>Vanilla extract — 1 tsp</li>
+                    </ul>
+                </div>
+                <div class="teacher-block">
+                    <b>Teacher: Diplock</b>
+                    <ul>
+                        <li>300HOSP | Cauliflower Cheese | P4 | 2025-12-19</li>
+                    </ul>
+                    <div><b>Other</b></div>
+                    <ul>
+                        <li>1-2 tblsp fresh breadcrumbs — 0</li>
+                        <li>Black pepper — 0</li>
+                        <li>butter — 50 butter</li>
+                        <li>cheese — 100 grated</li>
+                        <li>Don't forget a container to take your cauliflower cheese home in — 0</li>
+                        <li>flour — 80 g</li>
+                        <li>milk — 500 milk</li>
+                        <li>of cauliflower OR 1 head of broccoli OR a mix of both — 1 head</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

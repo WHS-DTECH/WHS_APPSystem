@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Place Order</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .place-order-wrap {
+      max-width: 1200px;
+      margin: 1rem auto 2.2rem;
+      padding: 0 1rem;
+    }
+
+    .place-order-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 1rem;
+      margin-top: 0.8rem;
+    }
+
+    .place-order-card {
+      background: #fff;
+      border: 1px solid #d2d9e2;
+      border-radius: 12px;
+      box-shadow: 0 1px 5px rgba(0, 0, 0, 0.06);
+      padding: 1rem 1.1rem;
+    }
+
+    .place-order-muted {
+      color: #596476;
+      font-size: 0.92rem;
+    }
+
+    .place-order-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.8rem;
+      flex-wrap: wrap;
+    }
+
+    .place-order-header h1 {
+      margin: 0;
+      font-size: 1.45rem;
+      color: #143c66;
+    }
+
+    .place-order-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .place-order-week-nav {
+      display: flex;
+      gap: 0.45rem;
+      align-items: center;
+      margin-top: 0.65rem;
+      flex-wrap: wrap;
+    }
+
+    .po-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #11487e;
+      background: #e8f3ff;
+      border: 1px solid #b9d8fb;
+    }
+
+    .po-list {
+      margin: 0.4rem 0 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 0.45rem;
+    }
+
+    .po-list li {
+      border: 1px solid #d7e0ea;
+      border-radius: 9px;
+      background: #fbfdff;
+      padding: 0.6rem 0.7rem;
+    }
+
+    .po-email-meta {
+      font-size: 0.84rem;
+      color: #415569;
+      margin-bottom: 0.2rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.65rem;
+    }
+
+    .po-item-badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 0.1rem 0.5rem;
+      border: 1px solid #d5deea;
+      background: #fff;
+      font-size: 0.82rem;
+      margin: 0.1rem 0.3rem 0.1rem 0;
+    }
+
+    .po-running-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.4rem;
+    }
+
+    .po-running-table th,
+    .po-running-table td {
+      border-bottom: 1px solid #e2e8f0;
+      text-align: left;
+      padding: 0.45rem 0.35rem;
+      font-size: 0.93rem;
+    }
+
+    .po-running-table th {
+      color: #1e3d5e;
+      font-size: 0.86rem;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+
+    .po-running-controls {
+      display: flex;
+      gap: 0.55rem;
+      flex-wrap: wrap;
+      align-items: end;
+      margin: 0.45rem 0 0.2rem;
+    }
+
+    .po-running-control {
+      display: grid;
+      gap: 0.18rem;
+      min-width: 180px;
+      flex: 1 1 180px;
+    }
+
+    .po-running-label {
+      font-size: 0.79rem;
+      color: #486178;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+
+    .po-running-select {
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 0.42rem 0.55rem;
+      font-size: 0.92rem;
+      background: #fff;
+      color: #0f2c47;
+    }
+
+    .po-day-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 0.55rem;
+      margin-top: 0.5rem;
+    }
+
+    .po-day {
+      border: 1px solid #d7e1ec;
+      border-radius: 10px;
+      background: #f9fbff;
+      padding: 0.5rem;
+      min-height: 125px;
+    }
+
+    .po-day h3 {
+      margin: 0 0 0.35rem;
+      font-size: 0.9rem;
+      color: #15395e;
+    }
+
+    .po-day ul {
+      margin: 0;
+      padding-left: 1rem;
+      font-size: 0.88rem;
+    }
+
+    .po-warning {
+      border-left: 4px solid #d97706;
+      background: #fff7ed;
+      color: #7c2d12;
+      border-radius: 8px;
+      padding: 0.55rem 0.7rem;
+      margin-top: 0.6rem;
+      font-size: 0.9rem;
+    }
+
+    .po-admin-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-top: 0.55rem;
+      align-items: center;
+    }
+
+    .po-input {
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 0.48rem 0.58rem;
+      min-width: 280px;
+      font-size: 0.92rem;
+    }
+
+    .po-recipients {
+      margin-top: 0.5rem;
+      display: grid;
+      gap: 0.4rem;
+    }
+
+    .po-recipient-note {
+      margin-top: 0.35rem;
+      font-size: 0.84rem;
+      color: #486178;
+    }
+
+    .po-recipient-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.6rem;
+      border: 1px solid #d8e1ea;
+      border-radius: 8px;
+      padding: 0.42rem 0.6rem;
+      background: #f8fbff;
+    }
+
+    .po-manual-text {
+      width: 100%;
+      min-height: 130px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 0.55rem 0.65rem;
+      font-size: 0.92rem;
+      font-family: Arial, sans-serif;
+      resize: vertical;
+      margin-top: 0.45rem;
+    }
+
+    .po-status-grid {
+      display: grid;
+      gap: 0.5rem;
+      margin-top: 0.45rem;
+    }
+
+    .po-status-row {
+      border: 1px solid #d8e1ea;
+      border-radius: 8px;
+      background: #f8fbff;
+      padding: 0.48rem 0.58rem;
+      font-size: 0.88rem;
+    }
+
+    .po-status-label {
+      font-size: 0.8rem;
+      color: #486178;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      margin-bottom: 0.16rem;
+    }
+
+    .po-status-value {
+      word-break: break-all;
+      color: #0f2c47;
+    }
+
+    .po-submission-actions {
+      margin-top: 0.45rem;
+      display: flex;
+      gap: 0.4rem;
+      justify-content: flex-end;
+    }
+
+    @media (max-width: 980px) {
+      .place-order-grid {
+        grid-template-columns: 1fr;
+      }
+      .po-day-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .po-day-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+
+  <main class="place-order-wrap">
+    <section class="place-order-card">
+      <div class="place-order-header">
+        <div>
+          <h1>Place Order</h1>
+          <div id="poTeacherLabel" class="place-order-muted"></div>
+        </div>
+        <div class="place-order-actions">
+          <a id="poFormLink" class="btn btn-primary" href="#" target="_blank" rel="noopener">Open Google Form</a>
+          <button id="poSendNowBtn" type="button" class="btn btn-secondary">Send Tuesday Email Now</button>
+        </div>
+      </div>
+      <div class="place-order-week-nav">
+        <button id="poPrevWeekBtn" class="btn btn-secondary" type="button">&larr; Previous Week</button>
+        <span id="poWeekBadge" class="po-chip"></span>
+        <button id="poThisWeekBtn" class="btn btn-secondary" type="button">This Week</button>
+        <button id="poNextWeekBtn" class="btn btn-secondary" type="button">Next Week &rarr;</button>
+      </div>
+      <div id="poSourceWarning" class="po-warning" style="display:none;"></div>
+    </section>
+
+    <section class="place-order-grid">
+      <article class="place-order-card">
+        <h2 style="margin:0 0 0.35rem;font-size:1.07rem;color:#143c66;">Class Timetable (This Teacher)</h2>
+        <div id="poTimetable" class="place-order-muted">Loading timetable...</div>
+      </article>
+
+      <article class="place-order-card">
+        <h2 style="margin:0 0 0.35rem;font-size:1.07rem;color:#143c66;">Running Item List (Selected Week)</h2>
+        <div class="po-running-controls">
+          <label class="po-running-control" for="poRunningTeacherFilter">
+            <span class="po-running-label">Filter By Teacher</span>
+            <select id="poRunningTeacherFilter" class="po-running-select">
+              <option value="">All teachers</option>
+            </select>
+          </label>
+          <label class="po-running-control" for="poRunningSortSelect">
+            <span class="po-running-label">Sort By</span>
+            <select id="poRunningSortSelect" class="po-running-select">
+              <option value="count_desc">Count: Highest first</option>
+              <option value="item_asc">Item: A to Z</option>
+              <option value="teacher_asc">Teacher: A to Z</option>
+            </select>
+          </label>
+        </div>
+        <div id="poRunningList" class="place-order-muted">Loading items...</div>
+      </article>
+    </section>
+
+    <section class="place-order-card" style="margin-top:1rem;">
+      <h2 style="margin:0 0 0.35rem;font-size:1.07rem;color:#143c66;">Submitted Requests (Google Form Responses)</h2>
+      <ul id="poEmailList" class="po-list">
+        <li class="place-order-muted">Loading submissions...</li>
+      </ul>
+    </section>
+
+    <section class="place-order-card" style="margin-top:1rem;">
+      <h2 style="margin:0 0 0.35rem;font-size:1.07rem;color:#143c66;">Source Status</h2>
+      <div class="po-admin-row">
+        <button id="poRunLiveCheckBtn" class="btn btn-secondary" type="button">Run Live Source Check</button>
+        <span id="poLiveCheckSummary" class="place-order-muted"></span>
+      </div>
+      <div class="po-status-grid">
+        <div class="po-status-row">
+          <div class="po-status-label">Resolved Form URL</div>
+          <div id="poResolvedFormUrl" class="po-status-value"></div>
+        </div>
+        <div class="po-status-row">
+          <div class="po-status-label">Resolved CSV URL</div>
+          <div id="poResolvedCsvUrl" class="po-status-value"></div>
+        </div>
+        <div class="po-status-row">
+          <div class="po-status-label">Last Live Check</div>
+          <div id="poLiveCheckDetails" class="po-status-value">Not run yet.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="poAdminRecipientsSection" class="place-order-card" style="margin-top:1rem;display:none;">
+      <h2 style="margin:0 0 0.35rem;font-size:1.07rem;color:#143c66;">Pilot (Test) Recipients (Admin)</h2>
+      <div class="place-order-muted">Add or remove emails for Tuesday Place Order reminders without changing code.</div>
+      <div class="po-admin-row">
+        <input id="poRecipientEmailInput" class="po-input" type="email" placeholder="teacher@westlandhigh.school.nz" aria-label="Recipient email">
+        <button id="poAddRecipientBtn" class="btn btn-secondary" type="button">Add Recipient</button>
+        <button id="poSendTestNowBtn" class="btn btn-primary" type="button">Send Email</button>
+      </div>
+      <div id="poRecipientsList" class="po-recipients">
+        <div class="place-order-muted">No recipient records yet. Fallback recipient still applies.</div>
+      </div>
+    </section>
+
+    <section id="poAdminBulkRecipientsSection" class="place-order-card" style="margin-top:1rem;display:none;">
+      <h2 style="margin:0 0 0.35rem;font-size:1.07rem;color:#143c66;">Bulk Email List (Admin)</h2>
+      <div class="place-order-muted">Search current staff from Staff Upload and add only users who currently have Place Order teacher access.</div>
+      <div class="po-admin-row">
+        <input id="poBulkRecipientInput" class="po-input" type="text" placeholder="Type teacher name or school email" aria-label="Bulk teacher search" list="poEligibleTeacherList">
+        <datalist id="poEligibleTeacherList"></datalist>
+        <button id="poAddBulkRecipientBtn" class="btn btn-secondary" type="button">Add Teacher</button>
+        <button id="poSendBulkNowBtn" class="btn btn-primary" type="button">Send to ALL</button>
+      </div>
+      <div id="poBulkRecipientHelp" class="po-recipient-note"></div>
+      <div id="poBulkRecipientsList" class="po-recipients">
+        <div class="place-order-muted">No bulk recipients added yet.</div>
+      </div>
+    </section>
+
+    <section class="place-order-card" style="margin-top:1rem;">
+      <h2 style="margin:0 0 0.35rem;font-size:1.07rem;color:#143c66;">Manual Import Fallback</h2>
+      <div class="place-order-muted">If Google CSV is unavailable, paste response text or copied CSV rows here.</div>
+      <textarea id="poManualImportText" class="po-manual-text" placeholder="Paste Google response text or CSV rows here"></textarea>
+      <div class="po-admin-row">
+        <button id="poManualImportBtn" class="btn btn-secondary" type="button">Import Pasted Text</button>
+        <span id="poManualImportStatus" class="place-order-muted"></span>
+      </div>
+    </section>
+  </main>
+
+  <script src="place_order.js"></script>
+</body>
+</html>

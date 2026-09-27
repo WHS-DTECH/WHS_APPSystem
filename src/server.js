@@ -14,6 +14,7 @@ const learningSites = require('./modules/learningSites');
 const { adminRouter: technologyHubAdmin, publicRouter: technologyHubPublic } = require('./modules/technologyHub');
 const sewingHub = require('./modules/sewingHub');
 const workshop = require('./modules/workshop');
+const foodRoom = require('./modules/foodRoom');
 
 const app = express();
 
@@ -73,6 +74,7 @@ app.use('/admin/technology-hub', technologyHubAdmin);
 app.use('/sewing-hub', sewingHub);
 app.use('/api', sewingHub.apiRouter);
 app.use('/workshop', workshop);
+app.use('/food-room', foodRoom);
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.get('/', async (req, res, next) => {

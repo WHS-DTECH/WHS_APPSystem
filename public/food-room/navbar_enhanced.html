@@ -1,0 +1,230 @@
+<!-- Enhanced Navigation Bar with Role-Based Organization -->
+<header class="navbar-shell">
+  <a href="index.html" class="navbar-school-logo-link" aria-label="Westland High School home">
+    <img src="images/whs%20logo%20circular%20reo%20.png" alt="WHS Logo" class="navbar-school-logo">
+  </a>
+
+  <a href="index.html" class="navbar-brand">Food Room</a>
+
+  <a href="recipe_display.html" class="navbar-core-link" style="font-weight:600;" title="Browse all recipes" data-route="recipes">Browse Recipes</a>
+
+  <button
+    type="button"
+    class="navbar-mobile-toggle"
+    aria-expanded="false"
+    aria-controls="primaryNavbarLinks"
+    aria-label="Toggle navigation menu">
+    <span></span>
+    <span></span>
+    <span></span>
+  </button>
+
+  <nav class="navbar-core" id="primaryNavbarLinks" aria-label="Primary" data-role="authenticated">
+    <a href="browse_practicals.html" class="navbar-core-link" title="Browse the weekly class timetable" data-route="browse_practicals">Browse Practicals</a>
+    <a href="quick_add.html" class="navbar-core-link" title="Add a new recipe" data-route="add_recipes">Add Recipe</a>
+    <a href="add_booking.html" class="navbar-core-link" title="Add a class booking" data-route="booking">Booking</a>
+    <a href="book_the_shopping.html" class="navbar-core-link" title="Plan shopping for bookings" data-route="shopping">Shopping</a>
+  </nav>
+
+  <!-- Drawer buttons: visible in top bar at desktop; hidden at ≤900px (moved into hamburger menu via .navbar-mobile-drawer-btns) -->
+  <button
+    type="button"
+    class="navbar-admin-toggle"
+    data-role="planning"
+    aria-expanded="false"
+    aria-controls="planningDrawer">
+    Planning
+  </button>
+
+  <button
+    type="button"
+    class="navbar-admin-toggle"
+    data-role="planning"
+    aria-expanded="false"
+    aria-controls="shoppingDrawer">
+    Shopping
+  </button>
+
+  <button
+    type="button"
+    class="navbar-admin-toggle"
+    data-role="authenticated"
+    data-route="ft_teacher"
+    aria-expanded="false"
+    aria-controls="ftTeacherDrawer">
+    FT Teacher
+  </button>
+
+  <button
+    type="button"
+    class="navbar-admin-toggle"
+    data-role="admin"
+    aria-expanded="false"
+    aria-controls="adminManagementDrawer">
+    Management
+  </button>
+
+  <!-- Mobile-only: drawer buttons shown inside the hamburger menu -->
+  <div class="navbar-mobile-drawer-btns" id="mobileDrawerBtns" aria-label="More navigation">
+    <button
+      type="button"
+      class="navbar-mobile-drawer-btn"
+      data-role="planning"
+      aria-expanded="false"
+      aria-controls="planningDrawer">
+      Planning
+    </button>
+    <button
+      type="button"
+      class="navbar-mobile-drawer-btn"
+      data-role="planning"
+      aria-expanded="false"
+      aria-controls="shoppingDrawer">
+      Shopping
+    </button>
+    <button
+      type="button"
+      class="navbar-mobile-drawer-btn"
+      data-role="authenticated"
+      data-route="ft_teacher"
+      aria-expanded="false"
+      aria-controls="ftTeacherDrawer">
+      FT Teacher
+    </button>
+    <button
+      type="button"
+      class="navbar-mobile-drawer-btn"
+      data-role="admin"
+      aria-expanded="false"
+      aria-controls="adminManagementDrawer">
+      Management
+    </button>
+  </div>
+
+  <div class="navbar-account">
+    <a href="#" id="navbarUsername" class="navbar-user-link">User</a>
+    <a href="subscription_preferences.html" title="Manage recipe notifications" class="navbar-user-link">Preferences</a>
+    <a href="#" class="navbar-logout-btn">Logout</a>
+  </div>
+</header>
+
+<div id="adminDrawerBackdrop" class="navbar-drawer-backdrop" data-role="admin" hidden></div>
+<div id="planningDrawerBackdrop" class="navbar-drawer-backdrop" data-role="planning" hidden></div>
+<div id="shoppingDrawerBackdrop" class="navbar-drawer-backdrop" data-role="planning" hidden></div>
+<div id="ftTeacherDrawerBackdrop" class="navbar-drawer-backdrop" data-role="authenticated" hidden></div>
+
+<aside id="planningDrawer" class="navbar-admin-drawer" data-role="planning" hidden aria-label="Planning Menu">
+  <div class="navbar-drawer-header">
+    <div class="navbar-drawer-title">Planning</div>
+    <button type="button" class="navbar-drawer-close" aria-label="Close planning menu">×</button>
+  </div>
+
+  <div class="navbar-drawer-links" style="padding-top:0.6rem;">
+    <a href="recipe_calendar_upload.html" class="navbar-submenu-item" data-route="planning">Upload Planners</a>
+    <a href="admin_match_recipes.html" class="navbar-submenu-item" data-route="planning">Match Planner Recipes</a>
+    <a href="admin_prefill_planner.html" class="navbar-submenu-item" data-route="planning">Planner Prefill</a>
+    <a href="add_recipe_manually.html" class="navbar-submenu-item" data-route="planning">Add Recipe Manually</a>
+    <details class="navbar-drawer-group" open>
+      <summary>Weekly Planning</summary>
+      <div class="navbar-drawer-links">
+        <a href="prepare_shopping_list.html" class="navbar-submenu-item">Prepare Shopping List</a>
+        <a href="shopping_list_upload.html" class="navbar-submenu-item">Upload Shopping Lists</a>
+        <a href="shopping_list_preview.html" class="navbar-submenu-item">Preview Shopping Lists</a>
+      </div>
+    </details>
+  </div>
+</aside>
+
+<aside id="shoppingDrawer" class="navbar-admin-drawer" data-role="planning" hidden aria-label="Shopping Menu">
+  <div class="navbar-drawer-header">
+    <div class="navbar-drawer-title">Shopping</div>
+    <button type="button" class="navbar-drawer-close" aria-label="Close shopping menu">×</button>
+  </div>
+
+  <div class="navbar-drawer-links" style="padding-top:0.6rem;">
+    <a href="book_the_shopping.html" class="navbar-submenu-item">Book Shopping</a>
+    <a href="match_shopping_lists.html" class="navbar-submenu-item">Match Shopping Lists</a>
+    <a href="edit_shopping_list.html" class="navbar-submenu-item">Edit Shopping List</a>
+  </div>
+</aside>
+
+<aside id="adminManagementDrawer" class="navbar-admin-drawer" data-role="admin" hidden aria-label="Management Menu">
+  <div class="navbar-drawer-header">
+    <div class="navbar-drawer-title">Management</div>
+    <button type="button" class="navbar-drawer-close" aria-label="Close management menu">×</button>
+  </div>
+
+  <details class="navbar-drawer-group" open>
+    <summary>Recipes</summary>
+    <div class="navbar-drawer-links">
+      <a href="add_recipe.html" class="navbar-submenu-item">Load Recipe</a>
+      <a href="add_recipe_manually.html" class="navbar-submenu-item">Add Recipe Manually</a>
+      <a href="recipe_setup_main.html" class="navbar-submenu-item">Recipe Setup</a>
+      <a href="recipe_extraction.html" class="navbar-submenu-item">Recipe Extraction</a>
+      <a href="extractor_title.html" class="navbar-submenu-item">Extractor: Title</a>
+      <a href="extractor_raw.html" class="navbar-submenu-item">Extractor: Raw</a>
+      <a href="extractor_raw_folder_link.html" class="navbar-submenu-item">Extractor: Raw Folder Link</a>
+      <a href="extractor_ingredient.html" class="navbar-submenu-item">Extractor: Ingredients</a>
+      <a href="extractor_instructions.html" class="navbar-submenu-item">Extractor: Instructions</a>
+      <a href="extractor_serving_size.html" class="navbar-submenu-item">Extractor: Serving Size</a>
+      <a href="recipe_publish.html" class="navbar-submenu-item">Publish Recipes</a>
+      <a href="admin_recipe_images.html" class="navbar-submenu-item">Recipe Images</a>
+      <a href="admin_suggest_recipe.html" class="navbar-submenu-item">Suggest Recipe Admin</a>
+    </div>
+  </details>
+
+  <details class="navbar-drawer-group">
+    <summary>Food Truck</summary>
+    <div class="navbar-drawer-links">
+      <a href="food_truck_manual_recipe.html" class="navbar-submenu-item">Add Recipe Manually</a>
+      <a href="food_truck_recipe_photos.html" class="navbar-submenu-item">Recipe Photos</a>
+    </div>
+  </details>
+
+  <details class="navbar-drawer-group">
+    <summary>Ingredients & Catering</summary>
+    <div class="navbar-drawer-links">
+      <a href="ingredients_directory.html" class="navbar-submenu-item">Ingredients Directory</a>
+      <a href="admin_aisle_category.html" class="navbar-submenu-item">Load Aisle Categories</a>
+      <a href="admin_master_aisle_keywords.html" class="navbar-submenu-item">Master Aisle Keywords</a>
+      <a href="admin_food_brands.html" class="navbar-submenu-item">Load Food Brands</a>
+      <a href="admin_aisle_keywords.html" class="navbar-submenu-item">Load Aisle Keywords</a>
+      <a href="calculate_qty.html" class="navbar-submenu-item">Calculate Qty</a>
+      <a href="calculate_servings.html" class="navbar-submenu-item">Calculate Servings</a>
+    </div>
+  </details>
+
+  <details class="navbar-drawer-group">
+    <summary>Staff & Classes</summary>
+    <div class="navbar-drawer-links">
+      <a href="schedule_calendar.html" class="navbar-submenu-item">Load Booking</a>
+      <a href="book_a_class.html" class="navbar-submenu-item">Book Class</a>
+      <a href="staff_upload.html" class="navbar-submenu-item">Upload Staff</a>
+      <a href="timetable_upload.html" class="navbar-submenu-item">Upload Timetable</a>
+      <a href="uploadSubjects.html" class="navbar-submenu-item">Upload Subjects</a>
+      <a href="student_upload.html" class="navbar-submenu-item">Upload Students</a>
+    </div>
+  </details>
+
+  <details class="navbar-drawer-group">
+    <summary>Settings</summary>
+    <div class="navbar-drawer-links">
+      <a href="admin_user_roles.html" class="navbar-submenu-item">User Roles</a>
+      <a href="admin_permissions.html" class="navbar-submenu-item">Permissions</a>
+      <a href="admin_department.html" class="navbar-submenu-item">Department</a>
+    </div>
+  </details>
+</aside>
+
+<aside id="ftTeacherDrawer" class="navbar-admin-drawer" data-role="authenticated" hidden aria-label="FT Teacher Menu">
+  <div class="navbar-drawer-header">
+    <div class="navbar-drawer-title">FT Teacher</div>
+    <button type="button" class="navbar-drawer-close" aria-label="Close FT Teacher menu">×</button>
+  </div>
+
+  <div class="navbar-drawer-links" style="padding-top:0.6rem;">
+    <a href="add_food_truck_booking.html" class="navbar-submenu-item" data-route="ft_teacher">Add Food Truck Booking</a>
+    <a href="food_truck_teacher_recipes.html" class="navbar-submenu-item" data-route="ft_teacher">Recipe Moderation List</a>
+    <a href="teacher_booking_slots.html" class="navbar-submenu-item" data-route="ft_teacher">Teacher Calendar List</a>
+  </div>
+</aside>

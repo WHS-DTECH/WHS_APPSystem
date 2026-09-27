@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suggestions List</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .suggest-list-card {
+            max-width: 700px;
+            margin: 2.5rem auto;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+            padding: 1.2rem 1.2rem 1.5rem 1.2rem;
+        }
+        .suggest-list-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #1976d2;
+            border-bottom: 4px solid #1976d2;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.2rem;
+        }
+        .suggest-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #fff;
+        }
+        .suggest-table th, .suggest-table td {
+            border: 1px solid #1976d2;
+            padding: 0.6rem 0.5rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+        .suggest-table th {
+            background: #1976d2;
+            color: #fff;
+            font-weight: 600;
+        }
+        .suggest-table a {
+            color: #1976d2;
+            text-decoration: underline;
+        }
+        .suggest-table .suggest-email {
+            font-size: 0.95em;
+            color: #444;
+        }
+    </style>
+</head>
+<body>
+        <div id="navbar-include"></div>
+        <script src="shared/navbar_loader.js"></script>
+    <div class="suggest-list-card">
+        <div class="suggest-list-title">Suggestions List</div>
+        <table class="suggest-table" id="suggestTable">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Recipe Name</th>
+                    <th>Suggested By</th>
+                    <th>URL</th>
+                    <th>Reason</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+    <script>
+    // --- Backend Integration Required ---
+    // Remove demo/demo localStorage data. Fetch suggestions from backend API when available.
+    // Example fetch (to be implemented):
+    // fetch('/api/suggestions').then(res => res.json()).then(data => renderTable(data));
+
+    function getSuggestions() {
+      // To be replaced with backend fetch
+      return [];
+    }
+    function renderTable(suggestions = []) {
+      const tbody = document.querySelector('tbody');
+      if (!suggestions.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-muted">No suggestions found.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = suggestions.map(s => `<tr><td>${s.date}</td><td>${s.name}</td><td>${s.by}</td><td>${s.email}</td><td>${s.url}</td><td>${s.reason}</td></tr>`).join('');
+    }
+    // Example usage (to be replaced with real data):
+    // renderTable([]);
+    </script>
+</body>
+</html>

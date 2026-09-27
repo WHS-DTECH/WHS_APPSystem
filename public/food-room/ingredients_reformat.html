@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ingredients Reformat</title>
+  <link rel="stylesheet" href="../shared/style.css">
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+</head>
+<body>
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+  <div class="ingredients-reformat-card" style="margin:40px;">
+    <h2>Ingredients Reformat</h2>
+    <p>This tool will help you reformat and clean up ingredient data for consistency across recipes.</p>
+    <button id="ingredientsReformatBtn" style="background:#1976d2;color:#fff;border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer;margin-bottom:1rem;">Reformat Ingredients</button>
+    <div id="reformat-status" style="margin-top:1.5rem;"></div>
+  </div>
+  <script>
+    document.getElementById('ingredientsReformatBtn').addEventListener('click', function() {
+      if (confirm('Are you sure you want to reformat all ingredients? This may change ingredient names for consistency.')) {
+        fetch('/api/ingredients-inventory/reformat', { method: 'POST' })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              document.getElementById('reformat-status').innerHTML = '<span style="color:green;">Ingredients reformatted successfully.</span>';
+            } else {
+              document.getElementById('reformat-status').innerHTML = '<span style="color:red;">Failed to reformat ingredients.</span>';
+            }
+          })
+          .catch(() => {
+            document.getElementById('reformat-status').innerHTML = '<span style="color:red;">Error contacting server.</span>';
+          });
+      }
+    });
+  </script>
+</body>
+</html>

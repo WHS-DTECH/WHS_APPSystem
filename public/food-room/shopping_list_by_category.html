@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shopping List by Category</title>
+    <link rel="stylesheet" href="../shared/style.css">
+    <style>
+        .shopping-list-category {
+            margin-bottom: 1.5rem;
+        }
+        .shopping-list-category h3 {
+            color: #0066cc;
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+            margin-top: 1.2rem;
+            border-left: 4px solid #0066cc;
+            padding-left: 0.5rem;
+        }
+        .shopping-list-items {
+            margin-left: 1.2rem;
+        }
+        .shopping-list-item {
+            margin-bottom: 0.6rem;
+            font-size: 1.05rem;
+        }
+        .shopping-list-item input[type="checkbox"] {
+            margin-right: 0.7rem;
+            transform: scale(1.2);
+        }
+    </style>
+</head>
+<body style="background:#f6f8fa;">
+    <div style="max-width: 350px; margin: 2rem auto; background: #fff; padding: 1.5rem 1.2rem; border-radius: 10px; box-shadow: 0 2px 12px rgba(0,0,0,0.07);">
+        <h2 style="margin-top:0; font-size:1.2rem;">Shopping List by Category</h2>
+        <div class="shopping-list-category">
+            <h3>Produce</h3>
+            <div class="shopping-list-items">
+                <label class="shopping-list-item"><input type="checkbox">48 pcs apples</label><br>
+                <label class="shopping-list-item"><input type="checkbox">24 Black pepper</label><br>
+                <label class="shopping-list-item"><input type="checkbox">24 of cauliflower</label>
+            </div>
+        </div>
+        <div class="shopping-list-category">
+            <h3>Dairy</h3>
+            <div class="shopping-list-items">
+                <label class="shopping-list-item"><input type="checkbox">2.9 L butter</label><br>
+                <label class="shopping-list-item"><input type="checkbox">2.4 kg cheese</label><br>
+                <label class="shopping-list-item"><input type="checkbox">12 L milk</label>
+            </div>
+        </div>
+        <div class="shopping-list-category">
+            <h3>Pantry</h3>
+            <div class="shopping-list-items">
+                <label class="shopping-list-item"><input type="checkbox">24 1-2 tblsp fresh breadcrumbs</label><br>
+                <label class="shopping-list-item"><input type="checkbox">5 g Baking soda</label><br>
+                <label class="shopping-list-item"><input type="checkbox">112.5 g Brown sugar</label><br>
+                <label class="shopping-list-item"><input type="checkbox">300 g Chocolate chips</label><br>
+                <label class="shopping-list-item"><input type="checkbox">3.4 kg flour</label><br>
+                <label class="shopping-list-item"><input type="checkbox">75 g Granulated sugar</label><br>
+                <label class="shopping-list-item"><input type="checkbox">960 g oats</label><br>
+                <label class="shopping-list-item"><input type="checkbox">2.5 g Salt</label><br>
+                <label class="shopping-list-item"><input type="checkbox">5 ml Vanilla extract</label>
+            </div>
+        </div>
+        <div class="shopping-list-category">
+            <h3>Other</h3>
+            <div class="shopping-list-items">
+                <label class="shopping-list-item"><input type="checkbox">720 g brown</label><br>
+                <label class="shopping-list-item"><input type="checkbox">2 pcs Eggs</label><br>
+                <label class="shopping-list-item"><input type="checkbox">1.2 kg sultanas</label>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

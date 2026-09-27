@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile</title>
+    <link rel="stylesheet" href="shared/design_tokens.css">
+    <link rel="stylesheet" href="shared/base.css">
+    <link rel="stylesheet" href="shared/components.css">
+    <link rel="stylesheet" href="admin_styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --profile-bg: #f3f7fb;
+            --profile-surface: #ffffff;
+            --profile-border: #d4deea;
+            --profile-heading: #18324a;
+            --profile-text: #233648;
+            --profile-muted: #5d7186;
+            --profile-primary: #1f4e79;
+            --profile-primary-soft: #eef4fb;
+            --profile-success: #2e7d32;
+            --profile-warning: #c17d11;
+        }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            color: var(--profile-text);
+            background:
+                radial-gradient(1100px 420px at 0% -20%, #dce9f8 0%, transparent 60%),
+                radial-gradient(900px 380px at 100% -25%, #d9efe8 0%, transparent 56%),
+                var(--profile-bg);
+        }
+
+        .profile-shell {
+            max-width: 1220px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        .profile-hero {
+            background: linear-gradient(120deg, #ffffff 0%, #eef4fb 100%);
+            border: 1px solid var(--profile-border);
+            border-left: 6px solid var(--profile-primary);
+            border-radius: 16px;
+            padding: 1rem 1.1rem;
+            box-shadow: 0 12px 24px rgba(23, 58, 91, 0.08);
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .profile-avatar {
+            width: 72px;
+            height: 72px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, #1f4e79 0%, #2b7a78 100%);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.55rem;
+            font-weight: 800;
+            letter-spacing: 0.03em;
+            box-shadow: 0 8px 18px rgba(31, 78, 121, 0.22);
+        }
+
+        .profile-hero h1 {
+            margin: 0;
+            color: var(--profile-heading);
+            font-size: 1.9rem;
+            line-height: 1.15;
+        }
+
+        .profile-subtitle {
+            margin-top: 0.25rem;
+            color: var(--profile-muted);
+            font-size: 0.96rem;
+        }
+
+        .profile-chip-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.45rem;
+            margin-top: 0.55rem;
+        }
+
+        .profile-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            border-radius: 999px;
+            border: 1px solid #c7d7ea;
+            background: #f6faff;
+            color: #214f78;
+            padding: 0.3rem 0.68rem;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        .profile-chip.status-ready {
+            background: #edf8ef;
+            border-color: #b8dabd;
+            color: #1f5a24;
+        }
+
+        .profile-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.9fr);
+            gap: 1rem;
+            margin-top: 1rem;
+            align-items: start;
+        }
+
+        .profile-card {
+            background: var(--profile-surface);
+            border: 1px solid var(--profile-border);
+            border-radius: 14px;
+            padding: 0.95rem 1rem;
+            box-shadow: 0 4px 12px rgba(21, 54, 88, 0.06);
+        }
+
+        .profile-card h2 {
+            margin: 0 0 0.65rem;
+            color: var(--profile-heading);
+            font-size: 1.05rem;
+            font-weight: 800;
+        }
+
+        .profile-card-note {
+            color: var(--profile-muted);
+            font-size: 0.9rem;
+            margin: 0 0 0.8rem;
+        }
+
+        .profile-facts {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.8rem;
+        }
+
+        .profile-fact {
+            border: 1px solid #e0e8f2;
+            background: #fbfdff;
+            border-radius: 12px;
+            padding: 0.75rem 0.8rem;
+        }
+
+        .profile-fact-label {
+            color: var(--profile-muted);
+            font-size: 0.76rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 0.22rem;
+        }
+
+        .profile-fact-value {
+            color: var(--profile-text);
+            font-size: 0.98rem;
+            font-weight: 700;
+            word-break: break-word;
+        }
+
+        .profile-stack {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .integration-card {
+            background: linear-gradient(135deg, #f8fbff 0%, #eef7f2 100%);
+        }
+
+        .integration-state {
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+            padding: 0.8rem;
+            border-radius: 12px;
+            border: 1px solid #d8e3ef;
+            background: rgba(255, 255, 255, 0.8);
+            margin-bottom: 0.8rem;
+        }
+
+        .integration-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 999px;
+            background: var(--profile-warning);
+            box-shadow: 0 0 0 4px rgba(193, 125, 17, 0.12);
+            flex-shrink: 0;
+        }
+
+        .integration-title {
+            font-weight: 800;
+            color: var(--profile-heading);
+        }
+
+        .integration-copy {
+            color: var(--profile-muted);
+            font-size: 0.9rem;
+            margin-top: 0.16rem;
+        }
+
+        .placeholder-list {
+            margin: 0;
+            padding-left: 1.1rem;
+            color: var(--profile-text);
+        }
+
+        .placeholder-list li {
+            margin-bottom: 0.45rem;
+        }
+
+        .profile-empty,
+        .profile-error {
+            padding: 1rem;
+            border-radius: 12px;
+            border: 1px solid #d8e3ef;
+            background: #ffffff;
+            color: var(--profile-muted);
+        }
+
+        .profile-error {
+            border-color: #efc6c6;
+            background: #fff6f6;
+            color: #8a2d2d;
+        }
+
+        .profile-action {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 42px;
+            padding: 0.65rem 1rem;
+            border-radius: 10px;
+            background: var(--profile-primary);
+            color: #fff;
+            font-weight: 800;
+            border: none;
+            box-shadow: 0 4px 10px rgba(31, 78, 121, 0.24);
+        }
+
+        .profile-action-muted {
+            background: #eef4fb;
+            color: #234d73;
+            box-shadow: none;
+            border: 1px solid #c7d7ea;
+        }
+
+        @media (max-width: 960px) {
+            .profile-hero {
+                grid-template-columns: 1fr;
+            }
+
+            .profile-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .profile-facts {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="navbar-include"></div>
+    <script src="shared/navbar_loader.js"></script>
+
+    <main class="profile-shell">
+        <section class="profile-hero">
+            <div id="profileAvatar" class="profile-avatar">UP</div>
+            <div>
+                <h1 id="profileName">User Profile</h1>
+                <div id="profileSubtitle" class="profile-subtitle">Account details and sign-in readiness for future Google Login.</div>
+                <div class="profile-chip-row">
+                    <span id="profileModeChip" class="profile-chip">Profile page ready</span>
+                    <span class="profile-chip status-ready">Google Login preparation</span>
+                </div>
+            </div>
+            <button id="profileAuthAction" type="button" class="profile-action profile-action-muted" disabled>Loading account status...</button>
+        </section>
+
+        <section class="profile-grid">
+            <div class="profile-stack">
+                <section class="profile-card" id="profileOverviewSection">
+                    <h2>Account Overview</h2>
+                    <p class="profile-card-note" id="profileOverviewNote">Profile details are linked from Google session identity and your uploaded Staff/Department CSV data.</p>
+                    <div id="profileContainer"></div>
+                </section>
+
+                <section class="profile-card" id="profileTimetableSection">
+                    <h2>Weekly Timetable</h2>
+                    <p class="profile-card-note" id="profileTimetableNote">Pulled from timetable CSV upload for your teacher code/profile.</p>
+                    <div id="profileTimetable"></div>
+                </section>
+            </div>
+
+            <div class="profile-stack">
+                <section class="profile-card" id="profileSignInSection">
+                    <h2>Sign-In Settings</h2>
+                    <p class="profile-card-note">Live authentication and role details for this account.</p>
+                    <div class="profile-facts">
+                        <div class="profile-fact">
+                            <div class="profile-fact-label">Auth Provider</div>
+                            <div id="factAuthProvider" class="profile-fact-value">Google Workspace</div>
+                        </div>
+                        <div class="profile-fact">
+                            <div class="profile-fact-label">Status</div>
+                            <div id="factAuthStatus" class="profile-fact-value">Checking...</div>
+                        </div>
+                        <div class="profile-fact">
+                            <div class="profile-fact-label">Approved Domain</div>
+                            <div id="factDomainStatus" class="profile-fact-value">Checking...</div>
+                        </div>
+                        <div class="profile-fact">
+                            <div class="profile-fact-label">Session Source</div>
+                            <div id="factSessionSource" class="profile-fact-value">Google session</div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="profile-card integration-card" id="profileGoogleSection">
+                    <h2>Google Sign-In Connection</h2>
+                    <div class="integration-state">
+                        <span id="googleStateDot" class="integration-dot" aria-hidden="true"></span>
+                        <div>
+                            <div id="googleStateTitle" class="integration-title">Checking Google account status...</div>
+                            <div id="googleStateCopy" class="integration-copy">Reading active session and profile link information.</div>
+                        </div>
+                    </div>
+                    <ul id="googleChecklist" class="placeholder-list"></ul>
+                </section>
+
+                <section class="profile-card" id="profileDataLinksSection">
+                    <h2>CSV Data Links</h2>
+                    <div id="profileDataLinks"></div>
+                </section>
+
+                <section class="profile-card" id="profileUploadHistorySection">
+                    <h2>Staff Upload History</h2>
+                    <p class="profile-card-note">Shows which upload terms/years this staff profile appears in.</p>
+                    <div id="profileUploadHistory"></div>
+                </section>
+
+                <section class="profile-card" id="profileClassesStudentsSection">
+                    <h2>Classes and Students</h2>
+                    <p class="profile-card-note">Current classes linked to this staff code and students currently in those class codes.</p>
+                    <div id="profileClassesStudents"></div>
+                </section>
+            </div>
+        </section>
+    </main>
+
+    <script src="user_profile.js"></script>
+</body>
+</html>

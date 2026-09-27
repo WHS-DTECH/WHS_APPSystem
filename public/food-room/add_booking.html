@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Booking</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="navbar-include"></div>
+    <script src="shared/navbar_loader.js"></script>
+    <div class="calendar-app add-booking-page">
+        <div class="add-booking-shell">
+            <aside class="add-booking-left-panel">
+                <div class="add-booking-side-card">
+                    <div class="add-booking-side-title">Teacher Timetable</div>
+                    <iframe
+                        src="book_a_class.html?view=teacher_embed&hide_save_booking=1&hide_booking_form=1&hide_student_panel=1&hide_timetable_actions=1"
+                        title="Teacher Timetable"
+                        class="add-booking-timetable-iframe"
+                        loading="lazy">
+                    </iframe>
+                </div>
+            </aside>
+
+            <section class="add-booking-main-panel" aria-label="Booking calendar and form">
+                <h1>Add Booking</h1>
+                <div class="add-booking-toolbar">
+                    <div id="calendarWeekLabel" class="add-booking-week-label" aria-live="polite" aria-atomic="true">Week of 02/02/26 to 06/02/26</div>
+                    <div class="add-booking-toolbar-actions" role="toolbar" aria-label="Calendar navigation">
+                        <button id="prevWeekBtn" type="button" aria-label="Previous week">&larr; Previous</button>
+                        <button id="todayBtn" type="button">Today</button>
+                        <button id="nextWeekBtn" type="button" aria-label="Next week">Next &rarr;</button>
+                        <button id="printScheduleBtn" type="button" class="add-booking-print-btn">Print Schedule (A4)</button>
+                        <button id="syncFromPlannerBtn" type="button" class="add-booking-print-btn" title="Update all class bookings to match the current planner recipes, starting from when the planner was first uploaded">&#8634; Sync from Planner</button>
+                        <label for="scheduleViewModeSelect" class="sr-only">Calendar view mode</label>
+                        <select id="scheduleViewModeSelect" class="add-booking-view-mode-select" title="Calendar cell display mode">
+                            <option value="class">Show: Class</option>
+                            <option value="recipe">Show: Recipe</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="calendar-wrap add-booking-calendar-wrap">
+                    <table class="calendar-table" id="scheduleCalendarTable"></table>
+                </div>
+
+                <div class="add-booking-side-card add-booking-inline-form-card">
+                    <div class="add-booking-card-header">
+                        <div class="add-booking-side-title add-booking-side-title-inline">Book a Class</div>
+                        <div class="add-booking-form-actions" id="embeddedBookClassActions" role="group" aria-label="Book a Class actions">
+                            <button id="embeddedBookSaveBtn" type="button" class="add-booking-form-action-btn add-booking-form-action-btn-save">SAVE</button>
+                            <button id="embeddedBookDeleteBtn" type="button" class="add-booking-form-action-btn add-booking-form-action-btn-delete" style="display:none;">DELETE</button>
+                            <button id="embeddedBookResetBtn" type="button" class="add-booking-form-action-btn add-booking-form-action-btn-reset">RESET</button>
+                        </div>
+                    </div>
+                    <iframe
+                        src="book_a_class.html?view=teacher_embed&hide_save_booking=1&form_only=1"
+                        title="Teacher Book a Class Controls"
+                        class="add-booking-form-iframe"
+                        loading="lazy">
+                    </iframe>
+                </div>
+
+            </section>
+
+            <aside class="add-booking-right-panel">
+                <div class="add-booking-side-card add-booking-students-card">
+                    <div class="add-booking-side-title">Students In Selected Class</div>
+                    <div class="add-booking-side-copy">The selected class list stays visible on the right-hand side of the calendar on wide screens.</div>
+                    <iframe
+                        src="book_a_class.html?view=teacher_embed&student_list_only=1"
+                        title="Students In Selected Class"
+                        class="add-booking-students-iframe"
+                        loading="lazy">
+                    </iframe>
+                </div>
+            </aside>
+        </div>
+    </div>
+    <script>
+        window.bookingPageLabel = 'Add Booking';
+
+        (function setupEmbeddedBookClassActions() {
+            if (!('BroadcastChannel' in window)) {
+                return;
+            }
+
+            const actionChannel = new BroadcastChannel('bookClassActionChannel');
+            const sharedChannel = new BroadcastChannel('bookClassEmbedSharedChannel');
+            const saveBtn = document.getElementById('embeddedBookSaveBtn');
+            const resetBtn = document.getElementById('embeddedBookResetBtn');
+            const deleteBtn = document.getElementById('embeddedBookDeleteBtn');
+
+            if (saveBtn) {
+                saveBtn.addEventListener('click', () => {
+                    actionChannel.postMessage({ action: 'save', ts: Date.now() });
+                });
+            }
+
+            if (resetBtn) {
+                resetBtn.addEventListener('click', () => {
+                    actionChannel.postMessage({ action: 'reset', ts: Date.now() });
+                });
+            }
+
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', () => {
+                    actionChannel.postMessage({ action: 'delete', ts: Date.now() });
+                });
+            }
+
+            sharedChannel.addEventListener('message', (event) => {
+                if (!event || !event.data) return;
+                const editId = String(event.data.editBookingId || '').trim();
+                if (saveBtn) saveBtn.textContent = editId ? 'UPDATE' : 'SAVE';
+                if (deleteBtn) deleteBtn.style.display = editId ? '' : 'none';
+            });
+        })();
+    </script>
+    <script src="shared/nz_school_calendar.js"></script>
+    <script src="schedule_calendar.js"></script>
+    <script src="shared/task_sidebar.js?v=20260508a"></script>
+</body>
+</html>

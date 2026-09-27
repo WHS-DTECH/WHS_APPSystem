@@ -1,0 +1,2207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Match Planner Recipes</title>
+  <link rel="stylesheet" href="shared/design_tokens.css">
+  <link rel="stylesheet" href="shared/base.css">
+  <link rel="stylesheet" href="admin_styles.css">
+  <style>
+    :root {
+      --primary: #1976d2;
+      --primary-dark: #1565c0;
+      --success: #2e7d32;
+      --warning: #f57c00;
+      --error: #c62828;
+      --border: #e0e0e0;
+      --bg-light: #fafafa;
+    }
+
+    body {
+      background-color: var(--bg-light);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 28px;
+      color: #1f2937;
+    }
+
+    .stats {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 15px 20px;
+      border-radius: 8px;
+      border-left: 4px solid var(--primary);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      flex: 1;
+      max-width: 200px;
+    }
+
+    .stat-card.success {
+      border-left-color: var(--success);
+    }
+
+    .stat-card.warning {
+      border-left-color: var(--warning);
+    }
+
+    .stat-card label {
+      display: block;
+      font-size: 12px;
+      color: #666;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+
+    .stat-card .value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #1f2937;
+    }
+
+    .filters {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .filters input,
+    .filters select {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      font-weight: 500;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: white;
+    }
+
+    .btn-warning {
+      background: var(--warning);
+      color: white;
+    }
+
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+
+    .btn-sm {
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+
+    .recipe-list {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .recipe-card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .recipe-card.matched {
+      border-left: 4px solid var(--success);
+    }
+
+    .recipe-card.unmatched {
+      border-left: 4px solid var(--warning);
+    }
+
+    .recipe-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 15px;
+    }
+
+    .recipe-name {
+      font-size: 16px;
+      font-weight: bold;
+      color: #1f2937;
+      margin: 0;
+    }
+
+    .recipe-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+
+    .badge-auto {
+      background: #e3f2fd;
+      color: #1565c0;
+    }
+
+    .badge-manual {
+      background: #f3e5f5;
+      color: #6a1b9a;
+    }
+
+    .badge-pending {
+      background: #fff3e0;
+      color: #e65100;
+    }
+
+    .recipe-info {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px;
+      margin-bottom: 15px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+
+    .info-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .info-item label {
+      color: #666;
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+
+    .info-item .info-value {
+      color: #1f2937;
+      word-break: break-all;
+    }
+
+    .suggestions {
+      margin-top: 15px;
+    }
+
+    .suggestions-title {
+      font-size: 12px;
+      font-weight: bold;
+      color: #666;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .suggestion-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .suggestion-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+      background: #f5f5f5;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    .suggestion-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .suggestion-name {
+      font-weight: 500;
+      color: #1976d2;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .suggestion-name:hover {
+      color: #1565c0;
+    }
+
+    .suggestion-source {
+      font-size: 11px;
+      color: #888;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 500px;
+    }
+
+    .suggestion-source a {
+      color: #888;
+      text-decoration: none;
+    }
+
+    .suggestion-source a:hover {
+      text-decoration: underline;
+      color: #555;
+    }
+
+    .suggestion-score {
+      color: #666;
+      font-size: 11px;
+      margin: 0 10px;
+      min-width: 40px;
+      text-align: right;
+    }
+
+    .suggestion-actions {
+      display: flex;
+      gap: 5px;
+    }
+
+    .action-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .pagination {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 30px;
+      align-items: center;
+    }
+
+    .pagination button {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      background: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .pagination button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 30px;
+      color: #666;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 500px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .modal-content.wide {
+      max-width: 900px;
+    }
+
+    .modal-header {
+      margin-bottom: 15px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+      color: #1f2937;
+    }
+
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 13px;
+      font-family: inherit;
+      box-sizing: border-box;
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .modal-footer {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 20px;
+      border-top: 1px solid var(--border);
+      padding-top: 15px;
+    }
+
+    .recipe-index-list {
+      max-height: 240px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #fff;
+    }
+
+    .recipe-index-item {
+      width: 100%;
+      text-align: left;
+      border: 0;
+      border-bottom: 1px solid #f0f0f0;
+      background: transparent;
+      padding: 8px 10px;
+      font-size: 13px;
+      cursor: pointer;
+      color: #1f2937;
+    }
+
+    .recipe-index-item:hover {
+      background: #f5f9ff;
+    }
+
+    .recipe-index-item.active {
+      background: #e3f2fd;
+      font-weight: 600;
+    }
+
+    .recipe-index-item.selected {
+      background: #e8f5e9;
+      font-weight: 600;
+      color: #2e7d32;
+    }
+
+    .recipe-index-item.selected::before {
+      content: '✓ ';
+    }
+
+    #linkModalSelectionCount {
+      font-size: 12px;
+      color: #555;
+      margin-top: 4px;
+    }
+
+    .preview-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .preview-block {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fafafa;
+    }
+
+    .preview-block h3 {
+      margin: 0 0 8px 0;
+      font-size: 14px;
+      color: #1f2937;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+
+    .preview-list {
+      margin: 0;
+      padding-left: 18px;
+      font-size: 13px;
+      color: #222;
+      line-height: 1.4;
+    }
+
+    .preview-meta {
+      margin-bottom: 12px;
+      font-size: 13px;
+      color: #4b5563;
+    }
+
+    .preview-description {
+      margin: 0 0 12px 0;
+      font-size: 13px;
+      color: #1f2937;
+      white-space: pre-wrap;
+    }
+
+    @media (max-width: 900px) {
+      .preview-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 15px 20px;
+      background: #2e7d32;
+      color: white;
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      z-index: 2000;
+      animation: slideIn 0.3s ease-out;
+    }
+
+    .toast.error {
+      background: var(--error);
+    }
+
+    .toast.info {
+      background: #1565c0;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(400px);
+      }
+      to {
+        transform: translateX(0);
+      }
+    }
+
+    .versions-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: #e3f2fd;
+      color: #1565c0;
+      border: 1px solid #90caf9;
+      border-radius: 12px;
+      padding: 2px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-left: 10px;
+      white-space: nowrap;
+    }
+
+    .versions-badge:hover {
+      background: #bbdefb;
+    }
+
+    .recipe-name-clickable {
+      cursor: pointer;
+      color: #1f2937;
+    }
+
+    .recipe-name-clickable:hover {
+      color: #1976d2;
+      text-decoration: underline;
+    }
+
+    .compare-columns {
+      display: grid;
+      gap: 16px;
+      margin-top: 10px;
+    }
+
+    .compare-col {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      background: #fafafa;
+    }
+
+    .compare-col h3 {
+      margin: 0 0 6px 0;
+      font-size: 15px;
+      color: #1f2937;
+    }
+
+    .compare-col .compare-source {
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 10px;
+      word-break: break-all;
+    }
+
+    .compare-col .compare-source a {
+      color: #1976d2;
+    }
+
+    .compare-col .compare-meta {
+      font-size: 12px;
+      color: #555;
+      margin-bottom: 10px;
+    }
+
+    .compare-section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #888;
+      margin: 8px 0 4px 0;
+    }
+
+    .compare-list {
+      margin: 0;
+      padding-left: 16px;
+      font-size: 12px;
+      color: #333;
+      line-height: 1.5;
+    }
+
+    .compare-col .compare-link-btn {
+      margin-top: 12px;
+    }
+
+    .suggestion-checkbox {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: #1976d2;
+      flex-shrink: 0;
+      margin-right: 8px;
+    }
+
+    .link-selected-btn {
+      margin-top: 10px;
+    }
+
+    .linked-recipes-list {
+      margin: 8px 0 0 0;
+      padding: 0;
+      list-style: none;
+      font-size: 12px;
+    }
+
+    .linked-recipe-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 0;
+      color: #2e7d32;
+    }
+
+    .linked-recipe-item .remove-link {
+      color: #c62828;
+      cursor: pointer;
+      font-size: 11px;
+      border: none;
+      background: none;
+      padding: 0 3px;
+      line-height: 1;
+    }
+
+    .star-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1.15rem;
+      line-height: 1;
+      padding: 0 2px;
+      color: #b0bec5;
+      transition: color 0.15s;
+      flex-shrink: 0;
+    }
+    .star-btn.is-primary {
+      color: #f59e0b;
+    }
+    .star-btn:hover {
+      color: #f59e0b;
+    }
+    .linked-recipe-primary-label {
+      font-size: 0.75rem;
+      color: #f59e0b;
+      font-weight: 600;
+      margin-left: 2px;
+    }
+    .linked-recipes-section {
+      margin-top: 10px;
+      padding: 8px 10px;
+      background: #f0f7ff;
+      border-radius: 6px;
+      border: 1px solid #bbdefb;
+    }
+    .linked-recipes-section-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #1565c0;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .linked-recipe-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 0;
+      border-bottom: 1px solid #d9eaf7;
+      font-size: 0.88rem;
+    }
+    .linked-recipe-row:last-child {
+      border-bottom: none;
+    }
+    .linked-recipe-name {
+      flex: 1;
+      color: #17324a;
+    }
+    .linked-recipe-main {
+      flex: 1;
+      min-width: 0;
+    }
+    .linked-recipe-source {
+      margin-top: 1px;
+      font-size: 0.74rem;
+      color: #5f6f82;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .linked-recipe-source a {
+      color: #1976d2;
+      text-decoration: none;
+    }
+    .linked-recipe-source a:hover {
+      text-decoration: underline;
+    }
+
+    .resave-audit-panel {
+      display: none;
+      background: #fff8e1;
+      border: 1px solid #ffecb3;
+      border-radius: 8px;
+      padding: 12px;
+      margin: 0 0 16px 0;
+    }
+
+    .resave-audit-panel.active {
+      display: block;
+    }
+
+    .resave-audit-head {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    .resave-audit-note {
+      font-size: 12px;
+      color: #5d4037;
+      margin: 0;
+    }
+
+    .resave-audit-results {
+      margin: 8px 0 0 0;
+      background: #fff;
+      border: 1px solid #ffe082;
+      border-radius: 6px;
+      padding: 8px;
+      max-height: 220px;
+      overflow: auto;
+      font-family: Consolas, Menlo, Monaco, monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+    }
+
+    .planner-quick-links {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin: 0 0 14px 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    .planner-quick-links-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #334155;
+      margin: 0 0 6px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .planner-quick-links-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .planner-quick-links .btn {
+      padding: 4px 10px;
+      font-size: 12px;
+      text-decoration: none;
+      border-radius: 999px;
+    }
+  </style>
+</head>
+<body>
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+
+  <div class="container">
+    <div class="header">
+      <h1>Match Planner Recipes</h1>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn btn-secondary" onclick="printNoUrlReview()">Print Review Sheet</button>
+        <button class="btn btn-warning" id="resaveAuditBtn">Find Re-save Candidates</button>
+        <button class="btn btn-primary" id="autoMatchBtn">Auto-Match All Unmatched</button>
+        <button class="btn btn-primary" id="auditLoadMissingBtn">Audit All + Load Missing Ingredients</button>
+      </div>
+    </div>
+
+    <div id="resaveAuditPanel" class="resave-audit-panel">
+      <div class="resave-audit-head">
+        <strong>Needs Re-save Audit</strong>
+        <button class="btn btn-secondary btn-sm" id="resaveAuditRefreshBtn">Refresh</button>
+      </div>
+      <p class="resave-audit-note">Shows bookings with recipes that are missing desired servings rows or linked to an older recipe version.</p>
+      <pre id="resaveAuditResults" class="resave-audit-results">No audit run yet.</pre>
+    </div>
+
+    <div class="stats" id="statsContainer">
+      <div class="stat-card loading">Loading...</div>
+    </div>
+
+    <div class="filters">
+      <select id="filterStatus">
+        <option value="">All Status</option>
+        <option value="matched">Matched</option>
+        <option value="unmatched">Needs Review</option>
+        <option value="unmatched_with_url">Needs Review + Has URL</option>
+      </select>
+      <select id="filterSchool">
+        <option value="">All School</option>
+      </select>
+      <select id="filterClass">
+        <option value="">All Class</option>
+      </select>
+      <input type="text" id="searchInput" placeholder="Search recipe name...">
+      <button class="btn btn-secondary btn-sm" id="refreshBtn">Refresh</button>
+    </div>
+
+    <div class="planner-quick-links" aria-live="polite">
+      <div class="planner-quick-links-title">Quick Planner Links</div>
+      <div id="plannerQuickLinks" class="planner-quick-links-row">
+        <span style="font-size:12px;color:#64748b;">Loading planner links...</span>
+      </div>
+    </div>
+
+    <div id="recipeContainer" class="recipe-list"></div>
+
+    <div class="pagination">
+      <button id="prevBtn" class="btn btn-secondary">← Previous</button>
+      <span id="pageInfo"></span>
+      <button id="nextBtn" class="btn btn-secondary">Next →</button>
+    </div>
+  </div>
+
+  <!-- Link Recipe Modal -->
+  <div id="linkModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Link Recipe</h2>
+      </div>
+      <div class="form-group">
+        <label>Recipe Name:</label>
+        <input type="text" id="linkRecipeName" readonly>
+      </div>
+      <div class="form-group">
+        <label>Select Matching Recipe:</label>
+        <select id="linkRecipeSelect" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+          <option value="">-- Choose a recipe --</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Recipe Index: <small style="color:#555;font-weight:normal;">Click items to select/deselect multiple</small></label>
+        <input type="text" id="linkRecipeSearch" placeholder="Search recipe index...">
+        <div id="recipeIndexList" class="recipe-index-list"></div>
+        <div id="linkModalSelectionCount"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="previewSelectedRecipe()">Preview Dropdown</button>
+        <button class="btn btn-secondary" onclick="closeLinkModal()">Cancel</button>
+        <button class="btn btn-success" id="linkRecipeBtn" onclick="saveRecipeLink()">Link Selected</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="recipePreviewModal" class="modal">
+    <div class="modal-content wide">
+      <div class="modal-header">
+        <h2 id="previewRecipeTitle">Recipe Details</h2>
+      </div>
+      <div id="previewRecipeMeta" class="preview-meta">Loading...</div>
+      <p id="previewRecipeDescription" class="preview-description"></p>
+      <div class="preview-layout">
+        <section class="preview-block">
+          <h3>Ingredients</h3>
+          <ol id="previewIngredientsList" class="preview-list"></ol>
+        </section>
+        <section class="preview-block">
+          <h3>Instructions</h3>
+          <ol id="previewInstructionsList" class="preview-list"></ol>
+        </section>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeRecipePreviewModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Compare Versions Modal -->
+  <div id="compareModal" class="modal">
+    <div class="modal-content" style="max-width:1100px;width:95%;">
+      <div class="modal-header">
+        <h2 id="compareModalTitle">Available Versions</h2>
+      </div>
+      <p id="compareModalSubtitle" style="font-size:13px;color:#555;margin:0 0 14px 0;"></p>
+      <div id="compareColumns" class="compare-columns">Loading...</div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeCompareModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Recipe Modal -->
+  <div id="createModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Create New Recipe</h2>
+      </div>
+      <div class="form-group">
+        <label>Recipe Name:</label>
+        <input type="text" id="createRecipeName" placeholder="Recipe name from planner">
+      </div>
+      <div class="form-group">
+        <label>Recipe URL:</label>
+        <input type="url" id="createRecipeUrl" placeholder="https://...">
+      </div>
+      <div class="form-group">
+        <label>Description:</label>
+        <textarea id="createRecipeDesc" placeholder="Optional description"></textarea>
+      </div>
+      <p style="font-size: 12px; color: #666; margin: 0;">
+        After creating, you can view and edit the full recipe in the <strong>Add Recipe</strong> section.
+      </p>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeCreateModal()">Cancel</button>
+        <button class="btn btn-success" onclick="saveNewRecipe()">Create Recipe</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentPage = 0;
+    const pageSize = 20;
+    let allBookings = [];
+    let displayedBookings = [];
+    let filterStatus = '';
+    let filterSchool = '';
+    let filterClass = '';
+    let searchTerm = '';
+    let currentBookingId = null;
+    let availableRecipesCache = null;
+    const recipeDetailsCache = new Map();
+    const linkModalSelectedIds = new Set();
+    let latestPlannerConfiguredDocIds = [];
+    let latestPlannerSyncHistory = [];
+
+    function getCurrentStaffEmail() {
+      try {
+        const raw = sessionStorage.getItem('currentStaffUser');
+        const parsed = raw ? JSON.parse(raw) : null;
+        return String(parsed && parsed.email_school ? parsed.email_school : '').trim().toLowerCase();
+      } catch (_) {
+        return '';
+      }
+    }
+
+    function setResaveAuditResults(payload) {
+      const output = document.getElementById('resaveAuditResults');
+      if (!output) return;
+
+      const candidates = Array.isArray(payload && payload.candidates) ? payload.candidates : [];
+      const comparison = payload && payload.comparison ? payload.comparison : {};
+      const plannerTotals = payload && payload.planner_totals ? payload.planner_totals : {};
+      const hasInventoryCount = Number(comparison.recipe_has_inventory || 0);
+      const missingInventoryCount = Number(comparison.recipe_missing_inventory || 0);
+      const inBrowseListCount = Number(comparison.recipe_in_browse_list || 0);
+      const missingBrowseListCount = Number(comparison.recipe_missing_from_browse_list || 0);
+      if (!candidates.length) {
+        output.textContent = 'No re-save candidates found.';
+        return;
+      }
+
+      const lines = [];
+      const browseButMissingInventoryUnique = [];
+      const seenBrowseButMissing = new Set();
+      candidates.forEach((row) => {
+        const isBrowse = String(row.browse_status || '') === 'recipe_in_browse_list';
+        const isMissingInventory = String(row.inventory_status || '') === 'recipe_missing_inventory';
+        if (!isBrowse || !isMissingInventory) return;
+
+        const recipeKey = String(row.recipe || '').trim().toLowerCase();
+        if (!recipeKey || seenBrowseButMissing.has(recipeKey)) return;
+        seenBrowseButMissing.add(recipeKey);
+        browseButMissingInventoryUnique.push({
+          recipe: String(row.recipe || '').trim(),
+          recipeId: row.recipe_id
+        });
+      });
+
+      lines.push(`Planner recipe rows total: ${Number(plannerTotals.planner_recipe_rows_total || 0)}`);
+      lines.push(`Planner distinct recipes total: ${Number(plannerTotals.planner_recipes_distinct_total || 0)}`);
+      lines.push(`Junior planner recipes: ${Number(plannerTotals.junior_recipe_rows || 0)} rows (${Number(plannerTotals.junior_recipes_distinct || 0)} distinct)`);
+      lines.push(`Middle planner recipes: ${Number(plannerTotals.middle_recipe_rows || 0)} rows (${Number(plannerTotals.middle_recipes_distinct || 0)} distinct)`);
+      lines.push(`Senior planner recipes: ${Number(plannerTotals.senior_recipe_rows || 0)} rows (${Number(plannerTotals.senior_recipes_distinct || 0)} distinct)`);
+      lines.push(`11HOSP planner recipes: ${Number(plannerTotals.hosp11_recipe_rows || 0)} rows (${Number(plannerTotals.hosp11_recipes_distinct || 0)} distinct)`);
+      lines.push(`12HOSP planner recipes: ${Number(plannerTotals.hosp12_recipe_rows || 0)} rows (${Number(plannerTotals.hosp12_recipes_distinct || 0)} distinct)`);
+      lines.push(`13HOSP planner recipes: ${Number(plannerTotals.hosp13_recipe_rows || 0)} rows (${Number(plannerTotals.hosp13_recipes_distinct || 0)} distinct)`);
+      lines.push('');
+      lines.push(`Candidates: ${candidates.length}`);
+      lines.push(`Recipes found in Ingredient Directory: ${hasInventoryCount}`);
+      lines.push(`Recipes NOT found in Ingredient Directory: ${missingInventoryCount}`);
+      lines.push(`Recipes found in Browse Recipe list: ${inBrowseListCount}`);
+      lines.push(`Recipes NOT found in Browse Recipe list: ${missingBrowseListCount}`);
+      lines.push(`Unique recipes in Browse list but missing Ingredient Directory: ${browseButMissingInventoryUnique.length}`);
+      const quickThree = browseButMissingInventoryUnique.slice(0, 3);
+      if (quickThree.length) {
+        lines.push(`Quick 3 to check:`);
+        quickThree.forEach((item, idx) => {
+          lines.push(`${idx + 1}. ${item.recipe || '(No recipe name)'}${item.recipeId ? ` (RecipeID ${item.recipeId})` : ''}`);
+        });
+      }
+      lines.push('');
+      candidates.forEach((row) => {
+        lines.push([
+          `Booking #${row.booking_id}`,
+          row.booking_date || '',
+          `P${row.period || ''}`,
+          row.staff_name || '(No teacher)',
+          row.class_name || '(No class)',
+          row.recipe || '(No recipe)',
+          row.reason || '',
+          row.inventory_status || '',
+          `inventory_rows=${Number(row.inventory_rows || 0)}`,
+          row.browse_status || '',
+          `browse_match=${row.browse_match_type || 'none'}`
+        ].join(' | '));
+      });
+
+      output.textContent = lines.join('\n');
+    }
+
+    async function runResaveAudit() {
+      const btn = document.getElementById('resaveAuditBtn');
+      const panel = document.getElementById('resaveAuditPanel');
+      const email = getCurrentStaffEmail();
+
+      if (!email) {
+        showToast('Could not determine admin email from session.', 'error');
+        return;
+      }
+
+      if (panel) panel.classList.add('active');
+      if (btn) btn.disabled = true;
+
+      try {
+        const response = await fetch('/api/bookings/admin/resave-candidates?limit=500', {
+          headers: {
+            'x-user-email': email
+          }
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || `Audit failed (${response.status})`);
+        }
+
+        setResaveAuditResults(data);
+        showToast('Re-save audit complete');
+      } catch (err) {
+        const output = document.getElementById('resaveAuditResults');
+        if (output) output.textContent = `Audit failed: ${err.message || 'Unknown error'}`;
+        showToast(err.message || 'Audit failed', 'error');
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    async function runAuditLoadMissingIngredients() {
+      const btn = document.getElementById('auditLoadMissingBtn');
+      if (btn) btn.disabled = true;
+      if (btn) btn.textContent = 'Auditing...';
+
+      try {
+        const doReseed = window.confirm('Reseed missing recipes while syncing? Click OK for yes, Cancel for no.');
+
+        const [dropdownResp, inventoryResp] = await Promise.all([
+          fetch('/api/recipes/display-dropdown'),
+          fetch('/api/ingredients/inventory/all?_t=' + Date.now(), { cache: 'no-store' })
+        ]);
+
+        if (!dropdownResp.ok) {
+          throw new Error(`Failed to load published recipes: ${dropdownResp.status} ${dropdownResp.statusText}`);
+        }
+        if (!inventoryResp.ok) {
+          throw new Error(`Failed to load ingredients inventory: ${inventoryResp.status} ${inventoryResp.statusText}`);
+        }
+
+        const dropdownData = await dropdownResp.json();
+        const inventoryData = await inventoryResp.json();
+
+        const published = Array.isArray(dropdownData && dropdownData.recipes) ? dropdownData.recipes : [];
+        const inventoryRows = Array.isArray(inventoryData && inventoryData.data) ? inventoryData.data : [];
+
+        const publishedRecipeIds = [...new Set(
+          published
+            .map((r) => Number(r.recipeid))
+            .filter((id) => Number.isInteger(id) && id > 0)
+        )].sort((a, b) => a - b);
+
+        const inventoryCountByRecipe = new Map();
+        for (const row of inventoryRows) {
+          const id = Number(row.recipe_id);
+          if (!Number.isInteger(id) || id <= 0) continue;
+          inventoryCountByRecipe.set(id, (inventoryCountByRecipe.get(id) || 0) + 1);
+        }
+
+        const missingRecipeIds = publishedRecipeIds.filter((id) => (inventoryCountByRecipe.get(id) || 0) === 0);
+        const alreadyLoadedCount = publishedRecipeIds.length - missingRecipeIds.length;
+
+        if (!publishedRecipeIds.length) {
+          showToast('No published recipes found to audit.', 'info');
+          return;
+        }
+
+        if (!missingRecipeIds.length) {
+          showToast(`Audit complete. Published: ${publishedRecipeIds.length}, already loaded: ${alreadyLoadedCount}, missing: 0.`, 'success');
+          await runResaveAudit();
+          return;
+        }
+
+        let successCount = 0;
+        let failCount = 0;
+        if (btn) btn.textContent = 'Syncing Missing...';
+
+        for (let i = 0; i < missingRecipeIds.length; i++) {
+          const recipeId = missingRecipeIds[i];
+          try {
+            const resp = await fetch('/api/ingredients/inventory/sync', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ recipeId, reseed: doReseed })
+            });
+            const data = await resp.json();
+            if (resp.ok && data && data.success) successCount++;
+            else failCount++;
+          } catch (_) {
+            failCount++;
+          }
+        }
+
+        showToast(
+          `Audit+sync complete. Published: ${publishedRecipeIds.length}, already loaded: ${alreadyLoadedCount}, missing: ${missingRecipeIds.length}, synced: ${successCount}, failed: ${failCount}.`,
+          failCount > 0 ? 'warning' : 'success'
+        );
+
+        await runResaveAudit();
+      } catch (err) {
+        showToast(err.message || 'Audit+sync failed', 'error');
+      } finally {
+        if (btn) btn.disabled = false;
+        if (btn) btn.textContent = 'Audit All + Load Missing Ingredients';
+      }
+    }
+
+    function normalizePlannerTitle(value) {
+      return String(value || '').trim().toLowerCase();
+    }
+
+    function plannerSlotDefinitions() {
+      return [
+        { key: 'junior', label: 'Junior School', patterns: [/junior/] },
+        { key: 'middle', label: 'Middle School', patterns: [/middle/, /middleschool/, /mfood/] },
+        { key: 'hosp100', label: '11HOSP (100HOSP)', patterns: [/hp100/, /\b100\b/, /11hosp/] },
+        { key: 'hosp200', label: '12HOSP (200HOSP)', patterns: [/hp200/, /\b200\b/, /12hosp/] },
+        { key: 'hosp300', label: '13HOSP (300HOSP)', patterns: [/hp300/, /\b300\b/, /13hosp/] }
+      ];
+    }
+
+    function plannerManualLinkBySlotKey() {
+      return {
+        junior: 'https://docs.google.com/spreadsheets/d/110sYwULOvIXyOrtssazosKva9SwxMCovJIU4L_mNZBs/edit?usp=sharing'
+      };
+    }
+
+    function buildPlannerDocTitleById(historyRows) {
+      const byId = new Map();
+      (Array.isArray(historyRows) ? historyRows : []).forEach((row) => {
+        const docId = String(row && row.document_id || '').trim();
+        const title = String(row && row.document_title || '').trim();
+        if (!docId || !title) return;
+        if (!byId.has(docId)) byId.set(docId, title);
+      });
+      return byId;
+    }
+
+    function mapDocsToPlannerSlots(docIds, historyRows) {
+      const slots = plannerSlotDefinitions();
+      const titleById = buildPlannerDocTitleById(historyRows);
+      const unassigned = new Set((Array.isArray(docIds) ? docIds : []).filter(Boolean));
+      const assignedBySlot = new Map();
+
+      slots.forEach((slot) => {
+        for (const docId of unassigned) {
+          const title = normalizePlannerTitle(titleById.get(docId));
+          if (!title) continue;
+          if (slot.patterns.some((pattern) => pattern.test(title))) {
+            assignedBySlot.set(slot.key, docId);
+            unassigned.delete(docId);
+            break;
+          }
+        }
+      });
+
+      const remainingDocIds = Array.from(unassigned);
+      slots.forEach((slot) => {
+        if (assignedBySlot.has(slot.key)) return;
+        if (!remainingDocIds.length) return;
+        assignedBySlot.set(slot.key, remainingDocIds.shift());
+      });
+
+      return slots.map((slot) => ({
+        key: slot.key,
+        label: slot.label,
+        docId: assignedBySlot.get(slot.key) || '',
+        title: assignedBySlot.get(slot.key) ? (titleById.get(assignedBySlot.get(slot.key)) || '') : ''
+      }));
+    }
+
+    function renderPlannerQuickLinks() {
+      const quickLinksEl = document.getElementById('plannerQuickLinks');
+      if (!quickLinksEl) return;
+
+      const mapped = mapDocsToPlannerSlots(latestPlannerConfiguredDocIds, latestPlannerSyncHistory);
+      const manualLinks = plannerManualLinkBySlotKey();
+
+      quickLinksEl.innerHTML = mapped.map((item) => {
+        if (item.docId) {
+          const safeId = escapeHtml(item.docId);
+          const safeLabel = escapeHtml(item.label);
+          const safeTitle = escapeHtml(item.title || item.label);
+          return `<a href="https://docs.google.com/document/d/${safeId}/edit" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm" title="${safeTitle}">${safeLabel}</a>`;
+        }
+
+        const manualUrl = manualLinks[item.key];
+        if (manualUrl) {
+          const safeManualUrl = escapeHtml(manualUrl);
+          const safeLabel = escapeHtml(item.label);
+          return `<a href="${safeManualUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm" title="${safeLabel}">${safeLabel}</a>`;
+        }
+
+        const safeMissingLabel = escapeHtml(`${item.label} (not configured)`);
+        return `<span class="btn btn-secondary btn-sm" style="opacity:0.55;cursor:not-allowed;" title="Planner not configured in GOOGLE_PLANNER_DOC_IDS">${safeMissingLabel}</span>`;
+      }).join('');
+    }
+
+    async function loadPlannerQuickLinks() {
+      const quickLinksEl = document.getElementById('plannerQuickLinks');
+      if (!quickLinksEl) return;
+
+      try {
+        const [configRes, historyRes] = await Promise.all([
+          fetch('/google/sync-config', { credentials: 'include' }),
+          fetch('/google/sync-history?limit=30', { credentials: 'include' })
+        ]);
+
+        const configData = await configRes.json().catch(() => ({}));
+        const historyData = await historyRes.json().catch(() => ({}));
+
+        latestPlannerConfiguredDocIds = Array.isArray(configData && configData.configuredDocIds)
+          ? configData.configuredDocIds.map((id) => String(id || '').trim()).filter(Boolean)
+          : [];
+        latestPlannerSyncHistory = Array.isArray(historyData && historyData.history)
+          ? historyData.history
+          : [];
+
+        renderPlannerQuickLinks();
+      } catch (_) {
+        quickLinksEl.innerHTML = '<span style="font-size:12px;color:#b91c1c;">Unable to load planner links.</span>';
+      }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      loadUnmatchedRecipes();
+      loadPlannerQuickLinks();
+      document.getElementById('autoMatchBtn').addEventListener('click', autoMatchAll);
+      document.getElementById('resaveAuditBtn').addEventListener('click', runResaveAudit);
+      document.getElementById('auditLoadMissingBtn').addEventListener('click', runAuditLoadMissingIngredients);
+      document.getElementById('resaveAuditRefreshBtn').addEventListener('click', runResaveAudit);
+      document.getElementById('prevBtn').addEventListener('click', prevPage);
+      document.getElementById('nextBtn').addEventListener('click', nextPage);
+      document.getElementById('refreshBtn').addEventListener('click', () => location.reload());
+      document.getElementById('filterStatus').addEventListener('change', (e) => {
+        filterStatus = e.target.value;
+        currentPage = 0;
+        applyFilters();
+      });
+      document.getElementById('filterSchool').addEventListener('change', (e) => {
+        filterSchool = e.target.value;
+        currentPage = 0;
+        applyFilters();
+      });
+      document.getElementById('filterClass').addEventListener('change', (e) => {
+        filterClass = e.target.value;
+        currentPage = 0;
+        applyFilters();
+      });
+      document.getElementById('searchInput').addEventListener('input', (e) => {
+        searchTerm = e.target.value.toLowerCase();
+        currentPage = 0;
+        applyFilters();
+      });
+    });
+
+    async function loadUnmatchedRecipes() {
+      try {
+        const response = await fetch('/api/recipe-matching/bookings');
+        const data = await response.json();
+        allBookings = data.bookings || [];
+        populateFilterOptions();
+        updateStats();
+        applyFilters();
+      } catch (err) {
+        showToast(`Error loading recipes: ${err.message}`, 'error');
+      }
+    }
+
+    function getSchoolValue(booking) {
+      return String(
+        (booking && (booking.planner_stream || booking.school || booking.school_name || booking.stream)) || ''
+      ).trim();
+    }
+
+    function getClassValue(booking) {
+      return String((booking && (booking.class_name || booking.class)) || '').trim();
+    }
+
+    function populateFilterOptions() {
+      const schoolSelect = document.getElementById('filterSchool');
+      const classSelect = document.getElementById('filterClass');
+      if (!schoolSelect || !classSelect) return;
+
+      const schools = Array.from(new Set(
+        allBookings.map(getSchoolValue).filter(Boolean)
+      )).sort((a, b) => a.localeCompare(b));
+
+      const classes = Array.from(new Set(
+        allBookings.map(getClassValue).filter(Boolean)
+      )).sort((a, b) => a.localeCompare(b));
+
+      schoolSelect.innerHTML = '<option value="">All School</option>' +
+        schools.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+
+      classSelect.innerHTML = '<option value="">All Class</option>' +
+        classes.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+
+      schoolSelect.value = schools.includes(filterSchool) ? filterSchool : '';
+      filterSchool = schoolSelect.value;
+
+      classSelect.value = classes.includes(filterClass) ? filterClass : '';
+      filterClass = classSelect.value;
+    }
+
+    function updateStats() {
+      const matched = allBookings.filter(b => b.recipe_id).length;
+      const unmatched = allBookings.filter(b => !b.recipe_id).length;
+      const html = `
+        <div class="stat-card success">
+          <label>Matched</label>
+          <div class="value">${matched}</div>
+        </div>
+        <div class="stat-card warning">
+          <label>Needs Review</label>
+          <div class="value">${unmatched}</div>
+        </div>
+        <div class="stat-card">
+          <label>Total</label>
+          <div class="value">${allBookings.length}</div>
+        </div>
+      `;
+      document.getElementById('statsContainer').innerHTML = html;
+    }
+
+    function applyFilters() {
+      let filtered = allBookings;
+
+      const recipeSortKey = (booking) =>
+        String((booking && booking.recipe) || '')
+          .replace(/^\s*recipe\s*:\s*/i, '')
+          .trim()
+          .toLowerCase();
+
+      const hasSourceUrl = (booking) => String((booking && booking.recipe_url) || '').trim().length > 0;
+
+      if (filterStatus === 'matched') {
+        filtered = filtered.filter(b => b.recipe_id);
+      } else if (filterStatus === 'unmatched') {
+        filtered = filtered.filter(b => !b.recipe_id);
+      } else if (filterStatus === 'unmatched_with_url') {
+        filtered = filtered.filter(b => !b.recipe_id && hasSourceUrl(b));
+      }
+
+      if (filterSchool) {
+        filtered = filtered.filter((b) => getSchoolValue(b).toLowerCase() === filterSchool.toLowerCase());
+      }
+
+      if (filterClass) {
+        filtered = filtered.filter((b) => getClassValue(b).toLowerCase() === filterClass.toLowerCase());
+      }
+
+      if (searchTerm) {
+        filtered = filtered.filter(b => 
+          (b.recipe || '').toLowerCase().includes(searchTerm) ||
+          getClassValue(b).toLowerCase().includes(searchTerm)
+        );
+      }
+
+      filtered = filtered.slice().sort((a, b) => {
+        const recipeCmp = recipeSortKey(a).localeCompare(recipeSortKey(b), undefined, { sensitivity: 'base' });
+        if (recipeCmp !== 0) return recipeCmp;
+
+        // Stable tie-breakers for repeat recipe names.
+        const classCmp = getClassValue(a).localeCompare(getClassValue(b), undefined, { sensitivity: 'base' });
+        if (classCmp !== 0) return classCmp;
+        return String(a.booking_date || '').localeCompare(String(b.booking_date || ''));
+      });
+
+      displayedBookings = filtered;
+      currentPage = 0;
+      renderRecipes();
+    }
+
+    function renderRecipes() {
+      const start = currentPage * pageSize;
+      const end = start + pageSize;
+      const page = displayedBookings.slice(start, end);
+
+      let html = '';
+      for (const booking of page) {
+        const isMatched = booking.recipe_id;
+        const cardClass = isMatched ? 'matched' : 'unmatched';
+        const badge = isMatched ? `<span class="recipe-badge badge-manual">Linked</span>` : 
+                      `<span class="recipe-badge badge-pending">Needs Review</span>`;
+        
+        const suggestions = booking.suggestions || [];
+        const multiVersionBadge = (!isMatched && suggestions.length > 1)
+          ? `<span class="versions-badge" onclick="openCompareModal(${booking.id})" title="Compare all versions side by side">&#9741; ${suggestions.length} versions found</span>`
+          : '';
+
+        let suggestionsHtml = '';
+        if (suggestions.length > 0 && !isMatched) {
+          const checkboxRows = suggestions.map(s => `
+            <div class="suggestion-item">
+              <input type="checkbox" class="suggestion-checkbox" id="chk_${booking.id}_${s.id}" value="${s.id}" title="Select to link this version">
+              <div class="suggestion-main">
+                <label for="chk_${booking.id}_${s.id}" style="cursor:pointer;">
+                  <div class="suggestion-name" onclick="event.stopPropagation(); openRecipePreviewModal(${s.id})" title="Click to preview this recipe">${escapeHtml(s.name || 'Unknown')}</div>
+                </label>
+                <div class="suggestion-source">${s.url ? `<a href="${s.url}" target="_blank" rel="noopener" title="${s.url}">${s.url}</a>` : '<em>No source URL</em>'}</div>
+              </div>
+              <div class="suggestion-score">${((s.matchScore || 0) * 100).toFixed(0)}%</div>
+              <div class="suggestion-actions">
+                <button class="btn btn-sm btn-secondary" onclick="openRecipePreviewModal(${s.id})" title="Preview recipe details">Preview</button>
+              </div>
+            </div>
+          `).join('');
+          suggestionsHtml = `
+            <div class="suggestions">
+              <div class="suggestions-title">Suggested Matches — tick the version(s) you want, then click Link Selected</div>
+              <div class="suggestion-list">${checkboxRows}</div>
+              <div class="link-selected-btn">
+                <button class="btn btn-success" onclick="linkSelectedRecipes(${booking.id})" title="Link all ticked recipes to this planner item">&#10003; Link Selected</button>
+              </div>
+            </div>
+          `;
+        }
+
+        html += `
+          <div class="recipe-card ${cardClass}">
+            <div class="recipe-header">
+               <div style="display:flex;align-items:center;gap:10px;flex:1;">
+                 <h3 class="recipe-name${suggestions.length > 1 && !isMatched ? ' recipe-name-clickable' : ''}" ${suggestions.length > 1 && !isMatched ? `onclick="openCompareModal(${booking.id})" title="Click to compare all versions"` : ''} style="margin:0;">${escapeHtml(booking.recipe || 'Unknown')}</h3>
+                 <a href="${isMatched && booking.recipe_id ? `/recipe_display.html?recipe_id=${booking.recipe_id}` : '#'}" target="_blank" ${isMatched && booking.recipe_id ? '' : 'style="opacity:0.5;cursor:not-allowed;"'} title="${isMatched && booking.recipe_id ? 'Edit recipe' : 'Link a recipe first'}" style="font-size:12px;color:#1976d2;text-decoration:none;padding:4px 8px;border:1px solid #1976d2;border-radius:4px;white-space:nowrap;">✎ Edit</a>
+               </div>
+              <div style="display:flex;align-items:center;gap:6px;">${multiVersionBadge}${badge}</div>
+            </div>
+            <div class="recipe-info">
+              <div class="info-item">
+                <label>Class</label>
+                <span class="info-value">${escapeHtml(booking.class_name || '-')}</span>
+              </div>
+              <div class="info-item">
+                <label>Date</label>
+                <span class="info-value">${escapeHtml(booking.booking_date || '-')}</span>
+              </div>
+              <div class="info-item">
+                <label>URL</label>
+                <span class="info-value">${booking.recipe_url ? `<a href="${escapeHtml(safeUrl(booking.recipe_url))}" target="_blank" rel="noopener" style="color: #1976d2;">View</a>` : '-'}</span>
+              </div>
+            </div>
+            ${isMatched && Array.isArray(booking.linked_recipes) && booking.linked_recipes.length > 0 ? `
+              <div class="linked-recipes-section">
+                <div class="linked-recipes-section-title">Linked Recipes ${booking.linked_recipes.length > 1 ? '— ★ = shown on index page' : ''}</div>
+                ${booking.linked_recipes.map(r => `
+                  <div class="linked-recipe-row">
+                    <button class="star-btn ${Number(r.recipe_id) === Number(booking.recipe_id) ? 'is-primary' : ''}" onclick="setAsPrimary(${booking.id}, ${r.recipe_id})" title="${Number(r.recipe_id) === Number(booking.recipe_id) ? 'Primary recipe (shown on index page)' : 'Click to make this the primary recipe'}">&#9733;</button>
+                    <div class="linked-recipe-main">
+                      <div class="linked-recipe-name">${escapeHtml(r.name || 'Unknown')}${Number(r.recipe_id) === Number(booking.recipe_id) && booking.linked_recipes.length > 1 ? '<span class="linked-recipe-primary-label"> primary</span>' : ''}</div>
+                      <div class="linked-recipe-source">${formatLinkedRecipeSource(r.url)}</div>
+                    </div>
+                    <button class="remove-link" onclick="unlinkLinkedRecipe(${booking.id}, ${r.recipe_id}, '${encodeURIComponent(r.name || '')}')" title="Unlink this recipe from planner item">Unlink</button>
+                  </div>
+                `).join('')}
+              </div>
+            ` : ''}
+            ${suggestionsHtml}
+            ${!isMatched ? `
+              <div class="action-row" style="margin-top: 10px;">
+                <button class="btn btn-primary btn-sm" onclick="openLinkModal(${booking.id}, null, decodeURIComponent('${encodeURIComponent(booking.recipe || '')}'))" title="Link to existing recipe">Link Existing</button>
+                <button class="btn btn-success btn-sm" onclick="openCreateModal(${booking.id}, decodeURIComponent('${encodeURIComponent(booking.recipe || '')}'))" title="Create new recipe">Create New</button>
+                 <button class="btn btn-secondary btn-sm" onclick="window.location.href='add_recipe_manually.html'" title="Open Add Recipe Manually page">Add Recipe Manually</button>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }
+
+      document.getElementById('recipeContainer').innerHTML = html;
+      updatePagination();
+    }
+
+    function updatePagination() {
+      const totalPages = Math.ceil(displayedBookings.length / pageSize);
+      document.getElementById('prevBtn').disabled = currentPage === 0;
+      document.getElementById('nextBtn').disabled = currentPage >= totalPages - 1;
+      document.getElementById('pageInfo').textContent = 
+        `Page ${currentPage + 1} of ${Math.max(1, totalPages)} (${displayedBookings.length} total)`;
+    }
+
+    function prevPage() {
+      if (currentPage > 0) {
+        currentPage--;
+        renderRecipes();
+        window.scrollTo(0, 0);
+      }
+    }
+
+    function nextPage() {
+      const totalPages = Math.ceil(displayedBookings.length / pageSize);
+      if (currentPage < totalPages - 1) {
+        currentPage++;
+        renderRecipes();
+        window.scrollTo(0, 0);
+      }
+    }
+
+    async function fetchAvailableRecipes() {
+      if (Array.isArray(availableRecipesCache) && availableRecipesCache.length > 0) {
+        return availableRecipesCache;
+      }
+
+      const response = await fetch('/api/recipes/display-dropdown');
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to load recipes list.');
+      }
+
+      const rows = Array.isArray(data && data.recipes) ? data.recipes : [];
+      const dedupe = new Map();
+      for (const row of rows) {
+        const id = Number(row && row.recipeid);
+        if (!Number.isInteger(id) || id <= 0) continue;
+        const name = String((row && row.name) || '').trim() || `Recipe ${id}`;
+        if (!dedupe.has(id)) {
+          dedupe.set(id, {
+            id,
+            name
+          });
+        }
+      }
+
+      availableRecipesCache = Array.from(dedupe.values())
+        .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+      return availableRecipesCache;
+    }
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function safeUrl(value) {
+      const s = String(value || '').trim();
+      if (!s) return '';
+      try {
+        const u = new URL(s);
+        if (u.protocol !== 'https:' && u.protocol !== 'http:') return '';
+      } catch (_) {
+        return '';
+      }
+      return s;
+    }
+
+    function formatLinkedRecipeSource(url) {
+      const value = String(url || '').trim();
+      if (!value) return '<em>No source URL</em>';
+
+      let label = value;
+      try {
+        label = new URL(value).hostname.replace(/^www\./i, '') || value;
+      } catch (_) {
+        // Keep original value when URL parsing fails.
+      }
+
+      return `<a href="${escapeHtml(value)}" target="_blank" rel="noopener" title="${escapeHtml(value)}">${escapeHtml(label)}</a>`;
+    }
+
+    function extractListItems(value) {
+      if (Array.isArray(value)) {
+        return value.map((item) => String(item || '').trim()).filter(Boolean);
+      }
+
+      const text = String(value || '').trim();
+      if (!text) return [];
+
+      const liMatches = [];
+      const liRegex = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+      let match;
+      while ((match = liRegex.exec(text)) !== null) {
+        const cleaned = String(match[1] || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        if (cleaned) liMatches.push(cleaned);
+      }
+      if (liMatches.length) return liMatches;
+
+      if (text.startsWith('[') && text.endsWith(']')) {
+        try {
+          const parsed = JSON.parse(text);
+          if (Array.isArray(parsed)) {
+            return parsed.map((item) => String(item || '').trim()).filter(Boolean);
+          }
+        } catch (_) {
+          // Ignore parse errors and fallback to line splitting.
+        }
+      }
+
+      return text
+        .replace(/<br\s*\/?>/gi, '\n')
+        .split(/\r?\n/)
+        .map((line) => line.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim())
+        .filter(Boolean);
+    }
+
+    function renderRecipeIndex(filterText = '') {
+      const listEl = document.getElementById('recipeIndexList');
+      if (!listEl) return;
+
+      const source = Array.isArray(availableRecipesCache) ? availableRecipesCache : [];
+      const filter = String(filterText || '').toLowerCase().trim();
+      const filtered = source
+        .filter((recipe) => {
+          if (!filter) return true;
+          return String(recipe.name || '').toLowerCase().includes(filter)
+            || String(recipe.id || '').includes(filter);
+        })
+        .slice(0, 300);
+
+      if (!filtered.length) {
+        listEl.innerHTML = '<div style="padding:10px;color:#666;font-size:12px;">No recipes found.</div>';
+        return;
+      }
+
+      const selectedId = Number(document.getElementById('linkRecipeSelect').value || 0);
+      listEl.innerHTML = filtered.map((recipe) => {
+        const id = Number(recipe.id);
+        const isActive = selectedId === id;
+        const isSelected = linkModalSelectedIds.has(id);
+        return `<button class="recipe-index-item${isActive ? ' active' : ''}${isSelected ? ' selected' : ''}" onclick="toggleLinkIndexItem(${id})">${escapeHtml(recipe.name || 'Unknown')} <span style="color:#6b7280;">(ID ${id})</span></button>`;
+      }).join('');
+      updateLinkSelectionCount();
+    }
+
+    function toggleLinkIndexItem(recipeId) {
+      if (linkModalSelectedIds.has(recipeId)) {
+        linkModalSelectedIds.delete(recipeId);
+      } else {
+        linkModalSelectedIds.add(recipeId);
+      }
+      renderRecipeIndex(document.getElementById('linkRecipeSearch').value);
+    }
+
+    function updateLinkSelectionCount() {
+      const countEl = document.getElementById('linkModalSelectionCount');
+      if (!countEl) return;
+      const n = linkModalSelectedIds.size;
+      countEl.textContent = n === 0 ? 'No recipes selected.' : `${n} recipe${n > 1 ? 's' : ''} selected.`;
+      const btn = document.getElementById('linkRecipeBtn');
+      if (btn) btn.textContent = n === 0 ? 'Link Selected' : `Link Selected (${n})`;
+    }
+
+    function previewRecipeFromIndex(recipeId) {
+      const selectEl = document.getElementById('linkRecipeSelect');
+      if (selectEl) selectEl.value = String(recipeId);
+      renderRecipeIndex(document.getElementById('linkRecipeSearch').value);
+      openRecipePreviewModal(recipeId);
+    }
+
+    function previewSelectedRecipe() {
+      const recipeId = Number(document.getElementById('linkRecipeSelect').value || 0);
+      if (!recipeId) {
+        showToast('Please choose a recipe first.', 'error');
+        return;
+      }
+      openRecipePreviewModal(recipeId);
+    }
+
+    function renderPreviewList(targetId, items, fallbackText) {
+      const el = document.getElementById(targetId);
+      if (!el) return;
+      if (!Array.isArray(items) || items.length === 0) {
+        el.innerHTML = `<li>${escapeHtml(fallbackText)}</li>`;
+        return;
+      }
+      el.innerHTML = items.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
+    }
+
+    async function fetchRecipeDetails(recipeId) {
+      if (recipeDetailsCache.has(recipeId)) {
+        return recipeDetailsCache.get(recipeId);
+      }
+      const response = await fetch(`/api/recipes/${recipeId}`);
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data && data.error ? data.error : 'Failed to load recipe details.');
+      }
+      recipeDetailsCache.set(recipeId, data);
+      return data;
+    }
+
+    async function openRecipePreviewModal(recipeId) {
+      const modal = document.getElementById('recipePreviewModal');
+      modal.classList.add('active');
+
+      document.getElementById('previewRecipeTitle').textContent = 'Loading recipe...';
+      document.getElementById('previewRecipeMeta').textContent = 'Loading details...';
+      document.getElementById('previewRecipeDescription').textContent = '';
+      renderPreviewList('previewIngredientsList', [], 'Loading...');
+      renderPreviewList('previewInstructionsList', [], 'Loading...');
+
+      try {
+        const recipe = await fetchRecipeDetails(Number(recipeId));
+        document.getElementById('previewRecipeTitle').textContent = recipe && recipe.name ? recipe.name : `Recipe ${recipeId}`;
+
+        const serving = recipe && recipe.serving_size ? String(recipe.serving_size).trim() : '';
+        const url = recipe && recipe.url ? String(recipe.url).trim() : '';
+        let sourceDomain = '';
+        if (url) {
+          try { sourceDomain = new URL(url).hostname.replace(/^www\./, ''); } catch (e) { sourceDomain = ''; }
+        }
+        document.getElementById('previewRecipeMeta').innerHTML = `
+          <strong>Recipe ID:</strong> ${Number(recipeId)}
+          ${serving ? ` | <strong>Serves:</strong> ${escapeHtml(serving)}` : ''}
+          ${sourceDomain ? ` | <strong>Source:</strong> <a href="${escapeHtml(url)}" target="_blank" rel="noopener" style="color:#1976d2;">${escapeHtml(sourceDomain)}</a>` : (url ? ` | <a href="${escapeHtml(url)}" target="_blank" rel="noopener" style="color:#1976d2;">Open Source URL</a>` : '')}
+          ${!url ? ' | <span style="color:#999;">No source URL</span>' : ''}
+        `;
+
+        const description = recipe && recipe.description ? String(recipe.description).trim() : '';
+        document.getElementById('previewRecipeDescription').textContent = description;
+
+        const ingredientsItems = extractListItems((recipe && recipe.ingredients_display) || (recipe && recipe.ingredients) || '');
+        const instructionItems = extractListItems((recipe && recipe.instructions_display) || (recipe && recipe.instructions_extracted) || (recipe && recipe.instructions) || '');
+
+        renderPreviewList('previewIngredientsList', ingredientsItems, 'No ingredients listed.');
+        renderPreviewList('previewInstructionsList', instructionItems, 'No instructions listed.');
+      } catch (err) {
+        document.getElementById('previewRecipeTitle').textContent = 'Unable to load recipe details';
+        document.getElementById('previewRecipeMeta').textContent = err.message;
+        document.getElementById('previewRecipeDescription').textContent = '';
+        renderPreviewList('previewIngredientsList', [], 'Unable to load ingredients.');
+        renderPreviewList('previewInstructionsList', [], 'Unable to load instructions.');
+      }
+    }
+
+    function closeRecipePreviewModal() {
+      document.getElementById('recipePreviewModal').classList.remove('active');
+    }
+
+    function closeCompareModal() {
+      document.getElementById('compareModal').classList.remove('active');
+    }
+
+    async function setAsPrimary(bookingId, recipeId) {
+      try {
+        const response = await fetch('/api/recipe-matching/set-primary', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bookingId, recipeId })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to set primary');
+
+        const b = allBookings.find(x => x.id === bookingId);
+        if (b) b.recipe_id = recipeId;
+        renderRecipes();
+        showToast('Primary recipe updated.');
+      } catch (err) {
+        showToast(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    async function unlinkLinkedRecipe(bookingId, recipeId, encodedName) {
+      const recipeName = decodeURIComponent(String(encodedName || '')).trim() || 'this recipe';
+      if (!confirm(`Unlink "${recipeName}" from this planner item?`)) return;
+
+      try {
+        const response = await fetch('/api/recipe-matching/link-multi', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bookingId, recipeId })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to unlink recipe');
+
+        const booking = allBookings.find(b => b.id === bookingId);
+        if (booking) {
+          booking.linked_recipes = Array.isArray(data.linked)
+            ? data.linked.map(r => ({ recipe_id: r.recipe_id, name: r.name, url: r.url }))
+            : [];
+          booking.recipe_id = data.primaryRecipeId || null;
+        }
+
+        updateStats();
+        renderRecipes();
+        showToast(`Unlinked ${recipeName}.`);
+      } catch (err) {
+        showToast(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    async function linkSelectedRecipes(bookingId) {
+      const booking = allBookings.find(b => b.id === bookingId);
+      if (!booking) return;
+      const suggestions = booking.suggestions || [];
+
+      const selected = suggestions
+        .map(s => s.id)
+        .filter(id => {
+          const chk = document.getElementById(`chk_${bookingId}_${id}`);
+          return chk && chk.checked;
+        });
+
+      if (selected.length === 0) {
+        showToast('Please tick at least one recipe to link.', 'error');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/recipe-matching/link-multi', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bookingId, recipeIds: selected })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to link recipes');
+
+        const names = data.linked.map(r => r.name).join(', ');
+        showToast(`Linked ${data.linked.length} recipe${data.linked.length > 1 ? 's' : ''}: ${names}`);
+
+        // Mark booking as matched in local state and re-render
+        const b = allBookings.find(x => x.id === bookingId);
+        if (b) {
+          b.recipe_id = selected[0];
+          b.linked_recipes = data.linked.map(r => ({ recipe_id: r.recipe_id, name: r.name, url: r.url }));
+        }
+        updateStats();
+        renderRecipes();
+      } catch (err) {
+        showToast(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    async function openCompareModal(bookingId) {
+      const booking = allBookings.find(b => b.id === bookingId);
+      if (!booking) return;
+      const suggestions = booking.suggestions || [];
+
+      const modal = document.getElementById('compareModal');
+      const columnsEl = document.getElementById('compareColumns');
+      const titleEl = document.getElementById('compareModalTitle');
+      const subtitleEl = document.getElementById('compareModalSubtitle');
+
+      titleEl.textContent = `${suggestions.length} Versions Found: "${booking.recipe || 'Unknown'}"`;
+      subtitleEl.textContent = 'Compare the available versions below, then click "Use This" on the one you want.';
+      columnsEl.innerHTML = '<em style="color:#888;">Loading versions...</em>';
+      columnsEl.style.gridTemplateColumns = `repeat(${Math.min(suggestions.length, 3)}, 1fr)`;
+      modal.classList.add('active');
+
+      const cols = await Promise.all(suggestions.map(async (s) => {
+        try {
+          const recipe = await fetchRecipeDetails(Number(s.id));
+          const serving = recipe && recipe.serving_size ? String(recipe.serving_size).trim() : '';
+          const url = recipe && recipe.url ? String(recipe.url).trim() : '';
+          let sourceDomain = '';
+          if (url) { try { sourceDomain = new URL(url).hostname.replace(/^www\./, ''); } catch(e) {} }
+          const ingredients = extractListItems((recipe && recipe.ingredients_display) || (recipe && recipe.ingredients) || '');
+          const MAX_ING = 8;
+          const ingHtml = ingredients.length
+            ? ingredients.slice(0, MAX_ING).map(i => `<li>${escapeHtml(i)}</li>`).join('')
+              + (ingredients.length > MAX_ING ? `<li style="color:#aaa;font-style:italic;">...and ${ingredients.length - MAX_ING} more</li>` : '')
+            : '<li style="color:#aaa;">No ingredients listed</li>';
+          return `
+            <div class="compare-col">
+              <h3>${escapeHtml(recipe.name || 'Unknown')}</h3>
+              <div class="compare-source">${url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(sourceDomain || url)}</a>` : '<em>No source URL</em>'}</div>
+              <div class="compare-meta">${serving ? `<strong>Serves:</strong> ${escapeHtml(serving)}` : 'Serving size unknown'}</div>
+              <div class="compare-section-title">Ingredients</div>
+              <ol class="compare-list">${ingHtml}</ol>
+              <div class="compare-link-btn">
+                <button class="btn btn-success" onclick="closeCompareModal(); openLinkModal(${booking.id}, ${s.id}, decodeURIComponent('${encodeURIComponent(booking.recipe || '')}'))">Use This</button>
+              </div>
+            </div>
+          `;
+        } catch(e) {
+          return `<div class="compare-col"><h3 style="color:#c62828;">Failed to load</h3><p style="font-size:12px;color:#888;">${escapeHtml(s.name || '')}</p></div>`;
+        }
+      }));
+      columnsEl.innerHTML = cols.join('');
+    }
+
+    async function openLinkModal(bookingId, recipeId, recipeName) {
+      currentBookingId = bookingId;
+      linkModalSelectedIds.clear();
+      if (recipeId) linkModalSelectedIds.add(Number(recipeId));
+      document.getElementById('linkRecipeName').value = recipeName;
+
+      const selectEl = document.getElementById('linkRecipeSelect');
+      selectEl.innerHTML = '<option value="">Loading recipes...</option>';
+      document.getElementById('linkModal').classList.add('active');
+
+      try {
+        const allRecipes = await fetchAvailableRecipes();
+        let html = '<option value="">-- Choose a recipe --</option>';
+        for (const recipe of allRecipes) {
+          html += `<option value="${recipe.id}">${recipe.name || 'Unknown'}</option>`;
+        }
+        selectEl.innerHTML = html;
+        if (recipeId) {
+          selectEl.value = recipeId;
+        }
+
+        const searchEl = document.getElementById('linkRecipeSearch');
+        if (searchEl) {
+          searchEl.value = '';
+          searchEl.oninput = () => renderRecipeIndex(searchEl.value);
+        }
+
+        selectEl.onchange = () => {
+          renderRecipeIndex(document.getElementById('linkRecipeSearch').value);
+        };
+
+        renderRecipeIndex('');
+      } catch (err) {
+        selectEl.innerHTML = '<option value="">-- Unable to load recipes --</option>';
+        showToast(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    function closeLinkModal() {
+      document.getElementById('linkModal').classList.remove('active');
+      closeRecipePreviewModal();
+    }
+
+    function openCreateModal(bookingId, recipeName) {
+      currentBookingId = bookingId;
+      const booking = allBookings.find(b => b.id === bookingId);
+      document.getElementById('createRecipeName').value = recipeName;
+      document.getElementById('createRecipeUrl').value = booking?.recipe_url || '';
+      document.getElementById('createRecipeDesc').value = '';
+      document.getElementById('createModal').classList.add('active');
+    }
+
+    function closeCreateModal() {
+      document.getElementById('createModal').classList.remove('active');
+    }
+
+    async function saveRecipeLink() {
+      const dropdownId = parseInt(document.getElementById('linkRecipeSelect').value) || 0;
+      if (dropdownId) linkModalSelectedIds.add(dropdownId);
+      const recipeIds = Array.from(linkModalSelectedIds);
+      if (recipeIds.length === 0) {
+        showToast('Please select at least one recipe', 'error');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/recipe-matching/link-multi', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bookingId: currentBookingId, recipeIds })
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+
+        const names = data.linked.map(r => r.name).join(', ');
+        showToast(`Linked ${data.linked.length} recipe${data.linked.length > 1 ? 's' : ''}: ${names}`);
+        const b = allBookings.find(x => x.id === currentBookingId);
+        if (b) {
+          b.recipe_id = recipeIds[0];
+          b.linked_recipes = data.linked.map(r => ({ recipe_id: r.recipe_id, name: r.name, url: r.url }));
+        }
+        updateStats();
+        closeLinkModal();
+        renderRecipes();
+      } catch (err) {
+        showToast(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    async function saveNewRecipe() {
+      const name = document.getElementById('createRecipeName').value.trim();
+      const url = document.getElementById('createRecipeUrl').value.trim();
+      const desc = document.getElementById('createRecipeDesc').value.trim();
+
+      if (!name) {
+        showToast('Recipe name is required', 'error');
+        return;
+      }
+
+      try {
+        // Create recipe via existing API
+        const response = await fetch('/api/recipes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            url,
+            description: desc,
+            ingredients: '[]',
+            instructions: ''
+          })
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to create recipe');
+
+        const newRecipeId = data.id;
+
+        // Link booking to new recipe
+        await fetch('/api/recipe-matching/link-recipe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            bookingId: currentBookingId,
+            recipeId: newRecipeId
+          })
+        });
+
+        showToast(`Recipe "${name}" created and linked successfully`);
+        closeCreateModal();
+        loadUnmatchedRecipes();
+      } catch (err) {
+        showToast(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    async function autoMatchAll() {
+      const unmatched = allBookings.filter(b => !b.recipe_id);
+      if (unmatched.length === 0) {
+        showToast('All recipes are already matched!');
+        return;
+      }
+
+      if (!confirm(`Auto-match ${unmatched.length} unmatched recipes? This will attempt to match based on recipe names and URLs.`)) {
+        return;
+      }
+
+      try {
+        document.getElementById('autoMatchBtn').disabled = true;
+        const response = await fetch('/api/recipe-matching/auto-match', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bookings: unmatched })
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+
+        showToast(`Auto-match complete: ${data.summary.autoMatched} matched, ${data.summary.needsReview} still need review`);
+        loadUnmatchedRecipes();
+      } catch (err) {
+        showToast(`Error: ${err.message}`, 'error');
+      } finally {
+        document.getElementById('autoMatchBtn').disabled = false;
+      }
+    }
+
+    function showToast(message, type = 'success') {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    function printNoUrlReview() {
+      const noUrl = allBookings
+        .filter(b => !b.recipe_id && !b.recipe_url)
+        .sort((a, b) => {
+          const cls = (a.class_name || '').localeCompare(b.class_name || '');
+          if (cls !== 0) return cls;
+          return (a.booking_date || '').localeCompare(b.booking_date || '');
+        });
+
+      if (!noUrl.length) {
+        showToast('No unmatched recipes without a URL found.', 'info');
+        return;
+      }
+
+      const rows = noUrl.map((b, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${escapeHtml(b.recipe || 'Unknown')}</td>
+          <td>${escapeHtml(b.class_name || '-')}</td>
+          <td>${escapeHtml(b.booking_date || '-')}</td>
+          <td></td>
+        </tr>
+      `).join('');
+
+      const dateStr = new Date().toLocaleDateString('en-NZ', { day: '2-digit', month: 'long', year: 'numeric' });
+
+      const win = window.open('', '_blank');
+      win.document.write(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Recipes Needing Review &#8212; No Source URL</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    @page { size: A4 portrait; margin: 18mm 14mm; }
+    * { box-sizing: border-box; }
+    body { font-family: 'Lexend', Arial, Helvetica, sans-serif; font-size: 11pt; color: #111; margin: 0; }
+    h1 { font-size: 16pt; margin: 0 0 4px 0; color: #1a237e; }
+    .subtitle { font-size: 9pt; color: #555; margin: 0 0 4px 0; }
+    .count { font-size: 10pt; color: #333; margin: 0 0 14px 0; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { background: #1565c0; color: #fff; text-align: left; padding: 7px 8px; font-size: 10pt; }
+    tbody td { padding: 6px 8px; border-bottom: 1px solid #ddd; font-size: 10pt; vertical-align: top; }
+    tbody tr:nth-child(even) td { background: #f5f8ff; }
+    .col-num { width: 32px; }
+    .col-class { width: 80px; }
+    .col-date { width: 90px; }
+    .col-notes { width: 100px; }
+    @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+  </style>
+</head>
+<body>
+  <h1>Recipes Needing Review &#8212; No Source URL</h1>
+  <p class="subtitle">Generated: ${escapeHtml(dateStr)}</p>
+  <p class="count">${noUrl.length} recipe${noUrl.length !== 1 ? 's' : ''} need review and have no source URL attached.</p>
+  <table>
+    <thead>
+      <tr>
+        <th class="col-num">#</th>
+        <th>Recipe Name</th>
+        <th class="col-class">Class</th>
+        <th class="col-date">Date</th>
+        <th class="col-notes">Notes</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <script>window.onload = () => window.print();<\/script>
+</body>
+</html>`);
+      win.document.close();
+    }
+  </script>
+</body>
+</html>

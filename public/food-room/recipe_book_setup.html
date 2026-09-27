@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Book Setup</title>
+    <link rel="stylesheet" href="../shared/style.css">
+</head>
+<body>
+        <div class="w3-bar w3-blue">
+            <a href="index.html" class="w3-bar-item w3-button">Food Room</a>
+            <a href="../booking/book_a_class.html" class="w3-bar-item w3-button">Book a Class</a>
+            <a href="../booking/book_the_shopping.html" class="w3-bar-item w3-button">Book the Shopping</a>
+            <div class="w3-dropdown-hover">
+                <button class="w3-button">Admin &#x25BC;</button>
+                <div class="w3-dropdown-content w3-bar-block w3-card-4">
+                    <a class="w3-bar-item w3-button" style="pointer-events:none;opacity:0.8;background:#f4f4f4;color:#333;font-weight:700;">Load Recipes</a>
+                    <a href="recipe_setup_main.html" class="w3-bar-item w3-button">Recipe Setup Main</a>
+                    <a href="upload_manual.html" class="w3-bar-item w3-button">Manual Upload</a>
+                    <a href="upload_pdf.html" class="w3-bar-item w3-button">PDF Upload</a>
+                    <a href="recipe_book_setup.html" class="w3-bar-item w3-button">URL Upload</a>
+                    <a class="w3-bar-item w3-button" style="pointer-events:none;opacity:0.8;background:#f4f4f4;color:#333;font-weight:700;">Catering</a>
+                    <a href="../booking/catering_grid.html" class="w3-bar-item w3-button">Catering Calendar</a>
+                    <a href="../admin/admin_permissions.html" class="w3-bar-item w3-button">Role Permission Management</a>
+                    <a href="../admin/admin_user_roles.html" class="w3-bar-item w3-button">User Roles</a>
+                    <a href="../admin/staff_upload.html" class="w3-bar-item w3-button">Staff Upload</a>
+                    <a href="uploadSubjects.html" class="w3-bar-item w3-button">Upload Subjects</a>
+                </div>
+            </div>
+            <span class="w3-bar-item w3-right">Vanessa Pringle <a href="#" class="w3-button w3-red w3-round">Logout</a></span>
+        </div>
+        <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+        <!-- Dynamic Navbar Include -->
+        <div id="navbar-include"></div>
+        <script src="../shared/navbar_loader.js"></script>
+    <div class="setup-card">
+        <h2>Recipe Book Setup</h2>
+        <div class="setup-section">
+            <div class="setup-section-title">Load Recipe (URL)</div>
+            <div class="setup-section-desc">Import recipe from a website URL.</div>
+            <label>Recipe URL:</label>
+            <input type="text" class="setup-url-input" placeholder="e.g., https://www.chelsea.co.nz/browse-recipes/...">
+            <button class="setup-btn">Upload URL</button>
+        </div>
+        <hr>
+        <div class="setup-section">
+            <div class="setup-section-title">Clean Database</div>
+            <div class="setup-section-desc">Remove duplicate recipes, junk entries, and fix recipe names.</div>
+        </div>
+
+        <!-- Main Recipes Table -->
+        <div class="setup-section">
+            <div class="setup-section-title">Extracted Recipes</div>
+            <div class="setup-section-desc">View recipes currently in the database.</div>
+            <table id="mainRecipesTable" style="width:100%;margin-top:1rem;border-collapse:collapse;">
+                <thead>
+                    <tr style="background:#f5f5f5;">
+                        <th style="padding:0.5rem 0.7rem;border:1px solid #eee;">ID</th>
+                        <th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Recipe Name</th>
+                        <th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Description</th>
+                        <th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Ingredients</th>
+                        <th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Serving Size</th>
+                        <th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Instructions</th>
+                        <th style="padding:0.5rem 0.7rem;border:1px solid #eee;">URL</th>
+                        <th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Populated by JS -->
+                </tbody>
+            </table>
+        </div>
+        <!-- Uploaded Recipes Table -->
+        <div class="setup-section">
+            <div class="setup-section-title">Uploaded Recipes</div>
+            <div class="setup-section-desc">View details of uploaded recipes.</div>
+            <table id="uploadedRecipesTable" style="width:100%;margin-top:1rem;border-collapse:collapse;">
+                <thead>
+                    <tr style="background:#f5f5f5;">
+                        <th style="padding:0.5rem 0.7rem;border:1px solid #eee;">ID</th>
+                        <th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Recipe ID</th>
+                        <th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Recipe Title</th>
+                        <th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Upload Type</th>
+                        <th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Source URL</th>
+                        <th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Uploaded By</th>
+                        <th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Upload Date</th>
+                        <th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Populated by JS -->
+                </tbody>
+            </table>
+        </div>
+
+    <!-- Published Recipes Table (recipe_display) -->
+    <div class="setup-section">
+        <div class="setup-section-title">Published Recipes</div>
+        <div class="setup-section-desc">These recipes are published to the Recipe Book (from recipe_display table).</div>
+        <table id="publishedRecipesTable" style="width:100%;margin-top:1rem;border-collapse:collapse;">
+            <thead>
+                <tr style="background:#f5f5f5;">
+                    <th style="padding:0.5rem 0.7rem;border:1px solid #eee;">ID</th>
+                    <th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Name</th>
+                    <th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Description</th>
+                    <th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Ingredients</th>
+                    <th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Serving Size</th>
+                    <th style="padding:0.5rem 0.7rem;border:1px solid #eee;">URL</th>
+                    <th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Instructions</th>
+                    <th style="padding:0.5rem 0.7rem;border:1px solid #eee;">RecipeID</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Populated by JS -->
+            </tbody>
+        </table>
+    </div>
+    </div>
+    <script src="recipe_book_setup.js"></script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Instructions Extractor</title>
+  <link rel="stylesheet" href="../shared/style.css">
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+</head>
+<body>
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+  <div class="extractor-card" style="margin-left:40px;margin-right:40px;">
+    <h2>Instructions Extraction Strategies</h2>
+    <div class="extractor-section" style="display: flex; gap: 2rem; align-items: flex-start;">
+      <!-- Left column: Strategies table and controls -->
+      <div style="flex: 1 1 0; min-width: 320px; max-width: 600px; margin-right: 5vw;">
+        <label for="recipeSelect">Choose Recipe URL:</label>
+        <select id="recipeSelect">
+          <option value="">-- Select a recipe --</option>
+          <!-- Populated by JS -->
+        </select>
+        <div style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;">
+          <button class="extractor-btn" id="startStepBtn">Start Step-by-Step</button>
+          <button class="extractor-btn" id="autoExtractBtn" style="background:#00897b;">Instruction Auto Extract (Core Strategies)</button>
+        </div>
+        <div id="autoExtractResultBox" style="display:none;margin:0.6rem 0 1rem;border:1px solid #cfd8dc;border-radius:8px;background:#fafcff;padding:0.8rem;">
+          <div style="font-weight:600;margin-bottom:0.35rem;">Auto Extract Result</div>
+          <div id="autoExtractResultText" style="margin-bottom:0.7rem;"></div>
+          <button class="extractor-btn" id="autoAcceptSendBtn" style="background:#8000b0;">Accept + Send Solution</button>
+          <button class="extractor-btn" id="autoDeclineBtn" style="background:#e53935;margin-left:0.5rem;">Decline (Return to Instructions Extractor)</button>
+        </div>
+        <div id="stepControls" style="display:none; margin-top:1rem;">
+          <div id="currentStrategyName" style="font-weight:bold;"></div>
+          <div id="currentStrategyResult" style="margin:0.5rem 0;"></div>
+          <button class="extractor-btn" id="acceptResultBtn">Accept</button>
+          <button class="extractor-btn" id="continueBtn">Continue</button>
+        </div>
+        <h3 style="margin-top:2rem;">Instructions Extraction Strategies</h3>
+        <table id="strategyTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Strategy</th>
+              <th>Applied</th>
+              <th style="min-width:340px;max-width:700px;width:40vw;">Result</th>
+              <th>Solved</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Populated by JS -->
+          </tbody>
+        </table>
+      </div>
+      <!-- Right column: Solution viewer and actions -->
+      <div style="flex: 1 1 0; min-width: 320px; max-width: 600px;">
+        <label for="solutionBox" style="color:purple;font-weight:bold;">Solution</label>
+        <textarea id="solutionBox" rows="8" style="width:100%;"></textarea>
+        <button class="extractor-btn" id="sendSolutionBtn" style="background:#8000b0;color:#fff;width:100%;margin-top:1rem;">SEND SOLUTION</button>
+        <button id="showRawBtn" class="extractor-btn" style="margin-top:0.5rem; width:100%;">Show Raw Data in New Window</button>
+      </div>
+    </div>
+  </div>
+  <!-- Shared navbar loading script removed -->
+  <script src="extractor_auto_core.js?v=20260408g"></script>
+  <script src="extractor_instructions.js?v=20260408g"></script>
+</body>
+</html>

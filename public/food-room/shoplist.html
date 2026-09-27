@@ -1,0 +1,99 @@
+<!-- Moved from shopping/shoplist.html for Express static serving --><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book the Shopping</title>
+    <link rel="stylesheet" href="../shared/style.css">
+</head>
+<body>
+        <a href="#">Class Ingredients</a> |
+        <a href="#">Shopping List</a> |
+        <a href="#">Admin</a>
+        <span class="navbar-user">Vanessa Pringle <span class="vp-badge">VP</span> <a href="#" class="logout-btn">Logout</a></span>
+    </nav>
+    <!-- Removed duplicate/outdated navigation bar -->
+    <div id="shoplist-app">
+        <div class="date-nav">
+            <button>&lt; Previous</button>
+    <!-- Global Navigation Bar Include -->
+    <nav class="navbar">
+        <a href="index.html">Food Room</a>
+        <a href="../recipe/recipe_book_setup.html">Recipe Book</a>
+        <a href="../booking/book_a_class.html">Book a Class</a>
+        <a href="../booking/book_the_shopping.html">Book the Shopping</a>
+        <a href="../booking/catering_grid.html">Catering</a>
+        <a href="../admin/admin_permissions.html">Admin</a>
+        <span class="navbar-user">Vanessa Pringle <a href="#" class="logout-btn">Logout</a></span>
+    </nav>
+    <div id="shoplist-app">
+        <div class="date-nav">
+            <button>&lt; Previous</button>
+            <span>12-01-2026 to 16-01-2026</span>
+            <button>Today</button>
+            <button>Next &gt;</button>
+        </div>
+        <h1>Book the Shopping</h1>
+        <div class="shoplist-controls">
+            <button id="generateBtn">Generate Shopping List</button>
+            <button id="scheduledBtn">Scheduled Bookings</button>
+        </div>
+        <div class="calendar-legend">
+            <span>Legend:</span>
+            <button class="active">Week/Period View</button>
+            <button>Month View</button>
+        </div>
+        <div class="calendar-grid" id="calendarGrid"></div>
+        <div class="shoplist-bottom">
+            <div class="selected-bookings">
+                <h3>Selected Bookings</h3>
+                <div id="selectedBookings"></div>
+                <button id="printBtn">Print Shopping List Only</button>
+            </div>
+            <div class="shopping-list">
+                <h3>Shopping List</h3>
+                <div id="shoppingList"></div>
+            </div>
+            <div class="master-shopping-list">
+                <h3>Master Shopping List</h3>
+                <div id="masterShoppingList"></div>
+    <!-- Dynamic Navbar Include -->
+    <div id="navbar-include"></div>
+    <script src="../shared/navbar_loader.js"></script>
+    <div id="shoplist-app">
+        <div class="date-nav">
+            <button>&lt; Previous</button>
+            <span>12-01-2026 to 16-01-2026</span>
+            <button>Today</button>
+            <button>Next &gt;</button>
+        </div>
+        <h1>Book the Shopping</h1>
+        <div class="shoplist-controls">
+            <button id="generateBtn">Generate Shopping List</button>
+            <button id="scheduledBtn">Scheduled Bookings</button>
+        </div>
+        <div class="calendar-legend">
+            <span>Legend:</span>
+            <button class="active">Week/Period View</button>
+            <button>Month View</button>
+        </div>
+        <div class="calendar-grid" id="calendarGrid"></div>
+        <div class="shoplist-bottom">
+            <div class="selected-bookings">
+                <h3>Selected Bookings</h3>
+                <div id="selectedBookings"></div>
+                <button id="printBtn">Print Shopping List Only</button>
+            </div>
+            <div class="shopping-list">
+                <h3>Shopping List</h3>
+                <div id="shoppingList"></div>
+            </div>
+            <div class="master-shopping-list">
+                <h3>Master Shopping List</h3>
+                <div id="masterShoppingList"></div>
+            </div>
+        </div>
+    </div>
+    <script src="shoplist.js"></script>
+</body>
+</html>

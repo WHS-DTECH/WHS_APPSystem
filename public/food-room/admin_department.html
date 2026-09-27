@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Department Table</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="navbar-include"></div>
+    <script src="shared/navbar_loader.js"></script>
+    <div class="container" style="max-width:1000px;margin:2rem auto;background:#fff;padding:2rem;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+        <h1>Department Table</h1>
+
+        <div style="margin-bottom:1.5rem;border:1px solid #e6eef9;border-radius:10px;padding:1rem;background:#f9fcff;">
+            <h3 style="margin-top:0;">Upload Kamar Department CSV</h3>
+            <div style="font-size:0.92rem;color:#445; margin-bottom:0.65rem;">
+                Expected columns: <b>Code, Last Name, First Name, Title, Departments (Comma)</b>
+            </div>
+            <form id="departmentUploadForm" style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap;">
+                <input type="file" id="departmentCsvFile" accept=".csv" required />
+                <button type="submit">Upload CSV</button>
+            </form>
+            <div id="departmentUploadResult" style="margin-top:0.65rem;font-size:0.92rem;"></div>
+            <div id="progressBarContainer" style="display:none;margin-top:1rem;">
+                <div style="height:24px;background:#e6eef9;border-radius:6px;overflow:hidden;">
+                    <div id="progressBar" style="height:100%;background:linear-gradient(90deg,#0066cc,#0099ff);width:0%;transition:width 0.3s ease;display:flex;align-items:center;justify-content:center;color:#fff;font-size:0.8rem;font-weight:bold;"></div>
+                </div>
+                <div id="progressText" style="margin-top:0.5rem;font-size:0.85rem;color:#666;"></div>
+            </div>
+        </div>
+
+        <button id="deleteAllBtn" style="margin-bottom:1rem;background:#d9534f;color:#fff;border:none;padding:0.5rem 1.2rem;border-radius:6px;cursor:pointer;">Delete All</button>
+
+        <div style="margin-bottom:1.5rem;">
+            <label for="staffSelect"><b>Choose Staff:</b></label>
+            <select id="staffSelect" style="margin-left:0.5rem;"></select>
+            <span id="staffEmail" style="margin-left:2rem;"></span>
+            <br><br>
+            <label for="departmentSelect"><b>Assign Department:</b></label>
+            <select id="departmentSelect" style="margin-left:0.5rem;">
+                <option value="">-- Select Department --</option>
+                <option value="Technology">Technology</option>
+                <option value="Arts">Arts</option>
+                <option value="Social Science">Social Science</option>
+                <option value="Science">Science</option>
+                <option value="English and Languages">English and Languages</option>
+                <option value="Te Reo Maori">Te Reo Maori</option>
+                <option value="Physical Education">Physical Education</option>
+                <option value="Mathematics">Mathematics</option>
+                <option value="Learning Support">Learning Support</option>
+                <option value="Administration">Administration</option>
+            </select>
+            <button id="saveDepartmentBtn" style="margin-left:1rem;">Save</button>
+        </div>
+
+        <div id="timetableClassesContainer" style="margin-bottom:2rem;"></div>
+
+        <div style="margin-bottom:1.5rem;padding:1rem;background:#f0f5fa;border-radius:8px;border:1px solid #dce9f7;">
+            <h3 style="margin-top:0;margin-bottom:1rem;">Filter & Bulk Actions</h3>
+            <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;">
+                <div>
+                    <label for="departmentFilterSelect"><b>Filter by Department:</b></label>
+                    <select id="departmentFilterSelect" style="margin-left:0.5rem;padding:0.4rem 0.6rem;">
+                        <option value="">-- Show All --</option>
+                        <option value="Technology">Technology</option>
+                        <option value="Arts">Arts</option>
+                        <option value="Social Science">Social Science</option>
+                        <option value="Science">Science</option>
+                        <option value="English and Languages">English and Languages</option>
+                        <option value="Te Reo Maori">Te Reo Maori</option>
+                        <option value="Physical Education">Physical Education</option>
+                        <option value="Mathematics">Mathematics</option>
+                        <option value="Learning Support">Learning Support</option>
+                        <option value="Administration">Administration</option>
+                    </select>
+                </div>
+                <button id="selectAllBtn" style="padding:0.4rem 1rem;background:#4CAF50;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold;">Select All Visible</button>
+                <button id="clearSelectionBtn" style="padding:0.4rem 1rem;background:#999;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold;">Clear Selection</button>
+                <span id="selectionCount" style="color:#666;font-weight:bold;"></span>
+            </div>
+        </div>
+
+        <div id="departmentTableContainer" style="margin-top:2rem;"></div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="admin_department.js"></script>
+</body>
+</html>

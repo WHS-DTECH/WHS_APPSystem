@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Month View Calendar with Google Links</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .calendar-controls {
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .calendar-controls button {
+            padding: 0.4rem 1.1rem;
+            border-radius: 4px;
+            border: 1px solid #1976d2;
+            background: #e0e0e0;
+            color: #1976d2;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+        .calendar-controls button.active {
+            background: #1976d2;
+            color: #fff;
+        }
+        .month-calendar {
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            padding: 1.5rem 1rem 2rem 1rem;
+        }
+        .month-calendar h2 {
+            text-align: center;
+            margin: 0 0 1rem 0;
+        }
+        .month-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            border: 1px solid #ccc;
+            background: #fafbfc;
+        }
+        .month-grid .day-header {
+            background: #f5f8fa;
+            font-weight: 600;
+            text-align: center;
+            padding: 0.7rem 0;
+            border-bottom: 1px solid #ccc;
+            border-right: 1px solid #ccc;
+        }
+        .month-grid .day-header:last-child {
+            border-right: none;
+        }
+        .month-grid .day-cell {
+            min-height: 80px;
+            border-right: 1px solid #ccc;
+            border-bottom: 1px solid #ccc;
+            padding: 0.3rem 0.4rem 0.7rem 0.4rem;
+            position: relative;
+            background: #fff;
+        }
+        .month-grid .day-cell:last-child {
+            border-right: none;
+        }
+        .month-grid .day-cell.selected {
+            border: 2px solid #fbc02d;
+        }
+        .calendar-event {
+            background: #2196f3;
+            color: #fff;
+            border-radius: 6px;
+            padding: 0.3rem 0.5rem 0.3rem 0.7rem;
+            margin-top: 0.3rem;
+            font-size: 0.98rem;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .calendar-event .gcal-link {
+            margin-left: 0.5rem;
+            color: #fff;
+            text-decoration: none;
+            font-size: 1.1em;
+            vertical-align: middle;
+        }
+        .calendar-event .gcal-link:hover {
+            color: #ffd600;
+        }
+    </style>
+</head>
+<body style="background:#f6f8fa;">
+    <div class="month-calendar">
+        <div class="calendar-controls">
+            <span>View:</span>
+            <button>Week/Period View</button>
+            <button class="active">Month View</button>
+        </div>
+        <h2>January 2026</h2>
+        <div style="text-align:center; margin-bottom:1rem;">
+            <button>&lt; Previous</button>
+            <button>Today</button>
+            <button>Next &gt;</button>
+        </div>
+        <div class="month-grid" id="monthGrid"></div>
+    </div>
+    <script>
+    // Demo events
+    const events = [
+      {date:'2026-01-15', title:'100COMP\nP3: Apple and Sultana Crumble', gcalTitle:'Apple and Sultana Crumble', gcalDesc:'100COMP P3', gcalTime:'20260115'},
+      {date:'2026-01-16', title:'MEET\nP1: Chocolate Chip Cookies', gcalTitle:'Chocolate Chip Cookies', gcalDesc:'MEET P1', gcalTime:'20260116'},
+      {date:'2026-01-19', title:'WHANAU\nP1: Apple and Sultana Crumble', gcalTitle:'Apple and Sultana Crumble', gcalDesc:'WHANAU P1', gcalTime:'20260119'},
+      {date:'2026-01-20', title:'VEHOME\nP3: Vegetable Couscous', gcalTitle:'Vegetable Couscous', gcalDesc:'VEHOME P3', gcalTime:'20260120'}
+    ];
+    // Calendar grid for January 2026
+    const daysInMonth = 31;
+    const firstDay = 4; // Jan 1, 2026 is a Thursday (0=Sun)
+    const grid = [];
+    let day = 1;
+    for (let row=0; row<6; ++row) {
+      for (let col=0; col<7; ++col) {
+        if ((row===0 && col<firstDay) || day>daysInMonth) {
+          grid.push('');
+        } else {
+          grid.push(day);
+          day++;
+        }
+      }
+    }
+    function gcalUrl(ev) {
+      // Basic Google Calendar event link
+      return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(ev.gcalTitle)}&dates=${ev.gcalTime}/${ev.gcalTime}&details=${encodeURIComponent(ev.gcalDesc)}`;
+    }
+    function renderMonthGrid() {
+      const gridDiv = document.getElementById('monthGrid');
+      let html = '';
+      const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      html += dayNames.map(d=>`<div class='day-header'>${d}</div>`).join('');
+      for (let i=0; i<grid.length; ++i) {
+        const dayNum = grid[i];
+        const dateStr = dayNum ? `2026-01-${String(dayNum).padStart(2,'0')}` : '';
+        html += `<div class='day-cell${dateStr==='2026-01-14' ? ' selected' : ''}'>`;
+        if (dayNum) {
+          html += `<div style='font-size:0.98em;color:#888;'>${dayNum}</div>`;
+          events.filter(ev=>ev.date===dateStr).forEach(ev=>{
+            html += `<div class='calendar-event'>${ev.title}<a class='gcal-link' href='${gcalUrl(ev)}' target='_blank' title='Add to Google Calendar'>&#128197;</a></div>`;
+          });
+        }
+        html += `</div>`;
+      }
+      gridDiv.innerHTML = html;
+    }
+    renderMonthGrid();
+    </script>
+</body>
+</html>

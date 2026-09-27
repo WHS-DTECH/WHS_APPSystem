@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browse Practicals</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .browse-practicals-page {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 1rem 1.25rem 2rem;
+        }
+        .browse-practicals-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+        .browse-practicals-week-label {
+            font-size: clamp(1.15rem, 1vw + 0.95rem, 1.45rem);
+            font-weight: 800;
+            color: #374151;
+            margin-right: auto;
+            line-height: 1.2;
+        }
+        #prevWeekBtn,
+        #todayBtn,
+        #nextWeekBtn {
+            color: #ffffff;
+        }
+        @media (max-width: 600px) {
+            .browse-practicals-toolbar {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .browse-practicals-week-label {
+                margin-right: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="navbar-include"></div>
+    <script src="shared/navbar_loader.js"></script>
+
+    <div class="browse-practicals-page">
+        <h1>Browse Practicals</h1>
+
+        <div class="browse-practicals-toolbar">
+            <div id="calendarWeekLabel" class="browse-practicals-week-label" aria-live="polite" aria-atomic="true">Loading&hellip;</div>
+            <div role="toolbar" aria-label="Week navigation">
+            <button id="prevWeekBtn" type="button" aria-label="Previous week">&larr; Previous</button>
+            <button id="todayBtn" type="button">Today</button>
+            <button id="nextWeekBtn" type="button" aria-label="Next week">Next &rarr;</button>
+            </div>
+            <button id="printScheduleBtn" type="button" class="add-booking-print-btn">Print Schedule (A4)</button>
+            <button id="refreshWeekRecipesBtn" type="button" class="add-booking-print-btn" title="Refresh all recipe updates for this visible week">↻ Refresh Recipes</button>
+            <button id="syncFromPlannerBtn" type="button" class="add-booking-print-btn" title="Update all class bookings to match the current planner recipes, starting from when the planner was first uploaded">&#8634; Sync from Planner</button>
+            <button id="dedupePlannerEntriesBtn" type="button" class="add-booking-print-btn" title="Remove duplicate planner rows and keep only the newest uploads">Dedupe Planner Entries</button>
+            <label for="scheduleViewModeSelect" class="sr-only">Calendar cell display mode</label>
+            <select id="scheduleViewModeSelect" class="add-booking-view-mode-select" aria-label="Calendar cell display mode">
+                <option value="class">Show: Class</option>
+                <option value="recipe">Show: Recipe</option>
+            </select>
+        </div>
+
+        <div class="calendar-wrap add-booking-calendar-wrap">
+            <table class="calendar-table" id="scheduleCalendarTable"></table>
+        </div>
+    </div>
+
+    <script>
+        window.bookingPageLabel = 'Browse Practicals';
+    </script>
+    <script src="shared/nz_school_calendar.js"></script>
+    <script src="schedule_calendar.js"></script>
+    <script src="shared/task_sidebar.js?v=20260508a"></script>
+</body>
+</html>

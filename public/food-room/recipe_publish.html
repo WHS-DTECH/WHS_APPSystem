@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Publish Recipes</title>
+	<link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+	<link rel="stylesheet" href="shared/design_tokens.css">
+	<link rel="stylesheet" href="shared/base.css">
+	<link rel="stylesheet" href="shared/components.css">
+	<link rel="stylesheet" href="admin_styles.css">
+	<style>
+		table td ol, table td ul {
+			margin: 0;
+			padding-left: 1.5rem;
+			text-align: left;
+		}
+		table td li {
+			margin: 0.25rem 0;
+			line-height: 1.4;
+		}
+	</style>
+</head>
+<body>
+	<div id="navbar-include"></div>
+	<script src="../shared/navbar_loader.js"></script>
+	<div class="setup-card main-content-margins">
+		<h2>Publish Recipes</h2>
+		<div style="margin:12px 0 0 0;display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
+			<button id="cleanupInstructionsBtn" style="background:#1976d2;color:#fff;border:none;padding:0.45rem 0.9rem;border-radius:4px;cursor:pointer;">Cleanup Instructions</button>
+			<button id="cleanupIngredientsBtn" style="background:#2e7d32;color:#fff;border:none;padding:0.45rem 0.9rem;border-radius:4px;cursor:pointer;">CleanUp Ingredients</button>
+			<button id="autoPublishBtn" style="background:#6a1b9a;color:#fff;border:none;padding:0.45rem 0.9rem;border-radius:4px;cursor:pointer;">Auto Publish</button>
+		</div>
+		<div id="autoPublishReviewBox" style="display:none;margin-top:10px;padding:10px 12px;border:1px solid #d8c7ef;border-radius:8px;background:#faf5ff;max-width:520px;">
+			<div id="autoPublishReviewText" style="font-weight:600;margin-bottom:0.6rem;color:#4a148c;">Auto Publish review ready.</div>
+			<button id="autoPublishAcceptBtn" style="background:#1976d2;color:#fff;border:none;padding:0.45rem 0.9rem;border-radius:4px;cursor:pointer;">Accept and Publish</button>
+			<button id="autoPublishDeclineBtn" style="background:#e53935;color:#fff;border:none;padding:0.45rem 0.9rem;border-radius:4px;cursor:pointer;margin-left:0.5rem;">Decline</button>
+		</div>
+		<div id="cleanupProgressPanel" style="display:none;max-width:520px;margin-top:10px;">
+			<div style="font-size:0.84rem;color:#1b1b1b;margin-bottom:4px;">Cleanup Instructions</div>
+			<div id="cleanupProgressBar" style="display:none;width:100%;height:12px;background:#e6e6e6;border-radius:999px;overflow:hidden;">
+				<div id="cleanupProgressFill" style="width:0%;height:100%;background:#1976d2;transition:width 0.2s ease;"></div>
+			</div>
+			<div style="font-size:0.84rem;color:#1b1b1b;margin-top:8px;margin-bottom:4px;">Cleanup Ingredients</div>
+			<div id="cleanupIngredientsProgressBar" style="display:none;width:100%;height:12px;background:#e6e6e6;border-radius:999px;overflow:hidden;">
+				<div id="cleanupIngredientsProgressFill" style="width:0%;height:100%;background:#2e7d32;transition:width 0.2s ease;"></div>
+			</div>
+		</div>
+
+		<!-- Bulk Re-Verification Section -->
+		<div class="setup-section" style="margin-top:20px;">
+			<div class="setup-section-title">Bulk Re-Verify Existing Recipes</div>
+			<div class="setup-section-desc">Select published recipes to re-verify their ingredients and run through the confirmation process:</div>
+			<div style="margin:10px 0;display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+				<label for="bulkReverifyFilter" style="font-weight:600;">Show:</label>
+				<select id="bulkReverifyFilter" style="min-width:220px;">
+					<option value="all">All Published Recipes</option>
+					<option value="not-verified">Yet To Reverify</option>
+					<option value="verified">Already Reverified</option>
+				</select>
+				<span id="bulkReverifySummary" style="font-size:0.9rem;color:#444;">Loading...</span>
+			</div>
+			<div style="margin:6px 0 8px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+				<label for="rangeStartId" style="font-weight:600;">Range:</label>
+				<input id="rangeStartId" type="number" min="1" placeholder="Start ID" style="width:110px;padding:0.35rem 0.5rem;border:1px solid #ccc;border-radius:4px;">
+				<span>to</span>
+				<input id="rangeEndId" type="number" min="1" placeholder="End ID" style="width:110px;padding:0.35rem 0.5rem;border:1px solid #ccc;border-radius:4px;">
+				<button id="selectRangeRecipesBtn" style="background:#00897b;color:#fff;border:none;padding:0.45rem 0.9rem;border-radius:4px;cursor:pointer;">Select Range</button>
+			</div>
+			<div style="margin:15px 0;display:flex;gap:10px;flex-wrap:wrap;">
+				<button id="selectAllRecipesBtn" style="background:#1976d2;color:#fff;border:none;padding:0.45rem 0.9rem;border-radius:4px;cursor:pointer;">Select All</button>
+				<button id="clearAllRecipesBtn" style="background:#666;color:#fff;border:none;padding:0.45rem 0.9rem;border-radius:4px;cursor:pointer;">Clear All</button>
+				<button id="bulkReVerifyBtn" style="background:#ff9800;color:#fff;border:none;padding:0.45rem 0.9rem;border-radius:4px;cursor:pointer;font-weight:600;">Re-Verify Selected Recipes</button>
+			</div>
+			<table id="bulkReVerifyTable" style="width:100%;margin-top:1rem;border-collapse:collapse;border:1px solid #ddd;">
+				<thead>
+					<tr style="background:#f5f5f5;">
+						<th style="width:40px;"><input type="checkbox" id="selectAllCheckbox"></th>
+						<th>ID</th>
+						<th>Recipe Name</th>
+						<th>Verified Date</th>
+						<th>Status</th>
+					</tr>
+				</thead>
+				<tbody id="bulkReVerifyTableBody">
+					<!-- Populated by JS -->
+				</tbody>
+			</table>
+		</div>
+		<!-- Filter selector for RecipeID sorting -->
+		<div class="setup-card" style="max-width:1100px;margin:20px auto 0 auto;text-align:left;">
+			<label for="recipeIdFilter" style="font-weight:bold;margin-right:0.5em;">Filter/Sort by RecipeID:</label>
+			<select id="recipeIdFilter" style="min-width:200px;"></select>
+			<label for="publishStatusFilter" style="font-weight:bold;margin-left:0.9em;margin-right:0.4em;">View:</label>
+			<select id="publishStatusFilter" style="min-width:180px;">
+				<option value="all">All Recipes</option>
+				<option value="published">Only Published</option>
+				<option value="unpublished">Only To Be Published</option>
+			</select>
+			<button id="applyRecipeIdFilterBtn" style="margin-left:1em;">Sort/Filter</button>
+			<button id="refreshRecipesBtn" style="margin-left:0.5em;">Refresh</button>
+		</div>
+
+		<div class="setup-section">
+			<div class="setup-section-title">Recipes Table</div>
+			<div class="setup-section-desc">All fields from the recipes table (15 columns):</div>
+			<table id="recipesTable" style="width:100%;margin-top:1rem;border-collapse:collapse;">
+				<thead>
+					<tr style="background:#f5f5f5;">
+						<th>ID</th>
+						<!-- <th>Uploaded Recipe ID</th> -->
+						<th>Name</th>
+						<!-- <th>Description</th> -->
+						<!-- <th>Ingredients</th> -->
+						<!-- <th>Serving Size</th> -->
+						<!-- <th>URL</th> -->
+						<!-- <th>Instructions</th> -->
+						<th>Instructions Extracted</th>
+						<th>Instructions Display</th>
+						<th>Extracted Ingredients</th>
+						<th>Ingredients Display</th>
+						<th>Verified Date</th>
+						<th>Ingredient Issue</th>
+						<th>Actions</th>
+						<!-- <th>Ingredients Inventories</th> -->
+					</tr>
+				</thead>
+				<tbody>
+					<!-- Populated by JS -->
+				</tbody>
+			</table>
+		</div>
+	</div>
+	<script src="recipe_publish.js?v=20260510b"></script>
+</body>
+</html>

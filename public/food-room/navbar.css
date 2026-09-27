@@ -1,0 +1,610 @@
+/* Robust Navbar + Management Drawer */
+
+[hidden] {
+  display: none !important;
+}
+
+.navbar-shell {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #1f90e0;
+  color: #fff;
+  padding: 0.35rem 0.5rem;
+  position: relative;
+  z-index: 1000;
+}
+
+.navbar-brand {
+  color: #fff;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.navbar-brand:hover,
+.navbar-brand:focus-visible {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.navbar-mobile-toggle {
+  display: none;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.14);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.navbar-mobile-toggle span {
+  display: block;
+  width: 20px;
+  height: 2px;
+  border-radius: 999px;
+  background: #fff;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.navbar-mobile-toggle[aria-expanded="true"] span:nth-child(1) {
+  transform: translateY(6px) rotate(45deg);
+}
+
+.navbar-mobile-toggle[aria-expanded="true"] span:nth-child(2) {
+  opacity: 0;
+}
+
+.navbar-mobile-toggle[aria-expanded="true"] span:nth-child(3) {
+  transform: translateY(-6px) rotate(-45deg);
+}
+
+.navbar-core {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.navbar-core-link {
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.83rem;
+  padding: 0.36rem 0.5rem;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.navbar-core-link:hover,
+.navbar-core-link:focus-visible {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.navbar-core-link.is-active,
+.navbar-core-link[aria-current="page"] {
+  background: rgba(255, 255, 255, 0.24);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: inset 0 -2px 0 rgba(255, 255, 255, 0.88);
+}
+
+.navbar-core-dropdown {
+  position: relative;
+}
+
+.navbar-core-dropdown > summary {
+  list-style: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.navbar-core-dropdown > summary::-webkit-details-marker {
+  display: none;
+}
+
+.navbar-core-dropdown > summary::after {
+  content: '▾';
+  font-size: 0.66rem;
+  opacity: 0.95;
+}
+
+.navbar-core-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 210px;
+  border: 1px solid #dbe7f3;
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+  padding: 0.28rem;
+  display: none;
+  z-index: 1200;
+}
+
+.navbar-core-dropdown[open] .navbar-core-dropdown-menu {
+  display: block;
+}
+
+.navbar-core-dropdown-link {
+  display: block;
+  text-decoration: none;
+  color: #0b4e91;
+  font-size: 0.83rem;
+  padding: 0.4rem 0.48rem;
+  border-radius: 5px;
+}
+
+.navbar-core-dropdown-link:hover,
+.navbar-core-dropdown-link:focus-visible {
+  background: #ebf3fb;
+  color: #0d4d94;
+}
+
+.navbar-core-dropdown-link.is-active,
+.navbar-core-dropdown-link[aria-current="page"] {
+  background: #d9eafb;
+  color: #0b4e91;
+  font-weight: 700;
+}
+
+.navbar-admin-toggle {
+  border: 0;
+  border-radius: 5px;
+  background: #0b67b6;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.84rem;
+  padding: 0.42rem 0.62rem;
+  cursor: pointer;
+}
+
+.navbar-admin-toggle:hover,
+.navbar-admin-toggle:focus-visible {
+  background: #09569a;
+}
+
+.navbar-account {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+
+.navbar-school-logo-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 0.25rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.14);
+  width: 38px;
+  height: 38px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.navbar-school-logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  display: block;
+}
+
+.navbar-user-link {
+  color: #1f1f1f;
+  text-decoration: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 0.28rem 0.62rem;
+  border-radius: 999px;
+  border: 1px solid #d2e3fc;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.22);
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  transition: background-color 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.navbar-user-link.is-google-login {
+  gap: 0.45rem;
+}
+
+.navbar-user-link.is-google-login::before {
+  content: '';
+  width: 16px;
+  height: 16px;
+  display: inline-block;
+  flex-shrink: 0;
+  background-image: url('https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png');
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+}
+
+.navbar-user-name {
+  display: inline-flex;
+  align-items: center;
+}
+
+.navbar-user-role {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid #c8d7e9;
+  background: #eef3fa;
+  color: #244c72;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 0.08rem 0.42rem;
+  line-height: 1.2;
+}
+
+.navbar-user-link:hover,
+.navbar-user-link:focus-visible {
+  background: #f8fbff;
+  border-color: #a8c7fa;
+  box-shadow: 0 2px 4px rgba(60, 64, 67, 0.28);
+  color: #1f1f1f;
+}
+
+.navbar-logout-btn {
+  display: inline-block;
+  color: #1f1f1f;
+  text-decoration: none;
+  background: #f8f9fa;
+  border: 1px solid #dadce0;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.28rem 0.62rem;
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.navbar-logout-btn:hover,
+.navbar-logout-btn:focus-visible {
+  background: #fff;
+  border-color: #c6c6c6;
+  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.18);
+  color: #1f1f1f;
+}
+
+.navbar-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 1198;
+}
+
+.navbar-admin-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(420px, 92vw);
+  height: 100vh;
+  background: #fff;
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.2);
+  z-index: 1199;
+  overflow-y: auto;
+  padding-bottom: 1rem;
+}
+
+.navbar-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid #d9e6f2;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 1;
+}
+
+.navbar-drawer-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0b67b6;
+}
+
+.navbar-drawer-close {
+  border: 0;
+  background: transparent;
+  color: #51606f;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.15rem 0.4rem;
+}
+
+.navbar-drawer-group {
+  border-bottom: 1px solid #e5edf7;
+}
+
+.navbar-drawer-group > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 0.75rem 1rem;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: #0b67b6;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: #f4f8fc;
+  position: relative;
+}
+
+.navbar-drawer-group > summary::-webkit-details-marker {
+  display: none;
+}
+
+.navbar-drawer-group > summary::after {
+  content: '▸';
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.navbar-drawer-group[open] > summary::after {
+  content: '▾';
+}
+
+.navbar-drawer-links {
+  padding: 0.35rem 0;
+}
+
+.navbar-submenu-item {
+  display: block;
+  text-decoration: none;
+  color: #1565c0;
+  font-size: 0.95rem;
+  padding: 0.46rem 1.15rem;
+}
+
+.navbar-submenu-item:hover,
+.navbar-submenu-item:focus-visible {
+  background: #ebf3fb;
+  color: #0d4d94;
+}
+
+.navbar-submenu-item.is-active,
+.navbar-submenu-item[aria-current="page"] {
+  background: #d9eafb;
+  color: #0b4e91;
+  font-weight: 700;
+  box-shadow: inset 3px 0 0 #1565c0;
+}
+
+/* Hide admin controls for non-admin roles */
+[data-role="admin"][data-user-role]:not([data-user-role*="admin"]) {
+  display: none !important;
+}
+
+@media (max-width: 900px) {
+  .navbar-shell {
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    padding: 0.38rem 0.5rem 0.48rem;
+  }
+
+  .navbar-school-logo-link { order: 1; }
+  .navbar-brand { order: 2; }
+  .navbar-mobile-toggle { order: 3; margin-left: auto; }
+
+  .navbar-account {
+    order: 10;
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    padding-top: 0.08rem;
+  }
+
+  .navbar-shell > a.navbar-core-link[href="recipe_display.html"] {
+    order: 11;
+  }
+
+  .navbar-core {
+    order: 12;
+  }
+
+  .navbar-admin-toggle {
+    order: 20;
+  }
+
+  .navbar-mobile-toggle {
+    display: inline-flex;
+  }
+
+  .navbar-core {
+    display: none;
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.25rem;
+    padding: 0.25rem 0 0.15rem;
+  }
+
+  .navbar-core.is-open {
+    display: flex;
+  }
+
+  .navbar-core-link {
+    font-size: 0.88rem;
+    padding: 0.55rem 0.65rem;
+  }
+
+  .navbar-core > a[href="browse_practicals.html"] { order: 1; }
+  .navbar-core > .navbar-core-dropdown { order: 2; }
+  .navbar-core > a[href="quick_add.html"] { order: 3; }
+  .navbar-core > a[href="add_booking.html"] { order: 4; }
+  .navbar-core > a[href="book_the_shopping.html"] { order: 5; }
+
+  .navbar-core-dropdown {
+    width: 100%;
+  }
+
+  .navbar-core-dropdown > summary {
+    width: 100%;
+  }
+
+  .navbar-core-dropdown-menu {
+    position: static;
+    min-width: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: rgba(255, 255, 255, 0.12);
+    padding: 0.15rem 0.3rem 0.3rem;
+    margin: 0.1rem 0 0.2rem;
+  }
+
+  .navbar-core-dropdown-link {
+    color: #fff;
+    font-size: 0.84rem;
+    padding: 0.45rem 0.65rem;
+    border-radius: 4px;
+  }
+
+  .navbar-core-dropdown-link:hover,
+  .navbar-core-dropdown-link:focus-visible,
+  .navbar-core-dropdown-link.is-active,
+  .navbar-core-dropdown-link[aria-current="page"] {
+    background: rgba(255, 255, 255, 0.22);
+    color: #fff;
+  }
+}
+
+@media (max-width: 600px) {
+  .navbar-brand {
+    font-size: 0.86rem;
+    padding: 0.24rem 0.22rem;
+  }
+
+  .navbar-user-link,
+  .navbar-logout-btn {
+    min-height: 32px;
+    padding: 0.3rem 0.62rem;
+    font-size: 0.78rem;
+  }
+
+  .navbar-user-link.is-google-login::before {
+    width: 15px;
+    height: 15px;
+  }
+
+  .navbar-school-logo-link {
+    width: 34px;
+    height: 34px;
+    margin-right: 0.2rem;
+  }
+
+  .navbar-school-logo {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+/* ── Responsive: collapse drawer buttons into hamburger menu at ≤900px ─── */
+@media (max-width: 900px) {
+  /* Remove drawer toggle buttons from the top bar row */
+  .navbar-shell > .navbar-admin-toggle {
+    display: none;
+  }
+
+  /* Slim account row so it doesn't overflow at narrow widths */
+  .navbar-account {
+    flex-wrap: nowrap;
+  }
+
+  /* Clip long usernames so they can't push buttons off screen */
+  .navbar-user-name {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Container for drawer buttons injected inside the hamburger menu */
+  .navbar-mobile-drawer-btns {
+    display: none;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.3rem 0 0.2rem;
+    border-top: 1px solid rgba(255,255,255,0.2);
+    margin-top: 0.25rem;
+    width: 100%;
+  }
+
+  .navbar-mobile-drawer-btns.is-open {
+    display: flex;
+  }
+
+  .navbar-mobile-drawer-btn {
+    display: block;
+    text-align: left;
+    width: 100%;
+    border: 0;
+    border-radius: 5px;
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.88rem;
+    padding: 0.55rem 0.65rem;
+    cursor: pointer;
+  }
+
+  .navbar-mobile-drawer-btn:hover,
+  .navbar-mobile-drawer-btn:focus-visible {
+    background: rgba(255,255,255,0.22);
+  }
+}
+
+/* At ≤600px: shrink Preferences link to icon only to save space */
+@media (max-width: 600px) {
+  .navbar-account {
+    gap: 0.28rem;
+  }
+
+  a[href="subscription_preferences.html"].navbar-user-link {
+    font-size: 0;
+    padding: 0.28rem 0.5rem;
+    min-width: 36px;
+    justify-content: center;
+  }
+  a[href="subscription_preferences.html"].navbar-user-link::before {
+    content: '⚙';
+    font-size: 1rem;
+    display: block;
+  }
+
+  .navbar-logout-btn {
+    padding: 0.28rem 0.55rem;
+    font-size: 0.76rem;
+  }
+}

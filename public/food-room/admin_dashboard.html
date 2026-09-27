@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="admin_styles.css">
+    <style>
+        body {
+            font-family: 'Lexend', sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .admin-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 320px;
+            gap: 1.5rem;
+            align-items: start;
+        }
+        .main-column {
+            min-width: 0;
+        }
+        .status-sidebar {
+            position: sticky;
+            top: 1rem;
+            background: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border: 1px solid #e5e7eb;
+            padding: 1rem;
+        }
+        .status-sidebar h2 {
+            margin: 0 0 0.75rem 0;
+            color: #1f2937;
+            font-size: 1rem;
+        }
+        .status-updated {
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin-bottom: 0.9rem;
+        }
+        .status-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 0.75rem;
+            margin-bottom: 0.75rem;
+            background: #fbfdff;
+        }
+        .status-card h3 {
+            margin: 0 0 0.45rem 0;
+            font-size: 0.95rem;
+            color: #1f2937;
+        }
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 0.5rem;
+            font-size: 0.84rem;
+            margin: 0.28rem 0;
+            color: #374151;
+        }
+        .status-pill {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+        .pill-good {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .pill-warn {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .pill-bad {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .status-note {
+            font-size: 0.78rem;
+            color: #6b7280;
+            line-height: 1.35;
+            margin-top: 0.45rem;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 2rem;
+        }
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .metric-card {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .metric-card h3 {
+            margin: 0 0 0.5rem 0;
+            color: #666;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #2563eb;
+            margin: 0.5rem 0;
+        }
+        .metric-subtext {
+            font-size: 0.85rem;
+            color: #999;
+            margin-top: 0.5rem;
+        }
+        .savings-card {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+        .savings-card .metric-value {
+            color: #ecfdf5;
+        }
+        .warning-card {
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+            color: white;
+        }
+        .warning-card .metric-value {
+            color: #fed7aa;
+        }
+        .cost-comparison {
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        .cost-comparison h2 {
+            margin: 0 0 1.5rem 0;
+            color: #333;
+            font-size: 1.25rem;
+        }
+        .comparison-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .comparison-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+            margin-bottom: 0;
+        }
+        .provider {
+            display: flex;
+            flex-direction: column;
+        }
+        .provider-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+        .provider-detail {
+            font-size: 0.9rem;
+            color: #666;
+            margin: 0.25rem 0;
+        }
+        .provider-cost {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #2563eb;
+            margin-top: 0.5rem;
+        }
+        .admin-links {
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .admin-links h2 {
+            margin: 0 0 1.5rem 0;
+            color: #333;
+            font-size: 1.25rem;
+        }
+        .links-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        .admin-link {
+            display: block;
+            padding: 1rem;
+            background: #f0f9ff;
+            border: 1px solid #e0f2fe;
+            border-radius: 6px;
+            text-decoration: none;
+            color: #0369a1;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .admin-link:hover {
+            background: #e0f2fe;
+            border-color: #0284c7;
+        }
+        .loading {
+            color: #999;
+            font-size: 0.9rem;
+        }
+        .error {
+            color: #dc2626;
+            font-size: 0.9rem;
+        }
+        @media (max-width: 1100px) {
+            .admin-layout {
+                grid-template-columns: 1fr;
+            }
+            .status-sidebar {
+                position: static;
+                order: -1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="navbar-include"></div>
+    <script src="shared/navbar_loader.js"></script>
+
+    <div class="container">
+        <h1>Admin Dashboard</h1>
+        <div class="admin-layout">
+            <div class="main-column">
+
+        <div class="dashboard-grid">
+            <div class="metric-card">
+                <h3>Database</h3>
+                <div class="metric-value">Railway</div>
+                <div class="metric-subtext">Postgres (migrated from Neon)</div>
+            </div>
+            <div class="metric-card warning-card" id="neonTransferCard">
+                <h3>Neon Monthly Cost (Egress)</h3>
+                <div class="metric-value" id="neonCostValue">—</div>
+                <div class="metric-subtext" id="neonCostDetail">Loading...</div>
+            </div>
+            <div class="metric-card savings-card" id="railwaySavingsCard">
+                <h3>Monthly Savings</h3>
+                <div class="metric-value" id="savingsValue">—</div>
+                <div class="metric-subtext" id="savingsDetail">vs Neon at 1076 GB/month</div>
+            </div>
+        </div>
+
+        <div class="cost-comparison">
+            <h2>Transfer Cost Comparison</h2>
+            <div class="comparison-row">
+                <div class="provider">
+                    <div class="provider-name">Neon (Previous)</div>
+                    <div class="provider-detail">💾 Pricing: $0.09/GB egress (after 100 GB free)</div>
+                    <div class="provider-detail">📊 Monthly transfer: ~1076 GB</div>
+                    <div class="provider-detail">🔓 Issue: Unprotected API endpoints caused high egress</div>
+                    <div class="provider-cost" id="neonCostDisplay">~$96.84/month</div>
+                </div>
+                <div class="provider">
+                    <div class="provider-name">Railway (Current)</div>
+                    <div class="provider-detail">💾 Pricing: $0.05/GB egress (after 10 GB free)</div>
+                    <div class="provider-detail">📊 Expected transfer: ~50-100 GB/month (with auth)</div>
+                    <div class="provider-detail">🔒 Solution: Added auth guards to sensitive endpoints</div>
+                    <div class="provider-cost" id="railwayCostDisplay">~$2.50-4.50/month</div>
+                </div>
+            </div>
+            <div class="comparison-row">
+                <div class="provider">
+                    <div class="provider-name">Root Cause</div>
+                    <div class="provider-detail">• <code>/api/bookings/all</code> was unprotected</div>
+                    <div class="provider-detail">• Called repeatedly from 6 different pages</div>
+                    <div class="provider-detail">• No authentication required = unlimited access</div>
+                    <div class="provider-detail">• Full booking data returned (~478 records each call)</div>
+                </div>
+                <div class="provider">
+                    <div class="provider-name">Solution Applied</div>
+                    <div class="provider-detail">✓ Added <code>requireSignedIn</code> guard to bookings endpoints</div>
+                    <div class="provider-detail">✓ Bounded queries to ±120 day window by default</div>
+                    <div class="provider-detail">✓ Limited results to 1500 rows (max 4000)</div>
+                    <div class="provider-detail">✓ Added transfer-size logging ([TRANSFER] logs)</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="admin-links">
+            <h2>Admin Tools</h2>
+            <div class="links-grid">
+                <a href="admin_user_roles.html" class="admin-link">👥 User Roles</a>
+                <a href="admin_permissions.html" class="admin-link">🔐 Permissions</a>
+                <a href="admin_department.html" class="admin-link">🏢 Department</a>
+                <a href="admin_aisle_category.html" class="admin-link">📦 Aisle Categories</a>
+                <a href="admin_food_brands.html" class="admin-link">🏷️ Food Brands</a>
+                <a href="admin_aisle_keywords.html" class="admin-link">🔑 Aisle Keywords</a>
+                <a href="admin_match_recipes.html" class="admin-link">📋 Match Recipes</a>
+                <a href="admin_prefill_planner.html" class="admin-link">📅 Prefill Planner</a>
+            </div>
+        </div>
+
+            </div>
+
+            <aside class="status-sidebar" aria-label="Infrastructure status">
+                <h2>Live Infrastructure Status</h2>
+                <div id="infraCheckedAt" class="status-updated">Checking...</div>
+
+                <div class="status-card">
+                    <h3>Render Deploy</h3>
+                    <div class="status-row"><span>State</span><span id="renderStatePill" class="status-pill pill-warn">Checking</span></div>
+                    <div class="status-row"><span>Service</span><span id="renderServiceName">—</span></div>
+                    <div class="status-row"><span>Latest Deploy</span><span id="renderLatestDeploy">—</span></div>
+                    <div class="status-row"><span>Finished</span><span id="renderFinishedAt">—</span></div>
+                    <div id="renderStatusNote" class="status-note"></div>
+                </div>
+
+                <div class="status-card">
+                    <h3>Railway DB / Transfer</h3>
+                    <div class="status-row"><span>State</span><span id="railwayStatePill" class="status-pill pill-warn">Checking</span></div>
+                    <div class="status-row"><span>Project</span><span id="railwayProjectName">—</span></div>
+                    <div class="status-row"><span>Public Transfer (GB)</span><span id="railwayTransfer">—</span></div>
+                    <div class="status-row"><span>Credits Remaining</span><span id="railwayCredits">—</span></div>
+                    <div id="railwayStatusNote" class="status-note"></div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <script>
+        // Calculate and display cost metrics
+        async function loadMetrics() {
+            try {
+                const response = await fetch('/api/bookings/admin/transfer-metrics', { credentials: 'include' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateCostDisplay(data);
+                }
+            } catch (err) {
+                console.error('Failed to load metrics:', err);
+            }
+        }
+
+        function updateCostDisplay(data) {
+            // Fixed Neon cost based on documented overage
+            const neonMonthlyGB = 1076; // Documented overage
+            const neonRate = 0.09; // $/GB
+            const neonCost = (neonMonthlyGB - 100) * neonRate; // First 100 GB free
+
+            // Railway estimation - assuming 50-100 GB/month with auth guards
+            const railwayMonthlyGB = 75; // Conservative mid-range estimate
+            const railwayRate = 0.05; // $/GB
+            const railwayCost = Math.max(0, (railwayMonthlyGB - 10) * railwayRate); // First 10 GB free
+
+            const monthlySavings = neonCost - railwayCost;
+            const yearlySavings = monthlySavings * 12;
+
+            // Update cards
+            document.getElementById('neonCostValue').textContent = `$${neonCost.toFixed(2)}`;
+            document.getElementById('neonCostDetail').textContent = `${neonMonthlyGB} GB/month (pre-fix)`;
+            document.getElementById('neonCostDisplay').textContent = `~$${neonCost.toFixed(2)}/month`;
+
+            document.getElementById('savingsValue').textContent = `$${monthlySavings.toFixed(2)}`;
+            document.getElementById('savingsDetail').textContent = `${yearlySavings.toFixed(0)} saved annually`;
+            document.getElementById('railwayCostDisplay').textContent = `~$${railwayCost.toFixed(2)}/month`;
+        }
+
+        // Load metrics on page load
+        loadMetrics();
+
+        function toLocalDateTime(value) {
+            if (!value) return '—';
+            const d = new Date(value);
+            if (Number.isNaN(d.getTime())) return String(value);
+            return d.toLocaleString();
+        }
+
+        function setPill(elementId, state, ok) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            const normalized = String(state || '').toLowerCase();
+            let cls = 'status-pill pill-warn';
+            if (ok === true || ['live', 'succeeded', 'connected', 'healthy'].includes(normalized)) {
+                cls = 'status-pill pill-good';
+            } else if (ok === false || ['error', 'failed'].includes(normalized)) {
+                cls = 'status-pill pill-bad';
+            }
+            el.className = cls;
+            el.textContent = state || 'unknown';
+        }
+
+        async function loadInfraStatus() {
+            try {
+                const response = await fetch('/api/admin/infra-status', { credentials: 'include' });
+                const data = await response.json();
+
+                if (!response.ok || !data?.success) {
+                    throw new Error(data?.error || `HTTP ${response.status}`);
+                }
+
+                const render = data.render || {};
+                const railway = data.railway || {};
+
+                document.getElementById('infraCheckedAt').textContent = `Checked: ${toLocalDateTime(data.checkedAt)}`;
+
+                setPill('renderStatePill', render.state || 'unknown', render.ok === true);
+                document.getElementById('renderServiceName').textContent = render.serviceName || 'Not configured';
+                document.getElementById('renderLatestDeploy').textContent = render.latestDeploy?.status || '—';
+                document.getElementById('renderFinishedAt').textContent = toLocalDateTime(render.latestDeploy?.finishedAt || render.latestDeploy?.createdAt);
+                document.getElementById('renderStatusNote').textContent = render.message || '';
+
+                setPill('railwayStatePill', railway.state || 'unknown', railway.ok === true);
+                document.getElementById('railwayProjectName').textContent = railway.projectName || 'Not configured';
+                document.getElementById('railwayTransfer').textContent = railway.transferGb || 'Unavailable';
+                document.getElementById('railwayCredits').textContent = railway.creditsRemaining || 'Unavailable';
+                document.getElementById('railwayStatusNote').textContent = railway.message || railway.note || '';
+            } catch (err) {
+                document.getElementById('infraCheckedAt').textContent = `Status error: ${err.message}`;
+                setPill('renderStatePill', 'error', false);
+                setPill('railwayStatePill', 'error', false);
+                document.getElementById('renderStatusNote').textContent = 'Could not load infra status.';
+                document.getElementById('railwayStatusNote').textContent = 'Could not load infra status.';
+            }
+        }
+
+        loadInfraStatus();
+        setInterval(loadInfraStatus, 60000);
+    </script>
+</body>
+</html>

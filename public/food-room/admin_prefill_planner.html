@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Planner Prefill</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .prefill-page {
+      max-width: 960px;
+      margin: 22px auto 40px;
+      padding: 0 0.8rem;
+    }
+    .prefill-card {
+      background: #fff;
+      border: 1px solid #d8dee6;
+      border-radius: 12px;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+      padding: 1.1rem 1.15rem;
+    }
+    .prefill-title {
+      margin: 0 0 0.3rem;
+      color: #1f2937;
+    }
+    .prefill-copy {
+      margin: 0 0 1rem;
+      color: #4b5563;
+    }
+    .prefill-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 0.85rem;
+    }
+    .prefill-field label {
+      display: block;
+      font-size: 0.9rem;
+      color: #374151;
+      margin-bottom: 0.2rem;
+      font-weight: 600;
+    }
+    .prefill-field input {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 0.42rem 0.55rem;
+      font-size: 0.92rem;
+      box-sizing: border-box;
+    }
+    .prefill-actions {
+      display: flex;
+      gap: 0.55rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.8rem;
+    }
+    .prefill-btn {
+      border: none;
+      border-radius: 6px;
+      padding: 0.45rem 0.95rem;
+      color: #fff;
+      font-size: 0.92rem;
+      cursor: pointer;
+    }
+    .prefill-btn:disabled {
+      opacity: 0.65;
+      cursor: default;
+    }
+    .prefill-btn-dry {
+      background: #1976d2;
+    }
+    .prefill-btn-run {
+      background: #2e7d32;
+    }
+    .prefill-status {
+      min-height: 1.4rem;
+      font-size: 0.9rem;
+      color: #374151;
+      margin-bottom: 0.55rem;
+    }
+    .prefill-status.error {
+      color: #b91c1c;
+    }
+    .prefill-results {
+      background: #f8fafc;
+      border: 1px solid #dbe3ee;
+      border-radius: 8px;
+      padding: 0.7rem 0.8rem;
+      font-size: 0.87rem;
+      max-height: 70vh;
+      overflow: auto;
+    }
+    .pf-section { margin-bottom: 1rem; }
+    .pf-warn { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 6px; padding: 0.5rem 0.7rem; }
+    .pf-table { border-collapse: collapse; width: 100%; margin-top: 0.4rem; font-size: 0.82rem; }
+    .pf-table th { background: #e2e8f0; padding: 0.3rem 0.5rem; text-align: left; font-weight: 600; }
+    .pf-table td { padding: 0.25rem 0.5rem; border-bottom: 1px solid #e2e8f0; }
+    .pf-table tr:hover td { background: #f1f5f9; }
+    @media (max-width: 700px) {
+      .prefill-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+
+  <main class="prefill-page">
+    <section class="prefill-card">
+      <h1 class="prefill-title">Planner Prefill</h1>
+      <p class="prefill-copy">Create class bookings from planner recipes for Food/HOSP periods (single and double). Start with Dry Run to preview the impact.</p>
+
+      <div class="prefill-grid">
+        <div class="prefill-field">
+          <label for="prefillStartDate">Start date</label>
+          <input type="date" id="prefillStartDate">
+        </div>
+        <div class="prefill-field">
+          <label for="prefillEndDate">End date</label>
+          <input type="date" id="prefillEndDate">
+        </div>
+      </div>
+
+      <div class="prefill-actions">
+        <button id="prefillDryRunBtn" class="prefill-btn prefill-btn-dry" type="button">Dry Run</button>
+        <button id="prefillRunBtn" class="prefill-btn prefill-btn-run" type="button">Preload Now</button>
+      </div>
+
+      <div id="prefillStatus" class="prefill-status" aria-live="polite"></div>
+      <div id="prefillResults" class="prefill-results">No results yet.</div>
+
+    </section>
+  </main>
+
+  <script src="admin_prefill_planner.js"></script>
+</body>
+</html>

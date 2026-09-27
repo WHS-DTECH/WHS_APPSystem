@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Add Recipe Manually</title>
+  <link rel="stylesheet" href="shared/design_tokens.css">
+  <link rel="stylesheet" href="shared/base.css">
+  <link rel="stylesheet" href="shared/components.css">
+  <link rel="stylesheet" href="admin_styles.css">
+  <style>
+    :root {
+      --ft-bg: #eef4f9;
+      --ft-card: #ffffff;
+      --ft-border: #d7e3f1;
+      --ft-heading: #163955;
+      --ft-text: #264158;
+      --ft-muted: #5b7389;
+      --ft-primary: #165f94;
+      --ft-primary-dark: #0f466d;
+      --ft-success: #257a3a;
+      --ft-error: #b3261e;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Lexend', sans-serif;
+      color: var(--ft-text);
+      background:
+        radial-gradient(800px 340px at 5% -15%, #d8e7f9 0%, transparent 55%),
+        radial-gradient(760px 320px at 100% -20%, #d9efdf 0%, transparent 56%),
+        var(--ft-bg);
+    }
+
+    .ft-wrap {
+      max-width: 1080px;
+      margin: 1rem auto;
+      padding: 0 1rem 1.25rem;
+    }
+
+    .ft-card {
+      background: var(--ft-card);
+      border: 1px solid var(--ft-border);
+      border-left: 5px solid var(--ft-primary);
+      border-radius: 14px;
+      box-shadow: 0 10px 24px rgba(18, 56, 86, 0.08);
+      padding: 1rem;
+    }
+
+    .ft-title {
+      margin: 0;
+      color: var(--ft-heading);
+      font-size: 1.65rem;
+      line-height: 1.2;
+    }
+
+    .ft-sub {
+      margin: 0.4rem 0 0.85rem;
+      color: var(--ft-muted);
+      font-size: 0.95rem;
+      max-width: 78ch;
+    }
+
+    .ft-id-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.55rem;
+      margin-bottom: 0.75rem;
+      padding: 0.65rem 0.75rem;
+      border: 1px solid #cfe0f3;
+      border-radius: 10px;
+      background: #f4f9ff;
+      font-size: 0.92rem;
+    }
+
+    .ft-id-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: var(--ft-primary);
+      color: #fff;
+      font-weight: 800;
+      min-width: 84px;
+      padding: 0.2rem 0.7rem;
+    }
+
+    .ft-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    .ft-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .ft-field.full {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: #1d3f5b;
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #c5d7ea;
+      border-radius: 9px;
+      padding: 0.58rem 0.65rem;
+      font-size: 0.95rem;
+      font-family: inherit;
+      color: #21394e;
+      background: #fff;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 120px;
+      line-height: 1.38;
+    }
+
+    .ft-hint {
+      color: var(--ft-muted);
+      font-size: 0.82rem;
+      margin: 0;
+    }
+
+    .ft-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+      margin-top: 0.85rem;
+    }
+
+    .ft-btn {
+      border: none;
+      border-radius: 9px;
+      padding: 0.6rem 0.95rem;
+      font-weight: 800;
+      cursor: pointer;
+      color: #fff;
+      background: var(--ft-primary);
+      transition: background-color 0.15s ease, transform 0.1s ease;
+    }
+
+    .ft-btn:hover {
+      background: var(--ft-primary-dark);
+    }
+
+    .ft-btn:active {
+      transform: translateY(1px);
+    }
+
+    .ft-btn.secondary {
+      background: #6d7f92;
+    }
+
+    .ft-btn.publish-copy {
+      width: 100%;
+      background: #7f9ab2;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+
+    .ft-btn.publish-copy:hover {
+      background: #6f8aa3;
+    }
+
+    .ft-status {
+      margin-top: 0.75rem;
+      min-height: 1.25rem;
+      font-size: 0.94rem;
+      font-weight: 700;
+      color: var(--ft-primary);
+    }
+
+    .ft-status.success { color: var(--ft-success); }
+    .ft-status.error { color: var(--ft-error); }
+
+    .ft-image-panel {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--ft-border);
+    }
+
+    .ft-image-preview-wrap {
+      width: 100%;
+      max-width: 520px;
+      aspect-ratio: 16 / 10;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #c9dbee;
+      background: #f0f4f8;
+      margin-bottom: 0.6rem;
+    }
+
+    .ft-image-preview-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .ft-image-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.55rem;
+    }
+
+    .ft-btn.danger {
+      background: #a52a2a;
+    }
+
+    .ft-image-slots {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+    }
+
+    .ft-image-slot {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      flex: 1 1 160px;
+      min-width: 140px;
+      max-width: 220px;
+    }
+
+    .ft-slot-num {
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: var(--ft-heading);
+    }
+
+    .ft-slot-preview {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #c9dbee;
+      background: #f0f4f8;
+    }
+
+    .ft-slot-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .ft-slot-file {
+      font-size: 0.78rem;
+    }
+
+    .ft-slot-btns {
+      display: flex;
+      gap: 0.3rem;
+    }
+
+    .ft-slot-btns .ft-btn {
+      padding: 0.3rem 0.5rem;
+      font-size: 0.8rem;
+      flex: 1;
+    }
+
+    .ft-slot-status {
+      font-size: 0.78rem;
+      min-height: 0.9rem;
+      font-weight: 600;
+      color: var(--ft-muted);
+    }
+
+    @media (max-width: 900px) {
+      .ft-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .ft-editing-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 6px;
+      padding: 0.55rem 0.85rem;
+      margin-bottom: 0.75rem;
+      font-size: 0.92rem;
+      color: #5a4200;
+    }
+
+    .ft-editing-banner[hidden] { display: none; }
+  </style>
+</head>
+<body>
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+
+  <main class="ft-wrap">
+    <section class="ft-card">
+      <h1 class="ft-title">Add Recipe Manually</h1>
+      <p class="ft-sub">Copy and paste recipe information from your source into the fields below. Save prepares and publishes the recipe, then runs async inventory sync from this RecipeID onward.</p>
+
+      <div id="editingBanner" class="ft-editing-banner" hidden>
+        <span>Editing RecipeID <strong id="editingRecipeId"></strong> — changes will update the existing recipe.</span>
+        <button type="button" id="newRecipeBtn" class="ft-btn secondary">+ New Recipe</button>
+      </div>
+
+      <div id="newIdRow" class="ft-id-row">
+        <span>Next available RecipeID:</span>
+        <span id="nextRecipeId" class="ft-id-pill">...</span>
+        <span id="idMetaText" class="ft-hint">This is a preview. Final ID is assigned on save.</span>
+      </div>
+
+      <form id="manualRecipeForm" novalidate>
+        <div class="ft-grid">
+          <div class="ft-field">
+            <label for="manualStudentName">Username</label>
+            <input id="manualStudentName" name="student_name" type="text" placeholder="e.g. Jane Smith" required>
+          </div>
+
+          <div class="ft-field">
+            <label for="manualServing">Serving Size (optional)</label>
+            <input id="manualServing" name="serving_size" type="number" min="0" step="1" placeholder="e.g. 24">
+          </div>
+
+          <div class="ft-field full">
+            <label for="manualName">Recipe Name</label>
+            <input id="manualName" name="name" type="text" placeholder="e.g. Sweet and Sour Pork" required>
+          </div>
+
+          <div class="ft-field full">
+            <label for="manualUrl">URL Source (optional)</label>
+            <input id="manualUrl" name="url" type="url" placeholder="e.g. https://www.allrecipes.com/recipe/...">
+          </div>
+
+          <div class="ft-field full">
+            <label for="manualIngredients">Ingredients (one ingredient per line)</label>
+            <textarea id="manualIngredients" name="ingredients_text" placeholder="1 kg chicken&#10;2 cups flour&#10;1 tsp salt" rows="8"></textarea>
+          </div>
+
+          <div class="ft-field full">
+            <label for="manualInstructions">Instructions (one step per line)</label>
+            <textarea id="manualInstructions" name="instructions_text" placeholder="Heat oven to...&#10;Mix ingredients...&#10;Bake for..." rows="8"></textarea>
+          </div>
+        </div>
+
+        <div class="ft-actions">
+          <button type="submit" id="saveManualBtn" class="ft-btn publish-copy">Publish</button>
+          <button type="button" id="clearManualBtn" class="ft-btn secondary">Clear Form</button>
+        </div>
+      </form>
+
+      <div id="manualStatus" class="ft-status"></div>
+      <div class="ft-image-panel">
+        <h2 style="margin:0 0 0.3rem;font-size:1.15rem;color:var(--ft-heading);">Recipe Photos</h2>
+        <p class="ft-hint" id="photoHandoffNote">Photos now upload on the dedicated Food Truck Recipe Photos page so students can add images of their own finished dish.</p>
+        <a id="photoUploadLink" href="admin_recipe_images.html" class="ft-btn" style="display:inline-flex;text-decoration:none;">Open Recipe Photos Page</a>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function() {
+      const form = document.getElementById('manualRecipeForm');
+      const statusEl = document.getElementById('manualStatus');
+      const nextIdEl = document.getElementById('nextRecipeId');
+      const idMetaTextEl = document.getElementById('idMetaText');
+      const saveBtn = document.getElementById('saveManualBtn');
+      const clearBtn = document.getElementById('clearManualBtn');
+      const studentNameInput = document.getElementById('manualStudentName');
+      const photoUploadLink = document.getElementById('photoUploadLink');
+      const editingBanner = document.getElementById('editingBanner');
+      const editingRecipeIdEl = document.getElementById('editingRecipeId');
+      const newIdRow = document.getElementById('newIdRow');
+      const newRecipeBtn = document.getElementById('newRecipeBtn');
+
+      let currentRecipeId = null;
+      let currentUserEmail = '';
+
+      function setEditingMode(recipeId) {
+        if (recipeId) {
+          editingBanner.hidden = false;
+          editingRecipeIdEl.textContent = recipeId;
+          newIdRow.hidden = true;
+          saveBtn.textContent = 'Update Recipe #' + recipeId;
+        } else {
+          editingBanner.hidden = true;
+          newIdRow.hidden = false;
+          saveBtn.textContent = 'Publish';
+        }
+      }
+
+      function getRecipeIdFromLocation() {
+        const params = new URLSearchParams(window.location.search);
+        const raw = String(params.get('recipeId') || '').trim();
+        const recipeId = Number(raw);
+        if (Number.isInteger(recipeId) && recipeId > 0) {
+          return recipeId;
+        }
+
+        try {
+          const stored = Number(String(sessionStorage.getItem('ftReviewRecipeId') || '').trim());
+          return Number.isInteger(stored) && stored > 0 ? stored : null;
+        } catch (_) {
+          return null;
+        }
+      }
+
+      function setStatus(message, type) {
+        statusEl.textContent = message || '';
+        statusEl.classList.remove('success', 'error');
+        if (type === 'success') statusEl.classList.add('success');
+        if (type === 'error') statusEl.classList.add('error');
+      }
+
+      function updatePhotoUploadLink(recipeId) {
+        const suffix = recipeId ? ('?recipeId=' + encodeURIComponent(String(recipeId))) : '';
+        photoUploadLink.href = 'admin_recipe_images.html' + suffix;
+      }
+
+        async function publishRecipeToDisplay(recipeId) {
+          const res = await fetch('/api/recipes/' + recipeId + '/display', { method: 'POST' });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || data.success === false) {
+            throw new Error((data && (data.error || data.message)) || 'Failed to prepare recipe display row.');
+          }
+        }
+
+        async function postJsonChecked(url, payload, label) {
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload || {})
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || data.success === false) {
+            throw new Error((data && (data.error || data.message)) || label + ' failed.');
+          }
+          return data;
+        }
+
+        async function waitForCleanupCompletion(progressUrl, timeoutMs, pollMs) {
+          timeoutMs = timeoutMs || 120000;
+          pollMs = pollMs || 750;
+          const startedAt = Date.now();
+          while ((Date.now() - startedAt) < timeoutMs) {
+            const progressRes = await fetch(progressUrl, { cache: 'no-store' });
+            const progressData = await progressRes.json().catch(() => ({}));
+            if (!progressData || progressData.running === false) return;
+            await new Promise((resolve) => setTimeout(resolve, pollMs));
+          }
+          throw new Error('Timed out waiting for cleanup to complete.');
+        }
+
+        async function runManualPublishFlow(recipeId) {
+          const warnings = [];
+          setStatus('Running: Cleanup Instructions\u2026', '');
+          try {
+            await postJsonChecked('/api/recipes/cleanup-instructions-stepwise', { recipeId }, 'Cleanup Instructions');
+            await waitForCleanupCompletion('/api/recipes/cleanup-instructions-progress');
+          } catch (err) {
+            warnings.push('Cleanup Instructions skipped: ' + (err && err.message ? err.message : err));
+          }
+
+          setStatus('Running: Cleanup Ingredients\u2026', '');
+          try {
+            await postJsonChecked('/api/recipes/cleanup-ingredients-stepwise', { recipeId }, 'Cleanup Ingredients');
+            await waitForCleanupCompletion('/api/recipes/cleanup-ingredients-progress');
+          } catch (err) {
+            warnings.push('Cleanup Ingredients skipped: ' + (err && err.message ? err.message : err));
+          }
+
+          setStatus('Running: Publish to Display\u2026', '');
+          await publishRecipeToDisplay(recipeId);
+
+          setStatus('Running: Async Inventory Sync\u2026', '');
+          try {
+            const syncSummary = await runAsyncSyncFromRecipeId(recipeId, function(message) {
+              setStatus(message, '');
+            });
+            if (syncSummary.failCount > 0) {
+              warnings.push('Async sync had ' + syncSummary.failCount + ' failed recipe(s).');
+            }
+          } catch (err) {
+            warnings.push('Async sync skipped: ' + (err && err.message ? err.message : err));
+          }
+
+          return warnings;
+        }
+
+        async function runAsyncSyncFromRecipeId(startRecipeId, statusCallback) {
+          const dropdownResp = await fetch('/api/recipes/display-dropdown');
+          if (!dropdownResp.ok) {
+            throw new Error('Failed to load recipe list for async sync.');
+          }
+          const dropdownData = await dropdownResp.json().catch(() => ({}));
+          const recipes = Array.isArray(dropdownData && dropdownData.recipes) ? dropdownData.recipes : [];
+          const recipeIds = recipes
+            .map((r) => Number(r && r.recipeid))
+            .filter((id) => Number.isInteger(id) && id >= startRecipeId)
+            .sort((a, b) => a - b);
+
+          if (!recipeIds.length) {
+            if (typeof statusCallback === 'function') statusCallback('No recipes found to sync.');
+            return { successCount: 0, failCount: 0, total: 0 };
+          }
+
+          let successCount = 0;
+          let failCount = 0;
+
+          for (let i = 0; i < recipeIds.length; i++) {
+            const recipeId = recipeIds[i];
+            if (typeof statusCallback === 'function') {
+              statusCallback('Async syncing ' + (i + 1) + '/' + recipeIds.length + ' (RecipeID ' + recipeId + ')...');
+            }
+
+            try {
+              const resp = await fetch('/api/ingredients/inventory/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ recipeId, reseed: true })
+              });
+              const data = await resp.json().catch(() => ({}));
+              if (resp.ok && data && data.success) {
+                successCount++;
+              } else {
+                failCount++;
+              }
+            } catch (_) {
+              failCount++;
+            }
+          }
+
+          return { successCount, failCount, total: recipeIds.length };
+        }
+
+        async function refreshNextId() {
+          if (currentRecipeId) {
+            nextIdEl.textContent = String(currentRecipeId);
+            if (idMetaTextEl) idMetaTextEl.textContent = 'Editing existing Food Truck recipe.';
+            return;
+          }
+          nextIdEl.textContent = '...';
+          try {
+            const res = await fetch('/api/recipes/next-id');
+            const data = await res.json();
+            if (!res.ok || data.success === false) {
+              throw new Error((data && data.error) || 'Failed to fetch next ID.');
+            }
+            nextIdEl.textContent = String(data.nextId || 'n/a');
+            if (idMetaTextEl) idMetaTextEl.textContent = 'This is a preview. Final ID is assigned on save.';
+          } catch (err) {
+            nextIdEl.textContent = 'n/a';
+            setStatus(err && err.message ? err.message : 'Failed to fetch next recipe ID.', 'error');
+          }
+        }
+
+        async function loadRecipeForEdit(recipeId) {
+          const res = await fetch('/api/recipes/' + recipeId, { credentials: 'include' });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data || data.error) {
+            throw new Error((data && data.error) || 'Failed to load recipe.');
+          }
+
+          currentRecipeId = Number(data.id || recipeId);
+          document.getElementById('manualStudentName').value = String(data.student_name || '').trim();
+          document.getElementById('manualName').value = String(data.name || '').trim();
+          document.getElementById('manualUrl').value = String(data.url || '').trim();
+          document.getElementById('manualServing').value = data.serving_size == null ? '' : String(data.serving_size);
+          document.getElementById('manualIngredients').value = String(data.ingredients || '').trim();
+          document.getElementById('manualInstructions').value = String(data.instructions || '').trim();
+          setEditingMode(currentRecipeId);
+          updatePhotoUploadLink(currentRecipeId);
+          await refreshNextId();
+          setStatus('Loaded RecipeID ' + currentRecipeId + ' for editing.', '');
+        }
+
+        function deriveNameFromEmail(email) {
+          const local = String(email || '').split('@')[0] || '';
+          return local
+            .split(/[._-]+/)
+            .filter(Boolean)
+            .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+            .join(' ')
+            .trim();
+        }
+
+        async function prepopulateStudentName(force) {
+          const shouldForce = !!force;
+          if (!studentNameInput) return;
+          if (!shouldForce && String(studentNameInput.value || '').trim()) return;
+
+          try {
+            const authRes = await fetch('/api/auth/me', { credentials: 'include' });
+            const authData = await authRes.json().catch(() => ({}));
+            if (!authRes.ok || !authData || !authData.authenticated || !authData.user) return;
+
+            const authUser = authData.user || {};
+            currentUserEmail = String(authUser.email || '').trim().toLowerCase();
+
+            let displayName = String(authUser.name || '').trim();
+            if (String(authUser.role || '').trim().toLowerCase() === 'student' && currentUserEmail) {
+              const profileRes = await fetch('/api/user_roles/profile?userType=student&identifier=' + encodeURIComponent(currentUserEmail), {
+                credentials: 'include'
+              });
+              const profileData = await profileRes.json().catch(() => ({}));
+              if (profileRes.ok && profileData && profileData.success && profileData.isStudent) {
+                displayName = String((profileData.student && profileData.student.student_name) || displayName).trim();
+              }
+            }
+
+            if (!displayName && currentUserEmail) {
+              displayName = deriveNameFromEmail(currentUserEmail);
+            }
+
+            if (displayName) {
+              studentNameInput.value = displayName;
+            }
+          } catch (_) {
+            // Leave the field manual if auth/profile lookup is unavailable.
+          }
+        }
+
+        function getPayload() {
+          return {
+            student_name: (document.getElementById('manualStudentName').value || '').trim(),
+            name: (document.getElementById('manualName').value || '').trim(),
+            url: (document.getElementById('manualUrl').value || '').trim(),
+            serving_size: (document.getElementById('manualServing').value || '').trim(),
+            ingredients_text: (document.getElementById('manualIngredients').value || '').trim(),
+            instructions_text: (document.getElementById('manualInstructions').value || '').trim()
+          };
+        }
+
+        async function saveManualRecipe(event) {
+          event.preventDefault();
+          const payload = getPayload();
+
+          if (!payload.name) {
+            setStatus('Recipe name is required.', 'error');
+            return;
+          }
+
+          if (!payload.ingredients_text && !payload.instructions_text) {
+            setStatus('Paste at least ingredients or instructions.', 'error');
+            return;
+          }
+
+          saveBtn.disabled = true;
+          setStatus(currentRecipeId ? 'Updating recipe…' : 'Saving recipe…', '');
+
+          try {
+            const res = await fetch(currentRecipeId ? ('/api/recipes/manual/' + currentRecipeId) : '/api/recipes/manual', {
+              method: currentRecipeId ? 'PUT' : 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify(payload)
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data.success === false) {
+              throw new Error((data && data.error) || 'Failed to save recipe.');
+            }
+
+            const recipeId = Number(data.recipeId || currentRecipeId);
+            currentRecipeId = Number(recipeId);
+            sessionStorage.setItem('ftLastRecipeId', String(currentRecipeId));
+            updatePhotoUploadLink(currentRecipeId);
+
+            const warnings = await runManualPublishFlow(recipeId);
+            setEditingMode(currentRecipeId);
+            if (warnings.length) {
+              setStatus('RecipeID ' + recipeId + ' published with warnings: ' + warnings.join(' '), 'error');
+            } else {
+              setStatus('RecipeID ' + recipeId + ' published. Display fields cleaned and async inventory sync completed from this RecipeID onward.', 'success');
+            }
+            await refreshNextId();
+          } catch (err) {
+            setStatus(err && err.message ? err.message : 'Failed to save recipe.', 'error');
+          } finally {
+            saveBtn.disabled = false;
+          }
+        }
+
+        form.addEventListener('submit', saveManualRecipe);
+
+        function resetToNewRecipe() {
+          form.reset();
+          currentRecipeId = null;
+          setEditingMode(null);
+          updatePhotoUploadLink(null);
+          setStatus('', '');
+          prepopulateStudentName(true);
+          refreshNextId();
+        }
+
+        clearBtn.addEventListener('click', resetToNewRecipe);
+        newRecipeBtn.addEventListener('click', resetToNewRecipe);
+
+        const preferredRecipeId = getRecipeIdFromLocation();
+        try {
+          sessionStorage.removeItem('ftReviewRecipeId');
+        } catch (_) {
+          // Ignore storage restrictions.
+        }
+        updatePhotoUploadLink(preferredRecipeId);
+        if (preferredRecipeId) {
+          setEditingMode(preferredRecipeId);
+          loadRecipeForEdit(preferredRecipeId).catch((err) => {
+            currentRecipeId = null;
+            setEditingMode(null);
+            updatePhotoUploadLink(null);
+            setStatus(err && err.message ? err.message : 'Failed to load recipe.', 'error');
+            prepopulateStudentName(true);
+            refreshNextId();
+          });
+        } else {
+          prepopulateStudentName(true);
+          refreshNextId();
+        }
+      })();
+    </script>
+  </body>
+  </html>

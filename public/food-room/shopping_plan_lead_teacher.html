@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lead Teacher Shopping View</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .ltv-wrap { max-width: 1220px; margin: 1.4rem auto 2.2rem; padding: 0 1rem; }
+    .ltv-head { margin-bottom: 0.9rem; }
+    .ltv-title { margin: 0; color: #173a58; font-size: 1.72rem; }
+    .ltv-sub { margin: 0.35rem 0 0; color: #4b6073; }
+    .ltv-card {
+      background: #fff;
+      border: 1px solid #c9d6e2;
+      border-radius: 10px;
+      padding: 0.95rem 1rem;
+      box-shadow: 0 2px 8px rgba(8, 34, 56, 0.08);
+      margin-bottom: 0.9rem;
+    }
+    .ltv-row { display: flex; flex-wrap: wrap; gap: 0.55rem; align-items: center; }
+    .ltv-btn {
+      border: none;
+      border-radius: 7px;
+      padding: 0.55rem 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .ltv-btn.primary { background: #1f6eae; color: #fff; }
+    .ltv-btn.primary:hover { background: #195e93; }
+    .ltv-btn.secondary { background: #627889; color: #fff; }
+    .ltv-btn.secondary:hover { background: #526474; }
+    .ltv-btn.success { background: #237f4e; color: #fff; }
+    .ltv-btn.success:hover { background: #1c673f; }
+    .ltv-btn.warning { background: #cc8b1f; color: #fff; }
+    .ltv-btn.warning:hover { background: #a97119; }
+    .ltv-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .ltv-week-label { font-weight: 700; color: #1d4464; min-width: 210px; }
+    .ltv-selected-weeks { margin-top: 0.55rem; color: #4c6578; }
+    .ltv-week-chip {
+      display: inline-flex;
+      align-items: center;
+      background: #eff6fc;
+      color: #234863;
+      border: 1px solid #d3e3f2;
+      border-radius: 999px;
+      padding: 0.2rem 0.6rem;
+      margin: 0.2rem 0.28rem 0 0;
+      font-size: 0.86rem;
+      font-weight: 700;
+    }
+
+    .ltv-status { min-height: 1.2rem; margin-top: 0.5rem; font-size: 0.92rem; font-weight: 700; }
+    .ltv-status.ok { color: #1f7c4c; }
+    .ltv-status.err { color: #b82f2f; }
+
+    .ltv-mini-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.6rem; margin-bottom: 0.4rem; }
+    .ltv-mini-title { margin: 0; color: #1d4464; font-size: 1rem; }
+    .ltv-mini-sub { color: #5f7588; font-size: 0.85rem; }
+    .ltv-mini-table-wrap { overflow-x: auto; }
+    .ltv-mini-table { width: 100%; border-collapse: collapse; min-width: 720px; }
+    .ltv-mini-table th, .ltv-mini-table td { border: 1px solid #e1eaf2; padding: 0.42rem 0.45rem; font-size: 0.88rem; vertical-align: top; }
+    .ltv-mini-table th { background: #edf4fb; color: #2d4f68; text-align: center; }
+    .ltv-mini-period { width: 58px; text-align: center; font-weight: 700; background: #f8fbff; color: #35536a; }
+    .ltv-mini-cell { min-height: 56px; }
+    .ltv-mini-chip { background: #f3f8ff; border: 1px solid #d8e6f7; border-radius: 5px; padding: 0.2rem 0.32rem; margin-bottom: 0.2rem; color: #20465f; line-height: 1.32; display: block; text-decoration: none; }
+    .ltv-mini-chip:hover { background: #e9f2fd; border-color: #c6ddf6; }
+    .ltv-mini-chip:last-child { margin-bottom: 0; }
+    .ltv-mini-empty { color: #8ea0b0; text-align: center; }
+
+    .ltv-steps { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+    .ltv-step-btn {
+      padding: 0.45rem 0.75rem;
+      border: 1px solid #b7c9d8;
+      border-radius: 999px;
+      background: #f6fbff;
+      color: #2a4d67;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .ltv-step-btn.active { background: #1f6eae; color: #fff; border-color: #1f6eae; }
+
+    .ltv-page[hidden] { display: none !important; }
+    .ltv-meta { color: #5f7588; font-size: 0.9rem; }
+
+    .ltv-table-wrap { overflow-x: auto; }
+    .ltv-table { width: 100%; border-collapse: collapse; min-width: 860px; }
+    .ltv-table th, .ltv-table td { border: 1px solid #d9e5ef; padding: 0.45rem 0.5rem; font-size: 0.9rem; }
+    .ltv-table th { background: #eff6fd; color: #1f4663; text-align: left; }
+    .ltv-table tbody tr:nth-child(even) { background: #fbfdff; }
+    .ltv-num { width: 110px; border: 1px solid #b7c9d8; border-radius: 6px; padding: 0.3rem 0.4rem; font: inherit; }
+    .ltv-diff-pos { color: #1f7c4c; font-weight: 700; }
+    .ltv-diff-neg { color: #b82f2f; font-weight: 700; }
+    .ltv-diff-neutral { color: #60798d; }
+
+    .ltv-grid { display: grid; gap: 0.8rem; grid-template-columns: repeat(2, minmax(320px, 1fr)); }
+    .ltv-cat { border: 1px solid #2c3741; background: #fff; }
+    .ltv-cat h3 {
+      margin: 0;
+      padding: 0.34rem 0.45rem;
+      border-bottom: 1px solid #2c3741;
+      font-size: 0.92rem;
+      text-decoration: underline;
+      color: #1e2a33;
+    }
+    .ltv-cat-body { padding: 0.42rem 0.45rem 0.62rem; }
+    .ltv-line { font-size: 0.89rem; line-height: 1.36; margin-bottom: 0.1rem; color: #1f2c36; }
+    .ltv-line:last-child { margin-bottom: 0; }
+
+    .ltv-package {
+      border: 1px solid #bccedf;
+      border-radius: 8px;
+      padding: 0.8rem;
+      background: #fcfeff;
+      margin-top: 0.7rem;
+    }
+    .ltv-package h4 { margin: 0 0 0.4rem; color: #1f4560; }
+
+    @media (max-width: 980px) {
+      .ltv-grid { grid-template-columns: 1fr; }
+      .ltv-row { align-items: stretch; }
+    }
+
+    @media print {
+      body * { visibility: hidden !important; }
+      #printPackage, #printPackage * { visibility: visible !important; }
+      #printPackage { position: absolute; inset: 0; background: #fff; padding: 0.2rem; }
+      .ltv-no-print { display: none !important; }
+      .ltv-card { border: none; box-shadow: none; margin-bottom: 0.4rem; }
+      .ltv-table th, .ltv-table td { font-size: 0.83rem; padding: 0.28rem 0.32rem; }
+      .ltv-mini-table th, .ltv-mini-table td { font-size: 0.8rem; padding: 0.26rem 0.3rem; }
+      .ltv-grid { gap: 0.45rem; }
+      .ltv-cat { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+
+  <main class="ltv-wrap">
+    <section class="ltv-head">
+      <h1 class="ltv-title">Lead Teacher Shopping View</h1>
+      <p class="ltv-sub">Forward workflow: select week(s), enter requested quantities, compare with auto-calculated values, then produce the finalized package.</p>
+    </section>
+
+    <section class="ltv-card">
+      <div class="ltv-row ltv-no-print" style="margin-bottom:0.5rem;">
+        <button id="prevWeekBtn" class="ltv-btn secondary" type="button">Previous Week</button>
+        <button id="thisWeekBtn" class="ltv-btn secondary" type="button">This Week</button>
+        <button id="nextWeekBtn" class="ltv-btn secondary" type="button">Next Week</button>
+        <span id="visibleWeekLabel" class="ltv-week-label"></span>
+        <button id="toggleWeekBtn" class="ltv-btn primary" type="button">Add This Week</button>
+        <button id="clearWeeksBtn" class="ltv-btn secondary" type="button">Clear Selected Weeks</button>
+      </div>
+      <div id="selectedWeeks" class="ltv-selected-weeks"></div>
+      <div id="status" class="ltv-status" role="status" aria-live="polite" aria-atomic="true"></div>
+
+      <div class="ltv-mini-head" style="margin-top:0.55rem;">
+        <h2 class="ltv-mini-title">Practical Calendar (Persistent)</h2>
+        <div id="calendarMeta" class="ltv-mini-sub"></div>
+      </div>
+      <div id="calendarBody" class="ltv-mini-table-wrap">
+        <div class="ltv-meta">Loading practical calendar...</div>
+      </div>
+    </section>
+
+    <section class="ltv-card ltv-no-print">
+      <div class="ltv-steps" aria-label="Workflow Steps">
+        <button id="stepBtn1" class="ltv-step-btn active" type="button">Page 1: Lead Teacher Quantities</button>
+        <button id="stepBtn2" class="ltv-step-btn" type="button">Page 2: Compare And Accept</button>
+        <button id="stepBtn3" class="ltv-step-btn" type="button">Page 3: Finalized List</button>
+      </div>
+    </section>
+
+    <section id="page1" class="ltv-card ltv-page">
+      <div class="ltv-row ltv-no-print" style="justify-content:space-between; margin-bottom:0.6rem;">
+        <strong>Page 1: Build and Enter Required Quantities</strong>
+        <button id="buildListBtn" class="ltv-btn success" type="button">Build Food Item List From Selected Week(s)</button>
+      </div>
+      <p class="ltv-meta">This list is drawn from recipes booked in the selected week(s). Enter the quantities you require for each item.</p>
+      <div id="page1Meta" class="ltv-meta" style="margin-bottom:0.5rem;"></div>
+      <div id="page1TableWrap" class="ltv-table-wrap">
+        <div class="ltv-meta">Choose week(s) then build the list.</div>
+      </div>
+      <div class="ltv-row ltv-no-print" style="justify-content:flex-end; margin-top:0.7rem;">
+        <button id="toPage2Btn" class="ltv-btn primary" type="button">Continue To Page 2</button>
+      </div>
+    </section>
+
+    <section id="page2" class="ltv-card ltv-page" hidden>
+      <div class="ltv-row ltv-no-print" style="justify-content:space-between; margin-bottom:0.6rem;">
+        <strong>Page 2: Compare Lead Teacher vs Auto-Calculated</strong>
+        <button id="acceptAllBtn" class="ltv-btn warning" type="button">Accept Auto For All Differences</button>
+      </div>
+      <p class="ltv-meta">Differences are highlighted. Use ACCEPT on any row to use the auto-calculated quantity.</p>
+      <div id="page2TableWrap" class="ltv-table-wrap">
+        <div class="ltv-meta">Build Page 1 list first.</div>
+      </div>
+      <div class="ltv-row ltv-no-print" style="justify-content:space-between; margin-top:0.7rem;">
+        <button id="backToPage1Btn" class="ltv-btn secondary" type="button">Back To Page 1</button>
+        <button id="toPage3Btn" class="ltv-btn primary" type="button">Continue To Page 3</button>
+      </div>
+    </section>
+
+    <section id="page3" class="ltv-card ltv-page" hidden>
+      <div class="ltv-row ltv-no-print" style="justify-content:space-between; margin-bottom:0.6rem;">
+        <strong>Page 3: Finalized Shopping List</strong>
+        <div class="ltv-row">
+          <button id="exportFinalCsvBtn" class="ltv-btn secondary" type="button">Export Finalized CSV</button>
+          <button id="exportComparisonCsvBtn" class="ltv-btn secondary" type="button">Export Comparison CSV</button>
+          <button id="printPackageBtn" class="ltv-btn primary" type="button">Print Package</button>
+        </div>
+      </div>
+
+      <div id="printPackage" class="ltv-package">
+        <h4>Document Package</h4>
+        <div id="packageSummary" class="ltv-meta" style="margin-bottom:0.5rem;"></div>
+
+        <section style="margin-bottom:0.7rem;">
+          <h4 style="margin-bottom:0.35rem;">Comparison Snapshot</h4>
+          <div id="packageComparison" class="ltv-table-wrap"></div>
+        </section>
+
+        <section>
+          <h4 style="margin-bottom:0.35rem;">Finalized Shopping List</h4>
+          <div id="finalGrid" class="ltv-grid">
+            <div class="ltv-meta">Finalize from Page 2 to see the final list.</div>
+          </div>
+        </section>
+      </div>
+
+      <div class="ltv-row ltv-no-print" style="justify-content:flex-start; margin-top:0.7rem;">
+        <button id="backToPage2Btn" class="ltv-btn secondary" type="button">Back To Page 2</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+  (function () {
+    const prevWeekBtn = document.getElementById('prevWeekBtn');
+    const thisWeekBtn = document.getElementById('thisWeekBtn');
+    const nextWeekBtn = document.getElementById('nextWeekBtn');
+    const toggleWeekBtn = document.getElementById('toggleWeekBtn');
+    const clearWeeksBtn = document.getElementById('clearWeeksBtn');
+    const visibleWeekLabel = document.getElementById('visibleWeekLabel');
+    const selectedWeeksEl = document.getElementById('selectedWeeks');
+    const statusEl = document.getElementById('status');
+    const calendarMeta = document.getElementById('calendarMeta');
+    const calendarBody = document.getElementById('calendarBody');
+
+    const stepBtn1 = document.getElementById('stepBtn1');
+    const stepBtn2 = document.getElementById('stepBtn2');
+    const stepBtn3 = document.getElementById('stepBtn3');
+
+    const page1 = document.getElementById('page1');
+    const page2 = document.getElementById('page2');
+    const page3 = document.getElementById('page3');
+
+    const buildListBtn = document.getElementById('buildListBtn');
+    const page1Meta = document.getElementById('page1Meta');
+    const page1TableWrap = document.getElementById('page1TableWrap');
+    const toPage2Btn = document.getElementById('toPage2Btn');
+
+    const acceptAllBtn = document.getElementById('acceptAllBtn');
+    const page2TableWrap = document.getElementById('page2TableWrap');
+    const backToPage1Btn = document.getElementById('backToPage1Btn');
+    const toPage3Btn = document.getElementById('toPage3Btn');
+
+    const exportFinalCsvBtn = document.getElementById('exportFinalCsvBtn');
+    const exportComparisonCsvBtn = document.getElementById('exportComparisonCsvBtn');
+    const printPackageBtn = document.getElementById('printPackageBtn');
+    const packageSummary = document.getElementById('packageSummary');
+    const packageComparison = document.getElementById('packageComparison');
+    const finalGrid = document.getElementById('finalGrid');
+    const backToPage2Btn = document.getElementById('backToPage2Btn');
+
+    const state = {
+      visibleFriday: null,
+      selectedWeeks: [],
+      weekRowsCache: {},
+      itemRows: [],
+      teacherQtyByKey: {}
+    };
+
+    function esc(s) {
+      return String(s || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function setStatus(msg, type) {
+      statusEl.textContent = msg || '';
+      statusEl.className = 'ltv-status' + (type ? ' ' + type : '');
+    }
+
+    function isoDateLocal(d) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + day;
+    }
+
+    function parseIsoDate(iso) {
+      return new Date(String(iso) + 'T00:00:00');
+    }
+
+    function defaultFriday() {
+      const now = new Date();
+      const day = now.getDay();
+      const add = day <= 5 ? (5 - day) : (12 - day);
+      const friday = new Date(now);
+      friday.setDate(now.getDate() + add);
+      return isoDateLocal(friday);
+    }
+
+    function fridayToMonday(fridayIso) {
+      const friday = parseIsoDate(fridayIso);
+      if (Number.isNaN(friday.getTime())) return null;
+      const monday = new Date(friday);
+      monday.setDate(friday.getDate() - 4);
+      return monday;
+    }
+
+    function addDaysIso(iso, days) {
+      const d = parseIsoDate(iso);
+      d.setDate(d.getDate() + Number(days || 0));
+      return isoDateLocal(d);
+    }
+
+    function formatHumanDate(value) {
+      const d = parseIsoDate(value);
+      if (Number.isNaN(d.getTime())) return String(value || '');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return String(d.getDate()) + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
+    }
+
+    function formatShortDate(value) {
+      const d = parseIsoDate(value);
+      if (Number.isNaN(d.getTime())) return String(value || '');
+      const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      return weekdays[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth() + 1);
+    }
+
+    function buildWeekLabel(fridayIso) {
+      const monday = fridayToMonday(fridayIso);
+      if (!monday) return String(fridayIso || '');
+      const fri = parseIsoDate(fridayIso);
+      return formatShortDate(isoDateLocal(monday)) + ' - ' + formatHumanDate(isoDateLocal(fri));
+    }
+
+    function parsePeriodValue(periodValue) {
+      const raw = String(periodValue || '').trim().toUpperCase();
+      if (!raw || raw === 'PLANNER') return null;
+      const m = raw.match(/(\d+)/);
+      if (!m) return null;
+      const n = Number(m[1]);
+      return Number.isInteger(n) && n > 0 ? n : null;
+    }
+
+    function normalizeUnit(value) {
+      const u = String(value || '').trim().toLowerCase();
+      if (!u) return '';
+      if (['teaspoon', 'teaspoons', 'tsp'].includes(u)) return 'tsp';
+      if (['tablespoon', 'tablespoons', 'tbsp', 'tbs', 'tblsp'].includes(u)) return 'tbsp';
+      if (['gram', 'grams', 'g'].includes(u)) return 'g';
+      if (['kilogram', 'kilograms', 'kg'].includes(u)) return 'kg';
+      if (['milliliter', 'milliliters', 'millilitre', 'millilitres', 'ml'].includes(u)) return 'ml';
+      if (['liter', 'liters', 'litre', 'litres', 'l'].includes(u)) return 'l';
+      return u;
+    }
+
+    function formatQty(value) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return '';
+      return n.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
+    }
+
+    function canonicalCategoryKey(name) {
+      const value = String(name || '').trim().toLowerCase();
+      if (!value) return 'uncategorised';
+      if (value.includes('meat')) return 'meat';
+      if (value.includes('dairy') || value.includes('pastry')) return 'dairy_pastry';
+      if (value.includes('pantry') || value.includes('dry ingredients') || value.includes('tinned') || value.includes('condiment')) return 'pantry_dry_tinned';
+      if (value.includes('egg')) return 'eggs';
+      if (value.includes('cleaning')) return 'cleaning_products';
+      if (value.includes('produce') || value.includes('fruit') || value.includes('vegetable')) return 'produce_fruit_vegetables';
+      if (value === 'other' || value.startsWith('other')) return 'other_other';
+      if (value.includes('uncategorised') || value.includes('uncategorized')) return 'uncategorised';
+      if (value.includes('action')) return 'action';
+      return 'extra:' + value;
+    }
+
+    function categoryHeading(key) {
+      const labels = {
+        meat: 'Meat',
+        dairy_pastry: 'Dairy & Pastry',
+        pantry_dry_tinned: 'Pantry: Dry Ingredients & Tinned Food',
+        eggs: 'Eggs',
+        cleaning_products: 'Cleaning Products',
+        produce_fruit_vegetables: 'Produce: Fruit & Vegetables',
+        other_other: 'Other: Other',
+        uncategorised: 'Uncategorised',
+        action: 'Action'
+      };
+      if (labels[key]) return labels[key];
+      if (String(key).startsWith('extra:')) {
+        const raw = String(key).slice(6);
+        return raw ? (raw.charAt(0).toUpperCase() + raw.slice(1)) : 'Other';
+      }
+      return String(key || 'Other');
+    }
+
+    function isNonShoppingMetadataItem(nameValue) {
+      const raw = String(nameValue || '').trim();
+      if (!raw) return true;
+      const normalized = raw
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (!normalized) return true;
+      if (/^serves(\s+\d+)+\s+serves?$/.test(normalized)) return true;
+      if (/\b\d+(?:\.\d+)?\s*serves?\b/.test(normalized) || /\bserves?\s+\d+\b/.test(normalized)) return true;
+      if (/\bmg\b/.test(normalized) || /\bkj\b/.test(normalized) || /\bkilojoules?\b/.test(normalized)) return true;
+      if (/\b(total\s+fat|saturated\s+fat|carbohydrate|sugars?|sodium|dietary\s+fib(?:re|er)|protein|energy|kilojoules?|kj)\b/.test(normalized)) {
+        return true;
+      }
+      const metaOnly = normalized
+        .replace(/\b(?:serves?|mg|kj|kilojoules?|total|fat|saturated|sodium|dietary|fibre|fiber|carbohydrate|carbohydrates|sugars?|protein|energy)\b/g, ' ')
+        .replace(/\d+(?:\.\d+)?/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      return !metaOnly;
+    }
+
+    function toCsv(lines) {
+      return lines.map((line) => line.map((v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"').join(',')).join('\n');
+    }
+
+    function downloadText(filename, content, mimeType) {
+      const blob = new Blob([content], { type: mimeType || 'text/plain;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function sortWeekList(list) {
+      return (list || []).slice().sort((a, b) => a.localeCompare(b));
+    }
+
+    function renderSelectedWeeks() {
+      if (!state.selectedWeeks.length) {
+        selectedWeeksEl.innerHTML = '<strong>Selected week(s):</strong> None';
+        toggleWeekBtn.textContent = 'Add This Week';
+        return;
+      }
+      selectedWeeksEl.innerHTML = '<strong>Selected week(s):</strong> '
+        + state.selectedWeeks.map((w) => '<span class="ltv-week-chip">' + esc(buildWeekLabel(w)) + '</span>').join('');
+      toggleWeekBtn.textContent = state.selectedWeeks.includes(state.visibleFriday) ? 'Remove This Week' : 'Add This Week';
+    }
+
+    function setStep(step) {
+      const n = Number(step);
+      page1.hidden = n !== 1;
+      page2.hidden = n !== 2;
+      page3.hidden = n !== 3;
+      stepBtn1.classList.toggle('active', n === 1);
+      stepBtn2.classList.toggle('active', n === 2);
+      stepBtn3.classList.toggle('active', n === 3);
+    }
+
+    async function fetchWeekRows(fridayIso) {
+      if (state.weekRowsCache[fridayIso]) return state.weekRowsCache[fridayIso];
+      const monday = fridayToMonday(fridayIso);
+      if (!monday) return [];
+      const start = isoDateLocal(monday);
+      const end = fridayIso;
+      const resp = await fetch('/api/bookings/all?start=' + encodeURIComponent(start) + '&end=' + encodeURIComponent(end) + '&fields=calendar', { credentials: 'include' });
+      const payload = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(payload.error || 'Failed to load calendar bookings.');
+      const rows = Array.isArray(payload.bookings) ? payload.bookings : [];
+      state.weekRowsCache[fridayIso] = rows;
+      return rows;
+    }
+
+    function renderVisibleWeekHeader() {
+      visibleWeekLabel.textContent = buildWeekLabel(state.visibleFriday);
+      toggleWeekBtn.textContent = state.selectedWeeks.includes(state.visibleFriday) ? 'Remove This Week' : 'Add This Week';
+    }
+
+    function renderCalendarRows(rows, fridayIso) {
+      const monday = fridayToMonday(fridayIso);
+      if (!monday) {
+        calendarBody.innerHTML = '<div class="ltv-meta">Invalid week selected.</div>';
+        return;
+      }
+
+      const days = [];
+      for (let i = 0; i < 5; i++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        days.push(isoDateLocal(d));
+      }
+
+      const displayRows = (rows || []).filter((b) => {
+        const periodText = String((b && b.period) || '').toLowerCase();
+        if (periodText === 'planner') return false;
+        return true;
+      });
+
+      const periodSet = {};
+      displayRows.forEach((b) => {
+        const p = parsePeriodValue(b.period);
+        if (p) periodSet[p] = true;
+      });
+      const periods = Object.keys(periodSet).map((p) => Number(p)).filter(Number.isInteger).sort((a, b) => a - b);
+      if (!periods.length) periods.push(1, 2, 3, 4, 5);
+
+      const grid = {};
+      periods.forEach((p) => {
+        grid[p] = {};
+        days.forEach((iso) => { grid[p][iso] = []; });
+      });
+
+      displayRows.forEach((b) => {
+        const iso = String((b && b.booking_date) || '').slice(0, 10);
+        const p = parsePeriodValue(b && b.period);
+        if (!iso || !p || !grid[p] || !grid[p][iso]) return;
+        const primary = String((b.linked_recipe_name || b.recipe || b.class_name || '')).trim();
+        const secondary = String((b.staff_name || '')).trim();
+        const label = (primary || 'Booking') + (secondary ? ' - ' + secondary : '');
+        grid[p][iso].push({
+          id: Number(b.id),
+          text: label
+        });
+      });
+
+      calendarMeta.textContent = formatShortDate(days[0]) + ' to ' + formatShortDate(days[4]);
+      let html = '<table class="ltv-mini-table"><thead><tr><th scope="col">Period</th>';
+      html += days.map((d) => '<th scope="col">' + esc(formatShortDate(d)) + '</th>').join('');
+      html += '</tr></thead><tbody>';
+
+      periods.forEach((p) => {
+        html += '<tr><td class="ltv-mini-period" scope="row">P' + p + '</td>';
+        days.forEach((d) => {
+          const items = grid[p][d] || [];
+          if (!items.length) {
+            html += '<td class="ltv-mini-cell ltv-mini-empty">-</td>';
+            return;
+          }
+          const weekStart = days[0];
+          const shown = items.slice(0, 3).map((entry) => {
+            const href = 'browse_practicals.html?booking_id=' + encodeURIComponent(String(entry.id)) + '&week_start=' + encodeURIComponent(weekStart) + '&auto_print_booking=1';
+            return '<a class="ltv-mini-chip" href="' + esc(href) + '" target="_blank" rel="noopener noreferrer" title="Open worksheet print">' + esc(entry.text) + '</a>';
+          }).join('');
+          const more = items.length > 3 ? '<div class="ltv-mini-chip">+' + (items.length - 3) + ' more</div>' : '';
+          html += '<td class="ltv-mini-cell">' + shown + more + '</td>';
+        });
+        html += '</tr>';
+      });
+
+      html += '</tbody></table>';
+      calendarBody.innerHTML = html;
+    }
+
+    async function refreshVisibleWeekCalendar() {
+      renderVisibleWeekHeader();
+      calendarBody.innerHTML = '<div class="ltv-meta">Loading practical calendar...</div>';
+      try {
+        const rows = await fetchWeekRows(state.visibleFriday);
+        renderCalendarRows(rows, state.visibleFriday);
+      } catch (err) {
+        calendarBody.innerHTML = '<div class="ltv-meta">' + esc(err.message || 'Failed to load practical calendar.') + '</div>';
+      }
+    }
+
+    function currentTeacherQty(row) {
+      const v = state.teacherQtyByKey[row.key];
+      const n = Number(v);
+      if (Number.isFinite(n)) return n;
+      return row.autoQty;
+    }
+
+    function renderPage1Table() {
+      if (!state.itemRows.length) {
+        page1TableWrap.innerHTML = '<div class="ltv-meta">Choose week(s) then build the list.</div>';
+        page1Meta.textContent = '';
+        return;
+      }
+
+      page1Meta.textContent = 'Items: ' + state.itemRows.length + ' | Weeks: ' + state.selectedWeeks.length;
+
+      let html = '<table class="ltv-table"><thead><tr>'
+        + '<th>Category</th><th>Item</th><th>Unit</th><th>Auto Qty</th><th>Lead Teacher Qty</th>'
+        + '</tr></thead><tbody>';
+
+      state.itemRows.forEach((row) => {
+        const teacherQty = formatQty(currentTeacherQty(row));
+        html += '<tr>'
+          + '<td>' + esc(row.categoryLabel) + '</td>'
+          + '<td>' + esc(row.itemName) + '</td>'
+          + '<td>' + esc(row.unit) + '</td>'
+          + '<td>' + esc(formatQty(row.autoQty)) + '</td>'
+          + '<td><input class="ltv-num" type="number" min="0" step="0.01" data-item-key="' + esc(row.key) + '" value="' + esc(teacherQty) + '"></td>'
+          + '</tr>';
+      });
+
+      html += '</tbody></table>';
+      page1TableWrap.innerHTML = html;
+    }
+
+    function captureTeacherQtyFromPage1() {
+      document.querySelectorAll('input[data-item-key]').forEach((input) => {
+        const key = input.getAttribute('data-item-key');
+        const n = Number(input.value);
+        if (key) state.teacherQtyByKey[key] = Number.isFinite(n) ? n : null;
+      });
+    }
+
+    function renderPage2Comparison() {
+      if (!state.itemRows.length) {
+        page2TableWrap.innerHTML = '<div class="ltv-meta">Build Page 1 list first.</div>';
+        return;
+      }
+
+      let html = '<table class="ltv-table"><thead><tr>'
+        + '<th>Category</th><th>Item</th><th>Unit</th><th>Auto Qty</th><th>Lead Teacher Qty</th><th>Difference</th><th>Action</th>'
+        + '</tr></thead><tbody>';
+
+      state.itemRows.forEach((row) => {
+        const autoQty = Number(row.autoQty || 0);
+        const teacherQty = Number(currentTeacherQty(row) || 0);
+        const diff = teacherQty - autoQty;
+        let cls = 'ltv-diff-neutral';
+        if (diff > 0.0001) cls = 'ltv-diff-pos';
+        if (diff < -0.0001) cls = 'ltv-diff-neg';
+        const different = Math.abs(diff) > 0.0001;
+        const action = different
+          ? '<button class="ltv-btn warning" type="button" data-accept-key="' + esc(row.key) + '">ACCEPT Auto</button>'
+          : '<span class="ltv-meta">Matched</span>';
+
+        html += '<tr>'
+          + '<td>' + esc(row.categoryLabel) + '</td>'
+          + '<td>' + esc(row.itemName) + '</td>'
+          + '<td>' + esc(row.unit) + '</td>'
+          + '<td>' + esc(formatQty(autoQty)) + '</td>'
+          + '<td>' + esc(formatQty(teacherQty)) + '</td>'
+          + '<td class="' + cls + '">' + esc(formatQty(diff)) + '</td>'
+          + '<td>' + action + '</td>'
+          + '</tr>';
+      });
+
+      html += '</tbody></table>';
+      page2TableWrap.innerHTML = html;
+
+      document.querySelectorAll('button[data-accept-key]').forEach((btn) => {
+        btn.addEventListener('click', function () {
+          const key = btn.getAttribute('data-accept-key');
+          const row = state.itemRows.find((r) => r.key === key);
+          if (!row) return;
+          state.teacherQtyByKey[row.key] = row.autoQty;
+          renderPage2Comparison();
+          setStatus('Accepted auto-calculated quantity for ' + row.itemName + '.', 'ok');
+        });
+      });
+    }
+
+    function renderFinalGrid() {
+      if (!state.itemRows.length) {
+        finalGrid.innerHTML = '<div class="ltv-meta">Finalize from Page 2 to see the final list.</div>';
+        packageSummary.textContent = '';
+        packageComparison.innerHTML = '';
+        return;
+      }
+
+      const byCat = {};
+      state.itemRows.forEach((row) => {
+        const qty = Number(currentTeacherQty(row));
+        const finalQty = Number.isFinite(qty) ? qty : Number(row.autoQty || 0);
+        if (finalQty <= 0) return;
+        if (!byCat[row.categoryKey]) byCat[row.categoryKey] = [];
+        byCat[row.categoryKey].push({
+          itemName: row.itemName,
+          unit: row.unit,
+          qty: finalQty
+        });
+      });
+
+      const ordered = [
+        'meat',
+        'dairy_pastry',
+        'pantry_dry_tinned',
+        'eggs',
+        'cleaning_products',
+        'produce_fruit_vegetables',
+        'other_other',
+        'uncategorised',
+        'action'
+      ];
+      const extra = Object.keys(byCat).filter((k) => !ordered.includes(k)).sort();
+      const keys = ordered.concat(extra).filter((k) => byCat[k] && byCat[k].length);
+
+      if (!keys.length) {
+        finalGrid.innerHTML = '<div class="ltv-meta">No finalized items greater than zero.</div>';
+      } else {
+        finalGrid.innerHTML = keys.map((k) => {
+          const lines = byCat[k]
+            .sort((a, b) => a.itemName.localeCompare(b.itemName))
+            .map((r) => '<div class="ltv-line">' + esc(formatQty(r.qty) + ' ' + r.unit + ' ' + r.itemName).trim() + '</div>')
+            .join('');
+          return '<section class="ltv-cat"><h3>' + esc(categoryHeading(k)) + '</h3><div class="ltv-cat-body">' + lines + '</div></section>';
+        }).join('');
+      }
+
+      const summary = state.selectedWeeks.map((w) => buildWeekLabel(w)).join(' | ');
+      packageSummary.textContent = 'Weeks included: ' + (summary || 'None selected') + ' | Items: ' + state.itemRows.length;
+
+      const diffRows = state.itemRows.filter((row) => {
+        const autoQty = Number(row.autoQty || 0);
+        const teacherQty = Number(currentTeacherQty(row) || 0);
+        return Math.abs(teacherQty - autoQty) > 0.0001;
+      });
+
+      if (!diffRows.length) {
+        packageComparison.innerHTML = '<div class="ltv-meta">No differences. Lead Teacher quantities match auto-calculated quantities.</div>';
+      } else {
+        let cmp = '<table class="ltv-table"><thead><tr><th>Category</th><th>Item</th><th>Unit</th><th>Auto Qty</th><th>Lead Teacher Qty</th><th>Difference</th></tr></thead><tbody>';
+        diffRows.forEach((row) => {
+          const autoQty = Number(row.autoQty || 0);
+          const teacherQty = Number(currentTeacherQty(row) || 0);
+          const diff = teacherQty - autoQty;
+          cmp += '<tr>'
+            + '<td>' + esc(row.categoryLabel) + '</td>'
+            + '<td>' + esc(row.itemName) + '</td>'
+            + '<td>' + esc(row.unit) + '</td>'
+            + '<td>' + esc(formatQty(autoQty)) + '</td>'
+            + '<td>' + esc(formatQty(teacherQty)) + '</td>'
+            + '<td>' + esc(formatQty(diff)) + '</td>'
+            + '</tr>';
+        });
+        cmp += '</tbody></table>';
+        packageComparison.innerHTML = cmp;
+      }
+    }
+
+    async function buildItemListFromWeeks() {
+      if (!state.selectedWeeks.length) {
+        throw new Error('Select at least one week before building the list.');
+      }
+
+      const grouped = {};
+      const createdPlanIds = [];
+
+      for (let i = 0; i < state.selectedWeeks.length; i++) {
+        const friday = state.selectedWeeks[i];
+        setStatus('Preparing week ' + (i + 1) + ' of ' + state.selectedWeeks.length + ': ' + buildWeekLabel(friday) + '...', '');
+        const weekRows = await fetchWeekRows(friday);
+        const bookingIds = (weekRows || [])
+          .filter((b) => String((b && b.period) || '').toLowerCase() !== 'planner')
+          .map((b) => Number(b.id))
+          .filter((n) => Number.isInteger(n) && n > 0);
+
+        if (!bookingIds.length) continue;
+
+        const createResp = await fetch('/api/shopping-plan/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            week_ending: friday,
+            booking_ids: bookingIds,
+            notes: 'Lead Teacher forward workflow auto draft'
+          })
+        });
+        const createPayload = await createResp.json().catch(() => ({}));
+        if (!createResp.ok || !createPayload.plan || !createPayload.plan.id) {
+          throw new Error(createPayload.error || ('Failed creating draft for week ending ' + friday + '.'));
+        }
+
+        const planId = Number(createPayload.plan.id);
+        createdPlanIds.push(planId);
+
+        const genResp = await fetch('/api/shopping-plan/' + planId + '/generate-draft', {
+          method: 'POST',
+          credentials: 'include'
+        });
+        const genPayload = await genResp.json().catch(() => ({}));
+        if (!genResp.ok) {
+          throw new Error(genPayload.error || ('Failed generating draft items for plan #' + planId + '.'));
+        }
+
+        const planResp = await fetch('/api/shopping-plan/' + planId, { credentials: 'include' });
+        const planPayload = await planResp.json().catch(() => ({}));
+        if (!planResp.ok) {
+          throw new Error(planPayload.error || ('Failed loading generated items for plan #' + planId + '.'));
+        }
+
+        const items = Array.isArray(planPayload.items) ? planPayload.items : [];
+        items.forEach((item) => {
+          const itemName = String((item && item.item_name) || '').trim();
+          if (isNonShoppingMetadataItem(itemName)) return;
+          const autoQty = Number((item && item.calculated_qty) || 0);
+          if (!Number.isFinite(autoQty) || autoQty <= 0) return;
+
+          const unit = normalizeUnit((item && item.base_unit) || '');
+          const categoryKey = canonicalCategoryKey((item && item.category) || '');
+          const categoryLabel = categoryHeading(categoryKey);
+          const key = itemName.toLowerCase() + '|' + unit + '|' + categoryKey;
+
+          if (!grouped[key]) {
+            grouped[key] = {
+              key,
+              itemName,
+              unit,
+              categoryKey,
+              categoryLabel,
+              autoQty: 0
+            };
+          }
+          grouped[key].autoQty += autoQty;
+        });
+      }
+
+      const rows = Object.keys(grouped).map((k) => grouped[k]);
+      rows.sort((a, b) => {
+        if (a.categoryLabel !== b.categoryLabel) return a.categoryLabel.localeCompare(b.categoryLabel);
+        return a.itemName.localeCompare(b.itemName);
+      });
+
+      state.itemRows = rows;
+
+      const nextTeacherMap = {};
+      rows.forEach((row) => {
+        const existing = Number(state.teacherQtyByKey[row.key]);
+        nextTeacherMap[row.key] = Number.isFinite(existing) ? existing : row.autoQty;
+      });
+      state.teacherQtyByKey = nextTeacherMap;
+
+      setStatus('Built list from ' + state.selectedWeeks.length + ' week(s). Temporary drafts created: ' + createdPlanIds.length + '.', 'ok');
+      renderPage1Table();
+      renderPage2Comparison();
+      renderFinalGrid();
+    }
+
+    function exportFinalCsv() {
+      if (!state.itemRows.length) {
+        setStatus('No finalized list to export yet.', 'err');
+        return;
+      }
+      const lines = [['Category', 'Item', 'Unit', 'Final Qty']];
+      state.itemRows.forEach((row) => {
+        const qty = Number(currentTeacherQty(row));
+        const finalQty = Number.isFinite(qty) ? qty : Number(row.autoQty || 0);
+        if (finalQty <= 0) return;
+        lines.push([row.categoryLabel, row.itemName, row.unit, formatQty(finalQty)]);
+      });
+      downloadText('lead_teacher_finalized_list.csv', toCsv(lines), 'text/csv;charset=utf-8;');
+      setStatus('Finalized CSV exported.', 'ok');
+    }
+
+    function exportComparisonCsv() {
+      if (!state.itemRows.length) {
+        setStatus('No comparison to export yet.', 'err');
+        return;
+      }
+      const lines = [['Category', 'Item', 'Unit', 'Auto Qty', 'Lead Teacher Qty', 'Difference']];
+      state.itemRows.forEach((row) => {
+        const autoQty = Number(row.autoQty || 0);
+        const teacherQty = Number(currentTeacherQty(row) || 0);
+        lines.push([
+          row.categoryLabel,
+          row.itemName,
+          row.unit,
+          formatQty(autoQty),
+          formatQty(teacherQty),
+          formatQty(teacherQty - autoQty)
+        ]);
+      });
+      downloadText('lead_teacher_comparison.csv', toCsv(lines), 'text/csv;charset=utf-8;');
+      setStatus('Comparison CSV exported.', 'ok');
+    }
+
+    function bindEvents() {
+      prevWeekBtn.addEventListener('click', async function () {
+        state.visibleFriday = addDaysIso(state.visibleFriday, -7);
+        await refreshVisibleWeekCalendar();
+        renderSelectedWeeks();
+      });
+
+      thisWeekBtn.addEventListener('click', async function () {
+        state.visibleFriday = defaultFriday();
+        await refreshVisibleWeekCalendar();
+        renderSelectedWeeks();
+      });
+
+      nextWeekBtn.addEventListener('click', async function () {
+        state.visibleFriday = addDaysIso(state.visibleFriday, 7);
+        await refreshVisibleWeekCalendar();
+        renderSelectedWeeks();
+      });
+
+      toggleWeekBtn.addEventListener('click', function () {
+        const idx = state.selectedWeeks.indexOf(state.visibleFriday);
+        if (idx >= 0) {
+          state.selectedWeeks.splice(idx, 1);
+          setStatus('Removed visible week from selection.', 'ok');
+        } else {
+          state.selectedWeeks.push(state.visibleFriday);
+          state.selectedWeeks = sortWeekList(state.selectedWeeks);
+          setStatus('Added visible week to selection.', 'ok');
+        }
+        renderSelectedWeeks();
+      });
+
+      clearWeeksBtn.addEventListener('click', function () {
+        state.selectedWeeks = [];
+        renderSelectedWeeks();
+        setStatus('Cleared selected weeks.', 'ok');
+      });
+
+      stepBtn1.addEventListener('click', function () { setStep(1); });
+      stepBtn2.addEventListener('click', function () {
+        captureTeacherQtyFromPage1();
+        renderPage2Comparison();
+        setStep(2);
+      });
+      stepBtn3.addEventListener('click', function () {
+        captureTeacherQtyFromPage1();
+        renderFinalGrid();
+        setStep(3);
+      });
+
+      buildListBtn.addEventListener('click', async function () {
+        buildListBtn.disabled = true;
+        try {
+          await buildItemListFromWeeks();
+        } catch (err) {
+          setStatus(err.message || 'Failed to build food item list.', 'err');
+        } finally {
+          buildListBtn.disabled = false;
+        }
+      });
+
+      toPage2Btn.addEventListener('click', function () {
+        if (!state.itemRows.length) {
+          setStatus('Build the list on Page 1 first.', 'err');
+          return;
+        }
+        captureTeacherQtyFromPage1();
+        renderPage2Comparison();
+        setStep(2);
+      });
+
+      backToPage1Btn.addEventListener('click', function () { setStep(1); });
+
+      acceptAllBtn.addEventListener('click', function () {
+        if (!state.itemRows.length) return;
+        state.itemRows.forEach((row) => {
+          state.teacherQtyByKey[row.key] = row.autoQty;
+        });
+        renderPage2Comparison();
+        setStatus('Accepted auto-calculated quantities for all items.', 'ok');
+      });
+
+      toPage3Btn.addEventListener('click', function () {
+        if (!state.itemRows.length) {
+          setStatus('Build the list first.', 'err');
+          return;
+        }
+        renderFinalGrid();
+        setStep(3);
+      });
+
+      backToPage2Btn.addEventListener('click', function () { setStep(2); });
+
+      exportFinalCsvBtn.addEventListener('click', exportFinalCsv);
+      exportComparisonCsvBtn.addEventListener('click', exportComparisonCsv);
+      printPackageBtn.addEventListener('click', function () {
+        renderFinalGrid();
+        window.print();
+      });
+    }
+
+    async function init() {
+      state.visibleFriday = defaultFriday();
+      state.selectedWeeks = [state.visibleFriday];
+      bindEvents();
+      renderSelectedWeeks();
+      await refreshVisibleWeekCalendar();
+      renderPage1Table();
+      renderPage2Comparison();
+      renderFinalGrid();
+      setStatus('Lead Teacher forward workflow ready. Select week(s) and build Page 1 list.', 'ok');
+    }
+
+    init().catch(function (err) {
+      setStatus(err.message || 'Failed to initialize Lead Teacher Shopping View.', 'err');
+    });
+  })();
+  </script>
+</body>
+</html>

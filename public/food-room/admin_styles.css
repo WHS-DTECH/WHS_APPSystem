@@ -1,0 +1,82 @@
+@import url('./shared/design_tokens.css');
+@import url('./shared/base.css');
+@import url('./shared/components.css');
+
+/* Add margin to main content area */
+.main-content-margins {
+  margin-left: 3vw;
+  margin-right: 3vw;
+}
+/* Standout Recipe URL label */
+.standout-label {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #d32f2f;
+  letter-spacing: 1px;
+  margin-right: 0.7rem;
+  text-shadow: 1px 1px 2px #fff, 0 0 2px #d32f2f44;
+}
+
+/* Super wide URL input */
+.super-wide-url-input {
+  width: min(100%, 72rem);
+  font-size: 1.3rem;
+  padding: 0.5em 1em;
+  border: 2px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  background: #f7fbff;
+  color: var(--color-neutral-900);
+  box-shadow: 0 2px 8px #1976d222;
+}
+
+/* Standout Upload URL button */
+.standout-btn {
+  font-size: 1.3rem;
+  padding: 0.6em 2.2em;
+  background: linear-gradient(90deg, #43a047 60%, #1976d2 100%);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  margin-left: 1em;
+  font-weight: bold;
+  box-shadow: 0 4px 12px #1976d244;
+  transition: background 0.2s, transform 0.1s;
+  text-shadow: 1px 1px 2px #0002;
+}
+.standout-btn:hover {
+  background: linear-gradient(90deg, #388e3c 60%, #1565c0 100%);
+  transform: scale(1.05);
+}
+/* Make Recipe URL label stand out */
+.recipe-url-label {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: #1976d2;
+  margin-right: 0.5rem;
+}
+
+/* Widen the URL input */
+.wide-url-input {
+  width: 420px;
+  max-width: 90%;
+  font-size: 1.1rem;
+  padding: 0.4em 0.7em;
+}
+
+/* Make Upload URL button larger and colored */
+.upload-url-btn {
+  font-size: 1.1rem;
+  padding: 0.45em 1.3em;
+  background-color: #43a047;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  margin-left: 0.7em;
+  font-weight: bold;
+  box-shadow: 0 2px 6px rgba(67,160,71,0.15);
+  transition: background 0.2s;
+}
+.upload-url-btn:hover {
+  background-color: #388e3c;
+}
+/* Basic styles for admin pages (consolidated in base.css) */

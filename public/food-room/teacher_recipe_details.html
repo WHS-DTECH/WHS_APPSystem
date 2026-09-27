@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Details - Teacher View</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .recipe-details-page {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem 1.25rem;
+        }
+        .recipe-header {
+            margin-bottom: 2rem;
+            border-bottom: 2px solid #3b82f6;
+            padding-bottom: 1.5rem;
+        }
+        .recipe-title {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
+        .recipe-status-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            font-weight: 500;
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+        }
+        .status-approved {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        .status-pending {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+        .recipe-description {
+            color: #4b5563;
+            font-size: 1rem;
+            margin: 1rem 0;
+        }
+        .recipe-section {
+            margin: 2rem 0;
+            padding: 1.5rem;
+            background-color: #f9fafb;
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
+        }
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 1rem;
+        }
+        .metadata-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .metadata-item {
+            background-color: white;
+            padding: 1rem;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+        }
+        .metadata-label {
+            font-size: 0.875rem;
+            color: #6b7280;
+            font-weight: 500;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+        .metadata-value {
+            font-size: 1.125rem;
+            color: #1f2937;
+            word-break: break-word;
+        }
+        .metadata-value-code {
+            background-color: #f3f4f6;
+            padding: 0.25rem 0.5rem;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        .metadata-empty {
+            color: #9ca3af;
+            font-style: italic;
+        }
+        .tags-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+        .tag {
+            background-color: #dbeafe;
+            color: #0c4a6e;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            border: 1px solid #93c5fd;
+        }
+        .ingredients-list,
+        .instructions-list {
+            background-color: white;
+            padding: 1rem;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .instructions-list li {
+            margin-bottom: 0.75rem;
+            line-height: 1.5;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 1.5rem;
+            color: #3b82f6;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        .error-message {
+            background-color: #fee2e2;
+            color: #991b1b;
+            padding: 1rem;
+            border-radius: 6px;
+            border-left: 4px solid #dc2626;
+            margin: 2rem 0;
+        }
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #6b7280;
+        }
+        .teacher-note {
+            background-color: #fef08a;
+            border-left: 4px solid #eab308;
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1.5rem 0;
+            font-size: 0.95rem;
+        }
+    </style>
+</head>
+<body>
+    <div id="navbar-include"></div>
+    <script src="shared/navbar_loader.js"></script>
+
+    <div class="recipe-details-page">
+        <a href="recipe_display.html" class="back-link">← Back to Recipes</a>
+
+        <div id="loadingContainer" class="loading" style="display: block;">
+            Loading recipe details...
+        </div>
+
+        <div id="errorContainer" style="display: none;">
+            <div class="error-message" id="errorMessage"></div>
+        </div>
+
+        <div id="recipeContainer" style="display: none;">
+            <div class="recipe-header">
+                <h1 class="recipe-title" id="recipeName"></h1>
+                <span id="statusBadge" class="recipe-status-badge"></span>
+                <p class="recipe-description" id="recipeDescription"></p>
+            </div>
+
+            <div class="teacher-note">
+                <strong>👨‍🏫 Teacher Information:</strong> This page shows planning metadata (upload history, term usage, year levels) that is only visible to teachers.
+            </div>
+
+            <!-- Upload Information -->
+            <div class="recipe-section">
+                <div class="section-title">📋 Upload Information</div>
+                <div class="metadata-grid">
+                    <div class="metadata-item">
+                        <div class="metadata-label">Uploaded By</div>
+                        <div class="metadata-value" id="uploadedByName">—</div>
+                        <div style="font-size: 0.875rem; color: #6b7280; margin-top: 0.5rem;" id="uploadedByEmail">—</div>
+                    </div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Upload Date</div>
+                        <div class="metadata-value" id="uploadedDate">—</div>
+                    </div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Channel</div>
+                        <div class="metadata-value" id="submittedChannel">—</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Usage History -->
+            <div class="recipe-section">
+                <div class="section-title">📚 Planner Usage History</div>
+                <div class="metadata-grid">
+                    <div class="metadata-item">
+                        <div class="metadata-label">Used in Terms</div>
+                        <div id="usedInTerms">
+                            <div class="tags-list" id="termsTags"></div>
+                        </div>
+                    </div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Used in Years</div>
+                        <div id="usedInYears">
+                            <div class="tags-list" id="yearsTags"></div>
+                        </div>
+                    </div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Year Levels</div>
+                        <div id="usedInYearLevels">
+                            <div class="tags-list" id="yearLevelsTags"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recipe Details -->
+            <div class="recipe-section">
+                <div class="section-title">🍽️ Recipe Details</div>
+                <div class="metadata-grid">
+                    <div class="metadata-item">
+                        <div class="metadata-label">Serving Size</div>
+                        <div class="metadata-value" id="servingSize">—</div>
+                    </div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Source URL</div>
+                        <div class="metadata-value">
+                            <a id="recipeUrl" href="#" target="_blank" style="color: #3b82f6; text-decoration: none;">View Original</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ingredients -->
+            <div class="recipe-section">
+                <div class="section-title">🥕 Ingredients</div>
+                <div class="ingredients-list" id="ingredientsList">—</div>
+            </div>
+
+            <!-- Instructions -->
+            <div class="recipe-section">
+                <div class="section-title">👨‍🍳 Instructions</div>
+                <div class="instructions-list" id="instructionsList">—</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="shared/nz_school_calendar.js"></script>
+    <script>
+        (function() {
+            'use strict';
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const recipeId = urlParams.get('id');
+
+            const loadingContainer = document.getElementById('loadingContainer');
+            const errorContainer = document.getElementById('errorContainer');
+            const errorMessage = document.getElementById('errorMessage');
+            const recipeContainer = document.getElementById('recipeContainer');
+
+            async function loadRecipeDetails() {
+                if (!recipeId) {
+                    showError('No recipe ID provided. Please use ?id=RECIPE_ID');
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/api/recipes/${encodeURIComponent(recipeId)}/teacher-details`, {
+                        credentials: 'include'
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        showError(data.error || `HTTP ${response.status}: ${response.statusText}`);
+                        return;
+                    }
+
+                    if (!data.success) {
+                        showError(data.error || 'Failed to load recipe details');
+                        return;
+                    }
+
+                    displayRecipe(data.recipe);
+                } catch (err) {
+                    console.error('[TEACHER RECIPE] Error loading recipe:', err);
+                    showError(`Error loading recipe: ${err.message}`);
+                }
+            }
+
+            function showError(message) {
+                loadingContainer.style.display = 'none';
+                errorMessage.textContent = message;
+                errorContainer.style.display = 'block';
+            }
+
+            function formatDate(isoDate) {
+                if (!isoDate) return '—';
+                try {
+                    const date = new Date(isoDate);
+                    return date.toLocaleDateString('en-NZ', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                    });
+                } catch {
+                    return isoDate;
+                }
+            }
+
+            function displayRecipe(recipe) {
+                // Header
+                document.getElementById('recipeName').textContent = recipe.name || 'Untitled Recipe';
+                document.getElementById('recipeDescription').textContent = recipe.description || '';
+
+                // Status badge
+                const statusBadge = document.getElementById('statusBadge');
+                const status = recipe.moderationStatus || 'approved';
+                statusBadge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+                statusBadge.className = `recipe-status-badge status-${status}`;
+
+                // Upload info
+                document.getElementById('uploadedByName').textContent = recipe.uploadedBy?.name || '—';
+                document.getElementById('uploadedByEmail').textContent = recipe.uploadedBy?.email ? `(${recipe.uploadedBy.email})` : '';
+                document.getElementById('uploadedDate').textContent = formatDate(recipe.uploadedAt);
+                document.getElementById('submittedChannel').textContent = recipe.submittedChannel || '—';
+
+                // Usage history
+                const termsContainer = document.getElementById('termsTags');
+                if (recipe.usageHistory?.terms && recipe.usageHistory.terms.length > 0) {
+                    termsContainer.innerHTML = recipe.usageHistory.terms
+                        .map(term => `<span class="tag">${escapeHtml(term)}</span>`)
+                        .join('');
+                } else {
+                    termsContainer.innerHTML = '<div class="metadata-empty">No usage history recorded</div>';
+                }
+
+                const yearsContainer = document.getElementById('yearsTags');
+                if (recipe.usageHistory?.years && recipe.usageHistory.years.length > 0) {
+                    yearsContainer.innerHTML = recipe.usageHistory.years
+                        .map(year => `<span class="tag">${year}</span>`)
+                        .join('');
+                } else {
+                    yearsContainer.innerHTML = '<div class="metadata-empty">No usage history recorded</div>';
+                }
+
+                const yearLevelsContainer = document.getElementById('yearLevelsTags');
+                if (recipe.usageHistory?.yearLevels && recipe.usageHistory.yearLevels.length > 0) {
+                    yearLevelsContainer.innerHTML = recipe.usageHistory.yearLevels
+                        .map(level => `<span class="tag">${escapeHtml(level)}</span>`)
+                        .join('');
+                } else {
+                    yearLevelsContainer.innerHTML = '<div class="metadata-empty">No usage history recorded</div>';
+                }
+
+                // Recipe details
+                document.getElementById('servingSize').textContent = recipe.servingSize ? `${recipe.servingSize} servings` : '—';
+
+                const urlLink = document.getElementById('recipeUrl');
+                if (recipe.url) {
+                    urlLink.href = recipe.url;
+                    urlLink.textContent = 'View Original Recipe';
+                } else {
+                    urlLink.parentElement.innerHTML = '<div class="metadata-empty">No source URL provided</div>';
+                }
+
+                // Ingredients
+                const ingredientsList = document.getElementById('ingredientsList');
+                if (recipe.ingredients) {
+                    ingredientsList.innerHTML = `<pre>${escapeHtml(recipe.ingredients)}</pre>`;
+                } else {
+                    ingredientsList.innerHTML = '<div class="metadata-empty">No ingredients provided</div>';
+                }
+
+                // Instructions
+                const instructionsList = document.getElementById('instructionsList');
+                if (recipe.instructions) {
+                    const instructionsText = recipe.instructions.trim();
+                    const lines = instructionsText.split('\n').filter(line => line.trim());
+                    instructionsList.innerHTML = `<ol>${lines.map(line => `<li>${escapeHtml(line)}</li>`).join('')}</ol>`;
+                } else {
+                    instructionsList.innerHTML = '<div class="metadata-empty">No instructions provided</div>';
+                }
+
+                // Show content
+                loadingContainer.style.display = 'none';
+                recipeContainer.style.display = 'block';
+            }
+
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            // Load recipe on page load
+            loadRecipeDetails();
+        })();
+    </script>
+</body>
+</html>

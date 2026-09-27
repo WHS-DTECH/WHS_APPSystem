@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Recipe Extraction</title>
+	<link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+	<link rel="stylesheet" href="admin_styles.css">
+	<link rel="stylesheet" href="../shared/style.css">
+</head>
+<body>
+	<div id="navbar-include"></div>
+	<script src="../shared/navbar_loader.js"></script>
+	<div class="setup-card main-content-margins">
+	<h2>Recipe Extraction</h2>
+	<div style="font-size:1.25rem;font-weight:bold;color:#1976d2;margin-bottom:0.7rem;">Extract Recipe Information</div>
+	<div style="margin-top:1rem; margin-bottom:1.5rem;">
+		<button class="setup-btn" style="background:#8000b0; color:#fff;" onclick="window.location.href='extractor_raw.html'">Raw Data Extractor</button>
+		<button class="setup-btn" style="margin-left:1rem;" onclick="window.location.href='extractor_serving_size.html'">Serving Size Extractor</button>
+		<button class="setup-btn" style="margin-left:1rem; background:#008080; color:#fff;" onclick="window.location.href='extractor_instructions.html'">Instructions Text Extractor</button>
+		<button class="setup-btn" style="margin-left:1rem; background:#4B0082; color:#fff;" onclick="window.location.href='extractor_ingredient.html'">Ingredients Text Extractor</button>
+		<button class="setup-btn" style="margin-left:1rem; background:#e040fb; color:#fff;" onclick="window.location.href='extractor_title.html'">Title Extractor</button>
+	</div>
+		<!-- Removed Load Recipe (URL) section as requested -->
+		<hr>
+		<!-- Move Raw Data Preview next to Raw Data Extractor button -->
+		<div style="display:flex; align-items:center; margin-bottom:1rem;">
+			<button id="transferInstructionsMainBtn" class="setup-btn" style="background:#a020f0; color:#fff; margin-right:1rem; display:none;">Transfer Instructions</button>
+			<div id="rawDataPreviewWindow" style="width:420px; min-height:90px; height:110px; max-height:160px; background:#f8f8ff; border:1.5px solid #bdbdbd; border-radius:8px; box-shadow:0 2px 8px #0001; padding:0.7rem 1rem; overflow:auto; font-size:0.97em; color:#333; display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start; z-index:2; display:none;">
+				<div style="font-weight:bold; color:#8000b0; font-size:1em; margin-bottom:0.3em;">Raw Data Preview</div>
+				<pre id="rawDataPreviewText" style="margin:0; padding:0; background:none; border:none; font-size:0.97em; max-width:100%; max-height:120px; overflow:auto; white-space:pre-wrap;"></pre>
+			</div>
+		</div>
+		<hr>
+		<!-- Direct Linked Recipes Table (all fields) removed as requested -->
+		<div class="setup-section">
+			<div class="setup-section-desc">View recipes currently in the database.</div>
+			<div style="display:flex; align-items:center; gap:0.6rem; margin-top:0.8rem; flex-wrap:wrap;">
+				<label for="recipeFilterSelect" style="font-weight:600;">Filter Recipe:</label>
+				<select id="recipeFilterSelect" style="min-width:320px; padding:0.45rem 0.55rem; border:1px solid #ccc; border-radius:6px; background:#fff;">
+					<option value="">All Recipes</option>
+				</select>
+			</div>
+			<table id="mainRecipesTable" style="width:100%;margin-top:1rem;border-collapse:collapse;">
+				<thead>
+					<tr style="background:#f5f5f5;">
+					<th data-sort="id" style="padding:0.5rem 0.7rem;border:1px solid #eee; cursor:pointer;" title="Sort by ID (newest/oldest)">ID &#x25B2;&#x25BC;</th>
+					<th style="padding:0.5rem 0.7rem;border:1px solid #eee;">UploadedRecipeID</th>
+					<th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Source</th>
+					<th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Recipe Name</th>
+					<th style="padding:0.5rem 0.7rem;border:1px solid #eee; color:#009688;">Raw Data Table</th>
+					<th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Extracted Serving Size</th>
+					<th style="padding:0.5rem 0.7rem;border:1px solid #eee; color:indigo;">Extracted Ingredients</th>
+					<th style="padding:0.5rem 0.7rem;border:1px solid #eee; color:indigo;">Extracted Instructions</th>
+					<th style="padding:0.5rem 0.7rem;border:1px solid #eee;">Actions</th>
+				</tr>
+				</thead>
+				<tbody>
+					<!-- Populated by JS -->
+				</tbody>
+			</table>
+		</div>
+		<!-- Uploaded Recipes Table removed as requested -->
+	</div>
+	<script src="recipe_extraction.js?v=20260127"></script>
+	<script>
+	const syncBtn = document.getElementById('syncUploadedToRecipesBtn');
+	if (syncBtn) {
+		syncBtn.addEventListener('click', function() {
+			if (confirm('This will insert any uploaded recipes not yet in the Recipes table. Continue?')) {
+				fetch('/api/recipes/sync-from-uploads', { method: 'POST' })
+					.then(res => res.json())
+					.then(data => {
+						if (data.success) {
+							alert('Sync complete: ' + data.inserted + ' recipes added.');
+							location.reload();
+						} else {
+							alert('Sync failed.');
+						}
+					})
+					.catch(() => alert('Error contacting server.'));
+			}
+		});
+	}
+	</script>
+</body>
+</html>

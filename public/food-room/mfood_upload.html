@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MFOOD Class CSV Upload</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+
+  <div class="container" style="max-width:900px;margin:2rem auto;background:#fff;padding:2rem;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+    <h1>Upload MFOOD Class CSV</h1>
+
+    <details style="margin:0 0 1rem; border:1px solid #d8dee6; border-radius:10px; padding:0.75rem 0.9rem; background:#f8fbff;">
+      <summary style="cursor:pointer; font-weight:700; color:#1f2937;">How to use this uploader</summary>
+      <ol style="margin:0.8rem 0 0; padding-left:1.2rem; color:#1f2937;">
+        <li style="margin-bottom:0.6rem;">Export one class list CSV from Kamar (columns like Student ID, Last Name, First Name, Timetable Class).</li>
+        <li style="margin-bottom:0.6rem;">Choose the file below. Class Code auto-fills from the filename and can be edited.</li>
+        <li style="margin-bottom:0.6rem;">Upload one MFOOD class at a time.</li>
+        <li>This updates bookings class size for matching class code/group key immediately.</li>
+      </ol>
+    </details>
+
+    <form id="mfoodUploadForm">
+      <label for="mfoodCsvFile">Upload MFOOD CSV File:</label>
+      <input type="file" id="mfoodCsvFile" accept=".csv" required>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.6rem;margin:0.85rem 0 0.6rem;">
+        <div>
+          <label for="mfoodClassCode">Class Code</label>
+          <input type="text" id="mfoodClassCode" placeholder="e.g. 82B-MFOOD" required>
+        </div>
+        <div>
+          <label for="mfoodUploadYear">Upload Year</label>
+          <input type="number" id="mfoodUploadYear" min="2000" max="2100" value="2026" required>
+        </div>
+        <div>
+          <label for="mfoodUploadTerm">Upload Term</label>
+          <select id="mfoodUploadTerm" required>
+            <option selected>Term 1</option>
+            <option>Term 2</option>
+            <option>Term 3</option>
+            <option>Term 4</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="margin:0 0 0.8rem; max-width:260px;">
+        <label for="mfoodUploadDate">Upload Date</label>
+        <input type="date" id="mfoodUploadDate" value="2026-01-01" required>
+      </div>
+
+      <button type="submit">Upload MFOOD Class</button>
+    </form>
+
+    <div id="mfoodUploadResult" style="margin-top:1.2rem;"></div>
+    <div id="mfoodClassTableContainer" style="margin-top:2rem;"></div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="mfood_upload.js"></script>
+</body>
+</html>

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ingredients Extractor</title>
+  <link rel="stylesheet" href="../shared/style.css">
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+</head>
+<body>
+  <!-- Shared Navigation Bar -->
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+  <div class="extractor-card" style="margin-left:40px;margin-right:40px;">
+    <h2>Ingredients Extraction Strategies</h2>
+    <!-- Move recipe selector above columns -->
+    <div style="margin-bottom: 1.5rem;">
+      <label for="recipeSelect">Choose Recipe URL:</label>
+      <select id="recipeSelect">
+        <option value="">-- Select a recipe --</option>
+        <!-- Populated by JS -->
+      </select>
+    </div>
+    <div style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap;margin-bottom:1rem;">
+      <div style="border:1px solid #d7e3f4;border-radius:8px;background:#f8fbff;padding:0.8rem;min-width:200px;">
+        <div style="font-weight:600;margin-bottom:0.5rem;">Step-by-step</div>
+        <button class="extractor-btn" id="startStepBtn">Start Step-by-Step</button>
+      </div>
+      <div style="border:1px solid #d7e3f4;border-radius:8px;background:#f8fbff;padding:0.8rem;min-width:200px;">
+        <div style="font-weight:600;margin-bottom:0.5rem;">SMART</div>
+        <button class="extractor-btn" id="smartBtn">SMART</button>
+      </div>
+      <div style="border:1px solid #d7e3f4;border-radius:8px;background:#f8fbff;padding:0.8rem;min-width:260px;">
+        <div style="font-weight:600;margin-bottom:0.5rem;">Auto Extract</div>
+        <button class="extractor-btn" id="autoExtractBtn" style="background:#00897b;color:#fff;">Ingredients Auto Extract</button>
+      </div>
+    </div>
+    <div id="autoExtractResultBox" style="display:none;margin-bottom:1rem;border:1px solid #cfd8dc;border-radius:8px;background:#fafcff;padding:0.8rem;">
+      <div style="font-weight:600;margin-bottom:0.4rem;">Auto Extract Result</div>
+      <div id="autoExtractResultText" style="margin-bottom:0.7rem;white-space:pre-wrap;"></div>
+      <button id="autoAcceptSendBtn" style="background:#8000b0;color:#fff;border:none;border-radius:5px;padding:0.6rem 1.2rem;font-size:1rem;cursor:pointer;">Accept and Send Solution</button>
+      <button id="autoDeclineBtn" style="background:#e53935;color:#fff;border:none;border-radius:5px;padding:0.6rem 1.2rem;font-size:1rem;cursor:pointer;margin-left:0.5rem;">Decline (Open Ingredients Extractor)</button>
+    </div>
+    <div class="extractor-section" style="display: flex; gap: 2rem; align-items: flex-start;">
+      <!-- Left column: Strategies table and controls -->
+      <div style="flex: 1 1 0; min-width: 320px; max-width: 600px; margin-right: 5vw; margin-bottom: 1rem;">
+        <h3>Ingredients Extraction Strategies</h3>
+        <ul style="margin-bottom:1.2rem;">
+          <li><b>Find &lt;li&gt; tags</b>: Extracts all list items from the raw HTML, regardless of context.</li>
+        </ul>
+        <table id="strategyTable">
+          <thead>
+            <tr>
+              <th>Strategy</th>
+              <th>Applied</th>
+              <th>Result</th>
+              <th>Solved</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Populated by JS -->
+          </tbody>
+        </table>
+        <div style="margin-top:1rem;">
+          <button class="extractor-btn" id="acceptResultBtn">Accept Result</button>
+          <button class="extractor-btn" id="continueBtn">Continue</button>
+        </div>
+        <div style="margin-top:2rem;">
+          <div id="stepControls" style="display:none; margin-top:1rem;">
+            <div id="currentStrategyName" style="font-weight:bold;"></div>
+            <div id="currentStrategyResult" style="margin:0.5rem 0;"></div>
+          </div>
+        </div>
+      </div>
+      <!-- Right column: Solution viewer and raw data -->
+      <div style="flex: 1 1 0; min-width: 320px; max-width: 600px;">
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+          <button class="extractor-btn" id="loadRawBtn">Load Raw Data</button>
+        </div>
+        <label for="solutionBox" style="color:purple;font-weight:bold;">Solution</label>
+        <textarea id="solutionBox" rows="8" style="width:100%;"></textarea>
+        <button class="extractor-btn" id="sendSolutionBtn" style="background:#8000b0;color:#fff;width:100%;margin-top:1rem;">SEND SOLUTION</button>
+        <label style="margin-top:1.5rem; display:block;">Raw Data (HTML/Text)</label>
+        <textarea id="rawDataBox" style="width:100%;margin-top:0.5rem;resize:vertical;min-height:40px;max-height:300px;" readonly></textarea>
+      </div>
+    </div>
+  </div>
+  <script src="extractor_auto_core.js?v=20260410b"></script>
+  <script src="extractor_ingredient.js"></script>
+</body>
+</html>

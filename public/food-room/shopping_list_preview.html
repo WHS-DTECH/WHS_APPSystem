@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shopping List Preview</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    :root {
+      --page-bg: #f4f7fb;
+      --card-bg: #ffffff;
+      --ink: #172033;
+      --muted: #5b687a;
+      --accent: #1e63d6;
+      --paper: #ffffff;
+      --paper-line: #d8e1ee;
+      --paper-head: #1f4f8f;
+      --line: #d8e1ee;
+      --soft: #edf3fb;
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    }
+
+    body {
+      background: radial-gradient(circle at top, #ffffff 0%, var(--page-bg) 45%, #eef3f9 100%);
+      color: var(--ink);
+    }
+
+    .preview-shell {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 1.2rem 1rem 2rem;
+    }
+
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: end;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(1.6rem, 2vw, 2.1rem);
+      letter-spacing: -0.03em;
+    }
+
+    .hero p {
+      margin: 0.3rem 0 0;
+      color: var(--muted);
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+
+    .toolbar-actions {
+      grid-column: 1 / -1;
+      display: flex;
+      gap: 0.7rem;
+      flex-wrap: wrap;
+      align-items: end;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 10px;
+      padding: 0.72rem 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      background: var(--accent);
+      color: #fff;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn.secondary {
+      background: #526074;
+    }
+
+    .toolbar,
+    .meta-card,
+    .preview-card {
+      background: var(--card-bg);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .toolbar {
+      padding: 1rem;
+      display: grid;
+      grid-template-columns: minmax(260px, 1fr) auto;
+      gap: 0.85rem 1rem;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .toolbar label {
+      font-size: 0.86rem;
+      font-weight: 700;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 0.35rem;
+    }
+
+    .toolbar select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 0.72rem 0.8rem;
+      font-size: 0.98rem;
+      background: #fff;
+    }
+
+    .toolbar-status {
+      grid-column: 1 / -1;
+      color: var(--muted);
+      min-height: 1.2rem;
+      font-size: 0.94rem;
+    }
+
+    .toolbar .email-btn {
+      background: #0f766e;
+    }
+
+    .toolbar .email-btn:hover {
+      background: #115e59;
+    }
+
+    .preview-card {
+      padding: 1rem;
+    }
+
+    .doc {
+      background: var(--paper);
+      border: 1px solid var(--paper-line);
+      border-radius: 14px;
+      overflow: hidden;
+      max-width: 100%;
+    }
+
+    .doc-head {
+      background: linear-gradient(135deg, #173b67 0%, var(--paper-head) 100%);
+      color: #fff;
+      padding: 1rem 1.1rem 0.95rem;
+    }
+
+    .doc-head-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      align-items: baseline;
+    }
+
+    .doc-head h2 {
+      margin: 0;
+      font-size: 1.3rem;
+      letter-spacing: -0.02em;
+    }
+
+    .doc-note {
+      margin-top: 0.55rem;
+      font-size: 0.93rem;
+      color: rgba(255, 255, 255, 0.9);
+      max-width: 70rem;
+    }
+
+    .doc-meta {
+      margin: 0.35rem 0 0;
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 0.94rem;
+    }
+
+    .doc-body {
+      padding: 1rem 1.1rem 1.2rem;
+    }
+
+    .doc-banner {
+      border: 1px solid var(--line);
+      background: #fbfdff;
+      border-radius: 12px;
+      padding: 0.85rem 0.95rem;
+      margin-bottom: 1rem;
+    }
+
+    .doc-banner strong {
+      display: block;
+      margin-bottom: 0.25rem;
+      color: var(--paper-head);
+    }
+
+    .doc-banner p {
+      margin: 0.15rem 0 0;
+      color: var(--muted);
+      font-size: 0.93rem;
+    }
+
+    .doc-summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .summary-chip {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--soft);
+      padding: 0.75rem 0.85rem;
+    }
+
+    .summary-chip .label {
+      font-size: 0.77rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-bottom: 0.25rem;
+    }
+
+    .summary-chip .value {
+      font-weight: 700;
+      color: var(--ink);
+      font-size: 0.98rem;
+      word-break: break-word;
+    }
+
+    .doc-pairs {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .doc-pair-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+      align-items: start;
+    }
+
+    .category-card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+      break-inside: avoid;
+      background: #fff;
+      min-height: 100%;
+    }
+
+    .category-card.full-width {
+      grid-column: 1 / -1;
+      min-height: 0;
+    }
+
+    .category-card.compact .category-body {
+      padding-top: 0.65rem;
+      padding-bottom: 0.65rem;
+    }
+
+    .category-card.compact .section {
+      margin-bottom: 0.55rem;
+    }
+
+    .category-head {
+      background: #2164cf;
+      color: #fff;
+      padding: 0.8rem 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+
+    .category-body {
+      padding: 0.9rem 0.95rem 0.95rem;
+    }
+
+    .section {
+      margin-bottom: 0.9rem;
+    }
+
+    .section:last-child {
+      margin-bottom: 0;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.75rem;
+      align-items: baseline;
+      margin-bottom: 0.5rem;
+      border-bottom: 1px dashed #d7dfeb;
+      padding-bottom: 0.35rem;
+    }
+
+    .section-label {
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .section-sublabel {
+      color: var(--muted);
+      font-size: 0.88rem;
+      text-align: right;
+    }
+
+    .items {
+      margin: 0;
+      padding-left: 1.1rem;
+      color: #273246;
+    }
+
+    .items li {
+      margin: 0 0 0.3rem;
+    }
+
+    .order-chip {
+      display: inline-block;
+      margin-left: 0.45rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #21538f;
+      background: #eaf2ff;
+      border-radius: 999px;
+      padding: 0.18rem 0.48rem;
+      vertical-align: middle;
+    }
+
+    .recipe-schedule-card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+      background: #fff;
+      margin-bottom: 1rem;
+    }
+
+    .recipe-schedule-card .recipe-item {
+      margin: 0 0 0.4rem;
+      list-style: disc;
+    }
+
+    .recipe-schedule-card .recipe-item.empty {
+      list-style: none;
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    .recipe-class {
+      display: inline-block;
+      margin-right: 0.4rem;
+      padding: 0.1rem 0.35rem;
+      border-radius: 999px;
+      background: #eaf2ff;
+      color: #21538f;
+      font-size: 0.78rem;
+      font-weight: 700;
+      vertical-align: baseline;
+    }
+
+    .category-placeholder {
+      border: 1px dashed var(--line);
+      border-radius: 14px;
+      min-height: 2.2rem;
+      background: #fafcff;
+    }
+
+    .empty-state {
+      color: var(--muted);
+      font-style: italic;
+      padding: 1.2rem 0;
+      text-align: center;
+    }
+
+    .footer-note {
+      margin-top: 0.85rem;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .hide-on-load {
+      display: none;
+    }
+
+    @media (max-width: 900px) {
+      .doc-summary,
+      .doc-pair-row {
+        grid-template-columns: 1fr;
+      }
+
+      .toolbar {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      #navbar-include,
+      .hero,
+      .toolbar,
+      .hero-actions,
+      .toolbar-status,
+      .footer-note {
+        display: none !important;
+      }
+
+      .preview-shell {
+        max-width: none;
+        padding: 0;
+      }
+
+      .preview-card {
+        border: 0;
+        box-shadow: none;
+        padding: 0;
+      }
+
+      .doc {
+        border: 0;
+        border-radius: 0;
+      }
+
+      .category-card {
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+
+  <main class="preview-shell">
+    <div class="hero">
+      <div>
+        <h1>Shopping List Preview</h1>
+        <p>Preview the selected shopping list in a clean teacher-facing layout before printing or exporting.</p>
+      </div>
+      <div class="hero-actions">
+        <button id="printBtn" class="btn" type="button">Print / Save PDF</button>
+      </div>
+    </div>
+
+    <section class="toolbar" aria-label="Shopping list selection">
+      <div>
+        <label for="savedListSelect">Saved shopping list</label>
+        <select id="savedListSelect" aria-label="Select saved shopping list">
+          <option value="">Loading saved shopping lists...</option>
+        </select>
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button id="refreshBtn" class="btn secondary" type="button">Refresh Lists</button>
+      </div>
+      <div class="toolbar-actions">
+        <div style="flex:1 1 280px;min-width:260px;">
+          <label for="staffEmailSelect">Staff Email</label>
+          <select id="staffEmailSelect" aria-label="Select staff email">
+            <option value="">Loading staff emails...</option>
+          </select>
+        </div>
+        <button id="emailBtn" class="btn email-btn" type="button">Email</button>
+      </div>
+      <div class="toolbar-status" id="statusText"></div>
+    </section>
+
+    <section class="preview-card">
+      <div class="doc" id="docPreview">
+        <div class="doc-head">
+          <div class="doc-head-top">
+            <h2 id="docTitle">Shopping List Preview</h2>
+            <div id="docId" style="font-size:0.95rem;font-weight:700;opacity:0.92;"></div>
+          </div>
+          <p class="doc-meta" id="docMeta">Select a saved shopping list to preview it.</p>
+          <div class="doc-note">This preview is sorted into the teacher-facing print order first, so the layout matches the working document before you print or export it.</div>
+        </div>
+        <div class="doc-body" id="docBody">
+          <div class="empty-state">Choose a list to render the teacher-facing template.</div>
+        </div>
+      </div>
+      <div class="footer-note">This preview is intentionally read-only. Use Print / Save PDF to export the same layout the teacher sees.</div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      const savedListSelect = document.getElementById('savedListSelect');
+      const refreshBtn = document.getElementById('refreshBtn');
+      const emailBtn = document.getElementById('emailBtn');
+      const staffEmailSelect = document.getElementById('staffEmailSelect');
+      const printBtn = document.getElementById('printBtn');
+      const statusText = document.getElementById('statusText');
+      const docTitle = document.getElementById('docTitle');
+      const docId = document.getElementById('docId');
+      const docMeta = document.getElementById('docMeta');
+      const docBody = document.getElementById('docBody');
+
+      let selectedList = null;
+      let savedLists = [];
+
+      const CATEGORY_ORDER = [
+        'Meat',
+        'Dairy & Pastry',
+        'Dry Ingredients',
+        'Tinned Food',
+        'Cleaning Products',
+        'Fruit and Vegetables',
+        'Other'
+      ];
+
+      const CATEGORY_PAIRS = [
+        ['Meat', 'Dairy & Pastry'],
+        ['Dry Ingredients', 'Tinned Food'],
+        ['Cleaning Products', 'Fruit and Vegetables'],
+        ['Other', '']
+      ];
+
+      const SECTION_ORDER = [
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Junior',
+        'L1',
+        'L2',
+        'L3',
+        'St M',
+        'DK',
+        'RS'
+      ];
+
+      function esc(value) {
+        return String(value == null ? '' : value)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function requestJson(url, options) {
+        return fetch(url, Object.assign({
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' }
+        }, options || {})).then(async (response) => {
+          let payload = null;
+          try {
+            payload = await response.json();
+          } catch (err) {
+            payload = null;
+          }
+          if (!response.ok || (payload && payload.success === false)) {
+            throw new Error(payload && payload.error ? payload.error : ('Request failed (' + response.status + ')'));
+          }
+          return payload || {};
+        });
+      }
+
+      function setStatus(message, type) {
+        statusText.textContent = message || '';
+        statusText.style.color = type === 'error' ? '#b91c1c' : (type === 'ok' ? '#166534' : '#5b687a');
+      }
+
+      function formatDateTime(value) {
+        if (!value) return '';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+        return date.toLocaleString();
+      }
+
+      function normalizeColumns(state) {
+        const columns = Array.isArray(state && state.columns) ? state.columns : [];
+        const out = [[], []];
+        columns.slice(0, 2).forEach((column, columnIndex) => {
+          out[columnIndex] = Array.isArray(column) ? column : [];
+        });
+        return out;
+      }
+
+      function orderIndex(value, orderList) {
+        const index = orderList.indexOf(String(value || '').trim());
+        return index === -1 ? 999 : index;
+      }
+
+      function sortText(valueA, valueB) {
+        return String(valueA || '').localeCompare(String(valueB || ''), undefined, { sensitivity: 'base' });
+      }
+
+      function parseNumberOrZero(value) {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? Math.trunc(parsed) : 0;
+      }
+
+      function sortSavedListsByWeekDesc(a, b) {
+        const weekA = parseNumberOrZero(a && a.week);
+        const weekB = parseNumberOrZero(b && b.week);
+        if (weekA !== weekB) return weekB - weekA;
+
+        const termA = parseNumberOrZero(a && a.term);
+        const termB = parseNumberOrZero(b && b.term);
+        if (termA !== termB) return termB - termA;
+
+        const dateA = String(a && (a.weekDate || a.week_date) || '');
+        const dateB = String(b && (b.weekDate || b.week_date) || '');
+        if (dateA !== dateB) return dateB.localeCompare(dateA);
+
+        return Number(b && b.id || 0) - Number(a && a.id || 0);
+      }
+
+      function sortPreviewItems(items) {
+        return (Array.isArray(items) ? items : [])
+          .map((item) => String(item || '').trim())
+          .filter(Boolean)
+          .sort(sortText);
+      }
+
+      function sortPreviewSections(sections) {
+        return (Array.isArray(sections) ? sections : [])
+          .slice()
+          .sort((a, b) => {
+            const orderA = orderIndex(a && a.label, SECTION_ORDER);
+            const orderB = orderIndex(b && b.label, SECTION_ORDER);
+            if (orderA !== orderB) return orderA - orderB;
+            return sortText(a && a.label, b && b.label);
+          })
+          .map((section) => ({
+            label: section && section.label ? section.label : 'Section',
+            sublabel: section && section.sublabel ? section.sublabel : '',
+            items: sortPreviewItems(section && section.items)
+          }));
+      }
+
+      function sortPreviewCategories(column) {
+        return (Array.isArray(column) ? column : [])
+          .slice()
+          .sort((a, b) => {
+            const orderA = orderIndex(a && a.name, CATEGORY_ORDER);
+            const orderB = orderIndex(b && b.name, CATEGORY_ORDER);
+            if (orderA !== orderB) return orderA - orderB;
+            return sortText(a && a.name, b && b.name);
+          })
+          .map((category) => ({
+            name: category && category.name ? category.name : 'Category',
+            sections: sortPreviewSections(category && category.sections)
+          }));
+      }
+
+      function flattenCategories(columns) {
+        return (Array.isArray(columns) ? columns : []).reduce((all, column) => {
+          const entries = Array.isArray(column) ? column : [];
+          entries.forEach((category) => {
+            all.push({
+              name: category && category.name ? category.name : 'Category',
+              sections: sortPreviewSections(category && category.sections)
+            });
+          });
+          return all;
+        }, []);
+      }
+
+      function normalizeCategoryKey(name) {
+        return String(name || '').trim().toLowerCase();
+      }
+
+      function buildTeacherDocColumns(columns) {
+        const flattened = flattenCategories(columns);
+        const byName = new Map();
+
+        flattened.forEach((category) => {
+          byName.set(normalizeCategoryKey(category.name), category);
+        });
+
+        const left = [];
+        const right = [];
+        const usedKeys = new Set();
+
+        CATEGORY_PAIRS.forEach((pair) => {
+          const leftName = pair[0];
+          const rightName = pair[1];
+          const leftKey = normalizeCategoryKey(leftName);
+          const rightKey = normalizeCategoryKey(rightName);
+
+          if (leftKey && byName.has(leftKey)) {
+            left.push(byName.get(leftKey));
+            usedKeys.add(leftKey);
+          }
+          if (rightKey && byName.has(rightKey)) {
+            right.push(byName.get(rightKey));
+            usedKeys.add(rightKey);
+          }
+        });
+
+        return [left, right];
+      }
+
+      function buildMetaParts(list) {
+        const parts = [];
+        if (list.term) parts.push('Term ' + list.term);
+        if (list.week) parts.push('Week ' + list.week);
+        if (list.weekDate) parts.push('Date ending: ' + list.weekDate);
+        if (list.weekInfo) parts.push(list.weekInfo);
+        return parts.join(' | ');
+      }
+
+      function parseWeekEndingDate(text) {
+        const input = String(text || '').trim();
+        if (!input) return null;
+
+        const iso = input.match(/(\d{4}-\d{2}-\d{2})/);
+        if (iso) {
+          const isoDate = new Date(iso[1] + 'T00:00:00');
+          return Number.isNaN(isoDate.getTime()) ? null : isoDate;
+        }
+
+        const compact = input.match(/(\d{1,2})\s*([A-Za-z]{3,9})(?:\s+(\d{4}))?/);
+        if (!compact) return null;
+
+        const day = Number(compact[1]);
+        const monthName = String(compact[2] || '').toLowerCase();
+        const monthMap = {
+          jan: 0, january: 0,
+          feb: 1, february: 1,
+          mar: 2, march: 2,
+          apr: 3, april: 3,
+          may: 4,
+          jun: 5, june: 5,
+          jul: 6, july: 6,
+          aug: 7, august: 7,
+          sep: 8, sept: 8, september: 8,
+          oct: 9, october: 9,
+          nov: 10, november: 10,
+          dec: 11, december: 11
+        };
+        if (!Number.isFinite(day) || monthMap[monthName] == null) return null;
+
+        const year = compact[3] ? Number(compact[3]) : (new Date()).getFullYear();
+        const parsed = new Date(year, monthMap[monthName], day);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+      }
+
+      function deriveWeekRangeFromList(list) {
+        const state = list && list.state ? list.state : {};
+        const endingDate = parseWeekEndingDate((state && state.weekDate) || list.weekDate || list.weekInfo || '');
+        if (!endingDate) return null;
+
+        const friday = new Date(endingDate.getFullYear(), endingDate.getMonth(), endingDate.getDate());
+        const monday = new Date(friday);
+        monday.setDate(friday.getDate() - 4);
+        monday.setHours(0, 0, 0, 0);
+        friday.setHours(0, 0, 0, 0);
+        return { monday: monday, friday: friday };
+      }
+
+      function isoDateKey(dateObj) {
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        return year + '-' + month + '-' + day;
+      }
+
+      function weekdayName(dateObj) {
+        return dateObj.toLocaleDateString(undefined, { weekday: 'long' });
+      }
+
+      function dateLabel(dateObj) {
+        return dateObj.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' });
+      }
+
+      function cleanBookingRecipeTitle(row) {
+        return String((row && (row.linked_recipe_name || row.recipe)) || '').trim();
+      }
+
+      function cleanRecipeUrl(row) {
+        return String(row && row.recipe_url || '').trim();
+      }
+
+      async function loadRecipeScheduleForList(list) {
+        const range = deriveWeekRangeFromList(list);
+        if (!range) return null;
+
+        const start = isoDateKey(range.monday);
+        const end = isoDateKey(range.friday);
+        const data = await requestJson('/api/bookings/all?start=' + encodeURIComponent(start) + '&end=' + encodeURIComponent(end) + '&limit=500');
+        const bookings = Array.isArray(data.bookings) ? data.bookings : [];
+
+        const byDay = new Map();
+        for (let i = 0; i < 5; i += 1) {
+          const day = new Date(range.monday);
+          day.setDate(range.monday.getDate() + i);
+          day.setHours(0, 0, 0, 0);
+          byDay.set(isoDateKey(day), { dateObj: day, label: weekdayName(day), entries: [] });
+        }
+
+        bookings.forEach((row) => {
+          const dateKey = String(row && row.booking_date || '').slice(0, 10);
+          if (!byDay.has(dateKey)) return;
+          const title = cleanBookingRecipeTitle(row);
+          if (!title) return;
+          byDay.get(dateKey).entries.push({
+            className: String(row && row.class_name || '').trim(),
+            title: title,
+            url: cleanRecipeUrl(row)
+          });
+        });
+
+        return Array.from(byDay.values()).map((day) => {
+          day.entries.sort((a, b) => sortText(a.className, b.className) || sortText(a.title, b.title));
+          return day;
+        });
+      }
+
+      function getInitialSavedListId() {
+        const params = new URLSearchParams(window.location.search || '');
+        return params.get('saved_list_id') || '';
+      }
+
+      function formatSavedListOption(list) {
+        const parts = [list.title || 'Shopping List'];
+        if (list.term) parts.push('Term ' + list.term);
+        if (list.week) parts.push('Week ' + list.week);
+        if (list.weekDate) parts.push(list.weekDate);
+        return parts.join(' - ');
+      }
+
+      function readCurrentStaffUser() {
+        try {
+          const raw = sessionStorage.getItem('currentStaffUser');
+          return raw ? JSON.parse(raw) : null;
+        } catch (_) {
+          return null;
+        }
+      }
+
+      function getCurrentStaffEmail() {
+        const staff = readCurrentStaffUser();
+        return String(staff && staff.email_school ? staff.email_school : '').trim().toLowerCase();
+      }
+
+      function buildStaffLabel(row) {
+        const first = String(row && row.first_name || '').trim();
+        const last = String(row && row.last_name || '').trim();
+        const code = String(row && row.code || '').trim();
+        const name = [last, first].filter(Boolean).join(', ');
+        const base = name || code || 'Staff';
+        return code ? base + ' (' + code + ')' : base;
+      }
+
+      function renderPreview(list) {
+        if (!list) {
+          docTitle.textContent = 'Shopping List Preview';
+          docId.textContent = '';
+          docMeta.textContent = 'Select a saved shopping list to preview it.';
+          docBody.innerHTML = '<div class="empty-state">Choose a list to render the teacher-facing template.</div>';
+          return;
+        }
+
+        const state = list.state || {};
+        const columns = buildTeacherDocColumns(normalizeColumns(state));
+        const title = list.title || state.title || 'Shopping List Food Technology and Hospitality (Monday - Friday)';
+        const meta = buildMetaParts(list);
+
+        docTitle.textContent = title;
+        docId.textContent = list.id ? 'Saved list #' + list.id : '';
+        docMeta.textContent = meta || 'Teacher-facing shopping list preview';
+
+        const summary = [
+          { label: 'Saved By', value: list.createdByName || 'Unknown' },
+          { label: 'Created', value: formatDateTime(list.createdAt) || '-' },
+          { label: 'Updated', value: formatDateTime(list.updatedAt) || '-' },
+          { label: 'Source', value: list.sourceFilename || 'Manual / saved list' }
+        ];
+
+        const summaryHtml = summary.map((item) =>
+          '<div class="summary-chip"><div class="label">' + esc(item.label) + '</div><div class="value">' + esc(item.value) + '</div></div>'
+        ).join('');
+
+        function renderRecipeSchedule(dayRows) {
+          if (!dayRows || !dayRows.length) {
+            return '<section class="recipe-schedule-card"><div class="category-head">Recipe Schedule</div><div class="category-body"><div class="empty-state">No recipe schedule found for this week.</div></div></section>';
+          }
+
+          const scheduleHtml = dayRows.map((day) => {
+            const header = '<div class="section-head"><div class="section-label">' + esc(day.label || 'Day') + '</div><div class="section-sublabel">' + esc(dateLabel(day.dateObj)) + '</div></div>';
+            const itemsHtml = day.entries && day.entries.length ? day.entries.map((entry) => {
+              const linkText = esc(entry.title || 'Recipe');
+              const linkHtml = entry.url ? '<a href="' + esc(entry.url) + '" target="_blank" rel="noopener noreferrer">' + linkText + '</a>' : linkText;
+              const classHtml = entry.className ? '<span class="recipe-class">' + esc(entry.className) + '</span>' : '';
+              return '<li class="recipe-item">' + classHtml + linkHtml + '</li>';
+            }).join('') : '<li class="recipe-item empty">No recipes for this day.</li>';
+            return '<div class="section">' + header + '<ul class="items recipe-list">' + itemsHtml + '</ul></div>';
+          }).join('');
+
+          return '<section class="recipe-schedule-card"><div class="category-head">Recipe Schedule <span class="order-chip">linked</span></div><div class="category-body">' + scheduleHtml + '</div></section>';
+        }
+
+        function renderCategoryCard(category) {
+          if (!category) {
+            return '<div class="category-placeholder" aria-hidden="true"></div>';
+          }
+
+          const sections = Array.isArray(category && category.sections) ? category.sections : [];
+          const sectionsHtml = sections.length ? sections.map((section) => {
+            const items = Array.isArray(section && section.items) ? section.items : [];
+            const itemsHtml = items.length
+              ? '<ul class="items">' + items.map((item) => '<li>' + esc(item) + '</li>').join('') + '</ul>'
+              : '<div class="empty-state" style="padding:0.5rem 0;text-align:left;">No items yet.</div>';
+            return '<div class="section">'
+              + '<div class="section-head">'
+              + '<div class="section-label">' + esc(section.label || 'Section') + '</div>'
+              + '<div class="section-sublabel">' + esc(section.sublabel || '') + '</div>'
+              + '</div>'
+              + itemsHtml
+              + '</div>';
+          }).join('') : '<div class="empty-state">No sections yet.</div>';
+
+          return '<article class="category-card">'
+            + '<div class="category-head">' + esc(category.name || 'Category') + '<span class="order-chip">sorted</span></div>'
+            + '<div class="category-body">' + sectionsHtml + '</div>'
+            + '</article>';
+        }
+
+        const leftColumn = Array.isArray(columns[0]) ? columns[0] : [];
+        const rightColumn = Array.isArray(columns[1]) ? columns[1] : [];
+        const leftOtherIndex = leftColumn.findIndex((category) => normalizeCategoryKey(category && category.name) === 'other');
+        const rightOtherIndex = rightColumn.findIndex((category) => normalizeCategoryKey(category && category.name) === 'other');
+        const firstOtherIndex = [leftOtherIndex, rightOtherIndex].filter((index) => index !== -1).sort((a, b) => a - b)[0];
+        const otherCategory = leftOtherIndex !== -1
+          ? leftColumn[leftOtherIndex]
+          : (rightOtherIndex !== -1 ? rightColumn[rightOtherIndex] : null);
+        const pairedLeftColumn = leftColumn.filter((category) => normalizeCategoryKey(category && category.name) !== 'other');
+        const pairedRightColumn = rightColumn.filter((category) => normalizeCategoryKey(category && category.name) !== 'other');
+        const pairRows = [];
+        const renderLimit = Number.isInteger(firstOtherIndex) ? Math.min(firstOtherIndex, Math.max(pairedLeftColumn.length, pairedRightColumn.length)) : Math.max(pairedLeftColumn.length, pairedRightColumn.length, 1);
+        for (let idx = 0; idx < renderLimit; idx += 1) {
+          const leftCard = renderCategoryCard(pairedLeftColumn[idx] || null);
+          const rightCard = renderCategoryCard(pairedRightColumn[idx] || null);
+          pairRows.push('<div class="doc-pair-row">' + leftCard + rightCard + '</div>');
+        }
+        if (otherCategory) {
+          pairRows.push('<div class="doc-pair-row"><article class="category-card full-width compact"><div class="category-head">' + esc(otherCategory.name || 'Other') + '<span class="order-chip">sorted</span></div><div class="category-body">' + (Array.isArray(otherCategory.sections) && otherCategory.sections.length ? otherCategory.sections.map((section) => {
+            const items = Array.isArray(section && section.items) ? section.items : [];
+            const itemsHtml = items.length
+              ? '<ul class="items">' + items.map((item) => '<li>' + esc(item) + '</li>').join('') + '</ul>'
+              : '<div class="empty-state" style="padding:0.5rem 0;text-align:left;">No items yet.</div>';
+            return '<div class="section">'
+              + '<div class="section-head">'
+              + '<div class="section-label">' + esc(section.label || 'Section') + '</div>'
+              + '<div class="section-sublabel">' + esc(section.sublabel || '') + '</div>'
+              + '</div>'
+              + itemsHtml
+              + '</div>';
+          }).join('') : '<div class="empty-state">No sections yet.</div>') + '</div></article></div>');
+        }
+        const gridHtml = '<div class="doc-pairs">' + pairRows.join('') + '</div>';
+
+        docBody.innerHTML = ''
+          + '<div class="doc-banner"><strong>Teacher Preview</strong><p>Layout follows the teacher-facing shopping list format and is sorted before print/export.</p></div>'
+          + '<div class="doc-summary">' + summaryHtml + '</div>'
+          + '<div id="recipeScheduleContainer" style="margin-bottom:1rem;"><div class="empty-state">Loading recipe schedule...</div></div>'
+          + gridHtml;
+
+        loadRecipeScheduleForList(list)
+          .then((dayRows) => {
+            const container = document.getElementById('recipeScheduleContainer');
+            if (container) container.innerHTML = renderRecipeSchedule(dayRows);
+          })
+          .catch((err) => {
+            const container = document.getElementById('recipeScheduleContainer');
+            if (container) {
+              container.innerHTML = '<section class="recipe-schedule-card"><div class="category-head">Recipe Schedule</div><div class="category-body"><div class="empty-state">' + esc(err.message || 'Could not load recipe schedule.') + '</div></div></section>';
+            }
+          });
+      }
+
+      async function loadSavedLists(selectedId) {
+        refreshBtn.disabled = true;
+        setStatus('Loading saved shopping lists...', '');
+        try {
+          const data = await requestJson('/api/saved-shopping-lists');
+          savedLists = Array.isArray(data.lists) ? data.lists : [];
+          savedLists.sort(sortSavedListsByWeekDesc);
+          savedListSelect.innerHTML = '<option value="">Select a saved shopping list...</option>' + savedLists.map((list) => {
+            const selected = String(selectedId || '') === String(list.id) ? ' selected' : '';
+            return '<option value="' + esc(String(list.id)) + '"' + selected + '>' + esc(formatSavedListOption(list)) + '</option>';
+          }).join('');
+          setStatus(savedLists.length ? ('Loaded ' + savedLists.length + ' saved list(s).') : 'No saved shopping lists found.', savedLists.length ? 'ok' : '');
+        } catch (err) {
+          savedListSelect.innerHTML = '<option value="">Unable to load saved shopping lists</option>';
+          setStatus(err.message || 'Could not load saved shopping lists.', 'error');
+        }
+        refreshBtn.disabled = false;
+      }
+
+      async function loadStaffEmails() {
+        if (!staffEmailSelect) return;
+        const preferredEmail = getCurrentStaffEmail();
+        try {
+          const data = await requestJson('/api/staff_upload/dropdown');
+          const staff = Array.isArray(data.staff) ? data.staff.slice() : [];
+          staff.sort((a, b) => buildStaffLabel(a).localeCompare(buildStaffLabel(b), undefined, { sensitivity: 'base' }));
+
+          staffEmailSelect.innerHTML = '<option value="">Select a staff email...</option>' + staff.map((row) => {
+            const email = String(row && row.email_school || '').trim().toLowerCase();
+            const selected = preferredEmail && email === preferredEmail ? ' selected' : '';
+            return '<option value="' + esc(email) + '"' + selected + '>' + esc(buildStaffLabel(row) + ' - ' + email) + '</option>';
+          }).join('');
+
+          if (!preferredEmail && staff.length) {
+            staffEmailSelect.value = String(staff[0].email_school || '').trim().toLowerCase();
+          }
+        } catch (err) {
+          staffEmailSelect.innerHTML = '<option value="">Unable to load staff emails</option>';
+          setStatus(err.message || 'Unable to load staff emails.', 'error');
+        }
+      }
+
+      async function loadListById(listId) {
+        if (!listId) {
+          selectedList = null;
+          renderPreview(null);
+          setStatus('Select a saved shopping list to preview it.', '');
+          return;
+        }
+
+        setStatus('Loading preview...', '');
+        try {
+          const data = await requestJson('/api/saved-shopping-lists/' + encodeURIComponent(String(listId)));
+          selectedList = data.list || null;
+          renderPreview(selectedList);
+          setStatus('Preview loaded for "' + (selectedList.title || 'Shopping List') + '".', 'ok');
+        } catch (err) {
+          selectedList = null;
+          renderPreview(null);
+          setStatus(err.message || 'Could not load preview.', 'error');
+        }
+      }
+
+      async function emailSelectedList() {
+        const savedListId = Number(savedListSelect.value || 0);
+        const recipientEmail = String(staffEmailSelect && staffEmailSelect.value || '').trim().toLowerCase();
+        if (!savedListId) {
+          setStatus('Select a saved shopping list first.', 'error');
+          return;
+        }
+        if (!recipientEmail) {
+          setStatus('Select a staff email first.', 'error');
+          return;
+        }
+
+        emailBtn.disabled = true;
+        setStatus('Sending shopping list email...', '');
+        try {
+          const data = await requestJson('/api/shopping-workflow-email/send-list-now', {
+            method: 'POST',
+            body: JSON.stringify({ savedListId, recipientEmail })
+          });
+          const accepted = Number(data.acceptedCount || 0);
+          const rejected = Number(data.rejectedCount || 0);
+          const msgId = String(data.messageId || '').trim();
+          const details = msgId ? ' Message ID: ' + msgId : '';
+          const adminSent = data.adminNotificationSent ? (' Admin receipt sent to ' + Number((data.adminNotificationRecipients || []).length || 0) + ' admin recipient(s).') : '';
+          const adminError = data.adminNotificationError ? (' Admin receipt error: ' + data.adminNotificationError) : '';
+          setStatus('Shopping list email accepted: ' + accepted + ', rejected: ' + rejected + '. Recipient: ' + (data.recipientEmail || recipientEmail) + '.' + details + adminSent + adminError, 'ok');
+        } catch (err) {
+          setStatus(err.message || 'Failed to send shopping list email.', 'error');
+        }
+        emailBtn.disabled = false;
+      }
+
+      savedListSelect.addEventListener('change', () => {
+        loadListById(savedListSelect.value);
+      });
+
+      refreshBtn.addEventListener('click', () => {
+        loadSavedLists(savedListSelect.value);
+      });
+
+      emailBtn.addEventListener('click', emailSelectedList);
+
+      printBtn.addEventListener('click', () => {
+        window.print();
+      });
+
+      const initialSavedListId = getInitialSavedListId();
+      loadSavedLists(initialSavedListId).then(() => {
+        if (initialSavedListId) {
+          savedListSelect.value = initialSavedListId;
+          loadListById(initialSavedListId);
+        }
+      });
+      loadStaffEmails();
+    })();
+  </script>
+</body>
+</html>

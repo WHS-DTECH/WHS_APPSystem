@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Food Truck Booking</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="navbar-include"></div>
+    <script src="shared/navbar_loader.js"></script>
+
+    <div class="calendar-app add-booking-page">
+        <div class="add-booking-shell">
+            <aside class="add-booking-left-panel">
+                <div class="add-booking-side-card add-booking-inline-form-card">
+                    <div class="add-booking-card-header">
+                        <div class="add-booking-side-title add-booking-side-title-inline">Book a Slot</div>
+                        <div class="add-booking-form-actions" id="embeddedBookClassActions" role="group" aria-label="Food Truck booking actions">
+                            <button id="embeddedBookSaveBtn" type="button" class="add-booking-form-action-btn add-booking-form-action-btn-save">SAVE</button>
+                            <button id="embeddedBookDeleteBtn" type="button" class="add-booking-form-action-btn add-booking-form-action-btn-delete" style="display:none;">DELETE</button>
+                            <button id="embeddedBookResetBtn" type="button" class="add-booking-form-action-btn add-booking-form-action-btn-reset">RESET</button>
+                        </div>
+                    </div>
+                    <iframe
+                        src="book_a_class.html?view=teacher_embed&hide_save_booking=1&form_only=1&planner_stream=Food%20Truck"
+                        title="Food Truck Book a Class Controls"
+                        class="add-booking-form-iframe"
+                        loading="lazy">
+                    </iframe>
+                </div>
+            </aside>
+
+            <section class="add-booking-main-panel">
+                <h1>Add Food Truck Booking</h1>
+                <div class="add-booking-toolbar">
+                    <div id="calendarWeekLabel" class="add-booking-week-label">Week of 02/02/26 to 06/02/26</div>
+                    <div class="add-booking-toolbar-actions">
+                        <button id="prevWeekBtn">&larr; Previous</button>
+                        <button id="todayBtn">Today</button>
+                        <button id="nextWeekBtn">Next &rarr;</button>
+                        <button id="printScheduleBtn" class="add-booking-print-btn">Print by Recipe</button>
+                        <select id="scheduleViewModeSelect" title="Calendar cell display mode" style="padding:0.4rem 0.6rem;border:1px solid #90a4ae;border-radius:5px;font-size:0.92rem;background:#fff;cursor:pointer;">
+                            <option value="recipe" selected>Show: Recipe</option>
+                            <option value="class">Show: Class</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="calendar-wrap add-booking-calendar-wrap">
+                    <table class="calendar-table" id="scheduleCalendarTable"></table>
+                </div>
+
+            </section>
+
+            <aside class="add-booking-right-panel">
+                <div class="add-booking-side-card">
+                    <div class="add-booking-side-title">Student Timetable</div>
+                    <iframe
+                        src="book_a_class.html?view=teacher_embed&hide_save_booking=1&hide_booking_form=1&hide_student_panel=1&hide_timetable_actions=1&planner_stream=Food%20Truck"
+                        title="Student Timetable"
+                        class="add-booking-timetable-iframe"
+                        loading="lazy">
+                    </iframe>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <script>
+        window.bookingPageLabel = 'Add Food Truck Booking';
+        window.scheduleCalendarFilters = {
+            plannerStream: 'Food Truck',
+            selectedStaffOnly: true
+        };
+
+        (function setupEmbeddedBookClassActions() {
+            if (!('BroadcastChannel' in window)) {
+                return;
+            }
+
+            const actionChannel = new BroadcastChannel('bookClassActionChannel');
+            const sharedChannel = new BroadcastChannel('bookClassEmbedSharedChannel');
+            const saveBtn = document.getElementById('embeddedBookSaveBtn');
+            const resetBtn = document.getElementById('embeddedBookResetBtn');
+            const deleteBtn = document.getElementById('embeddedBookDeleteBtn');
+
+            if (saveBtn) {
+                saveBtn.addEventListener('click', () => {
+                    actionChannel.postMessage({ action: 'save', ts: Date.now() });
+                });
+            }
+
+            if (resetBtn) {
+                resetBtn.addEventListener('click', () => {
+                    actionChannel.postMessage({ action: 'reset', ts: Date.now() });
+                });
+            }
+
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', () => {
+                    actionChannel.postMessage({ action: 'delete', ts: Date.now() });
+                });
+            }
+
+            sharedChannel.addEventListener('message', (event) => {
+                if (!event || !event.data) return;
+                const editId = String(event.data.editBookingId || '').trim();
+                if (saveBtn) saveBtn.textContent = editId ? 'UPDATE' : 'SAVE';
+                if (deleteBtn) deleteBtn.style.display = editId ? '' : 'none';
+            });
+        })();
+    </script>
+    <script src="shared/nz_school_calendar.js"></script>
+    <script src="schedule_calendar.js"></script>
+</body>
+</html>

@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calculate Servings</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+        .servings-card {
+          background: #fff;
+          border-radius: 12px;
+          box-shadow: 0 2px 8px #0001;
+          padding: 1.5rem 2rem 2rem 2rem;
+          margin: 2rem auto;
+          max-width: 350px;
+          border: 1px solid #e0e0e0;
+        }
+        .servings-card h2 {
+          font-size: 1.3em;
+          margin-bottom: 1.2em;
+        }
+        .servings-tabs {
+          display: flex;
+          margin-bottom: 1em;
+        }
+        .servings-tab {
+          flex: 1;
+          padding: 0.5em 0.7em;
+          border: 1px solid #1976d2;
+          background: #f5faff;
+          color: #1976d2;
+          cursor: pointer;
+          text-align: center;
+          font-weight: 500;
+          border-radius: 6px 6px 0 0;
+          margin-right: 2px;
+        }
+        .servings-tab.active {
+          background: #1976d2;
+          color: #fff;
+          border-bottom: 1px solid #fff;
+        }
+        .servings-label {
+          margin-top: 1em;
+          margin-bottom: 0.3em;
+          font-size: 1em;
+        }
+        .servings-input {
+          width: 100%;
+          padding: 0.5em;
+          border-radius: 5px;
+          border: 1px solid #ccc;
+          margin-bottom: 1em;
+          font-size: 1em;
+        }
+        .servings-btn {
+          width: 100%;
+          background: #1976d2;
+          color: #fff;
+          border: none;
+          border-radius: 5px;
+          padding: 0.7em 0;
+          font-size: 1em;
+          font-weight: 600;
+          cursor: pointer;
+          margin-top: 0.5em;
+        }
+      </style>
+    </head>
+    <body>
+      <div id="navbar-include"></div>
+      <script src="shared/navbar_loader.js"></script>
+      <div style="display:flex;justify-content:center;align-items:flex-start;gap:2.5rem;margin-top:2.5rem;">
+        <div style="min-width:320px;max-width:340px;background:#fff;border-radius:12px;box-shadow:0 2px 8px #0001;padding:1.2rem 1.2rem 1.5rem 1.2rem;border:1px solid #e0e0e0;">
+          <div id="scheduled-bookings-dropdowns"></div>
+        </div>
+        <div style="flex:1;">
+          <div style="display:flex;gap:1.5rem;justify-content:center;align-items:flex-start;margin-bottom:2.5rem;">
+            <div style="flex:1;min-width:200px;background:#fff;border-radius:10px;padding:1rem 1rem 1.5rem 1rem;border:1px solid #e0e0e0;box-shadow:0 1px 4px #0001;">
+              <div style="font-weight:bold;font-size:1.1em;margin-bottom:1em;text-align:center;">Desired Serving</div>
+              <div id="desired-serving-col" style="min-height:80px;text-align:center;color:#888;"></div>
+            </div>
+            <div style="flex:1;min-width:200px;background:#fff;border-radius:10px;padding:1rem 1rem 1.5rem 1rem;border:1px solid #e0e0e0;box-shadow:0 1px 4px #0001;">
+              <div style="font-weight:bold;font-size:1.1em;margin-bottom:1em;text-align:center;">Desired Serving Ingredients</div>
+              <button id="calculate-desired-serving-btn" class="servings-btn" style="margin-bottom:1em;">Calculate Desired Serving Ingredients</button>
+              <div id="single-serving-col" style="min-height:80px;text-align:center;color:#888;"></div>
+            </div>
+            <div style="flex:1;min-width:200px;background:#fff;border-radius:10px;padding:1rem 1rem 1.5rem 1rem;border:1px solid #e0e0e0;box-shadow:0 1px 4px #0001;">
+              <div style="font-weight:bold;font-size:1.1em;margin-bottom:1em;text-align:center;">Original Recipe Ingredients</div>
+              <div id="original-ingredients-col" style="min-height:80px;text-align:center;color:#888;">
+                <div id="selected-recipe-display" style="font-weight:bold;color:#1976d2;margin-bottom:0.5em;">Recipe: </div>
+                <div id='serving-size-display' style='font-weight:bold;color:#1976d2;margin-top:0.7em;'>Serving Size: </div>
+                <div id="original-ingredients-list" style="margin-top:0.7em;text-align:left;max-height:760px;overflow:auto;"></div>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:0.5rem;">
+            <h2 style="margin-bottom:0.5em;">Desired Serving Ingredients</h2>
+            <div style="display:flex;align-items:center;gap:1.5em;flex-wrap:wrap;">
+              <button id="delete-all-desired-serving-ingredients-btn" style="background:#c62828;color:#fff;padding:0.5em 1.2em;border:none;border-radius:5px;font-size:1em;">DELETE ALL</button>
+              <label for="filter-dsi-teacher">Teacher:</label>
+              <select id="filter-dsi-teacher" style="min-width:160px;"></select>
+              <label for="filter-dsi-class">Class:</label>
+              <select id="filter-dsi-class" style="min-width:120px;"></select>
+              <label for="filter-dsi-recipe">Recipe:</label>
+              <select id="filter-dsi-recipe" style="min-width:220px;"></select>
+            </div>
+            <div id="desired-serving-ingredients-table"></div>
+          </div>
+        </div>
+      </div>
+      <script src="calculate_servings_bookings.js"></script>
+      <script src="calculate_servings.js"></script>
+      <script src="shared/quality_tools.js"></script>
+      <script>
+        document.addEventListener('DOMContentLoaded', function() {
+          // Scheduled Bookings Dropdowns UI
+          const schedDiv = document.getElementById('scheduled-bookings-dropdowns');
+          schedDiv.innerHTML = `
+            <div style="font-weight:bold;margin-bottom:0.5em;">Scheduled Bookings</div>
+            <div style="margin-bottom:0.7em;">
+              <label for="teacher-select" style="font-weight:normal;">Teacher:</label>
+              <select id="teacher-select" style="margin-left:0.5em;min-width:160px;"></select>
+            </div>
+            <div style="margin-bottom:0.7em;">
+              <label for="date-select" style="font-weight:normal;">Date:</label>
+              <select id="date-select" style="margin-left:0.5em;min-width:220px;"></select>
+            </div>
+            <div style="margin-bottom:0.7em;">
+              <label for="class-select" style="font-weight:normal;">Class:</label>
+              <select id="class-select" style="margin-left:0.5em;min-width:220px;"></select>
+            </div>
+            <div style="margin-top:0.8em;">
+              <div style="font-weight:bold;color:#1976d2;margin-bottom:0.3em;">Students In Selected Class</div>
+              <div id="calc-class-students-meta" style="font-size:0.9em;color:#666;margin-bottom:0.4em;">Choose a class to view students.</div>
+              <div style="max-height:760px;overflow:auto;border:1px solid #e0e0e0;border-radius:6px;">
+                <table style="width:100%;border-collapse:collapse;font-size:0.85em;">
+                  <thead>
+                    <tr style="background:#f5f7fa;">
+                      <th style="text-align:left;padding:6px;border-bottom:1px solid #e0e0e0;">ID Number</th>
+                      <th style="text-align:left;padding:6px;border-bottom:1px solid #e0e0e0;">Student Name</th>
+                      <th style="text-align:left;padding:6px;border-bottom:1px solid #e0e0e0;">Form Class</th>
+                      <th style="text-align:left;padding:6px;border-bottom:1px solid #e0e0e0;">Year</th>
+                    </tr>
+                  </thead>
+                  <tbody id="calc-class-students-body">
+                    <tr><td colspan="4" style="padding:6px;">No class selected.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          `;
+          // Fetch bookings and recipe display names, then populate dropdowns
+          Promise.all([
+            fetch('/api/bookings/all').then(res => res.json()),
+            fetch('/api/recipes/display-dropdown').then(res => res.json()).catch(() => ({ recipes: [] })),
+            fetch('/api/recipes/display-table').then(res => res.json()).catch(() => [])
+          ])
+            .then(([bookingsData, recipeDisplayData, recipeDisplayTable]) => {
+              const bookings = bookingsData.bookings || [];
+              const recipeDetailsById = {};
+              (recipeDisplayData.recipes || []).forEach(r => {
+                if (!r) return;
+                const details = {
+                  name: r.name || '',
+                  servingSize: r.serving_size || '',
+                  ingredients: ''
+                };
+                if (r.id != null) {
+                  recipeDetailsById[String(r.id)] = details;
+                }
+                if (r.recipeid != null) {
+                  recipeDetailsById[String(r.recipeid)] = details;
+                }
+              });
+              (Array.isArray(recipeDisplayTable) ? recipeDisplayTable : []).forEach(r => {
+                if (!r) return;
+                const details = {
+                  name: r.name || '',
+                  servingSize: r.serving_size || '',
+                  ingredients: r.ingredients || ''
+                };
+                if (r.id != null) {
+                  const idKey = String(r.id);
+                  recipeDetailsById[idKey] = { ...(recipeDetailsById[idKey] || {}), ...details };
+                }
+                if (r.recipeid != null) {
+                  const recipeKey = String(r.recipeid);
+                  recipeDetailsById[recipeKey] = { ...(recipeDetailsById[recipeKey] || {}), ...details };
+                }
+              });
+              const teacherSelect = document.getElementById('teacher-select');
+              const dateSelect = document.getElementById('date-select');
+              const classSelect = document.getElementById('class-select');
+              const studentsMeta = document.getElementById('calc-class-students-meta');
+              const studentsBody = document.getElementById('calc-class-students-body');
+              const pageParams = new URLSearchParams(window.location.search);
+              const prefill = {
+                bookingId: pageParams.get('booking_id') || '',
+                teacher: pageParams.get('teacher') || '',
+                date: pageParams.get('date') || '',
+                className: pageParams.get('class_name') || '',
+                recipeId: pageParams.get('recipe_id') || '',
+                autoRun: pageParams.get('auto') === '1',
+                groups: pageParams.get('groups') || '1'
+              };
+
+              function setClassSizeFromStudents(count) {
+                const classSizeInput = document.getElementById('class-size-input');
+                if (!classSizeInput) return;
+                classSizeInput.value = String(count);
+                classSizeInput.dispatchEvent(new Event('input'));
+              }
+
+              function renderScheduledClassStudents(students = []) {
+                if (!studentsMeta || !studentsBody) return;
+                if (!students.length) {
+                  studentsMeta.textContent = '0 students timetabled for selected class.';
+                  studentsBody.innerHTML = '<tr><td colspan="4" style="padding:6px;">No students found for this class.</td></tr>';
+                  setClassSizeFromStudents(0);
+                  return;
+                }
+                studentsMeta.textContent = `${students.length} students timetabled for selected class.`;
+                setClassSizeFromStudents(students.length);
+                studentsBody.innerHTML = students.map(s => `
+                  <tr>
+                    <td style="padding:6px;border-top:1px solid #f0f0f0;">${s.id_number || ''}</td>
+                    <td style="padding:6px;border-top:1px solid #f0f0f0;">${s.student_name || ''}</td>
+                    <td style="padding:6px;border-top:1px solid #f0f0f0;">${s.form_class || ''}</td>
+                    <td style="padding:6px;border-top:1px solid #f0f0f0;">${s.year_level || ''}</td>
+                  </tr>
+                `).join('');
+              }
+
+              function fetchStudentsForScheduledClass(classCode) {
+                if (!studentsMeta || !studentsBody) return;
+                if (!classCode) {
+                  studentsMeta.textContent = 'Choose a class to view students.';
+                  studentsBody.innerHTML = '<tr><td colspan="4" style="padding:6px;">No class selected.</td></tr>';
+                  setClassSizeFromStudents(0);
+                  return;
+                }
+                studentsMeta.textContent = 'Loading students...';
+                fetch(`/api/student_upload/by-class/${encodeURIComponent(classCode)}`)
+                  .then(res => res.json())
+                  .then(data => renderScheduledClassStudents(data.students || []))
+                  .catch(() => {
+                    studentsMeta.textContent = 'Failed to load students for this class.';
+                    studentsBody.innerHTML = '<tr><td colspan="4" style="padding:6px;">Could not load students.</td></tr>';
+                  });
+              }
+
+              function getDateKey(dateValue) {
+                if (!dateValue) return '';
+                const raw = String(dateValue);
+                if (/^\d{4}-\d{2}-\d{2}/.test(raw)) {
+                  return raw.slice(0, 10);
+                }
+                const parsed = new Date(raw);
+                if (!isNaN(parsed)) {
+                  return parsed.toISOString().slice(0, 10);
+                }
+                return raw;
+              }
+
+              function formatDateWithDay(dateValue) {
+                const dateKey = getDateKey(dateValue);
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return dateKey;
+                const [year, month, day] = dateKey.split('-').map(Number);
+                const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                const dayIndex = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+                return `${dateKey} (${dayNames[dayIndex]})`;
+              }
+
+              // Group bookings by teacher
+              const grouped = {};
+              for (const b of bookings) {
+                if (!grouped[b.staff_name]) grouped[b.staff_name] = [];
+                grouped[b.staff_name].push(b);
+              }
+
+              function populateClassOptions(teacher, selectedDate) {
+                if (!teacher || !selectedDate) {
+                  classSelect.innerHTML = '<option value="">Select class...</option>';
+                  updateSelectedRecipeDisplay();
+                  fetchStudentsForScheduledClass('');
+                  return;
+                }
+                const classes = (grouped[teacher] || []).filter(b => getDateKey(b.booking_date) === selectedDate);
+                classSelect.innerHTML = '<option value="">Select class...</option>' +
+                  classes.map(b => {
+                    const recipeId = b.recipe_id != null ? String(b.recipe_id) : '';
+                    const recipeName = (recipeDetailsById[recipeId] && recipeDetailsById[recipeId].name) || b.recipe || '';
+                    return `<option value="${recipeId}" data-recipe-id="${recipeId}" data-recipe-name="${recipeName}" data-booking-id="${b.id}" data-date="${b.booking_date}" data-class-name="${b.class_name}" data-class-code="${b.class_name}" data-staff-id="${b.staff_id}" data-class-size="${b.class_size}">${formatDateWithDay(b.booking_date)} | ${b.class_name} | [ID: ${recipeId}] ${recipeName}</option>`;
+                  }).join('');
+                updateSelectedRecipeDisplay();
+                fetchStudentsForScheduledClass('');
+              }
+
+              function populateDateOptions(teacher) {
+                if (!teacher) {
+                  dateSelect.innerHTML = '<option value="">Select date...</option>';
+                  classSelect.innerHTML = '<option value="">Select class...</option>';
+                  updateSelectedRecipeDisplay();
+                  fetchStudentsForScheduledClass('');
+                  return;
+                }
+                const dates = Array.from(new Set((grouped[teacher] || []).map(b => getDateKey(b.booking_date)).filter(Boolean))).sort();
+                dateSelect.innerHTML = '<option value="">Select date...</option>' +
+                  dates.map(d => `<option value="${d}">${formatDateWithDay(d)}</option>`).join('');
+                classSelect.innerHTML = '<option value="">Select class...</option>';
+                updateSelectedRecipeDisplay();
+                fetchStudentsForScheduledClass('');
+              }
+
+              function escapeHtml(text) {
+                return String(text || '')
+                  .replace(/&/g, '&amp;')
+                  .replace(/</g, '&lt;')
+                  .replace(/>/g, '&gt;')
+                  .replace(/"/g, '&quot;')
+                  .replace(/'/g, '&#39;');
+              }
+
+              function parseOriginalIngredientsList(ingredientsRaw) {
+                const cleaned = String(ingredientsRaw || '')
+                  .replace(/<br\s*\/?>/gi, '\n')
+                  .replace(/<\/p>/gi, '\n')
+                  .replace(/<\/li>/gi, '\n')
+                  .replace(/<li[^>]*>/gi, '')
+                  .replace(/<[^>]+>/g, ' ')
+                  .replace(/&nbsp;/gi, ' ')
+                  .replace(/\u00a0/g, ' ')
+                  .replace(/\s*;\s*/g, '\n')
+                  .replace(/([a-z)])(\d+(?:\s*[-/]\s*\d+)?(?:\.\d+)?\s*(?:kg|g|mg|ml|l|cup|cups|tbsp|tsp|teaspoon|teaspoons|tablespoon|tablespoons|clove|cloves|small|medium|large))/gi, '$1\n$2')
+                  .replace(/([a-z)])((?:zest|juice)\s+of\s+\d+)/gi, '$1\n$2')
+                  .replace(/([a-z)])(salt and pepper to taste)/gi, '$1\n$2')
+                  .replace(/([a-z)])(freshly ground [a-z ]+)/gi, '$1\n$2')
+                  .replace(/[\t\f\v ]+/g, ' ')
+                  .replace(/ *\n */g, '\n')
+                  .trim();
+
+                let lines = cleaned
+                  .split(/\r?\n/)
+                  .map(line => line.trim())
+                  .filter(Boolean);
+
+                // Some stored ingredients arrive as a single long blob. Split on common ingredient starts.
+                if (lines.length <= 1 && cleaned.length > 40) {
+                  const blob = (lines[0] || cleaned)
+                    .replace(/\s+(?=\d+(?:\s*[-/]\s*\d+)?(?:\.\d+)?\s*(?:kg|g|mg|ml|l|cup|cups|tbsp|tsp|teaspoon|teaspoons|tablespoon|tablespoons)\b)/gi, '\n')
+                    .replace(/\s+(?=\d+\s*(?:small|medium|large)\b)/gi, '\n')
+                    .replace(/\s+(?=(?:zest|juice)\s+of\s+\d+)/gi, '\n')
+                    .replace(/\s+(?=salt and pepper to taste\b)/gi, '\n');
+                  lines = blob.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+                }
+
+                return lines;
+              }
+
+              function normalizeIngredientForOrder(text) {
+                return String(text || '')
+                  .toLowerCase()
+                  .replace(/[.,;:()[\]{}]/g, ' ')
+                  .replace(/\b\d+(?:\s*[-/]\s*\d+)?(?:\.\d+)?\b/g, ' ')
+                  .replace(/\b(?:kg|g|mg|ml|l|cup|cups|tbsp|tsp|teaspoon|teaspoons|tablespoon|tablespoons|clove|cloves|pinch|small|medium|large)\b/g, ' ')
+                  .replace(/\s+/g, ' ')
+                  .trim();
+              }
+
+              function updateSelectedRecipeDisplay() {
+                const selectedRecipeDiv = document.getElementById('selected-recipe-display');
+                const servingSizeDiv = document.getElementById('serving-size-display');
+                const ingredientsListDiv = document.getElementById('original-ingredients-list');
+                if (!selectedRecipeDiv) return;
+                const selectedOption = classSelect.options[classSelect.selectedIndex];
+                const recipeId = selectedOption ? (selectedOption.getAttribute('data-recipe-id') || selectedOption.value || '') : '';
+                const selectedRecipeName = selectedOption ? (selectedOption.getAttribute('data-recipe-name') || '') : '';
+                const selectedClassName = selectedOption ? (selectedOption.getAttribute('data-class-name') || '') : '';
+                const selectedTeacher = teacherSelect && teacherSelect.value ? teacherSelect.value : '';
+                const details = recipeId ? recipeDetailsById[String(recipeId)] : null;
+                const recipeName = (details && details.name ? details.name : '') || selectedRecipeName;
+                const servingSize = details && details.servingSize ? details.servingSize : '';
+                const ingredientsRaw = details && details.ingredients ? details.ingredients : '';
+                if (recipeId && recipeName) {
+                  selectedRecipeDiv.textContent = `Recipe: [ID: ${recipeId}] ${recipeName}`;
+                } else if (recipeId) {
+                  selectedRecipeDiv.textContent = `Recipe: [ID: ${recipeId}]`;
+                } else if (recipeName) {
+                  selectedRecipeDiv.textContent = `Recipe: ${recipeName}`;
+                } else {
+                  selectedRecipeDiv.textContent = 'Recipe: ';
+                }
+                if (servingSizeDiv) {
+                  servingSizeDiv.textContent = `Serving Size: ${servingSize || ''}`;
+                }
+                if (ingredientsListDiv) {
+                  const ingredients = parseOriginalIngredientsList(ingredientsRaw);
+                  const normalizeIngredient = (text) => String(text || '').toLowerCase().replace(/\s+/g, ' ').trim();
+                  window.originalRecipeIngredientOrder = ingredients.map(normalizeIngredient);
+                  window.originalRecipeIngredientOrderComparable = ingredients.map(normalizeIngredientForOrder);
+                  if (ingredients.length > 0) {
+                    ingredientsListDiv.innerHTML = `<ul style="margin:0;padding-left:1.2em;display:grid;gap:0.38em;">${ingredients.map(i => `<li style="line-height:1.35;">${escapeHtml(i)}</li>`).join('')}</ul>`;
+                  } else {
+                    ingredientsListDiv.innerHTML = '<div style="color:#888;text-align:center;">Ingredients: </div>';
+                  }
+                }
+
+                if (window.presetDSIFilters) {
+                  window.presetDSIFilters({
+                    teacher: selectedTeacher,
+                    className: selectedClassName,
+                    recipeId: recipeId
+                  });
+                }
+              }
+
+              function preloadRecipeIngredientsForCalculation(recipeId) {
+                if (!recipeId) {
+                  window.filteredIngredientsForCalculation = [];
+                  return Promise.resolve();
+                }
+                return fetch('/api/ingredients/inventory/all')
+                  .then(res => res.json())
+                  .then(data => {
+                    const ingredients = Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : (Array.isArray(data.ingredients) ? data.ingredients : []));
+                    const filtered = ingredients.filter(row => String(row.recipe_id) === String(recipeId));
+                    const order = Array.isArray(window.originalRecipeIngredientOrder) ? window.originalRecipeIngredientOrder : [];
+                    const comparableOrder = Array.isArray(window.originalRecipeIngredientOrderComparable)
+                      ? window.originalRecipeIngredientOrderComparable
+                      : [];
+                    const normalizeIngredient = (text) => String(text || '').toLowerCase().replace(/\s+/g, ' ').trim();
+                    const normalizeComparable = (text) => normalizeIngredientForOrder(text);
+                    // Word-boundary-safe includes: prevents "butter" matching "butterflied"
+                    const wbIncludes = (hay, needle) => {
+                      if (!needle || needle.length < 2) return false;
+                      try {
+                        return new RegExp('\\b' + needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b').test(hay);
+                      } catch(e) { return hay.includes(needle); }
+                    };
+                    const getSortIndex = (row) => {
+                      const candidates = [
+                        normalizeIngredient(row.ingredient_name),
+                        normalizeIngredient(row.strip_fooditem || row.stripFoodItem),
+                        normalizeIngredient(row.fooditem)
+                      ].filter(Boolean);
+                      const comparableCandidates = [
+                        normalizeComparable(row.ingredient_name),
+                        normalizeComparable(row.strip_fooditem || row.stripFoodItem),
+                        normalizeComparable(row.fooditem)
+                      ].filter(Boolean);
+                      for (let i = 0; i < order.length; i++) {
+                        const orderLine = order[i];
+                        const orderComparable = comparableOrder[i] || normalizeComparable(orderLine);
+                        if (
+                          candidates.some(c => wbIncludes(orderLine, c) || wbIncludes(c, orderLine)) ||
+                          comparableCandidates.some(c => wbIncludes(orderComparable, c) || wbIncludes(c, orderComparable))
+                        ) {
+                          return i;
+                        }
+                      }
+                      return Number.MAX_SAFE_INTEGER;
+                    };
+                    window.filteredIngredientsForCalculation = filtered
+                      .map((row, idx) => ({ row, idx, sortIndex: getSortIndex(row) }))
+                      .sort((a, b) => (a.sortIndex - b.sortIndex) || (a.idx - b.idx))
+                      .map(item => item.row);
+                    const fooditemsCol = document.getElementById('single-serving-col');
+                    if (fooditemsCol) {
+                      fooditemsCol.innerHTML = '';
+                    }
+                  })
+                  .catch(() => {
+                    window.filteredIngredientsForCalculation = [];
+                  });
+              }
+
+              function runAutoCalculateIfRequested() {
+                if (!prefill.autoRun) return;
+                const desiredBtn = document.getElementById('calculate-desired-serving-btn');
+                const groupsInput = document.getElementById('groups-input');
+                if (!desiredBtn || !groupsInput) return;
+
+                const waitForIngredients = window.currentRecipePreloadPromise || Promise.resolve();
+                waitForIngredients.finally(() => {
+                  const groups = parseInt(String(prefill.groups || '1').trim(), 10);
+                  groupsInput.value = (!isNaN(groups) && groups > 0) ? String(groups) : '1';
+                  if (typeof window.recalcDesiredServings === 'function') {
+                    window.recalcDesiredServings();
+                  }
+                  desiredBtn.click();
+                  if (window.QC) window.QC.toast('Master Save: auto-calculate completed', 'success');
+                });
+              }
+
+              function applyPrefillSelection() {
+                if (!prefill.bookingId && !prefill.teacher) return;
+
+                let targetBooking = null;
+                if (prefill.bookingId) {
+                  targetBooking = bookings.find(b => String(b.id) === String(prefill.bookingId));
+                }
+                if (!targetBooking && prefill.teacher && prefill.date) {
+                  targetBooking = bookings.find(b =>
+                    String(b.staff_name || '') === String(prefill.teacher) &&
+                    getDateKey(b.booking_date) === getDateKey(prefill.date)
+                  );
+                }
+
+                const teacherValue = targetBooking ? (targetBooking.staff_name || '') : prefill.teacher;
+                const dateValue = targetBooking ? getDateKey(targetBooking.booking_date) : getDateKey(prefill.date);
+
+                if (teacherValue) {
+                  teacherSelect.value = teacherValue;
+                  populateDateOptions(teacherValue);
+                }
+                if (dateValue) {
+                  dateSelect.value = dateValue;
+                  populateClassOptions(teacherSelect.value, dateValue);
+                }
+
+                let classOption = null;
+                if (targetBooking) {
+                  classOption = Array.from(classSelect.options).find(opt =>
+                    String(opt.getAttribute('data-booking-id') || '') === String(targetBooking.id)
+                  );
+                }
+                if (!classOption && prefill.className) {
+                  classOption = Array.from(classSelect.options).find(opt =>
+                    String(opt.getAttribute('data-class-name') || '').toUpperCase() === String(prefill.className).toUpperCase()
+                  );
+                }
+                if (!classOption && prefill.recipeId) {
+                  classOption = Array.from(classSelect.options).find(opt =>
+                    String(opt.getAttribute('data-recipe-id') || '') === String(prefill.recipeId)
+                  );
+                }
+
+                if (classOption) {
+                  classSelect.value = classOption.value;
+                  classSelect.dispatchEvent(new Event('change'));
+                  setTimeout(runAutoCalculateIfRequested, 200);
+                }
+              }
+
+              // Populate teacher dropdown
+              teacherSelect.innerHTML = '<option value="">Select teacher...</option>' +
+                Object.keys(grouped).sort().map(t => `<option value="${t}">${t}</option>`).join('');
+              dateSelect.innerHTML = '<option value="">Select date...</option>';
+              classSelect.innerHTML = '<option value="">Select class...</option>';
+
+              // When teacher changes, populate date dropdown
+              teacherSelect.addEventListener('change', function() {
+                const teacher = this.value;
+                populateDateOptions(teacher);
+              });
+
+              // When date changes, populate class dropdown for teacher and date
+              dateSelect.addEventListener('change', function() {
+                populateClassOptions(teacherSelect.value, this.value);
+              });
+
+              // Auto-populate class size when class changes
+              classSelect.addEventListener('change', function() {
+                const selectedOption = classSelect.options[classSelect.selectedIndex];
+                const classSize = selectedOption ? selectedOption.getAttribute('data-class-size') : '';
+                const recipeId = selectedOption ? (selectedOption.getAttribute('data-recipe-id') || selectedOption.value || '') : '';
+                const classCode = selectedOption ? (selectedOption.getAttribute('data-class-code') || selectedOption.getAttribute('data-class-name') || '') : '';
+                updateSelectedRecipeDisplay();
+                const classSizeInput = document.getElementById('class-size-input');
+                if (classSizeInput) {
+                  classSizeInput.value = classSize || '';
+                  classSizeInput.dispatchEvent(new Event('input'));
+                }
+                window.currentRecipePreloadPromise = preloadRecipeIngredientsForCalculation(recipeId);
+                fetchStudentsForScheduledClass(classCode);
+              });
+
+              // Optionally, trigger change to clear class dropdown on load
+              teacherSelect.dispatchEvent(new Event('change'));
+              applyPrefillSelection();
+            });
+          // Render Desired Serving calculation box
+          const desiredCol = document.getElementById('desired-serving-col');
+          if (desiredCol) {
+            let desiredInput = `<div id='desired-servings-row' style='margin-top:0.5em;display:flex;flex-direction:column;align-items:center;gap:0.7em;'>
+              <div><label for='class-size-input' style='font-weight:normal;color:#333;'>Class Size:</label>
+              <input id='class-size-input' type='number' min='1' style='width:80px;margin-left:0.5em;' value=''></div>
+              <div><label for='groups-input' style='font-weight:normal;color:#333;'>Groups:</label>
+              <input id='groups-input' type='number' min='1' style='width:80px;margin-left:0.5em;' value=''></div>
+              <button id='auto-calc-desired-servings-btn' type='button' style='background:#1976d2;color:#fff;border:none;border-radius:5px;padding:0.45em 1em;cursor:pointer;'>Auto Calculate</button>
+              <div><label for='desired-servings-input' style='font-weight:normal;color:#333;'>Desired Servings:</label>
+              <input id='desired-servings-input' type='number' min='1' style='width:80px;margin-left:0.5em;' value='1' readonly></div>
+            </div>`;
+            desiredCol.innerHTML = '';
+            desiredCol.insertAdjacentHTML('beforeend', desiredInput);
+            // Add calculation logic
+            const classSizeInput = document.getElementById('class-size-input');
+            const groupsInput = document.getElementById('groups-input');
+            const desiredServingsInput = document.getElementById('desired-servings-input');
+            const autoCalcBtn = document.getElementById('auto-calc-desired-servings-btn');
+            function recalcDesiredServings() {
+              const classSize = parseInt(classSizeInput.value, 10);
+              const groups = parseInt(groupsInput.value, 10);
+              if (!isNaN(classSize) && !isNaN(groups) && groups > 0) {
+                desiredServingsInput.value = Math.ceil(classSize / groups);
+              } else {
+                desiredServingsInput.value = '';
+              }
+            }
+            window.recalcDesiredServings = recalcDesiredServings;
+            classSizeInput.addEventListener('input', recalcDesiredServings);
+            groupsInput.addEventListener('input', recalcDesiredServings);
+            if (autoCalcBtn) {
+              autoCalcBtn.addEventListener('click', async function() {
+                const classSelect = document.getElementById('class-select');
+                const calcDesiredBtn = document.getElementById('calculate-desired-serving-btn');
+                if (!classSelect || !classSelect.value) {
+                  if (window.QC) window.QC.toast('Please select a class first', 'warn');
+                  else alert('Please select a class first.');
+                  return;
+                }
+
+                const classSize = parseInt(classSizeInput.value, 10);
+                if (isNaN(classSize) || classSize <= 0) {
+                  if (window.QC) window.QC.toast('Class size is missing for the selected class', 'warn');
+                  else alert('Class size is missing for the selected class.');
+                  return;
+                }
+
+                const defaultGroups = parseInt(groupsInput.value, 10) > 0 ? String(parseInt(groupsInput.value, 10)) : '1';
+                const groupAnswer = prompt('How many groups do you want?', defaultGroups);
+                if (groupAnswer === null) return;
+
+                const groups = parseInt(String(groupAnswer).trim(), 10);
+                if (isNaN(groups) || groups <= 0) {
+                  if (window.QC) window.QC.toast('Please enter a valid number of groups', 'warn');
+                  else alert('Please enter a valid number of groups.');
+                  return;
+                }
+
+                groupsInput.value = String(groups);
+                recalcDesiredServings();
+
+                // Keep desired serving calculations current with the latest recipe edits.
+                try {
+                  await fetch('/api/ingredients/inventory/sync', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ recipeId: classSelect.value, reseed: true })
+                  });
+                } catch (_) {
+                  // Best-effort sync: calculation still proceeds with available data.
+                }
+
+                // Run the existing desired serving ingredient workflow in one step.
+                if (calcDesiredBtn && typeof calcDesiredBtn.click === 'function') {
+                  calcDesiredBtn.click();
+                }
+              });
+            }
+          }
+
+          // Calculate Desired Serving Ingredients button logic
+          document.getElementById('calculate-desired-serving-btn').onclick = function() {
+            const fooditemsCol = document.getElementById('single-serving-col');
+            if (!fooditemsCol) return;
+            fooditemsCol.innerHTML = '';
+            const ul = document.createElement('ul');
+            ul.style.listStyle = 'none';
+            ul.style.padding = '0';
+            ul.style.textAlign = 'left';
+            // Get desired serving size
+            const desiredServingsInput = document.getElementById('desired-servings-input');
+            let desiredServings = 1;
+            if (desiredServingsInput && !isNaN(parseFloat(desiredServingsInput.value))) {
+              desiredServings = parseFloat(desiredServingsInput.value);
+            }
+            const filtered = window.filteredIngredientsForCalculation || [];
+            // Collect class/booking details from dropdowns
+            const teacherSelect = document.getElementById('teacher-select');
+            const classSelect = document.getElementById('class-select');
+            const teacher = teacherSelect ? teacherSelect.value : '';
+            const classOption = classSelect ? classSelect.options[classSelect.selectedIndex] : null;
+            const booking_id = classOption ? classOption.getAttribute('data-booking-id') : '';
+            const class_name = classOption ? classOption.getAttribute('data-class-name') : '';
+            const class_date = classOption ? classOption.getAttribute('data-date') : '';
+            const staff_id = classOption ? classOption.getAttribute('data-staff-id') : '';
+            const classSizeInput = document.getElementById('class-size-input');
+            const groupsInput = document.getElementById('groups-input');
+            const class_size = classSizeInput && !isNaN(parseInt(classSizeInput.value, 10)) ? parseInt(classSizeInput.value, 10) : '';
+            const groups = groupsInput && !isNaN(parseInt(groupsInput.value, 10)) ? parseInt(groupsInput.value, 10) : '';
+            // Prepare ingredients array for backend
+            const ingredientsToSave = [];
+            filtered.forEach(row => {
+              const parts = [];
+              let qty = row.measure_qty;
+              let calculated_qty = qty;
+              // Multiply qty by desired serving size if it's a number
+              if (qty && !isNaN(parseFloat(qty))) {
+                calculated_qty = (parseFloat(qty) * desiredServings).toString();
+              }
+              if (calculated_qty) parts.push(calculated_qty);
+              if (row.measure_unit) parts.push(row.measure_unit);
+              if (row.strip_fooditem || row.stripFoodItem) {
+                parts.push(row.strip_fooditem || row.stripFoodItem);
+              } else if (row.fooditem) {
+                parts.push(row.fooditem);
+              }
+              if (parts.length > 0) {
+                const li = document.createElement('li');
+                li.textContent = parts.join(' ');
+                ul.appendChild(li);
+              }
+              ingredientsToSave.push({
+                ingredient_id: row.id,
+                ingredient_name: row.ingredient_name,
+                measure_qty: row.measure_qty,
+                measure_unit: row.measure_unit,
+                fooditem: row.fooditem,
+                calculated_qty: calculated_qty,
+                stripFoodItem: row.strip_fooditem || row.stripFoodItem || '',
+                aisle_category_id: row.aisle_category_id || ''
+              });
+            });
+            if (ul.children.length > 0) {
+              fooditemsCol.appendChild(ul);
+            }
+            // Send to backend
+            fetch('/api/ingredients/desired_servings_ingredients/save', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                booking_id,
+                teacher,
+                staff_id,
+                class_name,
+                class_date,
+                class_size,
+                groups,
+                desired_servings: desiredServings,
+                recipe_id: classSelect ? classSelect.value : '',
+                ingredients: ingredientsToSave
+              })
+            })
+            .then(res => res.json())
+            .then(data => {
+              if (data.success) {
+                if (window.QC) window.QC.toast('Desired serving ingredients saved', 'success');
+                if (typeof loadDesiredServingIngredientsTable === 'function') {
+                  loadDesiredServingIngredientsTable();
+                }
+              } else {
+                if (window.QC) window.QC.toast('Failed to save desired serving ingredients', 'error');
+                console.error('Failed to save desired servings ingredients:', data);
+              }
+            })
+            .catch(err => {
+              if (window.QC) window.QC.toast('Error saving desired serving ingredients', 'error');
+              console.error('Error saving desired servings ingredients:', err);
+            });
+          };
+
+        });
+      </script>
+    </body>
+    </html>

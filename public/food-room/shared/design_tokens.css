@@ -1,0 +1,89 @@
+@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap');
+
+:root {
+  /* Semantic colors */
+  --color-primary: #1976d2;
+  --color-secondary: #2e7d32;
+  --color-success: #168539;
+  --color-warning: #a86400;
+  --color-danger: #c62828;
+  --color-info: #0b6fa4;
+  --color-neutral-0: #ffffff;
+  --color-neutral-50: #f6f8fb;
+  --color-neutral-100: #edf1f6;
+  --color-neutral-200: #d9e0ea;
+  --color-neutral-700: #344054;
+  --color-neutral-900: #1f2937;
+
+  /* Typography scale */
+  --font-family-base: 'Lexend', "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  --font-size-title-1: 2.2rem;
+  --font-size-title-2: 1.5rem;
+  --font-size-title-3: 1.2rem;
+  --font-size-body: 1rem;
+  --font-size-helper: 0.9rem;
+  --line-height-base: 1.5;
+
+  /* Spacing */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+
+  /* Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* Shadow */
+  --shadow-sm: 0 1px 3px rgba(16, 24, 40, 0.1);
+  --shadow-md: 0 4px 12px rgba(16, 24, 40, 0.12);
+
+  /* z-index */
+  --z-base: 1;
+  --z-dropdown: 1100;
+  --z-modal: 2000;
+}
+
+/* Shared state styles */
+.ui-state {
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid transparent;
+}
+
+.ui-state-loading {
+  background: #e8f2fb;
+  color: var(--color-info);
+  border-color: #b9d9ef;
+}
+
+.ui-state-success {
+  background: #e7f6ec;
+  color: var(--color-success);
+  border-color: #a7d9b8;
+}
+
+.ui-state-warning {
+  background: #fff4e5;
+  color: var(--color-warning);
+  border-color: #f2d2a0;
+}
+
+.ui-state-error {
+  background: #fdecea;
+  color: var(--color-danger);
+  border-color: #f5b5b0;
+}
+
+.ui-disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.ui-focus-ring:focus-visible {
+  outline: 3px solid rgba(25, 118, 210, 0.35);
+  outline-offset: 2px;
+}

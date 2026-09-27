@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booking Calendar</title>
+    <link rel="stylesheet" href="../shared/style.css">
+    <style>
+      .calendar-container {
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px #0001;
+        padding: 2rem;
+        margin: 2rem auto;
+        max-width: 1200px;
+      }
+      .calendar-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1.5rem;
+      }
+      .calendar-table th, .calendar-table td {
+        border: 1px solid #d0d0d0;
+        padding: 0.7rem 0.5rem;
+        text-align: center;
+        min-width: 110px;
+        background: #f9f9f9;
+      }
+      .calendar-table th {
+        background: #1976d2;
+        color: #fff;
+        font-weight: 600;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+      }
+      .calendar-booking {
+        background: #e3f7e3;
+        border-radius: 6px;
+        margin: 0.2rem 0;
+        padding: 0.3rem 0.5rem;
+        font-size: 0.98rem;
+        color: #1976d2;
+        box-shadow: 0 1px 2px #0001;
+      }
+      .calendar-booking strong {
+        color: #333;
+      }
+      .calendar-booking .class {
+        font-weight: 600;
+      }
+      .calendar-booking .teacher {
+        color: #555;
+        font-size: 0.97em;
+      }
+      .calendar-booking .servings {
+        color: #388e3c;
+        font-size: 0.97em;
+      }
+    </style>
+</head>
+<body>
+    <div id="navbar-include"></div>
+    <div class="calendar-container">
+        <h1>Booking Calendar</h1>
+        <div id="weekControls" style="text-align:center;margin-bottom:1.2rem;"></div>
+        <table class="calendar-table" id="calendarTable"></table>
+        <div id="selectedBookingsPanel" style="margin-top:2rem;"></div>
+    </div>
+    <script src="../shared/navbar_loader.js"></script>
+    <script src="calendar_grid.js"></script>
+</body>
+</html>

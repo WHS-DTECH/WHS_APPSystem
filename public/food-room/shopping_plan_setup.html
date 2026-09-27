@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shopping Plan Setup</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .sp-wrap { max-width: 1120px; margin: 1.6rem auto 2.4rem; padding: 0 1rem; }
+    .sp-head { margin-bottom: 1rem; }
+    .sp-title { margin: 0; color: #173a59; font-size: 1.75rem; }
+    .sp-sub { margin: 0.4rem 0 0; color: #42576a; }
+    .sp-card {
+      background: #fff;
+      border: 1px solid #c9d6e3;
+      border-radius: 10px;
+      padding: 1rem 1.1rem;
+      box-shadow: 0 2px 8px rgba(6, 34, 56, 0.08);
+      margin-bottom: 1rem;
+    }
+    .sp-row { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: end; }
+    .sp-field { display: flex; flex-direction: column; gap: 0.35rem; min-width: 220px; }
+    .sp-field label { font-weight: 700; color: #2a4052; font-size: 0.9rem; }
+    .sp-field input, .sp-field textarea, .sp-field select {
+      border: 1px solid #b7c8d7;
+      border-radius: 7px;
+      padding: 0.5rem 0.6rem;
+      font: inherit;
+      background: #fcfeff;
+    }
+    .sp-btn {
+      border: none;
+      border-radius: 7px;
+      padding: 0.55rem 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .sp-btn.primary { background: #1f6fb2; color: #fff; }
+    .sp-btn.primary:hover { background: #195f99; }
+    .sp-btn.secondary { background: #6d8194; color: #fff; }
+    .sp-btn.secondary:hover { background: #5f7282; }
+    .sp-btn.success { background: #1f8a57; color: #fff; }
+    .sp-btn.success:hover { background: #166b43; }
+    .sp-table-wrap { overflow-x: auto; }
+    .sp-table { width: 100%; border-collapse: collapse; min-width: 860px; }
+    .sp-table th {
+      background: #205b8c;
+      color: #fff;
+      text-align: left;
+      font-size: 0.86rem;
+      padding: 0.5rem 0.55rem;
+    }
+    .sp-table td {
+      border-bottom: 1px solid #e3ebf2;
+      padding: 0.45rem 0.5rem;
+      font-size: 0.92rem;
+      color: #1f3141;
+      vertical-align: top;
+    }
+    .sp-table tbody tr:nth-child(even) { background: #f7fbff; }
+    .sp-toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.65rem; }
+    .sp-status { min-height: 1.2rem; font-weight: 700; font-size: 0.92rem; margin-top: 0.5rem; }
+    .sp-status.ok { color: #1e7c4b; }
+    .sp-status.err { color: #bb2f2f; }
+    .sp-muted { color: #65798c; font-size: 0.9rem; }
+    .sp-inline-input {
+      width: 78px;
+      border: 1px solid #9db3c7;
+      border-radius: 6px;
+      padding: 0.22rem 0.34rem;
+      font-size: 0.88rem;
+      background: #fff;
+    }
+    .sp-inline-input:focus {
+      outline: 2px solid #9cc3e6;
+      outline-offset: 1px;
+      border-color: #4a8bc2;
+    }
+  </style>
+</head>
+<body>
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+  <main class="sp-wrap">
+    <section class="sp-head">
+      <h1 class="sp-title">Shopping Plan Setup</h1>
+      <p class="sp-sub">Confirm all classes being taught this week, then generate a draft shopping list from those bookings.</p>
+    </section>
+
+    <section class="sp-card">
+      <div class="sp-row">
+        <div class="sp-field">
+          <label for="weekEndingInput">Week ending (Friday)</label>
+          <input type="date" id="weekEndingInput">
+        </div>
+        <button id="loadBookingsBtn" class="sp-btn primary" type="button">Load Week Bookings</button>
+        <button id="selectAllBtn" class="sp-btn secondary" type="button">Select All</button>
+        <button id="clearAllBtn" class="sp-btn secondary" type="button">Clear All</button>
+      </div>
+      <p class="sp-muted" id="rangeLabel"></p>
+      <div id="loadStatus" class="sp-status"></div>
+    </section>
+
+    <section class="sp-card">
+      <div class="sp-toolbar">
+        <strong>Class snapshot</strong>
+        <span class="sp-muted" id="selectionCount">0 selected</span>
+        <label style="display:flex;align-items:center;gap:0.4rem;margin-left:auto;font-size:0.92rem;color:#2a4052;">
+          <input type="checkbox" id="hideTheoryCheckbox" style="width:16px;height:16px;cursor:pointer;accent-color:#1f6fb2;">
+          <span>Hide Theory</span>
+        </label>
+      </div>
+      <div class="sp-table-wrap">
+        <table class="sp-table" aria-label="Week bookings">
+          <thead>
+            <tr>
+              <th style="width:48px;">Use</th>
+              <th style="width:120px;">Date</th>
+              <th style="width:80px;">Period</th>
+              <th>Class</th>
+              <th>Teacher</th>
+              <th>Recipe</th>
+              <th style="width:95px;">Class Size</th>
+              <th style="width:100px;">No of Groups</th>
+            </tr>
+          </thead>
+          <tbody id="bookingBody">
+            <tr><td colspan="8" class="sp-muted">Load a Friday week to preview classes.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="sp-card">
+      <div class="sp-row">
+        <div class="sp-field" style="flex:1 1 420px; min-width: 320px;">
+          <label for="planNotesInput">Plan notes (optional)</label>
+          <textarea id="planNotesInput" rows="2" placeholder="Optional notes for this shopping week"></textarea>
+        </div>
+      </div>
+      <div class="sp-row" style="margin-top:0.6rem;">
+        <button id="createPlanBtn" class="sp-btn success" type="button">Create Draft And Generate Items</button>
+      </div>
+      <div id="createStatus" class="sp-status"></div>
+    </section>
+  </main>
+
+  <script>
+  (function () {
+    const weekEndingInput = document.getElementById('weekEndingInput');
+    const loadBookingsBtn = document.getElementById('loadBookingsBtn');
+    const selectAllBtn = document.getElementById('selectAllBtn');
+    const clearAllBtn = document.getElementById('clearAllBtn');
+    const bookingBody = document.getElementById('bookingBody');
+    const selectionCount = document.getElementById('selectionCount');
+    const createPlanBtn = document.getElementById('createPlanBtn');
+    const createStatus = document.getElementById('createStatus');
+    const loadStatus = document.getElementById('loadStatus');
+    const planNotesInput = document.getElementById('planNotesInput');
+    const rangeLabel = document.getElementById('rangeLabel');
+
+    let currentRows = [];
+    let allRows = [];
+
+    function setStatus(el, msg, type) {
+      el.textContent = msg || '';
+      el.className = 'sp-status' + (type ? ' ' + type : '');
+    }
+
+    function esc(s) {
+      return String(s || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function isoDate(d) {
+      const y = d.getUTCFullYear();
+      const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(d.getUTCDate()).padStart(2, '0');
+      return y + '-' + m + '-' + day;
+    }
+
+    function getMondayFromFriday(fridayStr) {
+      const d = new Date(fridayStr + 'T00:00:00Z');
+      d.setUTCDate(d.getUTCDate() - 4);
+      return d;
+    }
+
+    function isFriday(dateStr) {
+      const d = new Date(dateStr + 'T00:00:00Z');
+      return !isNaN(d.getTime()) && d.getUTCDay() === 5;
+    }
+
+    function defaultFriday() {
+      const now = new Date();
+      const utcDay = now.getUTCDay();
+      const add = utcDay <= 5 ? 5 - utcDay : 12 - utcDay;
+      now.setUTCDate(now.getUTCDate() + add);
+      return isoDate(now);
+    }
+
+    function selectedIds() {
+      return Array.from(document.querySelectorAll('.sp-booking-check:checked')).map((el) => Number(el.value)).filter(Number.isInteger);
+    }
+
+    function updateSelectionCount() {
+      selectionCount.textContent = selectedIds().length + ' selected';
+    }
+
+    function hasValue(v) {
+      return String(v == null ? '' : v).trim() !== '';
+    }
+
+    function rowById(id) {
+      return currentRows.find((r) => Number(r.id) === Number(id)) || null;
+    }
+
+    function inlineClassSizeCell(row) {
+      if (hasValue(row.class_size)) return esc(row.class_size);
+      return '<input class="sp-inline-input sp-class-size-input" type="number" min="1" step="1" data-booking-id="' + Number(row.id) + '" placeholder="size" aria-label="Class size for booking ' + Number(row.id) + '">';
+    }
+
+    function inlineGroupsCell(row) {
+      if (hasValue(row.groups)) return esc(row.groups);
+      return '<input class="sp-inline-input sp-groups-input" type="number" min="1" step="1" data-booking-id="' + Number(row.id) + '" value="1" placeholder="groups" aria-label="Groups for booking ' + Number(row.id) + '">';
+    }
+
+    async function persistMissingSizingForSelected(selectedBookingIds) {
+      const ids = (selectedBookingIds || []).map((n) => Number(n)).filter(Number.isInteger);
+      const updates = [];
+
+      ids.forEach((id) => {
+        const row = rowById(id);
+        if (!row) return;
+
+        const classSizeInput = document.querySelector('.sp-class-size-input[data-booking-id="' + id + '"]');
+        const groupsInput = document.querySelector('.sp-groups-input[data-booking-id="' + id + '"]');
+
+        const classSize = hasValue(row.class_size)
+          ? Number(row.class_size)
+          : Number((classSizeInput && classSizeInput.value) || '');
+        const groups = hasValue(row.groups)
+          ? Number(row.groups)
+          : Number((groupsInput && groupsInput.value) || '');
+
+        if (!Number.isFinite(classSize) || classSize <= 0) {
+          throw new Error('Booking ' + id + ' is missing Class Size. Enter it in Class Snapshot before creating the draft.');
+        }
+        if (!Number.isFinite(groups) || groups <= 0) {
+          throw new Error('Booking ' + id + ' is missing No of Groups. Enter it in Class Snapshot before creating the draft.');
+        }
+
+        const needsClassSizeUpdate = !hasValue(row.class_size);
+        const needsGroupsUpdate = !hasValue(row.groups);
+        if (!needsClassSizeUpdate && !needsGroupsUpdate) return;
+
+        const payload = {
+          staff_id: row.staff_id || null,
+          staff_name: row.staff_name || null,
+          class_name: row.class_name || null,
+          booking_date: row.booking_date || null,
+          period: row.period || null,
+          recipe: row.recipe || null,
+          recipe_url: row.recipe_url || null,
+          recipe_id: row.recipe_id || null,
+          class_size: classSize,
+          planner_stream: row.planner_stream || null,
+          cook_mode: row.cook_mode || null,
+          partner_student_name: row.partner_student_name || null,
+          partner_student_id: row.partner_student_id || null,
+          groups: groups
+        };
+
+        updates.push({ id, payload, classSize, groups });
+      });
+
+      if (!updates.length) return 0;
+
+      const results = await Promise.all(updates.map((u) =>
+        fetch('/api/bookings/' + u.id, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(u.payload)
+        }).then(async (resp) => {
+          const payload = await resp.json().catch(() => ({}));
+          if (!resp.ok) throw new Error(payload.error || ('Failed to update booking ' + u.id));
+          return u;
+        })
+      ));
+
+      // Keep in-memory rows in sync so subsequent actions use the newly entered values.
+      results.forEach((u) => {
+        const row = rowById(u.id);
+        if (!row) return;
+        row.class_size = u.classSize;
+        row.groups = u.groups;
+      });
+
+      return results.length;
+    }
+
+    const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+    function renderRows(rows) {
+      // Exclude Planner-stream rows entirely
+      const hideTheory = document.getElementById('hideTheoryCheckbox').checked;
+      currentRows = (rows || []).filter((r) => {
+        if (String(r.period || '').toLowerCase() === 'planner') return false;
+        if (hideTheory && String(r.recipe || '').trim().toLowerCase() === 'theory') return false;
+        return true;
+      });
+
+      if (!currentRows.length) {
+        bookingBody.innerHTML = '<tr><td colspan="8" class="sp-muted">No bookings found for that week.</td></tr>';
+        updateSelectionCount();
+        return;
+      }
+
+      // Group by date
+      const groups = [];
+      const seen = {};
+      currentRows.forEach((row) => {
+        const d = row.booking_date;
+        if (!seen[d]) { seen[d] = []; groups.push({ date: d, rows: seen[d] }); }
+        seen[d].push(row);
+      });
+
+      let html = '';
+      groups.forEach((g) => {
+        const utcDate = new Date(g.date + 'T00:00:00Z');
+        const dayName = DAY_NAMES[utcDate.getUTCDay()] || g.date;
+        html += '<tr style="background:#e8f0f8;"><td colspan="8" style="padding:0.4rem 0.55rem;font-weight:700;color:#1a3f5e;font-size:0.88rem;">' + esc(dayName) + ' — ' + esc(g.date) + '</td></tr>';
+        g.rows.forEach((row) => {
+          html += '<tr>' +
+            '<td><input class="sp-booking-check" type="checkbox" checked value="' + Number(row.id) + '" aria-label="Select booking ' + Number(row.id) + '"></td>' +
+            '<td>' + esc(row.booking_date) + '</td>' +
+            '<td>' + esc(row.period || '') + '</td>' +
+            '<td>' + esc(row.class_name || '') + '</td>' +
+            '<td>' + esc(row.staff_name || '') + '</td>' +
+            '<td>' + esc(row.recipe || '') + '</td>' +
+            '<td>' + inlineClassSizeCell(row) + '</td>' +
+            '<td>' + inlineGroupsCell(row) + '</td>' +
+          '</tr>';
+        });
+      });
+
+      bookingBody.innerHTML = html;
+      document.querySelectorAll('.sp-booking-check').forEach((cb) => cb.addEventListener('change', updateSelectionCount));
+      updateSelectionCount();
+    }
+
+    async function loadWeekBookings() {
+      const friday = weekEndingInput.value;
+      if (!friday || !isFriday(friday)) {
+        setStatus(loadStatus, 'Please choose a valid Friday date.', 'err');
+        return;
+      }
+
+      const monday = getMondayFromFriday(friday);
+      const mondayIso = isoDate(monday);
+      rangeLabel.textContent = 'Booking range: ' + mondayIso + ' to ' + friday;
+      setStatus(loadStatus, 'Loading bookings...', '');
+
+      try {
+        const resp = await fetch('/api/bookings/all?start=' + encodeURIComponent(mondayIso) + '&end=' + encodeURIComponent(friday), { credentials: 'include' });
+        const payload = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+          throw new Error(payload.error || (resp.status + ' ' + resp.statusText));
+        }
+        const rows = Array.isArray(payload.bookings) ? payload.bookings : [];
+        allRows = rows;
+        renderRows(rows);
+        const plannerCount = rows.length - (rows.filter((r) => String(r.period || '').toLowerCase() !== 'planner').length);
+        const displayCount = rows.length - plannerCount;
+        const note = plannerCount > 0 ? ' (' + plannerCount + ' planner entries excluded)' : '';
+        setStatus(loadStatus, 'Loaded ' + displayCount + ' booking(s).' + note, 'ok');
+      } catch (err) {
+        renderRows([]);
+        setStatus(loadStatus, 'Failed to load bookings: ' + err.message, 'err');
+      }
+    }
+
+    async function createAndGenerate() {
+      const friday = weekEndingInput.value;
+      if (!friday || !isFriday(friday)) {
+        setStatus(createStatus, 'Select a valid Friday week ending date first.', 'err');
+        return;
+      }
+
+      const ids = selectedIds();
+      if (!ids.length) {
+        setStatus(createStatus, 'Select at least one class booking for this plan.', 'err');
+        return;
+      }
+
+      createPlanBtn.disabled = true;
+      setStatus(createStatus, 'Creating plan...', '');
+      try {
+        const persistedCount = await persistMissingSizingForSelected(ids);
+        if (persistedCount > 0) {
+          setStatus(createStatus, 'Saved class size/groups for ' + persistedCount + ' booking(s). Creating plan...', '');
+        }
+
+        const createResp = await fetch('/api/shopping-plan/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            week_ending: friday,
+            booking_ids: ids,
+            notes: String(planNotesInput.value || '').trim() || null
+          })
+        });
+        const createPayload = await createResp.json().catch(() => ({}));
+        if (!createResp.ok || !createPayload.plan || !createPayload.plan.id) {
+          throw new Error(createPayload.error || 'Could not create shopping plan.');
+        }
+
+        const planId = Number(createPayload.plan.id);
+        setStatus(createStatus, 'Plan #' + planId + ' created. Generating draft items...', '');
+
+        const genResp = await fetch('/api/shopping-plan/' + planId + '/generate-draft', {
+          method: 'POST',
+          credentials: 'include'
+        });
+        const genPayload = await genResp.json().catch(() => ({}));
+        if (!genResp.ok) {
+          throw new Error(genPayload.error || 'Draft generation failed.');
+        }
+
+        setStatus(createStatus, 'Draft generated. Redirecting to editor...', 'ok');
+        window.location.href = 'shopping_plan_editor.html?plan_id=' + planId;
+      } catch (err) {
+        setStatus(createStatus, 'Failed: ' + err.message, 'err');
+      } finally {
+        createPlanBtn.disabled = false;
+      }
+    }
+
+    const hideTheoryCheckbox = document.getElementById('hideTheoryCheckbox');
+    if (hideTheoryCheckbox) {
+      hideTheoryCheckbox.addEventListener('change', () => renderRows(allRows));
+    }
+
+    loadBookingsBtn.addEventListener('click', loadWeekBookings);
+    createPlanBtn.addEventListener('click', createAndGenerate);
+    selectAllBtn.addEventListener('click', function () {
+      document.querySelectorAll('.sp-booking-check').forEach((cb) => { cb.checked = true; });
+      updateSelectionCount();
+    });
+    clearAllBtn.addEventListener('click', function () {
+      document.querySelectorAll('.sp-booking-check').forEach((cb) => { cb.checked = false; });
+      updateSelectionCount();
+    });
+
+    weekEndingInput.value = defaultFriday();
+    loadWeekBookings();
+  })();
+  </script>
+</body>
+</html>
+
+
+
+
+

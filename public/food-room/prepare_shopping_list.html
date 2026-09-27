@@ -1,0 +1,1405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prepare Shopping List</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    :root {
+      --page-bg: #f4f7fb;
+      --card-bg: #ffffff;
+      --ink: #172033;
+      --muted: #5b687a;
+      --accent: #1e63d6;
+      --paper: #ffffff;
+      --paper-line: #d8e1ee;
+      --paper-head: #1f4f8f;
+      --line: #d8e1ee;
+      --soft: #edf3fb;
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    }
+
+    body {
+      background: radial-gradient(circle at top, #ffffff 0%, var(--page-bg) 45%, #eef3f9 100%);
+      color: var(--ink);
+    }
+
+    .preview-shell {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 1.2rem 1rem 2rem;
+    }
+
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: end;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(1.6rem, 2vw, 2.1rem);
+      letter-spacing: -0.03em;
+    }
+
+    .hero p {
+      margin: 0.3rem 0 0;
+      color: var(--muted);
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+
+    .toolbar-actions {
+      grid-column: 1 / -1;
+      display: flex;
+      gap: 0.7rem;
+      flex-wrap: wrap;
+      align-items: end;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 10px;
+      padding: 0.72rem 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      background: var(--accent);
+      color: #fff;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn.secondary {
+      background: #526074;
+    }
+
+    .toolbar,
+    .meta-card,
+    .preview-card {
+      background: var(--card-bg);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .toolbar {
+      padding: 1rem;
+      display: grid;
+      grid-template-columns: minmax(240px, 1fr) minmax(240px, 1fr) auto;
+      gap: 0.85rem 1rem;
+      align-items: center;
+      margin-bottom: 1.2rem;
+    }
+
+    .toolbar > div {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .toolbar label {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    select {
+      padding: 0.6rem 0.8rem;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-size: 0.95rem;
+      background: var(--soft);
+      color: var(--ink);
+      font-family: inherit;
+    }
+
+    .toolbar-status {
+      grid-column: 1 / -1;
+      padding: 0.8rem 1rem;
+      border-radius: 10px;
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+      font-size: 0.9rem;
+      color: #0369a1;
+      display: none;
+    }
+
+    .toolbar-status.show {
+      display: block;
+    }
+
+    .toolbar-status.success {
+      background: #f0fdf4;
+      border-color: #86efac;
+      color: #166534;
+    }
+
+    .toolbar-status.error {
+      background: #fef2f2;
+      border-color: #fca5a5;
+      color: #b91c1c;
+    }
+
+    .preview-card {
+      padding: 1.5rem;
+    }
+
+    .doc {
+      max-width: 100%;
+    }
+
+    .doc-head {
+      background: linear-gradient(135deg, var(--paper-head) 0%, #2f5aa5 100%);
+      color: #fff;
+      border-radius: 12px 12px 0 0;
+      padding: 1.5rem 1.8rem;
+      margin: -1.5rem -1.5rem 1.5rem;
+    }
+
+    .doc-head-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .doc-head h2 {
+      margin: 0;
+      font-size: 1.8rem;
+      font-weight: 700;
+    }
+
+    .doc-meta {
+      margin: 0.6rem 0 0;
+      font-size: 0.95rem;
+      opacity: 0.93;
+    }
+
+    .doc-note {
+      margin: 0.8rem 0 0;
+      font-size: 0.85rem;
+      opacity: 0.87;
+    }
+
+    .doc-body {
+      min-height: 200px;
+    }
+
+    .empty-state {
+      padding: 2rem 1rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .footer-note {
+      margin-top: 1rem;
+      padding: 0.8rem 1rem;
+      background: #f9fafb;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .recipe-schedule-card {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--paper);
+      overflow: hidden;
+      margin-bottom: 1.2rem;
+    }
+
+    .category-head {
+      background: #eef4fb;
+      padding: 10px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #0f3b77;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .order-chip {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: #dbeafe;
+      color: #1d4f91;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .category-body {
+      padding: 12px;
+    }
+
+    .section {
+      padding: 10px 12px;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .section-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .section-sublabel {
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    .recipe-list {
+      margin: 0;
+      padding-left: 18px;
+      font-size: 12px;
+      color: #0f172a;
+      line-height: 1.4;
+    }
+
+    .recipe-item {
+      margin: 0 0 4px 0;
+    }
+
+    .recipe-class {
+      display: inline-block;
+      min-width: 90px;
+      font-weight: 700;
+      color: #1d4f91;
+      margin-right: 6px;
+    }
+
+    .recipe-item a {
+      color: #1d4f91;
+      text-decoration: underline;
+    }
+
+    .recipe-item.empty {
+      color: #64748b;
+    }
+
+    .ingredients-wrap {
+      margin-top: 1rem;
+    }
+
+    .ingredients-grid {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .ingredients-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+      align-items: start;
+    }
+
+    .ingredient-card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+      background: #fff;
+      min-height: 100%;
+    }
+
+    .ingredient-card.full-width {
+      grid-column: 1 / -1;
+      min-height: 0;
+    }
+
+    .ingredient-head {
+      background: #2164cf;
+      color: #fff;
+      padding: 0.8rem 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+
+    .ingredient-body {
+      padding: 0.9rem 0.95rem 0.95rem;
+    }
+
+    .ingredient-section {
+      margin-bottom: 0.9rem;
+    }
+
+    .ingredient-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .ingredient-section-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.75rem;
+      align-items: baseline;
+      margin-bottom: 0.5rem;
+      border-bottom: 1px dashed #d7dfeb;
+      padding-bottom: 0.35rem;
+    }
+
+    .ingredient-section-label {
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .ingredient-section-sublabel {
+      color: var(--muted);
+      font-size: 0.88rem;
+      text-align: right;
+    }
+
+    .ingredient-items {
+      margin: 0;
+      padding-left: 1.1rem;
+      color: #273246;
+    }
+
+    .ingredient-items li {
+      margin: 0 0 0.3rem;
+    }
+
+    .ingredient-placeholder {
+      border: 1px dashed var(--line);
+      border-radius: 14px;
+      min-height: 2.2rem;
+      background: #fafcff;
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      #navbar-include,
+      .hero,
+      .toolbar,
+      .hero-actions,
+      .toolbar-status,
+      .footer-note {
+        display: none !important;
+      }
+
+      .preview-shell {
+        max-width: none;
+        padding: 0;
+      }
+
+      .preview-card {
+        border: 0;
+        box-shadow: none;
+        padding: 0;
+      }
+
+      .doc {
+        border: 0;
+        border-radius: 0;
+      }
+
+      .ingredient-card {
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+
+  <main class="preview-shell">
+    <div class="hero">
+      <div>
+        <h1>Prepare Shopping List</h1>
+        <p>Build a shopping list for a specific term and week by reviewing the planned recipes.</p>
+      </div>
+      <div class="hero-actions">
+        <button id="printBtn" class="btn" type="button">Print / Save PDF</button>
+      </div>
+    </div>
+
+    <section class="toolbar" aria-label="Term and week selection">
+      <div>
+        <label for="termSelect">Term</label>
+        <select id="termSelect" aria-label="Select term">
+          <option value="">Select a term...</option>
+          <option value="1">Term 1</option>
+          <option value="2">Term 2</option>
+          <option value="3">Term 3</option>
+          <option value="4">Term 4</option>
+        </select>
+      </div>
+      <div>
+        <label for="weekSelect">Week</label>
+        <select id="weekSelect" aria-label="Select week">
+          <option value="">Select a week...</option>
+        </select>
+      </div>
+      <div style="align-self: flex-end;">
+        <button id="loadBtn" class="btn secondary" type="button">Load Schedule</button>
+      </div>
+      <div class="toolbar-actions">
+        <div style="flex:1 1 280px;min-width:260px;">
+          <label for="staffEmailSelect">Staff Email</label>
+          <select id="staffEmailSelect" aria-label="Select staff email">
+            <option value="">Loading staff emails...</option>
+          </select>
+        </div>
+        <button id="emailBtn" class="btn email-btn" type="button">Email</button>
+      </div>
+      <div class="toolbar-status" id="statusText"></div>
+    </section>
+
+    <section class="preview-card">
+      <div class="doc" id="docPreview">
+        <div class="doc-head">
+          <div class="doc-head-top">
+            <h2 id="docTitle">Shopping List Preview</h2>
+            <div id="docId" style="font-size:0.95rem;font-weight:700;opacity:0.92;"></div>
+          </div>
+          <p class="doc-meta" id="docMeta">Select a term and week to prepare a shopping list.</p>
+          <div class="doc-note">This preview is sorted into the teacher-facing print order first, so the layout matches the working document before you print or export it.</div>
+        </div>
+        <div class="doc-body" id="docBody">
+          <div class="empty-state">Select a term and week, then click "Load Schedule" to begin.</div>
+        </div>
+      </div>
+      <div class="footer-note">This preview is intentionally read-only. Use Print / Save PDF to export the same layout the teacher sees.</div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      const termSelect = document.getElementById('termSelect');
+      const weekSelect = document.getElementById('weekSelect');
+      const loadBtn = document.getElementById('loadBtn');
+      const emailBtn = document.getElementById('emailBtn');
+      const staffEmailSelect = document.getElementById('staffEmailSelect');
+      const printBtn = document.getElementById('printBtn');
+      const statusText = document.getElementById('statusText');
+      const docTitle = document.getElementById('docTitle');
+      const docId = document.getElementById('docId');
+      const docMeta = document.getElementById('docMeta');
+      const docBody = document.getElementById('docBody');
+
+      let currentPreparedState = null;
+      let currentWeekInfo = null;
+
+      const WEEK_RANGES = {
+        1: [
+          { week: 1, start: '2026-02-02', end: '2026-02-08' },
+          { week: 2, start: '2026-02-09', end: '2026-02-15' },
+          { week: 3, start: '2026-02-16', end: '2026-02-22' },
+          { week: 4, start: '2026-02-23', end: '2026-03-01' },
+          { week: 5, start: '2026-03-02', end: '2026-03-08' },
+          { week: 6, start: '2026-03-09', end: '2026-03-15' },
+          { week: 7, start: '2026-03-16', end: '2026-03-22' },
+          { week: 8, start: '2026-03-23', end: '2026-03-29' },
+          { week: 9, start: '2026-03-30', end: '2026-04-05' },
+          { week: 10, start: '2026-04-06', end: '2026-04-12' }
+        ],
+        2: [
+          { week: 1, start: '2026-04-20', end: '2026-04-26' },
+          { week: 2, start: '2026-04-27', end: '2026-05-03' },
+          { week: 3, start: '2026-05-04', end: '2026-05-10' },
+          { week: 4, start: '2026-05-11', end: '2026-05-17' },
+          { week: 5, start: '2026-05-18', end: '2026-05-24' },
+          { week: 6, start: '2026-05-25', end: '2026-05-31' },
+          { week: 7, start: '2026-06-01', end: '2026-06-07' },
+          { week: 8, start: '2026-06-08', end: '2026-06-14' },
+          { week: 9, start: '2026-06-15', end: '2026-06-21' },
+          { week: 10, start: '2026-06-22', end: '2026-06-28' },
+          { week: 11, start: '2026-06-29', end: '2026-07-05' }
+        ],
+        3: [
+          { week: 1, start: '2026-07-20', end: '2026-07-26' },
+          { week: 2, start: '2026-07-27', end: '2026-08-02' },
+          { week: 3, start: '2026-08-03', end: '2026-08-09' },
+          { week: 4, start: '2026-08-10', end: '2026-08-16' },
+          { week: 5, start: '2026-08-17', end: '2026-08-23' },
+          { week: 6, start: '2026-08-24', end: '2026-08-30' },
+          { week: 7, start: '2026-08-31', end: '2026-09-06' },
+          { week: 8, start: '2026-09-07', end: '2026-09-13' },
+          { week: 9, start: '2026-09-14', end: '2026-09-20' },
+          { week: 10, start: '2026-09-21', end: '2026-09-27' }
+        ],
+        4: [
+          { week: 1, start: '2026-10-05', end: '2026-10-11' },
+          { week: 2, start: '2026-10-12', end: '2026-10-18' },
+          { week: 3, start: '2026-10-19', end: '2026-10-25' },
+          { week: 4, start: '2026-10-26', end: '2026-11-01' },
+          { week: 5, start: '2026-11-02', end: '2026-11-08' },
+          { week: 6, start: '2026-11-09', end: '2026-11-15' },
+          { week: 7, start: '2026-11-16', end: '2026-11-22' },
+          { week: 8, start: '2026-11-23', end: '2026-11-29' },
+          { week: 9, start: '2026-11-30', end: '2026-12-06' },
+          { week: 10, start: '2026-12-07', end: '2026-12-13' }
+        ]
+      };
+
+      const CATEGORY_ORDER = [
+        'Meat',
+        'Dairy & Pastry',
+        'Dry Ingredients',
+        'Tinned Food',
+        'Cleaning Products',
+        'Fruit and Vegetables',
+        'Other'
+      ];
+
+      const CATEGORY_PAIRS = [
+        ['Meat', 'Dairy & Pastry'],
+        ['Dry Ingredients', 'Tinned Food'],
+        ['Cleaning Products', 'Fruit and Vegetables'],
+        ['Other', '']
+      ];
+
+      const SECTION_ORDER = [
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday',
+        'Sunday',
+        'Junior',
+        'L1',
+        'L2',
+        'L3',
+        'St M',
+        'DK',
+        'RS'
+      ];
+
+      function esc(value) {
+        return String(value == null ? '' : value)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function setStatus(message, type = 'info') {
+        statusText.textContent = message;
+        statusText.className = `toolbar-status show ${type}`;
+        if (type === 'success') {
+          setTimeout(() => {
+            statusText.classList.remove('show');
+          }, 4000);
+        }
+      }
+
+      function requestJson(url, options = {}) {
+        const opts = Object.assign({
+          headers: { 'Content-Type': 'application/json' }
+        }, options);
+        return fetch(url, opts).then(r => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        });
+      }
+
+      function updateWeekOptions() {
+        const term = String(termSelect.value || '');
+        weekSelect.innerHTML = '<option value="">Select a week...</option>';
+        if (!term || !WEEK_RANGES[term]) return;
+        const weeks = WEEK_RANGES[term];
+        weeks.forEach(w => {
+          const startDate = formatDateDisplay(w.start);
+          const endDate = formatDateDisplay(w.end);
+          weekSelect.innerHTML += `<option value="${w.week}">Week ${w.week} (${startDate} - ${endDate})</option>`;
+        });
+      }
+
+      function getWeekRange(term, week) {
+        const termWeeks = WEEK_RANGES[term];
+        if (!termWeeks) return null;
+        return termWeeks.find(w => w.week === Number(week));
+      }
+
+      function parseWeekMetaFromText(inputText) {
+        const text = String(inputText || '').trim();
+        const out = { term: '', week: '' };
+        if (!text) return out;
+
+        const termMatch = text.match(/\bterm\s*(\d{1,2})\b/i) || text.match(/\bt\s*(\d{1,2})\b/i);
+        if (termMatch) out.term = String(termMatch[1]);
+
+        const weekMatch = text.match(/\bweek\s*(\d{1,2})\b/i);
+        if (weekMatch) out.week = String(weekMatch[1]);
+
+        return out;
+      }
+
+      function parseWeekMetaFromFilename(filename) {
+        const cleanName = String(filename || '')
+          .replace(/\.docx$/i, '')
+          .replace(/[._-]+/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        return parseWeekMetaFromText(cleanName);
+      }
+
+      function extractListTermWeek(list) {
+        let term = String(list && list.term || '').trim();
+        let week = String(list && list.week || '').trim();
+
+        if (!term || !week) {
+          const fromInfo = parseWeekMetaFromText(list && list.week_info);
+          if (!term) term = fromInfo.term;
+          if (!week) week = fromInfo.week;
+        }
+
+        if (!term || !week) {
+          const fromTitle = parseWeekMetaFromText(list && list.title);
+          if (!term) term = fromTitle.term;
+          if (!week) week = fromTitle.week;
+        }
+
+        if (!term || !week) {
+          const fromFilename = parseWeekMetaFromFilename(list && list.source_filename);
+          if (!term) term = fromFilename.term;
+          if (!week) week = fromFilename.week;
+        }
+
+        return { term, week };
+      }
+
+      function normalizeColumns(state) {
+        const columns = Array.isArray(state && state.columns) ? state.columns : [];
+        const out = [[], []];
+        columns.slice(0, 2).forEach((column, columnIndex) => {
+          out[columnIndex] = Array.isArray(column) ? column : [];
+        });
+        return out;
+      }
+
+      function normalizeCategoryKey(name) {
+        return String(name || '').trim().toLowerCase();
+      }
+
+      function orderIndex(value, orderList) {
+        const index = orderList.indexOf(String(value || '').trim());
+        return index === -1 ? 999 : index;
+      }
+
+      function sortText(valueA, valueB) {
+        return String(valueA || '').localeCompare(String(valueB || ''), undefined, { sensitivity: 'base' });
+      }
+
+      function sortPreviewItems(items) {
+        return (Array.isArray(items) ? items : [])
+          .map((item) => String(item || '').trim())
+          .filter(Boolean)
+          .sort(sortText);
+      }
+
+      function formatQty(value) {
+        const n = Number(value);
+        if (!Number.isFinite(n) || n <= 0) return '';
+        if (Number.isInteger(n)) return String(n);
+        return String(Math.round(n * 1000) / 1000).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
+      }
+
+      function formatIngredientLine(item) {
+        const qty = formatQty(item && item.qty);
+        const unit = String(item && item.unit || '').trim();
+        const name = String(item && item.display || '').trim();
+        const parts = [];
+        if (qty) parts.push(qty);
+        if (unit) parts.push(unit);
+        if (name) parts.push(name);
+        return parts.join(' ').trim();
+      }
+
+      function sortPreviewSections(sections) {
+        return (Array.isArray(sections) ? sections : [])
+          .slice()
+          .sort((a, b) => {
+            const orderA = orderIndex(a && a.label, SECTION_ORDER);
+            const orderB = orderIndex(b && b.label, SECTION_ORDER);
+            if (orderA !== orderB) return orderA - orderB;
+            return sortText(a && a.label, b && b.label);
+          })
+          .map((section) => ({
+            label: section && section.label ? section.label : 'Section',
+            sublabel: section && section.sublabel ? section.sublabel : '',
+            items: sortPreviewItems(section && section.items)
+          }));
+      }
+
+      function sortPreviewCategories(column) {
+        return (Array.isArray(column) ? column : [])
+          .slice()
+          .sort((a, b) => {
+            const orderA = orderIndex(a && a.name, CATEGORY_ORDER);
+            const orderB = orderIndex(b && b.name, CATEGORY_ORDER);
+            if (orderA !== orderB) return orderA - orderB;
+            return sortText(a && a.name, b && b.name);
+          })
+          .map((category) => ({
+            name: category && category.name ? category.name : 'Category',
+            sections: sortPreviewSections(category && category.sections)
+          }));
+      }
+
+      function flattenCategories(columns) {
+        return (Array.isArray(columns) ? columns : []).reduce((all, column) => {
+          const entries = Array.isArray(column) ? column : [];
+          entries.forEach((category) => {
+            all.push({
+              name: category && category.name ? category.name : 'Category',
+              sections: sortPreviewSections(category && category.sections)
+            });
+          });
+          return all;
+        }, []);
+      }
+
+      function buildTeacherDocColumns(columns) {
+        const flattened = flattenCategories(columns);
+        const byName = new Map();
+
+        flattened.forEach((category) => {
+          byName.set(normalizeCategoryKey(category.name), category);
+        });
+
+        const left = [];
+        const right = [];
+
+        CATEGORY_PAIRS.forEach((pair) => {
+          const leftName = pair[0];
+          const rightName = pair[1];
+          const leftKey = normalizeCategoryKey(leftName);
+          const rightKey = normalizeCategoryKey(rightName);
+
+          if (leftKey && byName.has(leftKey)) {
+            left.push(byName.get(leftKey));
+          }
+          if (rightKey && byName.has(rightKey)) {
+            right.push(byName.get(rightKey));
+          }
+        });
+
+        return [left, right];
+      }
+
+      function createEmptyCategoryColumns() {
+        const categoryByName = new Map();
+        CATEGORY_ORDER.forEach((name) => {
+          categoryByName.set(name, { name, sections: [] });
+        });
+        const left = [];
+        const right = [];
+        CATEGORY_PAIRS.forEach((pair) => {
+          const leftName = pair[0];
+          const rightName = pair[1];
+          if (leftName && categoryByName.has(leftName)) left.push(categoryByName.get(leftName));
+          if (rightName && categoryByName.has(rightName)) right.push(categoryByName.get(rightName));
+        });
+        return { columns: [left, right], categoryByName };
+      }
+
+      async function buildFallbackIngredientColumnsFromBookings(bookings, scheduleRows) {
+        const rows = Array.isArray(scheduleRows) ? scheduleRows : [];
+        const bookingRows = Array.isArray(bookings) ? bookings : [];
+        const byDateBookingIds = new Map();
+
+        bookingRows.forEach((row) => {
+          const dateKey = String(row && row.booking_date || '').slice(0, 10);
+          const id = Number(row && row.id);
+          if (!dateKey || !Number.isFinite(id)) return;
+          // Skip planner rows and bookings with no real recipe (Theory / No recipe allocated / blank)
+          if (isPlannerLikeBooking(row)) return;
+          const recipeName = String(row && (row.linked_recipe_name || row.recipe) || '').trim().toLowerCase();
+          if (!recipeName || recipeName === 'theory' || recipeName === 'no recipe allocated') return;
+          if (!byDateBookingIds.has(dateKey)) byDateBookingIds.set(dateKey, []);
+          byDateBookingIds.get(dateKey).push(id);
+        });
+
+        const { columns, categoryByName } = createEmptyCategoryColumns();
+        const categoryMap = {
+          produce: 'Fruit and Vegetables',
+          dairy: 'Dairy & Pastry',
+          pantry: 'Dry Ingredients',
+          other: 'Other'
+        };
+
+        const categoryKeywords = {
+          'Meat': ['chicken', 'lamb', 'beef', 'pork', 'mince', 'steak', 'drumstick', 'wing', 'thigh', 'bacon', 'ham', 'sausage', 'salami', 'veal', 'turkey'],
+          'Tinned Food': ['canned', 'can ', 'cans ', 'tinned', 'tin ', 'beans', 'chickpeas', 'lentils', 'tomato paste', 'diced tomatoes'],
+          'Cleaning Products': ['dishwash', 'cleaner', 'washing powder', 'paper towel', 'cling wrap', 'foil', 'jif', 'nappy', 'hairnet', 'glove', 'bin liner', 'sanit'],
+          'Dairy & Pastry': ['milk', 'cream', 'cheese', 'yoghurt', 'yogurt', 'butter', 'feta', 'parmesan', 'pastry', 'eggs', 'egg '],
+          'Fruit and Vegetables': ['onion', 'carrot', 'tomato', 'lettuce', 'spinach', 'capsicum', 'pepper', 'cabbage', 'potato', 'apple', 'pear', 'garlic', 'ginger', 'lemon', 'lime', 'coriander', 'parsley', 'spring onion', 'avocado', 'cucumber'],
+          'Dry Ingredients': ['flour', 'sugar', 'salt', 'pepper', 'rice', 'pasta', 'yeast', 'baking', 'powder', 'spice', 'oregano', 'thyme', 'cacao', 'breadcrumbs', 'sauce', 'vinegar', 'oil']
+        };
+
+        function classifyFallbackItem(itemLine, defaultCategory) {
+          const text = String(itemLine || '').toLowerCase();
+          const priorityOrder = ['Meat', 'Tinned Food', 'Cleaning Products', 'Dairy & Pastry', 'Fruit and Vegetables', 'Dry Ingredients'];
+          for (const categoryName of priorityOrder) {
+            const words = categoryKeywords[categoryName] || [];
+            if (words.some((word) => text.includes(word))) return categoryName;
+          }
+          return defaultCategory || 'Other';
+        }
+
+        const dayResults = await Promise.all(rows.map(async (day) => {
+          const dateKey = day && day.dateObj ? toIsoDateKey(day.dateObj) : '';
+          const ids = byDateBookingIds.get(dateKey) || [];
+          if (!ids.length) {
+            return { dayLabel: String(day && day.label || 'Day'), data: {} };
+          }
+          const payload = await requestJson('/api/shopping-list/by_category?booking_ids=' + encodeURIComponent(ids.join(',')));
+          return {
+            dayLabel: String(day && day.label || 'Day'),
+            data: payload && payload.success && payload.data ? payload.data : {}
+          };
+        }));
+
+        dayResults.forEach((dayResult) => {
+          const dayLabel = String(dayResult && dayResult.dayLabel || 'Day');
+          const data = dayResult && dayResult.data && typeof dayResult.data === 'object' ? dayResult.data : {};
+          const itemsByCategory = new Map();
+
+          Object.keys(data).forEach((rawCategory) => {
+            const mappedName = categoryMap[String(rawCategory || '').trim().toLowerCase()] || 'Other';
+            const rawItems = (Array.isArray(data[rawCategory]) ? data[rawCategory] : [])
+              .map((item) => formatIngredientLine(item))
+              .filter(Boolean);
+
+            rawItems.forEach((line) => {
+              const classifiedName = classifyFallbackItem(line, mappedName);
+              if (!itemsByCategory.has(classifiedName)) itemsByCategory.set(classifiedName, []);
+              itemsByCategory.get(classifiedName).push(line);
+            });
+          });
+
+          itemsByCategory.forEach((items, categoryName) => {
+            const target = categoryByName.get(categoryName);
+            if (!target || !items.length) return;
+            const deduped = Array.from(new Set(items)).sort(sortText);
+            target.sections.push({ label: dayLabel, sublabel: '', items: deduped });
+          });
+        });
+
+        columns[0] = sortPreviewCategories(columns[0]);
+        columns[1] = sortPreviewCategories(columns[1]);
+
+        return {
+          columns,
+          sourceLabel: 'Auto-generated from current week bookings (no saved shopping list yet).'
+        };
+      }
+
+      async function loadIngredientColumnsForWeek(term, week, bookings, scheduleRows) {
+        const listsData = await requestJson('/api/saved-shopping-lists');
+        const lists = Array.isArray(listsData && listsData.lists) ? listsData.lists : [];
+        const enriched = lists.map((list) => {
+          const meta = extractListTermWeek(list);
+          return Object.assign({}, list, { _term: meta.term, _week: meta.week });
+        });
+
+        const match = enriched.find((list) => list._term === term && list._week === week);
+        if (!match || !match.id) {
+          return buildFallbackIngredientColumnsFromBookings(bookings, scheduleRows);
+        }
+
+        const detail = await requestJson('/api/saved-shopping-lists/' + encodeURIComponent(String(match.id)));
+        const list = detail && detail.list ? detail.list : null;
+        const normalizedColumns = normalizeColumns(list && list.state ? list.state : {});
+        const orderedColumns = buildTeacherDocColumns(normalizedColumns);
+        const leftSorted = sortPreviewCategories(orderedColumns[0]);
+        const rightSorted = sortPreviewCategories(orderedColumns[1]);
+
+        return {
+          columns: [leftSorted, rightSorted],
+          sourceLabel: list && list.title ? ('Ingredients from saved list: ' + list.title) : 'Ingredients from saved shopping list'
+        };
+      }
+
+      function isPlannerLikeBooking(row) {
+        const period = String(row && row.period || '').trim().toLowerCase();
+        if (period === 'planner') return true;
+
+        const hasTeacher = Boolean(
+          String(row && row.staff_id || '').trim() ||
+          String(row && row.staff_name || '').trim()
+        );
+        if (hasTeacher) return false;
+
+        const className = String(row && row.class_name || '').trim().toUpperCase();
+        return className === 'MFOOD' || className === 'HOSP' ||
+          ['JFOOD', 'VEFOOD', 'MMFOOD', 'SDFOOD', 'PIFOOD', 'SRFOOD', 'JTRFOOD', 'MTRFOOD'].includes(className);
+      }
+
+      const RECENT_EMAILS_KEY = 'prepareShoppingList_emailUsage';
+
+      function getEmailUsage() {
+        try {
+          return JSON.parse(localStorage.getItem(RECENT_EMAILS_KEY) || '{}');
+        } catch (_) { return {}; }
+      }
+
+      function recordEmailUsage(email) {
+        if (!email) return;
+        const usage = getEmailUsage();
+        usage[email] = (usage[email] || 0) + 1;
+        try { localStorage.setItem(RECENT_EMAILS_KEY, JSON.stringify(usage)); } catch (_) {}
+      }
+
+      function getTop5Emails() {
+        const usage = getEmailUsage();
+        return Object.entries(usage)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([email]) => email);
+      }
+
+      async function loadStaffEmails() {
+        try {
+          const data = await requestJson('/api/staff_upload/dropdown');
+          const staff = Array.isArray(data.staff) ? data.staff.slice() : [];
+          staff.sort((a, b) => {
+            const aName = `${a.last_name || ''} ${a.first_name || ''}`.trim();
+            const bName = `${b.last_name || ''} ${b.first_name || ''}`.trim();
+            return aName.localeCompare(bName);
+          });
+
+          const makeOption = (email, label) =>
+            `<option value="${esc(email)}">${esc(label)} - ${esc(email)}</option>`;
+
+          const emailToLabel = {};
+          staff.forEach(row => {
+            const email = String(row && row.email_school || '').trim().toLowerCase();
+            if (email) emailToLabel[email] = `${row.last_name || ''} ${row.first_name || ''}`.trim();
+          });
+
+          const top5 = getTop5Emails().filter(e => emailToLabel[e]);
+          const allOptions = staff.map(row => {
+            const email = String(row && row.email_school || '').trim().toLowerCase();
+            const name = `${row.last_name || ''} ${row.first_name || ''}`.trim();
+            return makeOption(email, name);
+          }).join('');
+
+          let html = '<option value="">Select a staff email...</option>';
+          if (top5.length) {
+            html += top5.map(e => makeOption(e, emailToLabel[e])).join('');
+            html += `<option value="" disabled>──────────────────────</option>`;
+          }
+          html += allOptions;
+          staffEmailSelect.innerHTML = html;
+        } catch (err) {
+          staffEmailSelect.innerHTML = '<option value="">Unable to load staff emails</option>';
+        }
+      }
+
+      async function loadRecipeSchedule() {
+        const term = String(termSelect.value || '');
+        const week = String(weekSelect.value || '');
+        if (!term || !week) {
+          setStatus('Please select both term and week.', 'error');
+          return;
+        }
+
+        const range = getWeekRange(term, week);
+        if (!range) {
+          setStatus('Invalid term/week selection.', 'error');
+          return;
+        }
+
+        setStatus('Loading recipe schedule...', 'info');
+        try {
+          const data = await requestJson(`/api/bookings/all?start=${range.start}&end=${range.end}&limit=500`);
+          const bookings = Array.isArray(data.bookings) ? data.bookings : [];
+
+          const byDay = new Map();
+          for (let i = 0; i < 7; i += 1) {
+            const day = new Date(range.start);
+            day.setDate(day.getDate() + i);
+            day.setHours(0, 0, 0, 0);
+            const dayKey = toIsoDateKey(day);
+            byDay.set(dayKey, {
+              dateObj: day,
+              label: formatDayLabel(day),
+              entries: []
+            });
+          }
+
+          bookings.forEach(row => {
+            const dateKey = String(row && row.booking_date || '').slice(0, 10);
+            if (!byDay.has(dateKey)) return;
+            if (isPlannerLikeBooking(row)) return;
+            const title = String(row && (row.linked_recipe_name || row.recipe) || '').trim();
+            if (!title) return;
+            const resolvedUrl = String(row && (row.recipe_url || row.linked_recipe_url) || '').trim();
+            byDay.get(dateKey).entries.push({
+              className: String(row && row.class_name || '').trim(),
+              period: String(row && row.period || '').trim(),
+              title,
+              url: resolvedUrl
+            });
+          });
+
+          const scheduleRows = Array.from(byDay.values()).map(day => {
+            day.entries.sort((a, b) => 
+              (Number.parseInt(String(a.period || ''), 10) || 99) - (Number.parseInt(String(b.period || ''), 10) || 99) ||
+              String(a.className).localeCompare(String(b.className)) || 
+              String(a.title).localeCompare(String(b.title))
+            );
+            return day;
+          });
+
+          const ingredientPayload = await loadIngredientColumnsForWeek(term, week, bookings, scheduleRows)
+            .catch((err) => ({ columns: [[], []], sourceLabel: err.message || 'Unable to load ingredients.' }));
+
+          currentPreparedState = {
+            scheduleRows,
+            ingredientColumns: ingredientPayload && Array.isArray(ingredientPayload.columns) ? ingredientPayload.columns : [[], []],
+            ingredientSourceLabel: String(ingredientPayload && ingredientPayload.sourceLabel || '').trim(),
+            term,
+            week
+          };
+
+          currentWeekInfo = `Term ${term} | Week ${week} | ${formatDateLabel(range.start)} - ${formatDateLabel(range.end)}`;
+
+          renderPreview(scheduleRows, currentPreparedState.ingredientColumns, currentPreparedState.ingredientSourceLabel);
+          setStatus('Recipe schedule loaded successfully.', 'success');
+        } catch (err) {
+          setStatus(err.message || 'Failed to load recipe schedule.', 'error');
+          console.error(err);
+        }
+      }
+
+      function toIsoDateKey(dateObj) {
+        const y = dateObj.getFullYear();
+        const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const d = String(dateObj.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+
+      function formatDayLabel(dateObj) {
+        return dateObj.toLocaleDateString('en-NZ', { weekday: 'long' });
+      }
+
+      function formatDateLabel(isoDate) {
+        const date = new Date(isoDate + 'T00:00:00');
+        return date.toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' });
+      }
+
+      function formatDateDisplay(isoDate) {
+        const date = new Date(isoDate + 'T00:00:00');
+        return date.toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' });
+      }
+
+      function renderRecipeSchedule(dayRows) {
+        if (!Array.isArray(dayRows) || !dayRows.length) {
+          return `
+            <div class="recipe-schedule-card">
+              <div class="category-head">Recipe Schedule <span class="order-chip">linked</span></div>
+              <div class="category-body">
+                <div class="empty-state">No recipe schedule found for this week.</div>
+              </div>
+            </div>
+          `;
+        }
+
+        const sectionsHtml = dayRows.map(day => {
+          const dayLabel = esc(day && day.label ? day.label : 'Day');
+          const dateLabel = esc(formatDateLabel(day && day.dateObj ? toIsoDateKey(day.dateObj) : ''));
+          const entries = Array.isArray(day && day.entries) ? day.entries : [];
+
+          const itemsHtml = entries.length
+            ? entries.map(entry => {
+              const classInfo = String(entry && entry.className || '').trim();
+              const classHtml = classInfo
+                ? `<span class="recipe-class">${esc(classInfo)}</span>`
+                : '';
+              const title = esc(entry.title || 'Recipe');
+              const link = entry.url
+                ? `<a href="${esc(entry.url)}" target="_blank" rel="noopener noreferrer">${title}</a>`
+                : title;
+              return `<li class="recipe-item">${classHtml}${link}</li>`;
+            }).join('')
+            : '<li class="recipe-item empty">No recipes for this day.</li>';
+
+          return `
+            <div class="section">
+              <div class="section-head">
+                <div class="section-label">${dayLabel}</div>
+                <div class="section-sublabel">${dateLabel}</div>
+              </div>
+              <ul class="recipe-list">${itemsHtml}</ul>
+            </div>
+          `;
+        }).join('');
+
+        return `
+          <div class="recipe-schedule-card">
+            <div class="category-head">Recipe Schedule <span class="order-chip">linked</span></div>
+            ${sectionsHtml}
+          </div>
+        `;
+      }
+
+      // ── Editable ingredient cards ──────────────────────────────────────────
+
+      // Resolve a category object by its name from currentPreparedState
+      function findCategoryByName(name) {
+        const cols = currentPreparedState && currentPreparedState.ingredientColumns;
+        if (!Array.isArray(cols)) return null;
+        for (const col of cols) {
+          if (!Array.isArray(col)) continue;
+          for (const cat of col) {
+            if (cat && normalizeCategoryKey(cat.name) === normalizeCategoryKey(name)) return cat;
+          }
+        }
+        return null;
+      }
+
+      function saveIngredientEdits() {
+        // no-op: edits are written directly into the category objects in currentPreparedState
+      }
+
+      function commitItemEdit(catName, sectionLabel, itemIndex, newValue) {
+        const cat = findCategoryByName(catName);
+        if (!cat) return;
+        const section = (cat.sections || []).find(s => s.label === sectionLabel);
+        if (!section) return;
+        const trimmed = String(newValue || '').trim();
+        if (trimmed) {
+          section.items[itemIndex] = trimmed;
+        } else {
+          section.items.splice(itemIndex, 1);
+        }
+      }
+
+      function addItemToSection(catName, sectionLabel) {
+        const cat = findCategoryByName(catName);
+        if (!cat) return;
+        let section = (cat.sections || []).find(s => s.label === sectionLabel);
+        if (!section) {
+          if (!Array.isArray(cat.sections)) cat.sections = [];
+          section = { label: sectionLabel, sublabel: '', items: [] };
+          cat.sections.push(section);
+        }
+        section.items.push('');
+        // re-render and immediately focus the new item
+        renderPreview(currentPreparedState.scheduleRows, currentPreparedState.ingredientColumns, currentPreparedState.ingredientSourceLabel);
+        const cards = docBody.querySelectorAll('.ingredient-item-input');
+        if (cards.length) cards[cards.length - 1].focus();
+      }
+
+      function deleteItemFromSection(catName, sectionLabel, itemIndex) {
+        const cat = findCategoryByName(catName);
+        if (!cat) return;
+        const section = (cat.sections || []).find(s => s.label === sectionLabel);
+        if (!section) return;
+        section.items.splice(itemIndex, 1);
+        renderPreview(currentPreparedState.scheduleRows, currentPreparedState.ingredientColumns, currentPreparedState.ingredientSourceLabel);
+      }
+
+      // Expose to global scope so inline onclick attributes can call them
+      window.commitItemEdit = commitItemEdit;
+      window.addItemToSection = addItemToSection;
+      window.deleteItemFromSection = deleteItemFromSection;
+
+      function renderIngredientCard(category) {
+        if (!category) {
+          return '<div class="ingredient-placeholder" aria-hidden="true"></div>';
+        }
+
+        const catName = String(category.name || 'Category');
+        const sections = Array.isArray(category.sections) ? category.sections : [];
+
+        const sectionsHtml = sections.length
+          ? sections.map((section) => {
+            const sectionLabel = String(section.label || 'Section');
+            const items = Array.isArray(section.items) ? section.items : [];
+            const catAttr = 'data-cat="' + esc(catName) + '"';
+            const secAttr = 'data-sec="' + esc(sectionLabel) + '"';
+
+            const itemsHtml = items.map((item, idx) =>
+              '<li style="display:flex;align-items:flex-start;gap:4px;margin:0 0 3px 0;">'
+              + '<input type="text" class="ingredient-item-input" ' + catAttr + ' ' + secAttr + ' data-idx="' + idx + '"'
+              + ' value="' + esc(item) + '" aria-label="Ingredient item" '
+              + 'style="flex:1;border:1px solid transparent;border-radius:4px;padding:1px 4px;font-size:0.88rem;background:transparent;color:inherit;cursor:text;min-width:0;"'
+              + ' onfocus="this.style.background=\'#fff\';this.style.border=\'1px solid #93c5fd\'"'
+              + ' onblur="this.style.background=\'transparent\';this.style.border=\'1px solid transparent\';'
+              + 'commitItemEdit(this.dataset.cat,this.dataset.sec,Number(this.dataset.idx),this.value)"'
+              + ' onkeydown="if(event.key===\'Enter\'){this.blur();}if(event.key===\'Escape\'){this.blur();}" />'
+              + '<button type="button" aria-label="Remove item" onclick="deleteItemFromSection(\'' + esc(catName).replace(/'/g,"\\'")
+                + '\',\'' + esc(sectionLabel).replace(/'/g,"\\'")
+                + '\',' + idx + ')" '
+              + 'style="flex-shrink:0;border:none;background:none;color:#9ca3af;cursor:pointer;font-size:0.9rem;padding:0 2px;line-height:1;" '
+              + 'title="Remove">&#x2715;</button>'
+              + '</li>'
+            ).join('');
+
+            return '<div class="ingredient-section">'
+              + '<div class="ingredient-section-head">'
+              + '<div class="ingredient-section-label">' + esc(sectionLabel) + '</div>'
+              + '<div class="ingredient-section-sublabel">' + esc(section.sublabel || '') + '</div>'
+              + '</div>'
+              + (items.length
+                ? '<ul class="ingredient-items" style="list-style:none;padding:0;margin:0 0 4px 0;">' + itemsHtml + '</ul>'
+                : '<div class="empty-state" style="padding:0.35rem 0;">No items yet.</div>')
+              + '<button type="button" onclick="addItemToSection(\'' + esc(catName).replace(/'/g,"\\'")
+                + '\',\'' + esc(sectionLabel).replace(/'/g,"\\'")
+                + '\')" style="margin-top:2px;border:1px dashed #93c5fd;background:#eff6ff;color:#1d4ed8;border-radius:4px;padding:1px 8px;font-size:0.78rem;cursor:pointer;">+ Add item</button>'
+              + '</div>';
+          }).join('')
+          : '<div class="empty-state">No sections yet.</div>';
+
+        return '<article class="ingredient-card">'
+          + '<div class="ingredient-head">' + esc(catName) + '<span class="order-chip">sorted</span></div>'
+          + '<div class="ingredient-body">' + sectionsHtml + '</div>'
+          + '</article>';
+      }
+
+      function renderIngredients(columns, sourceLabel) {
+        const leftColumn = Array.isArray(columns && columns[0]) ? columns[0] : [];
+        const rightColumn = Array.isArray(columns && columns[1]) ? columns[1] : [];
+        const leftOtherIndex = leftColumn.findIndex((category) => normalizeCategoryKey(category && category.name) === 'other');
+        const rightOtherIndex = rightColumn.findIndex((category) => normalizeCategoryKey(category && category.name) === 'other');
+        const firstOtherIndex = [leftOtherIndex, rightOtherIndex].filter((index) => index !== -1).sort((a, b) => a - b)[0];
+        const otherCategory = leftOtherIndex !== -1
+          ? leftColumn[leftOtherIndex]
+          : (rightOtherIndex !== -1 ? rightColumn[rightOtherIndex] : null);
+        const pairedLeftColumn = leftColumn.filter((category) => normalizeCategoryKey(category && category.name) !== 'other');
+        const pairedRightColumn = rightColumn.filter((category) => normalizeCategoryKey(category && category.name) !== 'other');
+
+        const rows = [];
+        const renderLimit = Number.isInteger(firstOtherIndex)
+          ? Math.min(firstOtherIndex, Math.max(pairedLeftColumn.length, pairedRightColumn.length))
+          : Math.max(pairedLeftColumn.length, pairedRightColumn.length, 1);
+
+        for (let idx = 0; idx < renderLimit; idx += 1) {
+          const leftCard = renderIngredientCard(pairedLeftColumn[idx] || null);
+          const rightCard = renderIngredientCard(pairedRightColumn[idx] || null);
+          rows.push('<div class="ingredients-row">' + leftCard + rightCard + '</div>');
+        }
+
+        if (otherCategory) {
+          const otherCardHtml = renderIngredientCard(otherCategory).replace('<article class="ingredient-card">', '<article class="ingredient-card full-width">');
+          rows.push('<div class="ingredients-row">' + otherCardHtml + '</div>');
+        }
+
+        const hasAnyCategories = pairedLeftColumn.length || pairedRightColumn.length || otherCategory;
+        if (!hasAnyCategories) {
+          return `
+            <div class="ingredients-wrap">
+              <div class="recipe-schedule-card">
+                <div class="category-head">Ingredients <span class="order-chip">sorted</span></div>
+                <div class="category-body">
+                  <div class="empty-state">${esc(sourceLabel || 'No ingredient sections found for this week.')}</div>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+
+        return `
+          <div class="ingredients-wrap">
+            <div class="category-head">Ingredients <span class="order-chip">sorted</span></div>
+            ${sourceLabel ? `<div style="padding:8px 2px 10px;color:#5b687a;font-size:0.88rem;">${esc(sourceLabel)}</div>` : ''}
+            <div class="ingredients-grid">${rows.join('')}</div>
+          </div>
+        `;
+      }
+
+      function renderPreview(dayRows, ingredientColumns, ingredientSourceLabel) {
+        const term = String(termSelect.value || '');
+        const week = String(weekSelect.value || '');
+        docTitle.textContent = `Shopping List - Term ${term} Week ${week}`;
+        docId.textContent = '';
+        docMeta.textContent = currentWeekInfo || 'Prepare shopping list for the term and week';
+        docBody.innerHTML = renderRecipeSchedule(dayRows) + renderIngredients(ingredientColumns, ingredientSourceLabel);
+      }
+
+      async function emailPreparedList() {
+        if (!currentPreparedState) {
+          setStatus('Please load a recipe schedule first.', 'error');
+          return;
+        }
+
+        const recipientEmail = String(staffEmailSelect && staffEmailSelect.value || '').trim().toLowerCase();
+        if (!recipientEmail) {
+          setStatus('Please select a staff email.', 'error');
+          return;
+        }
+
+        setStatus('Sending prepared shopping list email...', 'info');
+        try {
+          const term = String(termSelect.value || '');
+          const week = String(weekSelect.value || '');
+          const title = `Shopping List - Term ${term} Week ${week}`;
+          const scheduleRows = Array.isArray(currentPreparedState.scheduleRows) ? currentPreparedState.scheduleRows : [];
+          const ingredientColumns = Array.isArray(currentPreparedState.ingredientColumns) ? currentPreparedState.ingredientColumns : [[], []];
+          const ingredientSourceLabel = String(currentPreparedState.ingredientSourceLabel || '').trim();
+
+          const response = await requestJson('/api/shopping-workflow-email/send-prepared-list', {
+            method: 'POST',
+            body: JSON.stringify({
+              recipientEmail,
+              title,
+              weekInfo: currentWeekInfo,
+              scheduleRows,
+              ingredientColumns,
+              ingredientSourceLabel
+            })
+          });
+
+          if (!response.success) {
+            throw new Error(response.error || 'Failed to send email');
+          }
+
+          recordEmailUsage(recipientEmail);
+          await loadStaffEmails();
+          staffEmailSelect.value = recipientEmail;
+
+          const adminMsg = response.adminNotificationSent 
+            ? ` Admin receipt sent to ${response.adminNotificationRecipients.length} recipient(s).`
+            : '';
+          setStatus(`Email sent successfully.${adminMsg}`, 'success');
+        } catch (err) {
+          setStatus(err.message || 'Failed to send email.', 'error');
+          console.error(err);
+        }
+      }
+
+      // Event listeners
+      termSelect.addEventListener('change', updateWeekOptions);
+      loadBtn.addEventListener('click', loadRecipeSchedule);
+      emailBtn.addEventListener('click', emailPreparedList);
+      printBtn.addEventListener('click', () => window.print());
+
+      // Initialize
+      loadStaffEmails();
+    })();
+  </script>
+</body>
+</html>

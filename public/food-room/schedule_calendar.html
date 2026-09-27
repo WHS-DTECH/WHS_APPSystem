@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Load Booking</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="navbar-include"></div>
+    <script src="shared/navbar_loader.js"></script>
+    <div class="calendar-app calendar-app-wide">
+        <h1>Load Booking</h1>
+        <div style="text-align:center;margin-bottom:1.2rem;">
+            <div id="calendarWeekLabel" style="font-size:1.3em;font-weight:bold;margin-bottom:0.7em;">Week of 02/02/26 to 06/02/26</div>
+            <button id="prevWeekBtn" style="margin:0 0.3em;">&larr; Previous</button>
+            <button id="todayBtn" style="margin:0 0.3em;">Today</button>
+            <button id="nextWeekBtn" style="margin:0 0.3em;">Next &rarr;</button>
+            <button id="printScheduleBtn" style="margin:0 0.3em;background:#1976d2;color:#fff;border:none;border-radius:5px;padding:0.45rem 1rem;">Print Schedule (A4)</button>
+            <button id="syncFromPlannerBtn" style="margin:0 0.3em;background:#0369a1;color:#fff;border:none;border-radius:5px;padding:0.45rem 1rem;cursor:pointer;" title="Update all class bookings to match the current planner recipes, starting from when the planner was first uploaded">&#8634; Sync from Planner</button>
+        </div>
+        <div class="calendar-wrap">
+            <table class="calendar-table" id="scheduleCalendarTable"></table>
+        </div>
+        <div style="margin-top:1rem;border:1px solid #d8dee6;border-radius:8px;background:#f7fafc;padding:0.9rem 1rem;">
+            <div style="font-weight:600;margin-bottom:0.25rem;">Book a Class (Teacher Controls)</div>
+            <div style="margin-bottom:0.6rem;font-size:0.95rem;color:#4a5568;">This uses the Book a Class master controller in teacher view mode.</div>
+            <div style="margin-bottom:0.75rem;display:flex;gap:0.6rem;flex-wrap:wrap;">
+                <a href="calculate_servings.html" style="display:inline-block;background:#1976d2;color:#fff;text-decoration:none;border:none;border-radius:5px;padding:0.45rem 1rem;font-size:0.95rem;">Auto Calculate</a>
+            </div>
+            <iframe
+                src="book_a_class.html?view=teacher_embed"
+                title="Teacher Book a Class Controls"
+                style="width:100%;min-height:560px;border:1px solid #d0d7de;border-radius:8px;background:#fff;"
+                loading="lazy">
+            </iframe>
+        </div>
+    </div>
+    <script>
+        window.bookingPageLabel = 'Load Booking';
+    </script>
+    <script src="shared/nz_school_calendar.js"></script>
+    <script src="schedule_calendar.js"></script>
+</body>
+</html>

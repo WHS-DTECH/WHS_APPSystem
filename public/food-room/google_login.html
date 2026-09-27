@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google Login</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .login-wrap {
+      max-width: 520px;
+      margin: 3rem auto;
+      background: #f8fbff;
+      border: 1px solid #cfe2f3;
+      border-radius: 12px;
+      padding: 1.4rem;
+      box-shadow: 0 12px 28px rgba(14, 40, 72, 0.09);
+    }
+    .login-wrap h1 {
+      margin: 0 0 0.6rem;
+      color: #124f87;
+      font-size: 1.5rem;
+    }
+    .login-help {
+      margin: 0 0 1rem;
+      color: #3b4f63;
+    }
+    #googleSigninMount {
+      min-height: 44px;
+    }
+    .login-status {
+      margin-top: 1rem;
+      font-weight: 600;
+    }
+    .login-status.error { color: #b00020; }
+    .login-status.success { color: #0f7a33; }
+    .login-upload-info {
+      margin-top: 0.85rem;
+      padding: 0.8rem 0.9rem;
+      border: 1px solid #cfe2f3;
+      background: #eef6ff;
+      border-radius: 10px;
+      color: #1f2937;
+      font-size: 0.9rem;
+    }
+    .login-upload-info-title {
+      margin: 0 0 0.45rem;
+      font-weight: 700;
+      color: #124f87;
+      font-size: 0.92rem;
+    }
+    .login-upload-row {
+      margin: 0.25rem 0;
+      color: #314255;
+      font-size: 0.84rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+
+  <main class="login-wrap">
+    <h1>Sign In With Google</h1>
+    <p class="login-help">Use your school Google account to sign in.</p>
+    <div id="googleSigninMount"></div>
+    <div id="loginStatus" class="login-status"></div>
+    <div id="plannerUploadInfo" class="login-upload-info" hidden></div>
+  </main>
+
+  <script src="google_login.js"></script>
+</body>
+</html>

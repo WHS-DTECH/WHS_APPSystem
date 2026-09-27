@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Food Truck Teacher Review</title>
+  <link rel="stylesheet" href="shared/design_tokens.css">
+  <link rel="stylesheet" href="shared/base.css">
+  <link rel="stylesheet" href="shared/components.css">
+  <link rel="stylesheet" href="admin_styles.css">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Lexend', sans-serif;
+      background: linear-gradient(180deg, #eef4f9 0%, #f8fbff 100%);
+      color: #1f3550;
+    }
+
+    .ft-review-wrap {
+      width: min(1320px, calc(100vw - 1.2rem));
+      margin: 1rem auto 2rem;
+    }
+
+    .ft-review-card {
+      background: #fff;
+      border: 1px solid #d7e3f1;
+      border-left: 5px solid #165f94;
+      border-radius: 14px;
+      box-shadow: 0 10px 24px rgba(18, 56, 86, 0.08);
+      padding: 1rem;
+    }
+
+    .ft-review-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.8rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.8rem;
+    }
+
+    .ft-review-title {
+      margin: 0;
+      font-size: 1.6rem;
+      color: #163955;
+    }
+
+    .ft-review-sub {
+      margin: 0.35rem 0 0;
+      color: #587089;
+      font-size: 0.95rem;
+    }
+
+    .ft-controls {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .ft-controls select,
+    .ft-controls button {
+      border: 1px solid #bdd0e7;
+      border-radius: 8px;
+      min-height: 36px;
+      padding: 0.45rem 0.7rem;
+      font-weight: 700;
+    }
+
+    .ft-controls button {
+      background: #165f94;
+      color: #fff;
+      border-color: #0f466d;
+      cursor: pointer;
+    }
+
+    .ft-controls button:hover {
+      background: #0f466d;
+    }
+
+    #ftModerationStatus {
+      min-height: 1.1rem;
+      margin: 0.2rem 0 0.75rem;
+      font-weight: 700;
+      color: #245c88;
+    }
+
+    .ft-table-wrap {
+      overflow: auto;
+      border: 1px solid #d7e3f1;
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 920px;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid #e3ecf6;
+      padding: 0.55rem 0.6rem;
+      vertical-align: top;
+      font-size: 0.9rem;
+      text-align: left;
+    }
+
+    th {
+      background: #f2f7fd;
+      color: #224662;
+      font-weight: 800;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    .ft-tag {
+      display: inline-flex;
+      border-radius: 999px;
+      padding: 0.2rem 0.55rem;
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      border: 1px solid transparent;
+      text-transform: uppercase;
+    }
+
+    .ft-tag.pending {
+      background: #fff4da;
+      color: #8a5c00;
+      border-color: #f0c66a;
+    }
+
+    .ft-tag.approved {
+      background: #eaf8ee;
+      color: #206635;
+      border-color: #9ed7ac;
+    }
+
+    .ft-tag.declined {
+      background: #fdeaea;
+      color: #8f1f1f;
+      border-color: #efb4b4;
+    }
+
+    .ft-row-actions {
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+    }
+
+    .ft-row-actions button,
+    .ft-row-actions a {
+      border: none;
+      border-radius: 7px;
+      padding: 0.38rem 0.55rem;
+      font-size: 0.8rem;
+      font-weight: 800;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ft-approve-btn { background: #2e7d32; color: #fff; }
+    .ft-approve-btn:hover { background: #1f5a24; }
+
+    .ft-decline-btn { background: #b3261e; color: #fff; }
+    .ft-decline-btn:hover { background: #8d1e17; }
+
+    .ft-view-btn {
+      background: #165f94;
+      color: #fff;
+    }
+
+    .ft-view-btn:hover {
+      background: #0f466d;
+    }
+
+    /* Decline modal */
+    .ft-modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(10,30,50,0.52);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .ft-modal-backdrop.open { display: flex; }
+    .ft-modal {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 20px 60px rgba(10,30,50,0.22);
+      padding: 1.6rem 1.8rem 1.4rem;
+      width: min(560px, calc(100vw - 2rem));
+      max-height: calc(100vh - 2rem);
+      overflow-y: auto;
+      position: relative;
+    }
+    .ft-modal h2 {
+      margin: 0 0 0.3rem;
+      font-size: 1.2rem;
+      color: #163955;
+    }
+    .ft-modal .ft-modal-sub {
+      margin: 0 0 0.9rem;
+      font-size: 0.87rem;
+      color: #587089;
+    }
+    .ft-modal label {
+      display: block;
+      font-weight: 700;
+      font-size: 0.88rem;
+      margin-bottom: 0.25rem;
+      color: #224662;
+    }
+    .ft-modal textarea {
+      width: 100%;
+      min-height: 100px;
+      border: 1px solid #bdd0e7;
+      border-radius: 8px;
+      padding: 0.5rem 0.6rem;
+      font-family: inherit;
+      font-size: 0.9rem;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+    .ft-modal-cc-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0.75rem 0 0.25rem;
+      font-size: 0.88rem;
+      color: #224662;
+      font-weight: 700;
+    }
+    .ft-modal-actions {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+    }
+    .ft-modal-actions button {
+      border: none;
+      border-radius: 8px;
+      padding: 0.5rem 1rem;
+      font-weight: 800;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .ft-modal-preview-btn { background: #1565c0; color: #fff; }
+    .ft-modal-preview-btn:hover { background: #0d47a1; }
+    .ft-modal-preview-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .ft-modal-send-btn { background: #b3261e; color: #fff; }
+    .ft-modal-send-btn:hover { background: #8d1e17; }
+    .ft-modal-send-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .ft-modal-cancel-btn { background: #e8eef5; color: #1f3550; }
+    .ft-modal-cancel-btn:hover { background: #cdd9e8; }
+    .ft-modal-msg {
+      margin-top: 0.6rem;
+      font-size: 0.85rem;
+      min-height: 1.1rem;
+      font-weight: 700;
+    }
+    .ft-modal-msg.success { color: #206635; }
+    .ft-modal-msg.error { color: #8f1f1f; }
+  </style>
+</head>
+<body>
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+
+  <!-- Decline modal -->
+  <div class="ft-modal-backdrop" id="declineModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="declineModalTitle">
+    <div class="ft-modal">
+      <h2 id="declineModalTitle">Decline Recipe</h2>
+      <p class="ft-modal-sub" id="declineModalSub">Write the decline reason. Use <strong>Send Test Email</strong> to preview what the student will receive before committing.</p>
+      <label for="declineReasonInput">Reason (will be emailed to student)</label>
+      <textarea id="declineReasonInput" placeholder="e.g. Please add more detail to your method steps."></textarea>
+      <div class="ft-modal-cc-row">
+        <input type="checkbox" id="declineCcSelf" checked>
+        <label for="declineCcSelf" style="margin:0;font-weight:700;">CC myself (<span id="declineCcEmailLabel">—</span>)</label>
+      </div>
+      <div class="ft-modal-actions">
+        <button type="button" class="ft-modal-preview-btn" id="declinePreviewBtn">Send Test Email to Me</button>
+        <button type="button" class="ft-modal-send-btn" id="declineSendBtn">Decline &amp; Send to Student</button>
+        <button type="button" class="ft-modal-cancel-btn" id="declineCancelBtn">Cancel</button>
+      </div>
+      <div class="ft-modal-msg" id="declineModalMsg"></div>
+    </div>
+  </div>
+
+  <main class="ft-review-wrap">
+    <section class="ft-review-card">
+      <div class="ft-review-head">
+        <div>
+          <h1 class="ft-review-title">Food Truck Teacher Review List</h1>
+          <p class="ft-review-sub">Approve recipes to publish on Food Truck Browse Recipes, or decline with a reason emailed to the student.</p>
+        </div>
+        <div class="ft-controls">
+          <label for="moderationStatusFilter" style="font-weight:700;">Status</label>
+          <select id="moderationStatusFilter">
+            <option value="pending" selected>Pending</option>
+            <option value="approved">Approved</option>
+            <option value="declined">Declined</option>
+            <option value="all">All</option>
+          </select>
+          <button id="refreshModerationBtn" type="button">Refresh</button>
+        </div>
+      </div>
+
+      <div id="ftModerationStatus" role="status" aria-live="polite"></div>
+
+      <div class="ft-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>RecipeID</th>
+              <th>Name</th>
+              <th>Student</th>
+              <th>Status</th>
+              <th>Reason</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="ftModerationBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function() {
+      const bodyEl = document.getElementById('ftModerationBody');
+      const statusEl = document.getElementById('ftModerationStatus');
+      const filterEl = document.getElementById('moderationStatusFilter');
+      const refreshBtn = document.getElementById('refreshModerationBtn');
+
+      function setStatus(message, isError) {
+        statusEl.textContent = message || '';
+        statusEl.style.color = isError ? '#8f1f1f' : '#245c88';
+      }
+
+      function statusTag(status) {
+        const normalized = String(status || 'pending').toLowerCase();
+        const safe = ['pending', 'approved', 'declined'].includes(normalized) ? normalized : 'pending';
+        return '<span class="ft-tag ' + safe + '">' + safe + '</span>';
+      }
+
+      function escapeHtml(value) {
+        return String(value || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      async function loadRows() {
+        const status = String(filterEl.value || 'pending');
+        setStatus('Loading recipes...', false);
+        bodyEl.innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
+
+        try {
+          const res = await fetch('/api/recipes/food-truck/moderation-list?status=' + encodeURIComponent(status), { credentials: 'include' });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || data.success === false) {
+            throw new Error((data && (data.error || data.message)) || 'Failed to load moderation list.');
+          }
+
+          const rows = Array.isArray(data.recipes) ? data.recipes : [];
+          if (!rows.length) {
+            bodyEl.innerHTML = '<tr><td colspan="6">No recipes found for this status.</td></tr>';
+            setStatus('No recipes found.', false);
+            return;
+          }
+
+          bodyEl.innerHTML = rows.map((row) => {
+            const recipeId = Number(row.id || 0);
+            const recipeName = escapeHtml(row.name || '(Unnamed)');
+            const studentName = escapeHtml(row.student_name || row.created_by_name || 'Unknown student');
+            const moderationComment = escapeHtml(row.moderation_comment || '');
+            const showApprove = String(row.moderation_status || '').toLowerCase() !== 'approved';
+            const showDecline = String(row.moderation_status || '').toLowerCase() !== 'declined';
+
+            return '<tr>' +
+              '<td>' + recipeId + '</td>' +
+              '<td>' + recipeName + '</td>' +
+              '<td>' + studentName + '</td>' +
+              '<td>' + statusTag(row.moderation_status) + '</td>' +
+              '<td>' + (moderationComment || '<span style="color:#7b8ea5;">-</span>') + '</td>' +
+              '<td>' +
+                '<div class="ft-row-actions">' +
+                  '<a class="ft-view-btn" data-action="open-review" data-id="' + recipeId + '" href="food_truck_manual_recipe.html?recipeId=' + recipeId + '&from=ft_teacher">Open</a>' +
+                  (showApprove ? '<button class="ft-approve-btn" type="button" data-action="approve" data-id="' + recipeId + '">Approve</button>' : '') +
+                  (showDecline ? '<button class="ft-decline-btn" type="button" data-action="decline" data-id="' + recipeId + '" data-name="' + escapeHtml(row.name || '') + '">Decline</button>' : '') +
+                '</div>' +
+              '</td>' +
+            '</tr>';
+          }).join('');
+
+          setStatus('Loaded ' + rows.length + ' recipe(s).', false);
+        } catch (err) {
+          bodyEl.innerHTML = '<tr><td colspan="6">Failed to load moderation list.</td></tr>';
+          setStatus(err && err.message ? err.message : 'Failed to load moderation list.', true);
+        }
+      }
+
+      async function approveRecipe(recipeId) {
+        const res = await fetch('/api/recipes/' + recipeId + '/food-truck/approve', {
+          method: 'POST',
+          credentials: 'include'
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.success === false) {
+          throw new Error((data && (data.error || data.message)) || 'Failed to approve recipe.');
+        }
+        return data;
+      }
+
+      async function declineRecipe(recipeId, reason, ccEmail) {
+        const body = { reason };
+        if (ccEmail) body.ccEmail = ccEmail;
+        const res = await fetch('/api/recipes/' + recipeId + '/food-truck/decline', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.success === false) {
+          throw new Error((data && (data.error || data.message)) || 'Failed to decline recipe.');
+        }
+        return data;
+      }
+
+      async function sendDeclinePreview(recipeId, reason, previewTo) {
+        const res = await fetch('/api/recipes/' + recipeId + '/food-truck/decline-preview', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason, previewTo })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.success === false) {
+          throw new Error((data && (data.error || data.message)) || 'Failed to send preview email.');
+        }
+        return data;
+      }
+
+      // Decline modal state
+      let declineTargetId = null;
+      let declineTargetName = '';
+      let teacherEmail = '';
+
+      const declineBackdrop = document.getElementById('declineModalBackdrop');
+      const declineReasonInput = document.getElementById('declineReasonInput');
+      const declineCcSelf = document.getElementById('declineCcSelf');
+      const declineCcEmailLabel = document.getElementById('declineCcEmailLabel');
+      const declinePreviewBtn = document.getElementById('declinePreviewBtn');
+      const declineSendBtn = document.getElementById('declineSendBtn');
+      const declineCancelBtn = document.getElementById('declineCancelBtn');
+      const declineModalSub = document.getElementById('declineModalSub');
+      const declineModalMsg = document.getElementById('declineModalMsg');
+
+      function openDeclineModal(recipeId, recipeName) {
+        declineTargetId = recipeId;
+        declineTargetName = recipeName || ('Recipe ' + recipeId);
+        declineReasonInput.value = '';
+        declineModalMsg.textContent = '';
+        declineModalMsg.className = 'ft-modal-msg';
+        declineModalSub.innerHTML = 'Write the decline reason for <strong>' + escapeHtml(declineTargetName) + '</strong>. Use <strong>Send Test Email</strong> to preview what the student will receive before committing.';
+        declineBackdrop.classList.add('open');
+        declineReasonInput.focus();
+      }
+
+      function closeDeclineModal() {
+        declineBackdrop.classList.remove('open');
+        declineTargetId = null;
+      }
+
+      function setModalMsg(msg, type) {
+        declineModalMsg.textContent = msg || '';
+        declineModalMsg.className = 'ft-modal-msg' + (type ? ' ' + type : '');
+      }
+
+      declineCancelBtn.addEventListener('click', closeDeclineModal);
+      declineBackdrop.addEventListener('click', function(e) {
+        if (e.target === declineBackdrop) closeDeclineModal();
+      });
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && declineBackdrop.classList.contains('open')) closeDeclineModal();
+      });
+
+      declinePreviewBtn.addEventListener('click', async function() {
+        const reason = declineReasonInput.value.trim();
+        if (!reason) { setModalMsg('Please enter a decline reason first.', 'error'); return; }
+        if (!teacherEmail) { setModalMsg('Could not determine your email address. Please reload.', 'error'); return; }
+        declinePreviewBtn.disabled = true;
+        setModalMsg('Sending test email to ' + teacherEmail + '…', '');
+        try {
+          await sendDeclinePreview(declineTargetId, reason, teacherEmail);
+          setModalMsg('Test email sent to ' + teacherEmail + '. Check your inbox then use Decline & Send when ready.', 'success');
+        } catch (err) {
+          setModalMsg(err && err.message ? err.message : 'Failed to send preview email.', 'error');
+        } finally {
+          declinePreviewBtn.disabled = false;
+        }
+      });
+
+      declineSendBtn.addEventListener('click', async function() {
+        const reason = declineReasonInput.value.trim();
+        if (!reason) { setModalMsg('Please enter a decline reason.', 'error'); return; }
+        declineSendBtn.disabled = true;
+        declineCancelBtn.disabled = true;
+        setModalMsg('Declining and sending email…', '');
+        try {
+          const ccEmail = (declineCcSelf.checked && teacherEmail) ? teacherEmail : null;
+          const result = await declineRecipe(declineTargetId, reason, ccEmail);
+          closeDeclineModal();
+          if (result.mailSent) {
+            setStatus('Recipe ' + declineTargetId + ' declined. Email sent to student.' + (ccEmail ? ' (CC: ' + ccEmail + ')' : ''), false);
+          } else {
+            setStatus('Recipe ' + declineTargetId + ' declined. Email not sent: ' + (result.mailError || 'Unknown reason.'), true);
+          }
+          await loadRows();
+        } catch (err) {
+          setModalMsg(err && err.message ? err.message : 'Action failed.', 'error');
+        } finally {
+          declineSendBtn.disabled = false;
+          declineCancelBtn.disabled = false;
+        }
+      });
+
+      // Load teacher email for CC/preview defaults
+      fetch('/api/auth/me', { credentials: 'include' })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(me) {
+          if (me && me.email) {
+            teacherEmail = String(me.email).trim();
+            declineCcEmailLabel.textContent = teacherEmail;
+          }
+        })
+        .catch(function() {});
+
+      bodyEl.addEventListener('click', async (event) => {
+        const openLink = event.target.closest('a[data-action="open-review"][data-id]');
+        if (openLink) {
+          const openRecipeId = Number(openLink.getAttribute('data-id'));
+          if (Number.isInteger(openRecipeId) && openRecipeId > 0) {
+            try {
+              sessionStorage.setItem('ftReviewRecipeId', String(openRecipeId));
+            } catch (_) {
+              // Ignore storage restrictions and allow navigation.
+            }
+          }
+          return;
+        }
+
+        const btn = event.target.closest('button[data-action][data-id]');
+        if (!btn) return;
+
+        const action = btn.getAttribute('data-action');
+        const recipeId = Number(btn.getAttribute('data-id'));
+        if (!Number.isInteger(recipeId) || recipeId <= 0) return;
+
+        btn.disabled = true;
+        try {
+          if (action === 'approve') {
+            await approveRecipe(recipeId);
+            setStatus('Recipe ' + recipeId + ' approved and published.', false);
+            await loadRows();
+          } else if (action === 'decline') {
+            btn.disabled = false;
+            const recipeName = btn.getAttribute('data-name') || ('Recipe ' + recipeId);
+            openDeclineModal(recipeId, recipeName);
+            return;
+          }
+        } catch (err) {
+          setStatus(err && err.message ? err.message : 'Action failed.', true);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+
+      filterEl.addEventListener('change', loadRows);
+      refreshBtn.addEventListener('click', loadRows);
+      loadRows();
+    })();
+  </script>
+</body>
+</html>

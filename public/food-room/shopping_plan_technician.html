@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Technician Shopping View</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .spt-wrap { max-width: 1180px; margin: 1.5rem auto 2.3rem; padding: 0 1rem; }
+    .spt-head { margin-bottom: 0.9rem; }
+    .spt-title { margin: 0; color: #173a58; font-size: 1.72rem; }
+    .spt-sub { margin: 0.38rem 0 0; color: #4b6073; }
+    .spt-card {
+      background: #fff;
+      border: 1px solid #c9d6e2;
+      border-radius: 10px;
+      padding: 1rem 1.06rem;
+      box-shadow: 0 2px 8px rgba(8, 34, 56, 0.08);
+      margin-bottom: 0.95rem;
+    }
+    .spt-row { display: flex; flex-wrap: wrap; gap: 0.55rem; align-items: end; }
+    .spt-field { display: flex; flex-direction: column; gap: 0.3rem; min-width: 220px; }
+    .spt-field label { font-size: 0.9rem; font-weight: 700; color: #2a4051; }
+    .spt-field input, .spt-field select {
+      border: 1px solid #b6c8d8;
+      border-radius: 7px;
+      padding: 0.47rem 0.56rem;
+      font: inherit;
+      background: #fff;
+    }
+    .spt-btn {
+      border: none;
+      border-radius: 7px;
+      padding: 0.55rem 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .spt-btn.primary { background: #1f6eae; color: #fff; }
+    .spt-btn.primary:hover { background: #195e93; }
+    .spt-btn.secondary { background: #627889; color: #fff; }
+    .spt-btn.secondary:hover { background: #526474; }
+    .spt-meta { color: #5f7588; font-size: 0.9rem; margin-top: 0.45rem; }
+    .spt-status { min-height: 1.2rem; margin-top: 0.45rem; font-size: 0.92rem; font-weight: 700; }
+    .spt-status.ok { color: #1f7c4c; }
+    .spt-status.err { color: #b82f2f; }
+    .spt-grid { display: flex; flex-direction: column; gap: 0.8rem; }
+    .spt-row-group { display: grid; gap: 0.8rem; }
+    .spt-row-2 { grid-template-columns: repeat(2, minmax(300px, 1fr)); }
+    .spt-row-3 { grid-template-columns: repeat(3, minmax(220px, 1fr)); }
+    .spt-cat { border: 1px solid #dbe5ee; border-radius: 8px; overflow: hidden; }
+    .spt-cat h3 { margin: 0; background: #245f91; color: #fff; font-size: 0.92rem; padding: 0.5rem 0.6rem; }
+    .spt-table { width: 100%; border-collapse: collapse; }
+    .spt-table th, .spt-table td { padding: 0.38rem 0.5rem; border-bottom: 1px solid #e6edf4; font-size: 0.9rem; }
+    .spt-table th { text-align: left; background: #f5f9fd; color: #365168; }
+    .spt-num { text-align: right; font-variant-numeric: tabular-nums; }
+    .spt-mini-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.6rem; margin-bottom: 0.4rem; }
+    .spt-mini-title { margin: 0; color: #1d4464; font-size: 1rem; }
+    .spt-mini-sub { color: #5f7588; font-size: 0.82rem; }
+    .spt-mini-table-wrap { overflow-x: auto; }
+    .spt-mini-table { width: 100%; border-collapse: collapse; min-width: 720px; }
+    .spt-mini-table th, .spt-mini-table td { border: 1px solid #e1eaf2; padding: 0.3rem 0.35rem; font-size: 0.78rem; vertical-align: top; }
+    .spt-mini-table th { background: #edf4fb; color: #2d4f68; text-align: center; }
+    .spt-mini-period { width: 52px; text-align: center; font-weight: 700; background: #f8fbff; color: #35536a; }
+    .spt-mini-cell { min-height: 50px; }
+    .spt-mini-chip { background: #f3f8ff; border: 1px solid #d8e6f7; border-radius: 5px; padding: 0.12rem 0.26rem; margin-bottom: 0.16rem; color: #20465f; line-height: 1.25; display: block; text-decoration: none; }
+    .spt-mini-chip:hover { background: #e9f2fd; border-color: #c6ddf6; }
+    .spt-mini-chip:last-child { margin-bottom: 0; }
+    .spt-mini-empty { color: #8ea0b0; text-align: center; }
+    @media (max-width: 980px) {
+      .spt-row-2, .spt-row-3 { grid-template-columns: 1fr; }
+    }
+    @media print {
+      body * { visibility: hidden !important; }
+      #printArea, #printArea * { visibility: visible !important; }
+      #printArea { position: absolute; inset: 0; background: #fff; }
+      .spt-card:first-child { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+  <main class="spt-wrap">
+    <section class="spt-head">
+      <h1 class="spt-title">Technician Shopping View</h1>
+      <p class="spt-sub">Read-only finalized ordering list grouped by category for procurement and printing.</p>
+    </section>
+
+    <section class="spt-card">
+      <div class="spt-row">
+        <div class="spt-field" style="min-width:360px;">
+          <label for="planSelect">Finalized plans</label>
+          <select id="planSelect">
+            <option value="">Loading finalized plans...</option>
+          </select>
+        </div>
+        <div class="spt-field">
+          <label for="planIdInput">Finalized plan ID</label>
+          <input id="planIdInput" type="number" min="1" step="1" placeholder="e.g. 42">
+        </div>
+        <button id="loadBtn" class="spt-btn primary" type="button">Load Finalized Plan</button>
+        <button id="printBtn" class="spt-btn secondary" type="button">Print</button>
+        <button id="csvBtn" class="spt-btn secondary" type="button">Export CSV</button>
+        <button id="refreshBtn" class="spt-btn secondary" type="button" title="Create a refreshed finalized version from latest recipe and inventory data">Refresh Plan Data</button>
+      </div>
+      <div class="spt-meta" id="planMeta"></div>
+      <div class="spt-status" id="status"></div>
+    </section>
+
+    <section class="spt-card">
+      <div class="spt-mini-head">
+        <h2 class="spt-mini-title">Practical Calendar (Week Snapshot)</h2>
+        <div id="practicalCalMeta" class="spt-mini-sub"></div>
+      </div>
+      <div id="practicalCalBody" class="spt-mini-table-wrap">
+        <div class="spt-meta">Load a finalized plan to view the practical calendar snapshot.</div>
+      </div>
+    </section>
+
+    <section id="printArea" class="spt-card">
+      <div id="categoryGrid" class="spt-grid">
+        <div class="spt-meta">Load a finalized plan ID to view items.</div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+  (function () {
+    const planSelect = document.getElementById('planSelect');
+    const planIdInput = document.getElementById('planIdInput');
+    const loadBtn = document.getElementById('loadBtn');
+    const printBtn = document.getElementById('printBtn');
+    const csvBtn = document.getElementById('csvBtn');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const planMeta = document.getElementById('planMeta');
+    const statusEl = document.getElementById('status');
+    const practicalCalMeta = document.getElementById('practicalCalMeta');
+    const practicalCalBody = document.getElementById('practicalCalBody');
+    const categoryGrid = document.getElementById('categoryGrid');
+
+    let currentPayload = null;
+
+    function esc(s) {
+      return String(s || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function setStatus(msg, type) {
+      statusEl.textContent = msg || '';
+      statusEl.className = 'spt-status' + (type ? ' ' + type : '');
+    }
+
+    function getPlanFromQuery() {
+      const q = new URLSearchParams(window.location.search);
+      const id = Number(q.get('plan_id'));
+      return Number.isInteger(id) && id > 0 ? id : null;
+    }
+
+    function toDateOnly(value) {
+      const raw = String(value || '').trim();
+      if (!raw) return '';
+      const isoLike = raw.slice(0, 10);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(isoLike)) return isoLike;
+      const d = new Date(raw);
+      if (Number.isNaN(d.getTime())) return '';
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + day;
+    }
+
+    function formatHumanDate(value) {
+      const iso = toDateOnly(value);
+      if (!iso) return String(value || '');
+      const d = new Date(iso + 'T00:00:00');
+      if (Number.isNaN(d.getTime())) return iso;
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return String(d.getDate()) + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
+    }
+
+    function isoWeekNumber(dateValue) {
+      const source = new Date(dateValue);
+      if (Number.isNaN(source.getTime())) return null;
+      const utcDate = new Date(Date.UTC(source.getFullYear(), source.getMonth(), source.getDate()));
+      const day = utcDate.getUTCDay() || 7;
+      utcDate.setUTCDate(utcDate.getUTCDate() + 4 - day);
+      const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+      return Math.ceil((((utcDate - yearStart) / 86400000) + 1) / 7);
+    }
+
+    function mondayToFridayFromWeekEnding(weekEndingValue) {
+      const iso = toDateOnly(weekEndingValue);
+      if (!iso) return { monday: null, friday: null };
+      const friday = new Date(iso + 'T00:00:00');
+      if (Number.isNaN(friday.getTime())) return { monday: null, friday: null };
+      const monday = new Date(friday);
+      monday.setDate(friday.getDate() - 4);
+      return { monday, friday };
+    }
+
+    function formatRangeDateNoYear(dateValue) {
+      const d = new Date(dateValue);
+      if (Number.isNaN(d.getTime())) return '';
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return String(d.getDate()) + ' ' + months[d.getMonth()];
+    }
+
+    function buildWeekLabel(weekEndingValue) {
+      const range = mondayToFridayFromWeekEnding(weekEndingValue);
+      if (!range.monday || !range.friday) return '';
+      const weekNo = isoWeekNumber(range.monday);
+      const prefix = Number.isInteger(weekNo) ? ('Week ' + weekNo + ' ') : '';
+      return prefix + '(' + formatRangeDateNoYear(range.monday) + ' - ' + formatHumanDate(range.friday) + ')';
+    }
+
+    function formatPlanStatus(statusValue) {
+      const status = String(statusValue || '').trim().toLowerCase();
+      if (!status) return 'Unknown';
+      return status.charAt(0).toUpperCase() + status.slice(1);
+    }
+
+    function toIsoLocalDate(dateValue) {
+      const d = new Date(dateValue);
+      if (Number.isNaN(d.getTime())) return '';
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + day;
+    }
+
+    function shortDayLabel(dateValue) {
+      const d = new Date(dateValue);
+      if (Number.isNaN(d.getTime())) return '';
+      const w = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const idx = (d.getDay() + 6) % 7;
+      return w[idx] + ' ' + String(d.getDate()) + '/' + String(d.getMonth() + 1);
+    }
+
+    function parsePeriodValue(periodValue) {
+      const raw = String(periodValue || '').trim().toUpperCase();
+      if (!raw) return null;
+      const m = raw.match(/(\d+)/);
+      if (!m) return null;
+      const n = Number(m[1]);
+      return Number.isInteger(n) && n >= 1 && n <= 5 ? n : null;
+    }
+
+    async function renderPracticalCalendar(plan) {
+      if (!plan || !plan.week_ending) {
+        practicalCalMeta.textContent = '';
+        practicalCalBody.innerHTML = '<div class="spt-meta">Load a finalized plan to view the practical calendar snapshot.</div>';
+        return;
+      }
+
+      const range = mondayToFridayFromWeekEnding(plan.week_ending);
+      if (!range.monday || !range.friday) {
+        practicalCalMeta.textContent = '';
+        practicalCalBody.innerHTML = '<div class="spt-meta">Could not resolve week range for this plan.</div>';
+        return;
+      }
+
+      const days = [];
+      for (let i = 0; i < 5; i++) {
+        const d = new Date(range.monday);
+        d.setDate(range.monday.getDate() + i);
+        days.push(d);
+      }
+
+      const start = toIsoLocalDate(days[0]);
+      const end = toIsoLocalDate(days[4]);
+      practicalCalMeta.textContent = shortDayLabel(days[0]) + ' to ' + shortDayLabel(days[4]);
+      practicalCalBody.innerHTML = '<div class="spt-meta">Loading practical calendar...</div>';
+
+      try {
+        const resp = await fetch('/api/bookings/all?start=' + encodeURIComponent(start) + '&end=' + encodeURIComponent(end) + '&fields=calendar', { credentials: 'include' });
+        const payload = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(payload.error || 'Failed to load practical calendar.');
+
+        const rows = Array.isArray(payload.bookings) ? payload.bookings : [];
+        const grid = {};
+        for (let p = 1; p <= 5; p++) {
+          grid[p] = {};
+          days.forEach((d) => { grid[p][toIsoLocalDate(d)] = []; });
+        }
+
+        rows.forEach((b) => {
+          const iso = toDateOnly(b.booking_date);
+          const p = parsePeriodValue(b.period);
+          if (!iso || !p || !grid[p] || !grid[p][iso]) return;
+          if (String(b.period || '').toLowerCase() === 'planner') return;
+          const primary = String((b.linked_recipe_name || b.recipe || b.class_name || '')).trim();
+          const secondary = String((b.staff_name || '')).trim();
+          grid[p][iso].push({
+            id: Number(b.id),
+            iso,
+            text: (primary || 'Booking') + (secondary ? ' - ' + secondary : '')
+          });
+        });
+
+        let html = '<table class="spt-mini-table"><thead><tr><th>Period</th>';
+        html += days.map((d) => '<th>' + esc(shortDayLabel(d)) + '</th>').join('');
+        html += '</tr></thead><tbody>';
+
+        for (let p = 1; p <= 5; p++) {
+          html += '<tr><td class="spt-mini-period">P' + p + '</td>';
+          for (let i = 0; i < days.length; i++) {
+            const iso = toIsoLocalDate(days[i]);
+            const items = grid[p][iso] || [];
+            if (!items.length) {
+              html += '<td class="spt-mini-cell spt-mini-empty">-</td>';
+              continue;
+            }
+            const shown = items.slice(0, 2);
+            let chips = shown.map((entry) => {
+              const bookingId = Number(entry && entry.id);
+              const weekStart = toIsoLocalDate(days[0]);
+              const href = 'browse_practicals.html?booking_id=' + encodeURIComponent(String(bookingId)) + '&week_start=' + encodeURIComponent(weekStart) + '&auto_print_booking=1';
+              return '<a class="spt-mini-chip" href="' + esc(href) + '" target="_blank" title="Open worksheet print">' + esc(entry && entry.text ? entry.text : '') + '</a>';
+            }).join('');
+            if (items.length > shown.length) {
+              chips += '<div class="spt-mini-chip">+' + (items.length - shown.length) + ' more</div>';
+            }
+            html += '<td class="spt-mini-cell">' + chips + '</td>';
+          }
+          html += '</tr>';
+        }
+
+        html += '</tbody></table>';
+        practicalCalBody.innerHTML = html;
+      } catch (err) {
+        practicalCalBody.innerHTML = '<div class="spt-meta">' + esc(err.message || 'Failed to load practical calendar.') + '</div>';
+      }
+    }
+
+    async function loadFinalizedPlanOptions(selectedId) {
+      const resp = await fetch('/api/shopping-plan', { credentials: 'include' });
+      const payload = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(payload.error || 'Failed to load plan list.');
+
+      const plans = (Array.isArray(payload.plans) ? payload.plans : [])
+        .filter((p) => String(p.status || '').toLowerCase() === 'finalized');
+
+      if (!plans.length) {
+        planSelect.innerHTML = '<option value="">No finalized plans found</option>';
+        return;
+      }
+
+      planSelect.innerHTML = '<option value="">Select finalized plan...</option>' + plans.map((p) => {
+        const weekLabel = buildWeekLabel(p.week_ending);
+        const label = (weekLabel || ('Week ending ' + formatHumanDate(p.week_ending)))
+          + ' | Version ' + String(p.version || '')
+          + ' | Plan #' + String(p.id || '');
+        return '<option value="' + Number(p.id) + '">' + esc(label) + '</option>';
+      }).join('');
+
+      if (selectedId && plans.some((p) => Number(p.id) === Number(selectedId))) {
+        planSelect.value = String(selectedId);
+      }
+    }
+
+    function normalizeUnit(u) {
+      const value = String(u || '').trim().toLowerCase();
+      if (!value) return '';
+      if (['teaspoon', 'teaspoons', 'tsp'].includes(value)) return 'tsp';
+      if (['tablespoon', 'tablespoons', 'tbsp', 'tbs', 'tblsp'].includes(value)) return 'tbsp';
+      if (['gram', 'grams', 'g'].includes(value)) return 'g';
+      if (['kilogram', 'kilograms', 'kg'].includes(value)) return 'kg';
+      if (['milliliter', 'milliliters', 'millilitre', 'millilitres', 'ml'].includes(value)) return 'ml';
+      if (['liter', 'liters', 'litre', 'litres', 'l'].includes(value)) return 'l';
+      return value;
+    }
+
+    function formatQty(value) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return '';
+      return n.toFixed(1).replace(/\.0$/, '');
+    }
+
+    function toPurchaseUnit(qtyValue, unitValue) {
+      const qty = Number(qtyValue);
+      const unit = normalizeUnit(unitValue);
+      if (!Number.isFinite(qty)) {
+        return { qty: '', unit: String(unitValue || '') };
+      }
+
+      if (unit === 'tsp' && Math.abs(qty) >= 3) {
+        return { qty: formatQty(qty / 3), unit: 'tbsp' };
+      }
+
+      if (unit === 'g' && Math.abs(qty) >= 1000) {
+        return { qty: formatQty(qty / 1000), unit: 'kg' };
+      }
+      if (unit === 'ml' && Math.abs(qty) >= 1000) {
+        return { qty: formatQty(qty / 1000), unit: 'l' };
+      }
+
+      return { qty: formatQty(qty), unit: String(unitValue || '') };
+    }
+
+    function mergeNameKey(value) {
+      let s = String(value || '').toLowerCase().trim();
+      if (!s) return '';
+      if (/spring\s*onions?/i.test(s)) return 'spring onion';
+      s = s
+        .replace(/\b(finely|thinly|roughly|lightly|shredded|sliced|chopped|beaten)\b/g, ' ')
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      s = s
+        .replace(/\bspring onions?\b/g, 'spring onion')
+        .replace(/\beggs\b/g, 'egg');
+      return s;
+    }
+
+    function displayNameFromMergeKey(key, fallback) {
+      if (key === 'spring onion') return 'Spring Onions';
+      if (key === 'egg') return 'Eggs';
+      return String(fallback || '').trim() || key;
+    }
+
+    function isNonShoppingMetadataItem(nameValue) {
+      const raw = String(nameValue || '').trim();
+      if (!raw) return true;
+      const normalized = raw
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (!normalized) return true;
+      if (/^serves(\s+\d+)+\s+serves?$/.test(normalized)) return true;
+      if (/\b(total\s+fat|saturated\s+fat|carbohydrate|sugars?|sodium|dietary\s+fib(?:re|er)|protein|energy|kilojoules?|kj)\b/.test(normalized)) {
+        return true;
+      }
+      return false;
+    }
+
+    function mergeRows(rows) {
+      const list = Array.isArray(rows) ? rows : [];
+      const map = new Map();
+
+      list.forEach((r) => {
+        if (isNonShoppingMetadataItem(r && r.item_name)) return;
+        const unit = normalizeUnit(r && r.base_unit) || String((r && r.base_unit) || '').trim().toLowerCase();
+        const keyName = mergeNameKey(r && r.item_name);
+        const mergeKey = keyName + '||' + unit;
+        const qty = Number(r && r.final_qty);
+
+        if (!map.has(mergeKey)) {
+          map.set(mergeKey, {
+            sub_aisle: r && r.sub_aisle,
+            item_name: displayNameFromMergeKey(keyName, r && r.item_name),
+            base_unit: r && r.base_unit,
+            final_qty: 0,
+            notes: r && r.notes
+          });
+        }
+
+        const entry = map.get(mergeKey);
+        entry.final_qty += Number.isFinite(qty) ? qty : 0;
+      });
+
+      return Array.from(map.values()).sort((a, b) => String(a.item_name || '').localeCompare(String(b.item_name || ''), undefined, { sensitivity: 'base' }));
+    }
+
+    function canonicalCategoryKey(name) {
+      const value = String(name || '').trim().toLowerCase();
+      if (!value) return 'uncategorised';
+      if (value.includes('meat')) return 'meat';
+      if (value.includes('dairy') || value.includes('pastry')) return 'dairy_pastry';
+      if (value.includes('pantry') || value.includes('dry ingredients') || value.includes('tinned') || value.includes('condiment')) return 'pantry_dry_tinned';
+      if (value.includes('egg')) return 'eggs';
+      if (value.includes('cleaning')) return 'cleaning_products';
+      if (value.includes('produce') || value.includes('fruit') || value.includes('vegetable')) return 'produce_fruit_vegetables';
+      if (value === 'other' || value.startsWith('other')) return 'other_other';
+      if (value.includes('uncategorised') || value.includes('uncategorized')) return 'uncategorised';
+      if (value.includes('action')) return 'action';
+      return 'extra:' + value;
+    }
+
+    function categoryHeading(key) {
+      const labels = {
+        meat: 'Meat',
+        dairy_pastry: 'Dairy & Pastry',
+        pantry_dry_tinned: 'Pantry: Dry Ingredients & Tinned Food',
+        eggs: 'Eggs',
+        cleaning_products: 'Cleaning Products',
+        produce_fruit_vegetables: 'Produce: Fruit & Vegetables',
+        other_other: 'Other: Other',
+        uncategorised: 'Uncategorised',
+        action: 'Action'
+      };
+      if (labels[key]) return labels[key];
+      if (String(key).startsWith('extra:')) {
+        const raw = String(key).slice(6);
+        return raw ? (raw.charAt(0).toUpperCase() + raw.slice(1)) : 'Other';
+      }
+      return String(key || 'Other');
+    }
+
+    function renderCategoryCard(title, rows) {
+      const safeRows = Array.isArray(rows) ? rows : [];
+      return '<section class="spt-cat">' +
+        '<h3>' + esc(title) + '</h3>' +
+        '<table class="spt-table">' +
+          '<thead><tr><th>Item</th><th class="spt-num">Qty</th><th>Unit</th><th>Notes</th></tr></thead>' +
+          '<tbody>' + safeRows.map((r) => {
+            const purchase = toPurchaseUnit(r.final_qty, r.base_unit);
+            return '<tr>' +
+              '<td>' + esc(r.item_name || '') + '</td>' +
+              '<td class="spt-num">' + esc(purchase.qty) + '</td>' +
+              '<td>' + esc(purchase.unit || '') + '</td>' +
+              '<td>' + esc(r.notes || '') + '</td>' +
+            '</tr>';
+          }).join('') + '</tbody>' +
+        '</table>' +
+      '</section>';
+    }
+
+    function render(payload) {
+      currentPayload = payload;
+      const plan = payload.plan || {};
+      const categories = payload.categories || {};
+
+      renderPracticalCalendar(plan);
+
+      planMeta.textContent =
+        'Plan #' + plan.id +
+        ' | ' + (buildWeekLabel(plan.week_ending) || ('Week ending: ' + formatHumanDate(plan.week_ending))) +
+        ' | Version: ' + (plan.version || '') +
+        ' | Finalized by: ' + (plan.finalized_by || 'unknown');
+
+      const names = Object.keys(categories);
+      if (!names.length) {
+        categoryGrid.innerHTML = '<div class="spt-meta">No items found in this finalized plan.</div>';
+        return;
+      }
+
+      const grouped = {};
+      names.forEach((cat) => {
+        const key = canonicalCategoryKey(cat);
+        if (!grouped[key]) grouped[key] = [];
+        const rows = Array.isArray(categories[cat]) ? categories[cat] : [];
+        grouped[key] = grouped[key].concat(rows);
+      });
+      Object.keys(grouped).forEach((key) => {
+        grouped[key] = mergeRows(grouped[key]);
+      });
+
+      const rowOrder = [
+        ['meat', 'dairy_pastry'],
+        ['pantry_dry_tinned', 'eggs'],
+        ['cleaning_products', 'produce_fruit_vegetables'],
+        ['other_other', 'uncategorised', 'action']
+      ];
+      const orderedKeys = new Set(rowOrder.flat());
+
+      const rowsHtml = rowOrder.map((keys) => {
+        const present = keys.filter((key) => Array.isArray(grouped[key]) && grouped[key].length);
+        if (!present.length) return '';
+        const rowClass = present.length >= 3 ? 'spt-row-group spt-row-3' : 'spt-row-group spt-row-2';
+        return '<div class="' + rowClass + '">' + present.map((key) => {
+          return renderCategoryCard(categoryHeading(key), grouped[key]);
+        }).join('') + '</div>';
+      }).join('');
+
+      const extraKeys = Object.keys(grouped).filter((key) => !orderedKeys.has(key)).sort();
+      const extrasHtml = extraKeys.length
+        ? '<div class="spt-row-group spt-row-2">' + extraKeys.map((key) => renderCategoryCard(categoryHeading(key), grouped[key])).join('') + '</div>'
+        : '';
+
+      categoryGrid.innerHTML = rowsHtml + extrasHtml;
+    }
+
+    async function loadPlan(id) {
+      setStatus('Loading finalized plan...', '');
+      const resp = await fetch('/api/shopping-plan/' + id + '/technician-view', { credentials: 'include' });
+      const payload = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(payload.error || 'Failed to load technician view.');
+      render(payload);
+      setStatus('Finalized plan loaded.', 'ok');
+    }
+
+    function toCsv() {
+      if (!currentPayload || !currentPayload.categories) return '';
+      const lines = ['Category,Item,Final Qty,Unit,Notes'];
+      Object.keys(currentPayload.categories).forEach((cat) => {
+        const rows = currentPayload.categories[cat] || [];
+        rows.forEach((r) => {
+          const purchase = toPurchaseUnit(r.final_qty, r.base_unit);
+          const vals = [
+            cat,
+            r.item_name || '',
+            purchase.qty,
+            purchase.unit || '',
+            r.notes || ''
+          ].map((v) => '"' + String(v).replace(/"/g, '""') + '"');
+          lines.push(vals.join(','));
+        });
+      });
+      return lines.join('\n');
+    }
+
+    loadBtn.addEventListener('click', async () => {
+      try {
+        const selected = Number(planSelect.value);
+        const typed = Number(planIdInput.value);
+        const id = Number.isInteger(selected) && selected > 0 ? selected : typed;
+        if (!Number.isInteger(id) || id <= 0) throw new Error('Enter a valid plan ID.');
+        planIdInput.value = String(id);
+        planSelect.value = String(id);
+        await loadPlan(id);
+      } catch (err) {
+        setStatus(err.message, 'err');
+      }
+    });
+
+    planSelect.addEventListener('change', () => {
+      const id = Number(planSelect.value);
+      if (Number.isInteger(id) && id > 0) {
+        planIdInput.value = String(id);
+      }
+    });
+
+    printBtn.addEventListener('click', () => {
+      if (!currentPayload) {
+        setStatus('Load a finalized plan before printing.', 'err');
+        return;
+      }
+      window.print();
+    });
+
+    csvBtn.addEventListener('click', () => {
+      if (!currentPayload) {
+        setStatus('Load a finalized plan before exporting.', 'err');
+        return;
+      }
+      const csv = toCsv();
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const planId = currentPayload.plan && currentPayload.plan.id ? currentPayload.plan.id : 'unknown';
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'technician_shopping_plan_' + planId + '.csv';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+    });
+
+    refreshBtn.addEventListener('click', async () => {
+      if (!currentPayload || !currentPayload.plan) {
+        setStatus('Load a finalized plan before refreshing.', 'err');
+        return;
+      }
+
+      const originalPlanId = Number(currentPayload.plan.id);
+      if (!Number.isInteger(originalPlanId) || originalPlanId <= 0) {
+        setStatus('Invalid plan selected.', 'err');
+        return;
+      }
+
+      refreshBtn.disabled = true;
+      refreshBtn.textContent = 'Refreshing...';
+
+      try {
+        const isUnitRepairableFinalizeFailure = (payload) => {
+          const errors = Array.isArray(payload && payload.errors) ? payload.errors : [];
+          return errors.some((entry) => /no unit|unit compatibility/i.test(String(entry || '')));
+        };
+
+        const attemptFinalize = async (planId) => {
+          const finalizeResp = await fetch('/api/shopping-plan/' + planId + '/finalize', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          const finalizeData = await finalizeResp.json().catch(() => ({}));
+          return { finalizeResp, finalizeData };
+        };
+
+        setStatus('Creating refreshed draft version...', '');
+
+        const reopenResp = await fetch('/api/shopping-plan/' + originalPlanId + '/reopen', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const reopenData = await reopenResp.json().catch(() => ({}));
+        if (!reopenResp.ok || !reopenData.success || !reopenData.plan || !reopenData.plan.id) {
+          throw new Error(reopenData.error || 'Failed to create refreshed draft version.');
+        }
+
+        const newPlanId = Number(reopenData.plan.id);
+        setStatus('Regenerating items from latest source data...', '');
+
+        const generateResp = await fetch('/api/shopping-plan/' + newPlanId + '/generate-draft', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_from_inventory: false })
+        });
+        const generateData = await generateResp.json().catch(() => ({}));
+        if (!generateResp.ok || !generateData.success) {
+          throw new Error(generateData.error || 'Failed to regenerate refreshed draft.');
+        }
+
+        setStatus('Finalizing refreshed plan version...', '');
+        let { finalizeResp, finalizeData } = await attemptFinalize(newPlanId);
+        if ((!finalizeResp.ok || !finalizeData.success) && isUnitRepairableFinalizeFailure(finalizeData)) {
+          setStatus('Repairing legacy unit rows in refreshed draft...', '');
+          const repairResp = await fetch('/api/shopping-plan/' + newPlanId + '/fix-legacy-units', {
+            method: 'POST',
+            credentials: 'include'
+          });
+          const repairData = await repairResp.json().catch(() => ({}));
+          if (!repairResp.ok || !repairData.success) {
+            throw new Error(repairData.error || 'Refreshed draft failed legacy unit repair.');
+          }
+
+          setStatus('Retrying finalization after legacy unit repair...', '');
+          ({ finalizeResp, finalizeData } = await attemptFinalize(newPlanId));
+        }
+
+        if (!finalizeResp.ok || !finalizeData.success) {
+          // If refresh draft cannot finalize (often due legacy unit conflicts),
+          // keep the current finalized plan loaded and show a non-fatal message.
+          await loadFinalizedPlanOptions(originalPlanId);
+          planIdInput.value = String(originalPlanId);
+          planSelect.value = String(originalPlanId);
+          await loadPlan(originalPlanId);
+          setStatus('Refresh draft could not be finalized. Showing latest finalized plan with normalized display totals.', 'err');
+          return;
+        }
+
+        await loadFinalizedPlanOptions(newPlanId);
+        planIdInput.value = String(newPlanId);
+        planSelect.value = String(newPlanId);
+        await loadPlan(newPlanId);
+
+        const nextUrl = new URL(window.location.href);
+        nextUrl.searchParams.set('plan_id', String(newPlanId));
+        window.history.replaceState({}, '', nextUrl.toString());
+
+        setStatus('Refreshed and loaded new finalized version: Plan #' + newPlanId + '.', 'ok');
+      } catch (err) {
+        setStatus(err.message || 'Refresh failed.', 'err');
+      } finally {
+        refreshBtn.disabled = false;
+        refreshBtn.textContent = 'Refresh Plan Data';
+      }
+    });
+
+    (async function init() {
+      const requested = getPlanFromQuery();
+      try {
+        await loadFinalizedPlanOptions(requested);
+      } catch (err) {
+        planSelect.innerHTML = '<option value="">Unable to load finalized plans</option>';
+        setStatus(err.message, 'err');
+      }
+
+      if (requested) {
+        planIdInput.value = String(requested);
+        planSelect.value = String(requested);
+        try {
+          await loadPlan(requested);
+        } catch (err) {
+          setStatus(err.message, 'err');
+        }
+      }
+    })();
+  })();
+  </script>
+</body>
+</html>

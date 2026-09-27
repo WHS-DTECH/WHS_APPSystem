@@ -1,0 +1,1989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Add Recipe</title>
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+  <link rel="stylesheet" href="shared/design_tokens.css">
+  <link rel="stylesheet" href="shared/base.css">
+  <link rel="stylesheet" href="shared/components.css">
+  <link rel="stylesheet" href="admin_styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --teacher-bg: #f3f7fb;
+      --teacher-surface: #ffffff;
+      --teacher-border: #d4deea;
+      --teacher-heading: #18324a;
+      --teacher-text: #233648;
+      --teacher-muted: #5d7186;
+      --teacher-primary: #1f4e79;
+      --teacher-primary-strong: #173a5b;
+      --teacher-success: #2e7d32;
+      --teacher-success-strong: #1f5a24;
+      --teacher-accent: #2b7a78;
+    }
+
+    body {
+      font-family: 'Lexend', sans-serif;
+      color: var(--teacher-text);
+      background:
+        radial-gradient(1200px 420px at 0% -20%, #dce9f8 0%, transparent 60%),
+        radial-gradient(860px 360px at 100% -25%, #d5efe7 0%, transparent 56%),
+        var(--teacher-bg);
+    }
+
+    .main-content-margins {
+      max-width: 1380px;
+      margin: 0 auto;
+      padding: 0.9rem 1rem 1.2rem;
+    }
+
+    .main-content-margins > div:first-child {
+      background: linear-gradient(120deg, #ffffff 0%, #eef4fb 100%);
+      border: 1px solid var(--teacher-border);
+      border-left: 6px solid var(--teacher-primary);
+      border-radius: 14px;
+      padding: 0.8rem 0.95rem;
+      box-shadow: 0 8px 24px rgba(23, 58, 91, 0.08);
+      margin-bottom: 0.95rem;
+    }
+
+    .main-content-margins h2 {
+      color: var(--teacher-heading);
+      letter-spacing: 0.01em;
+    }
+
+    .setup-section {
+      background: var(--teacher-surface);
+      border: 1px solid var(--teacher-border);
+      border-radius: 12px;
+      padding: 0.75rem 0.85rem;
+      box-shadow: 0 3px 12px rgba(21, 54, 88, 0.06);
+    }
+
+    .setup-section-title {
+      color: var(--teacher-heading);
+      font-weight: 800;
+      letter-spacing: 0.01em;
+    }
+
+    .setup-section-desc {
+      color: var(--teacher-muted);
+    }
+
+    .btn,
+    button[id$='Btn'] {
+      border-radius: 8px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      min-height: 40px;
+      transition: transform 0.08s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+    }
+
+    .btn:active,
+    button[id$='Btn']:active {
+      transform: translateY(1px);
+    }
+
+    .btn-primary,
+    #smartUploadBtn,
+    #teacherUploadAndSyncPdfBtn,
+    #teacherSaveRecipeBtn,
+    #saveRawDataBtn,
+    #teacherAcceptAllExtractsBtn,
+    #teacherAutoPublishAsyncSyncBtn,
+    #teacherAutoPublishAcceptBtn,
+    #teacherAutoPublishRefreshTableBtn,
+    #teacherAsyncSyncBtn {
+      background: var(--teacher-primary) !important;
+      border-color: var(--teacher-primary-strong) !important;
+      color: #fff !important;
+      box-shadow: 0 4px 10px rgba(31, 78, 121, 0.24);
+    }
+
+    .btn-primary:hover,
+    #smartUploadBtn:hover,
+    #teacherUploadAndSyncPdfBtn:hover,
+    #teacherSaveRecipeBtn:hover,
+    #saveRawDataBtn:hover,
+    #teacherAcceptAllExtractsBtn:hover,
+    #teacherAutoPublishAsyncSyncBtn:hover,
+    #teacherAutoPublishAcceptBtn:hover,
+    #teacherAutoPublishRefreshTableBtn:hover,
+    #teacherAsyncSyncBtn:hover {
+      background: var(--teacher-primary-strong) !important;
+    }
+
+    .btn-success,
+    #teacherExtractAllBtn,
+    #teacherAutoPublishBtn {
+      background: var(--teacher-success) !important;
+      border-color: var(--teacher-success-strong) !important;
+      color: #fff !important;
+      box-shadow: 0 4px 10px rgba(46, 125, 50, 0.25);
+    }
+
+    .btn-success:hover,
+    #teacherExtractAllBtn:hover,
+    #teacherAutoPublishBtn:hover {
+      background: var(--teacher-success-strong) !important;
+    }
+
+    #teacherPdfUploadArea {
+      border-color: var(--teacher-accent) !important;
+      color: var(--teacher-accent) !important;
+      background: #eef9f7 !important;
+      border-radius: 10px !important;
+      font-weight: 700;
+    }
+
+    #teacherAddRecipeWorkspace {
+      gap: 1.15rem !important;
+    }
+
+    #teacherAddRecipeRightColumn .setup-section {
+      border-left: 4px solid var(--teacher-primary);
+      background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+    }
+
+    #recipeMatrixStatus {
+      color: #2c5f8a !important;
+      font-weight: 700;
+    }
+
+    #teacherApiStatusBadge {
+      background: #eef4fb !important;
+      border-color: #bfd1e6 !important;
+      color: #2a4f72 !important;
+    }
+
+    .ui-progress {
+      border: 1px solid #cddae8;
+      background: #edf3f9;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .ui-progress-bar {
+      background: linear-gradient(90deg, #1f4e79 0%, #2b7a78 100%) !important;
+    }
+
+    #teacherAutoPublishReviewBox {
+      background: #f4f8ff !important;
+      border-color: #c8d7ed !important;
+    }
+
+    @media (max-width: 1100px) {
+      .main-content-margins {
+        padding: 0.72rem;
+      }
+
+      #teacherAddRecipeWorkspace {
+        grid-template-columns: 1fr !important;
+      }
+
+      #teacherAddRecipeRightColumn {
+        position: static !important;
+      }
+    }
+
+  </style>
+</head>
+<body>
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+
+  <div id="cleanupProgressBar" class="ui-progress" style="display:none;position:fixed;top:0;left:0;width:100vw;z-index:9999;">
+    <div id="cleanupProgressFill" class="ui-progress-bar" style="width:0;"></div>
+  </div>
+
+  <div class="main-content-margins">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:0.8rem;flex-wrap:wrap;">
+      <h2 style="margin:0;">Add Recipe</h2>
+      <div id="teacherApiStatusBadge" style="display:inline-flex;align-items:center;gap:0.4rem;padding:0.35rem 0.6rem;border-radius:999px;border:1px solid #9e9e9e;background:#f5f5f5;color:#424242;font-size:0.85rem;font-weight:600;">
+        API: Checking...
+      </div>
+    </div>
+    <div class="setup-section">
+      <div class="setup-section-title">Load Recipe (URL)</div>
+      <div class="setup-section-desc">Import recipe from a website URL.</div>
+      <label for="recipeUrlInput" class="recipe-url-label standout-label">Recipe URL:</label>
+      <input type="text" id="recipeUrlInput" class="setup-url-input wide-url-input super-wide-url-input" placeholder="e.g., https://www.chelsea.co.nz/browse-recipes/...">
+      <button id="smartUploadBtn" class="btn btn-primary" style="margin-top:0.6rem;">SMART Upload (Upload + Sync)</button>
+      <div id="smartUploadBtnProgressBar" class="ui-progress" style="display:none;width:220px;margin:0.4rem 0 0 0;">
+        <div id="smartUploadBtnProgressFill" class="ui-progress-bar" style="width:0;"></div>
+      </div>
+      <div id="uploadStatusBanner" class="ui-state" style="display:none;margin-top:0.6rem;"></div>
+      <div id="uploadProgressText" style="margin-top:0.6rem;font-size:var(--font-size-helper);display:none;"></div>
+    </div>
+
+    <div class="setup-section" style="margin-top:1.1rem;">
+      <div class="setup-section-title">Load Recipe (PDF)</div>
+      <div class="setup-section-desc">Upload a PDF recipe and optionally sync it into the Recipes table from the same page.</div>
+      <label for="teacherPdfInput" class="recipe-url-label standout-label">Source File:</label>
+      <div id="teacherPdfUploadArea" style="display:inline-block;min-width:320px;max-width:520px;margin-right:0.6rem;vertical-align:middle;padding:1rem 1.2rem;border:1.5px dashed #1a73e8;border-radius:8px;background:#f8fbff;color:#1a73e8;text-align:center;cursor:pointer;">Drag & drop or click to select PDF</div>
+      <input type="file" id="teacherPdfInput" accept=".pdf" style="display:none;">
+      <div style="display:flex;gap:0.6rem;flex-wrap:wrap;margin-top:0.8rem;align-items:center;">
+        <button id="teacherUploadAndSyncPdfBtn" class="btn btn-primary">Upload + Sync</button>
+      </div>
+      <div id="teacherPdfStatusBanner" class="ui-state" style="display:none;margin-top:0.6rem;"></div>
+    </div>
+
+    <div class="setup-section" style="margin-top:1.1rem;">
+      <div class="setup-section-title">Save Recipe</div>
+      <div class="setup-section-desc">Runs Upload + Sync for the selected source, then Extract Visible Text and Save Raw Data.</div>
+      <button id="teacherSaveRecipeBtn" class="btn btn-primary">Save Recipe (Upload + Sync + Extract + Save Raw)</button>
+      <div id="teacherSaveRecipeStatus" class="ui-state" style="display:none;margin-top:0.6rem;"></div>
+    </div>
+
+    <div class="setup-section" style="margin-top:1.1rem;">
+      <div class="setup-section-title">Raw Data Extractor</div>
+      <div class="setup-section-desc">Direct connection to existing Raw Data Extractor button code.</div>
+      <label for="uploadSelect" style="font-weight:bold;">Choose Uploaded Recipe:</label>
+      <select id="uploadSelect" style="margin-left:0.6rem; min-width:320px;"></select>
+      <button id="teacherAsyncSyncBtn" style="margin-left:0.6rem;background:#3949ab;color:#fff;border:none;border-radius:4px;padding:0.45rem 0.9rem;cursor:pointer;">Async Sync (From RecipeID)</button>
+      <span id="teacherAsyncSyncStatus" style="margin-left:0.6rem;font-size:0.92rem;color:#3949ab;"></span>
+      <div style="margin-top:0.8rem;">
+      <button class="extractor-btn btn btn-success" id="extractVisibleTextBtn" style="margin-bottom:1rem;">Extract Visible Text (Browser View)</button>
+      <div id="extractVisibleTextBtnProgressBar" class="ui-progress" style="display:none;margin-top:-0.7rem;margin-bottom:0.9rem;">
+        <div id="extractVisibleTextBtnProgressFill" class="ui-progress-bar" style="width:0;"></div>
+      </div>
+      </div>
+      <textarea id="rawDataInput" style="width:100%;min-height:160px;border-radius:6px;border:1px solid #bbb;font-size:1rem;padding:0.7rem;" placeholder="Visible text output will appear here..."></textarea>
+      <button id="saveRawDataBtn" class="btn btn-primary" style="width:100%;margin-top:1rem;">Save Raw Data</button>
+      <div id="saveRawDataBtnProgressBar" class="ui-progress" style="display:none;margin-top:0.4rem;">
+        <div id="saveRawDataBtnProgressFill" class="ui-progress-bar" style="width:0;"></div>
+      </div>
+    </div>
+
+    <div class="setup-section" style="margin-top:1.1rem;">
+      <div class="setup-section-title">Extract All</div>
+      <div class="setup-section-desc">Run all auto extractors in one click, then accept only the ones you want.</div>
+      <div class="ui-action-bar">
+        <button id="teacherExtractAllBtn" class="btn btn-success">Extract All</button>
+        <button id="teacherAcceptAllExtractsBtn" class="btn btn-primary">Accept ALL Extracts</button>
+      </div>
+      <span id="teacherExtractAllProgress" style="margin-left:0.6rem;font-size:var(--font-size-helper);"></span>
+      <div id="teacherAcceptAllExtractsStatus" style="margin-top:0.4rem;font-size:var(--font-size-helper);"></div>
+      <div style="margin-top:0.75rem;overflow:auto;border:1px solid #d7e3f4;border-radius:8px;background:#fff;max-width:680px;">
+        <table style="width:100%;border-collapse:collapse;min-width:460px;">
+          <thead>
+            <tr style="background:#f5f8ff;">
+              <th style="text-align:left;padding:0.45rem;border-bottom:1px solid #dfe7f6;">Extractor</th>
+              <th style="text-align:center;padding:0.45rem;border-bottom:1px solid #dfe7f6;">Extracted</th>
+              <th style="text-align:center;padding:0.45rem;border-bottom:1px solid #dfe7f6;">Accepted</th>
+              <th style="text-align:center;padding:0.45rem;border-bottom:1px solid #dfe7f6;">Declined</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding:0.45rem;border-bottom:1px solid #eef2fb;">Serving Size</td>
+              <td id="extractAllServingExtracted" style="text-align:center;padding:0.45rem;border-bottom:1px solid #eef2fb;">✗</td>
+              <td id="extractAllServingAccepted" style="text-align:center;padding:0.45rem;border-bottom:1px solid #eef2fb;">✗</td>
+              <td id="extractAllServingDeclined" style="text-align:center;padding:0.45rem;border-bottom:1px solid #eef2fb;">✗</td>
+            </tr>
+            <tr>
+              <td style="padding:0.45rem;border-bottom:1px solid #eef2fb;">Title</td>
+              <td id="extractAllTitleExtracted" style="text-align:center;padding:0.45rem;border-bottom:1px solid #eef2fb;">✗</td>
+              <td id="extractAllTitleAccepted" style="text-align:center;padding:0.45rem;border-bottom:1px solid #eef2fb;">✗</td>
+              <td id="extractAllTitleDeclined" style="text-align:center;padding:0.45rem;border-bottom:1px solid #eef2fb;">✗</td>
+            </tr>
+            <tr>
+              <td style="padding:0.45rem;border-bottom:1px solid #eef2fb;">Instructions</td>
+              <td id="extractAllInstructionsExtracted" style="text-align:center;padding:0.45rem;border-bottom:1px solid #eef2fb;">✗</td>
+              <td id="extractAllInstructionsAccepted" style="text-align:center;padding:0.45rem;border-bottom:1px solid #eef2fb;">✗</td>
+              <td id="extractAllInstructionsDeclined" style="text-align:center;padding:0.45rem;border-bottom:1px solid #eef2fb;">✗</td>
+            </tr>
+            <tr>
+              <td style="padding:0.45rem;">Ingredients</td>
+              <td id="extractAllIngredientsExtracted" style="text-align:center;padding:0.45rem;">✗</td>
+              <td id="extractAllIngredientsAccepted" style="text-align:center;padding:0.45rem;">✗</td>
+              <td id="extractAllIngredientsDeclined" style="text-align:center;padding:0.45rem;">✗</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="teacherAddRecipeWorkspace" style="display:grid;grid-template-columns:minmax(0, 1.7fr) minmax(320px, 1fr);gap:1rem;align-items:start;margin-top:1.1rem;">
+      <div id="teacherAddRecipeLeftColumn" style="min-width:0;">
+
+    <div class="setup-section" style="margin-top:0;">
+      <div class="setup-section-title">Serving Size Auto Extract</div>
+      <div class="setup-section-desc">Launcher to the Serving Size controller page.</div>
+      <div style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap;">
+        <div style="display:none;border:1px solid #d7e3f4;border-radius:8px;background:#f8fbff;padding:0.8rem;min-width:260px;flex:1;">
+          <div style="font-weight:600;margin-bottom:0.5rem;">Step-by-step</div>
+          <button id="teacherServingStepByStepBtn" style="background:#1976d2;color:#fff;border:none;border-radius:5px;padding:0.6rem 1.5rem;font-size:1rem;cursor:pointer;">Start Step-by-Step</button>
+        </div>
+        <div style="border:1px solid #d7e3f4;border-radius:8px;background:#f8fbff;padding:0.8rem;min-width:260px;flex:1;">
+          <div style="font-weight:600;margin-bottom:0.5rem;">Auto Extract</div>
+          <button id="teacherServingAutoExtractBtn" style="background:#00897b;color:#fff;border:none;border-radius:5px;padding:0.6rem 1.5rem;font-size:1rem;cursor:pointer;">Open Serving Size Extractor</button>
+        </div>
+      </div>
+
+      <div id="teacherServingAutoResultBox" style="display:none;margin-top:0.8rem;border:1px solid #cfd8dc;border-radius:8px;background:#fafcff;padding:0.8rem;">
+        <div style="font-weight:600;margin-bottom:0.4rem;">Auto Extract Result</div>
+        <div id="teacherServingAutoResultText" style="margin-bottom:0.7rem;"></div>
+        <button id="teacherServingConfirmBtn" style="background:#8000b0;color:#fff;border:none;border-radius:5px;padding:0.6rem 1.2rem;font-size:1rem;cursor:pointer;">Confirm and Send Solution</button>
+        <button id="teacherServingDeclineBtn" style="background:#e53935;color:#fff;border:none;border-radius:5px;padding:0.6rem 1.2rem;font-size:1rem;cursor:pointer;margin-left:0.5rem;">Decline (Open Serving Size Page)</button>
+        <span id="teacherServingStatusMsg" style="margin-left:0.55rem;font-size:0.92rem;"></span>
+      </div>
+    </div>
+
+    <div class="setup-section" style="margin-top:1.1rem;">
+      <div class="setup-section-title">Title Auto Extract</div>
+      <div class="setup-section-desc">Launcher to the Title controller page.</div>
+      <div style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap;">
+        <div style="display:none;border:1px solid #d7e3f4;border-radius:8px;background:#f8fbff;padding:0.8rem;min-width:260px;flex:1;">
+          <div style="font-weight:600;margin-bottom:0.5rem;">Step-by-step</div>
+          <button id="teacherTitleStepByStepBtn" style="background:#1976d2;color:#fff;border:none;border-radius:5px;padding:0.6rem 1.5rem;font-size:1rem;cursor:pointer;">Start Step-by-Step</button>
+        </div>
+        <div style="border:1px solid #d7e3f4;border-radius:8px;background:#f8fbff;padding:0.8rem;min-width:260px;flex:1;">
+          <div style="font-weight:600;margin-bottom:0.5rem;">Auto Extract</div>
+          <button id="teacherTitleAutoExtractBtn" style="background:#00897b;color:#fff;border:none;border-radius:5px;padding:0.6rem 1.5rem;font-size:1rem;cursor:pointer;">Open Title Extractor</button>
+        </div>
+      </div>
+
+      <div id="teacherTitleAutoResultBox" style="display:none;margin-top:0.8rem;border:1px solid #cfd8dc;border-radius:8px;background:#fafcff;padding:0.8rem;">
+        <div style="font-weight:600;margin-bottom:0.4rem;">Auto Extract Result</div>
+        <div id="teacherTitleAutoResultText" style="margin-bottom:0.7rem;"></div>
+        <button id="teacherTitleConfirmBtn" style="background:#8000b0;color:#fff;border:none;border-radius:5px;padding:0.6rem 1.2rem;font-size:1rem;cursor:pointer;">Accept and Send Solution</button>
+        <button id="teacherTitleDeclineBtn" style="background:#e53935;color:#fff;border:none;border-radius:5px;padding:0.6rem 1.2rem;font-size:1rem;cursor:pointer;margin-left:0.5rem;">Decline (Open Title Extractor)</button>
+        <span id="teacherTitleStatusMsg" style="margin-left:0.55rem;font-size:0.92rem;"></span>
+      </div>
+    </div>
+
+    <div class="setup-section" style="margin-top:1.1rem;">
+      <div class="setup-section-title">Instruction Auto Extract</div>
+      <div class="setup-section-desc">Launcher to the Instructions controller page.</div>
+      <div style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap;">
+        <div style="display:none;border:1px solid #d7e3f4;border-radius:8px;background:#f8fbff;padding:0.8rem;min-width:260px;flex:1;">
+          <div style="font-weight:600;margin-bottom:0.5rem;">Step-by-step</div>
+          <button id="teacherInstructionStepByStepBtn" style="background:#1976d2;color:#fff;border:none;border-radius:5px;padding:0.6rem 1.5rem;font-size:1rem;cursor:pointer;">Start Step-by-Step</button>
+        </div>
+        <div style="border:1px solid #d7e3f4;border-radius:8px;background:#f8fbff;padding:0.8rem;min-width:260px;flex:1;">
+          <div style="font-weight:600;margin-bottom:0.5rem;">Auto Extract</div>
+          <button id="teacherInstructionAutoExtractBtn" style="background:#00897b;color:#fff;border:none;border-radius:5px;padding:0.6rem 1.5rem;font-size:1rem;cursor:pointer;">Open Instructions Extractor</button>
+        </div>
+      </div>
+
+      <div id="teacherInstructionAutoResultBox" style="display:none;margin-top:0.8rem;border:1px solid #cfd8dc;border-radius:8px;background:#fafcff;padding:0.8rem;">
+        <div style="font-weight:600;margin-bottom:0.4rem;">Auto Extract Result</div>
+        <div id="teacherInstructionAutoResultText" style="margin-bottom:0.7rem;white-space:pre-wrap;"></div>
+        <button id="teacherInstructionConfirmBtn" style="background:#8000b0;color:#fff;border:none;border-radius:5px;padding:0.6rem 1.2rem;font-size:1rem;cursor:pointer;">Accept and Send Solution</button>
+        <button id="teacherInstructionDeclineBtn" style="background:#e53935;color:#fff;border:none;border-radius:5px;padding:0.6rem 1.2rem;font-size:1rem;cursor:pointer;margin-left:0.5rem;">Decline (Open Instructions Extractor)</button>
+        <span id="teacherInstructionStatusMsg" style="margin-left:0.55rem;font-size:0.92rem;"></span>
+      </div>
+    </div>
+
+    <div class="setup-section" style="margin-top:1.1rem;">
+      <div class="setup-section-title">Ingredients Auto Extract</div>
+      <div class="setup-section-desc">Launcher to the Ingredients controller page.</div>
+      <div style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap;">
+        <div style="display:none;border:1px solid #d7e3f4;border-radius:8px;background:#f8fbff;padding:0.8rem;min-width:260px;flex:1;">
+          <div style="font-weight:600;margin-bottom:0.5rem;">Step-by-step</div>
+          <button id="teacherIngredientsStepByStepBtn" style="background:#1976d2;color:#fff;border:none;border-radius:5px;padding:0.6rem 1.5rem;font-size:1rem;cursor:pointer;">Start Step-by-Step</button>
+        </div>
+        <div style="border:1px solid #d7e3f4;border-radius:8px;background:#f8fbff;padding:0.8rem;min-width:260px;flex:1;">
+          <div style="font-weight:600;margin-bottom:0.5rem;">Auto Extract</div>
+          <button id="teacherIngredientsAutoExtractBtn" style="background:#00897b;color:#fff;border:none;border-radius:5px;padding:0.6rem 1.5rem;font-size:1rem;cursor:pointer;">Open Ingredients Extractor</button>
+        </div>
+      </div>
+
+      <div id="teacherIngredientsAutoResultBox" style="display:none;margin-top:0.8rem;border:1px solid #cfd8dc;border-radius:8px;background:#fafcff;padding:0.8rem;">
+        <div style="font-weight:600;margin-bottom:0.4rem;">Auto Extract Result</div>
+        <div id="teacherIngredientsAutoResultText" style="margin-bottom:0.7rem;white-space:pre-wrap;"></div>
+        <button id="teacherIngredientsConfirmBtn" style="background:#8000b0;color:#fff;border:none;border-radius:5px;padding:0.6rem 1.2rem;font-size:1rem;cursor:pointer;">Accept and Send Solution</button>
+        <button id="teacherIngredientsDeclineBtn" style="background:#e53935;color:#fff;border:none;border-radius:5px;padding:0.6rem 1.2rem;font-size:1rem;cursor:pointer;margin-left:0.5rem;">Decline (Open Ingredients Extractor)</button>
+        <span id="teacherIngredientsStatusMsg" style="margin-left:0.55rem;font-size:0.92rem;"></span>
+      </div>
+    </div>
+
+    <div class="setup-section" style="margin-top:1.1rem;">
+      <div class="setup-section-title">Auto Publish</div>
+      <div class="setup-section-desc">Run Cleanup Instructions + Cleanup Ingredients, then choose whether to publish to the published recipes table.</div>
+      <button id="teacherAutoPublishBtn" style="background:#6a1b9a;color:#fff;border:none;border-radius:5px;padding:0.6rem 1.2rem;font-size:1rem;cursor:pointer;">Auto Publish (Selected Recipe)</button>
+      <button id="teacherAutoPublishAsyncSyncBtn" style="background:#3949ab;color:#fff;border:none;border-radius:5px;padding:0.6rem 1.2rem;font-size:1rem;cursor:pointer;margin-left:0.5rem;">Auto Publish + Async Sync</button>
+      <span id="teacherAutoPublishAsyncSyncStatus" style="margin-left:0.6rem;font-size:0.92rem;color:#3949ab;"></span>
+
+      <div id="teacherAutoPublishProgressPanel" style="display:none;margin-top:0.8rem;max-width:560px;">
+        <div style="font-size:0.85rem;color:#1b1b1b;margin-bottom:4px;">Cleanup Instructions</div>
+        <div id="teacherAutoPublishInstructionsProgressBar" style="display:none;width:100%;height:10px;background:#e6e6e6;border-radius:999px;overflow:hidden;">
+          <div id="teacherAutoPublishInstructionsProgressFill" style="width:0%;height:100%;background:#1976d2;transition:width 0.2s ease;"></div>
+        </div>
+
+        <div style="font-size:0.85rem;color:#1b1b1b;margin-top:8px;margin-bottom:4px;">Cleanup Ingredients</div>
+        <div id="teacherAutoPublishIngredientsProgressBar" style="display:none;width:100%;height:10px;background:#e6e6e6;border-radius:999px;overflow:hidden;">
+          <div id="teacherAutoPublishIngredientsProgressFill" style="width:0%;height:100%;background:#2e7d32;transition:width 0.2s ease;"></div>
+        </div>
+      </div>
+
+      <div id="teacherAutoPublishReviewBox" style="display:none;margin-top:0.8rem;border:1px solid #d8c7ef;border-radius:8px;background:#faf5ff;padding:0.8rem;max-width:560px;">
+        <div id="teacherAutoPublishReviewText" style="font-weight:600;margin-bottom:0.6rem;color:#4a148c;">Auto Publish review ready.</div>
+        <button id="teacherAutoPublishRefreshTableBtn" style="background:#00695c;color:#fff;border:none;border-radius:5px;padding:0.6rem 1.1rem;font-size:0.96rem;cursor:pointer;">Refresh Table</button>
+        <button id="teacherAutoPublishAcceptBtn" style="background:#1976d2;color:#fff;border:none;border-radius:5px;padding:0.6rem 1.1rem;font-size:0.96rem;cursor:pointer;">Accept and Publish</button>
+        <button id="teacherAutoPublishDeclineBtn" style="background:#e53935;color:#fff;border:none;border-radius:5px;padding:0.6rem 1.1rem;font-size:0.96rem;cursor:pointer;margin-left:0.5rem;">Decline</button>
+      </div>
+    </div>
+
+      </div>
+
+      <div id="teacherAddRecipeRightColumn" style="min-width:0;position:sticky;top:8px;">
+        <div class="setup-section" style="margin-top:0;max-height:78vh;overflow:auto;">
+          <div class="setup-section-title">Recipe Database Table (Filtered)</div>
+          <div class="setup-section-desc">Portrait matrix view. Row headers are recipe fields and columns are recipes. Filter is locked to the selected recipe on this page.</div>
+          <div id="recipeMatrixStatus" style="font-size:0.9rem;color:#3949ab;margin-bottom:0.6rem;">Select a recipe to load database details.</div>
+          <div style="overflow:auto;border:1px solid #d7e3f4;border-radius:8px;background:#fff;">
+            <table id="recipeMatrixTable" style="width:100%;border-collapse:collapse;min-width:380px;">
+              <thead id="recipeMatrixHead"></thead>
+              <tbody id="recipeMatrixBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="upload_url.js?v=20260408d"></script>
+  <script src="extractor_raw.js?v=20260408a"></script>
+  <script src="extractor_serving_size.js?v=20260408a"></script>
+  <script src="extractor_auto_core.js?v=20260410a"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const stepByStepBtn = document.getElementById('teacherServingStepByStepBtn');
+      const autoBtn = document.getElementById('teacherServingAutoExtractBtn');
+      const resultBox = document.getElementById('teacherServingAutoResultBox');
+      const resultText = document.getElementById('teacherServingAutoResultText');
+      const confirmBtn = document.getElementById('teacherServingConfirmBtn');
+      const declineBtn = document.getElementById('teacherServingDeclineBtn');
+      const titleStepByStepBtn = document.getElementById('teacherTitleStepByStepBtn');
+      const titleAutoBtn = document.getElementById('teacherTitleAutoExtractBtn');
+      const titleResultBox = document.getElementById('teacherTitleAutoResultBox');
+      const titleResultText = document.getElementById('teacherTitleAutoResultText');
+      const titleConfirmBtn = document.getElementById('teacherTitleConfirmBtn');
+      const titleDeclineBtn = document.getElementById('teacherTitleDeclineBtn');
+      const ingredientsStepByStepBtn = document.getElementById('teacherIngredientsStepByStepBtn');
+      const ingredientsAutoBtn = document.getElementById('teacherIngredientsAutoExtractBtn');
+      const ingredientsResultBox = document.getElementById('teacherIngredientsAutoResultBox');
+      const ingredientsResultText = document.getElementById('teacherIngredientsAutoResultText');
+      const ingredientsConfirmBtn = document.getElementById('teacherIngredientsConfirmBtn');
+      const ingredientsDeclineBtn = document.getElementById('teacherIngredientsDeclineBtn');
+      const servingStatusMsg = document.getElementById('teacherServingStatusMsg');
+      const titleStatusMsg = document.getElementById('teacherTitleStatusMsg');
+      const instructionStatusMsg = document.getElementById('teacherInstructionStatusMsg');
+      const ingredientsStatusMsg = document.getElementById('teacherIngredientsStatusMsg');
+      const autoPublishBtn = document.getElementById('teacherAutoPublishBtn');
+      const autoPublishAsyncSyncBtn = document.getElementById('teacherAutoPublishAsyncSyncBtn');
+      const autoPublishAsyncSyncStatus = document.getElementById('teacherAutoPublishAsyncSyncStatus');
+      const autoPublishProgressPanel = document.getElementById('teacherAutoPublishProgressPanel');
+      const autoPublishInstructionsBar = document.getElementById('teacherAutoPublishInstructionsProgressBar');
+      const autoPublishInstructionsFill = document.getElementById('teacherAutoPublishInstructionsProgressFill');
+      const autoPublishIngredientsBar = document.getElementById('teacherAutoPublishIngredientsProgressBar');
+      const autoPublishIngredientsFill = document.getElementById('teacherAutoPublishIngredientsProgressFill');
+      const autoPublishReviewBox = document.getElementById('teacherAutoPublishReviewBox');
+      const autoPublishReviewText = document.getElementById('teacherAutoPublishReviewText');
+      const autoPublishRefreshTableBtn = document.getElementById('teacherAutoPublishRefreshTableBtn');
+      const autoPublishAcceptBtn = document.getElementById('teacherAutoPublishAcceptBtn');
+      const autoPublishDeclineBtn = document.getElementById('teacherAutoPublishDeclineBtn');
+      const recipeUrlInput = document.getElementById('recipeUrlInput');
+      const recipeSelect = document.getElementById('uploadSelect');
+      const teacherAsyncSyncBtn = document.getElementById('teacherAsyncSyncBtn');
+      const teacherAsyncSyncStatus = document.getElementById('teacherAsyncSyncStatus');
+      const rawDataInput = document.getElementById('rawDataInput');
+      const teacherPdfUploadArea = document.getElementById('teacherPdfUploadArea');
+      const teacherPdfInput = document.getElementById('teacherPdfInput');
+      const teacherUploadAndSyncPdfBtn = document.getElementById('teacherUploadAndSyncPdfBtn');
+      const teacherPdfStatusBanner = document.getElementById('teacherPdfStatusBanner');
+      const teacherSaveRecipeBtn = document.getElementById('teacherSaveRecipeBtn');
+      const teacherSaveRecipeStatus = document.getElementById('teacherSaveRecipeStatus');
+      const teacherExtractAllBtn = document.getElementById('teacherExtractAllBtn');
+      const teacherAcceptAllExtractsBtn = document.getElementById('teacherAcceptAllExtractsBtn');
+      const teacherAcceptAllExtractsStatus = document.getElementById('teacherAcceptAllExtractsStatus');
+      const teacherExtractAllProgress = document.getElementById('teacherExtractAllProgress');
+      const smartUploadBtn = document.getElementById('smartUploadBtn');
+      const extractVisibleTextBtn = document.getElementById('extractVisibleTextBtn');
+      const saveRawDataBtn = document.getElementById('saveRawDataBtn');
+      const teacherApiStatusBadge = document.getElementById('teacherApiStatusBadge');
+      const recipeMatrixHead = document.getElementById('recipeMatrixHead');
+      const recipeMatrixBody = document.getElementById('recipeMatrixBody');
+      const recipeMatrixStatus = document.getElementById('recipeMatrixStatus');
+      let extractedServingSize = '';
+      let extractedTitle = '';
+      let extractedInstructions = '';
+      let extractedIngredients = '';
+      let pendingAutoPublishRecipeId = null;
+      let autoPublishAsyncSyncPending = false;
+      let autoPublishAsyncSyncInProgress = false;
+      let allRecipeRowsCache = [];
+      let selectedPdfFile = null;
+
+      function getPreferredRecipeIdFromLocation() {
+        const params = new URLSearchParams(window.location.search);
+        const queryRecipeId = String(params.get('recipeId') || '').trim();
+        const hashMatch = /^#recipe-(.+)$/.exec(window.location.hash || '');
+        const hashRecipeId = hashMatch ? decodeURIComponent(hashMatch[1]) : '';
+        let storedRecipeId = '';
+        try {
+          storedRecipeId = String(sessionStorage.getItem('selectedRecipeId') || '').trim();
+        } catch (_) {
+          storedRecipeId = '';
+        }
+        return queryRecipeId || hashRecipeId || storedRecipeId;
+      }
+      const extractAllCells = {
+        serving: {
+          extracted: document.getElementById('extractAllServingExtracted'),
+          accepted: document.getElementById('extractAllServingAccepted'),
+          declined: document.getElementById('extractAllServingDeclined')
+        },
+        title: {
+          extracted: document.getElementById('extractAllTitleExtracted'),
+          accepted: document.getElementById('extractAllTitleAccepted'),
+          declined: document.getElementById('extractAllTitleDeclined')
+        },
+        instructions: {
+          extracted: document.getElementById('extractAllInstructionsExtracted'),
+          accepted: document.getElementById('extractAllInstructionsAccepted'),
+          declined: document.getElementById('extractAllInstructionsDeclined')
+        },
+        ingredients: {
+          extracted: document.getElementById('extractAllIngredientsExtracted'),
+          accepted: document.getElementById('extractAllIngredientsAccepted'),
+          declined: document.getElementById('extractAllIngredientsDeclined')
+        }
+      };
+
+      function openControllerPage(pagePath) {
+        const selectedRecipeId = recipeSelect ? String(recipeSelect.value || '').trim() : '';
+        if (selectedRecipeId) {
+          sessionStorage.setItem('selectedRecipeId', selectedRecipeId);
+        }
+        const query = selectedRecipeId ? `?recipeId=${encodeURIComponent(selectedRecipeId)}` : '';
+        window.location.href = `${pagePath}${query}`;
+      }
+
+      async function getRawData(recipeId) {
+        const existing = (rawDataInput && rawDataInput.value ? rawDataInput.value : '').trim();
+        if (existing) return existing;
+        // Check DB cache first (survives Render deploys)
+        const recipe = await getRecipeById(recipeId);
+        if (recipe && recipe.upload_raw_data) {
+          if (rawDataInput) rawDataInput.value = recipe.upload_raw_data;
+          return recipe.upload_raw_data;
+        }
+        // Fall back to static file
+        const res = await fetch(`/RawDataTXT/${recipeId}.txt`);
+        if (!res.ok) return '';
+        const raw = await res.text();
+        if (rawDataInput) rawDataInput.value = raw || '';
+        return raw || '';
+      }
+
+      async function getRecipeById(recipeId) {
+        const res = await fetch('/api/recipes');
+        if (!res.ok) return null;
+        const recipes = await res.json();
+        if (!Array.isArray(recipes)) return null;
+        return recipes.find(r => String(r.id) === String(recipeId)) || null;
+      }
+
+      async function repopulateRecipeSelect(preferredRecipeId = '') {
+        if (!recipeSelect) return;
+        const currentValue = String(preferredRecipeId || recipeSelect.value || '').trim();
+        try {
+          const res = await fetch('/api/recipes');
+          const recipes = await res.json();
+          const safeRecipes = Array.isArray(recipes) ? recipes : [];
+          recipeSelect.innerHTML = '';
+          const defaultOption = document.createElement('option');
+          defaultOption.value = '';
+          defaultOption.textContent = 'Select a recipe...';
+          recipeSelect.appendChild(defaultOption);
+
+          safeRecipes.forEach(recipe => {
+            const option = document.createElement('option');
+            option.value = recipe.id;
+            option.textContent = `[${recipe.id}] ${recipe.url || recipe.name || 'No URL'}`;
+            recipeSelect.appendChild(option);
+          });
+
+          if (currentValue && Array.from(recipeSelect.options).some(opt => String(opt.value) === currentValue)) {
+            recipeSelect.value = currentValue;
+            recipeSelect.dispatchEvent(new Event('change'));
+          }
+        } catch (err) {
+          console.error('[Add Recipe] Failed to refresh recipe dropdown after PDF sync:', err);
+        }
+      }
+
+      function setSaveRecipeStatus(message, type = 'info') {
+        if (!teacherSaveRecipeStatus) return;
+        teacherSaveRecipeStatus.textContent = message || '';
+        if (!message) {
+          teacherSaveRecipeStatus.style.display = 'none';
+          return;
+        }
+
+        teacherSaveRecipeStatus.style.display = 'block';
+        if (type === 'success') {
+          teacherSaveRecipeStatus.style.background = '#e8f5e9';
+          teacherSaveRecipeStatus.style.border = '1px solid #43a047';
+          teacherSaveRecipeStatus.style.color = '#1b5e20';
+        } else if (type === 'error') {
+          teacherSaveRecipeStatus.style.background = '#ffebee';
+          teacherSaveRecipeStatus.style.border = '1px solid #e53935';
+          teacherSaveRecipeStatus.style.color = '#b71c1c';
+        } else {
+          teacherSaveRecipeStatus.style.background = '#e3f2fd';
+          teacherSaveRecipeStatus.style.border = '1px solid #1e88e5';
+          teacherSaveRecipeStatus.style.color = '#0d47a1';
+        }
+      }
+
+      async function runUrlUploadAndSync() {
+        const url = String(recipeUrlInput && recipeUrlInput.value ? recipeUrlInput.value : '').trim();
+        if (!url) {
+          throw new Error('Please enter a Recipe URL.');
+        }
+
+        const uploadResp = await fetch('/api/recipes/upload-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+        const uploadData = await uploadResp.json();
+        if (!uploadResp.ok || !uploadData.success) {
+          throw new Error(uploadData.error || 'URL upload failed.');
+        }
+
+        const syncResp = await fetch('/api/recipes/sync-from-uploads', { method: 'POST' });
+        const syncData = await syncResp.json();
+        if (!syncResp.ok || !syncData.success) {
+          throw new Error(syncData.error || 'URL sync failed.');
+        }
+
+        return {
+          uploadId: uploadData.upload && uploadData.upload.id ? Number(uploadData.upload.id) : null,
+          inserted: Number(syncData.inserted || 0)
+        };
+      }
+
+      async function findRecipeIdByUploadId(uploadId) {
+        if (!uploadId) return { recipeId: '', reusedExisting: false };
+        try {
+          const [recipesRes, uploadRes] = await Promise.all([
+            fetch('/api/recipes'),
+            fetch(`/api/uploads/${uploadId}`)
+          ]);
+          const recipes = await recipesRes.json();
+          const upload = uploadRes.ok ? await uploadRes.json() : null;
+          if (!Array.isArray(recipes)) return { recipeId: '', reusedExisting: false };
+
+          const matched = recipes.find(r => String(r && r.uploaded_recipe_id) === String(uploadId));
+          if (matched && matched.id !== undefined) {
+            return { recipeId: String(matched.id), reusedExisting: false };
+          }
+
+          if (upload) {
+            const normalizedUploadName = String(upload.recipe_title || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+            const uploadUrl = String(upload.source_url || '').trim().toLowerCase();
+            const duplicate = recipes.find((recipe) => {
+              const recipeUrl = String(recipe && recipe.url ? recipe.url : '').trim().toLowerCase();
+              const normalizedRecipeName = String(recipe && recipe.name ? recipe.name : '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+              return (uploadUrl && recipeUrl === uploadUrl)
+                || (normalizedUploadName && normalizedRecipeName === normalizedUploadName);
+            });
+            if (duplicate && duplicate.id !== undefined) {
+              return { recipeId: String(duplicate.id), reusedExisting: true };
+            }
+          }
+
+          return { recipeId: '', reusedExisting: false };
+        } catch (_) {
+          return { recipeId: '', reusedExisting: false };
+        }
+      }
+
+      async function extractVisibleTextByRecipeId(recipeId) {
+        const recipe = await getRecipeById(recipeId);
+        const url = recipe && recipe.url ? String(recipe.url).trim() : '';
+        if (!url) {
+          throw new Error('No URL found for this recipe.');
+        }
+
+        const res = await fetch(`/api/extract-visible-text?url=${encodeURIComponent(url)}`);
+        let data = null;
+        try {
+          data = await res.json();
+        } catch (_) {
+          data = null;
+        }
+
+        if (!res.ok || !data || data.success === false) {
+          const details = data && data.error ? `: ${data.error}` : '';
+          throw new Error(`Failed to fetch visible text${details}`);
+        }
+
+        const sections = [];
+        if (Array.isArray(data.jsonLdInstructions) && data.jsonLdInstructions.length) {
+          sections.push('JSON-LD Recipe Instructions:\n' + data.jsonLdInstructions.join('\n'));
+        }
+        if (Array.isArray(data.headingCandidates) && data.headingCandidates.length) {
+          sections.push('Heading Candidates:\n' + data.headingCandidates.join('\n\n'));
+        }
+        if (Array.isArray(data.listItems) && data.listItems.length) {
+          sections.push('Visible List Items:\n' + data.listItems.join('\n'));
+        }
+        if (data.visibleText) {
+          sections.push('Visible Page Text:\n' + String(data.visibleText));
+        }
+
+        return sections.join('\n\n').trim();
+      }
+
+      async function saveRawDataByRecipeId(recipeId, rawData) {
+        const res = await fetch(`/api/recipes/${recipeId}/raw`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ raw_data: rawData || '' })
+        });
+
+        let data = null;
+        try {
+          data = await res.json();
+        } catch (_) {
+          data = null;
+        }
+
+        if (!res.ok || !data || !data.success) {
+          const detail = data && data.error ? data.error : `${res.status} ${res.statusText}`;
+          throw new Error(`Failed to save raw data: ${detail}`);
+        }
+      }
+
+      function setSaveRecipeBusy(isBusy, labelText) {
+        if (teacherSaveRecipeBtn) {
+          teacherSaveRecipeBtn.disabled = !!isBusy;
+          teacherSaveRecipeBtn.textContent = labelText || 'Save Recipe (Upload + Sync + Extract + Save Raw)';
+        }
+        if (smartUploadBtn) smartUploadBtn.disabled = !!isBusy;
+        if (teacherUploadAndSyncPdfBtn) teacherUploadAndSyncPdfBtn.disabled = !!isBusy;
+        if (extractVisibleTextBtn) extractVisibleTextBtn.disabled = !!isBusy;
+        if (saveRawDataBtn) saveRawDataBtn.disabled = !!isBusy;
+      }
+
+      function setExtractAllCell(extractorKey, columnKey, isOn) {
+        const cell = extractAllCells[extractorKey] && extractAllCells[extractorKey][columnKey];
+        if (!cell) return;
+        cell.textContent = isOn ? '✓' : '✗';
+        cell.style.color = isOn ? '#1b5e20' : '#b71c1c';
+        cell.style.fontWeight = '700';
+      }
+
+      function resetExtractAllSummary() {
+        ['serving', 'title', 'instructions', 'ingredients'].forEach(key => {
+          setExtractAllCell(key, 'extracted', false);
+          setExtractAllCell(key, 'accepted', false);
+          setExtractAllCell(key, 'declined', false);
+        });
+      }
+
+      function markExtractorDecision(extractorKey, decision) {
+        if (!extractAllCells[extractorKey]) return;
+        if (decision === 'accepted') {
+          setExtractAllCell(extractorKey, 'accepted', true);
+          setExtractAllCell(extractorKey, 'declined', false);
+          return;
+        }
+        if (decision === 'declined') {
+          setExtractAllCell(extractorKey, 'accepted', false);
+          setExtractAllCell(extractorKey, 'declined', true);
+        }
+      }
+
+      function setExtractAllBusy(isBusy, label, progressText) {
+        if (teacherExtractAllBtn) {
+          teacherExtractAllBtn.disabled = !!isBusy;
+          teacherExtractAllBtn.textContent = label || 'Extract All';
+        }
+        if (teacherExtractAllProgress) {
+          teacherExtractAllProgress.textContent = progressText || '';
+        }
+      }
+
+      function setExtractorStatus(statusEl, message, type = 'info') {
+        if (!statusEl) return;
+        statusEl.textContent = message || '';
+        if (!message) {
+          statusEl.style.color = '#455a64';
+          return;
+        }
+        if (type === 'success') {
+          statusEl.style.color = '#1b5e20';
+          return;
+        }
+        if (type === 'error') {
+          statusEl.style.color = '#b71c1c';
+          return;
+        }
+        statusEl.style.color = '#0d47a1';
+      }
+
+      function setAutoPublishStatus(message, type = 'info') {
+        if (!autoPublishAsyncSyncStatus) return;
+        autoPublishAsyncSyncStatus.textContent = message || '';
+        if (!message) {
+          autoPublishAsyncSyncStatus.style.color = '#3949ab';
+          return;
+        }
+        if (type === 'success') {
+          autoPublishAsyncSyncStatus.style.color = '#1b5e20';
+          return;
+        }
+        if (type === 'error') {
+          autoPublishAsyncSyncStatus.style.color = '#b71c1c';
+          return;
+        }
+        autoPublishAsyncSyncStatus.style.color = '#3949ab';
+      }
+
+      async function acceptExtractorSolution(recipeId, solution, endpoint, statusEl, extractorKey) {
+        if (!solution) {
+          return { skipped: true };
+        }
+
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ recipeId, solution })
+        });
+        const data = await res.json();
+
+        if (data && data.success) {
+          setExtractorStatus(statusEl, 'Saved', 'success');
+          markExtractorDecision(extractorKey, 'accepted');
+          return { success: true };
+        }
+
+        setExtractorStatus(statusEl, 'Save failed', 'error');
+        return { success: false };
+      }
+
+      async function runServingAutoExtract(recipeId) {
+        const raw = await getRawData(recipeId);
+        if (!raw) throw new Error('No raw data found for this recipe.');
+        const autoCore = window.ExtractorAutoCore;
+        const extracted = autoCore && autoCore.runServingSizeAuto ? autoCore.runServingSizeAuto(raw) : { solution: '', strategyName: '' };
+        extractedServingSize = extracted.solution || '';
+        if (resultText) {
+          resultText.textContent = extractedServingSize
+            ? `${extracted.strategyName || 'Auto Extract'} result: ${extractedServingSize}`
+            : 'No serving size found by Auto Extract.';
+        }
+        if (resultBox) resultBox.style.display = '';
+        setExtractAllCell('serving', 'extracted', !!extractedServingSize);
+        return extractedServingSize;
+      }
+
+      async function runTitleAutoExtract(recipeId) {
+        const recipe = await getRecipeById(recipeId);
+        const url = recipe && recipe.url ? String(recipe.url).trim() : '';
+        const autoCore = window.ExtractorAutoCore;
+        extractedTitle = autoCore && autoCore.extractTitleFromUrlSlug ? autoCore.extractTitleFromUrlSlug(url) : '';
+        if (titleResultText) {
+          titleResultText.textContent = extractedTitle
+            ? `Auto Extract result: ${extractedTitle}`
+            : 'No title found by Auto Extract.';
+        }
+        if (titleResultBox) titleResultBox.style.display = '';
+        setExtractAllCell('title', 'extracted', !!extractedTitle);
+        return extractedTitle;
+      }
+
+      async function runInstructionAutoExtract(recipeId) {
+        const raw = await getRawData(recipeId);
+        if (!raw) throw new Error('No raw data found for this recipe.');
+        const autoCore = window.ExtractorAutoCore;
+        const extracted = autoCore && autoCore.runInstructionsAutoCore ? autoCore.runInstructionsAutoCore(raw) : { solution: '', strategyName: '' };
+        extractedInstructions = extracted.solution || '';
+        if (instructionAutoResultText) {
+          instructionAutoResultText.textContent = extractedInstructions
+            ? `First solved result (${extracted.strategyName || 'Auto Extract'}):\n${extractedInstructions}`
+            : 'No solved result found in core controller strategies.';
+        }
+        if (instructionAutoResultBox) instructionAutoResultBox.style.display = '';
+        setExtractAllCell('instructions', 'extracted', !!extractedInstructions);
+        return extractedInstructions;
+      }
+
+      async function runIngredientsAutoExtract(recipeId) {
+        const raw = await getRawData(recipeId);
+        if (!raw) throw new Error('No raw data found for this recipe.');
+        const autoCore = window.ExtractorAutoCore;
+        const extracted = autoCore && autoCore.runIngredientsAutoCore ? autoCore.runIngredientsAutoCore(raw) : { solution: '', strategyName: '' };
+        extractedIngredients = extracted.solution || '';
+        if (ingredientsResultText) {
+          ingredientsResultText.textContent = extractedIngredients
+            ? `Ingredients found (${extracted.strategyName || 'Auto Extract'}):\n${extractedIngredients}`
+            : 'No ingredients found by Auto Extract.';
+        }
+        if (ingredientsResultBox) ingredientsResultBox.style.display = '';
+        setExtractAllCell('ingredients', 'extracted', !!extractedIngredients);
+        return extractedIngredients;
+      }
+
+      function getSelectedRecipeIdValue() {
+        return recipeSelect ? String(recipeSelect.value || '').trim() : '';
+      }
+
+      function setApiBadgeState(state, detailText) {
+        if (!teacherApiStatusBadge) return;
+        const detail = detailText ? ` (${detailText})` : '';
+        if (state === 'online') {
+          teacherApiStatusBadge.textContent = `API: Online${detail}`;
+          teacherApiStatusBadge.style.background = '#e8f5e9';
+          teacherApiStatusBadge.style.borderColor = '#43a047';
+          teacherApiStatusBadge.style.color = '#1b5e20';
+          return;
+        }
+        if (state === 'offline') {
+          teacherApiStatusBadge.textContent = `API: Offline${detail}`;
+          teacherApiStatusBadge.style.background = '#ffebee';
+          teacherApiStatusBadge.style.borderColor = '#e53935';
+          teacherApiStatusBadge.style.color = '#b71c1c';
+          return;
+        }
+        teacherApiStatusBadge.textContent = 'API: Checking...';
+        teacherApiStatusBadge.style.background = '#fff8e1';
+        teacherApiStatusBadge.style.borderColor = '#f9a825';
+        teacherApiStatusBadge.style.color = '#8d6e00';
+      }
+
+      async function refreshApiStatusBadge() {
+        setApiBadgeState('checking');
+        try {
+          const resp = await fetch('/api/recipes', { cache: 'no-store' });
+          if (!resp.ok) {
+            setApiBadgeState('offline', `${resp.status}`);
+            return;
+          }
+          setApiBadgeState('online');
+        } catch (_) {
+          setApiBadgeState('offline');
+        }
+      }
+
+      function formatRecipeCell(value) {
+        if (value === null || value === undefined) return '';
+        if (Array.isArray(value)) return value.join(', ');
+        if (typeof value === 'object') {
+          try {
+            return JSON.stringify(value);
+          } catch (_) {
+            return String(value);
+          }
+        }
+        return String(value);
+      }
+
+      function preferredRecipeFieldOrder(keys) {
+        const preferred = [
+          'id',
+          'name',
+          'url',
+          'serving_size',
+          'servingSize',
+          'ingredients',
+          'instructions',
+          'created_at',
+          'updated_at'
+        ];
+        const preferredSet = new Set(preferred);
+        const remaining = keys.filter(k => !preferredSet.has(k)).sort((a, b) => a.localeCompare(b));
+        const ordered = preferred.filter(k => keys.includes(k));
+        return ordered.concat(remaining);
+      }
+
+      function renderRecipeMatrixRows(rows) {
+        if (!recipeMatrixHead || !recipeMatrixBody || !recipeMatrixStatus) return;
+
+        recipeMatrixHead.innerHTML = '';
+        recipeMatrixBody.innerHTML = '';
+
+        if (!Array.isArray(rows) || !rows.length) {
+          const selectedRecipeId = getSelectedRecipeIdValue();
+          recipeMatrixStatus.textContent = selectedRecipeId
+            ? `No recipe row found for RecipeID ${selectedRecipeId}.`
+            : 'Select a recipe to load database details.';
+          return;
+        }
+
+        const headerRow = document.createElement('tr');
+        const fieldHeader = document.createElement('th');
+        fieldHeader.textContent = 'Field';
+        fieldHeader.style.cssText = 'text-align:left;padding:0.5rem;border-bottom:1px solid #dfe7f6;background:#f5f8ff;position:sticky;left:0;z-index:3;';
+        headerRow.appendChild(fieldHeader);
+
+        rows.forEach((recipe, idx) => {
+          const th = document.createElement('th');
+          const idLabel = recipe && recipe.id !== undefined ? `ID ${recipe.id}` : `Recipe ${idx + 1}`;
+          const nameLabel = recipe && recipe.name ? String(recipe.name).trim() : '';
+          th.textContent = nameLabel ? `${idLabel}: ${nameLabel}` : idLabel;
+          th.style.cssText = 'text-align:left;padding:0.5rem;border-bottom:1px solid #dfe7f6;background:#f5f8ff;min-width:230px;max-width:320px;';
+          headerRow.appendChild(th);
+        });
+
+        recipeMatrixHead.appendChild(headerRow);
+
+        const keySet = new Set();
+        rows.forEach(r => {
+          Object.keys(r || {}).forEach(k => keySet.add(k));
+        });
+        const keys = preferredRecipeFieldOrder(Array.from(keySet));
+
+        keys.forEach((fieldKey) => {
+          const tr = document.createElement('tr');
+
+          const fieldCell = document.createElement('th');
+          fieldCell.textContent = fieldKey;
+          fieldCell.style.cssText = 'text-align:left;vertical-align:top;padding:0.45rem 0.55rem;border-bottom:1px solid #eef2fb;background:#fafcff;position:sticky;left:0;z-index:2;';
+          tr.appendChild(fieldCell);
+
+          rows.forEach((recipeObj) => {
+            const td = document.createElement('td');
+            const value = formatRecipeCell(recipeObj ? recipeObj[fieldKey] : '');
+            td.textContent = value;
+            td.style.cssText = 'vertical-align:top;padding:0.45rem 0.55rem;border-bottom:1px solid #eef2fb;white-space:pre-wrap;word-break:break-word;max-width:320px;';
+            tr.appendChild(td);
+          });
+
+          recipeMatrixBody.appendChild(tr);
+        });
+
+        const selectedRecipeId = getSelectedRecipeIdValue();
+        recipeMatrixStatus.textContent = selectedRecipeId
+          ? `Showing filtered recipe row for RecipeID ${selectedRecipeId}.`
+          : `Showing ${rows.length} recipe row(s).`;
+      }
+
+      function applyRecipeMatrixFilter() {
+        const selectedRecipeId = getSelectedRecipeIdValue();
+        if (!selectedRecipeId) {
+          renderRecipeMatrixRows([]);
+          return;
+        }
+        const filtered = allRecipeRowsCache.filter(r => String(r && r.id) === selectedRecipeId);
+        renderRecipeMatrixRows(filtered);
+      }
+
+      async function refreshRecipeMatrix() {
+        if (recipeMatrixStatus) recipeMatrixStatus.textContent = 'Loading recipe table...';
+        try {
+          const res = await fetch('/api/recipes');
+          if (!res.ok) throw new Error('Failed to fetch recipes');
+          const recipes = await res.json();
+          allRecipeRowsCache = Array.isArray(recipes) ? recipes : [];
+          applyRecipeMatrixFilter();
+        } catch (err) {
+          setRecipeMatrixError(err && err.message ? err.message : 'Failed to load recipe table.');
+        }
+      }
+
+      async function postJsonChecked(url, payload, stepLabel) {
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload || {})
+        });
+        let data = null;
+        try {
+          data = await resp.json();
+        } catch (_) {
+          data = null;
+        }
+        if (!resp.ok || (data && data.error)) {
+          const detail = (data && (data.error || data.message)) || `${resp.status} ${resp.statusText}`;
+          throw new Error(`${stepLabel} failed: ${detail}`);
+        }
+        return data || { success: true };
+      }
+
+      function isBackendUnavailableError(err) {
+        const msg = String((err && err.message) || err || '').toLowerCase();
+        return msg.includes('failed to fetch')
+          || msg.includes('networkerror')
+          || msg.includes('connection refused')
+          || msg.includes('err_connection_refused')
+          || msg.includes('unable to connect');
+      }
+
+      function isQuotaError(err) {
+        const msg = String((err && err.message) || err || '').toLowerCase();
+        return msg.includes('exceeded the data transfer quota')
+          || msg.includes('quota');
+      }
+
+      function notify(message, type = 'info', duration = 4200) {
+        if (typeof window.showToast === 'function') {
+          window.showToast(message, type, duration);
+          return;
+        }
+        alert(message);
+      }
+
+      function escapeHtml(value) {
+        return String(value || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function setRecipeMatrixError(message) {
+        if (!recipeMatrixStatus) return;
+        const safe = escapeHtml(message || 'Failed to load recipe table.');
+        recipeMatrixStatus.innerHTML = `<div class="ui-error-callout"><strong>Recipe table failed to load.</strong><span>${safe}</span></div>`;
+      }
+
+      async function verifyApiReachable() {
+        const resp = await fetch('/api/recipes');
+        if (!resp.ok) {
+          throw new Error(`API health check failed: ${resp.status} ${resp.statusText}`);
+        }
+      }
+
+      function setTeacherPdfStatus(message, type = 'info') {
+        if (!teacherPdfStatusBanner) return;
+        teacherPdfStatusBanner.textContent = message || '';
+        if (!message) {
+          teacherPdfStatusBanner.style.display = 'none';
+          return;
+        }
+        teacherPdfStatusBanner.style.display = 'block';
+        if (type === 'success') {
+          teacherPdfStatusBanner.style.background = '#e8f5e9';
+          teacherPdfStatusBanner.style.border = '1px solid #43a047';
+          teacherPdfStatusBanner.style.color = '#1b5e20';
+        } else if (type === 'error') {
+          teacherPdfStatusBanner.style.background = '#ffebee';
+          teacherPdfStatusBanner.style.border = '1px solid #e53935';
+          teacherPdfStatusBanner.style.color = '#b71c1c';
+        } else {
+          teacherPdfStatusBanner.style.background = '#e3f2fd';
+          teacherPdfStatusBanner.style.border = '1px solid #1e88e5';
+          teacherPdfStatusBanner.style.color = '#0d47a1';
+        }
+      }
+
+      function setSelectedTeacherPdfFile(file) {
+        if (!teacherPdfUploadArea) return;
+        if (!file) {
+          selectedPdfFile = null;
+          teacherPdfUploadArea.textContent = 'Drag & drop or click to select PDF';
+          return;
+        }
+        const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+        if (!isPdf) {
+          selectedPdfFile = null;
+          teacherPdfUploadArea.textContent = 'Drag & drop or click to select PDF';
+          setTeacherPdfStatus('Please choose a PDF file.', 'error');
+          return;
+        }
+        selectedPdfFile = file;
+        teacherPdfUploadArea.textContent = `Selected: ${file.name} (${Math.ceil(file.size / 1024)} KB)`;
+        setTeacherPdfStatus('PDF ready to upload.', 'info');
+      }
+
+      async function performTeacherPdfUpload() {
+        if (!selectedPdfFile) {
+          setTeacherPdfStatus('Please select a PDF first.', 'error');
+          return null;
+        }
+
+        const fileDataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ''));
+          reader.onerror = () => reject(new Error('Failed to read PDF file.'));
+          reader.readAsDataURL(selectedPdfFile);
+        });
+
+        const response = await fetch('/api/uploads/pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            file_name: selectedPdfFile.name,
+            file_data: fileDataUrl,
+            uploaded_by: 'user@example.com'
+          })
+        });
+
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || 'Upload failed.');
+        }
+
+        setTeacherPdfStatus(`PDF uploaded successfully (Upload ID: ${result.upload_id}).`, 'success');
+        return result;
+      }
+
+      async function performTeacherPdfSync() {
+        const response = await fetch('/api/recipes/sync-from-uploads', { method: 'POST' });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || 'Sync failed.');
+        }
+        setTeacherPdfStatus(`Sync complete: ${result.inserted} recipes added.`, 'success');
+        await repopulateRecipeSelect(getPreferredRecipeIdFromLocation());
+        await refreshRecipeMatrix();
+        return result;
+      }
+
+      async function waitForCleanupCompletion(progressUrl, progressFill) {
+        let sawRunning = false;
+        let keepPolling = true;
+        let guardPolls = 0;
+        while (keepPolling) {
+          try {
+            const resp = await fetch(progressUrl);
+            const data = await resp.json();
+            if (data && data.running === true) sawRunning = true;
+
+            const doneCount = Number(data?.progress ?? data?.current ?? 0);
+            const totalCount = Number(data?.total ?? 0);
+            if (progressFill && Number.isFinite(doneCount) && Number.isFinite(totalCount)) {
+              const percent = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : (sawRunning ? 100 : 0);
+              progressFill.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+            }
+
+            const hasNumeric = Number.isFinite(doneCount) && Number.isFinite(totalCount);
+            const alreadyComplete = hasNumeric && totalCount > 0 && doneCount >= totalCount;
+            const emptyComplete = hasNumeric && totalCount === 0 && data && data.running === false;
+            if ((!sawRunning && alreadyComplete) || (!sawRunning && emptyComplete)) {
+              if (progressFill) progressFill.style.width = '100%';
+              keepPolling = false;
+              continue;
+            }
+            if (sawRunning && data && data.running === false) {
+              if (progressFill) progressFill.style.width = '100%';
+              keepPolling = false;
+              continue;
+            }
+          } catch {
+            keepPolling = false;
+          }
+          guardPolls++;
+          if (guardPolls > 180) {
+            console.warn('[DEBUG][Add Recipe Auto Publish] waitForCleanupCompletion timeout for', progressUrl);
+            keepPolling = false;
+          }
+          if (keepPolling) await new Promise(resolve => setTimeout(resolve, 350));
+        }
+      }
+
+      function resetAutoPublishUi() {
+        if (autoPublishInstructionsBar) autoPublishInstructionsBar.style.display = 'none';
+        if (autoPublishInstructionsFill) autoPublishInstructionsFill.style.width = '0%';
+        if (autoPublishIngredientsBar) autoPublishIngredientsBar.style.display = 'none';
+        if (autoPublishIngredientsFill) autoPublishIngredientsFill.style.width = '0%';
+        if (autoPublishProgressPanel) autoPublishProgressPanel.style.display = 'none';
+      }
+
+      async function publishRecipeToDisplay(recipeId) {
+        const resp = await fetch(`/api/recipes/${recipeId}/display`, { method: 'POST' });
+        let data = null;
+        try {
+          data = await resp.json();
+        } catch (_) {
+          data = null;
+        }
+        if (!resp.ok || !data || !data.success) {
+          const detail = (data && (data.error || data.message)) || `${resp.status} ${resp.statusText}`;
+          throw new Error(`Publish failed: ${detail}`);
+        }
+      }
+
+      async function runAsyncSyncFromRecipeId(startRecipeId, statusEl) {
+        const dropdownResp = await fetch('/api/recipes/display-dropdown');
+        if (!dropdownResp.ok) {
+          throw new Error(`Failed to load recipe list: ${dropdownResp.status} ${dropdownResp.statusText}`);
+        }
+        const dropdownData = await dropdownResp.json();
+        const recipes = Array.isArray(dropdownData && dropdownData.recipes) ? dropdownData.recipes : [];
+        const recipeIds = recipes
+          .map(r => Number(r.recipeid))
+          .filter(id => Number.isInteger(id) && id >= startRecipeId)
+          .sort((a, b) => a - b);
+
+        if (!recipeIds.length) {
+          if (statusEl) statusEl.textContent = 'No recipes found to sync.';
+          return { successCount: 0, failCount: 0, total: 0 };
+        }
+
+        let successCount = 0;
+        let failCount = 0;
+
+        for (let i = 0; i < recipeIds.length; i++) {
+          const recipeId = recipeIds[i];
+          if (statusEl) {
+            statusEl.textContent = `Async syncing ${i + 1}/${recipeIds.length} (RecipeID ${recipeId})...`;
+          }
+
+          try {
+            const resp = await fetch('/api/ingredients/inventory/sync', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ recipeId, reseed: true })
+            });
+            const data = await resp.json();
+            if (resp.ok && data && data.success) successCount++;
+            else failCount++;
+          } catch (_) {
+            failCount++;
+          }
+        }
+
+        if (statusEl) {
+          statusEl.textContent = `Done. Success: ${successCount}, Failed: ${failCount}`;
+        }
+        return { successCount, failCount, total: recipeIds.length };
+      }
+
+      if (teacherAsyncSyncBtn) {
+        teacherAsyncSyncBtn.addEventListener('click', async function() {
+          const defaultRecipeId = getSelectedRecipeIdValue() || '7';
+          const startInput = prompt('Sync from which RecipeID onward?', defaultRecipeId);
+          if (startInput === null) return;
+
+          const startRecipeId = Number(String(startInput).trim());
+          if (!Number.isInteger(startRecipeId) || startRecipeId <= 0) {
+            notify('Please enter a valid numeric RecipeID.', 'warning');
+            return;
+          }
+
+          teacherAsyncSyncBtn.disabled = true;
+          teacherAsyncSyncBtn.textContent = 'Async Syncing...';
+          if (teacherAsyncSyncStatus) teacherAsyncSyncStatus.textContent = 'Loading recipe list...';
+
+          try {
+            const result = await runAsyncSyncFromRecipeId(startRecipeId, teacherAsyncSyncStatus);
+            if (result.total === 0) {
+              notify('No recipes found from RecipeID ' + startRecipeId + ' onward.', 'warning');
+            }
+          } catch (err) {
+            notify('Async sync failed: ' + (err && err.message ? err.message : err), 'error', 6500);
+            if (teacherAsyncSyncStatus) teacherAsyncSyncStatus.textContent = 'Async sync failed.';
+          } finally {
+            teacherAsyncSyncBtn.disabled = false;
+            teacherAsyncSyncBtn.textContent = 'Async Sync (From RecipeID)';
+          }
+        });
+      }
+
+      if (teacherPdfUploadArea && teacherPdfInput) {
+        teacherPdfUploadArea.addEventListener('click', function() {
+          teacherPdfInput.click();
+        });
+
+        teacherPdfInput.addEventListener('change', function() {
+          const file = teacherPdfInput.files && teacherPdfInput.files[0];
+          setSelectedTeacherPdfFile(file);
+        });
+
+        ['dragenter', 'dragover'].forEach(evt => {
+          teacherPdfUploadArea.addEventListener(evt, function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            teacherPdfUploadArea.style.borderColor = '#1565c0';
+            teacherPdfUploadArea.style.background = '#eef5ff';
+          });
+        });
+
+        ['dragleave', 'drop'].forEach(evt => {
+          teacherPdfUploadArea.addEventListener(evt, function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            teacherPdfUploadArea.style.borderColor = '#1a73e8';
+            teacherPdfUploadArea.style.background = '#f8fbff';
+          });
+        });
+
+        teacherPdfUploadArea.addEventListener('drop', function(e) {
+          const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+          setSelectedTeacherPdfFile(file);
+        });
+      }
+
+      if (teacherUploadAndSyncPdfBtn) {
+        teacherUploadAndSyncPdfBtn.addEventListener('click', async function() {
+          teacherUploadAndSyncPdfBtn.disabled = true;
+          const originalCombinedLabel = teacherUploadAndSyncPdfBtn.textContent;
+
+          teacherUploadAndSyncPdfBtn.textContent = 'Uploading...';
+
+          try {
+            const uploadResult = await performTeacherPdfUpload();
+            if (!uploadResult || !uploadResult.success) return;
+            teacherUploadAndSyncPdfBtn.textContent = 'Syncing...';
+            await performTeacherPdfSync();
+          } catch (err) {
+            setTeacherPdfStatus(`Upload + Sync failed: ${err.message}`, 'error');
+          } finally {
+            teacherUploadAndSyncPdfBtn.disabled = false;
+            teacherUploadAndSyncPdfBtn.textContent = originalCombinedLabel;
+          }
+        });
+      }
+
+      if (teacherSaveRecipeBtn) {
+        teacherSaveRecipeBtn.addEventListener('click', async function() {
+          const urlValue = String(recipeUrlInput && recipeUrlInput.value ? recipeUrlInput.value : '').trim();
+          const hasUrl = !!urlValue;
+          const hasPdf = !!selectedPdfFile;
+
+          if (!hasUrl && !hasPdf) {
+            setSaveRecipeStatus('Add a Recipe URL or choose a PDF file first.', 'error');
+            return;
+          }
+
+          if (hasUrl && hasPdf) {
+            setSaveRecipeStatus('Use one source at a time. Keep either URL or PDF, not both.', 'error');
+            return;
+          }
+
+          setSaveRecipeBusy(true, 'Save Recipe: Uploading...');
+          setSaveRecipeStatus('Starting save flow...', 'info');
+
+          try {
+            let uploadId = null;
+            if (hasUrl) {
+              setSaveRecipeStatus('Uploading and syncing from URL...', 'info');
+              const urlFlow = await runUrlUploadAndSync();
+              uploadId = urlFlow.uploadId;
+            } else {
+              setSaveRecipeStatus('Uploading and syncing from PDF...', 'info');
+              const uploadResult = await performTeacherPdfUpload();
+              if (!uploadResult || !uploadResult.success) {
+                throw new Error('PDF upload failed.');
+              }
+              uploadId = Number(uploadResult.upload_id || 0) || null;
+              await performTeacherPdfSync();
+            }
+
+            setSaveRecipeBusy(true, 'Save Recipe: Selecting Recipe...');
+            const recipeMatch = await findRecipeIdByUploadId(uploadId);
+            let recipeId = recipeMatch && recipeMatch.recipeId ? recipeMatch.recipeId : '';
+            await repopulateRecipeSelect(recipeId || getSelectedRecipeIdValue());
+
+            if (!recipeId) {
+              recipeId = getSelectedRecipeIdValue();
+            }
+
+            if (!recipeId) {
+              throw new Error('Upload succeeded, but no recipe could be selected for extraction.');
+            }
+
+            if (recipeSelect) {
+              recipeSelect.value = String(recipeId);
+              recipeSelect.dispatchEvent(new Event('change'));
+            }
+
+            setSaveRecipeBusy(true, 'Save Recipe: Extracting Visible Text...');
+            setSaveRecipeStatus('Extracting visible text...', 'info');
+            let visibleText = null;
+            let extractionError = null;
+            try {
+              visibleText = await extractVisibleTextByRecipeId(recipeId);
+            } catch (extractErr) {
+              extractionError = extractErr.message || 'Extraction failed';
+            }
+
+            if (visibleText) {
+              if (rawDataInput) rawDataInput.value = visibleText;
+              setSaveRecipeBusy(true, 'Save Recipe: Saving Raw Data...');
+              setSaveRecipeStatus('Saving raw data file...', 'info');
+              await saveRawDataByRecipeId(recipeId, visibleText);
+            }
+            await refreshRecipeMatrix();
+
+            const baseMessage = recipeMatch && recipeMatch.reusedExisting
+              ? `Recipe already exists. Reusing RecipeID ${recipeId}.`
+              : `Save complete for RecipeID ${recipeId}.`;
+            const successMessage = extractionError
+              ? `${baseMessage} Note: auto-extraction failed (${extractionError}) — use the Raw Data Extractor page to extract manually.`
+              : `${baseMessage} Upload + Sync + Extract + Save Raw Data finished.`;
+            setSaveRecipeStatus(successMessage, extractionError ? 'warning' : 'success');
+          } catch (err) {
+            const message = err && err.message ? err.message : String(err);
+            setSaveRecipeStatus(`Save Recipe failed: ${message}`, 'error');
+          } finally {
+            setSaveRecipeBusy(false, 'Save Recipe (Upload + Sync + Extract + Save Raw)');
+          }
+        });
+      }
+
+      if (teacherExtractAllBtn) {
+        teacherExtractAllBtn.addEventListener('click', async function() {
+          const recipeId = recipeSelect ? String(recipeSelect.value || '').trim() : '';
+          if (!recipeId) {
+            notify('Please select a recipe first.', 'warning');
+            return;
+          }
+
+          resetExtractAllSummary();
+          setExtractAllBusy(true, 'Extracting...', 'Running 1/4: Serving Size');
+          try {
+            await runServingAutoExtract(recipeId);
+            setExtractAllBusy(true, 'Extracting...', 'Running 2/4: Title');
+            await runTitleAutoExtract(recipeId);
+            setExtractAllBusy(true, 'Extracting...', 'Running 3/4: Instructions');
+            await runInstructionAutoExtract(recipeId);
+            setExtractAllBusy(true, 'Extracting...', 'Running 4/4: Ingredients');
+            await runIngredientsAutoExtract(recipeId);
+            setExtractAllBusy(false, 'Extract All', 'All auto extractors completed. Accept only the ones you want.');
+          } catch (err) {
+            setExtractAllBusy(false, 'Extract All', 'Extract All stopped.');
+            notify('Extract All failed: ' + (err && err.message ? err.message : err), 'error', 6500);
+          }
+        });
+      }
+
+      if (teacherAcceptAllExtractsBtn) {
+        teacherAcceptAllExtractsBtn.addEventListener('click', async function() {
+          const recipeId = recipeSelect ? String(recipeSelect.value || '').trim() : '';
+          if (!recipeId) {
+            notify('Please select a recipe first.', 'warning');
+            return;
+          }
+
+          teacherAcceptAllExtractsBtn.disabled = true;
+          teacherAcceptAllExtractsBtn.textContent = 'Accepting...';
+          if (teacherAcceptAllExtractsStatus) {
+            teacherAcceptAllExtractsStatus.textContent = 'Accepting all available extracts...';
+            teacherAcceptAllExtractsStatus.style.color = '#1565c0';
+          }
+
+          let saved = 0;
+          let failed = 0;
+          let skipped = 0;
+
+          try {
+            const attempts = [
+              { solution: extractedServingSize, endpoint: '/api/serving-size/solution', statusEl: servingStatusMsg, key: 'serving' },
+              { solution: extractedTitle, endpoint: '/api/title-extractor/solution', statusEl: titleStatusMsg, key: 'title' },
+              { solution: extractedInstructions, endpoint: '/api/instructions-extractor/solution', statusEl: instructionStatusMsg, key: 'instructions' },
+              { solution: extractedIngredients, endpoint: '/api/ingredients-extractor/solution', statusEl: ingredientsStatusMsg, key: 'ingredients' }
+            ];
+
+            for (const attempt of attempts) {
+              const result = await acceptExtractorSolution(recipeId, attempt.solution, attempt.endpoint, attempt.statusEl, attempt.key);
+              if (result.skipped) skipped++;
+              else if (result.success) saved++;
+              else failed++;
+            }
+
+            await refreshRecipeMatrix();
+
+            if (teacherAcceptAllExtractsStatus) {
+              teacherAcceptAllExtractsStatus.textContent = `Accept ALL complete. Saved: ${saved}, Failed: ${failed}, Skipped (no extract): ${skipped}.`;
+              teacherAcceptAllExtractsStatus.style.color = failed > 0 ? '#b71c1c' : '#1b5e20';
+            }
+          } catch (err) {
+            if (teacherAcceptAllExtractsStatus) {
+              teacherAcceptAllExtractsStatus.textContent = `Accept ALL failed: ${err && err.message ? err.message : err}`;
+              teacherAcceptAllExtractsStatus.style.color = '#b71c1c';
+            }
+          } finally {
+            teacherAcceptAllExtractsBtn.disabled = false;
+            teacherAcceptAllExtractsBtn.textContent = 'Accept ALL Extracts';
+          }
+        });
+      }
+
+      if (recipeSelect) {
+        recipeSelect.addEventListener('change', function() {
+          applyRecipeMatrixFilter();
+        });
+
+        const recipeSelectObserver = new MutationObserver(function() {
+          applyRecipeMatrixFilter();
+        });
+        recipeSelectObserver.observe(recipeSelect, { childList: true, subtree: false, attributes: true });
+      }
+
+      resetExtractAllSummary();
+      refreshApiStatusBadge();
+      setInterval(refreshApiStatusBadge, 15000);
+      refreshRecipeMatrix();
+
+      // Add Recipe runs shared auto-extract logic; step-by-step still goes to controller pages.
+      if (stepByStepBtn) stepByStepBtn.addEventListener('click', function() { openControllerPage('extractor_serving_size.html'); });
+      if (declineBtn) declineBtn.addEventListener('click', function() {
+        markExtractorDecision('serving', 'declined');
+        openControllerPage('extractor_serving_size.html');
+      });
+      if (autoBtn) {
+        autoBtn.addEventListener('click', async function() {
+          const recipeId = recipeSelect ? recipeSelect.value : '';
+          if (!recipeId) {
+            notify('Please select a recipe first.', 'warning');
+            return;
+          }
+          setExtractorStatus(servingStatusMsg, '');
+          await runServingAutoExtract(recipeId);
+        });
+      }
+      if (confirmBtn) {
+        confirmBtn.addEventListener('click', async function() {
+          const recipeId = recipeSelect ? recipeSelect.value : '';
+          if (!recipeId) {
+            notify('Please select a recipe first.', 'warning');
+            return;
+          }
+          if (!extractedServingSize) {
+            notify('No auto extract result to send.', 'warning');
+            return;
+          }
+          const result = await acceptExtractorSolution(recipeId, extractedServingSize, '/api/serving-size/solution', servingStatusMsg, 'serving');
+          if (result.success) {
+            await refreshRecipeMatrix();
+          }
+        });
+      }
+
+      if (titleStepByStepBtn) titleStepByStepBtn.addEventListener('click', function() { openControllerPage('extractor_title.html'); });
+      if (titleDeclineBtn) titleDeclineBtn.addEventListener('click', function() {
+        markExtractorDecision('title', 'declined');
+        openControllerPage('extractor_title.html');
+      });
+      if (titleAutoBtn) {
+        titleAutoBtn.addEventListener('click', async function() {
+          const recipeId = recipeSelect ? recipeSelect.value : '';
+          if (!recipeId) {
+            notify('Please select a recipe first.', 'warning');
+            return;
+          }
+          setExtractorStatus(titleStatusMsg, '');
+          await runTitleAutoExtract(recipeId);
+        });
+      }
+      if (titleConfirmBtn) {
+        titleConfirmBtn.addEventListener('click', async function() {
+          const recipeId = recipeSelect ? recipeSelect.value : '';
+          if (!recipeId) {
+            notify('Please select a recipe first.', 'warning');
+            return;
+          }
+          if (!extractedTitle) {
+            notify('No auto extract result to send.', 'warning');
+            return;
+          }
+          const result = await acceptExtractorSolution(recipeId, extractedTitle, '/api/title-extractor/solution', titleStatusMsg, 'title');
+          if (result.success) {
+            await refreshRecipeMatrix();
+          }
+        });
+      }
+
+      const instructionStepByStepBtn = document.getElementById('teacherInstructionStepByStepBtn');
+      const instructionAutoExtractBtn = document.getElementById('teacherInstructionAutoExtractBtn');
+      const instructionAutoResultBox = document.getElementById('teacherInstructionAutoResultBox');
+      const instructionAutoResultText = document.getElementById('teacherInstructionAutoResultText');
+      const instructionConfirmBtn = document.getElementById('teacherInstructionConfirmBtn');
+      const instructionDeclineBtn = document.getElementById('teacherInstructionDeclineBtn');
+      if (instructionStepByStepBtn) instructionStepByStepBtn.addEventListener('click', function() { openControllerPage('extractor_instructions.html'); });
+      if (instructionAutoExtractBtn) {
+        instructionAutoExtractBtn.addEventListener('click', async function() {
+          const recipeId = recipeSelect ? recipeSelect.value : '';
+          if (!recipeId) {
+            notify('Please select a recipe first.', 'warning');
+            return;
+          }
+          setExtractorStatus(instructionStatusMsg, '');
+          await runInstructionAutoExtract(recipeId);
+        });
+      }
+      if (instructionConfirmBtn) {
+        instructionConfirmBtn.addEventListener('click', async function() {
+          const recipeId = recipeSelect ? recipeSelect.value : '';
+          if (!recipeId) {
+            notify('Please select a recipe first.', 'warning');
+            return;
+          }
+          if (!extractedInstructions) {
+            notify('No auto extract result to send.', 'warning');
+            return;
+          }
+          const result = await acceptExtractorSolution(recipeId, extractedInstructions, '/api/instructions-extractor/solution', instructionStatusMsg, 'instructions');
+          if (result.success) {
+            await refreshRecipeMatrix();
+          }
+        });
+      }
+      if (instructionDeclineBtn) instructionDeclineBtn.addEventListener('click', function() {
+        markExtractorDecision('instructions', 'declined');
+        openControllerPage('extractor_instructions.html');
+      });
+
+      if (ingredientsStepByStepBtn) ingredientsStepByStepBtn.addEventListener('click', function() { openControllerPage('extractor_ingredient.html'); });
+      if (ingredientsAutoBtn) {
+        ingredientsAutoBtn.addEventListener('click', async function() {
+          const recipeId = recipeSelect ? recipeSelect.value : '';
+          if (!recipeId) {
+            notify('Please select a recipe first.', 'warning');
+            return;
+          }
+          setExtractorStatus(ingredientsStatusMsg, '');
+          await runIngredientsAutoExtract(recipeId);
+        });
+      }
+      if (ingredientsConfirmBtn) {
+        ingredientsConfirmBtn.addEventListener('click', async function() {
+          const recipeId = recipeSelect ? recipeSelect.value : '';
+          if (!recipeId) {
+            notify('Please select a recipe first.', 'warning');
+            return;
+          }
+          if (!extractedIngredients) {
+            notify('No auto extract result to send.', 'warning');
+            return;
+          }
+          const result = await acceptExtractorSolution(recipeId, extractedIngredients, '/api/ingredients-extractor/solution', ingredientsStatusMsg, 'ingredients');
+          if (result.success) {
+            await refreshRecipeMatrix();
+          }
+        });
+      }
+      if (ingredientsDeclineBtn) ingredientsDeclineBtn.addEventListener('click', function() {
+        markExtractorDecision('ingredients', 'declined');
+        openControllerPage('extractor_ingredient.html');
+      });
+
+      if (autoPublishBtn) {
+        autoPublishBtn.addEventListener('click', async function() {
+          const recipeId = recipeSelect ? Number(recipeSelect.value) : NaN;
+          if (!Number.isInteger(recipeId) || recipeId <= 0) {
+            setAutoPublishStatus('Please select a recipe first.', 'error');
+            if (autoPublishAsyncSyncPending) {
+              autoPublishAsyncSyncPending = false;
+              autoPublishAsyncSyncInProgress = false;
+              if (autoPublishAsyncSyncBtn) {
+                autoPublishAsyncSyncBtn.disabled = false;
+                autoPublishAsyncSyncBtn.textContent = 'Auto Publish + Async Sync';
+              }
+            }
+            return;
+          }
+
+          if (!autoPublishAsyncSyncPending) {
+            setAutoPublishStatus(`Running Auto Publish for RecipeID ${recipeId}...`, 'info');
+          }
+
+          autoPublishBtn.disabled = true;
+          if (autoPublishReviewBox) autoPublishReviewBox.style.display = 'none';
+          if (autoPublishProgressPanel) autoPublishProgressPanel.style.display = 'block';
+          if (autoPublishInstructionsBar) autoPublishInstructionsBar.style.display = 'block';
+          if (autoPublishInstructionsFill) autoPublishInstructionsFill.style.width = '0%';
+          if (autoPublishIngredientsBar) autoPublishIngredientsBar.style.display = 'block';
+          if (autoPublishIngredientsFill) autoPublishIngredientsFill.style.width = '0%';
+
+          try {
+            await verifyApiReachable();
+
+            const warnings = [];
+
+            try {
+              await postJsonChecked('/api/recipes/cleanup-instructions-stepwise', { recipeId }, 'Cleanup Instructions');
+              await waitForCleanupCompletion('/api/recipes/cleanup-instructions-progress', autoPublishInstructionsFill);
+            } catch (cleanupInstructionsErr) {
+              if (autoPublishInstructionsFill) autoPublishInstructionsFill.style.width = '100%';
+              const message = cleanupInstructionsErr && cleanupInstructionsErr.message ? cleanupInstructionsErr.message : String(cleanupInstructionsErr);
+              if (isQuotaError(cleanupInstructionsErr)) {
+                warnings.push('Cleanup Instructions skipped due to API quota limits.');
+              } else {
+                warnings.push(`Cleanup Instructions skipped: ${message}`);
+              }
+            }
+
+            try {
+              await postJsonChecked('/api/recipes/cleanup-ingredients-stepwise', { recipeId }, 'Cleanup Ingredients');
+              await waitForCleanupCompletion('/api/recipes/cleanup-ingredients-progress', autoPublishIngredientsFill);
+            } catch (cleanupIngredientsErr) {
+              if (autoPublishIngredientsFill) autoPublishIngredientsFill.style.width = '100%';
+              const message = cleanupIngredientsErr && cleanupIngredientsErr.message ? cleanupIngredientsErr.message : String(cleanupIngredientsErr);
+              if (isQuotaError(cleanupIngredientsErr)) {
+                warnings.push('Cleanup Ingredients skipped due to API quota limits.');
+              } else {
+                warnings.push(`Cleanup Ingredients skipped: ${message}`);
+              }
+            }
+
+            try {
+              await postJsonChecked('/api/ingredients/inventory/sync', { recipeId, reseed: true }, 'Inventory Sync');
+            } catch (syncErr) {
+              console.warn('[DEBUG][Add Recipe Auto Publish] Inventory sync failed:', syncErr);
+              warnings.push('Inventory Sync could not complete automatically.');
+            }
+
+            pendingAutoPublishRecipeId = recipeId;
+            if (autoPublishReviewText) {
+              autoPublishReviewText.textContent = warnings.length
+                ? `RecipeID ${recipeId} is ready. ${warnings.join(' ')} You can still Accept and Publish.`
+                : `RecipeID ${recipeId} cleanup complete. Choose Accept to publish or Decline to return.`;
+            }
+            if (!autoPublishAsyncSyncPending) {
+              if (warnings.length) {
+                notify(`Auto Publish for RecipeID ${recipeId} completed with warnings.`, 'warning', 5200);
+              } else {
+                notify(`Auto Publish cleanup complete for RecipeID ${recipeId}.`, 'success', 2600);
+              }
+            }
+
+            if (autoPublishAsyncSyncPending) {
+              try {
+                setAutoPublishStatus(`Publishing RecipeID ${recipeId}...`, 'info');
+                await publishRecipeToDisplay(recipeId);
+                pendingAutoPublishRecipeId = null;
+                if (autoPublishReviewBox) autoPublishReviewBox.style.display = 'none';
+                setAutoPublishStatus(`Published RecipeID ${recipeId}. Running Async Sync...`, 'info');
+                await runAsyncSyncFromRecipeId(recipeId, autoPublishAsyncSyncStatus);
+                await refreshRecipeMatrix();
+                if (autoPublishAsyncSyncStatus) autoPublishAsyncSyncStatus.textContent += ' Table refreshed.';
+              } finally {
+                autoPublishAsyncSyncPending = false;
+                autoPublishAsyncSyncInProgress = false;
+                if (autoPublishAsyncSyncBtn) {
+                  autoPublishAsyncSyncBtn.disabled = false;
+                  autoPublishAsyncSyncBtn.textContent = 'Auto Publish + Async Sync';
+                }
+              }
+              setTimeout(() => {
+                resetAutoPublishUi();
+              }, 450);
+              return;
+            }
+
+            if (autoPublishReviewBox) {
+              autoPublishReviewBox.style.display = 'block';
+              autoPublishReviewBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+
+            if (!autoPublishAsyncSyncPending) {
+              setAutoPublishStatus(`Auto Publish complete for RecipeID ${recipeId}. Review and choose Accept or Decline.`, 'success');
+            }
+
+            setTimeout(() => {
+              resetAutoPublishUi();
+            }, 450);
+          } catch (err) {
+            resetAutoPublishUi();
+            if (autoPublishAsyncSyncPending) {
+              autoPublishAsyncSyncPending = false;
+              autoPublishAsyncSyncInProgress = false;
+              if (autoPublishAsyncSyncBtn) {
+                autoPublishAsyncSyncBtn.disabled = false;
+                autoPublishAsyncSyncBtn.textContent = 'Auto Publish + Async Sync';
+              }
+              setAutoPublishStatus('Auto Publish + Async Sync failed.', 'error');
+              notify('Auto Publish + Async Sync failed.', 'error', 6200);
+            } else if (isBackendUnavailableError(err)) {
+              setAutoPublishStatus('Auto Publish could not reach backend API. Start backend/server.js and try again.', 'error');
+              notify('Auto Publish could not reach backend API. Start backend/server.js and try again.', 'error', 6200);
+            } else {
+              const message = err && err.message ? err.message : String(err);
+              setAutoPublishStatus('Auto Publish failed: ' + message, 'error');
+              notify('Auto Publish failed: ' + message, 'error', 6200);
+            }
+          } finally {
+            autoPublishBtn.disabled = false;
+          }
+        });
+      }
+
+      if (autoPublishAsyncSyncBtn) {
+        autoPublishAsyncSyncBtn.addEventListener('click', async function() {
+          if (autoPublishAsyncSyncInProgress) return;
+          const recipeId = recipeSelect ? Number(recipeSelect.value) : NaN;
+          if (!Number.isInteger(recipeId) || recipeId <= 0) {
+            setAutoPublishStatus('Please select a recipe first.', 'error');
+            return;
+          }
+
+          autoPublishAsyncSyncInProgress = true;
+          autoPublishAsyncSyncPending = true;
+          autoPublishAsyncSyncBtn.disabled = true;
+          autoPublishAsyncSyncBtn.textContent = 'Running...';
+          setAutoPublishStatus('Starting Auto Publish...', 'info');
+
+          try {
+            if (autoPublishBtn) {
+              autoPublishBtn.click();
+            } else {
+              throw new Error('Auto Publish button unavailable.');
+            }
+          } catch (err) {
+            autoPublishAsyncSyncPending = false;
+            autoPublishAsyncSyncInProgress = false;
+            autoPublishAsyncSyncBtn.disabled = false;
+            autoPublishAsyncSyncBtn.textContent = 'Auto Publish + Async Sync';
+            setAutoPublishStatus('Auto Publish + Async Sync failed: ' + (err && err.message ? err.message : err), 'error');
+          }
+        });
+      }
+
+      if (autoPublishAcceptBtn) {
+        autoPublishAcceptBtn.addEventListener('click', async function() {
+          const recipeId = Number(pendingAutoPublishRecipeId);
+          if (!Number.isInteger(recipeId) || recipeId <= 0) {
+            setAutoPublishStatus('No recipe is ready to publish. Run Auto Publish first.', 'error');
+            return;
+          }
+
+          autoPublishAcceptBtn.disabled = true;
+          try {
+            await publishRecipeToDisplay(recipeId);
+            setAutoPublishStatus(`RecipeID ${recipeId} published.`, 'success');
+            notify(`RecipeID ${recipeId} published.`, 'success', 2600);
+            if (autoPublishReviewBox) autoPublishReviewBox.style.display = 'none';
+            pendingAutoPublishRecipeId = null;
+          } catch (err) {
+            const message = err && err.message ? err.message : String(err);
+            setAutoPublishStatus('Publish failed: ' + message, 'error');
+            notify('Publish failed: ' + message, 'error', 6200);
+          } finally {
+            autoPublishAcceptBtn.disabled = false;
+          }
+        });
+      }
+
+      if (autoPublishRefreshTableBtn) {
+        autoPublishRefreshTableBtn.addEventListener('click', async function() {
+          const originalLabel = autoPublishRefreshTableBtn.textContent;
+          autoPublishRefreshTableBtn.disabled = true;
+          autoPublishRefreshTableBtn.textContent = 'Refreshing...';
+          try {
+            await refreshRecipeMatrix();
+          } finally {
+            autoPublishRefreshTableBtn.disabled = false;
+            autoPublishRefreshTableBtn.textContent = originalLabel;
+          }
+        });
+      }
+
+      if (autoPublishDeclineBtn) {
+        autoPublishDeclineBtn.addEventListener('click', function() {
+          pendingAutoPublishRecipeId = null;
+          if (autoPublishReviewBox) autoPublishReviewBox.style.display = 'none';
+          setAutoPublishStatus('Auto Publish review declined.', 'info');
+          notify('Auto Publish review declined.', 'info', 2400);
+        });
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,1333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Match Shopping Lists</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .ms-page {
+      max-width: 1320px;
+      margin: 24px auto 60px;
+      padding: 0 1rem;
+    }
+    .ms-card {
+      background: #fff;
+      border: 1px solid #d8dee6;
+      border-radius: 12px;
+      box-shadow: 0 6px 18px rgba(15,23,42,0.06);
+      padding: 1rem 1.1rem;
+      margin-bottom: 1rem;
+    }
+    .ms-title {
+      margin: 0 0 0.2rem;
+      color: #1f2937;
+      font-size: 1.55rem;
+    }
+    .ms-sub {
+      margin: 0;
+      color: #4b5563;
+      font-size: 0.93rem;
+    }
+    .ms-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 1000px) {
+      .ms-grid { grid-template-columns: 1fr; }
+    }
+    .ms-row {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 0.55rem;
+    }
+    .ms-label {
+      display: block;
+      font-size: 0.82rem;
+      color: #334155;
+      font-weight: 700;
+      margin-bottom: 0.2rem;
+    }
+    .ms-select,
+    .ms-input {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      padding: 0.46rem 0.62rem;
+      font-size: 0.92rem;
+      background: #fff;
+    }
+    .ms-field {
+      flex: 1 1 180px;
+      min-width: 180px;
+    }
+    .ms-btn {
+      border: none;
+      border-radius: 7px;
+      padding: 0.46rem 0.9rem;
+      font-size: 0.88rem;
+      cursor: pointer;
+      color: #fff;
+      background: #1d4ed8;
+      white-space: nowrap;
+    }
+    .ms-btn.secondary {
+      background: #334155;
+      color: #ffffff;
+      border: 1px solid #1f2937;
+    }
+    .ms-btn.success { background: #15803d; }
+    .ms-btn:disabled {
+      background: #94a3b8;
+      color: #f8fafc;
+      cursor: default;
+      opacity: 1;
+    }
+
+    .ms-status {
+      min-height: 1.2rem;
+      color: #0f172a;
+      font-size: 0.86rem;
+      font-weight: 600;
+      margin-top: 0.35rem;
+    }
+    .ms-status.error { color: #991b1b; }
+    .ms-status.ok { color: #166534; }
+
+    .ms-booking-list {
+      max-height: 300px;
+      overflow: auto;
+      border: 1px solid #dbe3ef;
+      border-radius: 8px;
+      padding: 0.35rem;
+      background: #f8fafc;
+    }
+    .ms-booking-item {
+      display: flex;
+      gap: 0.45rem;
+      align-items: flex-start;
+      font-size: 0.84rem;
+      padding: 0.35rem;
+      border-radius: 6px;
+    }
+    .ms-booking-item:nth-child(even) { background: #f1f5f9; }
+
+    .ms-summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+      gap: 0.6rem;
+      margin-bottom: 0.8rem;
+    }
+    @media (max-width: 760px) {
+      .ms-summary { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+    }
+    .ms-pill {
+      border: 1px solid #dbe3ef;
+      border-radius: 8px;
+      padding: 0.5rem;
+      background: #eff6ff;
+    }
+    .ms-pill .k { display:block; font-size:0.75rem; color:#1e3a8a; }
+    .ms-pill .v { display:block; font-size:1.05rem; font-weight:800; color:#0f172a; }
+
+    .ms-compare-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 1120px) {
+      .ms-compare-grid { grid-template-columns: 1fr; }
+    }
+    .ms-col h3 {
+      margin: 0 0 0.4rem;
+      color: #1e3a8a;
+      font-size: 1rem;
+    }
+    .ms-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.83rem;
+    }
+    .ms-table th {
+      text-align: left;
+      background: #1d4ed8;
+      color: #fff;
+      padding: 0.4rem 0.5rem;
+    }
+    .ms-table td {
+      border: 1px solid #dbe3ef;
+      padding: 0.35rem 0.45rem;
+      vertical-align: top;
+    }
+    .ms-table tr:nth-child(even) td { background: #f8fafc; }
+    .ms-muted { color: #64748b; font-style: italic; }
+
+    .ms-match-list {
+      max-height: 360px;
+      overflow: auto;
+      border: 1px solid #dbe3ef;
+      border-radius: 8px;
+    }
+
+    .ms-results-highlight {
+      border: 2px solid #f59e0b;
+      background: linear-gradient(180deg, #fffbeb 0%, #fff7d6 100%);
+    }
+
+    .ms-subsection-title {
+      margin: 0 0 0.45rem;
+      color: #92400e;
+      font-size: 0.96rem;
+      font-weight: 800;
+    }
+
+  </style>
+</head>
+<body>
+  <div id="navbar-include"></div>
+
+  <main class="ms-page">
+    <section class="ms-card">
+      <h1 class="ms-title">Match Shopping Lists</h1>
+      <p class="ms-sub">Compare Book Shopping calculations against teacher uploaded shopping lists to see what matches and what differs.</p>
+    </section>
+
+    <section class="ms-card">
+      <div class="ms-grid">
+        <div>
+          <div class="ms-row">
+            <div class="ms-field" style="flex:2 1 340px;">
+              <label class="ms-label" for="savedListSelect">Teacher uploaded shopping list</label>
+              <select id="savedListSelect" class="ms-select">
+                <option value="">Loading saved shopping lists...</option>
+              </select>
+            </div>
+            <div style="padding-top:1.3rem;">
+              <button id="refreshListsBtn" type="button" class="ms-btn secondary">Refresh</button>
+            </div>
+          </div>
+
+          <div class="ms-row">
+            <div class="ms-field">
+              <label class="ms-label" for="termFilterSelect">Term</label>
+              <select id="termFilterSelect" class="ms-select">
+                <option value="">All terms</option>
+                <option value="1">Term 1</option>
+                <option value="2">Term 2</option>
+                <option value="3">Term 3</option>
+                <option value="4">Term 4</option>
+              </select>
+            </div>
+            <div class="ms-field">
+              <label class="ms-label" for="weekFilterSelect">Week</label>
+              <select id="weekFilterSelect" class="ms-select">
+                <option value="">All weeks</option>
+                <option value="1">Week 1</option><option value="2">Week 2</option><option value="3">Week 3</option>
+                <option value="4">Week 4</option><option value="5">Week 5</option><option value="6">Week 6</option>
+                <option value="7">Week 7</option><option value="8">Week 8</option><option value="9">Week 9</option>
+                <option value="10">Week 10</option><option value="11">Week 11</option><option value="12">Week 12</option>
+                <option value="13">Week 13</option>
+              </select>
+            </div>
+            <div class="ms-field">
+              <label class="ms-label" for="dateEndInput">Date End</label>
+              <input id="dateEndInput" class="ms-input" type="text" placeholder="8 May">
+            </div>
+            <div style="padding-top:1.3rem;">
+              <button id="clearFiltersBtn" type="button" class="ms-btn secondary">Clear</button>
+            </div>
+          </div>
+
+          <div id="listsStatus" class="ms-status"></div>
+        </div>
+
+        <div>
+          <div class="ms-row">
+            <div class="ms-field" style="max-width:250px;">
+              <label class="ms-label" for="compareSourceSelect">Comparison source</label>
+              <select id="compareSourceSelect" class="ms-select">
+                <option value="book" selected>Book Shopping (from selected bookings)</option>
+                <option value="technician">Technician Finalized Plan</option>
+              </select>
+            </div>
+            <div class="ms-field" id="technicianPlanField" style="flex:2 1 520px;display:none;">
+              <div class="ms-row" style="margin:0;">
+                <div class="ms-field" style="min-width:300px;flex:2 1 320px;">
+                  <label class="ms-label" for="technicianPlanSelect">Finalized plans</label>
+                  <select id="technicianPlanSelect" class="ms-select">
+                    <option value="">Select finalized plan...</option>
+                  </select>
+                </div>
+                <div class="ms-field" style="min-width:170px;max-width:190px;">
+                  <label class="ms-label" for="technicianPlanIdInput">Finalized plan ID</label>
+                  <input id="technicianPlanIdInput" class="ms-input" type="number" min="1" step="1" placeholder="e.g. 42">
+                </div>
+                <div style="padding-top:1.3rem;">
+                  <button id="loadTechnicianPlansBtn" type="button" class="ms-btn secondary">Load Finalized Plans</button>
+                </div>
+              </div>
+            </div>
+            <div style="padding-top:1.3rem;">
+              <button id="loadWeekBookingsBtn" type="button" class="ms-btn">Load Week Bookings</button>
+            </div>
+            <div style="padding-top:1.3rem;">
+              <button id="runCompareBtn" type="button" class="ms-btn success">Run Comparison</button>
+            </div>
+          </div>
+
+          <div class="ms-row" style="margin-bottom:0.35rem;">
+            <button id="selectAllBookingsBtn" type="button" class="ms-btn secondary">Select All</button>
+            <button id="clearBookingsBtn" type="button" class="ms-btn secondary">Clear Selection</button>
+          </div>
+
+          <div id="bookingsWrap" class="ms-booking-list"></div>
+          <div id="bookingsStatus" class="ms-status"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ms-card ms-results-highlight" id="comparisonCard" hidden>
+      <div class="ms-summary">
+        <div class="ms-pill"><span class="k" id="countSourceLabel">Source Items</span><span class="v" id="countBook">0</span></div>
+        <div class="ms-pill"><span class="k">Teacher Items</span><span class="v" id="countTeacher">0</span></div>
+        <div class="ms-pill"><span class="k">Matched</span><span class="v" id="countMatched">0</span></div>
+        <div class="ms-pill"><span class="k">Different</span><span class="v" id="countDifferent">0</span></div>
+      </div>
+
+      <div id="recipeComparisonSection">
+        <h3 class="ms-subsection-title">Recipe Like-for-like Comparison</h3>
+        <div class="ms-match-list">
+          <table class="ms-table">
+            <thead>
+              <tr>
+                <th style="width:120px;">Result</th>
+                <th>Add Booking Recipe</th>
+                <th>Teacher Recipe</th>
+              </tr>
+            </thead>
+            <tbody id="recipeMatchBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="margin-top:0.95rem;">
+        <h3 class="ms-subsection-title">Master Category Alignment (Teacher Order)</h3>
+        <div id="alignedComparison"></div>
+      </div>
+
+      <div id="sendToExtrasBar" style="margin-top:1rem;padding-top:0.85rem;border-top:1px solid #dde6f0;display:flex;align-items:center;flex-wrap:wrap;gap:0.75rem;" hidden>
+        <span id="sendToExtrasCount" style="font-size:0.92rem;color:#555;"></span>
+        <button type="button" id="sendToExtrasBtn" class="ms-btn success">
+          Send Teacher-Only items to Shopping Extras &rarr;
+        </button>
+      </div>
+
+    </section>
+  </main>
+
+  <script src="shared/navbar_loader.js"></script>
+  <script>
+    (function () {
+      'use strict';
+
+      const savedListSelect = document.getElementById('savedListSelect');
+      const refreshListsBtn = document.getElementById('refreshListsBtn');
+      const termFilterSelect = document.getElementById('termFilterSelect');
+      const weekFilterSelect = document.getElementById('weekFilterSelect');
+      const dateEndInput = document.getElementById('dateEndInput');
+      const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+      const compareSourceSelect = document.getElementById('compareSourceSelect');
+      const technicianPlanField = document.getElementById('technicianPlanField');
+      const technicianPlanSelect = document.getElementById('technicianPlanSelect');
+      const technicianPlanIdInput = document.getElementById('technicianPlanIdInput');
+      const loadTechnicianPlansBtn = document.getElementById('loadTechnicianPlansBtn');
+      const loadWeekBookingsBtn = document.getElementById('loadWeekBookingsBtn');
+      const runCompareBtn = document.getElementById('runCompareBtn');
+      const selectAllBookingsBtn = document.getElementById('selectAllBookingsBtn');
+      const clearBookingsBtn = document.getElementById('clearBookingsBtn');
+      const listsStatus = document.getElementById('listsStatus');
+      const bookingsWrap = document.getElementById('bookingsWrap');
+      const bookingsStatus = document.getElementById('bookingsStatus');
+      const comparisonCard = document.getElementById('comparisonCard');
+      const countSourceLabel = document.getElementById('countSourceLabel');
+      const countBook = document.getElementById('countBook');
+      const countTeacher = document.getElementById('countTeacher');
+      const countMatched = document.getElementById('countMatched');
+      const countDifferent = document.getElementById('countDifferent');
+      const alignedComparison = document.getElementById('alignedComparison');
+      const recipeMatchBody = document.getElementById('recipeMatchBody');
+      const recipeComparisonSection = document.getElementById('recipeComparisonSection');
+
+      let savedLists = [];
+      let selectedSavedList = null;
+      let weekBookings = [];
+      const selectedBookingIds = new Set();
+
+      function escHtml(value) {
+        return String(value == null ? '' : value)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function setStatus(el, message, type) {
+        el.className = 'ms-status' + (type ? ' ' + type : '');
+        el.textContent = message || '';
+      }
+
+      function requestJson(url, options) {
+        const settings = options || {};
+        const headers = Object.assign({ 'Content-Type': 'application/json' }, settings.headers || {});
+        return fetch(url, Object.assign({}, settings, { credentials: 'include', headers }))
+          .then(async (response) => {
+            let payload = null;
+            try { payload = await response.json(); } catch (err) { payload = null; }
+            if (!response.ok || (payload && payload.success === false)) {
+              throw new Error(payload && payload.error ? payload.error : ('Request failed (' + response.status + ')'));
+            }
+            return payload || {};
+          });
+      }
+
+      function toIsoDate(dateObj) {
+        const d = new Date(dateObj);
+        return [
+          d.getFullYear(),
+          String(d.getMonth() + 1).padStart(2, '0'),
+          String(d.getDate()).padStart(2, '0')
+        ].join('-');
+      }
+
+      function mondayOf(dateObj) {
+        const d = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+        const weekday = d.getDay();
+        const sinceMonday = (weekday + 6) % 7;
+        d.setDate(d.getDate() - sinceMonday);
+        d.setHours(0, 0, 0, 0);
+        return d;
+      }
+
+      function parseWeekMetaFromText(inputText) {
+        const text = String(inputText || '').trim();
+        const out = { term: '', week: '', weekDate: '' };
+        if (!text) return out;
+
+        const termMatch = text.match(/\bterm\s*(\d{1,2})\b/i) || text.match(/\bt\s*(\d{1,2})\b/i);
+        if (termMatch) out.term = String(termMatch[1]);
+
+        const weekMatch = text.match(/\bweek\s*(\d{1,2})\b/i) || text.match(/\bw\s*(\d{1,2})\b/i);
+        if (weekMatch) out.week = String(weekMatch[1]);
+
+        const dateEndingMatch = text.match(/(?:date\s*)?ending\s*[:\-]?\s*([^|,;]+)/i);
+        if (dateEndingMatch) out.weekDate = String(dateEndingMatch[1] || '').trim();
+
+        return out;
+      }
+
+      function parseWeekMetaFromFilename(filename) {
+        const cleanName = String(filename || '')
+          .replace(/\.docx$/i, '')
+          .replace(/[._-]+/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        return parseWeekMetaFromText(cleanName);
+      }
+
+      function parseDateEndingText(text) {
+        const clean = String(text || '').trim();
+        if (!clean) return null;
+
+        const slash = clean.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (slash) {
+          const date = new Date(Number(slash[3]), Number(slash[2]) - 1, Number(slash[1]));
+          return Number.isNaN(date.getTime()) ? null : date;
+        }
+
+        const iso = clean.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (iso) {
+          const date = new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+          return Number.isNaN(date.getTime()) ? null : date;
+        }
+
+        const monthMap = {
+          jan: 0, january: 0,
+          feb: 1, february: 1,
+          mar: 2, march: 2,
+          apr: 3, april: 3,
+          may: 4,
+          jun: 5, june: 5,
+          jul: 6, july: 6,
+          aug: 7, august: 7,
+          sep: 8, sept: 8, september: 8,
+          oct: 9, october: 9,
+          nov: 10, november: 10,
+          dec: 11, december: 11
+        };
+
+        const short = clean.match(/(\d{1,2})\s*([A-Za-z]{3,9})(?:\s+(\d{4}))?/);
+        if (!short) return null;
+        const day = Number(short[1]);
+        const monthName = String(short[2] || '').toLowerCase();
+        const month = monthMap[monthName];
+        const year = short[3] ? Number(short[3]) : (new Date()).getFullYear();
+        if (!Number.isFinite(day) || month === undefined || !Number.isFinite(year)) return null;
+        const date = new Date(year, month, day);
+        return Number.isNaN(date.getTime()) ? null : date;
+      }
+
+      function toDateOnly(value) {
+        const raw = String(value || '').trim();
+        if (!raw) return '';
+        const isoLike = raw.slice(0, 10);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(isoLike)) return isoLike;
+        const d = new Date(raw);
+        if (Number.isNaN(d.getTime())) return '';
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return y + '-' + m + '-' + day;
+      }
+
+      function formatHumanDate(value) {
+        const iso = toDateOnly(value);
+        if (!iso) return String(value || '');
+        const d = new Date(iso + 'T00:00:00');
+        if (Number.isNaN(d.getTime())) return iso;
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return String(d.getDate()) + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
+      }
+
+      function isoWeekNumber(dateValue) {
+        const source = new Date(dateValue);
+        if (Number.isNaN(source.getTime())) return null;
+        const utcDate = new Date(Date.UTC(source.getFullYear(), source.getMonth(), source.getDate()));
+        const day = utcDate.getUTCDay() || 7;
+        utcDate.setUTCDate(utcDate.getUTCDate() + 4 - day);
+        const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+        return Math.ceil((((utcDate - yearStart) / 86400000) + 1) / 7);
+      }
+
+      function mondayToFridayFromWeekEnding(weekEndingValue) {
+        const iso = toDateOnly(weekEndingValue);
+        if (!iso) return { monday: null, friday: null };
+        const friday = new Date(iso + 'T00:00:00');
+        if (Number.isNaN(friday.getTime())) return { monday: null, friday: null };
+        const monday = new Date(friday);
+        monday.setDate(friday.getDate() - 4);
+        return { monday, friday };
+      }
+
+      function formatRangeDateNoYear(dateValue) {
+        const d = new Date(dateValue);
+        if (Number.isNaN(d.getTime())) return '';
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return String(d.getDate()) + ' ' + months[d.getMonth()];
+      }
+
+      function buildWeekLabel(weekEndingValue) {
+        const range = mondayToFridayFromWeekEnding(weekEndingValue);
+        if (!range.monday || !range.friday) return '';
+        const weekNo = isoWeekNumber(range.monday);
+        const prefix = Number.isInteger(weekNo) ? ('Week ' + weekNo + ' ') : '';
+        return prefix + '(' + formatRangeDateNoYear(range.monday) + ' - ' + formatHumanDate(range.friday) + ')';
+      }
+
+      function normalizeIngredientText(text) {
+        let value = String(text || '').toLowerCase();
+        value = value.replace(/\([^)]*\)/g, ' ');
+        value = value.replace(/[,+;:]/g, ' ');
+        value = value.replace(/^\s*[\d¼½¾⅓⅔⅛⅜⅝⅞\.\/\-x\s]+/, ' ');
+        value = value.replace(/^\s*(pieces?|piece|packets?|packet|bottles?|bottle|cans?|can|tubs?|tub|loaves?|loaf|bags?|bag|jars?|jar|x|of)\b\s*/i, ' ');
+        value = value.replace(/^\s*(kg|g|grams?|ml|l|litres?|liters?|cups?|tbsp|tsp)\b\s*/i, ' ');
+        value = value.replace(/\s+/g, ' ').trim();
+        return value;
+      }
+
+      function normalizeRecipeText(text) {
+        return String(text || '')
+          .toLowerCase()
+          .replace(/\.pdf$/i, '')
+          .replace(/[^a-z0-9\s]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+      }
+
+      function setDefaultDateEndFromSaved(list) {
+        if (!list) return;
+        const state = list.state || {};
+        const stateDate = String(state.weekDate || '').trim();
+        if (stateDate) {
+          dateEndInput.value = stateDate;
+          return;
+        }
+
+        const meta = parseWeekMetaFromText(String(list.weekInfo || ''));
+        if (meta.weekDate) {
+          dateEndInput.value = meta.weekDate;
+          return;
+        }
+
+        const filenameMeta = parseWeekMetaFromFilename(String(list.source_filename || ''));
+        if (filenameMeta.weekDate) {
+          dateEndInput.value = filenameMeta.weekDate;
+        }
+      }
+
+      function formatSavedLabel(list) {
+        const meta = list.state || {};
+        const parts = [list.title || 'Shopping List'];
+        let term = String(meta.term || list.term || '').trim();
+        let week = String(meta.week || list.week || '').trim();
+        let weekDate = String(meta.weekDate || list.week_date || '').trim();
+
+        if ((!term || !week || !weekDate) && list.weekInfo) {
+          const parsedInfo = parseWeekMetaFromText(list.weekInfo);
+          if (!term) term = parsedInfo.term;
+          if (!week) week = parsedInfo.week;
+          if (!weekDate) weekDate = parsedInfo.weekDate;
+        }
+
+        if ((!term || !week || !weekDate) && list.source_filename) {
+          const parsedFile = parseWeekMetaFromFilename(list.source_filename);
+          if (!term) term = parsedFile.term;
+          if (!week) week = parsedFile.week;
+          if (!weekDate) weekDate = parsedFile.weekDate;
+        }
+
+        if (term) parts.push('Term ' + term);
+        if (week) parts.push('Week ' + week);
+        if (weekDate) parts.push('Date ending: ' + weekDate);
+        return parts.join(' | ');
+      }
+
+      function renderSavedOptions() {
+        const termFilter = String(termFilterSelect.value || '').trim();
+        const weekFilter = String(weekFilterSelect.value || '').trim();
+        const dateFilter = String(dateEndInput.value || '').trim().toLowerCase();
+
+        const filtered = savedLists.filter((list) => {
+          const state = list.state || {};
+          let term = String(state.term || list.term || '').trim();
+          let week = String(state.week || list.week || '').trim();
+          let dateEnding = String(state.weekDate || list.week_date || '').trim();
+
+          if ((!term || !week || !dateEnding) && list.weekInfo) {
+            const parsed = parseWeekMetaFromText(list.weekInfo);
+            if (!term) term = parsed.term;
+            if (!week) week = parsed.week;
+            if (!dateEnding) dateEnding = parsed.weekDate;
+          }
+
+          if ((!term || !week || !dateEnding) && list.source_filename) {
+            const parsedFile = parseWeekMetaFromFilename(list.source_filename);
+            if (!term) term = parsedFile.term;
+            if (!week) week = parsedFile.week;
+            if (!dateEnding) dateEnding = parsedFile.weekDate;
+          }
+
+          if (termFilter && term !== termFilter) return false;
+          if (weekFilter && week !== weekFilter) return false;
+          if (dateFilter && String(dateEnding || '').toLowerCase() !== dateFilter) return false;
+          return true;
+        });
+
+        savedListSelect.innerHTML = '<option value="">Select teacher shopping list...</option>'
+          + filtered.map((list) => `<option value="${escHtml(String(list.id))}">${escHtml(formatSavedLabel(list))}</option>`).join('');
+
+        if (!filtered.length) {
+          setStatus(listsStatus, 'No saved lists match the selected Term/Week/Date filters.', '');
+        } else {
+          setStatus(listsStatus, 'Loaded ' + filtered.length + ' saved list option(s).', 'ok');
+        }
+      }
+
+      async function loadSavedLists() {
+        refreshListsBtn.disabled = true;
+        try {
+          const data = await requestJson('/api/saved-shopping-lists');
+          const baseLists = Array.isArray(data.lists) ? data.lists : [];
+          // Pull each state so comparison can run without extra click hops.
+          savedLists = [];
+          for (const row of baseLists) {
+            try {
+              const detail = await requestJson('/api/saved-shopping-lists/' + encodeURIComponent(String(row.id)));
+              savedLists.push({
+                id: row.id,
+                title: row.title,
+                weekInfo: row.week_info || '',
+                source_filename: row.source_filename || '',
+                term: row.term || '',
+                week: row.week || '',
+                week_date: row.week_date || '',
+                state: detail.list && detail.list.state ? detail.list.state : {}
+              });
+            } catch (err) {
+              // Skip broken row but continue loading others.
+            }
+          }
+          renderSavedOptions();
+        } catch (err) {
+          savedListSelect.innerHTML = '<option value="">Unable to load saved shopping lists</option>';
+          setStatus(listsStatus, 'Error: ' + (err.message || String(err)), 'error');
+        }
+        refreshListsBtn.disabled = false;
+      }
+
+      async function loadFinalizedPlanOptions(selectedId) {
+        loadTechnicianPlansBtn.disabled = true;
+        try {
+          const payload = await requestJson('/api/shopping-plan');
+          const plans = (Array.isArray(payload.plans) ? payload.plans : [])
+            .filter((p) => String(p.status || '').toLowerCase() === 'finalized');
+
+          if (!plans.length) {
+            technicianPlanSelect.innerHTML = '<option value="">No finalized plans found</option>';
+            return;
+          }
+
+          technicianPlanSelect.innerHTML = '<option value="">Select finalized plan...</option>' + plans.map((p) => {
+            const weekLabel = buildWeekLabel(p.week_ending);
+            const label = (weekLabel || ('Week ending ' + formatHumanDate(p.week_ending)))
+              + ' | Version ' + String(p.version || '')
+              + ' | Plan #' + String(p.id || '');
+            return '<option value="' + Number(p.id) + '">' + escHtml(label) + '</option>';
+          }).join('');
+
+          if (selectedId && plans.some((p) => Number(p.id) === Number(selectedId))) {
+            technicianPlanSelect.value = String(selectedId);
+            technicianPlanIdInput.value = String(selectedId);
+          }
+        } catch (err) {
+          technicianPlanSelect.innerHTML = '<option value="">Unable to load finalized plans</option>';
+          setStatus(bookingsStatus, 'Error loading finalized plans: ' + (err.message || String(err)), 'error');
+        }
+        loadTechnicianPlansBtn.disabled = false;
+      }
+
+      function renderBookings() {
+        if (!weekBookings.length) {
+          bookingsWrap.innerHTML = '<div class="ms-muted">No Add Booking calendar bookings found for that week.</div>';
+          return;
+        }
+
+        bookingsWrap.innerHTML = weekBookings.map((row) => {
+          const id = Number(row.id || 0);
+          const checked = selectedBookingIds.has(id) ? ' checked' : '';
+          const label = [
+            String(row.booking_date || ''),
+            'P' + String(row.period || '-'),
+            String(row.class_name || '-'),
+            String(row.recipe || '-')
+          ].join(' | ');
+
+          return '<label class="ms-booking-item">'
+            + `<input type="checkbox" class="booking-check" data-id="${escHtml(String(id))}"${checked}>`
+            + `<span>${escHtml(label)}</span>`
+            + '</label>';
+        }).join('');
+
+        bookingsWrap.querySelectorAll('.booking-check').forEach((input) => {
+          input.addEventListener('change', () => {
+            const id = Number(input.getAttribute('data-id') || 0);
+            if (!id) return;
+            if (input.checked) selectedBookingIds.add(id);
+            else selectedBookingIds.delete(id);
+            setStatus(bookingsStatus, selectedBookingIds.size + ' booking(s) selected.', 'ok');
+          });
+        });
+      }
+
+      async function loadWeekBookings() {
+        const dateEndText = String(dateEndInput.value || '').trim();
+        const parsedDateEnd = parseDateEndingText(dateEndText);
+        if (!parsedDateEnd) {
+          setStatus(bookingsStatus, 'Enter Date End (for example: 8 May).', 'error');
+          return;
+        }
+
+        loadWeekBookingsBtn.disabled = true;
+        setStatus(bookingsStatus, 'Loading Add Booking calendar bookings for Date End week...', '');
+        try {
+          const res = await requestJson('/api/bookings/all');
+          const rows = Array.isArray(res.bookings) ? res.bookings : [];
+          const end = new Date(parsedDateEnd.getFullYear(), parsedDateEnd.getMonth(), parsedDateEnd.getDate());
+          const start = new Date(end);
+          start.setDate(end.getDate() - 4);
+
+          weekBookings = rows.filter((row) => {
+            const rawDate = String(row.booking_date || '').slice(0, 10);
+            if (!rawDate) return false;
+            const d = new Date(rawDate + 'T00:00:00');
+            if (Number.isNaN(d.getTime())) return false;
+            return d >= start && d <= end;
+          });
+
+          selectedBookingIds.clear();
+          weekBookings.forEach((row) => selectedBookingIds.add(Number(row.id || 0)));
+
+          renderBookings();
+          setStatus(bookingsStatus, weekBookings.length + ' booking(s) found for Date End ' + dateEndText + '.', weekBookings.length ? 'ok' : '');
+        } catch (err) {
+          weekBookings = [];
+          selectedBookingIds.clear();
+          renderBookings();
+          setStatus(bookingsStatus, 'Error: ' + (err.message || String(err)), 'error');
+        }
+        loadWeekBookingsBtn.disabled = false;
+      }
+
+      function flattenTeacherItems(saved) {
+        const out = [];
+        const state = saved && saved.state ? saved.state : {};
+        const cols = Array.isArray(state.columns) ? state.columns : [];
+
+        cols.forEach((col) => {
+          (Array.isArray(col) ? col : []).forEach((cat) => {
+            const category = String(cat && cat.name || 'Teacher').trim();
+            const sections = Array.isArray(cat && cat.sections) ? cat.sections : [];
+            sections.forEach((sec) => {
+              const items = Array.isArray(sec && sec.items) ? sec.items : [];
+              items.forEach((rawItem) => {
+                const raw = String(rawItem || '').trim();
+                if (!raw) return;
+                out.push({
+                  category,
+                  raw,
+                  key: normalizeIngredientText(raw)
+                });
+              });
+            });
+          });
+        });
+
+        return out.filter((item) => item.key);
+      }
+
+      function flattenBookItems(bookData) {
+        const out = [];
+        const data = bookData && bookData.data ? bookData.data : {};
+        Object.keys(data).forEach((category) => {
+          const items = Array.isArray(data[category]) ? data[category] : [];
+          items.forEach((item) => {
+            const display = String(item && item.display || '').trim();
+            if (!display) return;
+            const qty = item && item.qty != null ? String(item.qty) : '';
+            const unit = String(item && item.unit || '').trim();
+            out.push({
+              category,
+              display,
+              qty,
+              unit,
+              key: normalizeIngredientText(display)
+            });
+          });
+        });
+        return out.filter((item) => item.key);
+      }
+
+      function flattenTechnicianItems(technicianData) {
+        const out = [];
+        const categories = technicianData && technicianData.categories ? technicianData.categories : {};
+        Object.keys(categories).forEach((category) => {
+          const rows = Array.isArray(categories[category]) ? categories[category] : [];
+          rows.forEach((row) => {
+            const display = String(row && row.item_name || '').trim();
+            if (!display) return;
+            const qty = row && row.final_qty != null ? String(row.final_qty) : '';
+            const unit = String(row && row.base_unit || '').trim();
+            out.push({
+              category,
+              display,
+              qty,
+              unit,
+              key: normalizeIngredientText(display)
+            });
+          });
+        });
+        return out.filter((item) => item.key);
+      }
+
+      function buildComparison(bookItems, teacherItems) {
+        const bookUnused = bookItems.slice();
+        const teacherUnused = teacherItems.slice();
+        const matched = [];
+
+        // Exact matches first.
+        for (let ti = teacherUnused.length - 1; ti >= 0; ti -= 1) {
+          const t = teacherUnused[ti];
+          const bi = bookUnused.findIndex((b) => b.key === t.key);
+          if (bi >= 0) {
+            matched.push({ book: bookUnused[bi], teacher: t, type: 'same' });
+            bookUnused.splice(bi, 1);
+            teacherUnused.splice(ti, 1);
+          }
+        }
+
+        // Loose containment matches next.
+        for (let ti = teacherUnused.length - 1; ti >= 0; ti -= 1) {
+          const t = teacherUnused[ti];
+          const bi = bookUnused.findIndex((b) => b.key.includes(t.key) || t.key.includes(b.key));
+          if (bi >= 0) {
+            matched.push({ book: bookUnused[bi], teacher: t, type: 'close' });
+            bookUnused.splice(bi, 1);
+            teacherUnused.splice(ti, 1);
+          }
+        }
+
+        return {
+          matched,
+          bookOnly: bookUnused,
+          teacherOnly: teacherUnused
+        };
+      }
+
+      function editDistance(a, b) {
+        const m = a.length; const n = b.length;
+        const dp = Array.from({ length: m + 1 }, (_, i) => [i]);
+        for (let j = 0; j <= n; j += 1) dp[0][j] = j;
+        for (let i = 1; i <= m; i += 1) {
+          for (let j = 1; j <= n; j += 1) {
+            dp[i][j] = a[i - 1] === b[j - 1]
+              ? dp[i - 1][j - 1]
+              : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+          }
+        }
+        return dp[m][n];
+      }
+
+      function buildRecipeComparison(bookingRecipeRows, teacherRecipeRows) {
+        function tokenList(text) {
+          return String(text || '')
+            .split(' ')
+            .map((t) => t.trim())
+            .filter(Boolean);
+        }
+
+        function allowCloseContainment(aKey, bKey) {
+          const a = tokenList(aKey);
+          const b = tokenList(bKey);
+          const shortLen = Math.min(a.length, b.length);
+          const longLen = Math.max(a.length, b.length);
+          // Avoid matching short recipe names to long concatenated recipe titles.
+          if (longLen - shortLen > 2) return false;
+          return true;
+        }
+
+        function allowFuzzyByLength(aKey, bKey) {
+          const a = tokenList(aKey);
+          const b = tokenList(bKey);
+          return Math.abs(a.length - b.length) <= 2;
+        }
+
+        function toUniqueRecipes(rows) {
+          const out = [];
+          const seen = new Set();
+          (Array.isArray(rows) ? rows : []).forEach((item) => {
+            const raw = String(item || '').trim();
+            const key = normalizeRecipeText(raw);
+            if (!key || seen.has(key)) return;
+            seen.add(key);
+            out.push({ raw, key });
+          });
+          return out;
+        }
+
+        const booking = toUniqueRecipes(bookingRecipeRows).map((item) => ({
+          raw: item.raw,
+          key: item.key
+        })).filter((item) => item.key);
+
+        const teacher = toUniqueRecipes(teacherRecipeRows).map((item) => ({
+          raw: item.raw,
+          key: item.key
+        })).filter((item) => item.key);
+
+        const teacherUnused = teacher.slice();
+        const bookingUnused = booking.slice();
+        const pairs = [];
+
+        for (let bi = bookingUnused.length - 1; bi >= 0; bi -= 1) {
+          const b = bookingUnused[bi];
+          const ti = teacherUnused.findIndex((t) => t.key === b.key);
+          if (ti >= 0) {
+            pairs.push({ booking: b.raw, teacher: teacherUnused[ti].raw, type: 'Same' });
+            bookingUnused.splice(bi, 1);
+            teacherUnused.splice(ti, 1);
+          }
+        }
+
+        for (let bi = bookingUnused.length - 1; bi >= 0; bi -= 1) {
+          const b = bookingUnused[bi];
+          const ti = teacherUnused.findIndex((t) => {
+            const contains = t.key.includes(b.key) || b.key.includes(t.key);
+            if (!contains) return false;
+            return allowCloseContainment(b.key, t.key);
+          });
+          if (ti >= 0) {
+            pairs.push({ booking: b.raw, teacher: teacherUnused[ti].raw, type: 'Close' });
+            bookingUnused.splice(bi, 1);
+            teacherUnused.splice(ti, 1);
+          }
+        }
+
+        // Fuzzy pass: edit distance ≤ 2 on normalised keys
+        for (let bi = bookingUnused.length - 1; bi >= 0; bi -= 1) {
+          const b = bookingUnused[bi];
+          let bestTi = -1; let bestDist = 3;
+          teacherUnused.forEach((t, ti) => {
+            if (!allowFuzzyByLength(b.key, t.key)) return;
+            const dist = editDistance(b.key, t.key);
+            if (dist <= 2 && dist < bestDist) { bestDist = dist; bestTi = ti; }
+          });
+          if (bestTi >= 0) {
+            pairs.push({ booking: b.raw, teacher: teacherUnused[bestTi].raw, type: 'Close' });
+            bookingUnused.splice(bi, 1);
+            teacherUnused.splice(bestTi, 1);
+          }
+        }
+
+        return {
+          pairs,
+          bookingOnly: bookingUnused,
+          teacherOnly: teacherUnused
+        };
+      }
+
+      function renderRecipeMatches(result) {
+        const rows = [];
+
+        (result.pairs || []).forEach((pair) => {
+          rows.push('<tr>'
+            + `<td>${escHtml(pair.type)}</td>`
+            + `<td>${escHtml(pair.booking || '')}</td>`
+            + `<td>${escHtml(pair.teacher || '')}</td>`
+            + '</tr>');
+        });
+
+        (result.bookingOnly || []).forEach((item) => {
+          rows.push('<tr>'
+            + '<td>Add Booking Only</td>'
+            + `<td>${escHtml(item.raw || '')}</td>`
+            + '<td></td>'
+            + '</tr>');
+        });
+
+        (result.teacherOnly || []).forEach((item) => {
+          rows.push('<tr>'
+            + '<td>Teacher Only</td>'
+            + '<td></td>'
+            + `<td>${escHtml(item.raw || '')}</td>`
+            + '</tr>');
+        });
+
+        recipeMatchBody.innerHTML = rows.length
+          ? rows.join('')
+          : '<tr><td colspan="3" class="ms-muted">No recipe comparison rows.</td></tr>';
+      }
+
+      function formatBookItem(item) {
+        return String((item.qty ? item.qty + ' ' : '') + (item.unit ? item.unit + ' ' : '') + item.display).trim();
+      }
+
+      function teacherSignature(item) {
+        return [String(item.category || ''), String(item.key || ''), String(item.raw || '')].join('|');
+      }
+
+      function pickCategoryForBookItem(bookItem, teacherCategoryOrder) {
+        const category = String(bookItem.category || '').trim();
+        const normalized = category.toLowerCase();
+        const categoryMap = {
+          dairy: ['dairy & pastry', 'dairy'],
+          produce: ['produce'],
+          pantry: ['dry ingredients', 'pantry'],
+          other: ['other'],
+          meat: ['meat']
+        };
+
+        // Exact case-insensitive match first.
+        const exact = teacherCategoryOrder.find((c) => c.toLowerCase() === normalized);
+        if (exact) return exact;
+
+        const candidates = categoryMap[normalized] || ['other'];
+        for (let i = 0; i < candidates.length; i += 1) {
+          const found = teacherCategoryOrder.find((c) => c.toLowerCase().includes(candidates[i]));
+          if (found) return found;
+        }
+
+        return teacherCategoryOrder.find((c) => c.toLowerCase() === 'other') || (teacherCategoryOrder[0] || 'Other');
+      }
+
+      function sortTeacherCategories(inputCategories) {
+        const categories = Array.isArray(inputCategories) ? inputCategories.slice() : [];
+        const originalIndex = new Map();
+        categories.forEach((c, i) => originalIndex.set(c, i));
+
+        function rankCategory(name) {
+          const n = String(name || '').trim().toLowerCase();
+          if (/\bmeat\b/.test(n)) return 0;
+          if (/\bdairy\b/.test(n) || /\bpastry\b/.test(n)) return 1;
+          if (/\bcleaning\b/.test(n)) return 2;
+          if (/\bfruit\b/.test(n) || /\bvegetable\b/.test(n) || /\bproduce\b/.test(n)) return 3;
+          if (/\bdry\s*ingredients\b/.test(n) || /\bpantry\b/.test(n)) return 4;
+          if (/\bother\b/.test(n)) return 5;
+          if (/\baction\b/.test(n)) return 6;
+          if (/\buncategoris(?:ed|e?d)\b/.test(n)) return 7;
+          return 50;
+        }
+
+        return categories.sort((a, b) => {
+          const ra = rankCategory(a);
+          const rb = rankCategory(b);
+          if (ra !== rb) return ra - rb;
+          return (originalIndex.get(a) || 0) - (originalIndex.get(b) || 0);
+        });
+      }
+
+      function renderAlignedComparison(teacherItems, comparison) {
+        if (!teacherItems.length) {
+          alignedComparison.innerHTML = '<div class="ms-muted">No teacher uploaded items found.</div>';
+          return;
+        }
+
+        const teacherCategoryOrder = [];
+        teacherItems.forEach((item) => {
+          const category = String(item.category || 'Other').trim() || 'Other';
+          if (!teacherCategoryOrder.includes(category)) teacherCategoryOrder.push(category);
+        });
+
+        const orderedCategories = sortTeacherCategories(teacherCategoryOrder);
+
+        const byCategoryRows = new Map();
+        orderedCategories.forEach((cat) => byCategoryRows.set(cat, []));
+
+        const matchedByTeacher = new Map();
+        (comparison.matched || []).forEach((match) => {
+          const key = teacherSignature(match.teacher);
+          if (!matchedByTeacher.has(key)) matchedByTeacher.set(key, []);
+          matchedByTeacher.get(key).push(match);
+        });
+
+        // Teacher order drives row order, with matching book item if present.
+        teacherItems.forEach((teacher) => {
+          const category = String(teacher.category || 'Other').trim() || 'Other';
+          const key = teacherSignature(teacher);
+          const queue = matchedByTeacher.get(key) || [];
+          const match = queue.length ? queue.shift() : null;
+          byCategoryRows.get(category).push({
+            type: match ? (match.type === 'same' ? 'Same' : 'Close') : 'Teacher Only',
+            book: match ? formatBookItem(match.book) : '',
+            teacher: teacher.raw
+          });
+        });
+
+        // Append book-only items into the best matching teacher master category.
+        (comparison.bookOnly || []).forEach((book) => {
+          const category = pickCategoryForBookItem(book, orderedCategories);
+          if (!byCategoryRows.has(category)) byCategoryRows.set(category, []);
+          byCategoryRows.get(category).push({
+            type: 'Book Only',
+            book: formatBookItem(book),
+            teacher: ''
+          });
+        });
+
+        let html = '';
+        orderedCategories.forEach((category) => {
+          const rows = byCategoryRows.get(category) || [];
+          html += `<h4 style="margin:0.55rem 0 0.2rem;color:#0f172a;font-size:0.9rem;">${escHtml(category)}</h4>`;
+          html += '<table class="ms-table"><thead><tr><th style="width:100px;">Result</th><th>Book Shopping</th><th>Teacher List</th></tr></thead><tbody>';
+          if (!rows.length) {
+            html += '<tr><td colspan="3" class="ms-muted">No items in this category.</td></tr>';
+          } else {
+            rows.forEach((row) => {
+              html += '<tr>'
+                + `<td>${escHtml(row.type)}</td>`
+                + `<td>${escHtml(row.book)}</td>`
+                + `<td>${escHtml(row.teacher)}</td>`
+                + '</tr>';
+            });
+          }
+          html += '</tbody></table>';
+        });
+
+        alignedComparison.innerHTML = html;
+      }
+
+      async function runComparison() {
+        if (!selectedSavedList) {
+          setStatus(listsStatus, 'Choose a teacher uploaded shopping list first.', 'error');
+          return;
+        }
+
+        const source = String(compareSourceSelect.value || 'book');
+        const isTechnician = source === 'technician';
+
+        const bookingIds = Array.from(selectedBookingIds).filter((id) => Number.isInteger(id) && id > 0);
+        if (!isTechnician && !bookingIds.length) {
+          setStatus(bookingsStatus, 'Select at least one booking before running comparison.', 'error');
+          return;
+        }
+
+        if (isTechnician) {
+          const planId = Number(technicianPlanIdInput.value || 0);
+          if (!Number.isInteger(planId) || planId <= 0) {
+            setStatus(bookingsStatus, 'Enter a valid finalized plan ID for Technician comparison.', 'error');
+            return;
+          }
+        }
+
+        runCompareBtn.disabled = true;
+        setStatus(bookingsStatus, isTechnician ? 'Running Technician vs Teacher comparison...' : 'Running comparison...', '');
+        try {
+          let sourceItems = [];
+          if (isTechnician) {
+            const planId = Number(technicianPlanIdInput.value || 0);
+            const technicianData = await requestJson('/api/shopping-plan/' + planId + '/technician-view');
+            sourceItems = flattenTechnicianItems(technicianData);
+          } else {
+            const qs = new URLSearchParams({ booking_ids: bookingIds.join(',') });
+            const bookData = await requestJson('/api/ingredients/shopping_list/by_category_inventory?' + qs.toString());
+            sourceItems = flattenBookItems(bookData);
+          }
+
+          const teacherItems = flattenTeacherItems(selectedSavedList);
+          const comparison = buildComparison(sourceItems, teacherItems);
+
+          countSourceLabel.textContent = isTechnician ? 'Technician Items' : 'Book Items';
+          countBook.textContent = String(sourceItems.length);
+          countTeacher.textContent = String(teacherItems.length);
+          countMatched.textContent = String(comparison.matched.length);
+          countDifferent.textContent = String(comparison.bookOnly.length + comparison.teacherOnly.length);
+
+          if (isTechnician) {
+            recipeComparisonSection.hidden = true;
+          } else {
+            const selectedBookingRows = weekBookings.filter((row) => selectedBookingIds.has(Number(row.id || 0)));
+            const bookingRecipes = selectedBookingRows.map((row) => String(row && row.recipe || '').trim()).filter(Boolean);
+            const teacherRecipes = (selectedSavedList && selectedSavedList.state && Array.isArray(selectedSavedList.state.classRecipeRows))
+              ? selectedSavedList.state.classRecipeRows.map((row) => String(row && row.recipe || '').trim()).filter(Boolean)
+              : [];
+            const recipeComparison = buildRecipeComparison(bookingRecipes, teacherRecipes);
+            renderRecipeMatches(recipeComparison);
+            recipeComparisonSection.hidden = false;
+
+            if (recipeComparison.bookingOnly.length || recipeComparison.teacherOnly.length) {
+              setStatus(bookingsStatus, 'Comparison complete. Recipe list has differences between Add Booking and uploaded list.', 'ok');
+            } else {
+              setStatus(bookingsStatus, 'Comparison complete.', 'ok');
+            }
+          }
+
+          renderAlignedComparison(teacherItems, comparison);
+          comparisonCard.hidden = false;
+
+          const teacherOnlyItems = comparison.teacherOnly || [];
+          const sendBar = document.getElementById('sendToExtrasBar');
+          const sendCount = document.getElementById('sendToExtrasCount');
+          if (teacherOnlyItems.length > 0) {
+            sendCount.textContent = teacherOnlyItems.length + ' Teacher-Only item(s) not in Book Shopping.';
+            sendBar.hidden = false;
+            sendBar._teacherOnlyItems = teacherOnlyItems;
+            sendBar._weekDate = dateEndInput.value.trim();
+          } else {
+            sendBar.hidden = true;
+          }
+
+          if (isTechnician) {
+            setStatus(bookingsStatus, 'Technician vs Teacher comparison complete.', 'ok');
+          }
+
+        } catch (err) {
+          setStatus(bookingsStatus, 'Error: ' + (err.message || String(err)), 'error');
+        }
+        runCompareBtn.disabled = false;
+      }
+
+      savedListSelect.addEventListener('change', () => {
+        const id = Number(savedListSelect.value || 0);
+        selectedSavedList = savedLists.find((s) => Number(s.id) === id) || null;
+        if (selectedSavedList) {
+          setDefaultDateEndFromSaved(selectedSavedList);
+          setStatus(listsStatus, 'Selected list: ' + (selectedSavedList.title || 'Shopping List'), 'ok');
+        }
+      });
+
+      refreshListsBtn.addEventListener('click', loadSavedLists);
+      termFilterSelect.addEventListener('change', renderSavedOptions);
+      weekFilterSelect.addEventListener('change', renderSavedOptions);
+      dateEndInput.addEventListener('input', renderSavedOptions);
+      clearFiltersBtn.addEventListener('click', () => {
+        termFilterSelect.value = '';
+        weekFilterSelect.value = '';
+        dateEndInput.value = '';
+        renderSavedOptions();
+      });
+
+      loadWeekBookingsBtn.addEventListener('click', loadWeekBookings);
+      runCompareBtn.addEventListener('click', runComparison);
+
+      compareSourceSelect.addEventListener('change', () => {
+        const isTechnician = compareSourceSelect.value === 'technician';
+        technicianPlanField.style.display = isTechnician ? '' : 'none';
+        loadWeekBookingsBtn.disabled = isTechnician;
+        selectAllBookingsBtn.disabled = isTechnician;
+        clearBookingsBtn.disabled = isTechnician;
+        if (isTechnician) {
+          setStatus(bookingsStatus, 'Technician mode: select finalized plan, then Run Comparison.', '');
+        } else {
+          setStatus(bookingsStatus, selectedBookingIds.size + ' booking(s) selected.', selectedBookingIds.size ? 'ok' : '');
+        }
+      });
+
+      technicianPlanSelect.addEventListener('change', () => {
+        const id = Number(technicianPlanSelect.value || 0);
+        if (Number.isInteger(id) && id > 0) technicianPlanIdInput.value = String(id);
+      });
+
+      loadTechnicianPlansBtn.addEventListener('click', () => {
+        const current = Number(technicianPlanIdInput.value || 0);
+        loadFinalizedPlanOptions(Number.isInteger(current) && current > 0 ? current : null);
+      });
+
+      selectAllBookingsBtn.addEventListener('click', () => {
+        weekBookings.forEach((row) => selectedBookingIds.add(Number(row.id || 0)));
+        renderBookings();
+        setStatus(bookingsStatus, selectedBookingIds.size + ' booking(s) selected.', 'ok');
+      });
+
+      clearBookingsBtn.addEventListener('click', () => {
+        selectedBookingIds.clear();
+        renderBookings();
+        setStatus(bookingsStatus, 'Booking selection cleared.', '');
+      });
+
+      // Keep Date End empty initially so saved-list selector is not pre-filtered.
+      dateEndInput.value = '';
+      renderBookings();
+      loadSavedLists();
+      loadFinalizedPlanOptions(null);
+      compareSourceSelect.dispatchEvent(new Event('change'));
+      document.getElementById('sendToExtrasBtn').addEventListener('click', function () {
+        const sendBar = document.getElementById('sendToExtrasBar');
+        const items = (sendBar._teacherOnlyItems || []).map((t) => ({
+          category: String(t.category || 'Other').trim(),
+          item_text: String(t.raw || '').trim()
+        })).filter((t) => t.item_text);
+        if (!items.length) return;
+        try {
+          sessionStorage.setItem('shoppingExtrasImport', JSON.stringify({
+            weekDate: sendBar._weekDate || '',
+            items
+          }));
+        } catch (_) {}
+        window.location.href = 'shopping_extras.html';
+      });
+    })();
+  </script>
+</body>
+</html>

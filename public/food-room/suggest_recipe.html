@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Suggest a Recipe</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .suggest-box { max-width: 430px; margin: 2em auto; background: #f8fbff; border: 2px solid #2196f3; border-radius: 10px; padding: 1.5em 2em; }
+        .suggest-box h2 { color: #1976d2; margin-top: 0; }
+        .suggest-box label { font-weight: bold; display: block; margin-top: 1em; }
+        .suggest-box input, .suggest-box textarea { width: 100%; margin-top: 0.3em; margin-bottom: 0.7em; padding: 0.7em; border: 1px solid #bbb; border-radius: 5px; font-size: 1em; }
+        .suggest-box textarea { min-height: 70px; }
+        .suggest-box button { background: #1976d2; color: #fff; border: none; border-radius: 5px; padding: 0.7em 1.5em; font-size: 1em; font-weight: bold; cursor: pointer; margin-top: 1em; display: flex; align-items: center; gap: 0.5em; }
+        .suggest-box button:active { background: #125ea2; }
+        .suggest-box .desc { color: #444; margin-bottom: 1.2em; }
+        .suggest-box .hint { color: #5f6f82; font-size: 0.88em; margin-top: -0.3em; margin-bottom: 0.7em; }
+        .suggest-box .icon { font-size: 1.2em; }
+    </style>
+</head>
+<body>
+        <div id="navbar-include"></div>
+        <script src="shared/navbar_loader.js"></script>
+    <div class="suggest-box">
+        <h2><span class="icon">💡</span> Suggest a Recipe</h2>
+        <div class="desc">Have a recipe you'd like added to our collection? Share your suggestion with the VP!</div>
+        <form id="userSuggestForm">
+            <label>Your Name:
+                <input type="text" name="suggested_by" placeholder="First and last name" required>
+            </label>
+            <label>Your Email:
+                <input type="email" name="email" placeholder="name@school.nz" required>
+            </label>
+            <div class="hint">Please use a valid school/work email (Google or Microsoft account).</div>
+            <label>Recipe Name:
+                <input type="text" name="recipe_name" placeholder="e.g., Chocolate Chip Cookies" required>
+            </label>
+            <label>Recipe URL (optional):
+                <input type="url" name="url" placeholder="https://...">
+            </label>
+            <label>Why should we add this recipe?
+                <textarea name="reason" placeholder="Tell us why this recipe would be great for our students..." required></textarea>
+            </label>
+            <button type="submit"><span class="icon">📧</span> Send Suggestion</button>
+        </form>
+        <div id="suggestMsg" style="margin-top:1em;"></div>
+    </div>
+    <script src="suggest_recipe.js?v=20260412b"></script>
+</body>
+</html>

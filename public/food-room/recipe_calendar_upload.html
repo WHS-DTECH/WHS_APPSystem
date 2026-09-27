@@ -1,0 +1,1575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload Year Planner</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .rcal-page {
+      max-width: 1100px;
+      margin: 24px auto 48px;
+      padding: 0 1rem;
+    }
+    .rcal-layout {
+      max-width: 1500px;
+      margin: 24px auto 48px;
+      padding: 0 1rem;
+    }
+    .rcal-explorer {
+      display: none;
+    }
+    .rcal-explorer-card {
+      background: #fff;
+      border: 1px solid #d8dee6;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(15,23,42,0.07);
+      padding: 0.9rem 0.9rem 0.75rem;
+      max-height: calc(100vh - 120px);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .rcal-explorer-title {
+      font-size: 0.96rem;
+      font-weight: 700;
+      color: #1f2937;
+      margin: 0 0 0.35rem;
+    }
+    .rcal-explorer-sub {
+      margin: 0 0 0.6rem;
+      font-size: 0.79rem;
+      color: #6b7280;
+    }
+    .rcal-explorer-list {
+      overflow: auto;
+      padding-right: 0.2rem;
+    }
+    .rcal-explorer-item {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 0.45rem 0.5rem;
+      margin-bottom: 0.4rem;
+      background: #f8fbff;
+    }
+    .rcal-explorer-file {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #1f2937;
+      line-height: 1.25;
+      margin-bottom: 0.2rem;
+      word-break: break-word;
+    }
+    .rcal-explorer-meta {
+      font-size: 0.74rem;
+      color: #4b5563;
+      line-height: 1.3;
+    }
+    .rcal-explorer-empty {
+      font-size: 0.8rem;
+      color: #6b7280;
+      padding: 0.45rem 0.2rem;
+    }
+    .rcal-card {
+      background: #fff;
+      border: 1px solid #d8dee6;
+      border-radius: 14px;
+      box-shadow: 0 8px 24px rgba(15,23,42,0.07);
+      padding: 1.5rem 1.75rem;
+      margin-bottom: 1.5rem;
+    }
+    .rcal-card h2 {
+      margin: 0 0 0.25rem;
+      font-size: 1.25rem;
+      color: #1f2937;
+    }
+    .rcal-card .rcal-card-sub {
+      font-size: 0.93rem;
+      color: #4a5568;
+      margin-bottom: 1rem;
+    }
+    .rcal-upload-row {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .rcal-upload-row input[type="file"] {
+      flex: 1 1 260px;
+      border: 1px solid #d0d7de;
+      border-radius: 7px;
+      padding: 0.45rem 0.7rem;
+      font-size: 0.97rem;
+    }
+    .rcal-btn {
+      background: #1976d2;
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      padding: 0.5rem 1.3rem;
+      font-size: 0.97rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .rcal-btn:hover { background: #1565c0; }
+    .rcal-btn:disabled { background: #90a4ae; cursor: default; }
+    .rcal-btn-green { background: #2e7d32; }
+    .rcal-btn-green:hover { background: #1b5e20; }
+    .rcal-btn-teal { background: #00695c; }
+    .rcal-btn-teal:hover { background: #004d40; }
+    .rcal-status {
+      margin-top: 0.7rem;
+      font-size: 0.95rem;
+      color: #374151;
+      min-height: 1.4em;
+    }
+    .rcal-status.error { color: #c62828; }
+    .rcal-status.ok { color: #2e7d32; }
+    .rcal-table-wrap {
+      overflow-x: auto;
+      margin-top: 1rem;
+    }
+    .rcal-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.94rem;
+    }
+    .rcal-table th {
+      background: #1976d2;
+      color: #fff;
+      padding: 0.45rem 0.6rem;
+      text-align: left;
+      white-space: nowrap;
+    }
+    .rcal-table td {
+      border: 1px solid #e2e8f0;
+      padding: 0.35rem 0.5rem;
+      vertical-align: middle;
+    }
+    .rcal-table tr:nth-child(even) td { background: #f7fafc; }
+    .rcal-table input[type="text"],
+    .rcal-table input[type="date"],
+    .rcal-table select {
+      width: 100%;
+      border: 1px solid #c8d3de;
+      border-radius: 5px;
+      padding: 0.3rem 0.45rem;
+      font-size: 0.93rem;
+      box-sizing: border-box;
+      background: #fff;
+    }
+    .rcal-table input[type="text"]:focus,
+    .rcal-table input[type="date"]:focus,
+    .rcal-table select:focus {
+      outline: 2px solid #1976d2;
+    }
+    .rcal-badge-auto {
+      display: inline-block;
+      font-size: 0.72rem;
+      background: #e3f2fd;
+      color: #1565c0;
+      border-radius: 4px;
+      padding: 1px 5px;
+    }
+    .rcal-badge-missing {
+      display: inline-block;
+      font-size: 0.72rem;
+      background: #fff3e0;
+      color: #e65100;
+      border-radius: 4px;
+      padding: 1px 5px;
+    }
+    .rcal-remove-btn {
+      background: none;
+      border: none;
+      color: #c62828;
+      font-size: 1.15rem;
+      cursor: pointer;
+      padding: 0 0.3rem;
+    }
+    .rcal-add-row-btn {
+      margin-top: 0.6rem;
+      background: #455a64;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 0.38rem 1rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .rcal-ical-section {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 0.5rem;
+    }
+    .rcal-ical-url {
+      flex: 1 1 320px;
+      border: 1px solid #c8d3de;
+      border-radius: 7px;
+      padding: 0.42rem 0.7rem;
+      font-size: 0.92rem;
+      background: #f7fafc;
+      color: #1f2937;
+      font-family: monospace;
+    }
+    .rcal-period-options {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .rcal-period-options label {
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      cursor: pointer;
+    }
+    .rcal-raw-toggle {
+      font-size: 0.82rem;
+      color: #1976d2;
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-decoration: underline;
+      padding: 0;
+      margin-top: 0.25rem;
+    }
+    .rcal-raw-box {
+      margin-top: 0.5rem;
+      background: #f3f4f6;
+      border: 1px solid #d1d5db;
+      border-radius: 7px;
+      padding: 0.7rem;
+      font-size: 0.78rem;
+      font-family: monospace;
+      white-space: pre-wrap;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+    @media (max-width: 700px) {
+      .rcal-card { padding: 1rem; }
+      .rcal-upload-row { flex-direction: column; }
+    }
+    @media (min-width: 1220px) {
+      .rcal-layout {
+        display: grid;
+        grid-template-columns: 300px minmax(0, 1fr);
+        gap: 1rem;
+        align-items: start;
+      }
+      .rcal-explorer {
+        display: block;
+        position: sticky;
+        top: 0.75rem;
+      }
+      .rcal-page {
+        max-width: none;
+        margin: 0;
+        padding: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+
+  <div class="rcal-layout">
+    <aside class="rcal-explorer" aria-label="Uploaded planner files explorer">
+      <div class="rcal-explorer-card">
+        <h2 class="rcal-explorer-title">Planner Files</h2>
+        <p class="rcal-explorer-sub">Recent uploads with date and uploader staff code.</p>
+        <div id="plannerUploadsList" class="rcal-explorer-list">
+          <div class="rcal-explorer-empty">Loading uploaded planners...</div>
+        </div>
+      </div>
+    </aside>
+
+  <div class="rcal-page">
+    <h1 style="margin:0 0 0.25rem;color:#1f2937;">Upload Planners</h1>
+    <p style="color:#4a5568;margin:0 0 1.5rem;font-size:0.97rem;">
+      Upload your year-planner PDF to automatically extract the recipe schedule week by week.
+      Review and correct the data before saving it to the Year Planner.
+    </p>
+
+    <!-- Step 1: Upload -->
+    <div class="rcal-card" id="uploadCard">
+      <h2>Step 1 — Upload File</h2>
+      <div class="rcal-card-sub">Select your planner file (.pdf, .docx, or .xlsx). For DOCX/PDF only the Practical Lessons row is imported.</div>
+      <div class="rcal-upload-row">
+        <input type="file" id="pdfFileInput" accept="application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" aria-label="Select planner file">
+        <button class="rcal-btn" id="parseBtn" disabled>Extract Schedule</button>
+      </div>
+      <div class="rcal-status" id="parseStatus" role="status" aria-live="polite"></div>
+      <div id="plannerQuickLinks" style="margin-top:0.6rem;font-size:0.9rem;color:#334155;" aria-live="polite"></div>
+      <div>
+        <button class="rcal-raw-toggle" id="rawToggleBtn" hidden>Show raw extracted text</button>
+        <pre class="rcal-raw-box" id="rawTextBox" hidden></pre>
+      </div>
+    </div>
+
+    <div class="rcal-card" id="googleSyncCard">
+      <h2>Google Docs Planner Sync</h2>
+      <div class="rcal-card-sub">Trigger a live sync from configured Google planner docs without uploading a file.</div>
+      <div style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;">
+        <a class="rcal-btn" id="googleAuthBtn" href="/google/auth" target="_blank" rel="noopener noreferrer" style="text-decoration:none;display:inline-block;">Connect Google</a>
+        <button class="rcal-btn rcal-btn-teal" id="googleSyncNowBtn" type="button">Sync Google Docs Now</button>
+      </div>
+      <div id="googleSyncConfig" style="margin-top:0.65rem;font-size:0.9rem;color:#4b5563;">Checking sync configuration...</div>
+      <div class="rcal-status" id="googleSyncStatus" role="status" aria-live="polite"></div>
+
+      <div style="margin-top:0.95rem;border-top:1px solid #e5e7eb;padding-top:0.75rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.45rem;">
+          <strong style="font-size:0.9rem;color:#1f2937;">Recent Sync Runs</strong>
+          <button class="rcal-add-row-btn" id="refreshGoogleSyncHistoryBtn" type="button" style="margin-top:0;background:#334155;">Refresh</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="rcal-table" id="googleSyncHistoryTable" style="font-size:0.84rem;">
+            <thead>
+              <tr>
+                <th>Ran At</th>
+                <th>Trigger</th>
+                <th>Document</th>
+                <th>Parsed</th>
+                <th>Inserted</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="googleSyncHistoryBody">
+              <tr><td colspan="6" style="text-align:center;color:#6b7280;">Loading sync history...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Review -->
+    <div class="rcal-card" id="reviewCard" hidden>
+      <h2>Step 2 — Review &amp; Edit</h2>
+      <div class="rcal-card-sub">
+        Check each row. Edit the date, recipe or class name as needed. Rows marked
+        <span class="rcal-badge-auto">auto</span> were detected automatically.
+        Rows marked <span class="rcal-badge-missing">missing</span> need a recipe filled in.
+        Choose the class and school stream, then click <strong>Save to Year Planner</strong>.
+      </div>
+
+      <div style="margin-bottom:1rem;">
+        <label for="plannerStreamSelect" style="font-weight:600;font-size:0.95rem;">School:</label>
+        <select id="plannerStreamSelect" style="border:1px solid #c8d3de;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.95rem;width:220px;margin-left:0.5rem;">
+          <option value="Middle" selected>Middle</option>
+          <option value="Junior">Junior</option>
+          <option value="Senior">Senior (HOSP)</option>
+        </select>
+        <span style="font-size:0.87rem;color:#6b7280;margin-left:0.5rem;">Select School first to load the full class list.</span>
+      </div>
+
+      <div style="margin-bottom:1rem;">
+        <label for="classnameInput" style="font-weight:600;font-size:0.95rem;">Class name for all rows:</label>
+        <select id="classnameInput" style="border:1px solid #c8d3de;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.95rem;min-width:220px;margin-left:0.5rem;background:#fff;">
+          <option value="">Loading class names...</option>
+        </select>
+        <span id="classnameAutoHint" style="font-size:0.83rem;color:#2563eb;margin-left:0.6rem;display:none;">&#10003; Auto-detected from filename</span>
+        <span style="font-size:0.87rem;color:#6b7280;margin-left:0.5rem;">(You can override per-row)</span>
+      </div>
+
+      <!-- Term start date (shown for spreadsheet uploads that have no dates) -->
+      <div id="xlsxDateHelper" hidden style="margin-bottom:1rem;padding:0.75rem 1rem;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;">
+        <label for="xlsxTermStartDate" style="font-weight:600;font-size:0.95rem;color:#166534;">&#128197; Week 1 start date (Monday):</label>
+        <input type="date" id="xlsxTermStartDate" style="border:1px solid #86efac;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.95rem;margin-left:0.5rem;">
+        <span style="font-size:0.85rem;color:#4b5563;margin-left:0.6rem;">Enter the Monday of Week 1 to auto-fill all dates.</span>
+        <span id="xlsxSnapWarning" style="font-size:0.83rem;color:#b45309;margin-left:0.6rem;display:none;">&#9888; Date snapped to the following Monday.</span>
+      </div>
+
+      <div style="margin-bottom:1rem;font-size:0.9rem;color:#4b5563;">
+        Entries saved from this page are added to the <strong>Planner</strong> row in Booking Calendar and exported as full-day Google Calendar events.
+      </div>
+
+      <div class="rcal-table-wrap">
+        <table class="rcal-table" id="reviewTable">
+          <thead>
+            <tr>
+              <th style="width:44px;text-align:center;"><input type="checkbox" id="selectAllRowsToggle" title="Select all rows" aria-label="Select all rows"></th>
+              <th>Term</th>
+              <th>Week</th>
+              <th>Week Start Date</th>
+              <th>Recipe</th>
+              <th>URL</th>
+              <th>Class Name</th>
+              <th>Confidence</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="reviewTableBody"></tbody>
+        </table>
+      </div>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;margin-top:0.5rem;">
+        <button class="rcal-add-row-btn" id="addRowBtn" type="button">+ Add row</button>
+        <button class="rcal-add-row-btn" id="selectAllRowsBtn" type="button">Select All</button>
+        <button class="rcal-add-row-btn" id="clearSelectionBtn" type="button">Clear Selection</button>
+        <button class="rcal-add-row-btn" id="deleteSelectedRowsBtn" type="button" style="background:#fee2e2;border-color:#fecaca;color:#991b1b;">Delete Selected</button>
+      </div>
+      <div class="rcal-status" id="deleteStatus" role="status" aria-live="polite" style="margin-top:0.35rem;"></div>
+
+      <div style="margin-top:1.25rem;display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center;">
+        <button class="rcal-btn rcal-btn-green" id="saveBtn">Save to Year Planner</button>
+        <div class="rcal-status" id="saveStatus" role="status" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <!-- Google Calendar iCal Section -->
+    <div class="rcal-card">
+      <h2>Subscribe to Year Planner in Google Calendar</h2>
+      <div class="rcal-card-sub">
+        This live calendar feed shows all saved Year Planner entries.
+        Copy the link below and add it to Google Calendar as a URL calendar.
+      </div>
+      <div class="rcal-ical-section">
+        <input class="rcal-ical-url" id="icalUrlInput" type="text" readonly aria-label="iCal feed URL">
+        <button class="rcal-btn rcal-btn-teal" id="copyIcalBtn" type="button">Copy Link</button>
+        <a class="rcal-btn" id="downloadIcalBtn" href="#" download="booking_schedule.ics" style="text-decoration:none;display:inline-block;">Download .ics</a>
+      </div>
+      <div style="margin-top:0.9rem;font-size:0.9rem;color:#374151;">
+        <strong>How to subscribe in Google Calendar:</strong><br>
+        1. Open <a href="https://calendar.google.com" target="_blank" rel="noopener noreferrer">Google Calendar</a>
+        → click <strong>+ Other calendars</strong> → <strong>From URL</strong><br>
+        2. Paste the link above → <strong>Add calendar</strong><br>
+        3. Google will check for updates automatically (usually every 24 hours).
+      </div>
+
+      <div style="margin-top:1rem;padding:0.75rem 0.9rem;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;">
+        <div style="font-size:0.9rem;font-weight:600;color:#9a3412;margin-bottom:0.45rem;">Delete Planner Entries</div>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+          <label for="deletePlannerStreamSelect" style="font-size:0.88rem;color:#7c2d12;">Planner to delete:</label>
+          <select id="deletePlannerStreamSelect" style="border:1px solid #fdba74;border-radius:6px;padding:0.32rem 0.55rem;font-size:0.9rem;background:#fff;">
+            <option value="All" selected>All planners</option>
+            <option value="Middle">Middle</option>
+            <option value="Junior">Junior</option>
+            <option value="Senior">Senior (HOSP)</option>
+          </select>
+          <label for="deletePlannerClassSelect" style="font-size:0.88rem;color:#7c2d12;">Class:</label>
+          <select id="deletePlannerClassSelect" style="border:1px solid #fdba74;border-radius:6px;padding:0.32rem 0.55rem;font-size:0.9rem;background:#fff;min-width:240px;">
+            <option value="">All classes in selected school</option>
+          </select>
+          <button class="rcal-btn" id="deletePlannerEntriesBtn" type="button" style="background:#b91c1c;">Delete Planner Entries</button>
+          <span id="deletePlannerEntriesStatus" style="font-size:0.86rem;color:#7c2d12;"></span>
+        </div>
+      </div>
+
+      <!-- Mini calendar preview -->
+      <div style="margin-top:1.25rem;border-top:1px solid #e5e7eb;padding-top:1rem;">
+        <!-- Legend -->
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;font-size:0.79rem;margin-bottom:0.65rem;">
+          <span style="font-weight:600;color:#374151;">Legend:</span>
+          <span style="background:#dbeafe;border:1px solid #93c5fd;color:#1e40af;border-radius:4px;padding:1px 7px;font-weight:600;">&#9632; Middle School</span>
+          <span style="background:#dcfce7;border:1px solid #86efac;color:#166534;border-radius:4px;padding:1px 7px;font-weight:600;">&#9632; Junior School</span>
+          <span style="background:#ffedd5;border:1px solid #fdba74;color:#9a3412;border-radius:4px;padding:1px 7px;font-weight:600;">&#9632; Senior (HOSP)</span>
+          <span style="font-size:0.74rem;color:#6b7280;">Click &#x2715; on an entry to delete it.</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.75rem;">
+          <button id="miniCalPrevBtn" style="background:#f3f4f6;border:1px solid #d1d5db;border-radius:5px;padding:0.25rem 0.65rem;font-size:1.1rem;cursor:pointer;line-height:1;">&#8249;</button>
+          <strong id="miniCalMonthLabel" style="flex:1;text-align:center;font-size:0.97rem;color:#1f2937;"></strong>
+          <button id="miniCalWeekendBtn" style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:5px;padding:0.28rem 0.6rem;font-size:0.8rem;cursor:pointer;line-height:1.2;">Show Weekend</button>
+          <button id="miniCalNextBtn" style="background:#f3f4f6;border:1px solid #d1d5db;border-radius:5px;padding:0.25rem 0.65rem;font-size:1.1rem;cursor:pointer;line-height:1;">&#8250;</button>
+        </div>
+        <div id="miniCalGrid" style="font-size:0.87rem;">Loading…</div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <script>
+    // Local date formatter — avoids toISOString() UTC offset shifting dates in NZ timezone
+    function toLocalIso(d) {
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    // --- iCal URL setup ---
+    const icalUrl = `${window.location.origin}/api/bookings/ical`;
+    document.getElementById('icalUrlInput').value = icalUrl;
+    document.getElementById('downloadIcalBtn').href = icalUrl;
+    document.getElementById('copyIcalBtn').onclick = function() {
+      navigator.clipboard.writeText(icalUrl).then(() => {
+        this.textContent = 'Copied!';
+        setTimeout(() => { this.textContent = 'Copy Link'; }, 2000);
+      }).catch(() => {
+        const input = document.getElementById('icalUrlInput');
+        input.select();
+        input.focus();
+        const btn = this;
+        btn.textContent = 'Select & copy manually';
+        setTimeout(() => { btn.textContent = 'Copy Link'; }, 3000);
+      });
+    };
+
+    // --- PDF upload ---
+    const pdfFileInput = document.getElementById('pdfFileInput');
+    const parseBtn = document.getElementById('parseBtn');
+    const parseStatus = document.getElementById('parseStatus');
+    const reviewCard = document.getElementById('reviewCard');
+    const reviewTableBody = document.getElementById('reviewTableBody');
+    const selectAllRowsToggle = document.getElementById('selectAllRowsToggle');
+    const selectAllRowsBtn = document.getElementById('selectAllRowsBtn');
+    const clearSelectionBtn = document.getElementById('clearSelectionBtn');
+    const deleteSelectedRowsBtn = document.getElementById('deleteSelectedRowsBtn');
+    const deleteStatus = document.getElementById('deleteStatus');
+    const rawToggleBtn = document.getElementById('rawToggleBtn');
+    const rawTextBox = document.getElementById('rawTextBox');
+    const saveBtn = document.getElementById('saveBtn');
+    const saveStatus = document.getElementById('saveStatus');
+    const deletePlannerStreamSelect = document.getElementById('deletePlannerStreamSelect');
+    const deletePlannerClassSelect = document.getElementById('deletePlannerClassSelect');
+    const deletePlannerEntriesBtn = document.getElementById('deletePlannerEntriesBtn');
+    const deletePlannerEntriesStatus = document.getElementById('deletePlannerEntriesStatus');
+    const googleSyncNowBtn = document.getElementById('googleSyncNowBtn');
+    const googleSyncStatus = document.getElementById('googleSyncStatus');
+    const googleSyncConfig = document.getElementById('googleSyncConfig');
+    const plannerQuickLinks = document.getElementById('plannerQuickLinks');
+    let latestGoogleSyncHistory = [];
+    let latestConfiguredDocIds = [];
+    const googleSyncHistoryBody = document.getElementById('googleSyncHistoryBody');
+    const refreshGoogleSyncHistoryBtn = document.getElementById('refreshGoogleSyncHistoryBtn');
+    const classnameInput = document.getElementById('classnameInput');
+    const plannerUploadsList = document.getElementById('plannerUploadsList');
+    let plannerClassOptions = [];
+    let currentAuthUser = null;
+
+    function formatUploadDateTime(value) {
+      if (!value) return '-';
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return String(value);
+      return d.toLocaleString(undefined, {
+        year: 'numeric', month: 'short', day: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+    }
+
+    async function getCurrentAuthUser() {
+      if (currentAuthUser) return currentAuthUser;
+      try {
+        const res = await fetch('/api/auth/me', { credentials: 'include' });
+        const data = await res.json();
+        if (res.ok && data && data.authenticated && data.user) {
+          currentAuthUser = data.user;
+          return currentAuthUser;
+        }
+      } catch (_) {
+        // Ignore auth lookup errors.
+      }
+      return null;
+    }
+
+    async function renderPlannerUploadsExplorer() {
+      if (!plannerUploadsList) return;
+      plannerUploadsList.innerHTML = '<div class="rcal-explorer-empty">Loading uploaded planners...</div>';
+      try {
+        const res = await fetch('/api/bookings/planner-upload-history?limit=250', { credentials: 'include' });
+        const data = await res.json();
+        const rows = (res.ok && data && Array.isArray(data.uploads)) ? data.uploads : [];
+
+        if (!rows.length) {
+          plannerUploadsList.innerHTML = '<div class="rcal-explorer-empty">No planner files uploaded yet.</div>';
+          return;
+        }
+
+        plannerUploadsList.innerHTML = rows.map((row) => {
+          const fileName = escHtml(row.file_name || 'Uploaded planner file');
+          const staffCode = escHtml(row.uploaded_by_staff_code || '-');
+          const uploadedAt = escHtml(formatUploadDateTime(row.uploaded_at));
+          const stream = escHtml(row.planner_stream || '-');
+          const count = Number(row.bookings_saved || 0);
+          return `
+            <div class="rcal-explorer-item">
+              <div class="rcal-explorer-file">${fileName}</div>
+              <div class="rcal-explorer-meta">Uploaded: ${uploadedAt}</div>
+              <div class="rcal-explorer-meta">Staff Code: ${staffCode}</div>
+              <div class="rcal-explorer-meta">School: ${stream} | Saved rows: ${count}</div>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        plannerUploadsList.innerHTML = `<div class="rcal-explorer-empty">Failed to load uploads: ${escHtml(err.message || 'Unknown error')}</div>`;
+      }
+    }
+
+    const juniorFoodCodes = ['JFOOD', 'VEFOOD', 'MMFOOD', 'SDFOOD', 'PIFOOD', 'SRFOOD', 'JTRFOOD', 'MTRFOOD'];
+
+    async function loadPlannerClassOptions() {
+      const fallbackClasses = [
+        { code: 'MFOOD', name: 'Food and Nutrition', usageCount: 1 },
+        { code: 'JFOOD', name: 'Junior Food', usageCount: 1 },
+        { code: 'VEFOOD', name: 'Junior Food', usageCount: 1 },
+        { code: '11HOSP', name: 'Level 1 Hospitality', usageCount: 1 },
+        { code: '12HOSP', name: 'Level 2 Hospitality', usageCount: 1 },
+        { code: '13HOSP', name: 'Level 3 Hospitality', usageCount: 1 }
+      ];
+
+      let classes = fallbackClasses;
+      try {
+        const res = await fetch('/api/bookings/planner-class-options');
+        const data = await res.json();
+        if (res.ok && Array.isArray(data.classes) && data.classes.length) {
+          classes = data.classes;
+        }
+      } catch (err) {
+        console.warn('Failed to load planner class options, using fallback defaults.', err);
+      }
+
+      plannerClassOptions = classes.map((item) => ({
+        ...item,
+        stream: item.stream || inferPlannerStream(item.code || '')
+      }));
+
+      const topUsed = plannerClassOptions.filter((item) => Number(item.usageCount) > 0);
+      const remaining = plannerClassOptions.filter((item) => Number(item.usageCount) <= 0);
+
+      const currentStream = String(document.getElementById('plannerStreamSelect').value || 'Middle');
+      refreshClassnameDropdown(currentStream);
+      populateDeletePlannerClassOptions();
+    }
+
+    function inferPlannerStream(code) {
+      const value = String(code || '').trim().toUpperCase();
+      if (!value) return 'Other';
+      if (juniorFoodCodes.some((token) => value.includes(token))) return 'Junior';
+      if (value.includes('HOSP')) return 'Senior';
+      if (value.includes('MFOOD')) return 'Middle';
+      return 'Other';
+    }
+
+    function populateDeletePlannerClassOptions() {
+      const selectedStream = String(deletePlannerStreamSelect.value || 'All').trim();
+      const currentValue = String(deletePlannerClassSelect.value || '').trim();
+
+      let filtered = plannerClassOptions.slice();
+      if (selectedStream !== 'All') {
+        filtered = filtered.filter((item) => String(item.stream || inferPlannerStream(item.code || '')).trim() === selectedStream);
+      }
+
+      const options = ['<option value="">All classes in selected school</option>'];
+      filtered.forEach((item) => {
+        const labelParts = [item.code];
+        if (item.name) labelParts.push(item.name);
+        options.push(`<option value="${escHtml(item.code || '')}">${escHtml(labelParts.join(' - '))}</option>`);
+      });
+      deletePlannerClassSelect.innerHTML = options.join('');
+
+      if (currentValue && filtered.some((item) => item.code === currentValue)) {
+        deletePlannerClassSelect.value = currentValue;
+      } else {
+        deletePlannerClassSelect.value = '';
+      }
+    }
+
+    function setGlobalClassValue(value) {
+      const normalized = String(value || '').trim();
+      if (!normalized) {
+        classnameInput.value = '';
+        return;
+      }
+
+      const existingOption = Array.from(classnameInput.options).find((option) => option.value === normalized);
+      if (!existingOption) {
+        const option = document.createElement('option');
+        option.value = normalized;
+        option.textContent = normalized;
+        classnameInput.appendChild(option);
+      }
+      classnameInput.value = normalized;
+    }
+
+    loadPlannerClassOptions();
+    renderPlannerUploadsExplorer();
+
+    function setGoogleSyncStatus(message, kind) {
+      if (!googleSyncStatus) return;
+      googleSyncStatus.className = 'rcal-status' + (kind ? ` ${kind}` : '');
+      googleSyncStatus.textContent = message || '';
+    }
+
+    function formatSyncRunDate(value) {
+      if (!value) return '-';
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return String(value);
+      return d.toLocaleString(undefined, {
+        year: 'numeric', month: 'short', day: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+    }
+
+    function renderGoogleSyncHistoryRows(rows) {
+      if (!googleSyncHistoryBody) return;
+      if (!Array.isArray(rows) || !rows.length) {
+        googleSyncHistoryBody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#6b7280;">No sync history yet.</td></tr>';
+        return;
+      }
+
+      googleSyncHistoryBody.innerHTML = rows.map((row) => {
+        const ranAt = escHtml(formatSyncRunDate(row.ran_at));
+        const trigger = escHtml(String(row.trigger_source || '-'));
+        const documentName = escHtml(String(row.document_title || row.document_id || '-'));
+        const parsed = Number(row.parsed_rows || 0);
+        const inserted = Number(row.inserted_rows || 0);
+        const success = row.success !== false;
+        const skipped = row.skipped === true;
+        const error = String(row.error_message || '').trim();
+        const status = success
+          ? (skipped ? 'Skipped' : 'Success')
+          : 'Failed';
+        const statusStyle = success
+          ? (skipped ? 'color:#9a3412;font-weight:700;' : 'color:#166534;font-weight:700;')
+          : 'color:#b91c1c;font-weight:700;';
+
+        return `
+          <tr>
+            <td>${ranAt}</td>
+            <td>${trigger}</td>
+            <td title="${documentName}${error ? ' | ' + escHtml(error) : ''}">${documentName}</td>
+            <td>${parsed}</td>
+            <td>${inserted}</td>
+            <td style="${statusStyle}" title="${error ? escHtml(error) : ''}">${status}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function normalizePlannerTitle(value) {
+      return String(value || '').trim().toLowerCase();
+    }
+
+    function plannerSlotDefinitions() {
+      return [
+        { key: 'junior', label: 'Junior School', patterns: [/junior/] },
+        { key: 'middle', label: 'Middle School', patterns: [/middle/, /middleschool/, /mfood/] },
+        { key: 'hosp100', label: '11HOSP (100HOSP)', patterns: [/hp100/, /\b100\b/, /11hosp/] },
+        { key: 'hosp200', label: '12HOSP (200HOSP)', patterns: [/hp200/, /\b200\b/, /12hosp/] },
+        { key: 'hosp300', label: '13HOSP (300HOSP)', patterns: [/hp300/, /\b300\b/, /13hosp/] }
+      ];
+    }
+
+    function plannerManualLinkBySlotKey() {
+      return {
+        junior: 'https://docs.google.com/spreadsheets/d/110sYwULOvIXyOrtssazosKva9SwxMCovJIU4L_mNZBs/edit?usp=sharing'
+      };
+    }
+
+    function buildDocTitleById(historyRows) {
+      const byId = new Map();
+      (Array.isArray(historyRows) ? historyRows : []).forEach((row) => {
+        const docId = String(row && row.document_id || '').trim();
+        const title = String(row && row.document_title || '').trim();
+        if (!docId || !title) return;
+        if (!byId.has(docId)) byId.set(docId, title);
+      });
+      return byId;
+    }
+
+    function mapDocsToPlannerSlots(docIds, historyRows) {
+      const slots = plannerSlotDefinitions();
+      const titleById = buildDocTitleById(historyRows);
+      const unassigned = new Set((Array.isArray(docIds) ? docIds : []).filter(Boolean));
+      const assignedBySlot = new Map();
+
+      // First pass: assign by title patterns.
+      slots.forEach((slot) => {
+        for (const docId of unassigned) {
+          const title = normalizePlannerTitle(titleById.get(docId));
+          if (!title) continue;
+          if (slot.patterns.some((pattern) => pattern.test(title))) {
+            assignedBySlot.set(slot.key, docId);
+            unassigned.delete(docId);
+            break;
+          }
+        }
+      });
+
+      // Second pass: fill remaining slots by remaining doc order.
+      const remainingDocIds = Array.from(unassigned);
+      slots.forEach((slot) => {
+        if (assignedBySlot.has(slot.key)) return;
+        if (!remainingDocIds.length) return;
+        assignedBySlot.set(slot.key, remainingDocIds.shift());
+      });
+
+      return slots.map((slot) => ({
+        ...slot,
+        docId: assignedBySlot.get(slot.key) || '',
+        title: assignedBySlot.get(slot.key) ? (titleById.get(assignedBySlot.get(slot.key)) || '') : ''
+      }));
+    }
+
+    function renderPlannerQuickLinks(docIds, historyRows) {
+      if (!plannerQuickLinks) return;
+
+      const mapped = mapDocsToPlannerSlots(docIds, historyRows);
+      const manualLinks = plannerManualLinkBySlotKey();
+      plannerQuickLinks.innerHTML = `
+        <div style="font-weight:700;color:#1f2937;margin-bottom:0.25rem;">Quick planner links</div>
+        <div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;">
+          ${mapped.map((item) => {
+            if (item.docId) {
+              const safeId = escHtml(item.docId);
+              const safeLabel = escHtml(item.label);
+              const safeTitle = escHtml(item.title || item.label);
+              return `<a href="https://docs.google.com/document/d/${safeId}/edit" target="_blank" rel="noopener noreferrer" class="rcal-btn" style="padding:0.3rem 0.6rem;font-size:0.82rem;text-decoration:none;" title="${safeTitle}">${safeLabel}</a>`;
+            }
+            const manualUrl = manualLinks[item.key];
+            if (manualUrl) {
+              const safeManualUrl = escHtml(manualUrl);
+              const safeLabel = escHtml(item.label);
+              return `<a href="${safeManualUrl}" target="_blank" rel="noopener noreferrer" class="rcal-btn" style="padding:0.3rem 0.6rem;font-size:0.82rem;text-decoration:none;" title="${safeLabel}">${safeLabel}</a>`;
+            }
+            const safeMissingLabel = escHtml(`${item.label} (not configured)`);
+            return `<span class="rcal-btn" style="padding:0.3rem 0.6rem;font-size:0.82rem;opacity:0.5;cursor:not-allowed;" title="Planner not configured in GOOGLE_PLANNER_DOC_IDS">${safeMissingLabel}</span>`;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    async function loadGoogleSyncHistory() {
+      if (!googleSyncHistoryBody) return;
+      googleSyncHistoryBody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#6b7280;">Loading sync history...</td></tr>';
+      try {
+        const res = await fetch('/google/sync-history?limit=30', { credentials: 'include' });
+        const data = await res.json();
+        if (!res.ok || !data || !data.success) {
+          throw new Error((data && data.error) || 'Unable to load sync history.');
+        }
+        latestGoogleSyncHistory = Array.isArray(data.history) ? data.history : [];
+        renderGoogleSyncHistoryRows(latestGoogleSyncHistory);
+        renderPlannerQuickLinks(latestConfiguredDocIds, latestGoogleSyncHistory);
+      } catch (err) {
+        googleSyncHistoryBody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#b91c1c;">${escHtml(err.message || 'Failed to load sync history.')}</td></tr>`;
+      }
+    }
+
+    async function loadGoogleSyncConfig() {
+      if (!googleSyncConfig) return;
+      googleSyncConfig.textContent = 'Checking sync configuration...';
+      try {
+        const res = await fetch('/google/sync-config', { credentials: 'include' });
+        const data = await res.json();
+        if (!res.ok || !data || !data.success) {
+          throw new Error((data && data.error) || 'Unable to load Google sync config.');
+        }
+
+        const docs = Number(data.configuredDocs || 0);
+        const docIds = Array.isArray(data.configuredDocIds) ? data.configuredDocIds.map((id) => String(id || '').trim()).filter(Boolean) : [];
+        latestConfiguredDocIds = docIds;
+        const cron = String(data.cronExpression || '*/15 * * * *');
+        const tz = String(data.timezone || 'Pacific/Auckland');
+        const schedulerLabel = data.schedulerActive ? 'active' : 'inactive';
+        const tokenLabel = data.requiresToken ? 'token-protected' : 'open within app';
+
+        googleSyncConfig.textContent = `Configured docs: ${docs}. Schedule: ${cron} (${tz}), scheduler ${schedulerLabel}, manual trigger ${tokenLabel}.`;
+        renderPlannerQuickLinks(latestConfiguredDocIds, latestGoogleSyncHistory);
+        googleSyncNowBtn.disabled = docs < 1;
+        if (docs < 1) {
+          setGoogleSyncStatus('Set GOOGLE_PLANNER_DOC_IDS in Render to enable manual sync.', 'error');
+        }
+      } catch (err) {
+        googleSyncNowBtn.disabled = true;
+        googleSyncConfig.textContent = 'Unable to load sync config.';
+        if (plannerQuickLinks) {
+          plannerQuickLinks.innerHTML = '<span style="color:#b91c1c;">Unable to load planner quick links.</span>';
+        }
+        setGoogleSyncStatus(`Sync config error: ${err.message || 'Unknown error'}`, 'error');
+      }
+    }
+
+    googleSyncNowBtn.addEventListener('click', async () => {
+      googleSyncNowBtn.disabled = true;
+      setGoogleSyncStatus('Syncing configured Google Docs...', '');
+      try {
+        const res = await fetch('/google/sync-planners', {
+          method: 'POST',
+          credentials: 'include'
+        });
+        const data = await res.json();
+
+        if (res.status === 403) {
+          throw new Error('Sync token is enabled on the server. Use the protected webhook trigger or disable token requirement for UI sync.');
+        }
+        if (!res.ok) {
+          throw new Error((data && data.error) || 'Google sync failed.');
+        }
+
+        const synced = Array.isArray(data.synced) ? data.synced : [];
+        const parts = synced.map((entry) => {
+          const title = String(entry.title || entry.documentId || 'Document');
+          const inserted = Number(entry.inserted || 0);
+          const parsed = Number(entry.parsedRows || 0);
+          const skipped = entry.skipped ? ' (no parsed rows)' : '';
+          return `${title}: ${inserted}/${parsed} rows${skipped}`;
+        });
+        const summary = parts.length ? parts.join(' | ') : 'No configured documents were synced.';
+        setGoogleSyncStatus(`Google sync complete. ${summary}`, 'ok');
+        await Promise.all([renderMiniCal(), renderPlannerUploadsExplorer()]);
+      } catch (err) {
+        setGoogleSyncStatus(`Google sync error: ${err.message || 'Unknown error'}`, 'error');
+      } finally {
+        await Promise.all([loadGoogleSyncConfig(), loadGoogleSyncHistory()]);
+      }
+    });
+
+    refreshGoogleSyncHistoryBtn.addEventListener('click', loadGoogleSyncHistory);
+
+    Promise.all([loadGoogleSyncConfig(), loadGoogleSyncHistory()]);
+
+    function getDefaultClassNameForStream(stream) {
+      if (stream === 'Senior') return '11HOSP';
+      if (stream === 'Junior') return 'JFOOD';
+      return 'MFOOD';
+    }
+
+    function getClassOptionsForStream(stream) {
+      if (stream === 'Junior') return juniorFoodCodes;
+      if (stream === 'Senior') return ['11HOSP', '12HOSP', '13HOSP', 'HOSP', '11HOSPCOOK', '12HOSPCOOK', '13HOSPCOOK'];
+      return ['MFOOD'];
+    }
+
+    // Rebuild the global class name dropdown filtered to the current stream
+    function refreshClassnameDropdown(stream) {
+      const streamCodes = getClassOptionsForStream(stream);
+      const currentVal = String(classnameInput.value || '').trim();
+      const options = ['<option value="">Select class...</option>'];
+      const usedInStream = plannerClassOptions.filter((item) => streamCodes.includes(item.code));
+      const fallback = streamCodes.filter((code) => !usedInStream.some((u) => u.code === code))
+        .map((code) => ({ code, name: '' }));
+      [...usedInStream, ...fallback].forEach(({ code, name }) => {
+        const label = name ? `${code} - ${name}` : code;
+        options.push(`<option value="${escHtml(code)}">${escHtml(label)}</option>`);
+      });
+      classnameInput.innerHTML = options.join('');
+      const newVal = (currentVal && streamCodes.includes(currentVal)) ? currentVal : getDefaultClassNameForStream(stream);
+      setGlobalClassValue(newVal);
+    }
+
+    // Update per-row class selects to match available codes for stream
+    function refreshRowClassSelects(stream) {
+      const codes = getClassOptionsForStream(stream);
+      document.querySelectorAll('.rcal-classname').forEach((sel) => {
+        const current = sel.value;
+        sel.innerHTML = codes.map((c) => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('');
+        sel.value = (current && codes.includes(current)) ? current : codes[0];
+      });
+    }
+
+    function detectPlannerDefaults(sourceText) {
+      const text = String(sourceText || '').trim();
+      if (!text) return null;
+      const juniorPattern = new RegExp(juniorFoodCodes.join('|'), 'i');
+
+      if (/senior\s*school|hosp|hp100|hp300|year\s*13|13hosp/i.test(text)) {
+        return { stream: 'Senior', className: getDefaultClassNameForStream('Senior') };
+      }
+      if (/junior(?:\s*school|\s*recipes?|\s*food)?/i.test(text) || juniorPattern.test(text)) {
+        return { stream: 'Junior', className: getDefaultClassNameForStream('Junior') };
+      }
+      if (/middle\s*school|mfood/i.test(text)) {
+        return { stream: 'Middle', className: getDefaultClassNameForStream('Middle') };
+      }
+      return null;
+    }
+
+    function applyDetectedPlannerDefaults(detectedDefaults) {
+      if (!detectedDefaults) return;
+      const plannerStreamSelect = document.getElementById('plannerStreamSelect');
+      const classnameAutoHint = document.getElementById('classnameAutoHint');
+      const previousValue = classnameInput.value.trim();
+
+      plannerStreamSelect.value = detectedDefaults.stream;
+      refreshClassnameDropdown(detectedDefaults.stream);
+      setGlobalClassValue(detectedDefaults.className);
+      applyGlobalClassNameToRows(previousValue);
+      classnameAutoHint.style.display = '';
+    }
+
+    function applyGlobalClassNameToRows(previousValue = '') {
+      const nextValue = classnameInput.value.trim();
+      document.querySelectorAll('.rcal-classname').forEach((input) => {
+        const current = input.value.trim();
+        if (!current || (previousValue && current === previousValue)) {
+          input.value = nextValue;
+        }
+      });
+    }
+
+    function forceApplyGlobalClassNameToRows() {
+      const nextValue = classnameInput.value.trim();
+      if (!nextValue) return;
+      document.querySelectorAll('.rcal-classname').forEach((input) => {
+        input.value = nextValue;
+      });
+    }
+
+    pdfFileInput.addEventListener('change', () => {
+      parseBtn.disabled = !pdfFileInput.files.length;
+      parseStatus.textContent = '';
+      parseStatus.className = 'rcal-status';
+      const classnameAutoHint = document.getElementById('classnameAutoHint');
+      const fname = pdfFileInput.files.length ? pdfFileInput.files[0].name : '';
+      const detectedDefaults = detectPlannerDefaults(fname);
+      if (detectedDefaults) {
+        applyDetectedPlannerDefaults(detectedDefaults);
+      } else {
+        classnameAutoHint.style.display = 'none';
+      }
+    });
+
+    document.getElementById('plannerStreamSelect').addEventListener('change', function() {
+      const classnameAutoHint = document.getElementById('classnameAutoHint');
+      const previousValue = classnameInput.value.trim();
+      refreshClassnameDropdown(this.value || 'Middle');
+      refreshRowClassSelects(this.value || 'Middle');
+      applyGlobalClassNameToRows(previousValue);
+      classnameAutoHint.style.display = '';
+    });
+
+    deletePlannerStreamSelect.addEventListener('change', populateDeletePlannerClassOptions);
+
+    rawToggleBtn.addEventListener('click', () => {
+      const hidden = rawTextBox.hidden;
+      rawTextBox.hidden = !hidden;
+      rawToggleBtn.textContent = hidden ? 'Hide raw extracted text' : 'Show raw extracted text';
+    });
+
+    // Track whether current data came from a spreadsheet (no dates embedded)
+    let xlsxModeActive = false;
+    let xlsxWeekNums = []; // parallel array of weekNums for xlsx rows
+
+    document.getElementById('xlsxTermStartDate').addEventListener('change', function() {
+      const val = this.value;
+      if (!val || !xlsxModeActive) return;
+      const base = new Date(val + 'T00:00:00');
+      // Ensure it's a Monday; snap forward if not
+      const dow = base.getDay(); // 0=Sun,1=Mon...
+      const snapWarning = document.getElementById('xlsxSnapWarning');
+      if (dow !== 1) {
+        const diff = dow === 0 ? 1 : (8 - dow);
+        base.setDate(base.getDate() + diff);
+        // Update input using local date to avoid UTC offset shifting the date in NZ timezone
+        this.value = toLocalIso(base);
+        if (snapWarning) snapWarning.style.display = '';
+      } else {
+        if (snapWarning) snapWarning.style.display = 'none';
+      }
+      const rows = Array.from(reviewTableBody.querySelectorAll('tr'));
+      rows.forEach((tr, i) => {
+        const weekNum = xlsxWeekNums[i];
+        if (!weekNum) return;
+        const d = new Date(base);
+        d.setDate(d.getDate() + (weekNum - 1) * 7);
+        tr.querySelector('.rcal-date').value = toLocalIso(d);
+      });
+    });
+
+    parseBtn.addEventListener('click', async () => {
+      const file = pdfFileInput.files[0];
+      if (!file) return;
+      parseBtn.disabled = true;
+      parseStatus.className = 'rcal-status';
+      parseStatus.textContent = 'Reading file…';
+
+      try {
+        const dataUrl = await readFileAsDataUrl(file);
+        parseStatus.textContent = 'Sending file to server for extraction…';
+
+        const res = await fetch('/api/recipe_calendar_pdf/parse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileDataUrl: dataUrl })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          parseStatus.className = 'rcal-status error';
+          parseStatus.textContent = 'Error: ' + (data.error || 'Failed to parse file.');
+          parseBtn.disabled = false;
+          return;
+        }
+
+        const weeks = data.weeks || [];
+        xlsxModeActive = !!data.xlsxMode;
+        xlsxWeekNums = [];
+        document.getElementById('xlsxDateHelper').hidden = !xlsxModeActive;
+        document.getElementById('xlsxTermStartDate').value = '';
+
+        if (data.rawText) {
+          rawTextBox.textContent = data.rawText;
+          rawToggleBtn.hidden = false;
+          // Refine auto-detection using the document title/content when available.
+          applyDetectedPlannerDefaults(detectPlannerDefaults(data.rawText));
+        }
+
+        // For xlsx, try to detect term number from filename (e.g. T2)
+        if (xlsxModeActive) {
+          const termMatch = file.name.match(/[_\s-]T(\d)/i);
+          const termNum = termMatch ? parseInt(termMatch[1]) : 0;
+          weeks.forEach(w => { w.term = termNum; });
+        }
+
+        if (!weeks.length) {
+          parseStatus.className = 'rcal-status error';
+          parseStatus.textContent = 'No week entries could be extracted from the file. Try reviewing the raw text, or add rows manually.';
+          rawToggleBtn.hidden = false;
+          reviewCard.hidden = false;
+          renderTable([]);
+          parseBtn.disabled = false;
+          return;
+        }
+
+        if (!xlsxModeActive) injectMissingWeek1s(weeks);
+        parseStatus.className = 'rcal-status ok';
+        parseStatus.textContent = `Extracted ${weeks.length} week(s). Review below and correct any errors before saving.`;
+        if (xlsxModeActive) {
+          xlsxWeekNums = weeks.map(w => w.weekNum);
+          parseStatus.textContent += ' Enter Week 1 start date above to auto-fill dates.';
+        }
+        renderTable(weeks);
+        reviewCard.hidden = false;
+        reviewCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (err) {
+        parseStatus.className = 'rcal-status error';
+        parseStatus.textContent = 'Unexpected error: ' + (err.message || String(err));
+      }
+      parseBtn.disabled = false;
+    });
+
+    function readFileAsDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Failed to read file.'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function escHtml(str) {
+      return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function injectMissingWeek1s(weeks) {
+      // Group by term to find which terms are missing Week 1
+      const terms = [...new Set(weeks.map(w => w.term))];
+      for (const term of terms) {
+        const termWeeks = weeks.filter(w => w.term === term);
+        const hasWeek1 = termWeeks.some(w => Number(w.weekNum) === 1);
+        if (!hasWeek1) {
+          const week2 = termWeeks.find(w => Number(w.weekNum) === 2);
+          if (week2 && week2.startDate) {
+            const d = new Date(week2.startDate + 'T00:00:00');
+            d.setDate(d.getDate() - 7);
+            const iso = toLocalIso(d);
+            const insertIdx = weeks.indexOf(week2);
+            weeks.splice(insertIdx, 0, { term, weekNum: 1, startDate: iso, recipe: '', class_name: week2.class_name || '', confidence: 'missing' });
+          }
+        }
+      }
+    }
+
+    function renderTable(weeks) {
+      reviewTableBody.innerHTML = '';
+      for (const w of weeks) addRow(w);
+      syncSelectAllState();
+    }
+
+    function getReviewRows() {
+      return Array.from(reviewTableBody.querySelectorAll('tr'));
+    }
+
+    function getRowSelectors() {
+      return Array.from(reviewTableBody.querySelectorAll('.rcal-row-select'));
+    }
+
+    function syncSelectAllState() {
+      const selectors = getRowSelectors();
+      if (!selectors.length) {
+        selectAllRowsToggle.checked = false;
+        selectAllRowsToggle.indeterminate = false;
+        return;
+      }
+      const checkedCount = selectors.filter(c => c.checked).length;
+      if (checkedCount === 0) {
+        selectAllRowsToggle.checked = false;
+        selectAllRowsToggle.indeterminate = false;
+      } else if (checkedCount === selectors.length) {
+        selectAllRowsToggle.checked = true;
+        selectAllRowsToggle.indeterminate = false;
+      } else {
+        selectAllRowsToggle.checked = false;
+        selectAllRowsToggle.indeterminate = true;
+      }
+    }
+
+    function addRow(w) {
+      w = w || { term: '', weekNum: '', startDate: '', recipe: '', url: '', class_name: '', confidence: 'manual' };
+      const globalClassName = document.getElementById('classnameInput').value.trim();
+      const tr = document.createElement('tr');
+      tr.dataset.confidence = w.confidence || 'manual';
+      tr.innerHTML = `
+        <td style="text-align:center;"><input type="checkbox" class="rcal-row-select" checked aria-label="Select row"></td>
+        <td><input type="text" class="rcal-term" value="${escHtml(String(w.term || ''))}" placeholder="1" style="width:48px;"></td>
+        <td><input type="text" class="rcal-week" value="${escHtml(String(w.weekNum || ''))}" placeholder="1" style="width:48px;"></td>
+        <td><input type="date" class="rcal-date" value="${escHtml(w.startDate || '')}"></td>
+        <td><input type="text" class="rcal-recipe" value="${escHtml(w.recipe || '')}" placeholder="Recipe name"></td>
+        <td><input type="url" class="rcal-url" value="${escHtml(w.url || '')}" placeholder="https://..." style="width:180px;"></td>
+        <td><select class="rcal-classname" style="padding:0.3rem 0.5rem;border:1px solid #c8d3de;border-radius:5px;font-size:0.88rem;">${getClassOptionsForStream(document.getElementById('plannerStreamSelect').value || 'Middle').map((c) => `<option value="${escHtml(c)}"${(w.class_name || globalClassName) === c ? ' selected' : ''}>${escHtml(c)}</option>`).join('')}</select></td>
+        <td>
+          ${w.confidence === 'auto' ? '<span class="rcal-badge-auto">auto</span>' :
+            w.confidence === 'missing' ? '<span class="rcal-badge-missing">missing</span>' :
+            '<span style="font-size:0.8rem;color:#6b7280;">manual</span>'}
+        </td>
+        <td><button class="rcal-remove-btn" title="Remove row" aria-label="Remove row">&#x2715;</button></td>
+      `;
+      tr.querySelector('.rcal-remove-btn').onclick = () => {
+        tr.remove();
+        syncSelectAllState();
+      };
+      tr.querySelector('.rcal-row-select').addEventListener('change', syncSelectAllState);
+      reviewTableBody.appendChild(tr);
+      syncSelectAllState();
+    }
+
+    document.getElementById('addRowBtn').addEventListener('click', () => {
+      addRow(null);
+    });
+
+    selectAllRowsToggle.addEventListener('change', () => {
+      getRowSelectors().forEach(cb => { cb.checked = selectAllRowsToggle.checked; });
+      syncSelectAllState();
+    });
+
+    selectAllRowsBtn.addEventListener('click', () => {
+      getRowSelectors().forEach(cb => { cb.checked = true; });
+      syncSelectAllState();
+    });
+
+    clearSelectionBtn.addEventListener('click', () => {
+      getRowSelectors().forEach(cb => { cb.checked = false; });
+      syncSelectAllState();
+    });
+
+    deleteSelectedRowsBtn.addEventListener('click', () => {
+      const rows = getReviewRows();
+      const selectedRows = rows.filter(r => r.querySelector('.rcal-row-select')?.checked);
+      if (!selectedRows.length) {
+        deleteStatus.className = 'rcal-status error';
+        deleteStatus.textContent = 'No rows selected to delete.';
+        return;
+      }
+      if (!confirm(`Delete ${selectedRows.length} selected row(s)?`)) return;
+      selectedRows.forEach(r => r.remove());
+      syncSelectAllState();
+      deleteStatus.className = 'rcal-status ok';
+      deleteStatus.textContent = `Deleted ${selectedRows.length} row(s).`;
+    });
+
+    // Fill class name from global input when rows are added
+    // Track previous value so applyGlobalClassNameToRows can also update rows that still hold the old default
+    let _prevGlobalClassName = classnameInput.value.trim();
+    classnameInput.addEventListener('change', function() {
+      // "Class name for all rows" should explicitly overwrite each row when changed by user.
+      forceApplyGlobalClassNameToRows();
+      _prevGlobalClassName = this.value.trim();
+    });
+
+    saveBtn.addEventListener('click', async () => {
+      const rows = Array.from(reviewTableBody.querySelectorAll('tr'));
+
+      const globalClassName = classnameInput.value.trim();
+      const plannerStream = document.getElementById('plannerStreamSelect').value || 'Middle';
+      const bookings = [];
+
+      for (const row of rows) {
+        const recipe = row.querySelector('.rcal-recipe').value.trim();
+        const url = row.querySelector('.rcal-url').value.trim();
+        const startDate = row.querySelector('.rcal-date').value.trim();
+        const className = row.querySelector('.rcal-classname').value.trim() || globalClassName || '';
+        if (!recipe || !startDate) continue; // skip incomplete rows
+
+        bookings.push({
+          booking_date: startDate,
+          period: 'Planner',
+          recipe: recipe,
+          recipe_url: url,
+          class_name: className,
+          planner_stream: plannerStream,
+          staff_id: null,
+          staff_name: null,
+          recipe_id: null,
+          class_size: null
+        });
+      }
+
+      if (!bookings.length) {
+        saveStatus.className = 'rcal-status error';
+        saveStatus.textContent = 'No complete rows to save. Make sure each row has a date and recipe name.';
+        return;
+      }
+
+      saveBtn.disabled = true;
+      saveStatus.className = 'rcal-status';
+      saveStatus.textContent = `Saving ${bookings.length} booking(s)…`;
+
+      let saved = 0;
+      let failed = 0;
+      let savedIds = [];
+      let summaryNote = '';
+      try {
+        const authUser = await getCurrentAuthUser();
+        const fileName = String((pdfFileInput.files && pdfFileInput.files[0] && pdfFileInput.files[0].name) || '').trim();
+        const res = await fetch('/api/bookings/batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            bookings,
+            meta: {
+              file_name: fileName,
+              planner_stream: plannerStream,
+              uploaded_by_email: authUser && authUser.email ? authUser.email : '',
+              uploaded_by_name: authUser && authUser.name ? authUser.name : ''
+            }
+          })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          saved = data.saved || 0;
+          const updatedCount = data.updated || 0;
+          const skippedDupes = data.skipped || 0;
+          savedIds = Array.isArray(data.ids) ? data.ids : [];
+
+          const parts = [];
+          if (saved > 0) parts.push(`${saved} new`);
+          if (updatedCount > 0) parts.push(`${updatedCount} updated`);
+          if (skippedDupes > 0) parts.push(`${skippedDupes} unchanged`);
+          summaryNote = parts.length ? `(${parts.join(', ')})` : '';
+
+          // Auto-match recipes after successful save
+          const hasChanges = saved + updatedCount > 0;
+          if (!hasChanges && skippedDupes > 0) {
+            saveStatus.className = 'rcal-status ok';
+            saveStatus.textContent = `All ${skippedDupes} row(s) are already up to date — nothing changed.`;
+          } else if (hasChanges) {
+            saveStatus.textContent = `Saved ${summaryNote}. Auto-matching recipes…`;
+            try {
+              const matchRes = await fetch('/api/recipe-matching/auto-match', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(savedIds.length ? { bookingIds: savedIds } : { bookings })
+              });
+              const matchData = await matchRes.json();
+              if (matchRes.ok) {
+                const { autoMatched, needsReview } = matchData.summary;
+                saveStatus.textContent = `✓ Done ${summaryNote}. Auto-matched ${autoMatched} recipe(s).`;
+                if (needsReview > 0) {
+                  saveStatus.innerHTML += ` ${needsReview} recipe(s) need <a href="admin_match_recipes.html" style="color:#1565c0;text-decoration:underline;font-weight:600;">Manual Review</a>.`;
+                }
+              }
+            } catch (matchErr) {
+              console.warn('Auto-match failed (non-critical):', matchErr);
+              saveStatus.textContent = `✓ Done ${summaryNote}. Auto-match could not run; use `;
+              saveStatus.innerHTML += `<a href="admin_match_recipes.html" style="color:#1565c0;text-decoration:underline;font-weight:600;">Match Planner Recipes</a>.`;
+            }
+          }
+        } else {
+          failed = bookings.length;
+          console.error('Batch save failed:', data.error);
+        }
+      } catch (err) {
+        failed = bookings.length;
+        console.error('Batch save error:', err);
+      }
+
+      saveBtn.disabled = false;
+      if (failed === 0) {
+        saveStatus.className = 'rcal-status ok';
+        if (!saveStatus.textContent.includes('Auto-matched')) {
+            saveStatus.textContent = `✓ Done ${summaryNote} successfully.`;
+        }
+        renderMiniCal(); // refresh calendar after saving
+        renderPlannerUploadsExplorer();
+      } else {
+        saveStatus.className = 'rcal-status error';
+        saveStatus.textContent = `Saved ${saved} booking(s), but ${failed} failed. Check the console for details.`;
+      }
+    });
+
+    deletePlannerEntriesBtn.addEventListener('click', async () => {
+      const stream = (deletePlannerStreamSelect.value || 'All').trim();
+      const className = (deletePlannerClassSelect.value || '').trim();
+      const label = className
+        ? (stream === 'All' ? `planner entries for ${className}` : `${stream} planner entries for ${className}`)
+        : (stream === 'All' ? 'all planner entries' : `${stream} planner entries`);
+      if (!confirm(`Delete ${label}? This cannot be undone.`)) {
+        return;
+      }
+
+      deletePlannerEntriesBtn.disabled = true;
+      deletePlannerEntriesStatus.style.color = '#7c2d12';
+      deletePlannerEntriesStatus.textContent = `Deleting ${label}...`;
+
+      try {
+        const qs = new URLSearchParams({ stream });
+        if (className) qs.set('className', className);
+        const res = await fetch(`/api/bookings/clear-planners?${qs.toString()}`, { method: 'DELETE' });
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to delete planner entries.');
+        }
+
+        deletePlannerEntriesStatus.style.color = '#166534';
+        deletePlannerEntriesStatus.textContent = data.message || `Deleted ${label}.`;
+        await renderMiniCal();
+      } catch (err) {
+        deletePlannerEntriesStatus.style.color = '#b91c1c';
+        deletePlannerEntriesStatus.textContent = err.message || 'Failed to delete planner entries.';
+      } finally {
+        deletePlannerEntriesBtn.disabled = false;
+      }
+    });
+
+    // --- Mini month calendar ---
+    let miniCalDate = new Date();
+    miniCalDate.setDate(1);
+    let miniCalShowWeekends = false;
+
+    function normalizePlannerStream(booking) {
+      const explicit = String(booking && booking.planner_stream ? booking.planner_stream : '').trim().toLowerCase();
+      if (explicit === 'junior') return 'Junior';
+      if (explicit === 'senior') return 'Senior';
+      if (explicit === 'middle') return 'Middle';
+
+      const className = String(booking && booking.class_name ? booking.class_name : '').toLowerCase();
+      if (/(^|\b)jfood(\b|$)|junior/.test(className)) return 'Junior';
+      if (/(^|\b)hosp(\b|$)|senior|hp100/.test(className)) return 'Senior';
+      return 'Middle';
+    }
+
+    function streamChipStyle(stream) {
+      if (stream === 'Junior') return { bg: '#dcfce7', border: '#86efac', text: '#166534' };
+      if (stream === 'Senior') return { bg: '#ffedd5', border: '#fdba74', text: '#9a3412' };
+      return { bg: '#dbeafe', border: '#93c5fd', text: '#1e40af' }; // Middle
+    }
+
+    function isPlannerLikeBooking(booking) {
+      const period = String(booking && booking.period ? booking.period : '').trim().toLowerCase();
+      if (period === 'planner') return true;
+
+      const hasTeacher = Boolean(String(booking && booking.staff_id ? booking.staff_id : '').trim() ||
+        String(booking && booking.staff_name ? booking.staff_name : '').trim());
+      if (hasTeacher) return false;
+
+      const className = String(booking && booking.class_name ? booking.class_name : '').trim().toUpperCase();
+      return className === 'MFOOD' || className === 'JFOOD' || className === 'HOSP';
+    }
+
+    async function renderMiniCal() {
+      const grid = document.getElementById('miniCalGrid');
+      const label = document.getElementById('miniCalMonthLabel');
+      const weekendBtn = document.getElementById('miniCalWeekendBtn');
+      if (!grid || !label) return;
+      const year = miniCalDate.getFullYear();
+      const month = miniCalDate.getMonth();
+      label.textContent = miniCalDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+      if (weekendBtn) weekendBtn.textContent = miniCalShowWeekends ? 'Hide Weekend' : 'Show Weekend';
+
+      let allBookings = [];
+      try {
+        const res = await fetch('/api/bookings/all');
+        const data = await res.json();
+        allBookings = data.bookings || [];
+      } catch { }
+
+      // Build date -> unique recipe set for this month
+      // Snap Saturday (+2) / Sunday (+1) to the following Monday
+      function snapToMonday(isoDate) {
+        const d = new Date(isoDate + 'T00:00:00');
+        const dow = d.getDay();
+        if (dow === 0) d.setDate(d.getDate() + 1);
+        else if (dow === 6) d.setDate(d.getDate() + 2);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      }
+
+      const byDate = {};
+      for (const b of allBookings) {
+        if (!b.booking_date || !String(b.recipe || '').trim()) continue;
+        const isPlanner = isPlannerLikeBooking(b);
+        if (!isPlanner) continue;
+
+        const snapped = snapToMonday(b.booking_date);
+        const parts = snapped.split('-').map(Number);
+        if (parts[0] !== year || parts[1] - 1 !== month) continue;
+        if (!byDate[snapped]) byDate[snapped] = [];
+        byDate[snapped].push({ id: b.id, recipe: String(b.recipe).trim(), stream: normalizePlannerStream(b) });
+      }
+
+      const lastDay = new Date(year, month + 1, 0).getDate();
+      const startDow = (new Date(year, month, 1).getDay() + 6) % 7; // 0=Mon
+      const todayIso = toLocalIso(new Date());
+
+      let html = '<table style="width:100%;border-collapse:collapse;">';
+      html += '<thead><tr>' + ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+        .map((d, idx) => `<th style="padding:4px 2px;color:#6b7280;font-weight:600;text-align:center;font-size:0.8rem;${(!miniCalShowWeekends && idx >= 5) ? 'display:none;' : ''}">${d}</th>`).join('') + '</tr></thead><tbody><tr>';
+
+      let col = startDow;
+      for (let i = 0; i < startDow; i++) {
+        html += `<td style="border:1px solid #f3f4f6;height:56px;${(!miniCalShowWeekends && i >= 5) ? 'display:none;' : ''}"></td>`;
+      }
+
+      for (let day = 1; day <= lastDay; day++) {
+        const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const entries = byDate[iso] ? byDate[iso] : [];
+        const isToday = iso === todayIso;
+        const dowMon0 = (new Date(year, month, day).getDay() + 6) % 7;
+        html += `<td style="border:1px solid #f3f4f6;vertical-align:top;padding:3px 2px;height:56px;${isToday ? 'background:#eff6ff;' : ''}${(!miniCalShowWeekends && dowMon0 >= 5) ? 'display:none;' : ''}">` +
+          `<div style="font-size:0.78rem;font-weight:${isToday ? '700' : '600'};color:${isToday ? '#1d4ed8' : '#374151'};margin-bottom:2px;">${day}</div>` +
+          entries.map(e => {
+            const chip = streamChipStyle(e.stream);
+            return `<div style="background:${chip.bg};border:1px solid ${chip.border};border-radius:3px;padding:1px 3px;font-size:0.68rem;color:${chip.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:1px;display:flex;align-items:center;gap:2px;" title="${escHtml(e.recipe)} (${e.stream})"><span style="flex:1;overflow:hidden;text-overflow:ellipsis;">${escHtml(e.recipe)}</span><button class="mini-cal-delete-btn" data-booking-id="${e.id}" data-recipe="${escHtml(e.recipe)}" style="background:none;border:none;cursor:pointer;color:${chip.text};font-size:0.75em;opacity:0.65;padding:0;line-height:1;flex-shrink:0;" title="Delete" aria-label="Delete ${escHtml(e.recipe)}">&#x2715;</button></div>`;
+          }).join('') +
+          '</td>';
+        col++;
+        if (col % 7 === 0 && day < lastDay) html += '</tr><tr>';
+      }
+
+      const trailing = (7 - (col % 7)) % 7;
+      for (let i = 0; i < trailing; i++) {
+        const colIdx = (col + i) % 7;
+        html += `<td style="border:1px solid #f3f4f6;height:56px;${(!miniCalShowWeekends && colIdx >= 5) ? 'display:none;' : ''}"></td>`;
+      }
+      html += '</tr></tbody></table>';
+      grid.innerHTML = html;
+    }
+
+    document.getElementById('miniCalPrevBtn').onclick = () => { miniCalDate.setMonth(miniCalDate.getMonth() - 1); renderMiniCal(); };
+    document.getElementById('miniCalNextBtn').onclick = () => { miniCalDate.setMonth(miniCalDate.getMonth() + 1); renderMiniCal(); };
+    document.getElementById('miniCalWeekendBtn').onclick = () => { miniCalShowWeekends = !miniCalShowWeekends; renderMiniCal(); };
+
+    // Delete handler for mini-cal chips (event delegation on the grid container)
+    document.addEventListener('click', async (e) => {
+      const btn = e.target.closest('.mini-cal-delete-btn');
+      if (!btn) return;
+      if (!btn.closest('#miniCalGrid')) return;
+      const id = btn.dataset.bookingId;
+      const ariaLabel = btn.getAttribute('aria-label') || '';
+      const recipe = ariaLabel.startsWith('Delete ') ? ariaLabel.slice(7) : (btn.dataset.recipe || '');
+      if (!id) return;
+      if (!confirm(`Delete planner entry "${recipe}"?`)) return;
+      btn.disabled = true;
+      try {
+        const res = await fetch(`/api/bookings/${id}`, { method: 'DELETE' });
+        if (!res.ok) { alert('Failed to delete entry.'); btn.disabled = false; return; }
+        await renderMiniCal();
+      } catch { alert('Error deleting entry.'); btn.disabled = false; }
+    });
+
+    renderMiniCal();
+  </script>
+</body>
+</html>

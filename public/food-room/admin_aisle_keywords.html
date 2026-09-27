@@ -1,0 +1,38 @@
+<!-- Admin Aisle Keywords Page -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Load Aisle Keywords</title>
+  <link rel="stylesheet" href="admin_styles.css">
+</head>
+<body>
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+  <div class="admin-app" style="max-width:900px;margin:48px auto 48px auto;background:#fff;padding:2.5rem 2rem 2.5rem 2rem;border-radius:12px;">
+    <h1>Load Aisle Keywords</h1>
+    <div id="aisle-keywords-table-container">
+      <form id="add-aisle-keyword-form" style="margin-bottom:1.5rem;display:flex;gap:1em;align-items:center;">
+        <select id="add-category-select" required></select>
+        <input id="add-keyword-input" type="text" placeholder="New keyword..." required style="min-width:180px;">
+        <button type="submit">Add</button>
+      </form>
+      <table id="aisle-keywords-table" style="width:100%;border-collapse:collapse;margin-bottom:2rem;">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Aisle Category</th>
+            <th>Keyword</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="aisle-keywords-tbody">
+          <!-- Populated by JS -->
+        </tbody>
+      </table>
+    </div>
+    <div id="aisle-keywords-status"></div>
+  </div>
+  <script src="admin_aisle_keywords.js"></script>
+</body>
+</html>

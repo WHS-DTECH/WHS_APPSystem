@@ -1,0 +1,1470 @@
+        <script>
+          // Helper: set Recipe ID filter and trigger filter
+      function setRecipeIdAndFilter(recipeId) {
+        const filterInput = document.getElementById('filter-recipe-id');
+        console.log('[setRecipeIdAndFilter] Called with recipeId:', recipeId);
+        if (filterInput) {
+          filterInput.value = recipeId;
+          console.log('[setRecipeIdAndFilter] Set filter input value to:', filterInput.value);
+          if (typeof filterAndShowByRecipeId === 'function') {
+            console.log('[setRecipeIdAndFilter] Calling filterAndShowByRecipeId');
+            filterAndShowByRecipeId();
+          } else {
+            console.warn('[setRecipeIdAndFilter] filterAndShowByRecipeId is not a function');
+          }
+        } else {
+          console.warn('[setRecipeIdAndFilter] filter-recipe-id input not found');
+        }
+      }
+          // Load Extracted Ingredients button logic
+            document.addEventListener('DOMContentLoaded', function() {
+              // Always render the inventory table on page load
+              fetch('/api/ingredients/inventory/all')
+                .then(res => res.json())
+                .then(data => {
+                  // Debug output removed
+                  const ingredients = Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : (Array.isArray(data.ingredients) ? data.ingredients : []));
+                  const container = document.getElementById('ingredients-inventory-table');
+                  // Debug output removed
+                  // Debug output removed
+                  // Call function if possible
+                  if (typeof window.renderIngredientsInventoryTable === 'function') {
+                    //if (container) container.innerHTML = '<div style="color:green;font-weight:bold;">[DEBUG] Calling renderIngredientsInventoryTable with ' + ingredients.length + ' ingredients.</div>';
+                    // Debug output removed
+                    window.renderIngredientsInventoryTable(ingredients);
+                  } else {
+                    if (container) container.innerHTML = '<div style="color:red;font-weight:bold;">Error: renderIngredientsInventoryTable is not defined.</div>';
+                    console.error('renderIngredientsInventoryTable is not defined');
+                  }
+                })
+                .catch(err => {
+                  const container = document.getElementById('ingredients-inventory-table');
+                  // Debug output removed
+                  if (container) container.innerHTML = '<div style="color:red;font-weight:bold;">Error loading inventory data: ' + (err && err.message ? err.message : err) + '</div>';
+                  console.error('Error loading inventory data:', err);
+                });
+            const loadExtractedBtn = document.getElementById('loadExtractedIngredientsBtn');
+                if (loadExtractedBtn) {
+              loadExtractedBtn.addEventListener('click', function() {
+                const recipeId = document.getElementById('recipeSelectForText').value;
+                console.log('[Show Recipe Ingredients] Clicked. Recipe ID:', recipeId);
+                if (recipeId) {
+                  setRecipeIdAndFilter(recipeId);
+                } else {
+                  console.warn('[Show Recipe Ingredients] No recipeId found');
+                }
+              });
+            }
+              function filterAndShowByRecipeId(forceShowAll = false) {
+                const filterInput = document.getElementById('filter-recipe-id');
+                if (!filterInput) {
+                  console.warn("filter-recipe-id input not found");
+                  return;
+                }
+                const recipeId = filterInput.value;
+                console.log('[filterAndShowByRecipeId] Called. Recipe ID:', recipeId, 'forceShowAll:', forceShowAll);
+                if (recipeId && !forceShowAll) {
+                  fetch(`/api/ingredients/inventory/all`)
+                    .then(res => res.json())
+                    .then(data => {
+                      const ingredients = Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : (Array.isArray(data.ingredients) ? data.ingredients : []));
+                      const filtered = ingredients.filter(row => String(row.recipe_id) === String(recipeId));
+                      console.log('[filterAndShowByRecipeId] Filtered ingredients:', filtered);
+                      window.renderIngredientsInventoryTable(filtered);
+                    });
+                } else if (typeof renderIngredientsInventory === 'function') {
+                  console.log('[filterAndShowByRecipeId] Showing all ingredients');
+                  renderIngredientsInventory();
+                } else {
+                  console.warn('[filterAndShowByRecipeId] renderIngredientsInventory is not a function');
+                }
+              }
+              const showBtn = document.getElementById('show-ingredients-btn');
+              if (showBtn) showBtn.onclick = function() { filterAndShowByRecipeId(); };
+              const filterBtn = document.getElementById('filter-ingredients-btn');
+              if (filterBtn) filterBtn.onclick = function() {
+                const recipeId = document.getElementById('filter-recipe-id').value;
+                if (!recipeId) return;
+                fetch(`/api/ingredients/inventory/all`)
+                  .then(res => res.json())
+                  .then(data => {
+                    // Support both {data: [...]} and {ingredients: [...]} and raw array
+                    const ingredients = Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : (Array.isArray(data.ingredients) ? data.ingredients : []));
+                    const filtered = ingredients.filter(row => String(row.recipe_id) === String(recipeId));
+                    if (typeof renderIngredientsInventory === 'function') {
+                      // Overwrite the table with only filtered rows
+                      const container = document.getElementById('ingredients-inventory-table');
+                      if (container) {
+                        container.innerHTML = '';
+                        // Reuse the table rendering logic from renderIngredientsInventory, but only for filtered
+                        window.renderIngredientsInventoryTable(filtered);
+                      }
+                    } else if (typeof renderIngredientsTable === 'function') {
+                      renderIngredientsTable(filtered);
+                    }
+                  });
+              };
+              // Helper to render the inventory table for a given array (for filter)
+              window.renderIngredientsInventoryTable = function(ingredients) {
+                const container = document.getElementById('ingredients-inventory-table');
+                if (!container) return;
+                // Use the same logic as in renderIngredientsInventory, but only for the given array
+                fetch('food_brands.json').then(res => res.json()).then(brands => {
+                  Promise.all([
+                    fetch('/api/aisle_keywords/all').then(res => res.json()),
+                    fetch('/api/aisle_category').then(res => res.json())
+                  ]).then(([keywordsData, aisleCategoryData]) => {
+                    const keywords = keywordsData.keywords || [];
+                    const categories = Array.isArray(aisleCategoryData && aisleCategoryData.categories)
+                      ? aisleCategoryData.categories
+                          .map(c => ({ id: c.id, name: c.name, sort_order: c.sort_order }))
+                          .sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0) || String(a.name || '').localeCompare(String(b.name || '')))
+                      : Array.from(new Set(keywords.map(k => k.aisle_category))).filter(Boolean).map((name, i) => ({ id: i + 1, name }));
+                    function safe(val) { return val === null || val === undefined ? '' : val; }
+                    function stripFoodItemDynamic(name) {
+                      let stripped = name.replace(/\s*\([^)]*\)\s*$/, '').trim();
+                      brands.forEach(brand => {
+                        const re = new RegExp('^' + brand.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&") + "('?s)?\\s+", 'i');
+                        stripped = stripped.replace(re, '');
+                      });
+                      stripped = stripped.replace(/\s*\+\s*extra.*$/i, '').trim();
+                      // Handle patterns like 'number fooditem (abc)' and extract fooditem
+                      // e.g. '16 marshmallows (best to use Explorer lollies)' -> 'marshmallows'
+                      const match = stripped.match(/^(\d+(?:\.\d+)?)?\s*([a-zA-Z][a-zA-Z'\-\s]*)/);
+                      if (match && match[2]) {
+                        let item = match[2].trim();
+                        if (/self[-\s]?raising\s+flour/i.test(item)) {
+                          return 'Self-Raising Flour';
+                        }
+                        // Special case for marshmallows
+                        if (/marshmallow/i.test(item)) {
+                          return 'marshmallows';
+                        }
+                        return item;
+                      }
+                      // Fallback: special case for marshmallows
+                      if (/marshmallow/i.test(stripped)) {
+                        return 'marshmallows';
+                      }
+                      return stripped.trim();
+                    }
+                    function findCategoryByKeyword(ingredient) {
+                      const lower = (ingredient || '').toLowerCase();
+                      const match = keywords.find(k => lower.includes((k.keyword || '').toLowerCase()));
+                      return match ? match.aisle_category : '';
+                    }
+
+                    window.ingredientsDirectorySort = window.ingredientsDirectorySort || { key: 'aisleCategory', direction: 'asc' };
+                    const sortState = window.ingredientsDirectorySort;
+                    const sortDir = sortState.direction === 'desc' ? -1 : 1;
+
+                    function getAssignedCategoryName(row) {
+                      if (row.aisle_category_id) {
+                        const catObj = categories.find(c => String(c.id) === String(row.aisle_category_id));
+                        return catObj ? catObj.name : '';
+                      }
+                      return findCategoryByKeyword(row.fooditem || row.ingredient_name || '');
+                    }
+
+                    function getStripFoodDisplay(row) {
+                      return (row.stripFoodItem || stripFoodItemDynamic(row.fooditem || '') || row.fooditem || '').trim();
+                    }
+
+                    function sortIndicator(key) {
+                      if (sortState.key !== key) return '↕';
+                      return sortState.direction === 'asc' ? '▲' : '▼';
+                    }
+
+                    const sortedIngredients = ingredients.slice().sort((a, b) => {
+                      let cmp = 0;
+                      if (sortState.key === 'recipeId') {
+                        cmp = (Number(a.recipe_id) || 0) - (Number(b.recipe_id) || 0);
+                      } else if (sortState.key === 'stripFoodItem') {
+                        cmp = getStripFoodDisplay(a).toLowerCase().localeCompare(getStripFoodDisplay(b).toLowerCase(), undefined, { sensitivity: 'base' });
+                      } else {
+                        cmp = (getAssignedCategoryName(a) || 'zzz_unassigned').toLowerCase().localeCompare((getAssignedCategoryName(b) || 'zzz_unassigned').toLowerCase(), undefined, { sensitivity: 'base' });
+                      }
+                      if (cmp === 0) {
+                        cmp = String(a.ingredient_name || '').localeCompare(String(b.ingredient_name || ''), undefined, { sensitivity: 'base' });
+                      }
+                      return cmp * sortDir;
+                    });
+
+                    const table = document.createElement('table');
+                    table.style.width = '100%';
+                    table.style.marginTop = '2rem';
+                    table.style.borderCollapse = 'collapse';
+                    // Debug: log categories and ingredients
+                    //console.log('[DEBUG] Categories:', categories);
+                    //console.log('[DEBUG] Ingredients:', sortedIngredients);
+                    // Build table HTML
+                    table.innerHTML = `
+                      <thead>
+                        <tr style="background:#f5f5f5;">
+                          <th style="border:1px solid #eee;padding:0.5rem 0.7rem;">ID</th>
+                          <th style="border:1px solid #eee;padding:0.5rem 0.7rem;">Ingredient Name</th>
+                          <th class="ingredients-sort-header" data-sort-key="recipeId" style="border:1px solid #eee;padding:0.5rem 0.7rem;cursor:pointer;user-select:none;">Recipe ID ${sortIndicator('recipeId')}</th>
+                          <th style="border:1px solid #eee;padding:0.5rem 0.7rem;">FoodItem</th>
+                          <th style="border:1px solid #eee;padding:0.5rem 0.7rem;">Measure Qty</th>
+                          <th style="border:1px solid #eee;padding:0.5rem 0.7rem;">Measure Unit</th>
+                          <th class="ingredients-sort-header" data-sort-key="stripFoodItem" style="border:1px solid #eee;padding:0.5rem 0.7rem;cursor:pointer;user-select:none;">StripFoodItem ${sortIndicator('stripFoodItem')}</th>
+                          <th class="ingredients-sort-header" data-sort-key="aisleCategory" style="border:1px solid #eee;padding:0.5rem 0.7rem;cursor:pointer;user-select:none;">Aisle Category ${sortIndicator('aisleCategory')}</th>
+                          <th style="border:1px solid #eee;padding:0.5rem 0.7rem;">Assign</th>
+                          <th style="border:1px solid #eee;padding:0.5rem 0.7rem;">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${sortedIngredients.length === 0 ? `<tr><td colspan='10' style='text-align:center;color:#888;padding:1rem;'>No ingredients in inventory.</td></tr>` :
+                          sortedIngredients.map(row => {
+                            let stripFood = stripFoodItemDynamic(row.fooditem || '');
+                            let assignedCategory = getAssignedCategoryName(row);
+                            return `<tr>
+                              <td style="border:1px solid #eee;padding:0.5rem 0.7rem;">${safe(row.id)}</td>
+                              <td style="border:1px solid #eee;padding:0.5rem 0.7rem;">${safe(row.ingredient_name)}</td>
+                              <td style="border:1px solid #eee;padding:0.5rem 0.7rem;">${safe(row.recipe_id)}</td>
+                              <td style="border:1px solid #eee;padding:0.5rem 0.7rem;">${safe(row.fooditem) || safe(row.measure_unit)}</td>
+                              <td style="border:1px solid #eee;padding:0.5rem 0.7rem;">${safe(row.measure_qty)}</td>
+                              <td style="border:1px solid #eee;padding:0.5rem 0.7rem;">${safe(row.measure_unit)}</td>
+                              <td style="border:1px solid #eee;padding:0.5rem 0.7rem; color:green;">${stripFood || safe(row.measure_unit)}</td>
+                              <td style="border:1px solid #eee;padding:0.5rem 0.7rem;">${assignedCategory}</td>
+                              <td style="border:1px solid #eee;padding:0.5rem 0.7rem;">
+                                <select data-id="${row.id}" class="aisle-category-select">
+                                  <option value="">--Assign--</option>
+                                  ${categories.slice().sort((a, b) => a.name.localeCompare(b.name)).map(c => {
+                                    // Compare aisle_category_id as string to c.id as string
+                                    const isSelected = String(row.aisle_category_id) === String(c.id);
+                                    return `<option value="${c.id}"${isSelected ? ' selected' : ''}>${c.name}</option>`;
+                                  }).join('')}
+                                </select>
+                              </td>
+                              <td style="border:1px solid #eee;padding:0.5rem 0.7rem; text-align:center;">
+                                <button class="delete-ingredient-btn" data-id="${row.id}" title="Delete this ingredient" style="color:#fff;background:#c00;border:none;padding:0.3rem 0.7rem;border-radius:3px;cursor:pointer;">Delete</button>
+                              </td>
+                            </tr>`;
+                          }).join('')}
+                      </tbody>
+                    `;
+                    // Debug: log generated table HTML
+                    // console.log('[DEBUG] Table HTML:', table.innerHTML);
+                    container.innerHTML = '';
+                    container.appendChild(table);
+
+                    table.querySelectorAll('.ingredients-sort-header').forEach(th => {
+                      th.onclick = function() {
+                        const key = this.getAttribute('data-sort-key');
+                        const current = window.ingredientsDirectorySort || { key: 'aisleCategory', direction: 'asc' };
+                        if (current.key === key) {
+                          current.direction = current.direction === 'asc' ? 'desc' : 'asc';
+                        } else {
+                          current.key = key;
+                          current.direction = 'asc';
+                        }
+                        window.ingredientsDirectorySort = current;
+                        window.renderIngredientsInventoryTable(ingredients);
+                      };
+                    });
+
+                    // Do NOT send to backend on change. Only update local state (the dropdown value is already changed in the DOM).
+                    // Backend update will be triggered by Save All Assignments button only.
+                    // No code needed here for onchange.
+                    // Add DELETE button logic
+                    table.querySelectorAll('.delete-ingredient-btn').forEach(btn => {
+                      if (!btn) return;
+                      btn.onclick = function() {
+                        const ingredientId = this.getAttribute('data-id');
+                        if (!confirm('Are you sure you want to delete this ingredient?')) return;
+                        fetch(`/api/ingredients/${ingredientId}`, {
+                          method: 'DELETE'
+                        })
+                        .then(res => res.json())
+                        .then(result => {
+                          if (result.success) {
+                            // Remove the row from the table in the UI
+                            window.renderIngredientsInventoryTable(ingredients.filter(row => row.id != ingredientId));
+                          } else {
+                            alert('Failed to delete ingredient.');
+                          }
+                        })
+                        .catch(() => alert('Failed to delete ingredient.'));
+                      };
+                    });
+                  });
+                });
+              };
+              const showAllBtn = document.getElementById('show-all-btn');
+              if (showAllBtn) showAllBtn.onclick = function() {
+                document.getElementById('filter-recipe-id').value = '';
+                filterAndShowByRecipeId(true);
+              };
+              const clearFilterBtn = document.getElementById('clear-filter-btn');
+              if (clearFilterBtn) clearFilterBtn.onclick = function() {
+                document.getElementById('filter-recipe-id').value = '';
+                if (typeof renderIngredientsTable === 'function') {
+                  renderIngredientsTable([]);
+                }
+              };
+              // Always auto-filter on page load
+              filterAndShowByRecipeId();
+            });
+          </script>
+    <script>
+      // Save Extracted Ingredients button logic
+      document.addEventListener('DOMContentLoaded', function() {
+        const saveExtractedBtn = document.getElementById('saveExtractedIngredientsBtn');
+        if (saveExtractedBtn) {
+          saveExtractedBtn.addEventListener('click', function() {
+            const recipeId = document.getElementById('recipeSelectForText').value;
+            const textarea = document.getElementById('textConvertArea');
+            if (!recipeId || !textarea.value.trim()) {
+              alert('Select a recipe and enter ingredients.');
+              return;
+            }
+            const ingredientsText = textarea.value.trim();
+            fetch(`/api/ingredients/inventory/${recipeId}/extracted`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ingredients_text: ingredientsText })
+            })
+            .then(async res => {
+              let data;
+              try {
+                data = await res.json();
+              } catch (e) {
+                alert('Failed to save extracted ingredients file: Invalid server response.');
+                return;
+              }
+              if (res.ok && data && (data.success || data.file)) {
+                alert('Extracted ingredients saved to ExtractedIngredients/' + recipeId + '.txt');
+              } else if (data && (data.fileError || data.error)) {
+                      // JavaScript logic moved to <script> tag at end of body. No JS code should be visible here.
+              } else {
+                alert('Failed to save extracted ingredients file: Unknown error (bad response)');
+              }
+            })
+            .catch(err => {
+              alert('Failed to save extracted ingredients file: ' + (err && err.message ? err.message : err));
+            });
+          });
+        }
+      });
+    </script>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ingredients Directory</title>
+  <link rel="stylesheet" href="../shared/style.css">
+  <link rel="stylesheet" href="shared/design_tokens.css">
+  <link rel="stylesheet" href="shared/base.css">
+  <link rel="stylesheet" href="shared/components.css">
+  <link rel="icon" type="image/x-icon" href="images/favicon.ico">
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+</head>
+<body>
+  <input type="hidden" id="recipe-id" value="">
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+  <style>
+    .ingredients-directory-card {
+      margin: 40px;
+    }
+
+    @media (max-width: 900px) {
+      .ingredients-directory-card {
+        margin: 18px 10px;
+      }
+
+      #ingredients-top-action-row,
+      #ingredients-filter-row {
+        align-items: stretch !important;
+      }
+
+      #ingredients-top-action-row select,
+      #ingredients-filter-row select,
+      #ingredients-top-action-row button,
+      #ingredients-filter-row button {
+        width: 100%;
+        min-width: 0 !important;
+      }
+
+      #save-status,
+      #filter-status {
+        margin-left: 0 !important;
+        display: block;
+      }
+
+      #insert-progress-wrapper,
+      #ingredients-input-panel,
+      #save-assignments-progress-wrap {
+        max-width: 100% !important;
+      }
+    }
+
+    @media print {
+      @page { margin: 10mm; }
+
+      #navbar-include,
+      #ingredients-top-action-row,
+      #insert-progress-wrapper,
+      #ingredients-input-panel,
+      #ingredients-filter-row,
+      #save-assignments-btn,
+      #save-assignments-status,
+      #save-assignments-progress-wrap,
+      #published-recipes-table-container,
+      #reformat-status {
+        display: none !important;
+      }
+
+      .ingredients-directory-card {
+        margin: 0 !important;
+        box-shadow: none !important;
+      }
+
+      #ingredients-inventory-table {
+        margin: 0 !important;
+        overflow: visible !important;
+      }
+
+      #ingredients-inventory-table table {
+        width: 100% !important;
+        border-collapse: collapse;
+      }
+
+      #ingredients-inventory-table th,
+      #ingredients-inventory-table td {
+        white-space: normal !important;
+        word-break: break-word;
+        font-size: 10pt;
+        padding: 5px 6px !important;
+      }
+    }
+  </style>
+  <div class="ingredients-directory-card" style="margin:40px;">
+    <h2>Ingredients Directory</h2>
+    <p>This page will list all ingredients used in recipes, with search and filter options.</p>
+
+    <div id="ingredients-top-action-row" style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;flex-wrap:wrap;">
+      <button id="deleteAllIngredientsBtn" style="background:#e53935;color:#fff;border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer;">DELETE ALL</button>
+      <select id="recipeSelectForText" style="min-width:180px;"></select>
+      <button id="insertIngredientsBtn" style="background:#6a1b9a;color:#fff;border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer;">Insert ingredients</button>
+      <button id="splitQuantityBtn" style="background:#00897b;color:#fff;border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer;display:none;">Split Quantity</button>
+      <span id="selectedRecipeIdLabel" style="font-weight:bold;color:#333;"></span>
+      <span id="save-status" style="margin-left:1rem;color:#009688;font-weight:bold;"></span>
+    </div>
+    <div id="insert-progress-wrapper" style="max-width:420px;margin:-0.2rem 0 1rem 0;">
+      <div style="height:12px;background:#eceff1;border:1px solid #cfd8dc;border-radius:999px;overflow:hidden;">
+        <div id="insert-progress-bar" style="height:100%;width:0%;background:#1976d2;transition:width 0.25s ease;"></div>
+      </div>
+      <div id="insert-progress-text" style="font-size:0.9rem;color:#455a64;margin-top:0.35rem;">Idle</div>
+    </div>
+
+    <!-- Paste and Preview UI moved up here -->
+    <div id="ingredients-input-panel" style="margin-bottom:1.5rem;max-width:650px;">
+      <label for="textConvertArea" style="font-weight:bold;">Paste or enter ingredients here:</label>
+      <textarea id="textConvertArea" rows="4" style="width:100%;max-width:600px;margin:1rem 0;display:block;" placeholder="e.g. 2 cups flour\n1 tsp salt\n..."></textarea>
+      <div style="margin-bottom:1rem;"></div>
+      <div id="insert-ingredients-preview-container" style="display:none;margin-bottom:1.5rem;">
+        <label style="font-weight:bold;">Preview: Extracted Ingredients File</label>
+        <pre id="insert-ingredients-preview" style="background:#f3eaff;border:1px solid #b39ddb;padding:1rem;border-radius:4px;max-width:600px;overflow-x:auto;"></pre>
+      </div>
+      <label for="ingredientsPreviewBox" style="font-weight:bold;">Recipe Ingredients Preview:</label>
+      <pre id="ingredientsPreviewBox" style="width:100%;max-width:600px;margin:1rem 0;display:block;background:#f3eaff;border:1px solid #b39ddb;padding:1rem;border-radius:4px;overflow-x:auto;min-height:60px;"></pre>
+    </div>
+    <!-- Table Title for Ingredients Directory -->
+    <h3 style="margin-top:2rem;margin-bottom:0.5rem;">Ingredients Directory</h3>
+
+
+    <!-- Recipe Filter Dropdown -->
+    <div id="ingredients-filter-row" style="margin-bottom:1rem;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+      <label for="filter-recipe-select" style="font-weight:bold;">Filter by Recipe:</label>
+      <select id="filter-recipe-select" style="min-width:180px;"></select>
+      <button id="trigger-recipe-filter-btn" style="background:#1976d2;color:#fff;border:none;padding:0.4rem 1rem;border-radius:4px;cursor:pointer;">Filter</button>
+      <button id="refresh-ingredients-table-btn" style="background:#455a64;color:#fff;border:none;padding:0.4rem 1rem;border-radius:4px;cursor:pointer;">Refresh Table</button>
+      <span id="filter-status" style="margin-left:1rem;color:#1976d2;font-weight:bold;"></span>
+    </div>
+    <!-- Hidden input for filtering by recipe ID (required by JS) -->
+    <input type="hidden" id="filter-recipe-id" value="">
+    <!-- Save Assignments Button -->
+    <div style="margin-bottom:1rem;">
+      <button id="save-assignments-btn" style="background:#388e3c;color:#fff;border:none;padding:0.5rem 1.2rem;border-radius:4px;cursor:pointer;font-weight:bold;">Save All Assignments</button>
+      <span id="save-assignments-status" style="margin-left:1rem;color:#388e3c;font-weight:bold;"></span>
+      <div id="save-assignments-progress-wrap" style="display:none;max-width:320px;margin-top:0.6rem;">
+        <div style="height:10px;background:#e8f5e9;border:1px solid #c8e6c9;border-radius:999px;overflow:hidden;">
+          <div id="save-assignments-progress-fill" style="height:100%;width:0%;background:#2e7d32;transition:width 0.2s ease;"></div>
+        </div>
+        <div id="save-assignments-progress-text" style="font-size:0.85rem;color:#2e7d32;margin-top:0.25rem;"></div>
+      </div>
+    </div>
+    <!-- Table container for dynamic rendering -->
+      <script>
+        // Save all assignments button logic
+        document.addEventListener('DOMContentLoaded', function() {
+          const saveBtn = document.getElementById('save-assignments-btn');
+          const progressWrap = document.getElementById('save-assignments-progress-wrap');
+          const progressFill = document.getElementById('save-assignments-progress-fill');
+          const progressText = document.getElementById('save-assignments-progress-text');
+
+          function setSaveProgress(percent, message, type) {
+            if (progressWrap) progressWrap.style.display = 'block';
+            if (progressFill) {
+              progressFill.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+              progressFill.style.background = type === 'error' ? '#c62828' : '#2e7d32';
+            }
+            if (progressText) {
+              progressText.textContent = message || '';
+              progressText.style.color = type === 'error' ? '#c62828' : '#2e7d32';
+            }
+          }
+
+          if (saveBtn) {
+            saveBtn.addEventListener('click', function() {
+              saveBtn.disabled = true;
+              saveBtn.textContent = 'Saving...';
+              document.getElementById('save-assignments-status').textContent = '';
+              setSaveProgress(0, 'Preparing assignments...');
+              // Collect all dropdowns and their values
+              const selects = document.querySelectorAll('.aisle-category-select');
+              const updates = [];
+              selects.forEach(sel => {
+                const ingredientId = sel.getAttribute('data-id');
+                const aisleId = sel.value;
+                if (aisleId) {
+                  updates.push({ ingredient_id: ingredientId, aisle_category_id: aisleId });
+                }
+              });
+              if (updates.length === 0) {
+                document.getElementById('save-assignments-status').textContent = 'No assignments to save.';
+                setSaveProgress(0, 'No assignments to save.');
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save All Assignments';
+                return;
+              }
+              // Send all updates in parallel
+              let completed = 0;
+              Promise.all(updates.map(async u => {
+                const res = await fetch('/api/ingredients/inventory/assign-aisle', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(u)
+                });
+                const data = await res.json();
+                if (!res.ok || !data.success) {
+                  throw new Error(data.error || `Failed to save assignment for ingredient ${u.ingredient_id}`);
+                }
+                completed += 1;
+                setSaveProgress(Math.round((completed / updates.length) * 100), `Saving ${completed}/${updates.length} assignments...`);
+                return data;
+              }))
+              .then(() => {
+                document.getElementById('save-assignments-status').textContent = 'Assignments saved!';
+                setSaveProgress(100, `Saved ${updates.length}/${updates.length} assignments.`);
+                // Refresh table with latest data
+                fetch('/api/ingredients/inventory/all')
+                  .then(res => res.json())
+                  .then(data => {
+                    const updatedIngredients = Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : (Array.isArray(data.ingredients) ? data.ingredients : []));
+                    window.renderIngredientsInventoryTable(updatedIngredients);
+                  });
+              })
+              .catch((err) => {
+                document.getElementById('save-assignments-status').textContent = 'Error saving assignments: ' + (err.message || err);
+                setSaveProgress(Math.round((completed / updates.length) * 100), 'Save failed before completion.', 'error');
+              })
+              .finally(() => {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save All Assignments';
+              });
+            });
+          }
+        });
+      </script>
+    <div id="ingredients-inventory-table" style="margin-top:2rem; margin-left:2rem; overflow-x:auto;"></div>
+  <script>
+    // Populate filter dropdown and wire up filtering
+    document.addEventListener('DOMContentLoaded', function() {
+      fetch('/api/recipes/display-table')
+        .then(res => res.json())
+        .then(data => {
+          const filterSelect = document.getElementById('filter-recipe-select');
+          if (filterSelect) {
+            const sorted = (Array.isArray(data) ? [...data] : []).sort((a, b) => {
+              const aId = Number(a.recipeid) || 0;
+              const bId = Number(b.recipeid) || 0;
+              return aId - bId;
+            });
+            filterSelect.innerHTML = '<option value="">-- Show All Recipes --</option>' +
+              sorted.map(r => `<option value="${r.recipeid}">${r.recipeid} | ${r.name || r.recipe_title || 'Recipe ' + r.recipeid}</option>`).join('');
+          }
+        });
+      const filterSelect = document.getElementById('filter-recipe-select');
+      const filterBtn = document.getElementById('trigger-recipe-filter-btn');
+      if (filterBtn && filterSelect) {
+        filterBtn.addEventListener('click', function() {
+          const recipeId = filterSelect.value;
+          document.getElementById('filter-recipe-id').value = recipeId;
+          filterBtn.disabled = true;
+          filterBtn.textContent = 'Filtering...';
+          document.getElementById('filter-status').textContent = '';
+          // Custom filter logic with feedback
+          fetch('/api/ingredients/inventory/all')
+            .then(res => res.json())
+            .then(data => {
+              const ingredients = Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : (Array.isArray(data.ingredients) ? data.ingredients : []));
+              let filtered = ingredients;
+              if (recipeId) {
+                filtered = ingredients.filter(row => String(row.recipe_id) === String(recipeId));
+              }
+              if (typeof window.renderIngredientsInventoryTable === 'function') {
+                window.renderIngredientsInventoryTable(filtered);
+              }
+              if (filtered.length === 0) {
+                document.getElementById('filter-status').textContent = 'No ingredients found for this recipe.';
+              }
+            })
+            .catch(() => {
+              document.getElementById('filter-status').textContent = 'Error filtering ingredients.';
+            })
+            .finally(() => {
+              filterBtn.disabled = false;
+              filterBtn.textContent = 'Filter';
+            });
+        });
+      }
+    });
+  </script>
+
+    <!-- Move all main scripts to end of body for reliability -->
+    </div>
+      <script>
+      window.ingredientsDirectorySort = window.ingredientsDirectorySort || { key: 'aisleCategory', direction: 'asc' };
+
+      // --- MOVE TABLE RENDER FUNCTION DEFINITION TO TOP ---
+      window.renderIngredientsInventoryTable = function(ingredients) {
+        const container = document.getElementById('ingredients-inventory-table');
+        if (!container) return;
+        fetch('food_brands.json').then(res => res.json()).then(brands => {
+          Promise.all([
+            fetch('/api/aisle_keywords/all').then(res => res.json()),
+            fetch('/api/aisle_category').then(res => res.json())
+          ]).then(([keywordsData, aisleCategoryData]) => {
+            const keywords = keywordsData.keywords || [];
+            const categories = Array.isArray(aisleCategoryData && aisleCategoryData.categories)
+              ? aisleCategoryData.categories
+                  .map(c => ({ id: c.id, name: c.name, sort_order: c.sort_order }))
+                  .sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0) || String(a.name || '').localeCompare(String(b.name || '')))
+              : Array.from(new Set(keywords.map(k => k.aisle_category))).filter(Boolean).map((name, i) => ({ id: i + 1, name }));
+            function safe(val) { return val === null || val === undefined ? '' : val; }
+            function stripFoodItemDynamic(name) {
+              let stripped = name.replace(/\s*\([^)]*\)\s*$/, '').trim();
+              brands.forEach(brand => {
+                const re = new RegExp('^' + brand.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&") + "('?s)?\\s+", 'i');
+                stripped = stripped.replace(re, '');
+              });
+              const match = stripped.match(/^(\d+)?\s*([a-zA-Z ]+)/);
+              if (match && match[2]) {
+                let item = match[2].trim();
+                if (/marshmallow/i.test(item)) {
+                  return 'marshmallows';
+                }
+                return item;
+              }
+              if (/marshmallow/i.test(stripped)) {
+                return 'marshmallows';
+              }
+              return stripped.trim();
+            }
+            function findCategoryByKeyword(ingredient) {
+              const lower = (ingredient || '').toLowerCase();
+              const match = keywords.find(k => lower.includes((k.keyword || '').toLowerCase()));
+              return match ? match.aisle_category : '';
+            }
+
+            function getAssignedCategoryName(row) {
+              if (row.aisle_category_id) {
+                const catObj = categories.find(c => String(c.id) === String(row.aisle_category_id));
+                return catObj ? catObj.name : '';
+              }
+              return findCategoryByKeyword(row.fooditem || row.ingredient_name || '');
+            }
+
+            function getStripFoodDisplay(row) {
+              return (row.stripFoodItem || stripFoodItemDynamic(row.fooditem || '') || row.fooditem || '').trim();
+            }
+
+            const sortState = window.ingredientsDirectorySort || { key: 'aisleCategory', direction: 'asc' };
+            const sortDir = sortState.direction === 'desc' ? -1 : 1;
+
+            function sortIndicator(key) {
+              if (sortState.key !== key) return '↕';
+              return sortState.direction === 'asc' ? '▲' : '▼';
+            }
+
+            const sortedIngredients = (Array.isArray(ingredients) ? ingredients.slice() : []).sort((a, b) => {
+              let cmp = 0;
+              if (sortState.key === 'recipeId') {
+                const recipeA = Number(a.recipe_id) || 0;
+                const recipeB = Number(b.recipe_id) || 0;
+                cmp = recipeA - recipeB;
+              } else if (sortState.key === 'stripFoodItem') {
+                const stripA = getStripFoodDisplay(a).toLowerCase();
+                const stripB = getStripFoodDisplay(b).toLowerCase();
+                cmp = stripA.localeCompare(stripB, undefined, { sensitivity: 'base' });
+              } else {
+                const categoryA = (getAssignedCategoryName(a) || 'zzz_unassigned').toLowerCase();
+                const categoryB = (getAssignedCategoryName(b) || 'zzz_unassigned').toLowerCase();
+                cmp = categoryA.localeCompare(categoryB, undefined, { sensitivity: 'base' });
+              }
+
+              if (cmp === 0) {
+                cmp = String(a.ingredient_name || '').localeCompare(String(b.ingredient_name || ''), undefined, { sensitivity: 'base' });
+              }
+              return cmp * sortDir;
+            });
+
+            const table = document.createElement('table');
+            table.style.width = '100%';
+            table.style.marginTop = '2rem';
+            table.style.borderCollapse = 'collapse';
+            table.innerHTML = `
+              <thead>
+                <tr style="background:#f5f5f5;">
+                  <th style="border:1px solid #eee;padding:0.5rem 0.7rem;">ID</th>
+                  <th style="border:1px solid #eee;padding:0.5rem 0.7rem;">Ingredient Name</th>
+                  <th class="ingredients-sort-header" data-sort-key="recipeId" style="border:1px solid #eee;padding:0.5rem 0.7rem;cursor:pointer;user-select:none;">Recipe ID ${sortIndicator('recipeId')}</th>
+                  <th style="border:1px solid #eee;padding:0.5rem 0.7rem;">Measure Qty</th>
+                  <th style="border:1px solid #eee;padding:0.5rem 0.7rem;">Measure Unit</th>
+                  <th style="border:1px solid #eee;padding:0.5rem 0.7rem;">FoodItem</th>
+                  <th class="ingredients-sort-header" data-sort-key="stripFoodItem" style="border:1px solid #eee;padding:0.5rem 0.7rem;cursor:pointer;user-select:none;">StripFoodItem ${sortIndicator('stripFoodItem')}</th>
+                  <th class="ingredients-sort-header" data-sort-key="aisleCategory" style="border:1px solid #eee;padding:0.5rem 0.7rem;cursor:pointer;user-select:none;">Aisle Category ${sortIndicator('aisleCategory')}</th>
+                  <th style="border:1px solid #eee;padding:0.5rem 0.7rem;">Assign</th>
+                  <th style="border:1px solid #eee;padding:0.5rem 0.7rem;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${sortedIngredients.length === 0 ? `<tr><td colspan='10' style='text-align:center;color:#888;padding:1rem;'>No ingredients in inventory.</td></tr>` :
+                  sortedIngredients.map(row => {
+                    let stripFood = stripFoodItemDynamic(row.fooditem || '');
+                    let assignedCategory = getAssignedCategoryName(row);
+                    return `<tr>
+                      <td style="border:1px solid #eee;padding:0.5rem 0.7rem;">${safe(row.id)}</td>
+                      <td style="border:1px solid #eee;padding:0.5rem 0.7rem;">${safe(row.ingredient_name)}</td>
+                      <td style="border:1px solid #eee;padding:0.5rem 0.7rem;">${safe(row.recipe_id)}</td>
+                      <td style="border:1px solid #eee;padding:0.5rem 0.7rem;">${safe(row.measure_qty)}</td>
+                      <td style="border:1px solid #eee;padding:0.5rem 0.7rem;">${safe(row.measure_unit)}</td>
+                      <td style="border:1px solid #eee;padding:0.5rem 0.7rem;">${safe(row.fooditem) || safe(row.measure_unit)}</td>
+                      <td style="border:1px solid #eee;padding:0.5rem 0.7rem; color:green;">${stripFood || safe(row.measure_unit)}</td>
+                      <td style="border:1px solid #eee;padding:0.5rem 0.7rem;">${assignedCategory}</td>
+                      <td style="border:1px solid #eee;padding:0.5rem 0.7rem;">
+                        <select data-id="${row.id}" class="aisle-category-select">
+                          <option value="">--Assign--</option>
+                          ${categories.slice().sort((a, b) => a.name.localeCompare(b.name)).map(c => `<option value="${c.id}"${assignedCategory === c.name ? ' selected' : ''}>${c.name}</option>`).join('')}
+                        </select>
+                      </td>
+                      <td style="border:1px solid #eee;padding:0.5rem 0.7rem; text-align:center;">
+                        <button class="delete-ingredient-btn" data-id="${row.id}" title="Delete this ingredient" style="color:#fff;background:#c00;border:none;padding:0.3rem 0.7rem;border-radius:3px;cursor:pointer;">Delete</button>
+                      </td>
+                    </tr>`;
+                  }).join('')}
+              </tbody>
+            `;
+            container.innerHTML = '';
+            container.appendChild(table);
+
+            table.querySelectorAll('.ingredients-sort-header').forEach(th => {
+              th.onclick = function() {
+                const key = this.getAttribute('data-sort-key');
+                const current = window.ingredientsDirectorySort || { key: 'aisleCategory', direction: 'asc' };
+                if (current.key === key) {
+                  current.direction = current.direction === 'asc' ? 'desc' : 'asc';
+                } else {
+                  current.key = key;
+                  current.direction = 'asc';
+                }
+                window.ingredientsDirectorySort = current;
+                window.renderIngredientsInventoryTable(ingredients);
+              };
+            });
+
+            table.querySelectorAll('.aisle-category-select').forEach(select => {
+              select.onchange = function() {
+                const ingredientId = this.getAttribute('data-id');
+                const aisleId = this.value;
+                fetch(`/api/ingredients/inventory/assign-aisle`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ ingredient_id: ingredientId, aisle_category_id: aisleId })
+                }).then(() => {
+                  window.renderIngredientsInventoryTable(ingredients);
+                });
+              };
+            });
+            table.querySelectorAll('.delete-ingredient-btn').forEach(btn => {
+              btn.onclick = function() {
+                const ingredientId = this.getAttribute('data-id');
+                if (confirm('Delete this ingredient?')) {
+                  fetch(`/api/ingredients/inventory/${ingredientId}`, { method: 'DELETE' })
+                    .then(() => {
+                      window.renderIngredientsInventoryTable(ingredients.filter(row => row.id != ingredientId));
+                    });
+                }
+              };
+            });
+          });
+        });
+      };
+
+      // --- END TABLE RENDER FUNCTION DEFINITION ---
+
+      document.addEventListener('DOMContentLoaded', function() {
+        // Convert Fragment button logic
+        const convertFragmentBtn = document.getElementById('convertFragmentBtn');
+        const textArea = document.getElementById('textConvertArea');
+        if (convertFragmentBtn && textArea) {
+          convertFragmentBtn.addEventListener('click', function() {
+            const recipeId = document.getElementById('recipeSelectForText')?.value;
+            let text = textArea.value.trim();
+            console.log('[ConvertFragment] RecipeID:', recipeId);
+            console.log('[ConvertFragment] Raw text:', text);
+            // Remove any 'recipeIngredient' label and extract the array if present
+            let arrayMatch = text.match(/"recipeIngredient"\s*:\s*(\[.*?\])/s);
+            if (arrayMatch) {
+              console.log('[ConvertFragment] Found recipeIngredient array:', arrayMatch[1]);
+              text = arrayMatch[1];
+            }
+            // Remove any object wrapper (e.g. { ... })
+            if (text.startsWith('{') && text.endsWith('}')) {
+              try {
+                let obj = JSON.parse(text);
+                if (obj.recipeIngredient && Array.isArray(obj.recipeIngredient)) {
+                  console.log('[ConvertFragment] Parsed object.recipeIngredient:', obj.recipeIngredient);
+                  text = obj.recipeIngredient.join('\n');
+                }
+              } catch (e) {
+                console.warn('[ConvertFragment] JSON.parse failed for object wrapper:', e);
+                // fallback: remove outer braces
+                text = text.replace(/^\{/, '').replace(/\}$/,'');
+              }
+            }
+            // If text is a JSON array, flatten it
+            if (text.startsWith('[') && text.endsWith(']')) {
+              try {
+                const arr = JSON.parse(text);
+                if (Array.isArray(arr)) {
+                  console.log('[ConvertFragment] Parsed JSON array:', arr);
+                  text = arr.join('\n');
+                }
+              } catch (e) {
+                console.warn('[ConvertFragment] JSON.parse failed for array:', e);
+              }
+            }
+            // Remove any remaining brackets, braces, or quotes, and flatten to lines
+            text = text.replace(/^[\[\]\{\}"]+/g, '').replace(/[\[\]\{\}"]+$/g, '');
+            let lines = text.split(/\r?\n|,/).map(l => l.replace(/^"|"$/g, '').trim()).filter(Boolean);
+            console.log('[ConvertFragment] Lines after split:', lines);
+            // Helper to convert unicode and vulgar fractions to float
+            function parseFraction(str) {
+              const vulgarMap = {
+                '¼': 0.25, '½': 0.5, '¾': 0.75,
+                '⅐': 1/7, '⅑': 1/9, '⅒': 0.1, '⅓': 1/3, '⅔': 2/3, '⅕': 0.2, '⅖': 0.4, '⅗': 0.6, '⅘': 0.8, '⅙': 1/6, '⅚': 5/6, '⅛': 0.125, '⅜': 0.375, '⅝': 0.625, '⅞': 0.875
+              };
+              str = str.trim();
+              // Replace vulgar fractions
+              str = str.replace(/[¼½¾⅐⅑⅒⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]/g, m => ' ' + vulgarMap[m]);
+              // Handle mixed numbers (e.g., 1 1/2)
+              let parts = str.split(' ');
+              let total = 0;
+              for (let part of parts) {
+                if (/^\d+$/.test(part)) total += parseInt(part);
+                else if (/^\d+\/\d+$/.test(part)) {
+                  let [n, d] = part.split('/');
+                  total += parseInt(n) / parseInt(d);
+                } else if (!isNaN(parseFloat(part))) {
+                  total += parseFloat(part);
+                }
+              }
+              return total || null;
+            }
+            // Accept common units
+            const units = [
+              'cup', 'cups', 'tbsp', 'tablespoon', 'tablespoons', 'tsp', 'teaspoon', 'teaspoons',
+              'g', 'gram', 'grams', 'kg', 'kilogram', 'kilograms', 'ml', 'l', 'litre', 'litres', 'liter', 'liters',
+              'oz', 'ounce', 'ounces', 'lb', 'pound', 'pounds', 'pinch', 'dash', 'clove', 'cloves', 'can', 'cans', 'slice', 'slices', 'stick', 'sticks', 'packet', 'packets', 'piece', 'pieces', 'egg', 'eggs', 'drop', 'drops', 'block', 'blocks', 'sheet', 'sheets', 'bunch', 'bunches', 'sprig', 'sprigs', 'head', 'heads', 'filet', 'filets', 'fillet', 'fillets', 'bag', 'bags', 'jar', 'jars', 'bottle', 'bottles', 'container', 'containers', 'box', 'boxes', 'bar', 'bars', 'roll', 'rolls', 'strip', 'strips', 'cm', 'mm', 'inch', 'inches', 'pinches', 'handful', 'handfuls', 'dozen', 'sheet', 'sheets', 'leaf', 'leaves', 'stalk', 'stalks', 'rib', 'ribs', 'segment', 'segments', 'piece', 'pieces', 'cube', 'cubes', 'drop', 'drops', 'sprinkle', 'sprinkles', 'dash', 'dashes', 'splash', 'splashes', 'liter', 'liters', 'milliliter', 'milliliters', 'millilitre', 'millilitres', 'quart', 'quarts', 'pint', 'pints', 'gallon', 'gallons', 'ml', 'l', 'dl', 'cl', 'mg', 'mcg', 'µg', 'kg', 'g', 'lb', 'oz', 'cup', 'cups', 'tbsp', 'tsp', 'teaspoon', 'tablespoon', 'pinch', 'dash', 'drop', 'handful', 'stick', 'slice', 'piece', 'clove', 'can', 'bunch', 'sprig', 'head', 'filet', 'fillet', 'block', 'sheet', 'bag', 'jar', 'bottle', 'container', 'box', 'bar', 'roll', 'strip', 'cm', 'mm', 'inch', 'pinches', 'handfuls', 'dozen', 'leaves', 'stalks', 'ribs', 'segments', 'cubes', 'sprinkles', 'splashes', 'litre', 'litres', 'millilitre', 'millilitres', 'quart', 'quarts', 'pint', 'pints', 'gallon', 'gallons'
+            ];
+            const unitPattern = units.join('|');
+            const regex = new RegExp(`^([\d\s\/\.¼½¾⅐⅑⅒⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]+)\s*(${unitPattern})\b\s*(.+)$`, 'i');
+            // Convert fractions in each line to decimals if possible
+            lines = lines.map(line => {
+              // Only match and replace a leading quantity (fraction/mixed/decimal) at the start
+              const qtyRegex = /^([\d\s\/\.¼½¾⅐⅑⅒⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]+)(?=\s*([a-zA-Z]+)\b)/;
+              const match = line.match(qtyRegex);
+              if (match) {
+                const qty = parseFraction(match[1]);
+                if (qty !== null) {
+                  // Replace only the matched quantity at the start
+                  return line.replace(qtyRegex, qty);
+                }
+              }
+              return line;
+            });
+            console.log('[ConvertFragment] Lines after quantity conversion:', lines);
+            text = lines.join('\n');
+            textArea.value = text;
+          });
+        }
+
+        // Split Quantity button logic
+        const splitBtn = document.getElementById('splitQuantityBtn');
+        if (splitBtn) {
+          splitBtn.addEventListener('click', function() {
+            const recipeId = document.getElementById('recipeSelectForText').value;
+            if (!recipeId) {
+              alert('Select a recipe first.');
+              return;
+            }
+            fetch('/api/ingredients/inventory/split-quantity', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: recipeId, splitQty: 1 })
+            })
+            .then(res => res.json())
+            .then(data => {
+              if (data.success) {
+                document.getElementById('save-status').innerHTML = '<span style="color:#009688;">Quantities and food items split and updated!</span>';
+                document.dispatchEvent(new Event('ingredients-inventory-refresh'));
+              } else {
+                document.getElementById('save-status').innerHTML = '<span style="color:#e53935;">Failed to split quantities: ' + (data.error || 'Unknown error') + '</span>';
+              }
+            })
+            .catch(() => {
+              document.getElementById('save-status').innerHTML = '<span style="color:#e53935;">Error contacting server.</span>';
+            });
+          });
+        }
+      });
+      </script>
+    <!-- Duplicate paste and preview boxes removed -->
+        <script>
+          // Insert Ingredients button logic
+          document.addEventListener('DOMContentLoaded', function() {
+            const insertBtn = document.getElementById('insertIngredientsBtn');
+            const previewContainer = document.getElementById('insert-ingredients-preview-container');
+            const previewBox = document.getElementById('insert-ingredients-preview');
+            const saveStatus = document.getElementById('save-status');
+            const progressBar = document.getElementById('insert-progress-bar');
+            const progressText = document.getElementById('insert-progress-text');
+
+            function setInsertProgress(percent, message, type = 'info') {
+              if (progressBar) progressBar.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+              if (progressText) progressText.textContent = message || '';
+              if (progressBar) {
+                if (type === 'error') progressBar.style.background = '#e53935';
+                else if (type === 'success') progressBar.style.background = '#2e7d32';
+                else progressBar.style.background = '#1976d2';
+              }
+            }
+
+            if (insertBtn && previewContainer && previewBox) {
+              insertBtn.addEventListener('click', function() {
+                const recipeId = document.getElementById('recipeSelectForText').value;
+                if (!recipeId) {
+                  alert('Select a recipe first.');
+                  return;
+                }
+                setInsertProgress(10, 'Checking preview ingredients...');
+                // Use the preview box value (ingredients_display) for insertion
+                console.log('[InsertIngredients] Button clicked for RecipeID:', recipeId);
+                let text = document.getElementById('ingredientsPreviewBox').textContent;
+                console.log('[InsertIngredients] Text from preview box:', text);
+                // Convert <br>, <br/>, <br /> to newlines (shouldn't be needed, but for safety)
+                text = text.replace(/<br\s*\/?>/gi, '\n');
+                console.log('[InsertIngredients] Text after <br> to newline:', text);
+                // Split lines and filter out empty lines and star ratings
+                let lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+                console.log('[InsertIngredients] Lines after split:', lines);
+                // Remove lines that are just star ratings (e.g. '5 Star', '4 Star', etc.)
+                lines = lines.filter(line => !/^([1-5]\s*Star)$/i.test(line));
+                console.log('[InsertIngredients] Lines after filtering star ratings:', lines);
+                if (lines.length === 0) {
+                  setInsertProgress(0, 'No ingredients found in preview.', 'error');
+                  saveStatus.textContent = '';
+                  return;
+                }
+                // Use parseIngredient from ingredients_parse.js for each line
+                if (typeof parseIngredient !== 'function') {
+                  alert('Ingredient parser not loaded.');
+                  return;
+                }
+                setInsertProgress(30, 'Inserting ingredients...');
+                // Send only recipe_id to backend, which will fetch from recipe_display
+                fetch('/api/ingredients/inventory/save-bulk', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ recipe_id: recipeId })
+                })
+                .then(res => res.json())
+                .then(data => {
+                  console.log('[InsertIngredients] save-bulk response:', data);
+                  if (data.success) {
+                    setInsertProgress(60, 'Splitting quantities...');
+                    // Now trigger split-quantity for this recipe
+                    fetch('/api/ingredients/inventory/split-quantity', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ id: recipeId, splitQty: 1 })
+                    })
+                    .then(res2 => res2.json())
+                    .then(data2 => {
+                      console.log('[InsertIngredients] split-quantity response:', data2);
+                      if (data2.success) {
+                        setInsertProgress(80, 'Assigning aisle categories...');
+                        // Now trigger auto-assign aisles
+                        fetch('/api/ingredients/inventory/auto-assign-aisles', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ recipe_id: recipeId })
+                        })
+                        .then(res3 => res3.json())
+                        .then(data3 => {
+                          console.log('[InsertIngredients] auto-assign-aisles response:', data3);
+                          if (data3.success) {
+                            setInsertProgress(100, 'Complete: ingredients inserted and assigned.', 'success');
+                            saveStatus.innerHTML = '<span style="color:#009688;">Ingredients inserted, split, and aisles assigned!</span>';
+                          } else {
+                            setInsertProgress(90, 'Inserted and split, but aisle assignment failed.', 'error');
+                            saveStatus.innerHTML = '<span style="color:#e53935;">Ingredients inserted and split, but failed to assign aisles.</span>';
+                          }
+                          document.dispatchEvent(new Event('ingredients-inventory-refresh'));
+                        })
+                        .catch((err) => {
+                          console.error('[InsertIngredients] auto-assign-aisles error:', err);
+                          setInsertProgress(90, 'Error assigning aisles after split.', 'error');
+                          saveStatus.innerHTML = '<span style="color:#e53935;">Error assigning aisles after split.</span>';
+                          document.dispatchEvent(new Event('ingredients-inventory-refresh'));
+                        });
+                      } else {
+                        setInsertProgress(70, 'Inserted, but splitting quantities failed.', 'error');
+                        saveStatus.innerHTML = '<span style="color:#e53935;">Ingredients inserted, but failed to split quantities.</span>';
+                        document.dispatchEvent(new Event('ingredients-inventory-refresh'));
+                      }
+                    })
+                    .catch((err) => {
+                      console.error('[InsertIngredients] split-quantity error:', err);
+                      setInsertProgress(70, 'Error splitting quantities after insert.', 'error');
+                      saveStatus.innerHTML = '<span style="color:#e53935;">Error splitting quantities after insert.</span>';
+                      document.dispatchEvent(new Event('ingredients-inventory-refresh'));
+                    });
+                  } else {
+                    setInsertProgress(30, 'Failed to insert ingredients from preview.', 'error');
+                    saveStatus.innerHTML = '<span style="color:#e53935;">Failed to insert ingredients from preview.</span>';
+                  }
+                })
+                .catch((err) => {
+                  console.error('[InsertIngredients] save-bulk error:', err);
+                  setInsertProgress(30, 'Error contacting server.', 'error');
+                  saveStatus.innerHTML = '<span style="color:#e53935;">Error contacting server.</span>';
+                });
+              });
+            }
+          });
+        </script>
+    <div id="reformat-status" style="margin-bottom:1.5rem;"></div>
+    <!-- Duplicate removed: ingredients-inventory-table
+      <div id="ingredients-inventory-debug-table"></div> -->
+    
+      <h3 style="margin-top:3rem;">Published Recipes</h3>
+      <div id="published-recipes-table-container"></div>
+      <script>
+        // Render Published Recipes Table from recipe_display
+        function renderPublishedRecipesTable() {
+          fetch('/api/recipes/display-table')
+            .then(res => res.json())
+            .then(data => {
+              const container = document.getElementById('published-recipes-table-container');
+              if (!container) return;
+              if (!Array.isArray(data) || data.length === 0) {
+                container.innerHTML = '<div style="color:#888;padding:1rem;">No published recipes found.</div>';
+                return;
+              }
+              // Sort by ID descending (newest first)
+              data.sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
+              let html = `<table style="width:100%;margin-top:1rem;border-collapse:collapse;">
+                <thead>
+                  <tr style="background:#f5f5f5;">
+                    <th style="border:1px solid #eee;padding:0.5rem 0.7rem;">ID</th>
+                    <th style="border:1px solid #eee;padding:0.5rem 0.7rem;">Name</th>
+                    <th style="border:1px solid #eee;padding:0.5rem 0.7rem;">Description</th>
+                    <th style="border:1px solid #eee;padding:0.5rem 0.7rem;">Ingredients</th>
+                    <th style="border:1px solid #eee;padding:0.5rem 0.7rem;">Serving Size</th>
+                    <th style="border:1px solid #eee;padding:0.5rem 0.7rem;">URL</th>
+                    <th style="border:1px solid #eee;padding:0.5rem 0.7rem;">Instructions</th>
+                    <th style="border:1px solid #eee;padding:0.5rem 0.7rem;">RecipeID</th>
+                  </tr>
+                </thead>
+                <tbody>`;
+              html += data.map(row => `
+                <tr>
+                  <td style="border:1px solid #eee;padding:0.5rem 0.7rem;">${row.id ?? ''}</td>
+                  <td style="border:1px solid #eee;padding:0.5rem 0.7rem;">${row.name ?? ''}</td>
+                  <td style="border:1px solid #eee;padding:0.5rem 0.7rem;">${row.description ?? ''}</td>
+                  <td style="border:1px solid #eee;padding:0.5rem 0.7rem;">${row.ingredients ?? ''}</td>
+                  <td style="border:1px solid #eee;padding:0.5rem 0.7rem;">${row.serving_size ?? ''}</td>
+                  <td style="border:1px solid #eee;padding:0.5rem 0.7rem;">${row.url ? `<a href='${row.url}' target='_blank'>Link</a>` : ''}</td>
+                  <td style="border:1px solid #eee;padding:0.5rem 0.7rem;">${row.instructions ?? ''}</td>
+                  <td style="border:1px solid #eee;padding:0.5rem 0.7rem;">${row.recipeid ?? ''}</td>
+                </tr>
+              `).join('');
+              html += '</tbody></table>';
+              container.innerHTML = html;
+            })
+            .catch(() => {
+              const container = document.getElementById('published-recipes-table-container');
+              if (container) container.innerHTML = '<div style="color:#e53935;padding:1rem;">Failed to load published recipes.</div>';
+            });
+        }
+        document.addEventListener('DOMContentLoaded', renderPublishedRecipesTable);
+      </script>
+    <script>
+      // Always render ingredients table on page load
+      document.addEventListener('DOMContentLoaded', function() {
+        if (window.renderIngredientsInventory) renderIngredientsInventory();
+      });
+
+      function refreshIngredientsAndPublishedTables(showFeedback = false) {
+        const filterStatus = document.getElementById('filter-status');
+        if (showFeedback && filterStatus) filterStatus.textContent = 'Refreshing table...';
+
+        fetch(`/api/ingredients/inventory/all?_t=${Date.now()}`, { cache: 'no-store' })
+          .then(res => res.json())
+          .then(data => {
+            const ingredients = Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : (Array.isArray(data.ingredients) ? data.ingredients : []));
+            if (typeof window.renderIngredientsInventoryTable === 'function') {
+              window.renderIngredientsInventoryTable(ingredients);
+            }
+            if (typeof renderPublishedRecipesTable === 'function') {
+              renderPublishedRecipesTable();
+            }
+            if (showFeedback && filterStatus) {
+              filterStatus.textContent = 'Table refreshed.';
+              setTimeout(() => {
+                if (filterStatus.textContent === 'Table refreshed.') filterStatus.textContent = '';
+              }, 1600);
+            }
+          })
+          .catch(() => {
+            if (showFeedback && filterStatus) filterStatus.textContent = 'Error refreshing table.';
+          });
+      }
+
+      document.addEventListener('DOMContentLoaded', function() {
+        const refreshBtn = document.getElementById('refresh-ingredients-table-btn');
+        if (refreshBtn) {
+          refreshBtn.addEventListener('click', function() {
+            refreshIngredientsAndPublishedTables(true);
+          });
+        }
+      });
+
+      // Also refresh after inventory actions
+      document.addEventListener('ingredients-inventory-refresh', function() {
+        refreshIngredientsAndPublishedTables(false);
+      });
+
+      // Save Ingredients to Recipe button logic
+      var saveIngredientsBtn = document.getElementById('saveIngredientsBtn');
+      if (saveIngredientsBtn) saveIngredientsBtn.addEventListener('click', function() {
+        const recipeId = document.getElementById('recipeSelectForText').value;
+        const textarea = document.getElementById('textConvertArea');
+        const saveStatus = document.getElementById('save-status');
+        function showStatus(msg, color) {
+          saveStatus.innerHTML = `<span style="color:${color};cursor:pointer;" id="save-status-close">${msg} (click to dismiss)</span>`;
+          document.getElementById('save-status-close').onclick = () => { saveStatus.textContent = ''; };
+        }
+        if (!recipeId || !textarea.value.trim()) {
+          showStatus('Select a recipe and enter ingredients.', '#e53935');
+          return;
+        }
+        let ingredientsText = textarea.value.trim();
+        // Also save to ExtractedIngredients/{recipeId}.txt
+        fetch(`/api/ingredients/inventory/${recipeId}/extracted`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ingredients_text: ingredientsText })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (!data.success) {
+            console.error('Failed to save extracted ingredients file:', data.fileError || 'Unknown error');
+          }
+        })
+        .catch(err => {
+          console.error('Failed to save extracted ingredients file:', err);
+        });
+        fetch('/api/ingredients/save-bulk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ recipe_id: recipeId, ingredients: ingredientsText })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            // After saving, immediately sync inventory
+            fetch('/api/ingredients-inventory/sync', { method: 'POST' })
+              .then(res2 => res2.json())
+              .then(data2 => {
+                showStatus('Ingredients saved and inventory synced!', '#009688');
+                document.dispatchEvent(new Event('ingredients-inventory-refresh'));
+              })
+              .catch(() => {
+                showStatus('Ingredients saved, but inventory sync failed.', '#e53935');
+              });
+          } else {
+            showStatus('Save failed.', '#e53935');
+          }
+        })
+        .catch(() => {
+          showStatus('Save failed.', '#e53935');
+        });
+      });
+
+      // Inline editing for ingredients table (basic demo)
+      document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(() => {
+          const table = document.querySelector('#ingredients-inventory-table table');
+          if (!table) return;
+          table.querySelectorAll('td').forEach(td => {
+            td.addEventListener('dblclick', function() {
+              const oldValue = td.textContent;
+              const input = document.createElement('input');
+              input.value = oldValue;
+              input.style.width = '90%';
+              td.textContent = '';
+              td.appendChild(input);
+              input.focus();
+              input.addEventListener('blur', function() {
+                td.textContent = input.value;
+                // TODO: send update to backend if needed
+              });
+              input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') input.blur();
+              });
+            });
+          });
+        }, 500);
+      });
+    </script>
+  </div>
+  <script src="ingredients_inventory_table.js"></script>
+  <script src="ingredients_parse.js"></script>
+  <script src="text_conversion.js"></script>
+  <script src="split_measure_button.js"></script>
+  <script>
+    // Populate recipe dropdown
+    document.addEventListener('DOMContentLoaded', function() {
+      fetch('/api/recipes/display-table')
+        .then(res => res.json())
+        .then(data => {
+          const select = document.getElementById('recipeSelectForText');
+          if (select) {
+            const sorted = (Array.isArray(data) ? [...data] : []).sort((a, b) => {
+              const aId = Number(a.recipeid) || 0;
+              const bId = Number(b.recipeid) || 0;
+              return aId - bId;
+            });
+            select.innerHTML = '<option value="">-- Select Recipe --</option>' +
+              sorted.map(r => `<option value="${r.recipeid}">${r.recipeid} | ${r.name || r.recipe_title || 'Recipe ' + r.recipeid}</option>`).join('');
+          }
+        });
+      const select = document.getElementById('recipeSelectForText');
+      const recipeIdLabel = document.getElementById('selectedRecipeIdLabel');
+      if (select) {
+        select.addEventListener('change', function() {
+          const recipeId = select.value;
+          if (recipeIdLabel) recipeIdLabel.textContent = recipeId ? `Recipe ID: ${recipeId}` : '';
+          if (!recipeId) return;
+          fetch(`/api/recipes/${recipeId}`)
+            .then(res => res.json())
+            .then(recipe => {
+              // Use ONLY ingredients_display from the recipe table
+              let text = '';
+              if (typeof recipe.ingredients_display === 'string' && recipe.ingredients_display.trim()) {
+                text = recipe.ingredients_display;
+              } else {
+                text = '';
+              }
+              // Split on <br>, <br/>, <br /> to get each ingredient on its own line
+              let cleanedText = text
+                .replace(/<br\s*\/?>(?=\s|$)/gi, '\n')
+                .split(/\r?\n/)
+                .map(l => l.trim())
+                .filter(l => l && !/^([1-5]\s*Star)$/i.test(l))
+                .join('\n');
+              document.getElementById('textConvertArea').value = cleanedText;
+              // Also update preview box
+              const previewBox = document.getElementById('ingredientsPreviewBox');
+              if (previewBox) previewBox.textContent = cleanedText;
+              // Automatically trigger Convert Fragment logic
+              const convertFragmentBtn = document.getElementById('convertFragmentBtn');
+              const textArea = document.getElementById('textConvertArea');
+              if (convertFragmentBtn && textArea) {
+                convertFragmentBtn.click();
+              }
+            });
+        });
+      }
+    });
+  </script>
+  <script>
+    function syncInventory(auto) {
+      // If auto, do not show confirm or alert
+      if (!auto) {
+        if (!confirm('This will overwrite the inventory with all ingredients from all recipes. Continue?')) return;
+      }
+      fetch('/api/ingredients-inventory/sync', { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            document.dispatchEvent(new Event('ingredients-inventory-refresh'));
+            if (!auto) alert('Inventory synced from all recipes.');
+          } else {
+            if (!auto) alert('Failed to sync inventory.');
+          }
+        })
+        .catch(() => { if (!auto) alert('Error contacting server.'); });
+    }
+  </script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      <!-- All main scripts moved to end of body for reliability -->
+      const convertFragmentBtn = document.getElementById('convertFragmentBtn');
+      const textArea = document.getElementById('textConvertArea');
+      if (convertFragmentBtn && textArea) {
+        convertFragmentBtn.addEventListener('click', function() {
+              let text = textArea.value.trim();
+              // Remove any 'recipeIngredient' label and extract the array if present
+              let arrayMatch = text.match(/"recipeIngredient"\s*:\s*(\[.*?\])/s);
+              if (arrayMatch) {
+                text = arrayMatch[1];
+              }
+              // Remove any object wrapper (e.g. { ... })
+              if (text.startsWith('{') && text.endsWith('}')) {
+                try {
+                  let obj = JSON.parse(text);
+                  if (obj.recipeIngredient && Array.isArray(obj.recipeIngredient)) {
+                    text = obj.recipeIngredient.join('\n');
+                  }
+                } catch (e) {
+                  // fallback: remove outer braces
+                  text = text.replace(/^\{/, '').replace(/\}$/, '');
+                }
+              }
+              // If text is a JSON array, flatten it
+              if (text.startsWith('[') && text.endsWith(']')) {
+                try {
+                  const arr = JSON.parse(text);
+                  if (Array.isArray(arr)) {
+                    text = arr.join('\n');
+                  }
+                } catch (e) {}
+              }
+              // Remove any remaining brackets, braces, or quotes, and flatten to lines
+              text = text.replace(/^[\[\]\{\}"]+/g, '').replace(/[\[\]\{\}"]+$/g, '');
+              let lines = text.split(/\r?\n|,/).map(l => l.replace(/^"|"$/g, '').trim()).filter(Boolean);
+
+              // Helper to convert unicode and vulgar fractions to float
+              function parseFraction(str) {
+                const vulgarMap = {
+                  '¼': 0.25, '½': 0.5, '¾': 0.75,
+                  '⅐': 1/7, '⅑': 1/9, '⅒': 0.1, '⅓': 1/3, '⅔': 2/3, '⅕': 0.2, '⅖': 0.4, '⅗': 0.6, '⅘': 0.8, '⅙': 1/6, '⅚': 5/6, '⅛': 0.125, '⅜': 0.375, '⅝': 0.625, '⅞': 0.875
+                };
+                str = str.trim();
+                // Replace vulgar fractions
+                str = str.replace(/[¼½¾⅐⅑⅒⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]/g, m => ' ' + vulgarMap[m]);
+                // Handle mixed numbers (e.g., 1 1/2)
+                let parts = str.split(' ');
+                let total = 0;
+                for (let part of parts) {
+                  if (/^\d+$/.test(part)) total += parseInt(part);
+                  else if (/^\d+\/\d+$/.test(part)) {
+                    let [n, d] = part.split('/');
+                    total += parseInt(n) / parseInt(d);
+                  } else if (!isNaN(parseFloat(part))) {
+                    total += parseFloat(part);
+                  }
+                }
+                return total || null;
+              }
+
+              // Accept common units
+              const units = [
+                'cup', 'cups', 'tbsp', 'tablespoon', 'tablespoons', 'tsp', 'teaspoon', 'teaspoons',
+                'g', 'gram', 'grams', 'kg', 'kilogram', 'kilograms', 'ml', 'l', 'litre', 'litres', 'liter', 'liters',
+                'oz', 'ounce', 'ounces', 'lb', 'pound', 'pounds', 'pinch', 'dash', 'clove', 'cloves', 'can', 'cans', 'slice', 'slices', 'stick', 'sticks', 'packet', 'packets', 'piece', 'pieces', 'egg', 'eggs', 'drop', 'drops', 'block', 'blocks', 'sheet', 'sheets', 'bunch', 'bunches', 'sprig', 'sprigs', 'head', 'heads', 'filet', 'filets', 'fillet', 'fillets', 'bag', 'bags', 'jar', 'jars', 'bottle', 'bottles', 'container', 'containers', 'box', 'boxes', 'bar', 'bars', 'roll', 'rolls', 'strip', 'strips', 'cm', 'mm', 'inch', 'inches', 'pinches', 'handful', 'handfuls', 'dozen', 'sheet', 'sheets', 'leaf', 'leaves', 'stalk', 'stalks', 'rib', 'ribs', 'segment', 'segments', 'piece', 'pieces', 'cube', 'cubes', 'drop', 'drops', 'sprinkle', 'sprinkles', 'dash', 'dashes', 'splash', 'splashes', 'liter', 'liters', 'milliliter', 'milliliters', 'millilitre', 'millilitres', 'quart', 'quarts', 'pint', 'pints', 'gallon', 'gallons', 'ml', 'l', 'dl', 'cl', 'mg', 'mcg', 'µg', 'kg', 'g', 'lb', 'oz', 'cup', 'cups', 'tbsp', 'tsp', 'teaspoon', 'tablespoon', 'pinch', 'dash', 'drop', 'handful', 'stick', 'slice', 'piece', 'clove', 'can', 'bunch', 'sprig', 'head', 'filet', 'fillet', 'block', 'sheet', 'bag', 'jar', 'bottle', 'container', 'box', 'bar', 'roll', 'strip', 'cm', 'mm', 'inch', 'pinches', 'handfuls', 'dozen', 'leaves', 'stalks', 'ribs', 'segments', 'cubes', 'sprinkles', 'splashes', 'litre', 'litres', 'millilitre', 'millilitres', 'quart', 'quarts', 'pint', 'pints', 'gallon', 'gallons'
+              ];
+              const unitPattern = units.join('|');
+              const regex = new RegExp(`^([\d\s\/\.¼½¾⅐⅑⅒⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]+)\s*(${unitPattern})\b\s*(.+)$`, 'i');
+
+              // Convert fractions in each line to decimals if possible
+              lines = lines.map(line => {
+                // Only match and replace a leading quantity (fraction/mixed/decimal) at the start
+                const qtyRegex = /^([\d\s\/\.¼½¾⅐⅑⅒⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]+)(?=\s*([a-zA-Z]+)\b)/;
+                const match = line.match(qtyRegex);
+                if (match) {
+                  const qty = parseFraction(match[1]);
+                  if (qty !== null) {
+                    // Replace only the matched quantity at the start
+                    return line.replace(qtyRegex, qty);
+                  }
+                }
+                return line;
+              });
+              text = lines.join('\n');
+              textArea.value = text;
+
+              // After conversion, trigger split-quantity for the selected recipe only
+              const recipeId = document.getElementById('recipeSelectForText').value;
+              if (recipeId) {
+                fetch('/api/ingredients/inventory/split-quantity', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ recipe_id: recipeId })
+                })
+                .then(res => res.json())
+                .then(data => {
+                  if (data.success) {
+                    document.getElementById('reformat-status').innerHTML = '<span style="color:green;">Quantities and food items split for this recipe!</span>';
+                  }
+                  fetch('/api/ingredients/inventory/save-bulk', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ingredients: lines.map(line => ({ ingredient_name: line, recipe_id: recipeId })) })
+                  })
+                  .catch(() => {
+                    document.getElementById('reformat-status').innerHTML = '<span style="color:red;">Error contacting server.</span>';
+                  });
+                })
+                .catch(() => {
+                  document.getElementById('reformat-status').innerHTML = '<span style="color:red;">Error contacting server.</span>';
+                });
+              }
+            });
+          }
+    });
+  </script>
+  <script>
+    //DELETE ALL: Remove from both inventory and main ingredients table, then refresh
+    document.getElementById('deleteAllIngredientsBtn').addEventListener('click', function() {
+      if (confirm('Are you sure you want to delete ALL ingredients?')) {
+        fetch('/api/ingredients/inventory/all', { method: 'DELETE' })
+          .then(res => res.json())
+          .then(data => {
+            alert('All ingredients deleted.');
+            document.dispatchEvent(new Event('ingredients-inventory-refresh'));
+          });
+      }
+    });
+  </script>
+</body>
+</html>

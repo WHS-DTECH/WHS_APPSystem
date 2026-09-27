@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calculate Qty</title>
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+</head>
+<body>
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+  <div class="w3-container w3-padding-32">
+    <h2>Calculate Quantity</h2>
+    <p>This page will allow you to calculate ingredient quantities for catering.</p>
+    <div class="w3-panel w3-light-grey w3-padding-16">
+      <h3>Ingredients List</h3>
+      <div style="margin-bottom:12px;">
+        <button id="sync-quantity-btn" class="w3-button w3-green w3-small">Sync Quantity</button>
+        <button id="async-sync-btn" class="w3-button w3-indigo w3-small" style="margin-left:8px;">Async Sync (From RecipeID)</button>
+        <button id="audit-sync-all-btn" class="w3-button w3-blue w3-small" style="margin-left:8px;">Audit All + Load Missing Ingredients</button>
+        <span id="async-sync-status" class="w3-small" style="margin-left:10px;color:#3949ab;"></span>
+        <span id="audit-sync-all-status" class="w3-small" style="margin-left:10px;color:#1565c0;"></span>
+      </div>
+      <div id="ingredients-recipe-filter" style="margin-bottom:16px;"></div>
+      <div id="ingredients-list-table">
+        <div class="w3-text-grey">Loading ingredients...</div>
+      </div>
+    </div>
+    <div class="w3-panel w3-light-grey w3-padding-16">
+      <h3>Published Recipes</h3>
+      <div id="published-recipes-table">
+        <div class="w3-text-grey">Loading published recipes...</div>
+      </div>
+    </div>
+  </div>
+  <script src="calculate_qty.js"></script>
+</body>
+</html>

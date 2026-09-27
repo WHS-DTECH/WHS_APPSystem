@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serving Size Extractor</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .extractor-app {
+            max-width: 900px;
+            margin: 2rem auto;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+            padding: 1.5rem 2rem 2rem 2rem;
+        }
+        .extractor-header {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1.2rem;
+        }
+        .extractor-btn {
+            background: #1976d2;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            padding: 0.6rem 1.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-bottom: 1.2rem;
+        }
+        .extractor-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        .extractor-table th, .extractor-table td {
+            border: 1px solid #bbb;
+            padding: 0.7rem 0.5rem;
+            text-align: left;
+            font-size: 1rem;
+        }
+        .extractor-table th {
+            background: #f5f8fa;
+            font-weight: 600;
+        }
+        .extractor-status {
+            display: inline-block;
+            padding: 0.2rem 0.7rem;
+            border-radius: 5px;
+            font-size: 0.98rem;
+            color: #fff;
+            background: #43a047;
+            margin-left: 0.5rem;
+        }
+        .extractor-status.unsolved {
+            background: #e53935;
+        }
+        .extractor-result {
+            max-width: 350px;
+            white-space: pre-line;
+            font-size: 0.98rem;
+        }
+        .raw-data-section {
+            margin-top: 2rem;
+        }
+        .raw-data-title {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        .raw-data-box {
+            background: #f5f8fa;
+            border: 1px solid #bbb;
+            border-radius: 6px;
+            padding: 1rem;
+            font-family: monospace;
+            font-size: 0.98rem;
+            white-space: pre-wrap;
+        }
+        .runner-grid {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+        .runner-box {
+            border: 1px solid #d7e3f4;
+            border-radius: 8px;
+            background: #f8fbff;
+            padding: 0.8rem;
+            min-width: 260px;
+            flex: 1;
+        }
+        .auto-result-box {
+            margin-top: 0.8rem;
+            border: 1px solid #cfd8dc;
+            border-radius: 8px;
+            background: #fafcff;
+            padding: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+    <div id="navbar-include"></div>
+    <script src="shared/navbar_loader.js"></script>
+    <div class="extractor-app">
+        <div style="margin-bottom:1.5rem;">
+            <label for="recipeUrlSelect" style="font-weight:bold;">Choose Recipe URL:</label>
+            <select id="recipeUrlSelect" style="margin-left:1rem; min-width:300px;"></select>
+        </div>
+        <div class="extractor-header">Serving Size Extraction Strategies</div>
+        <div id="strategy-runner-controls">
+            <div class="runner-grid">
+                <div class="runner-box">
+                    <div style="font-weight:600; margin-bottom:0.5rem;">Step-by-step</div>
+                    <button class="extractor-btn" id="startStrategyRunner">Start Step-by-Step</button>
+                </div>
+                <div class="runner-box">
+                    <div style="font-weight:600; margin-bottom:0.5rem;">Auto Extract</div>
+                    <button class="extractor-btn" id="autoExtractFirstStrategyBtn" style="background:#00897b;">Serving Size Auto Extract (Strategy 1)</button>
+                </div>
+            </div>
+
+            <div id="autoExtractResultBox" class="auto-result-box" style="display:none;">
+                <div style="font-weight:600; margin-bottom:0.4rem;">Auto Extract Result</div>
+                <div id="autoExtractResultText" style="margin-bottom:0.7rem;"></div>
+                <button class="extractor-btn" id="confirmAutoExtractBtn" style="background:#8000b0;">Confirm and Send Solution</button>
+                <button class="extractor-btn" id="declineAutoExtractBtn" style="background:#e53935; margin-left:0.5rem;">Decline (Open Serving Size Page)</button>
+            </div>
+
+            <div id="stepControls" style="display:none; margin-top:1rem;">
+                <div id="currentStrategyName" style="font-weight:bold;"></div>
+                <div id="currentStrategyResult" style="margin:0.5rem 0;"></div>
+                <button class="extractor-btn" id="acceptResultBtn">Accept</button>
+                <button class="extractor-btn" id="continueBtn">Continue</button>
+            </div>
+        </div>
+        <table class="extractor-table">
+            <thead>
+                <tr><th>#</th><th>Strategy</th><th>Applied</th><th>Result</th><th>Solved</th></tr>
+            </thead>
+            <tbody id="servingExtractorTableBody"></tbody>
+        </table>
+        <div class="solution-section" style="margin-bottom:2rem;">
+            <div style="font-weight:bold; color:#8000b0; margin-bottom:0.3rem;">Solution</div>
+            <textarea id="solutionBox" style="width:100%; min-height:40px; resize:vertical; border-radius:6px; border:1px solid #bbb; font-size:1.1rem; padding:0.5rem;"> </textarea>
+            <button class="extractor-btn" id="sendSolutionBtn" style="background:#8000b0; color:#fff; margin-top:0.5rem; width:100%;">SEND SOLUTION</button>
+        </div>
+        <div class="raw-data-section">
+            <div class="raw-data-title">Raw Data (HTML/Text)</div>
+            <!-- Show in Separate Window button removed -->
+            <div class="raw-data-box" id="rawDataBox"></div>
+        </div>
+
+        <!-- Modal for Raw Data with Line Numbers -->
+        <div id="rawDataModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+            <div style="background:#fff; border-radius:8px; max-width:900px; width:90vw; max-height:90vh; overflow:auto; padding:2rem; position:relative;">
+                <button id="closeRawDataModalBtn" style="position:absolute; top:1rem; right:1rem; font-size:1.2rem;">&times;</button>
+                <div style="font-weight:bold; margin-bottom:1rem;">Raw Data (HTML/Text) with Line Numbers</div>
+                <pre id="rawDataWithLines" style="background:#f5f8fa; border:1px solid #bbb; border-radius:6px; padding:1rem; font-family:monospace; font-size:0.98rem; white-space:pre; overflow:auto;"></pre>
+            </div>
+        </div>
+    </div>
+    <script src="extractor_serving_size.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const recipeUrlSelect = document.getElementById('recipeUrlSelect');
+        const rawDataBox = document.getElementById('rawDataBox');
+        const stepControls = document.getElementById('stepControls');
+        const startBtn = document.getElementById('startStrategyRunner');
+        const autoExtractBtn = document.getElementById('autoExtractFirstStrategyBtn');
+        const autoExtractResultBox = document.getElementById('autoExtractResultBox');
+        const autoExtractResultText = document.getElementById('autoExtractResultText');
+        const confirmAutoExtractBtn = document.getElementById('confirmAutoExtractBtn');
+        const declineAutoExtractBtn = document.getElementById('declineAutoExtractBtn');
+        const acceptBtn = document.getElementById('acceptResultBtn');
+        const continueBtn = document.getElementById('continueBtn');
+        const currentStrategyName = document.getElementById('currentStrategyName');
+        const currentStrategyResult = document.getElementById('currentStrategyResult');
+        const solutionBox = document.getElementById('solutionBox');
+        const sendSolutionBtn = document.getElementById('sendSolutionBtn');
+
+        let currentStep = 0;
+        let autoExtractValue = '';
+        window.rawData = '';
+
+        function runStrategiesOnRawData(raw) {
+            return strategies.map((s, i) => {
+                const result = s.fn(raw);
+                return {
+                    name: s.name,
+                    applied: false,
+                    result,
+                    solved: !!result && result !== 'N/A'
+                };
+            });
+        }
+
+        function showStep(idx) {
+            if (!stepControls || !startBtn || !currentStrategyName || !currentStrategyResult) return;
+            if (idx >= strategies.length) {
+                stepControls.style.display = 'none';
+                startBtn.disabled = false;
+                return;
+            }
+
+            const results = runStrategiesOnRawData(window.rawData || '');
+            results.forEach((r, i) => {
+                r.applied = (i === idx);
+            });
+
+            currentStrategyName.textContent = results[idx].name;
+            currentStrategyResult.textContent = 'Result: ' + (results[idx].result || '(none)');
+            stepControls.style.display = '';
+            startBtn.disabled = true;
+            renderServingExtractorTable(results);
+        }
+
+        function sendSolution(recipeId, solution) {
+            return fetch('/api/serving-size/solution', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ recipeId, solution })
+            });
+        }
+
+        async function ensureRawDataLoaded(recipeId) {
+            if ((window.rawData || '').trim()) return window.rawData;
+            const res = await fetch(`/RawDataTXT/${recipeId}.txt`);
+            if (!res.ok) return '';
+            const raw = await res.text();
+            window.rawData = raw || '';
+            if (rawDataBox) rawDataBox.textContent = window.rawData;
+            return window.rawData;
+        }
+
+        if (recipeUrlSelect) {
+            fetch('/api/recipes')
+                .then(res => res.json())
+                .then(recipes => {
+                    const rows = Array.isArray(recipes) ? recipes : [];
+                    recipeUrlSelect.innerHTML = '<option value="">-- Select a recipe --</option>' +
+                        rows.map(r => {
+                            const title = (r.name || 'Untitled Recipe').trim();
+                            const url = (r.url || '').trim();
+                            const suffix = url ? ` | ${url}` : '';
+                            return `<option value="${r.id}" data-url="${url}">[${r.id}] ${title}${suffix}</option>`;
+                        }).join('');
+                })
+                .catch(() => {
+                    recipeUrlSelect.innerHTML = '<option value="">Failed to load recipes</option>';
+                });
+
+            recipeUrlSelect.addEventListener('change', function() {
+                const selectedId = this.value;
+                if (!selectedId) {
+                    if (rawDataBox) rawDataBox.textContent = '';
+                    window.rawData = '';
+                    return;
+                }
+
+                fetch(`/RawDataTXT/${selectedId}.txt`)
+                    .then(res => res.ok ? res.text() : '')
+                    .then(raw => {
+                        window.rawData = raw || '';
+                        if (rawDataBox) rawDataBox.textContent = window.rawData;
+                        renderServingExtractorTable(runStrategiesOnRawData(window.rawData));
+                    })
+                    .catch(() => {
+                        window.rawData = '';
+                        if (rawDataBox) rawDataBox.textContent = '';
+                    });
+            });
+        }
+
+        if (startBtn) {
+            startBtn.addEventListener('click', function() {
+                currentStep = 0;
+                showStep(currentStep);
+            });
+        }
+
+        if (acceptBtn) {
+            acceptBtn.addEventListener('click', function() {
+                const results = runStrategiesOnRawData(window.rawData || '');
+                if (solutionBox) solutionBox.value = results[currentStep] ? (results[currentStep].result || '') : '';
+
+                const tableResults = results.map((r, i) => ({
+                    name: strategies[i].name,
+                    applied: (i === currentStep),
+                    result: r.result,
+                    solved: !!r.result && r.result !== 'N/A'
+                }));
+                renderServingExtractorTable(tableResults);
+
+                if (stepControls) stepControls.style.display = 'none';
+                if (startBtn) startBtn.disabled = false;
+            });
+        }
+
+        if (continueBtn) {
+            continueBtn.addEventListener('click', function() {
+                if (currentStep < strategies.length - 1) {
+                    currentStep++;
+                    showStep(currentStep);
+                } else {
+                    if (stepControls) stepControls.style.display = 'none';
+                    if (startBtn) startBtn.disabled = false;
+                    const results = runStrategiesOnRawData(window.rawData || '');
+                    renderServingExtractorTable(results);
+                }
+            });
+        }
+
+        if (sendSolutionBtn) {
+            sendSolutionBtn.addEventListener('click', function() {
+                const solution = solutionBox ? solutionBox.value.trim() : '';
+                const recipeId = recipeUrlSelect ? recipeUrlSelect.value : '';
+
+                if (!recipeId) {
+                    alert('Please select a recipe first.');
+                    return;
+                }
+                if (!solution) {
+                    alert('Please enter a solution before sending.');
+                    return;
+                }
+
+                sendSolution(recipeId, solution)
+                    .then(res => res.ok ? res.json() : Promise.reject(res))
+                    .then(() => {
+                        alert('Solution sent and record amended!');
+                    })
+                    .catch(() => {
+                        alert('Failed to send solution.');
+                    });
+            });
+        }
+
+        if (autoExtractBtn) {
+            autoExtractBtn.addEventListener('click', async function() {
+                const recipeId = recipeUrlSelect ? recipeUrlSelect.value : '';
+                if (!recipeId) {
+                    alert('Please select a recipe first.');
+                    return;
+                }
+
+                const raw = await ensureRawDataLoaded(recipeId);
+                if (!raw) {
+                    alert('No raw data found for this recipe.');
+                    return;
+                }
+
+                const strategyOne = strategies[0];
+                autoExtractValue = strategyOne && typeof strategyOne.fn === 'function' ? (strategyOne.fn(raw) || '') : '';
+
+                const results = runStrategiesOnRawData(raw);
+                results.forEach((r, i) => {
+                    r.applied = (i === 0);
+                });
+                renderServingExtractorTable(results);
+
+                if (autoExtractResultText) {
+                    autoExtractResultText.textContent = autoExtractValue
+                        ? `Strategy 1 result: ${autoExtractValue}`
+                        : 'Strategy 1 found no serving size value.';
+                }
+                if (autoExtractResultBox) autoExtractResultBox.style.display = '';
+            });
+        }
+
+        if (confirmAutoExtractBtn) {
+            confirmAutoExtractBtn.addEventListener('click', function() {
+                const recipeId = recipeUrlSelect ? recipeUrlSelect.value : '';
+                if (!recipeId) {
+                    alert('Please select a recipe first.');
+                    return;
+                }
+                if (!autoExtractValue) {
+                    alert('No auto extract result to send.');
+                    return;
+                }
+                if (solutionBox) solutionBox.value = autoExtractValue;
+
+                sendSolution(recipeId, autoExtractValue)
+                    .then(res => res.ok ? res.json() : Promise.reject(res))
+                    .then(() => {
+                        alert('Auto extract solution sent and record amended!');
+                    })
+                    .catch(() => {
+                        alert('Failed to send auto extract solution.');
+                    });
+            });
+        }
+
+        if (declineAutoExtractBtn) {
+            declineAutoExtractBtn.addEventListener('click', function() {
+                window.location.href = 'extractor_serving_size.html';
+            });
+        }
+
+    });
+    </script>
+</body>
+</html>

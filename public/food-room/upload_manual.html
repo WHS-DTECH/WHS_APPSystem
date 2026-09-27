@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Manual Recipe Upload</title>
+	<link rel="stylesheet" href="../shared/style.css">
+</head>
+<body>
+	<!-- Include navbar -->
+	<nav class="navbar">
+		<!-- ...existing code... -->
+	</nav>
+	<div class="setup-card">
+		<h2>Manual Recipe Upload</h2>
+		<div class="setup-section">
+			<div class="setup-section-title">Upload Recipe (Form)</div>
+			<div class="setup-section-desc">Manually enter recipe details using a form.</div>
+			<form id="manualUploadForm">
+				<label>Recipe Name:</label>
+				<input type="text" name="name" required><br>
+				<label>Description:</label>
+				<input type="text" name="description"><br>
+				<label>Ingredients:</label>
+				<textarea name="ingredients"></textarea><br>
+				<label>Serving Size:</label>
+				<input type="number" name="serving_size"><br>
+				<label>Instructions:</label>
+				<textarea name="instructions"></textarea><br>
+				<label>URL:</label>
+				<input type="url" name="url"><br>
+				<button type="submit" class="setup-btn">Upload Recipe</button>
+			</form>
+		</div>
+	</div>
+	<script src="upload_manual.js"></script>
+</body>
+</html>
