@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>User Role Management - Sewing Room</title>
+  <link rel="icon" type="image/x-icon" href="/images/favicon.ico" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="admin_pages.css" />
+</head>
+<body>
+  <nav class="navbar">
+    <a class="nav-brand" href="/index.html">SEWING ROOM</a>
+    <ul class="nav-links">
+      <li id="nav-browse-activities-item" style="display:none"><a href="/index.html">Browse Activities</a></li>
+      <li id="nav-upload-menu-item" class="nav-upload-wrap" style="display:none">
+        <button class="nav-upload" type="button">Upload <span class="chevron">&#9660;</span></button>
+        <div class="nav-upload-menu">
+          <a href="/admin_upload_activity.html">Upload Activity</a>
+          <a href="/admin_upload_url_idea.html">Upload URL Idea</a>
+          <a href="/admin_upload_assessment_task.html">Upload Assessment Task</a>
+        </div>
+      </li>
+    </ul>
+    <div class="nav-right">
+      <div id="google-admin-badge" class="nav-admin-wrap" style="display:none">
+        <button class="nav-admin" id="admin-dropdown-toggle" type="button">Admin <span class="chevron">&#9660;</span></button>
+        <div class="nav-admin-menu" id="admin-dropdown-menu">
+          <a href="/admin_user_roles.html">User Roles</a>
+          <a href="/admin_role_permissions.html">Role Permissions</a>
+          <a href="/admin_assessment_management.html">Assessment Management</a>
+        </div>
+      </div>
+      <div class="nav-avatar" id="google-user-initials">VP</div>
+      <a href="/auth/logout" class="nav-signout" id="google-signout">Sign out</a>
+    </div>
+  </nav>
+
+  <main class="admin-page-wrap">
+    <section class="admin-page-head">
+      <div>
+        <h1>User Role Management</h1>
+        <p>Assign additional roles to users beyond their primary Google account role.</p>
+      </div>
+      <a class="admin-back-btn" href="index.html">&#8592; Back to Hub</a>
+    </section>
+
+    <section class="admin-layout">
+      <aside class="admin-side-nav">
+        <a href="#add-role" class="active">Add Role to User</a>
+        <a href="#users-list">Users with Roles</a>
+        <a href="#how-it-works">How It Works</a>
+      </aside>
+
+      <div class="admin-main-col">
+        <section class="admin-card" id="add-role">
+          <h2>Add Role to User</h2>
+          <form id="role-form" class="admin-form-grid">
+            <div class="field">
+              <label for="user-type">User Type</label>
+              <select id="user-type" required>
+                <option value="">Select type</option>
+                <option value="Staff">Staff</option>
+                <option value="Teacher">Teacher</option>
+                <option value="Technician">Technician</option>
+                <option value="Student">Student</option>
+              </select>
+            </div>
+            <div class="field field-wide">
+              <label for="user-email">User Email</label>
+              <input id="user-email" type="email" placeholder="name@westlandhigh.school.nz" required />
+            </div>
+            <div class="field">
+              <label for="role-to-add">Role to Add</label>
+              <select id="role-to-add" required>
+                <option value="">Select role</option>
+                <option value="Admin">Admin</option>
+                <option value="Lead Teacher">Lead Teacher</option>
+                <option value="Teacher">Teacher</option>
+                <option value="Technician">Technician</option>
+              </select>
+            </div>
+            <button class="admin-primary-btn" type="submit">Add Role</button>
+          </form>
+          <p class="admin-note">Google login hook: Replace typed email with currently selected Google user from your admin directory picker.</p>
+        </section>
+
+        <section class="admin-card" id="users-list">
+          <h2>Users with Additional Roles</h2>
+          <div class="admin-table-wrap">
+            <table class="admin-table" id="user-roles-table">
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>User</th>
+                  <th>Additional Roles</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="chip">Staff</span></td>
+                  <td>
+                    <strong>vanessapringle@westlandhigh.school.nz</strong>
+                    <div>Vanessa Pringle</div>
+                  </td>
+                  <td><span class="chip chip-danger">Admin</span></td>
+                  <td><button class="admin-danger-btn" type="button">Remove Roles</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="admin-card" id="how-it-works">
+          <h2>How It Works</h2>
+          <ul class="admin-bullets">
+            <li><strong>Primary Role:</strong> Users automatically get their primary role from their Google login email domain and mapping rules.</li>
+            <li><strong>Additional Roles:</strong> You can assign extra roles for special permissions without changing the base role.</li>
+            <li><strong>Combined Access:</strong> Users can access all routes granted by any of their assigned roles.</li>
+            <li><strong>Email Notification:</strong> When you hook up Gmail API, send a "role changed" email to the user and admin team.</li>
+          </ul>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-suggest">
+      <a href="suggest_activity.html" class="btn-footer-suggest">&#9988; Suggest an Activity</a>
+    </div>
+    <p>&copy; 2026 Westland High School &mdash; Sewing Room &amp; Textiles Hub</p>
+  </footer>
+
+  <script src="auth-client.js"></script>
+  <script src="admin_user_roles.js"></script>
+</body>
+</html>

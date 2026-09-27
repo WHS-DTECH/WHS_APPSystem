@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Activity Suggestions – Workshop Admin</title>
+  <link rel="icon" href="images/favicon.ico" sizes="any" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="admin.css" />
+  <script src="/navbar-loader.js"></script>
+</head>
+<body>
+  <header class="top-strip"></header>
+
+  <main class="page-shell admin-shell">
+
+    <!-- Access Denied -->
+    <div id="accessDenied" class="access-denied" style="display:none">
+      <h2>Access Denied</h2>
+      <p>You need to be signed in as an Admin or Lead Teacher to view this page.</p>
+      <a href="/" class="btn btn-primary">Back to Hub</a>
+    </div>
+
+    <!-- Admin Content -->
+    <div id="adminContent" style="display:none">
+      <div class="admin-header">
+        <div>
+          <h1 class="admin-title">Activity Suggestions</h1>
+          <p class="admin-subtitle">All activity suggestions submitted by staff and students.</p>
+        </div>
+        <div class="admin-header-actions">
+          <span class="badge badge-blue" id="suggestionCount">Loading…</span>
+        </div>
+      </div>
+
+      <div class="admin-card">
+        <div class="suggestions-table-wrap">
+          <table class="suggestions-table" id="suggestionsTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Activity</th>
+                <th>Suggested By</th>
+                <th>Email</th>
+                <th>URL</th>
+                <th>Reason</th>
+                <th>PDF</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="suggestionsBody">
+              <tr><td colspan="8" class="table-loading">Loading suggestions…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Detail modal -->
+      <div id="suggestionModal" class="suggestion-modal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="suggestion-modal-box">
+          <button class="modal-close" id="modalClose" aria-label="Close">✕</button>
+          <h2 id="modalTitle" class="modal-heading">Suggestion Detail</h2>
+          <div id="modalBody"></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <p class="footer-copy">© 2026 Westland High School – Workshop Woodwork &amp; Furniture Hub</p>
+      <a href="/suggest_activity.html" class="btn btn-suggest-footer">Suggest an Activity</a>
+    </div>
+  </footer>
+
+  <script src="admin_suggestions.js"></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+

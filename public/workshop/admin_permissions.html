@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Role Permissions – Workshop</title>
+  <link rel="icon" href="images/favicon.ico" sizes="any" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="admin.css" />
+  <script src="/navbar-loader.js"></script>
+</head>
+<body>
+  <header class="top-strip"></header>
+
+  <main class="page-shell">
+
+    <!-- Access denied -->
+    <div id="accessDenied" class="admin-access-denied" style="display:none">
+      <div class="profile-card" style="text-align:center;padding:48px">
+        <div style="font-size:2.5rem;margin-bottom:12px">🔒</div>
+        <h2 style="margin:0 0 8px">Admin Access Required</h2>
+        <p style="color:var(--soft-ink);margin:0">You need an Admin role to view this page.</p>
+        <a href="/" class="admin-btn admin-btn-secondary" style="margin-top:20px;display:inline-block">Back to Hub</a>
+      </div>
+    </div>
+
+    <!-- Main content -->
+    <div id="adminContent" style="display:none">
+
+      <div class="admin-header-row">
+        <div>
+          <h1 class="admin-title">Role Permissions Management</h1>
+          <p class="admin-subtitle">Control which pages each role can access. Check a box to grant access, uncheck to remove access.</p>
+        </div>
+        <div class="admin-header-actions">
+          <a href="/admin_user_roles.html" class="admin-btn admin-btn-secondary">← Back to Admin</a>
+        </div>
+      </div>
+
+      <div id="saveMsg" class="admin-msg" style="display:none"></div>
+
+      <!-- Permissions matrix -->
+      <div class="admin-card" style="padding:0;overflow:hidden">
+        <div class="perm-table-wrap">
+          <table class="perm-table" id="permTable">
+            <thead>
+              <tr>
+                <th class="perm-role-col">Role</th>
+                <th>Home<br>Page</th>
+                <th>Add<br>Projects</th>
+                <th>View<br>Projects</th>
+                <th>Planning</th>
+                <th>Admin</th>
+              </tr>
+            </thead>
+            <tbody id="permTableBody">
+              <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--soft-ink)">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="perm-actions">
+          <button class="admin-btn admin-btn-primary" id="saveBtn">Save Changes</button>
+          <button class="admin-btn admin-btn-danger" id="resetBtn">Reset to Defaults</button>
+        </div>
+      </div>
+
+      <!-- Route descriptions -->
+      <div class="admin-card admin-card-info">
+        <h2 class="admin-section-title">Page Descriptions</h2>
+        <ul class="admin-how-list">
+          <li><strong>Homepage:</strong> Main Workshop Activity Book hub page</li>
+          <li><strong>Add Projects:</strong> Create and upload new workshop project activities</li>
+          <li><strong>View Projects:</strong> Browse and view the full project activity library</li>
+          <li><strong>Planning:</strong> Access the Planning tools and project scheduling features</li>
+          <li><strong>Admin:</strong> Administrative functions — user roles, permissions, and system settings</li>
+        </ul>
+      </div>
+
+      <!-- Important notes -->
+      <div class="admin-card" style="border-color:#f59e0b;background:#fffbeb">
+        <h2 class="admin-section-title" style="border-color:#fde68a">Important Notes</h2>
+        <ul class="admin-how-list">
+          <li><strong>Admin role</strong> should always have access to all pages</li>
+          <li><strong>Public Access</strong> role is assigned to all logged-out visitors by default</li>
+          <li>Specific users can be granted additional roles via the <a href="/admin_user_roles.html" style="color:var(--accent)">User Role Management</a> page</li>
+          <li>Changes take effect immediately after saving</li>
+          <li>Users will see "Access Denied" if they try to access a page without permission</li>
+        </ul>
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <p class="footer-copy">© 2026 Westland High School – Workshop Woodwork &amp; Furniture Hub</p>
+      <a href="/suggest_activity.html" class="btn btn-suggest-footer">Suggest an Activity</a>
+    </div>
+  </footer>
+
+  <script src="admin_permissions.js"></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+

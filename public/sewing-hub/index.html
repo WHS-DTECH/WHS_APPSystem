@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sewing Room Activity Book</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav class="navbar">
+    <a class="nav-brand" href="/index.html">SEWING ROOM</a>
+    <ul class="nav-links">
+      <li id="nav-browse-activities-item" style="display:none"><a href="/index.html">Browse Activities</a></li>
+      <li id="nav-upload-menu-item" class="nav-upload-wrap" style="display:none">
+        <button class="nav-upload" type="button">Upload <span class="chevron">&#9660;</span></button>
+        <div class="nav-upload-menu">
+          <a href="/admin_upload_activity.html">Upload Activity</a>
+          <a href="/admin_upload_url_idea.html">Upload URL Idea</a>
+          <a href="/admin_upload_assessment_task.html">Upload Assessment Task</a>
+        </div>
+      </li>
+    </ul>
+    <div class="nav-right">
+      <div id="google-admin-badge" class="nav-admin-wrap" style="display:none">
+        <button class="nav-admin" id="admin-dropdown-toggle" type="button">Admin <span class="chevron">&#9660;</span></button>
+        <div class="nav-admin-menu" id="admin-dropdown-menu">
+          <a href="/admin_user_roles.html">User Roles</a>
+          <a href="/admin_role_permissions.html">Role Permissions</a>
+          <a href="/admin_assessment_management.html">Assessment Management</a>
+        </div>
+      </div>
+      <div class="nav-avatar" id="google-user-initials">VP</div>
+      <a href="/auth/logout" class="nav-signout" id="google-signout">Sign out</a>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <header class="hero">
+    <div class="hero-circles">
+      <div class="circle c1"></div>
+      <div class="circle c2"></div>
+      <div class="circle c3"></div>
+    </div>
+    <div class="hero-content">
+      <p class="hero-sub">TEXTILES &amp; SEWING HUB</p>
+      <h1>SEWING ROOM<br>ACTIVITY BOOK</h1>
+      <p class="hero-desc">Explore practical sewing and textiles tasks students are completing this term, from hand stitching basics to garment construction and finishing techniques.</p>
+      <div class="hero-buttons">
+        <a href="suggest_activity.html" class="btn-outline">Suggest an Activity</a>
+        <button class="btn-solid">14 activities in the student library</button>
+      </div>
+    </div>
+  </header>
+
+
+  <!-- THIS WEEK -->
+  <section class="section-week">
+    <div class="container">
+      <h2 class="section-title">Activities Running This Week: 3 – 9 May</h2>
+      <div class="card-grid" id="week-grid">
+        <p style="color:#888;font-size:0.85rem;padding:0.5rem 0">Loading…</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- URL IDEAS -->
+  <section class="section-url-ideas">
+    <div class="container">
+      <h2 class="section-title">URL Ideas</h2>
+      <div class="card-grid" id="url-ideas-grid">
+        <p style="color:#888;font-size:0.85rem;padding:0.5rem 0">Loading…</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- LIBRARY -->
+  <section class="section-library">
+    <div class="container">
+      <div class="library-header">
+        <h2 class="section-title">Activity Library Students Can Choose</h2>
+        <span class="library-count">14 shown</span>
+      </div>
+
+      <div class="filters">
+        <div class="filter-group">
+          <label>SEARCH</label>
+          <input type="text" id="search-input" placeholder="Search activities (e.g. zip, apron, embroidery)…" />
+        </div>
+        <div class="filter-group">
+          <label>YEAR LEVEL</label>
+          <select id="filter-year">
+            <option value="">All levels</option>
+            <option value="Year 9">Year 9</option>
+            <option value="Year 10">Year 10</option>
+            <option value="Year 11">Year 11</option>
+            <option value="Year 12">Year 12</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>TYPE</label>
+          <select id="filter-type">
+            <option value="">All types</option>
+            <option value="Hand Sewing">Hand Sewing</option>
+            <option value="Machine Sewing">Machine Sewing</option>
+            <option value="Embroidery">Embroidery</option>
+            <option value="Pattern Making">Pattern Making</option>
+            <option value="Construction">Construction</option>
+            <option value="Finishing">Finishing</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>ACTIVITY CATEGORY</label>
+          <select id="filter-category">
+            <option value="">All activities</option>
+            <option value="skill">Skill activities</option>
+            <option value="practice">Practice activities</option>
+            <option value="assessment">Assessment activities</option>
+            <option value="url-idea">URL ideas</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>UPLOAD TYPE</label>
+          <select id="filter-upload-type">
+            <option value="">All upload types</option>
+            <option value="activity">Activity</option>
+            <option value="url-idea">URL Idea</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>SORT</label>
+          <select id="filter-sort">
+            <option value="az">Name (A–Z)</option>
+            <option value="za">Name (Z–A)</option>
+            <option value="level">Year Level</option>
+            <option value="duration">Duration</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="card-grid" id="library-grid">
+        <p style="color:#888;font-size:0.85rem;padding:0.5rem 0">Loading…</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="site-footer">
+    <div class="footer-suggest">
+      <a href="suggest_activity.html" class="btn-footer-suggest">&#9988; Suggest an Activity</a>
+    </div>
+    <p>&copy; 2026 Westland High School &mdash; Sewing Room &amp; Textiles Hub</p>
+  </footer>
+
+  <script src="auth-client.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

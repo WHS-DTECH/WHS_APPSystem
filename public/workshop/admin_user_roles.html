@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>User Role Management – Workshop</title>
+  <link rel="icon" href="images/favicon.ico" sizes="any" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="admin.css" />
+  <script src="/navbar-loader.js"></script>
+</head>
+<body>
+  <header class="top-strip"></header>
+
+  <main class="page-shell">
+
+    <!-- Access denied -->
+    <div id="accessDenied" class="admin-access-denied" style="display:none">
+      <div class="profile-card" style="text-align:center;padding:48px">
+        <div style="font-size:2.5rem;margin-bottom:12px">🔒</div>
+        <h2 style="margin:0 0 8px">Admin Access Required</h2>
+        <p style="color:var(--soft-ink);margin:0">You need an Admin role to view this page. Contact an administrator to request access.</p>
+        <a href="/" class="admin-btn admin-btn-secondary" style="margin-top:20px;display:inline-block">Back to Hub</a>
+      </div>
+    </div>
+
+    <!-- Main admin content -->
+    <div id="adminContent" style="display:none">
+      <div class="admin-header-row">
+        <div>
+          <h1 class="admin-title">User Role Management</h1>
+          <p class="admin-subtitle">Assign additional roles to users beyond their primary staff code role.</p>
+        </div>
+        <div class="admin-header-actions">
+          <a href="/" class="admin-btn admin-btn-secondary">← Back to Hub</a>
+        </div>
+      </div>
+
+      <div class="admin-layout">
+
+        <!-- Sidebar -->
+        <aside class="admin-sidebar">
+          <nav class="admin-sidenav">
+            <a href="#add-role" class="admin-sidenav-link active">Add Role to User</a>
+            <a href="#users-with-roles" class="admin-sidenav-link">Users with Roles</a>
+            <a href="#how-it-works" class="admin-sidenav-link">How It Works</a>
+          </nav>
+        </aside>
+
+        <!-- Content -->
+        <div class="admin-main">
+
+          <!-- Add Role Form -->
+          <section class="admin-card" id="add-role">
+            <h2 class="admin-section-title">Add Role to User</h2>
+
+            <div id="formMsg" class="admin-msg" style="display:none"></div>
+
+            <div class="admin-form-grid">
+              <label class="admin-label">
+                User Type
+                <select id="userType" class="admin-select">
+                  <option value="Staff">Staff</option>
+                  <option value="Student">Student</option>
+                </select>
+              </label>
+
+              <label class="admin-label">
+                User Email
+                <select id="userSelect" class="admin-select">
+                  <option value="">— Select a user —</option>
+                </select>
+              </label>
+
+              <label class="admin-label">
+                Role to Add
+                <select id="roleSelect" class="admin-select">
+                  <option value="">— Select a role —</option>
+                  <option value="Admin">Admin</option>
+                  <option value="Teacher">Teacher</option>
+                  <option value="Lead Teacher">Lead Teacher</option>
+                  <option value="Technician">Technician</option>
+                  <option value="Student">Student</option>
+                  <option value="Manager">Manager</option>
+                </select>
+              </label>
+            </div>
+
+            <button class="admin-btn admin-btn-primary" id="addRoleBtn">Add Role</button>
+          </section>
+
+          <!-- Users with Roles Table -->
+          <section class="admin-card" id="users-with-roles">
+            <h2 class="admin-section-title">Users with Additional Roles</h2>
+            <div class="admin-table-wrap">
+              <table class="admin-table" id="rolesTable">
+                <thead>
+                  <tr>
+                    <th>Type</th>
+                    <th>User</th>
+                    <th>Additional Roles</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="rolesTableBody">
+                  <tr><td colspan="4" class="admin-table-empty">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- How It Works -->
+          <section class="admin-card admin-card-info" id="how-it-works">
+            <h2 class="admin-section-title">How It Works</h2>
+            <ul class="admin-how-list">
+              <li><strong>Primary Role:</strong> Users automatically get their primary role from their email when they log in.</li>
+              <li><strong>Additional Roles:</strong> You can assign extra roles here to give users access to more features.</li>
+              <li><strong>Combined Access:</strong> Users will have access to all routes allowed by any of their roles.</li>
+              <li><strong>Example:</strong> A teacher can be given an Admin role to access admin features without changing their staff code.</li>
+            </ul>
+          </section>
+
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <p class="footer-copy">© 2026 Westland High School – Workshop Woodwork &amp; Furniture Hub</p>
+      <a href="/suggest_activity.html" class="btn btn-suggest-footer">Suggest an Activity</a>
+    </div>
+  </footer>
+
+  <script src="admin_user_roles.js"></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+

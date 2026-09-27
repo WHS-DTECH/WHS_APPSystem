@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Year Planner - Workshop</title>
+  <link rel="icon" href="images/favicon.ico" sizes="any" />
+  <link rel="shortcut icon" href="images/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="/navbar-loader.js"></script>
+</head>
+<body>
+  <header class="top-strip"></header>
+
+  <main class="page-shell">
+    <section class="panel">
+      <div class="planner-head">
+        <div>
+          <h1 class="planner-title">Year Planner</h1>
+          <p class="planner-subtitle">Weekly planning table generated from Ministry term dates.</p>
+          <label class="planner-year-picker" for="plannerYearLevel">
+            <span>Year Level</span>
+            <select id="plannerYearLevel" name="planner_year_level" aria-label="Year level selector">
+              <option value="">All year levels</option>
+              <option value="Junior">Junior</option>
+              <option value="Year 7">Year 7</option>
+              <option value="Year 8">Year 8</option>
+              <option value="Middle">Middle</option>
+              <option value="Year 9">Year 9</option>
+              <option value="Year 10">Year 10</option>
+              <option value="Senior">Senior</option>
+              <option value="Year 11" selected>Year 11</option>
+              <option value="Year 12">Year 12</option>
+              <option value="Year 13">Year 13</option>
+            </select>
+          </label>
+        </div>
+        <button id="refreshPlannerBtn" class="btn btn-primary" type="button">Refresh Term Dates</button>
+      </div>
+      <p id="plannerMeta" class="planner-meta">Loading term dates...</p>
+      <div id="plannerStatus" class="upload-alert" data-type="saving">Loading...</div>
+
+      <div class="planner-table-wrap">
+        <table class="planner-table">
+          <thead>
+            <tr>
+              <th>Term</th>
+              <th>Weeks</th>
+              <th>Unit Standard</th>
+              <th>Unit Code</th>
+              <th>Level</th>
+              <th>Version</th>
+              <th>Credits</th>
+            </tr>
+          </thead>
+          <tbody id="plannerBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="year_planner.js"></script>
+</body>
+</html>

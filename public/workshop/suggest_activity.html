@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Suggest an Activity – Workshop</title>
+  <link rel="icon" href="images/favicon.ico" sizes="any" />
+  <link rel="shortcut icon" href="images/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="/navbar-loader.js"></script>
+</head>
+<body>
+  <header class="top-strip"></header>
+
+  <main class="page-shell">
+    <section class="suggest-section">
+      <div class="suggest-card">
+        <h1 class="suggest-title">
+          <span class="suggest-icon">🛠️</span> Suggest an Activity
+        </h1>
+        <p class="suggest-subtitle">
+          Have an activity you'd like added to our collection? Share your suggestion with the VP!
+        </p>
+
+        <form id="suggestForm" novalidate enctype="multipart/form-data">
+          <div class="suggest-field">
+            <label for="suggestName">Your Name:</label>
+            <input type="text" id="suggestName" name="name" placeholder="Your name" autocomplete="name" required />
+          </div>
+
+          <div class="suggest-field">
+            <label for="suggestEmail">Your Email:</label>
+            <input type="email" id="suggestEmail" name="email" placeholder="your@email.com" autocomplete="email" required />
+            <p class="suggest-hint">Please use a valid school/work email (Google or Microsoft account).</p>
+          </div>
+
+          <div class="suggest-field">
+            <label for="suggestActivity">Activity Name:</label>
+            <input type="text" id="suggestActivity" name="activity_name" placeholder="e.g., Timber Lap Joint Box" required />
+          </div>
+
+          <div class="suggest-field">
+            <label for="suggestUrl">Activity URL / Reference (optional):</label>
+            <input type="url" id="suggestUrl" name="activity_url" placeholder="https://..." />
+          </div>
+
+          <div class="suggest-field">
+            <label for="suggestReason">Why should we add this activity?</label>
+            <textarea id="suggestReason" name="reason" rows="4" placeholder="Tell us why this activity would be great for our students..."></textarea>
+          </div>
+
+          <div class="suggest-field">
+            <label for="suggestPdf">Upload a PDF (optional):</label>
+            <div class="pdf-upload-zone" id="pdfDropZone">
+              <input type="file" id="suggestPdf" name="pdf" accept=".pdf" class="pdf-file-input" />
+              <div class="pdf-upload-inner">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                <p class="pdf-upload-label">Click to choose a PDF or drag &amp; drop here</p>
+                <p class="pdf-upload-sub" id="pdfFileName">Max 10 MB</p>
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="suggest-submit" id="submitBtn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            Send Suggestion
+          </button>
+
+          <div class="suggest-status" id="suggestStatus">
+            Status: Ready to submit your suggestion.
+          </div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <p class="footer-copy">© 2026 Westland High School – Workshop Woodwork &amp; Furniture Hub</p>
+      <a href="/suggest_activity.html" class="btn btn-suggest-footer">Suggest an Activity</a>
+    </div>
+  </footer>
+
+  <script src="suggest_activity.js"></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+

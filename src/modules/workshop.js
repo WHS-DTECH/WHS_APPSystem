@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 
 const router = express.Router();
-const legacyWorkshopDir = path.join(__dirname, '..', '..', 'OldSystem - dont push to GIT', 'Workshop');
+const legacyWorkshopDir = path.join(__dirname, '..', '..', 'public', 'workshop');
 
 router.use(express.static(legacyWorkshopDir));
 

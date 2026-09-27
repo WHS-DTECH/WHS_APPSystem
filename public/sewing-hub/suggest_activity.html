@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Suggest an Activity – Sewing Room</title>
+  <link rel="icon" type="image/x-icon" href="/images/favicon.ico" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="suggest_activity.css" />
+  <!-- EmailJS SDK — sends the notification email without a backend -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav class="navbar">
+    <a class="nav-brand" href="/index.html">SEWING ROOM</a>
+    <ul class="nav-links">
+      <li id="nav-browse-activities-item" style="display:none"><a href="/index.html">Browse Activities</a></li>
+      <li id="nav-upload-menu-item" class="nav-upload-wrap" style="display:none">
+        <button class="nav-upload" type="button">Upload <span class="chevron">&#9660;</span></button>
+        <div class="nav-upload-menu">
+          <a href="/admin_upload_activity.html">Upload Activity</a>
+          <a href="/admin_upload_url_idea.html">Upload URL Idea</a>
+          <a href="/admin_upload_assessment_task.html">Upload Assessment Task</a>
+        </div>
+      </li>
+    </ul>
+    <div class="nav-right">
+      <div id="google-admin-badge" class="nav-admin-wrap" style="display:none">
+        <button class="nav-admin" id="admin-dropdown-toggle" type="button">Admin <span class="chevron">&#9660;</span></button>
+        <div class="nav-admin-menu" id="admin-dropdown-menu">
+          <a href="/admin_user_roles.html">User Roles</a>
+          <a href="/admin_role_permissions.html">Role Permissions</a>
+          <a href="/admin_assessment_management.html">Assessment Management</a>
+        </div>
+      </div>
+      <div class="nav-avatar" id="google-user-initials">VP</div>
+      <a href="/auth/logout" class="nav-signout" id="google-signout">Sign out</a>
+    </div>
+  </nav>
+
+  <!-- PAGE BODY -->
+  <main class="suggest-page">
+    <div class="suggest-card">
+
+      <div class="suggest-title-row">
+        <span class="suggest-icon">✂️</span>
+        <h1>SUGGEST AN ACTIVITY</h1>
+      </div>
+      <p class="suggest-subtitle">Have an activity you'd like added to our collection? Share your suggestion with the VP!</p>
+
+      <form id="suggest-form" novalidate>
+
+        <div class="form-group">
+          <label for="s-name">Your Name:</label>
+          <input type="text" id="s-name" name="name" placeholder="e.g., Vanessa Pringle" autocomplete="name" />
+        </div>
+
+        <div class="form-group">
+          <label for="s-email">Your Email: <span class="field-required">*</span></label>
+          <input type="email" id="s-email" name="email" placeholder="yourname@westlandhigh.school.nz" autocomplete="email" required />
+          <span class="field-hint">Please use a valid school/work email (Google or Microsoft account).</span>
+        </div>
+
+        <div class="form-group">
+          <label for="s-activity-name">Activity Name: <span class="field-required">*</span></label>
+          <input type="text" id="s-activity-name" name="activity_name" placeholder="e.g., Smocked Fabric Cuff" required />
+        </div>
+
+        <div class="form-group">
+          <label for="s-url">Activity URL / Reference (optional):</label>
+          <input type="url" id="s-url" name="url" placeholder="https://…" />
+        </div>
+
+        <div class="form-group">
+          <label for="s-reason">Why should we add this activity? <span class="field-required">*</span></label>
+          <textarea id="s-reason" name="reason" rows="5" placeholder="Tell us why this activity would be great for our students…" required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Upload a PDF (optional):</label>
+          <div class="file-drop-zone" id="drop-zone">
+            <div class="file-drop-icon">&#128196;</div>
+            <p>Click to choose a PDF or drag &amp; drop here</p>
+            <p class="file-hint">Max 10 MB</p>
+            <input type="file" id="s-file" name="file" accept=".pdf" />
+          </div>
+          <span class="file-name-display" id="file-name-display"></span>
+        </div>
+
+        <button type="submit" class="btn-send">
+          &#9992; Send Suggestion
+        </button>
+
+        <div class="status-bar" id="status-bar">
+          Status: Ready to submit your suggestion.
+        </div>
+
+      </form>
+    </div>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="site-footer">
+    <div class="footer-suggest">
+      <a href="suggest_activity.html" class="btn-footer-suggest">&#9988; Suggest an Activity</a>
+    </div>
+    <p>&copy; 2026 Westland High School &mdash; Sewing Room &amp; Textiles Hub</p>
+  </footer>
+
+  <script src="auth-client.js"></script>
+  <script src="suggest_activity.js"></script>
+</body>
+</html>

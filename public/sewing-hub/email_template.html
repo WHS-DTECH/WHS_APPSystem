@@ -1,0 +1,145 @@
+<!---------------------------------------------------------------
+  EMAILJS TEMPLATE — paste this HTML into your EmailJS template editor.
+  
+  HOW TO SET UP:
+  1. Go to https://www.emailjs.com and sign in.
+  2. Go to Email Templates → Create New Template.
+  3. Set:
+       Subject:  [Activity Suggestion] {{activity_name}}
+       To email: your-teacher-email@westlandhigh.school.nz
+       Reply To: {{sender_email}}
+  4. Switch the body editor to HTML mode and paste everything
+     between the <body> tags below.
+  5. Save. Copy the Template ID into suggest_activity.js.
+---------------------------------------------------------------->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
+<body style="margin:0;padding:0;background:#f0f2f5;font-family:'Segoe UI',Arial,sans-serif;">
+
+  <table width="100%" cellpadding="0" cellspacing="0" border="0"
+         style="background:#f0f2f5;padding:32px 16px;">
+    <tr>
+      <td align="center">
+
+        <!-- Card -->
+        <table width="600" cellpadding="0" cellspacing="0" border="0"
+               style="background:#ffffff;border-radius:10px;overflow:hidden;
+                      box-shadow:0 2px 12px rgba(0,0,0,0.10);max-width:600px;width:100%;">
+
+          <!-- Header banner -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#3a6bbf 0%,#1a4fa0 100%);
+                       padding:28px 32px;">
+              <p style="margin:0 0 4px 0;color:rgba(255,255,255,0.75);
+                        font-size:11px;font-weight:700;letter-spacing:0.12em;
+                        text-transform:uppercase;">SEWING ROOM</p>
+              <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:800;
+                         line-height:1.2;">New Activity Suggestion</h1>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:28px 32px 0;">
+              <p style="margin:0 0 24px;color:#3a3a5a;font-size:14px;line-height:1.5;">
+                A new suggestion has been submitted for review.
+              </p>
+
+              <!-- Details table -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0"
+                     style="border:1px solid #e0e4ef;border-radius:6px;
+                            border-collapse:collapse;font-size:14px;">
+                <tr>
+                  <td style="padding:11px 16px;border-bottom:1px solid #e0e4ef;
+                             font-weight:700;color:#2b2b3b;width:38%;
+                             background:#f8f9fc;">Date</td>
+                  <td style="padding:11px 16px;border-bottom:1px solid #e0e4ef;
+                             color:#3a3a5a;">{{date}}</td>
+                </tr>
+                <tr>
+                  <td style="padding:11px 16px;border-bottom:1px solid #e0e4ef;
+                             font-weight:700;color:#2b2b3b;
+                             background:#f8f9fc;">Activity</td>
+                  <td style="padding:11px 16px;border-bottom:1px solid #e0e4ef;
+                             color:#3a3a5a;">{{activity_name}}</td>
+                </tr>
+                <tr>
+                  <td style="padding:11px 16px;border-bottom:1px solid #e0e4ef;
+                             font-weight:700;color:#2b2b3b;
+                             background:#f8f9fc;">Suggested By</td>
+                  <td style="padding:11px 16px;border-bottom:1px solid #e0e4ef;
+                             color:#3a3a5a;">{{suggested_by}}</td>
+                </tr>
+                <tr>
+                  <td style="padding:11px 16px;border-bottom:1px solid #e0e4ef;
+                             font-weight:700;color:#2b2b3b;
+                             background:#f8f9fc;">Email</td>
+                  <td style="padding:11px 16px;border-bottom:1px solid #e0e4ef;">
+                    <a href="mailto:{{sender_email}}"
+                       style="color:#1a6ab2;text-decoration:none;">{{sender_email}}</a>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:11px 16px;font-weight:700;color:#2b2b3b;
+                             background:#f8f9fc;">URL</td>
+                  <td style="padding:11px 16px;color:#3a3a5a;">{{activity_url}}</td>
+                </tr>
+              </table>
+
+              <!-- Reason -->
+              <p style="margin:24px 0 8px;font-size:14px;font-weight:700;
+                        color:#2b2b3b;">Reason</p>
+              <table width="100%" cellpadding="0" cellspacing="0" border="0"
+                     style="border:1px solid #e0e4ef;border-radius:6px;
+                            border-collapse:collapse;">
+                <tr>
+                  <td style="padding:14px 16px;color:#3a3a5a;font-size:14px;
+                             line-height:1.6;">{{reason}}</td>
+                </tr>
+              </table>
+
+              <!-- Button -->
+              <table cellpadding="0" cellspacing="0" border="0"
+                     style="margin:28px 0 8px;">
+                <tr>
+                  <td style="background:#1a4fa0;border-radius:6px;">
+                    <a href="{{suggestions_url}}"
+                       style="display:inline-block;padding:12px 28px;
+                              color:#ffffff;font-size:14px;font-weight:700;
+                              text-decoration:none;letter-spacing:0.01em;">
+                      Open Suggestions List
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Direct link -->
+              <p style="margin:12px 0 0;font-size:12px;color:#7a7a9a;">
+                Direct link:
+                <a href="{{suggestions_url}}"
+                   style="color:#1a6ab2;word-break:break-all;">{{suggestions_url}}</a>
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:24px 32px;text-align:center;
+                       font-size:11px;color:#aaaacc;">
+              &copy; 2026 Westland High School &mdash; Sewing Room &amp; Textiles Hub
+            </td>
+          </tr>
+
+        </table>
+        <!-- /Card -->
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

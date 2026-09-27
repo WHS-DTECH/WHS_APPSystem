@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Worksheets Manager - Workshop</title>
+  <link rel="icon" href="images/favicon.ico" sizes="any" />
+  <link rel="shortcut icon" href="images/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="/navbar-loader.js"></script>
+</head>
+<body>
+  <header class="top-strip"></header>
+
+  <main class="page-shell upload-shell">
+    <section class="upload-header">
+      <h1>Worksheets Manager</h1>
+      <p>Upload worksheet files and share clickable review links for students and teachers.</p>
+    </section>
+
+    <section class="upload-alert" id="worksheetUploadAlert" data-type="warning">
+      Sign in with your school Google account before uploading worksheet files.
+    </section>
+
+    <section class="upload-panel">
+      <form id="worksheetUploadForm" enctype="multipart/form-data" novalidate>
+        <h2>Upload Worksheet</h2>
+
+        <div class="upload-grid two-col">
+          <label>
+            <span>Worksheet Title</span>
+            <input type="text" id="worksheetTitle" name="worksheet_title" placeholder="Optional for bulk upload. e.g. Workshop Safety Worksheet 1" />
+          </label>
+
+          <label>
+            <span>Year Level</span>
+            <select name="year_level" id="worksheetYearLevel" required>
+              <option value="Junior" selected>Junior</option>
+              <option value="Year 7">Year 7</option>
+              <option value="Year 8">Year 8</option>
+              <option value="Middle">Middle</option>
+              <option value="Year 9">Year 9</option>
+              <option value="Year 10">Year 10</option>
+              <option value="Senior">Senior</option>
+              <option value="Year 11">Year 11</option>
+              <option value="Year 12">Year 12</option>
+              <option value="Year 13">Year 13</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Worksheet Category</span>
+            <select id="worksheetCategory" name="worksheet_category">
+              <option value="Auto-detect" selected>Auto-detect</option>
+              <option value="Safety">Safety</option>
+              <option value="Hand tools">Hand tools</option>
+              <option value="Abrasives">Abrasives</option>
+              <option value="Joints and Processes">Joints and Processes</option>
+              <option value="Type of wood finishes">Type of wood finishes</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Worksheet File</span>
+            <input
+              type="file"
+              id="worksheetFile"
+              name="worksheet_files"
+              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              multiple
+              required
+            />
+          </label>
+
+          <label class="upload-checkbox-label">
+            <span>DOCX Split Mode</span>
+            <span class="upload-checkbox-row">
+              <input type="checkbox" id="splitDocxList" name="split_docx_list" value="1" />
+              Split a DOCX worksheet list into individual worksheet rows.
+            </span>
+          </label>
+        </div>
+
+        <p class="upload-helper">Start with: TeacherFiles\Worksheets\Year 7_8 - Woodwork - Teaching and Learning Resources.docx. Enable DOCX Split Mode for list documents that contain worksheet names.</p>
+
+        <div class="upload-actions">
+          <button type="submit" class="btn btn-primary" id="uploadWorksheetBtn" disabled>Upload Worksheet</button>
+          <a href="/" class="btn btn-secondary">Back to Hub</a>
+        </div>
+      </form>
+    </section>
+
+    <section class="upload-panel" style="margin-top:14px">
+      <form id="lessonNoteUploadForm" enctype="multipart/form-data" novalidate>
+        <h2>Upload Lesson Note</h2>
+        <div class="upload-grid two-col">
+          <label>
+            <span>Lesson Note Title</span>
+            <input type="text" id="lessonNoteTitle" name="lesson_note_title" placeholder="e.g. Strand 1 - Safety Lesson Notes" />
+          </label>
+
+          <label>
+            <span>Year Level</span>
+            <select name="year_level" id="lessonNoteYearLevel" required>
+              <option value="Junior" selected>Junior</option>
+              <option value="Year 7">Year 7</option>
+              <option value="Year 8">Year 8</option>
+              <option value="Middle">Middle</option>
+              <option value="Year 9">Year 9</option>
+              <option value="Year 10">Year 10</option>
+              <option value="Senior">Senior</option>
+              <option value="Year 11">Year 11</option>
+              <option value="Year 12">Year 12</option>
+              <option value="Year 13">Year 13</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Strand Number</span>
+            <input type="number" id="lessonNoteStrandNumber" name="strand_number" min="1" step="1" placeholder="e.g. 1" />
+          </label>
+
+          <label>
+            <span>Strand Title</span>
+            <input type="text" id="lessonNoteStrandTitle" name="strand_title" placeholder="e.g. Safety" />
+          </label>
+
+          <label>
+            <span>Lesson Note File</span>
+            <input
+              type="file"
+              id="lessonNoteFile"
+              name="lesson_note_file"
+              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              required
+            />
+          </label>
+
+          <label class="upload-checkbox-label">
+            <span>DOCX Split Mode</span>
+            <span class="upload-checkbox-row">
+              <input type="checkbox" id="splitDocxLessonList" name="split_docx_lesson_list" value="1" />
+              Split a DOCX lesson note list into individual lesson-note rows.
+            </span>
+          </label>
+        </div>
+
+        <p class="upload-helper">For list documents that include strand lesson-note headings, enable DOCX Split Mode to create individual lesson notes automatically.</p>
+
+        <div class="upload-actions">
+          <button type="submit" class="btn btn-primary" id="uploadLessonNoteBtn" disabled>Upload Lesson Note</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="upload-panel" style="margin-top:14px">
+      <h2>Worksheet Library</h2>
+      <p class="upload-helper">Click Review to open the worksheet in-browser (or download if your browser cannot preview that file type).</p>
+      <div class="upload-actions" style="margin-bottom:8px">
+        <button type="button" class="btn btn-danger btn-sm" id="bulkDeleteWorksheetsBtn" disabled>Delete Selected Worksheets</button>
+      </div>
+      <div class="worksheet-table-wrap">
+        <table class="planner-table worksheet-table">
+          <thead>
+            <tr>
+              <th><input type="checkbox" id="selectAllWorksheets" aria-label="Select all worksheets" /></th>
+              <th>Title</th>
+              <th class="is-sortable" data-sort-target="worksheets" data-sort-key="year_level">Year Level</th>
+              <th class="is-sortable" data-sort-target="worksheets" data-sort-key="strand">Strand</th>
+              <th class="is-sortable" data-sort-target="worksheets" data-sort-key="worksheet_category">Category</th>
+              <th>Linked Lesson Note</th>
+              <th>File</th>
+              <th>Uploaded</th>
+              <th>Review</th>
+              <th>Delete</th>
+            </tr>
+          </thead>
+          <tbody id="worksheetListBody">
+            <tr><td colspan="10" class="planner-empty">Loading worksheets...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="upload-panel" style="margin-top:14px">
+      <h2>Lesson Notes Library</h2>
+      <p class="upload-helper">Lesson notes are linked to strands, and worksheets can reference them for future planning and reporting use.</p>
+      <div class="upload-actions" style="margin-bottom:8px">
+        <button type="button" class="btn btn-danger btn-sm" id="bulkDeleteLessonNotesBtn" disabled>Delete Selected Lesson Notes</button>
+      </div>
+      <div class="worksheet-table-wrap">
+        <table class="planner-table worksheet-table">
+          <thead>
+            <tr>
+              <th><input type="checkbox" id="selectAllLessonNotes" aria-label="Select all lesson notes" /></th>
+              <th>Lesson Note</th>
+              <th class="is-sortable" data-sort-target="lesson-notes" data-sort-key="year_level">Year Level</th>
+              <th class="is-sortable" data-sort-target="lesson-notes" data-sort-key="strand">Strand</th>
+              <th>Linked Worksheets</th>
+              <th>Uploaded</th>
+              <th>Review</th>
+              <th>Delete</th>
+            </tr>
+          </thead>
+          <tbody id="lessonNotesListBody">
+            <tr><td colspan="8" class="planner-empty">Loading lesson notes...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <p class="footer-copy">© 2026 Westland High School - Workshop Woodwork &amp; Furniture Hub</p>
+      <a href="/" class="btn btn-suggest-footer">Open Hub</a>
+    </div>
+  </footer>
+
+  <script src="worksheets_manager.js"></script>
+</body>
+</html>

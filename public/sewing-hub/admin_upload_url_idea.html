@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Upload URL Idea - Sewing Room</title>
+  <link rel="icon" type="image/x-icon" href="/images/favicon.ico" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="admin_pages.css" />
+</head>
+<body>
+  <nav class="navbar">
+    <a class="nav-brand" href="/index.html">SEWING ROOM</a>
+    <ul class="nav-links">
+      <li id="nav-browse-activities-item" style="display:none"><a href="/index.html">Browse Activities</a></li>
+      <li id="nav-upload-menu-item" class="nav-upload-wrap" style="display:none">
+        <button class="nav-upload" type="button">Upload <span class="chevron">&#9660;</span></button>
+        <div class="nav-upload-menu">
+          <a href="/admin_upload_activity.html">Upload Activity</a>
+          <a href="/admin_upload_url_idea.html">Upload URL Idea</a>
+          <a href="/admin_upload_assessment_task.html">Upload Assessment Task</a>
+        </div>
+      </li>
+    </ul>
+    <div class="nav-right">
+      <div id="google-admin-badge" class="nav-admin-wrap" style="display:none">
+        <button class="nav-admin" id="admin-dropdown-toggle" type="button">Admin <span class="chevron">&#9660;</span></button>
+        <div class="nav-admin-menu" id="admin-dropdown-menu">
+          <a href="/admin_user_roles.html">User Roles</a>
+          <a href="/admin_role_permissions.html">Role Permissions</a>
+          <a href="/admin_assessment_management.html">Assessment Management</a>
+        </div>
+      </div>
+      <div class="nav-avatar" id="google-user-initials">VP</div>
+      <a href="/auth/logout" class="nav-signout" id="google-signout">Sign out</a>
+    </div>
+  </nav>
+
+  <main class="admin-page-wrap">
+    <section class="admin-page-head">
+      <div>
+        <h1 id="url-idea-page-title">Upload URL Idea</h1>
+        <p id="url-idea-page-subtitle">Create a simplified card with an external URL and assign it to URL Idea.</p>
+      </div>
+      <a class="admin-back-btn" href="/index.html">&#8592; Back to Hub</a>
+    </section>
+
+    <section class="admin-card">
+      <h2 id="url-idea-form-heading">New URL Idea</h2>
+      <form id="url-idea-form" class="admin-form-grid" style="grid-template-columns:1fr;">
+        <div class="field">
+          <label for="idea-name">Activity Name</label>
+          <input id="idea-name" required maxlength="255" />
+        </div>
+
+        <div class="field">
+          <label for="idea-type">Type</label>
+          <input id="idea-type" required maxlength="50" placeholder="Machine Sewing, Embroidery..." />
+        </div>
+
+        <div class="field">
+          <label for="idea-color">Card Color</label>
+          <select id="idea-color" required>
+            <option value="color-rose">Rose</option>
+            <option value="color-teal" selected>Teal</option>
+            <option value="color-sage">Sage</option>
+            <option value="color-lavender">Lavender</option>
+            <option value="color-coral">Coral</option>
+            <option value="color-gold">Gold</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="idea-url">URL (shown on card)</label>
+          <input id="idea-url" type="url" required placeholder="https://example.com/idea" />
+        </div>
+
+        <div class="field">
+          <label for="idea-description">Short Description</label>
+          <textarea id="idea-description" rows="4" style="border:1.5px solid #9fc0de;border-radius:8px;padding:0.6rem 0.65rem;font-size:0.9rem;resize:vertical;"></textarea>
+        </div>
+
+        <div class="actions-row" style="margin-top:0.2rem;">
+          <button class="admin-primary-btn" id="url-idea-submit-btn" type="submit">Save URL Idea</button>
+          <button class="admin-danger-btn" id="url-idea-delete-btn" type="button" style="display:none;">Delete URL Idea</button>
+          <button class="admin-primary-btn" id="convert-to-activity-btn" type="button" style="display:none;">Convert to Activity</button>
+          <a class="admin-reset-btn" href="/index.html" style="display:inline-block; text-decoration:none;">Cancel</a>
+        </div>
+      </form>
+
+      <p id="url-idea-status" class="admin-note"></p>
+    </section>
+  </main>
+
+  <script src="auth-client.js"></script>
+  <script src="admin_upload_url_idea.js"></script>
+</body>
+</html>

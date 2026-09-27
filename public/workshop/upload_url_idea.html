@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Upload URL Idea - Workshop</title>
+  <link rel="icon" href="images/favicon.ico" sizes="any" />
+  <link rel="shortcut icon" href="images/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="/navbar-loader.js"></script>
+</head>
+<body>
+  <header class="top-strip"></header>
+
+  <main class="page-shell upload-shell">
+    <section class="upload-header upload-header-row">
+      <div>
+        <h1>Upload URL Idea</h1>
+        <p>Create a simplified card with an external URL and assign it to URL Idea.</p>
+      </div>
+      <a href="/" class="btn btn-light">Back to Hub</a>
+    </section>
+
+    <section class="upload-alert" id="uploadUrlAlert" data-type="warning">
+      Not signed in. Sign in with your school Google account before saving.
+    </section>
+
+    <section class="upload-panel upload-url-panel">
+      <form id="uploadUrlIdeaForm" novalidate>
+        <h2>New URL Idea</h2>
+
+        <label>
+          <span>Activity Name</span>
+          <input type="text" name="activity_name" id="urlIdeaName" required />
+        </label>
+
+        <label>
+          <span>Type</span>
+          <input type="text" name="activity_type" placeholder="Machine Sewing, Embroidery..." />
+        </label>
+
+        <label>
+          <span>Card Color</span>
+          <select name="card_color">
+            <option>Teal</option>
+            <option>Blue</option>
+            <option>Green</option>
+            <option>Violet</option>
+            <option>Orange</option>
+            <option>Slate</option>
+          </select>
+        </label>
+
+        <label>
+          <span>URL (Shown On Card)</span>
+          <input type="url" name="idea_url" placeholder="https://example.com/idea" required />
+        </label>
+
+        <label>
+          <span>Short Description</span>
+          <textarea name="short_description" rows="4"></textarea>
+        </label>
+
+        <div class="upload-actions">
+          <button type="submit" class="btn btn-primary" id="saveUrlIdeaBtn" disabled>Save URL Idea</button>
+          <button type="button" class="btn btn-light" id="cancelUrlIdeaBtn">Cancel</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <script src="upload_url_idea.js"></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+

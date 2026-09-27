@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>School Terms & Holidays - Workshop Admin</title>
+  <link rel="icon" href="images/favicon.ico" sizes="any" />
+  <link rel="shortcut icon" href="images/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="admin.css" />
+  <script src="/navbar-loader.js"></script>
+</head>
+<body>
+  <header class="top-strip"></header>
+
+  <main class="page-shell admin-shell">
+    <div id="accessDenied" class="access-denied" style="display:none">
+      <h2>Access Denied</h2>
+      <p>You need to be signed in as Admin or Lead Teacher to view this page.</p>
+      <a href="/" class="btn btn-primary">Back to Hub</a>
+    </div>
+
+    <div id="adminContent" style="display:none">
+      <div class="admin-header-row">
+        <div>
+          <h1 class="admin-title">School Terms &amp; Holidays</h1>
+          <p class="admin-subtitle">Live content loaded from the Ministry of Education terms and holidays page.</p>
+        </div>
+        <div class="admin-header-actions">
+          <a href="/" class="admin-btn admin-btn-secondary">Back to Hub</a>
+        </div>
+      </div>
+
+      <section class="admin-card">
+        <div class="terms-toolbar">
+          <button id="refreshTermsBtn" class="admin-btn admin-btn-primary" type="button">Refresh Data</button>
+          <a href="https://www.education.govt.nz/school-terms-and-holidays-dates" target="_blank" rel="noopener" class="admin-btn admin-btn-secondary">Open Source Page</a>
+        </div>
+        <p id="termsMeta" class="terms-meta">Loading latest term and holiday dates...</p>
+        <div id="termsStatus" class="admin-msg" style="display:none"></div>
+        <div id="termsContent" class="terms-view"></div>
+      </section>
+    </div>
+  </main>
+
+  <script src="admin_school_terms.js"></script>
+</body>
+</html>
+

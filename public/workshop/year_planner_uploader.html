@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Planner Uploader - Workshop</title>
+  <link rel="icon" href="images/favicon.ico" sizes="any" />
+  <link rel="shortcut icon" href="images/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="/navbar-loader.js"></script>
+</head>
+<body>
+  <header class="top-strip"></header>
+
+  <main class="page-shell upload-shell">
+    <section class="upload-header">
+      <h1>Planner Uploader</h1>
+      <p>Upload a DOCX planner file and convert it into the same table format used by the Year Planner page.</p>
+    </section>
+
+    <section class="upload-alert" id="plannerUploadAlert" data-type="warning">
+      Sign in with your school Google account before importing a planner document.
+    </section>
+
+    <section class="upload-panel">
+      <form id="plannerUploadForm" enctype="multipart/form-data" novalidate>
+        <h2>Upload Planner Document</h2>
+
+        <div class="upload-grid two-col">
+          <label>
+            <span>Year Level</span>
+            <select name="year_level" id="plannerUploadYearLevel" required>
+              <option value="Junior">Junior</option>
+              <option value="Year 7">Year 7</option>
+              <option value="Year 8">Year 8</option>
+              <option value="Middle">Middle</option>
+              <option value="Year 9">Year 9</option>
+              <option value="Year 10">Year 10</option>
+              <option value="Senior">Senior</option>
+              <option value="Year 11">Year 11</option>
+              <option value="Year 12" selected>Year 12</option>
+              <option value="Year 13">Year 13</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Planner DOCX File</span>
+            <input type="file" id="plannerDocxFile" name="planner_docx" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required />
+          </label>
+        </div>
+
+        <p class="upload-helper">Choose a planner document like Year 12 Furniture - Term Planner.docx. The importer will read the table rows and save them locally for the selected year level.</p>
+
+        <div class="upload-actions">
+          <button type="submit" class="btn btn-primary" id="importPlannerBtn" disabled>Import Planner</button>
+          <a href="/year_planner.html" class="btn btn-secondary" id="openYearPlannerLink">Open Year Planner</a>
+        </div>
+      </form>
+    </section>
+
+    <section class="upload-panel" id="plannerPreviewPanel" style="display:none;margin-top:14px">
+      <h2>Imported Preview</h2>
+      <p class="upload-helper" id="plannerImportSummary"></p>
+      <div class="planner-table-wrap">
+        <table class="planner-table">
+          <thead>
+            <tr>
+              <th>Term</th>
+              <th>Weeks</th>
+              <th>Unit Standard</th>
+              <th>Unit Code</th>
+              <th>Level</th>
+              <th>Version</th>
+              <th>Credits</th>
+            </tr>
+          </thead>
+          <tbody id="plannerPreviewBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <p class="footer-copy">© 2026 Westland High School - Workshop Woodwork &amp; Furniture Hub</p>
+      <a href="/year_planner.html" class="btn btn-suggest-footer">Open Year Planner</a>
+    </div>
+  </footer>
+
+  <script src="year_planner_uploader.js"></script>
+</body>
+</html>

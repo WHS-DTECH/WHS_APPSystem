@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sub-Topic - Workshop</title>
+  <link rel="icon" href="images/favicon.ico" sizes="any" />
+  <link rel="shortcut icon" href="images/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="/navbar-loader.js"></script>
+</head>
+<body>
+  <header class="top-strip"></header>
+
+  <main class="page-shell">
+    <section class="panel">
+      <div class="topics-head">
+        <div>
+          <h1 class="subtopic-title" id="subTopicTitle">Sub-Topic</h1>
+          <p class="subtopic-subtitle">Detailed view for this sub-topic.</p>
+        </div>
+        <a href="/topic.html" class="btn btn-secondary">Back to Topics</a>
+      </div>
+
+      <section class="subtopic-card">
+        <p class="subtopic-label">Topic</p>
+        <p class="subtopic-value" id="parentTopicName">-</p>
+
+        <p class="subtopic-label">Details</p>
+        <div class="subtopic-details" id="subTopicDetails"></div>
+      </section>
+    </section>
+  </main>
+
+  <script src="subtopic.js"></script>
+</body>
+</html>

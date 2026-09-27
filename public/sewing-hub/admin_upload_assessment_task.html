@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Upload Assessment Task - Sewing Room</title>
+  <link rel="icon" type="image/x-icon" href="/images/favicon.ico" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="admin_pages.css" />
+</head>
+<body>
+  <nav class="navbar">
+    <a class="nav-brand" href="/index.html">SEWING ROOM</a>
+    <ul class="nav-links">
+      <li id="nav-browse-activities-item" style="display:none"><a href="/index.html">Browse Activities</a></li>
+      <li id="nav-upload-menu-item" class="nav-upload-wrap" style="display:none">
+        <button class="nav-upload" type="button">Upload <span class="chevron">&#9660;</span></button>
+        <div class="nav-upload-menu">
+          <a href="/admin_upload_activity.html">Upload Activity</a>
+          <a href="/admin_upload_url_idea.html">Upload URL Idea</a>
+          <a href="/admin_upload_assessment_task.html">Upload Assessment Task</a>
+        </div>
+      </li>
+    </ul>
+    <div class="nav-right">
+      <div id="google-admin-badge" class="nav-admin-wrap" style="display:none">
+        <button class="nav-admin" id="admin-dropdown-toggle" type="button">Admin <span class="chevron">&#9660;</span></button>
+        <div class="nav-admin-menu" id="admin-dropdown-menu">
+          <a href="/admin_user_roles.html">User Roles</a>
+          <a href="/admin_role_permissions.html">Role Permissions</a>
+          <a href="/admin_assessment_management.html">Assessment Management</a>
+        </div>
+      </div>
+      <div class="nav-avatar" id="google-user-initials">VP</div>
+      <a href="/auth/logout" class="nav-signout" id="google-signout">Sign out</a>
+    </div>
+  </nav>
+
+  <main class="admin-page-wrap">
+    <section class="admin-page-head">
+      <div>
+        <h1 id="assessment-page-title">Upload Assessment Task</h1>
+        <p id="assessment-page-subtitle">Create an assessment task entry with criteria, task details, and supporting images.</p>
+      </div>
+      <a class="admin-back-btn" href="/index.html">&#8592; Back to Hub</a>
+    </section>
+
+    <section class="admin-card">
+      <h2 id="assessment-form-heading">Assessment Basics</h2>
+      <form id="assessment-task-form" class="admin-form-grid" style="grid-template-columns:1fr 1fr;">
+        <div class="field">
+          <label for="assessment-name">Assessment Task Name</label>
+          <input id="assessment-name" required maxlength="255" />
+        </div>
+
+        <div class="field">
+          <label for="assessment-year">Year Level</label>
+          <select id="assessment-year" required>
+            <option value="">Select year</option>
+            <option value="Year 9">Year 9</option>
+            <option value="Year 10">Year 10</option>
+            <option value="Year 11">Year 11</option>
+            <option value="Year 12">Year 12</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="assessment-type">Type</label>
+          <select id="assessment-type" required>
+            <option value="">Select type</option>
+            <option value="Hand Sewing">Hand Sewing</option>
+            <option value="Machine Sewing">Machine Sewing</option>
+            <option value="Embroidery">Embroidery</option>
+            <option value="Pattern Making">Pattern Making</option>
+            <option value="Construction">Construction</option>
+            <option value="Finishing">Finishing</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="assessment-category">Activity Category</label>
+          <select id="assessment-category" required>
+            <option value="Assessment" selected>Assessment Task</option>
+            <option value="Practice">Practice Activity</option>
+            <option value="Skill">Skill Activity</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="assessment-difficulty">Difficulty</label>
+          <select id="assessment-difficulty" required>
+            <option value="">Select level</option>
+            <option value="Beginner">Beginner</option>
+            <option value="Intermediate" selected>Intermediate</option>
+            <option value="Advanced">Advanced</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="assessment-subject-stream">Subject Stream</label>
+          <input id="assessment-subject-stream" maxlength="80" placeholder="Textiles, DTECH, etc." />
+        </div>
+
+        <div class="field">
+          <label for="assessment-duration">Duration Hours</label>
+          <input id="assessment-duration" type="number" min="0.5" max="40" step="0.5" value="6" required />
+        </div>
+
+        <div class="field">
+          <label for="assessment-color">Card Color</label>
+          <select id="assessment-color" required>
+            <option value="color-rose">Rose</option>
+            <option value="color-teal">Teal</option>
+            <option value="color-sage">Sage</option>
+            <option value="color-lavender" selected>Lavender</option>
+            <option value="color-coral">Coral</option>
+            <option value="color-gold">Gold</option>
+          </select>
+        </div>
+
+        <div class="field field-wide" style="grid-column:1 / -1;">
+          <label for="assessment-brief-description">Short Description</label>
+          <textarea id="assessment-brief-description" rows="4" style="border:1.5px solid #9fc0de;border-radius:8px;padding:0.6rem 0.65rem;font-size:0.9rem;resize:vertical;"></textarea>
+        </div>
+
+        <div class="field field-wide" style="grid-column:1 / -1;">
+          <label for="assessment-task-list">Task List (one per line)</label>
+          <textarea id="assessment-task-list" rows="6" style="border:1.5px solid #9fc0de;border-radius:8px;padding:0.6rem 0.65rem;font-size:0.9rem;resize:vertical;"></textarea>
+        </div>
+
+        <div class="field field-wide" style="grid-column:1 / -1;">
+          <label for="assessment-standard-select">Select NZQA Standard</label>
+          <select id="assessment-standard-select">
+            <option value="">Choose a standard from Assessment Management data</option>
+          </select>
+          <p id="assessment-standards-status" class="admin-note" style="margin-top:0.2rem;">Loading standards...</p>
+        </div>
+
+        <div class="field field-wide" style="grid-column:1 / -1;">
+          <label for="assessment-standard-details">Standard Details</label>
+          <textarea id="assessment-standard-details" rows="4" style="border:1.5px solid #9fc0de;border-radius:8px;padding:0.6rem 0.65rem;font-size:0.9rem;resize:vertical;"></textarea>
+        </div>
+
+        <div class="field field-wide" style="grid-column:1 / -1;">
+          <label for="assessment-achiever">Assessment Requirements: Achiever</label>
+          <textarea id="assessment-achiever" rows="3" style="border:1.5px solid #9fc0de;border-radius:8px;padding:0.6rem 0.65rem;font-size:0.9rem;resize:vertical;"></textarea>
+        </div>
+
+        <div class="field field-wide" style="grid-column:1 / -1;">
+          <label for="assessment-merit">Assessment Requirements: Merit</label>
+          <textarea id="assessment-merit" rows="3" style="border:1.5px solid #9fc0de;border-radius:8px;padding:0.6rem 0.65rem;font-size:0.9rem;resize:vertical;"></textarea>
+        </div>
+
+        <div class="field field-wide" style="grid-column:1 / -1;">
+          <label for="assessment-excellence">Assessment Requirements: Excellence</label>
+          <textarea id="assessment-excellence" rows="3" style="border:1.5px solid #9fc0de;border-radius:8px;padding:0.6rem 0.65rem;font-size:0.9rem;resize:vertical;"></textarea>
+        </div>
+
+        <div class="field field-wide" style="grid-column:1 / -1;">
+          <label for="assessment-submission">What You Need to Submit</label>
+          <textarea id="assessment-submission" rows="3" style="border:1.5px solid #9fc0de;border-radius:8px;padding:0.6rem 0.65rem;font-size:0.9rem;resize:vertical;"></textarea>
+        </div>
+
+        <div class="field field-wide" style="grid-column:1 / -1;">
+          <label for="assessment-implications">Relevant Implications</label>
+          <textarea id="assessment-implications" rows="3" style="border:1.5px solid #9fc0de;border-radius:8px;padding:0.6rem 0.65rem;font-size:0.9rem;resize:vertical;"></textarea>
+        </div>
+
+        <div class="field field-wide" style="grid-column:1 / -1;">
+          <label for="assessment-progress">Record and Log Your Progress</label>
+          <textarea id="assessment-progress" rows="3" style="border:1.5px solid #9fc0de;border-radius:8px;padding:0.6rem 0.65rem;font-size:0.9rem;resize:vertical;"></textarea>
+        </div>
+
+        <div class="field field-wide" style="grid-column:1 / -1;">
+          <label>Supporting Images (up to 5)</label>
+          <input class="assessment-image-input" data-index="0" type="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg" />
+          <input class="assessment-image-input" data-index="1" type="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg" />
+          <input class="assessment-image-input" data-index="2" type="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg" />
+          <input class="assessment-image-input" data-index="3" type="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg" />
+          <input class="assessment-image-input" data-index="4" type="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg" />
+          <p class="admin-note" style="margin-top:0.2rem;">Each image uploads when selected. The first uploaded image is used on the card.</p>
+        </div>
+
+        <div class="field field-wide" style="grid-column:1 / -1;">
+          <label for="assessment-feedback">Feedback and Trialling</label>
+          <textarea id="assessment-feedback" rows="3" style="border:1.5px solid #9fc0de;border-radius:8px;padding:0.6rem 0.65rem;font-size:0.9rem;resize:vertical;"></textarea>
+        </div>
+
+        <div class="field" style="align-self:center;">
+          <label style="display:flex;gap:0.5rem;align-items:center;">
+            <input id="assessment-week" type="checkbox" />
+            Show in This Week section
+          </label>
+        </div>
+
+        <div class="actions-row" style="grid-column:1 / -1; margin-top: 0.1rem;">
+          <button class="admin-primary-btn" id="assessment-submit-btn" type="submit">Save Assessment Task</button>
+          <a class="admin-reset-btn" href="/index.html" style="display:inline-block; text-decoration:none;">Cancel</a>
+        </div>
+      </form>
+
+      <p id="assessment-task-status" class="admin-note"></p>
+    </section>
+  </main>
+
+  <script src="auth-client.js"></script>
+  <script src="admin_upload_assessment_task.js"></script>
+</body>
+</html>

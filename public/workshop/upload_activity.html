@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Upload Activity - Workshop</title>
+  <link rel="icon" href="images/favicon.ico" sizes="any" />
+  <link rel="shortcut icon" href="images/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="/navbar-loader.js"></script>
+</head>
+<body>
+  <header class="top-strip"></header>
+
+  <main class="page-shell upload-shell">
+    <section class="upload-header">
+      <h1>Upload Activity</h1>
+      <p>Create a new activity with an outcome image, resources, equipment, and instructions.</p>
+    </section>
+
+    <section class="upload-alert" id="uploadAlert" data-type="warning">
+      Not signed in. Sign in with your school Google account before saving.
+    </section>
+
+    <section class="upload-panel">
+      <form id="uploadActivityForm" enctype="multipart/form-data" novalidate>
+        <h2>Activity Details</h2>
+
+        <div class="upload-grid two-col">
+          <label>
+            <span>Activity Name</span>
+            <input type="text" name="activity_name" id="activityName" required />
+          </label>
+          <label>
+            <span>Year Level</span>
+            <select name="year_level" required>
+              <option value="">Select year</option>
+              <option>Junior</option>
+              <option>Year 7</option>
+              <option>Year 8</option>
+              <option>Middle</option>
+              <option>Year 9</option>
+              <option>Year 10</option>
+              <option>Senior</option>
+              <option>Year 11</option>
+              <option>Year 12</option>
+              <option>Year 13</option>
+            </select>
+          </label>
+          <label>
+            <span>Type</span>
+            <select name="activity_type" required>
+              <option value="">Select type</option>
+              <option>Activity</option>
+              <option>Build</option>
+              <option>Investigation</option>
+              <option>Assessment</option>
+            </select>
+          </label>
+          <label>
+            <span>Activity Category</span>
+            <select name="activity_category" required>
+              <option value="">Activity</option>
+              <option>Woodwork</option>
+              <option>Furniture</option>
+              <option>Design</option>
+              <option>Maintenance</option>
+            </select>
+          </label>
+          <label>
+            <span>Duration Minutes</span>
+            <input type="number" min="1" step="1" name="duration_minutes" placeholder="e.g. 45" />
+          </label>
+          <label>
+            <span>Difficulty</span>
+            <select name="difficulty" required>
+              <option value="">Select difficulty</option>
+              <option>Beginner</option>
+              <option>Intermediate</option>
+              <option>Advanced</option>
+            </select>
+          </label>
+          <label>
+            <span>Card Color</span>
+            <select name="card_color">
+              <option>Violet</option>
+              <option>Blue</option>
+              <option>Green</option>
+              <option>Orange</option>
+              <option>Red</option>
+              <option>Slate</option>
+            </select>
+          </label>
+          <label>
+            <span>Subject Stream</span>
+            <select name="subject_stream" required>
+              <option value="">Select subject</option>
+              <option>Workshop</option>
+              <option>Woodwork</option>
+              <option>Furniture</option>
+              <option>Technology</option>
+            </select>
+          </label>
+        </div>
+
+        <label>
+          <span>Card URL</span>
+          <input type="text" name="card_url" placeholder="What URL should this card open?" />
+        </label>
+
+        <label>
+          <span>Outcome Image URL</span>
+          <input type="url" name="outcome_image_url" placeholder="https://... or /images/..." />
+        </label>
+
+        <label>
+          <span>Upload Outcome Image (PNG or JPG)</span>
+          <input type="file" name="outcome_image_file" id="outcomeImageFile" accept="image/png,image/jpeg" />
+        </label>
+
+        <label>
+          <span>Short Description</span>
+          <textarea name="short_description" rows="3" placeholder="Briefly describe the learning focus."></textarea>
+        </label>
+
+        <div class="upload-grid resource-grid">
+          <label>
+            <span>Resources (one per line)</span>
+            <textarea name="resources_text" rows="5" placeholder="List classroom resources..."></textarea>
+          </label>
+          <fieldset>
+            <legend>Common Resources</legend>
+            <label class="checkbox-line"><input type="checkbox" name="common_resources" value="Internet" /> Internet</label>
+            <label class="checkbox-line"><input type="checkbox" name="common_resources" value="Web Browser" /> Web Browser</label>
+            <label class="checkbox-line"><input type="checkbox" name="common_resources" value="Windows-Compatible" /> Windows-Compatible</label>
+            <label class="checkbox-line"><input type="checkbox" name="common_resources" value="USB Pen Drive" /> USB Pen Drive</label>
+          </fieldset>
+        </div>
+
+        <label>
+          <span>Equipment (one per line)</span>
+          <textarea name="equipment_text" rows="4" placeholder="List required equipment..."></textarea>
+        </label>
+
+        <label>
+          <span>Instructions (one step per line)</span>
+          <textarea name="instructions_text" rows="5" placeholder="What are the steps students should follow?"></textarea>
+        </label>
+
+        <label>
+          <span>Teacher Card: Class Management Notes</span>
+          <textarea name="management_notes" rows="3" placeholder="What class management notes should teachers know?"></textarea>
+        </label>
+
+        <label>
+          <span>Teacher Card: Class Preparation</span>
+          <textarea name="class_preparation" rows="3" placeholder="None"></textarea>
+        </label>
+
+        <label>
+          <span>Teacher Card: Assessment Focus</span>
+          <textarea name="assessment_focus" rows="3" placeholder="What evidence to observe or collect?"></textarea>
+        </label>
+
+        <label class="checkbox-line strong">
+          <input type="checkbox" name="show_this_week" value="true" /> Show in This Week section
+        </label>
+
+        <div class="upload-actions">
+          <button type="submit" class="btn btn-primary" id="saveActivityBtn" disabled>Save Activity</button>
+          <button type="button" class="btn btn-light" id="cancelUploadBtn">Cancel</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <p class="footer-copy">© 2026 Westland High School - Workshop Woodwork &amp; Furniture Hub</p>
+      <a href="/suggest_activity.html" class="btn btn-suggest-footer">Suggest an Activity</a>
+    </div>
+  </footer>
+
+  <script src="upload_activity.js"></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+

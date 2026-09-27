@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Workshop Woodwork Hub</title>
+  <link rel="icon" href="images/favicon.ico" sizes="any" />
+  <link rel="shortcut icon" href="images/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="/navbar-loader.js"></script>
+</head>
+<body>
+  <header class="top-strip"></header>
+
+  <main class="page-shell">
+    <section class="hero-panel" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow">WOODWORK &amp; FURNITURE HUB</p>
+        <h1 id="hero-title">Workshop Activity Book</h1>
+        <p>
+          Explore practical workshop tasks students are completing this term, from joinery basics and timber prep
+          to furniture builds and finishing.
+        </p>
+        <div class="hero-actions">
+          <button class="btn btn-primary" onclick="location.href='/suggest_activity.html'">Suggest an Activity</button>
+          <span class="counter" id="activityCounter">0 activities in the student library</span>
+        </div>
+      </div>
+      <div class="hero-shape" aria-hidden="true"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="this-week-title">
+      <div class="panel-heading">
+        <h2 id="this-week-title">Activities Running This Week: 3 - 9 May</h2>
+      </div>
+      <div id="thisWeekGrid" class="card-grid card-grid-this-week"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="library-title">
+      <div class="panel-controls">
+        <div class="title-row">
+          <h2 id="library-title">Browse every workshop activity and worksheet</h2>
+          <div class="library-stats" id="libraryStats">0 shown</div>
+        </div>
+        <p class="library-subcopy">Search by title, year level, strand, or keywords, then filter to quickly find the right task.</p>
+
+        <div class="filter-stack">
+          <label class="field">
+            <span>Search by title or keyword</span>
+            <input type="search" id="searchInput" placeholder="e.g. pocket-hole, safety, joints, worksheet" />
+          </label>
+
+          <div class="filter-block">
+            <span class="filter-label">Show</span>
+            <div class="segment-row" id="showFilterGroup" role="tablist" aria-label="Show library items">
+              <button type="button" class="segment-btn is-active" data-show="all">All items</button>
+              <button type="button" class="segment-btn" data-show="activities">Activities</button>
+              <button type="button" class="segment-btn" data-show="worksheets">Worksheets</button>
+              <button type="button" class="segment-btn" data-show="lesson-notes">Lesson Notes</button>
+            </div>
+          </div>
+
+          <div class="filter-block">
+            <span class="filter-label">Year level</span>
+            <div class="chip-row" id="yearFilterGroup" aria-label="Filter by year level">
+              <button type="button" class="chip-btn is-active" data-year="all">All levels</button>
+              <button type="button" class="chip-btn" data-year="Junior">Junior School</button>
+              <button type="button" class="chip-btn" data-year="Middle">Middle School</button>
+              <button type="button" class="chip-btn" data-year="Senior">Senior School</button>
+              <button type="button" class="chip-btn" data-year="Year 9">Year 9</button>
+              <button type="button" class="chip-btn" data-year="Year 10">Year 10</button>
+              <button type="button" class="chip-btn" data-year="Year 11">Year 11</button>
+              <button type="button" class="chip-btn" data-year="Year 12">Year 12</button>
+              <button type="button" class="chip-btn" data-year="Year 13">Year 13</button>
+            </div>
+          </div>
+
+          <div class="filter-block">
+            <span class="filter-label">Type</span>
+            <div class="chip-row" id="typeFilterGroup" aria-label="Filter by type">
+              <button type="button" class="chip-btn is-active" data-type="all">All types</button>
+              <button type="button" class="chip-btn" data-type="Build">Build</button>
+              <button type="button" class="chip-btn" data-type="Repair">Repair</button>
+              <button type="button" class="chip-btn" data-type="Design">Design</button>
+              <button type="button" class="chip-btn" data-type="Finishing">Finishing</button>
+              <button type="button" class="chip-btn" data-type="Worksheet">Worksheet</button>
+              <button type="button" class="chip-btn" data-type="Lesson Notes">Lesson Notes</button>
+            </div>
+          </div>
+
+          <div class="filter-block">
+            <span class="filter-label">Category</span>
+            <div class="chip-row" id="categoryFilterGroup" aria-label="Filter by category">
+              <button type="button" class="chip-btn is-active" data-category="all">All categories</button>
+            </div>
+          </div>
+
+          <label class="field field-compact">
+            <span>Sort by</span>
+            <select id="sortSelect">
+              <option value="name">Name (A-Z)</option>
+              <option value="year">Year level</option>
+              <option value="type">Type</option>
+              <option value="category">Category</option>
+            </select>
+          </label>
+        </div>
+      </div>
+      <div id="libraryGrid" class="card-grid card-grid-library"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <p class="footer-copy">© 2026 Westland High School – Workshop Woodwork &amp; Furniture Hub</p>
+      <a href="/suggest_activity.html" class="btn btn-suggest-footer">Suggest an Activity</a>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+

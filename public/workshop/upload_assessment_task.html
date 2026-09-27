@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Upload Assessment Task - Workshop</title>
+  <link rel="icon" href="images/favicon.ico" sizes="any" />
+  <link rel="shortcut icon" href="images/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="/navbar-loader.js"></script>
+</head>
+<body>
+  <header class="top-strip"></header>
+
+  <main class="page-shell upload-shell">
+    <section class="upload-header upload-header-row">
+      <div>
+        <h1>Upload Assessment Task</h1>
+        <p>Create an assessment task entry with criteria, task details, and supporting images.</p>
+      </div>
+      <a href="/" class="btn btn-light">Back to Hub</a>
+    </section>
+
+    <section class="upload-alert" id="uploadAssessmentAlert" data-type="warning">
+      Not signed in. Sign in with your school Google account before saving.
+    </section>
+
+    <section class="upload-panel upload-assessment-panel">
+      <form id="uploadAssessmentForm" enctype="multipart/form-data" novalidate>
+        <h2>Assessment Basics</h2>
+
+        <div class="upload-grid two-col">
+          <label>
+            <span>Assessment Task Name</span>
+            <input type="text" name="assessment_task_name" id="assessmentTaskName" required />
+          </label>
+          <label>
+            <span>Year Level</span>
+            <select name="year_level" required>
+              <option value="">Select year</option>
+              <option>Junior</option>
+              <option>Year 7</option>
+              <option>Year 8</option>
+              <option>Middle</option>
+              <option>Year 9</option>
+              <option>Year 10</option>
+              <option>Senior</option>
+              <option>Year 11</option>
+              <option>Year 12</option>
+              <option>Year 13</option>
+              <option>Level 1</option>
+              <option>Level 2</option>
+              <option>Level 3</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Type</span>
+            <input type="text" name="task_type" placeholder="e.g. Practical" />
+          </label>
+          <label>
+            <span>Activity Category</span>
+            <input type="text" name="activity_category" placeholder="e.g. Assessment Task" />
+          </label>
+
+          <label>
+            <span>Difficulty</span>
+            <select name="difficulty">
+              <option>Beginner</option>
+              <option selected>Intermediate</option>
+              <option>Advanced</option>
+            </select>
+          </label>
+          <label>
+            <span>Subject Stream</span>
+            <input type="text" name="subject_stream" placeholder="Textiles, DTECH etc." />
+          </label>
+
+          <label>
+            <span>Duration Hours</span>
+            <input type="text" name="duration_hours" placeholder="e.g. 6" />
+          </label>
+          <label>
+            <span>Card Color</span>
+            <select name="card_color">
+              <option>Lavender</option>
+              <option>Teal</option>
+              <option>Blue</option>
+              <option>Green</option>
+              <option>Orange</option>
+              <option>Slate</option>
+            </select>
+          </label>
+        </div>
+
+        <label>
+          <span>Short Description</span>
+          <textarea name="short_description" rows="2"></textarea>
+        </label>
+
+        <label>
+          <span>Task List (one per line)</span>
+          <textarea name="task_list" rows="4"></textarea>
+        </label>
+
+        <label>
+          <span>Select NZQA Standard</span>
+          <select id="standardSelect" name="selected_standard">
+            <option value="">Choose a standard from Assessment Management data</option>
+          </select>
+        </label>
+
+        <p class="upload-helper">Loaded standards are linked to <a href="/admin_assessment_management.html">Assessment Standards Manager</a>.</p>
+
+        <label>
+          <span>Standard Details</span>
+          <textarea id="standardDetails" name="standard_details" rows="3"></textarea>
+        </label>
+
+        <label>
+          <span>Assessment Requirements: Achieved</span>
+          <textarea name="req_achieved" rows="2"></textarea>
+        </label>
+
+        <label>
+          <span>Assessment Requirements: Merit</span>
+          <textarea name="req_merit" rows="2"></textarea>
+        </label>
+
+        <label>
+          <span>Assessment Requirements: Excellence</span>
+          <textarea name="req_excellence" rows="2"></textarea>
+        </label>
+
+        <label>
+          <span>What You Need To Submit</span>
+          <textarea name="submit_requirements" rows="2"></textarea>
+        </label>
+
+        <label>
+          <span>Relevant Implications</span>
+          <textarea name="relevant_implications" rows="2"></textarea>
+        </label>
+
+        <label>
+          <span>Record and Log Your Progress</span>
+          <textarea name="progress_record" rows="2"></textarea>
+        </label>
+
+        <label>
+          <span>Supporting Images (up to 5)</span>
+          <input type="file" name="supporting_images" accept="image/png,image/jpeg" multiple />
+        </label>
+
+        <p class="upload-helper">Each image upload should show student evidence. The first uploaded image is used as the card image.</p>
+
+        <label>
+          <span>Feedback and Training</span>
+          <textarea name="feedback_training" rows="2"></textarea>
+        </label>
+
+        <label class="checkbox-line strong">
+          <input type="checkbox" name="show_this_week" value="true" /> Show in This Week section
+        </label>
+
+        <div class="upload-actions">
+          <button type="submit" class="btn btn-primary" id="saveAssessmentBtn" disabled>Save Assessment Task</button>
+          <button type="button" class="btn btn-light" id="cancelAssessmentBtn">Cancel</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <script src="upload_assessment_task.js"></script>
+</body>
+</html>
+
+
+
+
+

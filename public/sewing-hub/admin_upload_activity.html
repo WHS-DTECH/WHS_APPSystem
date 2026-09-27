@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Upload Activity - Sewing Room</title>
+  <link rel="icon" type="image/x-icon" href="/images/favicon.ico" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="admin_pages.css" />
+</head>
+<body>
+  <nav class="navbar">
+    <a class="nav-brand" href="/index.html">SEWING ROOM</a>
+    <ul class="nav-links">
+      <li id="nav-browse-activities-item" style="display:none"><a href="/index.html">Browse Activities</a></li>
+      <li id="nav-upload-menu-item" class="nav-upload-wrap" style="display:none">
+        <button class="nav-upload" type="button">Upload <span class="chevron">&#9660;</span></button>
+        <div class="nav-upload-menu">
+          <a href="/admin_upload_activity.html">Upload Activity</a>
+          <a href="/admin_upload_url_idea.html">Upload URL Idea</a>
+          <a href="/admin_upload_assessment_task.html">Upload Assessment Task</a>
+        </div>
+      </li>
+    </ul>
+    <div class="nav-right">
+      <div id="google-admin-badge" class="nav-admin-wrap" style="display:none">
+        <button class="nav-admin" id="admin-dropdown-toggle" type="button">Admin <span class="chevron">&#9660;</span></button>
+        <div class="nav-admin-menu" id="admin-dropdown-menu">
+          <a href="/admin_user_roles.html">User Roles</a>
+          <a href="/admin_role_permissions.html">Role Permissions</a>
+          <a href="/admin_assessment_management.html">Assessment Management</a>
+        </div>
+      </div>
+      <div class="nav-avatar" id="google-user-initials">VP</div>
+      <a href="/auth/logout" class="nav-signout" id="google-signout">Sign out</a>
+    </div>
+  </nav>
+
+  <main class="admin-page-wrap">
+    <section class="admin-page-head">
+      <div>
+        <h1 id="activity-page-title">Upload Activity</h1>
+        <p id="activity-page-subtitle">Create a new activity with an outcome image, resources, equipment, and instructions.</p>
+      </div>
+      <a class="admin-back-btn" href="/index.html">&#8592; Back to Hub</a>
+    </section>
+
+    <section class="admin-card">
+      <h2 id="activity-form-heading">New Activity Details</h2>
+      <form id="activity-upload-form" class="admin-form-grid" style="grid-template-columns:1fr 1fr;">
+        <div class="field">
+          <label for="activity-name">Activity Name</label>
+          <input id="activity-name" required maxlength="255" />
+        </div>
+
+        <div class="field">
+          <label for="activity-year">Year Level</label>
+          <select id="activity-year" required>
+            <option value="">Select year</option>
+            <option value="Year 9">Year 9</option>
+            <option value="Year 10">Year 10</option>
+            <option value="Year 11">Year 11</option>
+            <option value="Year 12">Year 12</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="activity-type">Type</label>
+          <input id="activity-type" required placeholder="Machine Sewing, Embroidery..." maxlength="50" />
+        </div>
+
+        <div class="field">
+          <label for="activity-category">Activity Category</label>
+          <select id="activity-category" required>
+            <option value="Skill">Skill Activity</option>
+            <option value="Practice">Practice Activity</option>
+            <option value="Assessment">Assessment Activity</option>
+            <option value="URL Idea">URL Idea</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="activity-duration">Duration Hours</label>
+          <input id="activity-duration" type="number" min="0.5" max="24" step="0.5" required />
+        </div>
+
+        <div class="field">
+          <label for="activity-difficulty">Difficulty</label>
+          <select id="activity-difficulty" required>
+            <option value="">Select difficulty</option>
+            <option value="Beginner">Beginner</option>
+            <option value="Intermediate">Intermediate</option>
+            <option value="Advanced">Advanced</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="activity-color">Card Color</label>
+          <select id="activity-color" required>
+            <option value="color-rose">Rose</option>
+            <option value="color-teal">Teal</option>
+            <option value="color-sage">Sage</option>
+            <option value="color-lavender">Lavender</option>
+            <option value="color-coral">Coral</option>
+            <option value="color-gold">Gold</option>
+          </select>
+        </div>
+
+        <div class="field field-wide" style="grid-column:1 / -1;">
+          <label for="activity-image">Outcome Image URL</label>
+          <input id="activity-image" type="text" placeholder="https://... or /images/uploads/your-file.jpg" />
+        </div>
+
+        <div class="field field-wide" style="grid-column:1 / -1;">
+          <label for="activity-idea-url">Idea URL (shown on card)</label>
+          <input id="activity-idea-url" type="url" placeholder="https://example.com/idea" />
+        </div>
+
+        <div class="field field-wide" style="grid-column:1 / -1;">
+          <label for="activity-image-file">Upload Outcome Image (PNG or JPG)</label>
+          <input id="activity-image-file" type="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg" />
+          <p class="admin-note" style="margin-top:0.2rem;">Upload an image and the URL above will be filled automatically.</p>
+        </div>
+
+        <div class="field field-wide" style="grid-column:1 / -1;">
+          <label for="activity-description">Short Description</label>
+          <textarea id="activity-description" rows="3" style="border:1.5px solid #9fc0de;border-radius:8px;padding:0.6rem 0.65rem;font-size:0.9rem;resize:vertical;"></textarea>
+        </div>
+
+        <div class="field field-wide" style="grid-column:1 / -1;">
+          <label for="activity-resources">Resources and Equipment (one per line)</label>
+          <textarea id="activity-resources" rows="6" placeholder="Fabric\nPattern piece\nThread\nSewing machine\nPins\nScissors" style="border:1.5px solid #9fc0de;border-radius:8px;padding:0.6rem 0.65rem;font-size:0.9rem;resize:vertical;"></textarea>
+        </div>
+
+        <div class="field field-wide" style="grid-column:1 / -1;">
+          <label for="activity-instructions">Instructions (one step per line)</label>
+          <textarea id="activity-instructions" rows="8" placeholder="Cut fabric pieces...\nPin edges together...\nSew with 1cm seam allowance..." style="border:1.5px solid #9fc0de;border-radius:8px;padding:0.6rem 0.65rem;font-size:0.9rem;resize:vertical;"></textarea>
+        </div>
+
+        <div class="field field-wide" style="grid-column:1 / -1;">
+          <label for="class-management-notes">Teacher Card: Class Management Notes</label>
+          <textarea id="class-management-notes" rows="4" placeholder="Grouping strategy, behaviour cues, pacing checkpoints..." style="border:1.5px solid #9fc0de;border-radius:8px;padding:0.6rem 0.65rem;font-size:0.9rem;resize:vertical;"></textarea>
+        </div>
+
+        <div class="field field-wide" style="grid-column:1 / -1;">
+          <label for="class-preparation">Teacher Card: Class Preparation</label>
+          <textarea id="class-preparation" rows="4" placeholder="Prep materials, machine setup, starter task..." style="border:1.5px solid #9fc0de;border-radius:8px;padding:0.6rem 0.65rem;font-size:0.9rem;resize:vertical;"></textarea>
+        </div>
+
+        <div class="field field-wide" style="grid-column:1 / -1;">
+          <label for="assessment-focus">Teacher Card: Assessment Focus</label>
+          <textarea id="assessment-focus" rows="4" placeholder="What evidence to observe or collect..." style="border:1.5px solid #9fc0de;border-radius:8px;padding:0.6rem 0.65rem;font-size:0.9rem;resize:vertical;"></textarea>
+        </div>
+
+        <div class="field" style="align-self:center;">
+          <label style="display:flex;gap:0.5rem;align-items:center;">
+            <input id="activity-week" type="checkbox" />
+            Show in This Week section
+          </label>
+        </div>
+
+        <div class="actions-row" style="grid-column:1 / -1; margin-top: 0.1rem;">
+          <button class="admin-primary-btn" id="activity-submit-btn" type="submit">Save Activity</button>
+           <button class="admin-danger-btn" id="activity-delete-btn" type="button" style="display:none;">Delete Activity</button>
+          <a class="admin-reset-btn" href="/index.html" style="display:inline-block; text-decoration:none;">Cancel</a>
+        </div>
+      </form>
+
+      <p id="upload-status" class="admin-note"></p>
+    </section>
+  </main>
+
+  <script src="auth-client.js"></script>
+  <script src="admin_upload_activity.js"></script>
+</body>
+</html>

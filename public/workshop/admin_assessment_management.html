@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Assessment Management - Workshop Admin</title>
+  <link rel="icon" href="images/favicon.ico" sizes="any" />
+  <link rel="shortcut icon" href="images/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="admin.css" />
+  <script src="/navbar-loader.js"></script>
+</head>
+<body>
+  <header class="top-strip"></header>
+
+  <main class="page-shell admin-shell">
+    <div id="accessDenied" class="access-denied" style="display:none">
+      <h2>Access Denied</h2>
+      <p>You need to be signed in as Admin or Lead Teacher to view this page.</p>
+      <a href="/" class="btn btn-primary">Back to Hub</a>
+    </div>
+
+    <div id="adminContent" style="display:none">
+      <div class="admin-header-row">
+        <div>
+          <h1 class="admin-title">Assessment Management</h1>
+          <p class="admin-subtitle">NZQA Level 2 and Level 3 Furniture assessment standards.</p>
+        </div>
+        <div class="admin-header-actions">
+          <a href="/" class="admin-btn admin-btn-secondary">← Back to Hub</a>
+        </div>
+      </div>
+
+      <section class="admin-card">
+        <h2 class="admin-section-title" style="margin-bottom:10px">Assessment Standards Manager</h2>
+
+        <div class="admin-form-grid standards-filter-grid" style="margin-bottom:8px">
+          <label class="admin-label">
+            Subject Set
+            <select id="subjectSetFilter" class="admin-select">
+              <option value="all">All subject sets</option>
+              <option value="furniture_making">Furniture Making</option>
+              <option value="furniture_finishing">Furniture Finishing</option>
+              <option value="upholstery">Upholstery</option>
+              <option value="furniture_operations">Furniture Operations</option>
+              <option value="furniture_drawing">Furniture Drawing</option>
+            </select>
+          </label>
+
+          <label class="admin-label">
+            Level
+            <select id="levelFilter" class="admin-select">
+              <option value="all">All levels</option>
+              <option value="2">Level 2</option>
+              <option value="3">Level 3</option>
+            </select>
+          </label>
+
+          <label class="admin-label">
+            Standard Number
+            <input id="standardSearch" class="admin-select" placeholder="e.g. 92013 or 14995" />
+          </label>
+
+          <div class="admin-label" style="justify-content:flex-end">
+            <span style="visibility:hidden">Refresh</span>
+            <button id="refreshDataBtn" class="admin-btn admin-btn-primary" type="button">Refresh NZQA Data</button>
+          </div>
+        </div>
+
+        <p id="loadInfo" class="admin-subtitle" style="margin:0 0 12px">Loaded 73 standards from NZQA Furniture Levels 2 and 3 listings.</p>
+
+        <div class="admin-table-wrap">
+          <table class="admin-table" id="standardsTable">
+            <thead>
+              <tr>
+                <th style="width:90px">Standard</th>
+                <th>Standard Name</th>
+                <th style="width:70px">Level</th>
+                <th style="width:80px">Credits</th>
+                <th style="width:90px">Type</th>
+                <th style="width:90px">NZQA</th>
+              </tr>
+            </thead>
+            <tbody id="standardsBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="admin_assessment_management.js"></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+

@@ -4,7 +4,7 @@ const { query } = require('../db');
 const { ensureAuthenticated, ensureRole } = require('../middleware');
 
 const router = express.Router();
-const legacySewingDir = path.join(__dirname, '..', '..', 'OldSystem - dont push to GIT', 'TECH-SEWING');
+const legacySewingDir = path.join(__dirname, '..', '..', 'public', 'sewing-hub');
 
 router.use(express.static(legacySewingDir));
 

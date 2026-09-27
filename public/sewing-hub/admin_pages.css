@@ -1,0 +1,273 @@
+body {
+  background: linear-gradient(180deg, #c8d8e6 0%, #dbe5ef 100%);
+}
+
+.admin-page-wrap {
+  max-width: 980px;
+  margin: 1.5rem auto 0;
+  padding: 0 1rem 2.25rem;
+}
+
+.admin-page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.admin-page-head h1 {
+  font-size: 2rem;
+  color: #19385a;
+  margin-bottom: 0.25rem;
+}
+
+.admin-page-head p {
+  color: #59708b;
+  font-size: 0.95rem;
+}
+
+.admin-back-btn {
+  align-self: center;
+  background: #f7fbff;
+  color: #355e86;
+  border: 1.5px solid #a8c0d9;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 0.6rem 1rem;
+}
+
+.admin-layout {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 1rem;
+}
+
+.admin-side-nav {
+  background: #f4f8fd;
+  border: 1px solid #9fc0de;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(10, 30, 60, 0.08);
+  overflow: hidden;
+  height: fit-content;
+}
+
+.admin-side-nav a {
+  display: block;
+  padding: 0.8rem 0.9rem;
+  border-bottom: 1px solid #d4e2ef;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #3f5f80;
+}
+
+.admin-side-nav a:last-child {
+  border-bottom: 0;
+}
+
+.admin-side-nav a.active {
+  background: #e7f1fb;
+  color: #2477c9;
+}
+
+.admin-main-col {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-card {
+  background: #f7fbff;
+  border: 1px solid #9fc0de;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(20, 45, 75, 0.08);
+  padding: 1rem 1.2rem;
+}
+
+.admin-card h2 {
+  color: #1f3f62;
+  font-size: 1.6rem;
+  margin-bottom: 0.9rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #b7d0e8;
+}
+
+.admin-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.field label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-weight: 700;
+  color: #4d6b89;
+}
+
+.field input,
+.field select {
+  border: 1.5px solid #9fc0de;
+  border-radius: 8px;
+  padding: 0.6rem 0.65rem;
+  background: #fff;
+  font-size: 0.9rem;
+}
+
+.field input:focus,
+.field select:focus {
+  outline: none;
+  border-color: #3586d4;
+  box-shadow: 0 0 0 3px rgba(53, 134, 212, 0.18);
+}
+
+.field-wide {
+  grid-column: auto;
+}
+
+.admin-note {
+  margin-top: 0.8rem;
+  font-size: 0.82rem;
+  color: #6282a3;
+}
+
+.admin-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid #c8dbec;
+}
+
+.admin-table thead {
+  background: #2a6099;
+}
+
+.admin-table th,
+.admin-table td {
+  text-align: left;
+  padding: 0.7rem 0.65rem;
+  border-bottom: 1px solid #d7e6f3;
+  font-size: 0.85rem;
+  color: #2f4e70;
+}
+
+.admin-table th {
+  color: #fff;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+}
+
+.permissions-table th,
+.permissions-table td {
+  text-align: center;
+}
+
+.permissions-table td:first-child,
+.permissions-table th:first-child {
+  text-align: left;
+}
+
+.permissions-table input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: #2a7dcc;
+}
+
+.chip {
+  display: inline-block;
+  border: 1px solid #8fb3d3;
+  color: #316692;
+  background: #e8f3fc;
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.chip-danger {
+  border-color: #eaacac;
+  color: #b74f4f;
+  background: #ffe7e7;
+}
+
+.admin-primary-btn,
+.admin-danger-btn,
+.admin-reset-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 0.56rem 1rem;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-primary-btn {
+  background: #2785d5;
+  color: #fff;
+}
+
+.admin-primary-btn:hover {
+  background: #1f74bb;
+}
+
+.admin-danger-btn {
+  background: #ffe7e7;
+  color: #ba4d4d;
+  border: 1px solid #efb1b1;
+}
+
+.admin-reset-btn {
+  background: #fff3f3;
+  color: #cf4c4c;
+  border: 1px solid #f1b6b6;
+}
+
+.actions-row {
+  margin-top: 0.75rem;
+  display: flex;
+  gap: 0.6rem;
+}
+
+.admin-bullets {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: #365a7c;
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+
+.notice-card {
+  border-color: #e2b76a;
+  background: #fff8ec;
+}
+
+@media (max-width: 900px) {
+  .admin-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-page-head {
+    flex-direction: column;
+  }
+
+  .admin-back-btn {
+    align-self: flex-start;
+  }
+}

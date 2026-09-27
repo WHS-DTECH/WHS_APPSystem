@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Topics - Workshop</title>
+  <link rel="icon" href="images/favicon.ico" sizes="any" />
+  <link rel="shortcut icon" href="images/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="/navbar-loader.js"></script>
+</head>
+<body>
+  <header class="top-strip"></header>
+
+  <main class="page-shell">
+    <section class="panel">
+      <div class="topics-head">
+        <div>
+          <h1 class="topics-title">Topics Manager</h1>
+          <p class="topics-subtitle">Add and organize curriculum topics and sub-topics.</p>
+        </div>
+        <a href="/" class="btn btn-secondary">Back to Hub</a>
+      </div>
+
+      <section class="topics-card">
+        <h2 class="topics-section-title">Add Topic</h2>
+        <form id="topicForm" novalidate>
+          <div class="topics-row topics-row-topic-meta">
+            <label class="topics-label">
+              <span>Topic Name</span>
+              <input type="text" id="topicName" name="topic_name" placeholder="Enter topic name" required />
+            </label>
+
+            <label class="topics-label">
+              <span>Year Level</span>
+              <select id="topicYearLevel" name="topic_year_level" required>
+                <option value="">Select year level</option>
+                <option value="Junior">Junior</option>
+                <option value="Year 7">Year 7</option>
+                <option value="Year 8">Year 8</option>
+                <option value="Middle">Middle</option>
+                <option value="Year 9">Year 9</option>
+                <option value="Year 10">Year 10</option>
+                <option value="Senior">Senior</option>
+                <option value="Year 11">Year 11</option>
+                <option value="Year 12">Year 12</option>
+                <option value="Year 13">Year 13</option>
+              </select>
+            </label>
+          </div>
+
+          <label class="topics-label">
+            <span>Topic Details (Text)</span>
+            <textarea id="topicDetails" name="topic_details" rows="4" placeholder="Enter topic information here..." required></textarea>
+          </label>
+
+          <button type="submit" class="btn btn-primary">Add Topic</button>
+        </form>
+
+        <div id="topicAlert" class="upload-alert" data-type="saving" style="display:none;margin-top:10px"></div>
+
+        <div id="topicsDisplay" class="topics-display" style="margin-top:20px"></div>
+      </section>
+
+      <section class="topics-card" style="margin-top:20px">
+        <h2 class="topics-section-title">Add Sub-Topic</h2>
+        <form id="subTopicForm" novalidate>
+          <label class="topics-label">
+            <span>Parent Topic</span>
+            <select id="parentTopicId" name="parent_topic_id" required>
+              <option value="">Select a topic by name</option>
+            </select>
+          </label>
+
+          <label class="topics-label">
+            <span>Sub-Topic Name</span>
+            <input type="text" id="subTopicName" name="subtopic_name" placeholder="Enter sub-topic name" required />
+          </label>
+
+          <label class="topics-label">
+            <span>Sub-Topic Details (Text)</span>
+            <textarea id="subTopicDetails" name="subtopic_details" rows="4" placeholder="Enter sub-topic information here..." required></textarea>
+          </label>
+
+          <button type="submit" class="btn btn-primary">Add Sub-Topic</button>
+        </form>
+
+        <div id="subTopicAlert" class="upload-alert" data-type="saving" style="display:none;margin-top:10px"></div>
+
+        <div id="subTopicsDisplay" class="topics-display" style="margin-top:20px"></div>
+      </section>
+    </section>
+  </main>
+
+  <script src="topics.js"></script>
+</body>
+</html>

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Role Permissions Management - Sewing Room</title>
+  <link rel="icon" type="image/x-icon" href="/images/favicon.ico" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="admin_pages.css" />
+</head>
+<body>
+  <nav class="navbar">
+    <a class="nav-brand" href="/index.html">SEWING ROOM</a>
+    <ul class="nav-links">
+      <li id="nav-browse-activities-item" style="display:none"><a href="/index.html">Browse Activities</a></li>
+      <li id="nav-upload-menu-item" class="nav-upload-wrap" style="display:none">
+        <button class="nav-upload" type="button">Upload <span class="chevron">&#9660;</span></button>
+        <div class="nav-upload-menu">
+          <a href="/admin_upload_activity.html">Upload Activity</a>
+          <a href="/admin_upload_url_idea.html">Upload URL Idea</a>
+          <a href="/admin_upload_assessment_task.html">Upload Assessment Task</a>
+        </div>
+      </li>
+    </ul>
+    <div class="nav-right">
+      <div id="google-admin-badge" class="nav-admin-wrap" style="display:none">
+        <button class="nav-admin" id="admin-dropdown-toggle" type="button">Admin <span class="chevron">&#9660;</span></button>
+        <div class="nav-admin-menu" id="admin-dropdown-menu">
+          <a href="/admin_user_roles.html">User Roles</a>
+          <a href="/admin_role_permissions.html">Role Permissions</a>
+          <a href="/admin_assessment_management.html">Assessment Management</a>
+        </div>
+      </div>
+      <div class="nav-avatar" id="google-user-initials">VP</div>
+      <a href="/auth/logout" class="nav-signout" id="google-signout">Sign out</a>
+    </div>
+  </nav>
+
+  <main class="admin-page-wrap">
+    <section class="admin-page-head">
+      <div>
+        <h1>Role Permissions Management</h1>
+        <p>Control which pages each role can access. Check a box to grant access, uncheck to remove access.</p>
+      </div>
+    </section>
+
+    <section class="admin-card">
+      <form id="permissions-form">
+        <div class="admin-table-wrap">
+          <table class="admin-table permissions-table">
+            <thead>
+              <tr>
+                <th>Role</th>
+                <th>Home Page</th>
+                <th>Upload Activity</th>
+                <th>Browse Activities</th>
+                <th>Planning</th>
+                <th>Admin</th>
+              </tr>
+            </thead>
+            <tbody>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="actions-row">
+          <button class="admin-primary-btn" type="submit">Save Changes</button>
+          <button class="admin-reset-btn" type="button" id="permissions-reset">Reset to Defaults</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="admin-card">
+      <h2>Page Descriptions</h2>
+      <ul class="admin-bullets">
+        <li><strong>Home Page:</strong> Main Sewing Room activity hub page.</li>
+        <li><strong>Upload Activity:</strong> Upload and create new practical sewing activities.</li>
+        <li><strong>Browse Activities:</strong> View and search the full activity library.</li>
+        <li><strong>Planning:</strong> Access planning tools for scheduling and project management.</li>
+        <li><strong>Admin:</strong> Administrative functions — user roles, permissions, and system settings.</li>
+      </ul>
+    </section>
+
+    <section class="admin-card notice-card">
+      <h2>Important Notes</h2>
+      <ul class="admin-bullets">
+        <li><strong>Admin role</strong> should always have access to all pages.</li>
+        <li><strong>Public Access</strong> is assigned to all logged-out visitors by default.</li>
+        <li>Additional roles are managed in <a href="admin_user_roles.html">User Role Management</a>.</li>
+        <li>When connected to Google login, changes should apply on the user's next token refresh.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-suggest">
+      <a href="suggest_activity.html" class="btn-footer-suggest">&#9988; Suggest an Activity</a>
+    </div>
+    <p>&copy; 2026 Westland High School &mdash; Sewing Room &amp; Textiles Hub</p>
+  </footer>
+
+  <script src="auth-client.js"></script>
+  <script src="admin_role_permissions.js"></script>
+</body>
+</html>
