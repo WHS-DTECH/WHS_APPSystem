@@ -70,6 +70,7 @@ app.use('/learning-sites', learningSites);
 app.use('/technology-hub', technologyHubPublic);
 app.use('/admin/technology-hub', technologyHubAdmin);
 app.use('/sewing-hub', sewingHub);
+app.use('/api', sewingHub.apiRouter);
 app.use('/workshop', workshop);
 app.use(express.static(path.join(__dirname, '..', 'public')));
 

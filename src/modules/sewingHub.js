@@ -4,7 +4,103 @@ const { query } = require('../db');
 const { ensureAuthenticated, ensureRole } = require('../middleware');
 
 const router = express.Router();
+const apiRouter = express.Router();
 const legacySewingDir = path.join(__dirname, '..', '..', 'public', 'sewing-hub');
+const sewingHubKey = 'SEWING-HUB';
+
+const categoryAliases = {
+  assessment: 'Assessment',
+  practice: 'Practice',
+  skill: 'Skill',
+  'url-idea': 'URL Idea',
+  url_idea: 'URL Idea',
+  'url idea': 'URL Idea',
+  urlidea: 'URL Idea'
+};
+
+const sortOptions = {
+  az: 'name ASC',
+  za: 'name DESC',
+  level: 'year_level ASC, name ASC',
+  duration: 'duration_hours ASC, name ASC'
+};
+
+function activityConditions(queryParams) {
+  const params = [sewingHubKey];
+  const conditions = ['hub_site = $1'];
+
+  if (queryParams.week === 'true') {
+    conditions.push('is_this_week = TRUE');
+  }
+
+  for (const [column, value] of [['year_level', queryParams.year], ['type', queryParams.type]]) {
+    if (value) {
+      params.push(String(value));
+      conditions.push(`${column} = $${params.length}`);
+    }
+  }
+
+  const category = categoryAliases[String(queryParams.category || '').toLowerCase()];
+  if (category) {
+    params.push(category);
+    conditions.push(`activity_category = $${params.length}`);
+  }
+
+  return { conditions, params };
+}
+
+function publicActivityColumns() {
+  return `id, name, year_level, type, activity_category, duration_hours, difficulty,
+          description, outcome_image_url, idea_url, color, is_this_week`;
+}
+
+apiRouter.get('/activities', async (req, res, next) => {
+  try {
+    const { conditions, params } = activityConditions(req.query);
+    const orderBy = sortOptions[String(req.query.sort || '').toLowerCase()] || sortOptions.az;
+    const result = await query(
+      `SELECT ${publicActivityColumns()}
+       FROM activities
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY ${orderBy}`,
+      params
+    );
+
+    res.json(result.rows.map((activity) => ({ ...activity, canViewTeacherCard: false })));
+  } catch (error) {
+    next(error);
+  }
+});
+
+apiRouter.get('/activities/:id', async (req, res, next) => {
+  try {
+    const activityId = Number(req.params.id);
+    if (!Number.isInteger(activityId) || activityId < 1) {
+      return res.status(400).json({ error: 'Invalid activity id' });
+    }
+
+    const result = await query(
+      `SELECT ${publicActivityColumns()}, instructions, resources, equipment
+       FROM activities
+       WHERE id = $1 AND hub_site = $2
+       LIMIT 1`,
+      [activityId, sewingHubKey]
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({ error: 'Activity not found' });
+    }
+
+    const activity = result.rows[0];
+    if (!req.user) {
+      activity.instructions = null;
+    }
+
+    return res.json({ ...activity, canViewInstructions: Boolean(req.user), canViewTeacherCard: false });
+  } catch (error) {
+    return next(error);
+  }
+});
 
 router.use(express.static(legacySewingDir));
 
@@ -98,3 +194,4 @@ router.post('/admin/:userId', ensureAuthenticated, ensureRole('ADMIN'), async (r
 });
 
 module.exports = router;
+module.exports.apiRouter = apiRouter;
