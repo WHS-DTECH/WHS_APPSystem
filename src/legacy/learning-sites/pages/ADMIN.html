@@ -860,6 +860,11 @@
   async function checkSession() {
     try {
       const data = await apiRequest("/api/admin/session", { method: "GET" });
+      if (data.authenticated && data.user) {
+        uploaderActorName.value = data.user;
+        uploaderActorName.readOnly = true;
+        uploaderActorName.title = "Signed in with Google";
+      }
       return Boolean(data.authenticated);
     } catch (error) {
       return false;

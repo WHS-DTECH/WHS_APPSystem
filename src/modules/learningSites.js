@@ -18,6 +18,10 @@ function hasRole(req, ...roles) {
   return Boolean(req.user?.roles?.some((role) => role === 'ADMIN' || roles.includes(role)));
 }
 
+function actorName(req) {
+  return req.user.display_name || req.user.email || 'Unknown staff';
+}
+
 function handler(fn) {
   return (req, res, next) => Promise.resolve(fn(req, res, next)).catch((error) => {
     res.status(error.status || 500).json({ ok: false, error: error.message || 'Server error' });
@@ -60,7 +64,16 @@ apiRouter.post('/admin/logout', (req, res, next) => {
 });
 
 apiRouter.get('/admin/session', (req, res) => {
-  res.json({ ok: true, authenticated: hasRole(req) });
+  res.json({ ok: true, authenticated: hasRole(req), user: hasRole(req) ? actorName(req) : null });
+});
+
+// Record the signed-in Google user on every write instead of trusting the browser.
+apiRouter.post('/admin/*', (req, res, next) => {
+  if (hasRole(req)) {
+    req.body = { ...(req.body || {}), updatedBy: actorName(req) };
+  }
+
+  next();
 });
 
 apiRouter.use('/admin', requireAdminApi);
@@ -106,7 +119,6 @@ apiRouter.post('/admin/course-content/:courseCode/statement/google-drive', handl
 apiRouter.post('/admin/course-content/:courseCode/statement', handler(async (req, res) => {
   const { fields, files } = await readMultipartBody(req);
   const file = Array.isArray(files.statementPdf) ? files.statementPdf[0] : files.statementPdf;
-  const updatedBy = Array.isArray(fields.updatedBy) ? fields.updatedBy[0] : fields.updatedBy;
 
   if (!file || !file.filepath) {
     throw new Error('statementPdf file is required');
@@ -120,7 +132,7 @@ apiRouter.post('/admin/course-content/:courseCode/statement', handler(async (req
     fileName: file.originalFilename,
     mimeType: file.mimetype,
     fileBuffer,
-    updatedBy: updatedBy || req.user.display_name || 'ADMIN uploader'
+    updatedBy: actorName(req)
   }));
 }));
 
