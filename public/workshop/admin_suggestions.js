@@ -25,9 +25,11 @@ fetch('/workshop/api/user')
   .then(res => res.json())
   .then(async user => {
     if (user) {
-      document.getElementById('googleSignIn').style.display = 'none';
+      // The navbar is injected asynchronously, so its elements may not exist yet.
+      const signInEl = document.getElementById('googleSignIn');
+      if (signInEl) signInEl.style.display = 'none';
       const chip = document.getElementById('userChip');
-      chip.style.display = 'inline-flex';
+      if (chip) chip.style.display = 'inline-flex';
       const initialsEl = document.getElementById('userInitials');
       if (initialsEl) initialsEl.textContent = getInitials(user.name);
 

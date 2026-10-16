@@ -485,10 +485,12 @@ fetch('/workshop/api/user')
   .then(res => res.json())
   .then(async user => {
     if (user) {
-      document.getElementById('googleSignIn').style.display = 'none';
+      const signInEl = document.getElementById('googleSignIn');
+      if (signInEl) signInEl.style.display = 'none';
       const chip = document.getElementById('userChip');
-      chip.style.display = 'inline-flex';
-      document.getElementById('userInitials').textContent = getInitials(user.name);
+      if (chip) chip.style.display = 'inline-flex';
+      const initialsEl = document.getElementById('userInitials');
+      if (initialsEl) initialsEl.textContent = getInitials(user.name);
       // Fetch roles and show highest role
       try {
         const rolesRes = await fetch('/workshop/api/my-roles');
