@@ -275,7 +275,7 @@
       practicalCalBody.innerHTML = '<div class="spt-meta">Loading practical calendar...</div>';
 
       try {
-        const resp = await fetch('/api/bookings/all?start=' + encodeURIComponent(start) + '&end=' + encodeURIComponent(end) + '&fields=calendar', { credentials: 'include' });
+        const resp = await fetch('/food-room/api/bookings/all?start=' + encodeURIComponent(start) + '&end=' + encodeURIComponent(end) + '&fields=calendar', { credentials: 'include' });
         const payload = await resp.json().catch(() => ({}));
         if (!resp.ok) throw new Error(payload.error || 'Failed to load practical calendar.');
 
@@ -336,7 +336,7 @@
     }
 
     async function loadFinalizedPlanOptions(selectedId) {
-      const resp = await fetch('/api/shopping-plan', { credentials: 'include' });
+      const resp = await fetch('/food-room/api/shopping-plan', { credentials: 'include' });
       const payload = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(payload.error || 'Failed to load plan list.');
 
@@ -576,7 +576,7 @@
 
     async function loadPlan(id) {
       setStatus('Loading finalized plan...', '');
-      const resp = await fetch('/api/shopping-plan/' + id + '/technician-view', { credentials: 'include' });
+      const resp = await fetch('/food-room/api/shopping-plan/' + id + '/technician-view', { credentials: 'include' });
       const payload = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(payload.error || 'Failed to load technician view.');
       render(payload);
@@ -671,7 +671,7 @@
         };
 
         const attemptFinalize = async (planId) => {
-          const finalizeResp = await fetch('/api/shopping-plan/' + planId + '/finalize', {
+          const finalizeResp = await fetch('/food-room/api/shopping-plan/' + planId + '/finalize', {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' }
@@ -682,7 +682,7 @@
 
         setStatus('Creating refreshed draft version...', '');
 
-        const reopenResp = await fetch('/api/shopping-plan/' + originalPlanId + '/reopen', {
+        const reopenResp = await fetch('/food-room/api/shopping-plan/' + originalPlanId + '/reopen', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' }
@@ -695,7 +695,7 @@
         const newPlanId = Number(reopenData.plan.id);
         setStatus('Regenerating items from latest source data...', '');
 
-        const generateResp = await fetch('/api/shopping-plan/' + newPlanId + '/generate-draft', {
+        const generateResp = await fetch('/food-room/api/shopping-plan/' + newPlanId + '/generate-draft', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
@@ -710,7 +710,7 @@
         let { finalizeResp, finalizeData } = await attemptFinalize(newPlanId);
         if ((!finalizeResp.ok || !finalizeData.success) && isUnitRepairableFinalizeFailure(finalizeData)) {
           setStatus('Repairing legacy unit rows in refreshed draft...', '');
-          const repairResp = await fetch('/api/shopping-plan/' + newPlanId + '/fix-legacy-units', {
+          const repairResp = await fetch('/food-room/api/shopping-plan/' + newPlanId + '/fix-legacy-units', {
             method: 'POST',
             credentials: 'include'
           });

@@ -577,7 +577,7 @@
           return recipe.upload_raw_data;
         }
         // Fall back to static file
-        const res = await fetch(`/RawDataTXT/${recipeId}.txt`);
+        const res = await fetch(`/food-room/RawDataTXT/${recipeId}.txt`);
         if (!res.ok) return '';
         const raw = await res.text();
         if (rawDataInput) rawDataInput.value = raw || '';
@@ -585,7 +585,7 @@
       }
 
       async function getRecipeById(recipeId) {
-        const res = await fetch('/api/recipes');
+        const res = await fetch('/food-room/api/recipes');
         if (!res.ok) return null;
         const recipes = await res.json();
         if (!Array.isArray(recipes)) return null;
@@ -596,7 +596,7 @@
         if (!recipeSelect) return;
         const currentValue = String(preferredRecipeId || recipeSelect.value || '').trim();
         try {
-          const res = await fetch('/api/recipes');
+          const res = await fetch('/food-room/api/recipes');
           const recipes = await res.json();
           const safeRecipes = Array.isArray(recipes) ? recipes : [];
           recipeSelect.innerHTML = '';
@@ -651,7 +651,7 @@
           throw new Error('Please enter a Recipe URL.');
         }
 
-        const uploadResp = await fetch('/api/recipes/upload-url', {
+        const uploadResp = await fetch('/food-room/api/recipes/upload-url', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url })
@@ -661,7 +661,7 @@
           throw new Error(uploadData.error || 'URL upload failed.');
         }
 
-        const syncResp = await fetch('/api/recipes/sync-from-uploads', { method: 'POST' });
+        const syncResp = await fetch('/food-room/api/recipes/sync-from-uploads', { method: 'POST' });
         const syncData = await syncResp.json();
         if (!syncResp.ok || !syncData.success) {
           throw new Error(syncData.error || 'URL sync failed.');
@@ -677,8 +677,8 @@
         if (!uploadId) return { recipeId: '', reusedExisting: false };
         try {
           const [recipesRes, uploadRes] = await Promise.all([
-            fetch('/api/recipes'),
-            fetch(`/api/uploads/${uploadId}`)
+            fetch('/food-room/api/recipes'),
+            fetch(`/food-room/api/uploads/${uploadId}`)
           ]);
           const recipes = await recipesRes.json();
           const upload = uploadRes.ok ? await uploadRes.json() : null;
@@ -716,7 +716,7 @@
           throw new Error('No URL found for this recipe.');
         }
 
-        const res = await fetch(`/api/extract-visible-text?url=${encodeURIComponent(url)}`);
+        const res = await fetch(`/food-room/api/extract-visible-text?url=${encodeURIComponent(url)}`);
         let data = null;
         try {
           data = await res.json();
@@ -747,7 +747,7 @@
       }
 
       async function saveRawDataByRecipeId(recipeId, rawData) {
-        const res = await fetch(`/api/recipes/${recipeId}/raw`, {
+        const res = await fetch(`/food-room/api/recipes/${recipeId}/raw`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ raw_data: rawData || '' })
@@ -967,7 +967,7 @@
       async function refreshApiStatusBadge() {
         setApiBadgeState('checking');
         try {
-          const resp = await fetch('/api/recipes', { cache: 'no-store' });
+          const resp = await fetch('/food-room/api/recipes', { cache: 'no-store' });
           if (!resp.ok) {
             setApiBadgeState('offline', `${resp.status}`);
             return;
@@ -1084,7 +1084,7 @@
       async function refreshRecipeMatrix() {
         if (recipeMatrixStatus) recipeMatrixStatus.textContent = 'Loading recipe table...';
         try {
-          const res = await fetch('/api/recipes');
+          const res = await fetch('/food-room/api/recipes');
           if (!res.ok) throw new Error('Failed to fetch recipes');
           const recipes = await res.json();
           allRecipeRowsCache = Array.isArray(recipes) ? recipes : [];
@@ -1152,7 +1152,7 @@
       }
 
       async function verifyApiReachable() {
-        const resp = await fetch('/api/recipes');
+        const resp = await fetch('/food-room/api/recipes');
         if (!resp.ok) {
           throw new Error(`API health check failed: ${resp.status} ${resp.statusText}`);
         }
@@ -1213,7 +1213,7 @@
           reader.readAsDataURL(selectedPdfFile);
         });
 
-        const response = await fetch('/api/uploads/pdf', {
+        const response = await fetch('/food-room/api/uploads/pdf', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1233,7 +1233,7 @@
       }
 
       async function performTeacherPdfSync() {
-        const response = await fetch('/api/recipes/sync-from-uploads', { method: 'POST' });
+        const response = await fetch('/food-room/api/recipes/sync-from-uploads', { method: 'POST' });
         const result = await response.json();
         if (!response.ok || !result.success) {
           throw new Error(result.error || 'Sync failed.');
@@ -1295,7 +1295,7 @@
       }
 
       async function publishRecipeToDisplay(recipeId) {
-        const resp = await fetch(`/api/recipes/${recipeId}/display`, { method: 'POST' });
+        const resp = await fetch(`/food-room/api/recipes/${recipeId}/display`, { method: 'POST' });
         let data = null;
         try {
           data = await resp.json();
@@ -1309,7 +1309,7 @@
       }
 
       async function runAsyncSyncFromRecipeId(startRecipeId, statusEl) {
-        const dropdownResp = await fetch('/api/recipes/display-dropdown');
+        const dropdownResp = await fetch('/food-room/api/recipes/display-dropdown');
         if (!dropdownResp.ok) {
           throw new Error(`Failed to load recipe list: ${dropdownResp.status} ${dropdownResp.statusText}`);
         }
@@ -1335,7 +1335,7 @@
           }
 
           try {
-            const resp = await fetch('/api/ingredients/inventory/sync', {
+            const resp = await fetch('/food-room/api/ingredients/inventory/sync', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ recipeId, reseed: true })
@@ -1574,10 +1574,10 @@
 
           try {
             const attempts = [
-              { solution: extractedServingSize, endpoint: '/api/serving-size/solution', statusEl: servingStatusMsg, key: 'serving' },
-              { solution: extractedTitle, endpoint: '/api/title-extractor/solution', statusEl: titleStatusMsg, key: 'title' },
-              { solution: extractedInstructions, endpoint: '/api/instructions-extractor/solution', statusEl: instructionStatusMsg, key: 'instructions' },
-              { solution: extractedIngredients, endpoint: '/api/ingredients-extractor/solution', statusEl: ingredientsStatusMsg, key: 'ingredients' }
+              { solution: extractedServingSize, endpoint: '/food-room/api/serving-size/solution', statusEl: servingStatusMsg, key: 'serving' },
+              { solution: extractedTitle, endpoint: '/food-room/api/title-extractor/solution', statusEl: titleStatusMsg, key: 'title' },
+              { solution: extractedInstructions, endpoint: '/food-room/api/instructions-extractor/solution', statusEl: instructionStatusMsg, key: 'instructions' },
+              { solution: extractedIngredients, endpoint: '/food-room/api/ingredients-extractor/solution', statusEl: ingredientsStatusMsg, key: 'ingredients' }
             ];
 
             for (const attempt of attempts) {
@@ -1649,7 +1649,7 @@
             notify('No auto extract result to send.', 'warning');
             return;
           }
-          const result = await acceptExtractorSolution(recipeId, extractedServingSize, '/api/serving-size/solution', servingStatusMsg, 'serving');
+          const result = await acceptExtractorSolution(recipeId, extractedServingSize, '/food-room/api/serving-size/solution', servingStatusMsg, 'serving');
           if (result.success) {
             await refreshRecipeMatrix();
           }
@@ -1683,7 +1683,7 @@
             notify('No auto extract result to send.', 'warning');
             return;
           }
-          const result = await acceptExtractorSolution(recipeId, extractedTitle, '/api/title-extractor/solution', titleStatusMsg, 'title');
+          const result = await acceptExtractorSolution(recipeId, extractedTitle, '/food-room/api/title-extractor/solution', titleStatusMsg, 'title');
           if (result.success) {
             await refreshRecipeMatrix();
           }
@@ -1719,7 +1719,7 @@
             notify('No auto extract result to send.', 'warning');
             return;
           }
-          const result = await acceptExtractorSolution(recipeId, extractedInstructions, '/api/instructions-extractor/solution', instructionStatusMsg, 'instructions');
+          const result = await acceptExtractorSolution(recipeId, extractedInstructions, '/food-room/api/instructions-extractor/solution', instructionStatusMsg, 'instructions');
           if (result.success) {
             await refreshRecipeMatrix();
           }
@@ -1753,7 +1753,7 @@
             notify('No auto extract result to send.', 'warning');
             return;
           }
-          const result = await acceptExtractorSolution(recipeId, extractedIngredients, '/api/ingredients-extractor/solution', ingredientsStatusMsg, 'ingredients');
+          const result = await acceptExtractorSolution(recipeId, extractedIngredients, '/food-room/api/ingredients-extractor/solution', ingredientsStatusMsg, 'ingredients');
           if (result.success) {
             await refreshRecipeMatrix();
           }
@@ -1798,8 +1798,8 @@
             const warnings = [];
 
             try {
-              await postJsonChecked('/api/recipes/cleanup-instructions-stepwise', { recipeId }, 'Cleanup Instructions');
-              await waitForCleanupCompletion('/api/recipes/cleanup-instructions-progress', autoPublishInstructionsFill);
+              await postJsonChecked('/food-room/api/recipes/cleanup-instructions-stepwise', { recipeId }, 'Cleanup Instructions');
+              await waitForCleanupCompletion('/food-room/api/recipes/cleanup-instructions-progress', autoPublishInstructionsFill);
             } catch (cleanupInstructionsErr) {
               if (autoPublishInstructionsFill) autoPublishInstructionsFill.style.width = '100%';
               const message = cleanupInstructionsErr && cleanupInstructionsErr.message ? cleanupInstructionsErr.message : String(cleanupInstructionsErr);
@@ -1811,8 +1811,8 @@
             }
 
             try {
-              await postJsonChecked('/api/recipes/cleanup-ingredients-stepwise', { recipeId }, 'Cleanup Ingredients');
-              await waitForCleanupCompletion('/api/recipes/cleanup-ingredients-progress', autoPublishIngredientsFill);
+              await postJsonChecked('/food-room/api/recipes/cleanup-ingredients-stepwise', { recipeId }, 'Cleanup Ingredients');
+              await waitForCleanupCompletion('/food-room/api/recipes/cleanup-ingredients-progress', autoPublishIngredientsFill);
             } catch (cleanupIngredientsErr) {
               if (autoPublishIngredientsFill) autoPublishIngredientsFill.style.width = '100%';
               const message = cleanupIngredientsErr && cleanupIngredientsErr.message ? cleanupIngredientsErr.message : String(cleanupIngredientsErr);
@@ -1824,7 +1824,7 @@
             }
 
             try {
-              await postJsonChecked('/api/ingredients/inventory/sync', { recipeId, reseed: true }, 'Inventory Sync');
+              await postJsonChecked('/food-room/api/ingredients/inventory/sync', { recipeId, reseed: true }, 'Inventory Sync');
             } catch (syncErr) {
               console.warn('[DEBUG][Add Recipe Auto Publish] Inventory sync failed:', syncErr);
               warnings.push('Inventory Sync could not complete automatically.');

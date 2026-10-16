@@ -19,7 +19,7 @@
           // Load Extracted Ingredients button logic
             document.addEventListener('DOMContentLoaded', function() {
               // Always render the inventory table on page load
-              fetch('/api/ingredients/inventory/all')
+              fetch('/food-room/api/ingredients/inventory/all')
                 .then(res => res.json())
                 .then(data => {
                   // Debug output removed
@@ -64,7 +64,7 @@
                 const recipeId = filterInput.value;
                 console.log('[filterAndShowByRecipeId] Called. Recipe ID:', recipeId, 'forceShowAll:', forceShowAll);
                 if (recipeId && !forceShowAll) {
-                  fetch(`/api/ingredients/inventory/all`)
+                  fetch(`/food-room/api/ingredients/inventory/all`)
                     .then(res => res.json())
                     .then(data => {
                       const ingredients = Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : (Array.isArray(data.ingredients) ? data.ingredients : []));
@@ -85,7 +85,7 @@
               if (filterBtn) filterBtn.onclick = function() {
                 const recipeId = document.getElementById('filter-recipe-id').value;
                 if (!recipeId) return;
-                fetch(`/api/ingredients/inventory/all`)
+                fetch(`/food-room/api/ingredients/inventory/all`)
                   .then(res => res.json())
                   .then(data => {
                     // Support both {data: [...]} and {ingredients: [...]} and raw array
@@ -111,8 +111,8 @@
                 // Use the same logic as in renderIngredientsInventory, but only for the given array
                 fetch('food_brands.json').then(res => res.json()).then(brands => {
                   Promise.all([
-                    fetch('/api/aisle_keywords/all').then(res => res.json()),
-                    fetch('/api/aisle_category').then(res => res.json())
+                    fetch('/food-room/api/aisle_keywords/all').then(res => res.json()),
+                    fetch('/food-room/api/aisle_category').then(res => res.json())
                   ]).then(([keywordsData, aisleCategoryData]) => {
                     const keywords = keywordsData.keywords || [];
                     const categories = Array.isArray(aisleCategoryData && aisleCategoryData.categories)
@@ -273,7 +273,7 @@
                       btn.onclick = function() {
                         const ingredientId = this.getAttribute('data-id');
                         if (!confirm('Are you sure you want to delete this ingredient?')) return;
-                        fetch(`/api/ingredients/${ingredientId}`, {
+                        fetch(`/food-room/api/ingredients/${ingredientId}`, {
                           method: 'DELETE'
                         })
                         .then(res => res.json())
@@ -320,7 +320,7 @@
               return;
             }
             const ingredientsText = textarea.value.trim();
-            fetch(`/api/ingredients/inventory/${recipeId}/extracted`, {
+            fetch(`/food-room/api/ingredients/inventory/${recipeId}/extracted`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ ingredients_text: ingredientsText })
@@ -545,7 +545,7 @@
               // Send all updates in parallel
               let completed = 0;
               Promise.all(updates.map(async u => {
-                const res = await fetch('/api/ingredients/inventory/assign-aisle', {
+                const res = await fetch('/food-room/api/ingredients/inventory/assign-aisle', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify(u)
@@ -562,7 +562,7 @@
                 document.getElementById('save-assignments-status').textContent = 'Assignments saved!';
                 setSaveProgress(100, `Saved ${updates.length}/${updates.length} assignments.`);
                 // Refresh table with latest data
-                fetch('/api/ingredients/inventory/all')
+                fetch('/food-room/api/ingredients/inventory/all')
                   .then(res => res.json())
                   .then(data => {
                     const updatedIngredients = Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : (Array.isArray(data.ingredients) ? data.ingredients : []));
@@ -585,7 +585,7 @@
   <script>
     // Populate filter dropdown and wire up filtering
     document.addEventListener('DOMContentLoaded', function() {
-      fetch('/api/recipes/display-table')
+      fetch('/food-room/api/recipes/display-table')
         .then(res => res.json())
         .then(data => {
           const filterSelect = document.getElementById('filter-recipe-select');
@@ -609,7 +609,7 @@
           filterBtn.textContent = 'Filtering...';
           document.getElementById('filter-status').textContent = '';
           // Custom filter logic with feedback
-          fetch('/api/ingredients/inventory/all')
+          fetch('/food-room/api/ingredients/inventory/all')
             .then(res => res.json())
             .then(data => {
               const ingredients = Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : (Array.isArray(data.ingredients) ? data.ingredients : []));
@@ -647,8 +647,8 @@
         if (!container) return;
         fetch('food_brands.json').then(res => res.json()).then(brands => {
           Promise.all([
-            fetch('/api/aisle_keywords/all').then(res => res.json()),
-            fetch('/api/aisle_category').then(res => res.json())
+            fetch('/food-room/api/aisle_keywords/all').then(res => res.json()),
+            fetch('/food-room/api/aisle_category').then(res => res.json())
           ]).then(([keywordsData, aisleCategoryData]) => {
             const keywords = keywordsData.keywords || [];
             const categories = Array.isArray(aisleCategoryData && aisleCategoryData.categories)
@@ -792,7 +792,7 @@
               select.onchange = function() {
                 const ingredientId = this.getAttribute('data-id');
                 const aisleId = this.value;
-                fetch(`/api/ingredients/inventory/assign-aisle`, {
+                fetch(`/food-room/api/ingredients/inventory/assign-aisle`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ ingredient_id: ingredientId, aisle_category_id: aisleId })
@@ -805,7 +805,7 @@
               btn.onclick = function() {
                 const ingredientId = this.getAttribute('data-id');
                 if (confirm('Delete this ingredient?')) {
-                  fetch(`/api/ingredients/inventory/${ingredientId}`, { method: 'DELETE' })
+                  fetch(`/food-room/api/ingredients/inventory/${ingredientId}`, { method: 'DELETE' })
                     .then(() => {
                       window.renderIngredientsInventoryTable(ingredients.filter(row => row.id != ingredientId));
                     });
@@ -924,7 +924,7 @@
               alert('Select a recipe first.');
               return;
             }
-            fetch('/api/ingredients/inventory/split-quantity', {
+            fetch('/food-room/api/ingredients/inventory/split-quantity', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ id: recipeId, splitQty: 1 })
@@ -999,7 +999,7 @@
                 }
                 setInsertProgress(30, 'Inserting ingredients...');
                 // Send only recipe_id to backend, which will fetch from recipe_display
-                fetch('/api/ingredients/inventory/save-bulk', {
+                fetch('/food-room/api/ingredients/inventory/save-bulk', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ recipe_id: recipeId })
@@ -1010,7 +1010,7 @@
                   if (data.success) {
                     setInsertProgress(60, 'Splitting quantities...');
                     // Now trigger split-quantity for this recipe
-                    fetch('/api/ingredients/inventory/split-quantity', {
+                    fetch('/food-room/api/ingredients/inventory/split-quantity', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ id: recipeId, splitQty: 1 })
@@ -1021,7 +1021,7 @@
                       if (data2.success) {
                         setInsertProgress(80, 'Assigning aisle categories...');
                         // Now trigger auto-assign aisles
-                        fetch('/api/ingredients/inventory/auto-assign-aisles', {
+                        fetch('/food-room/api/ingredients/inventory/auto-assign-aisles', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ recipe_id: recipeId })
@@ -1079,7 +1079,7 @@
       <script>
         // Render Published Recipes Table from recipe_display
         function renderPublishedRecipesTable() {
-          fetch('/api/recipes/display-table')
+          fetch('/food-room/api/recipes/display-table')
             .then(res => res.json())
             .then(data => {
               const container = document.getElementById('published-recipes-table-container');
@@ -1136,7 +1136,7 @@
         const filterStatus = document.getElementById('filter-status');
         if (showFeedback && filterStatus) filterStatus.textContent = 'Refreshing table...';
 
-        fetch(`/api/ingredients/inventory/all?_t=${Date.now()}`, { cache: 'no-store' })
+        fetch(`/food-room/api/ingredients/inventory/all?_t=${Date.now()}`, { cache: 'no-store' })
           .then(res => res.json())
           .then(data => {
             const ingredients = Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : (Array.isArray(data.ingredients) ? data.ingredients : []));
@@ -1188,7 +1188,7 @@
         }
         let ingredientsText = textarea.value.trim();
         // Also save to ExtractedIngredients/{recipeId}.txt
-        fetch(`/api/ingredients/inventory/${recipeId}/extracted`, {
+        fetch(`/food-room/api/ingredients/inventory/${recipeId}/extracted`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ingredients_text: ingredientsText })
@@ -1202,7 +1202,7 @@
         .catch(err => {
           console.error('Failed to save extracted ingredients file:', err);
         });
-        fetch('/api/ingredients/save-bulk', {
+        fetch('/food-room/api/ingredients/save-bulk', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ recipe_id: recipeId, ingredients: ingredientsText })
@@ -1211,7 +1211,7 @@
         .then(data => {
           if (data.success) {
             // After saving, immediately sync inventory
-            fetch('/api/ingredients-inventory/sync', { method: 'POST' })
+            fetch('/food-room/api/ingredients-inventory/sync', { method: 'POST' })
               .then(res2 => res2.json())
               .then(data2 => {
                 showStatus('Ingredients saved and inventory synced!', '#009688');
@@ -1263,7 +1263,7 @@
   <script>
     // Populate recipe dropdown
     document.addEventListener('DOMContentLoaded', function() {
-      fetch('/api/recipes/display-table')
+      fetch('/food-room/api/recipes/display-table')
         .then(res => res.json())
         .then(data => {
           const select = document.getElementById('recipeSelectForText');
@@ -1284,7 +1284,7 @@
           const recipeId = select.value;
           if (recipeIdLabel) recipeIdLabel.textContent = recipeId ? `Recipe ID: ${recipeId}` : '';
           if (!recipeId) return;
-          fetch(`/api/recipes/${recipeId}`)
+          fetch(`/food-room/api/recipes/${recipeId}`)
             .then(res => res.json())
             .then(recipe => {
               // Use ONLY ingredients_display from the recipe table
@@ -1322,7 +1322,7 @@
       if (!auto) {
         if (!confirm('This will overwrite the inventory with all ingredients from all recipes. Continue?')) return;
       }
-      fetch('/api/ingredients-inventory/sync', { method: 'POST' })
+      fetch('/food-room/api/ingredients-inventory/sync', { method: 'POST' })
         .then(res => res.json())
         .then(data => {
           if (data.success) {
@@ -1426,7 +1426,7 @@
               // After conversion, trigger split-quantity for the selected recipe only
               const recipeId = document.getElementById('recipeSelectForText').value;
               if (recipeId) {
-                fetch('/api/ingredients/inventory/split-quantity', {
+                fetch('/food-room/api/ingredients/inventory/split-quantity', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ recipe_id: recipeId })
@@ -1436,7 +1436,7 @@
                   if (data.success) {
                     document.getElementById('reformat-status').innerHTML = '<span style="color:green;">Quantities and food items split for this recipe!</span>';
                   }
-                  fetch('/api/ingredients/inventory/save-bulk', {
+                  fetch('/food-room/api/ingredients/inventory/save-bulk', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ ingredients: lines.map(line => ({ ingredient_name: line, recipe_id: recipeId })) })
@@ -1457,7 +1457,7 @@
     //DELETE ALL: Remove from both inventory and main ingredients table, then refresh
     document.getElementById('deleteAllIngredientsBtn').addEventListener('click', function() {
       if (confirm('Are you sure you want to delete ALL ingredients?')) {
-        fetch('/api/ingredients/inventory/all', { method: 'DELETE' })
+        fetch('/food-room/api/ingredients/inventory/all', { method: 'DELETE' })
           .then(res => res.json())
           .then(data => {
             alert('All ingredients deleted.');

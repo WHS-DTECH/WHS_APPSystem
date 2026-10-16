@@ -342,7 +342,7 @@
         // Calculate and display cost metrics
         async function loadMetrics() {
             try {
-                const response = await fetch('/api/bookings/admin/transfer-metrics', { credentials: 'include' });
+                const response = await fetch('/food-room/api/bookings/admin/transfer-metrics', { credentials: 'include' });
                 const data = await response.json();
                 
                 if (data.success) {
@@ -403,7 +403,7 @@
 
         async function loadInfraStatus() {
             try {
-                const response = await fetch('/api/admin/infra-status', { credentials: 'include' });
+                const response = await fetch('/food-room/api/admin/infra-status', { credentials: 'include' });
                 const data = await response.json();
 
                 if (!response.ok || !data?.success) {

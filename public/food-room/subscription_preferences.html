@@ -328,7 +328,7 @@
 
             function initializeUser() {
                 // Try to get user from auth endpoint
-                fetch('/api/auth/me', { credentials: 'include' })
+                fetch('/food-room/api/auth/me', { credentials: 'include' })
                     .then(res => {
                         if (!res.ok) throw new Error('Not authenticated');
                         return res.json();
@@ -356,7 +356,7 @@
             function loadSubscriptionStatus() {
                 emailDisplay.textContent = currentEmail;
 
-                fetch(`/api/subscriptions/status?email=${encodeURIComponent(currentEmail)}`)
+                fetch(`/food-room/api/subscriptions/status?email=${encodeURIComponent(currentEmail)}`)
                     .then(res => res.json())
                     .then(data => {
                         if (data.success) {
@@ -424,7 +424,7 @@
                     isCalendarChangeSubscribed: isTeacherRole && currentCalendarChangeStatus === true
                 };
 
-                fetch('/api/subscriptions/preferences', {
+                fetch('/food-room/api/subscriptions/preferences', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
@@ -452,7 +452,7 @@
             }
 
             function logout() {
-                fetch('/api/auth/logout', {
+                fetch('/food-room/api/auth/logout', {
                     method: 'POST',
                     credentials: 'include'
                 })
@@ -500,14 +500,14 @@
             }
 
             digestPreviewBtn.addEventListener('click', () => {
-                window.open('/api/weekly-digest/preview', '_blank');
+                window.open('/food-room/api/weekly-digest/preview', '_blank');
             });
 
             digestTestBtn.addEventListener('click', () => {
                 digestTestBtn.disabled = true;
                 digestTestBtn.textContent = 'Sending…';
                 showDigestStatus('', '');
-                fetch('/api/weekly-digest/send-test', {
+                fetch('/food-room/api/weekly-digest/send-test', {
                     method: 'POST',
                     credentials: 'include',
                     headers: { 'Content-Type': 'application/json', 'x-user-email': currentEmail }
@@ -531,7 +531,7 @@
                 digestSendAllBtn.disabled = true;
                 digestSendAllBtn.textContent = 'Sending…';
                 showDigestStatus('', '');
-                fetch('/api/weekly-digest/send', {
+                fetch('/food-room/api/weekly-digest/send', {
                     method: 'POST',
                     credentials: 'include',
                     headers: { 'Content-Type': 'application/json', 'x-user-email': currentEmail }

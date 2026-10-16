@@ -788,7 +788,7 @@
 
         const start = isoDateKey(range.monday);
         const end = isoDateKey(range.friday);
-        const data = await requestJson('/api/bookings/all?start=' + encodeURIComponent(start) + '&end=' + encodeURIComponent(end) + '&limit=500');
+        const data = await requestJson('/food-room/api/bookings/all?start=' + encodeURIComponent(start) + '&end=' + encodeURIComponent(end) + '&limit=500');
         const bookings = Array.isArray(data.bookings) ? data.bookings : [];
 
         const byDay = new Map();
@@ -984,7 +984,7 @@
         refreshBtn.disabled = true;
         setStatus('Loading saved shopping lists...', '');
         try {
-          const data = await requestJson('/api/saved-shopping-lists');
+          const data = await requestJson('/food-room/api/saved-shopping-lists');
           savedLists = Array.isArray(data.lists) ? data.lists : [];
           savedLists.sort(sortSavedListsByWeekDesc);
           savedListSelect.innerHTML = '<option value="">Select a saved shopping list...</option>' + savedLists.map((list) => {
@@ -1003,7 +1003,7 @@
         if (!staffEmailSelect) return;
         const preferredEmail = getCurrentStaffEmail();
         try {
-          const data = await requestJson('/api/staff_upload/dropdown');
+          const data = await requestJson('/food-room/api/staff_upload/dropdown');
           const staff = Array.isArray(data.staff) ? data.staff.slice() : [];
           staff.sort((a, b) => buildStaffLabel(a).localeCompare(buildStaffLabel(b), undefined, { sensitivity: 'base' }));
 
@@ -1032,7 +1032,7 @@
 
         setStatus('Loading preview...', '');
         try {
-          const data = await requestJson('/api/saved-shopping-lists/' + encodeURIComponent(String(listId)));
+          const data = await requestJson('/food-room/api/saved-shopping-lists/' + encodeURIComponent(String(listId)));
           selectedList = data.list || null;
           renderPreview(selectedList);
           setStatus('Preview loaded for "' + (selectedList.title || 'Shopping List') + '".', 'ok');
@@ -1058,7 +1058,7 @@
         emailBtn.disabled = true;
         setStatus('Sending shopping list email...', '');
         try {
-          const data = await requestJson('/api/shopping-workflow-email/send-list-now', {
+          const data = await requestJson('/food-room/api/shopping-workflow-email/send-list-now', {
             method: 'POST',
             body: JSON.stringify({ savedListId, recipientEmail })
           });

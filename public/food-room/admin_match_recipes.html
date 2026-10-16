@@ -1076,7 +1076,7 @@
       if (btn) btn.disabled = true;
 
       try {
-        const response = await fetch('/api/bookings/admin/resave-candidates?limit=500', {
+        const response = await fetch('/food-room/api/bookings/admin/resave-candidates?limit=500', {
           headers: {
             'x-user-email': email
           }
@@ -1106,8 +1106,8 @@
         const doReseed = window.confirm('Reseed missing recipes while syncing? Click OK for yes, Cancel for no.');
 
         const [dropdownResp, inventoryResp] = await Promise.all([
-          fetch('/api/recipes/display-dropdown'),
-          fetch('/api/ingredients/inventory/all?_t=' + Date.now(), { cache: 'no-store' })
+          fetch('/food-room/api/recipes/display-dropdown'),
+          fetch('/food-room/api/ingredients/inventory/all?_t=' + Date.now(), { cache: 'no-store' })
         ]);
 
         if (!dropdownResp.ok) {
@@ -1157,7 +1157,7 @@
         for (let i = 0; i < missingRecipeIds.length; i++) {
           const recipeId = missingRecipeIds[i];
           try {
-            const resp = await fetch('/api/ingredients/inventory/sync', {
+            const resp = await fetch('/food-room/api/ingredients/inventory/sync', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ recipeId, reseed: doReseed })
@@ -1281,8 +1281,8 @@
 
       try {
         const [configRes, historyRes] = await Promise.all([
-          fetch('/google/sync-config', { credentials: 'include' }),
-          fetch('/google/sync-history?limit=30', { credentials: 'include' })
+          fetch('/food-room/google/sync-config', { credentials: 'include' }),
+          fetch('/food-room/google/sync-history?limit=30', { credentials: 'include' })
         ]);
 
         const configData = await configRes.json().catch(() => ({}));
@@ -1336,7 +1336,7 @@
 
     async function loadUnmatchedRecipes() {
       try {
-        const response = await fetch('/api/recipe-matching/bookings');
+        const response = await fetch('/food-room/api/recipe-matching/bookings');
         const data = await response.json();
         allBookings = data.bookings || [];
         populateFilterOptions();
@@ -1502,7 +1502,7 @@
             <div class="recipe-header">
                <div style="display:flex;align-items:center;gap:10px;flex:1;">
                  <h3 class="recipe-name${suggestions.length > 1 && !isMatched ? ' recipe-name-clickable' : ''}" ${suggestions.length > 1 && !isMatched ? `onclick="openCompareModal(${booking.id})" title="Click to compare all versions"` : ''} style="margin:0;">${escapeHtml(booking.recipe || 'Unknown')}</h3>
-                 <a href="${isMatched && booking.recipe_id ? `/recipe_display.html?recipe_id=${booking.recipe_id}` : '#'}" target="_blank" ${isMatched && booking.recipe_id ? '' : 'style="opacity:0.5;cursor:not-allowed;"'} title="${isMatched && booking.recipe_id ? 'Edit recipe' : 'Link a recipe first'}" style="font-size:12px;color:#1976d2;text-decoration:none;padding:4px 8px;border:1px solid #1976d2;border-radius:4px;white-space:nowrap;">✎ Edit</a>
+                 <a href="${isMatched && booking.recipe_id ? `/food-room/recipe_display.html?recipe_id=${booking.recipe_id}` : '#'}" target="_blank" ${isMatched && booking.recipe_id ? '' : 'style="opacity:0.5;cursor:not-allowed;"'} title="${isMatched && booking.recipe_id ? 'Edit recipe' : 'Link a recipe first'}" style="font-size:12px;color:#1976d2;text-decoration:none;padding:4px 8px;border:1px solid #1976d2;border-radius:4px;white-space:nowrap;">✎ Edit</a>
                </div>
               <div style="display:flex;align-items:center;gap:6px;">${multiVersionBadge}${badge}</div>
             </div>
@@ -1581,7 +1581,7 @@
         return availableRecipesCache;
       }
 
-      const response = await fetch('/api/recipes/display-dropdown');
+      const response = await fetch('/food-room/api/recipes/display-dropdown');
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || 'Failed to load recipes list.');
@@ -1753,7 +1753,7 @@
       if (recipeDetailsCache.has(recipeId)) {
         return recipeDetailsCache.get(recipeId);
       }
-      const response = await fetch(`/api/recipes/${recipeId}`);
+      const response = await fetch(`/food-room/api/recipes/${recipeId}`);
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data && data.error ? data.error : 'Failed to load recipe details.');
@@ -1816,7 +1816,7 @@
 
     async function setAsPrimary(bookingId, recipeId) {
       try {
-        const response = await fetch('/api/recipe-matching/set-primary', {
+        const response = await fetch('/food-room/api/recipe-matching/set-primary', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ bookingId, recipeId })
@@ -1838,7 +1838,7 @@
       if (!confirm(`Unlink "${recipeName}" from this planner item?`)) return;
 
       try {
-        const response = await fetch('/api/recipe-matching/link-multi', {
+        const response = await fetch('/food-room/api/recipe-matching/link-multi', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ bookingId, recipeId })
@@ -1880,7 +1880,7 @@
       }
 
       try {
-        const response = await fetch('/api/recipe-matching/link-multi', {
+        const response = await fetch('/food-room/api/recipe-matching/link-multi', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ bookingId, recipeIds: selected })
@@ -2018,7 +2018,7 @@
       }
 
       try {
-        const response = await fetch('/api/recipe-matching/link-multi', {
+        const response = await fetch('/food-room/api/recipe-matching/link-multi', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ bookingId: currentBookingId, recipeIds })
@@ -2054,7 +2054,7 @@
 
       try {
         // Create recipe via existing API
-        const response = await fetch('/api/recipes', {
+        const response = await fetch('/food-room/api/recipes', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -2072,7 +2072,7 @@
         const newRecipeId = data.id;
 
         // Link booking to new recipe
-        await fetch('/api/recipe-matching/link-recipe', {
+        await fetch('/food-room/api/recipe-matching/link-recipe', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -2102,7 +2102,7 @@
 
       try {
         document.getElementById('autoMatchBtn').disabled = true;
-        const response = await fetch('/api/recipe-matching/auto-match', {
+        const response = await fetch('/food-room/api/recipe-matching/auto-match', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ bookings: unmatched })

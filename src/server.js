@@ -18,7 +18,7 @@ const { adminRouter: technologyHubAdmin, publicRouter: technologyHubPublic } = r
 const sewingHub = require('./modules/sewingHub');
 const workshop = require('./modules/workshop');
 const foodRoom = require('./modules/foodRoom');
-const foodRoomApi = require('./modules/foodRoomApi');
+const { importLegacyFoodRoom } = require('./legacyFoodRoomImport');
 
 const app = express();
 
@@ -27,7 +27,8 @@ app.set('views', path.join(__dirname, '..', 'views'));
 app.set('trust proxy', 1);
 
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300 }));
+// The Food Room pages make many small API calls, so they are not counted against the shared limit.
+app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, skip: (req) => req.path.startsWith('/food-room/') }));
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json({ limit: '25mb' }));
 app.use(session({
@@ -81,7 +82,6 @@ app.use('/admin/technology-hub', technologyHubAdmin);
 app.use('/sewing-hub', sewingHub.pageGuards);
 app.use('/sewing-hub', sewingHub);
 app.use('/api', sewingHub.apiRouter);
-app.use('/api', foodRoomApi);
 app.use('/workshop', workshop);
 app.use('/food-room', foodRoom);
 app.use(express.static(path.join(__dirname, '..', 'public')));
@@ -483,10 +483,22 @@ async function start() {
     } catch (error) {
       console.error('Legacy Workshop import skipped:', error.message);
     }
+    try {
+      await importLegacyFoodRoom();
+    } catch (error) {
+      console.error('Legacy Food Room import skipped:', error.message);
+    }
   }
 
   app.listen(config.port, () => {
     console.log(`WHS APPSystem listening on port ${config.port}`);
+    if (config.databaseUrl) {
+      try {
+        require('./legacy/food-room/routes').startSchedulers();
+      } catch (error) {
+        console.error('Food Room schedulers not started:', error.message);
+      }
+    }
   });
 }
 

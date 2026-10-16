@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return allowList.includes(domain);
     }
 
-    fetch('/api/auth/me', { credentials: 'include' })
+    fetch('/food-room/api/auth/me', { credentials: 'include' })
         .then(res => res.json())
         .then(data => {
             if (data && data.authenticated && data.user) {
@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
             email: email
         };
         try {
-            const res = await fetch('/api/suggestions', {
+            const res = await fetch('/food-room/api/suggestions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',

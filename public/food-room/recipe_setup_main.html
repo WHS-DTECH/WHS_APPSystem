@@ -160,7 +160,7 @@
 
 	// Fetch and render published recipes from recipe_display table
 	function fetchAndRenderPublishedRecipes() {
-		fetch('/api/recipes/display-table')
+		fetch('/food-room/api/recipes/display-table')
 			.then(res => res.json())
 			.then(data => {
 				publishedRecipesData = Array.isArray(data) ? data : [];
@@ -184,7 +184,7 @@
 			const recipeId = e.target.getAttribute('data-id');
 			if (!recipeId) return;
 			if (!confirm('Display this recipe? This will copy it to the recipe_display table.')) return;
-			const resp = await fetch(`/api/recipes/${recipeId}/display`, { method: 'POST' });
+			const resp = await fetch(`/food-room/api/recipes/${recipeId}/display`, { method: 'POST' });
 			const data = await resp.json();
 			if (data.success) {
 				alert('Recipe sent to display table!');
@@ -197,7 +197,7 @@
 			const recipeId = e.target.getAttribute('data-id');
 			if (!recipeId) return;
 			if (!confirm('Unpublish this recipe? This will remove it from the recipe_display table.')) return;
-			const resp = await fetch(`/api/recipes/display-table/${recipeId}`, { method: 'DELETE' });
+			const resp = await fetch(`/food-room/api/recipes/display-table/${recipeId}`, { method: 'DELETE' });
 			const data = await resp.json();
 			if (data.success) {
 				alert('Recipe unpublished!');

@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function fetchBrands() {
-    apiRequest('/api/food_brands')
+    apiRequest('/food-room/api/food_brands')
       .then(data => {
         if (!Array.isArray(data.brands)) {
           tableContainer.innerHTML = '<div style="color:red;">Failed to load brands.</div>';
@@ -89,7 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!name) return alert('Brand name required');
 
       try {
-        await apiRequest('/api/food_brands', {
+        await apiRequest('/food-room/api/food_brands', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ brand_name: name })
@@ -120,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!newName) return alert('Brand name required');
 
       try {
-        await apiRequest(`/api/food_brands/${id}`, {
+        await apiRequest(`/food-room/api/food_brands/${id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ brand_name: newName })
@@ -141,7 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function deleteBrand(id) {
     if (!confirm('Delete this brand?')) return;
 
-    apiRequest(`/api/food_brands/${id}`, { method: 'DELETE' })
+    apiRequest(`/food-room/api/food_brands/${id}`, { method: 'DELETE' })
       .then(() => fetchBrands())
       .catch(err => alert(err.message || 'Failed to delete brand'));
   }

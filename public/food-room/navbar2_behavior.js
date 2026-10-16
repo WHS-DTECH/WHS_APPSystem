@@ -264,7 +264,7 @@
     btn.setAttribute('data-nb2-logout-bound', '1');
     btn.addEventListener('click', function(e) {
       e.preventDefault();
-      fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+      fetch('/food-room/api/auth/logout', { method: 'POST', credentials: 'include' })
         .catch(function() {})
         .finally(function() {
           try {
@@ -278,7 +278,7 @@
 
   /* ══ PERMISSIONS FETCH ══════════════════════════════════════ */
   function loadPermissions() {
-    return fetch('/api/permissions/all')
+    return fetch('/food-room/api/permissions/all')
       .then(function(res) {
         if (!res.ok) throw new Error('permissions fetch failed');
         return res.json();
@@ -399,7 +399,7 @@
 
   /* ══ AUTH ═══════════════════════════════════════════════════ */
   function fetchAuthAndApply() {
-    return fetch('/api/auth/me', { credentials: 'include' })
+    return fetch('/food-room/api/auth/me', { credentials: 'include' })
       .then(function(res) { return res.ok ? res.json() : {}; })
       .then(function(data) {
         if (data && data.authenticated && data.user) {

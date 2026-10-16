@@ -73,7 +73,7 @@ function extractApiErrorMessage(payload, fallback) {
 
 async function fetchRecipesList() {
 	try {
-		const resp = await fetch(`/api/recipes?_ts=${Date.now()}`, { cache: 'no-store' });
+		const resp = await fetch(`/food-room/api/recipes?_ts=${Date.now()}`, { cache: 'no-store' });
 		let payload = null;
 		try {
 			payload = await resp.json();
@@ -116,7 +116,7 @@ let publishedRecipeIds = new Set();
 
 async function refreshPublishedRecipeIds() {
 	try {
-		const resp = await fetch(`/api/recipes/display-table?_ts=${Date.now()}`, { cache: 'no-store' });
+		const resp = await fetch(`/food-room/api/recipes/display-table?_ts=${Date.now()}`, { cache: 'no-store' });
 		const rows = await resp.json();
 		if (!Array.isArray(rows)) {
 			publishedRecipeIds = new Set();
@@ -372,7 +372,7 @@ let allRecipesCache = [];
 	}
 
 	async function publishRecipeById(recipeId) {
-		const resp = await fetch(`/api/recipes/${recipeId}/display`, { method: 'POST' });
+		const resp = await fetch(`/food-room/api/recipes/${recipeId}/display`, { method: 'POST' });
 		const data = await resp.json();
 		if (!data.success) {
 			throw new Error(data.error || 'Unknown publish error');
@@ -419,14 +419,14 @@ let allRecipesCache = [];
 			}
 
 			try {
-				await postJsonChecked('/api/recipes/cleanup-instructions-stepwise', { recipeId }, 'Cleanup Instructions');
-				await waitForCleanupCompletion('/api/recipes/cleanup-instructions-progress', instructionsProgressFill);
+				await postJsonChecked('/food-room/api/recipes/cleanup-instructions-stepwise', { recipeId }, 'Cleanup Instructions');
+				await waitForCleanupCompletion('/food-room/api/recipes/cleanup-instructions-progress', instructionsProgressFill);
 
-				await postJsonChecked('/api/recipes/cleanup-ingredients-stepwise', { recipeId }, 'Cleanup Ingredients');
-				await waitForCleanupCompletion('/api/recipes/cleanup-ingredients-progress', ingredientsProgressFill);
+				await postJsonChecked('/food-room/api/recipes/cleanup-ingredients-stepwise', { recipeId }, 'Cleanup Ingredients');
+				await waitForCleanupCompletion('/food-room/api/recipes/cleanup-ingredients-progress', ingredientsProgressFill);
 
 				try {
-					await postJsonChecked('/api/ingredients/inventory/sync', { recipeId, reseed: true }, 'Inventory Sync');
+					await postJsonChecked('/food-room/api/ingredients/inventory/sync', { recipeId, reseed: true }, 'Inventory Sync');
 				} catch (syncErr) {
 					console.warn('[DEBUG][Auto Publish] Inventory sync failed:', syncErr);
 				}
@@ -449,7 +449,7 @@ let allRecipesCache = [];
 
 				// Redirect to ingredients confirmation page instead of showing review box
 				pendingAutoPublishRecipeId = recipeId;
-				window.location.href = `/recipe_ingredients_confirmation.html?recipe_id=${recipeId}`;
+				window.location.href = `/food-room/recipe_ingredients_confirmation.html?recipe_id=${recipeId}`;
 			} catch (err) {
 				if (instructionsProgressBar && instructionsProgressFill) {
 					instructionsProgressBar.style.display = 'none';
@@ -505,13 +505,13 @@ let allRecipesCache = [];
 		if (!confirm(`Publish RecipeID ${recipeId} to recipe_display using current Display fields?`)) return;
 		btn.disabled = true;
 		try {
-			const resp = await fetch(`/api/recipes/${recipeId}/display`, { method: 'POST' });
+			const resp = await fetch(`/food-room/api/recipes/${recipeId}/display`, { method: 'POST' });
 			const data = await resp.json();
 			if (data.success) {
 				publishedRecipeIds.add(Number(recipeId));
 				// Sync ingredients inventory so Calculate Quantity page has data immediately
 				try {
-					await fetch('/api/ingredients/inventory/sync', {
+					await fetch('/food-room/api/ingredients/inventory/sync', {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json' },
 						body: JSON.stringify({ recipeId: Number(recipeId), reseed: true })
@@ -738,7 +738,7 @@ let allRecipesCache = [];
 					}));
 
 					// Redirect to confirmation page
-					window.location.href = `/recipe_ingredients_confirmation.html?recipe_id=${recipeId}&bulk_mode=true`;
+					window.location.href = `/food-room/recipe_ingredients_confirmation.html?recipe_id=${recipeId}&bulk_mode=true`;
 					return; // Will continue on return from confirmation page
 				} catch (err) {
 					console.warn(`Failed to re-verify recipe ${recipeId}:`, err);
@@ -863,8 +863,8 @@ let allRecipesCache = [];
 			}
 
 			try {
-				await postJsonChecked('/api/recipes/cleanup-instructions-stepwise', { recipeId }, 'Cleanup Instructions');
-				await waitForCleanupCompletion('/api/recipes/cleanup-instructions-progress', progressFill);
+				await postJsonChecked('/food-room/api/recipes/cleanup-instructions-stepwise', { recipeId }, 'Cleanup Instructions');
+				await waitForCleanupCompletion('/food-room/api/recipes/cleanup-instructions-progress', progressFill);
 
 				await refreshRecipesFromApi(String(recipeId));
 				await new Promise(resolve => setTimeout(resolve, 250));
@@ -922,11 +922,11 @@ let allRecipesCache = [];
 			}
 
 			try {
-				await postJsonChecked('/api/recipes/cleanup-ingredients-stepwise', { recipeId }, 'Cleanup Ingredients');
-				await waitForCleanupCompletion('/api/recipes/cleanup-ingredients-progress', progressFill);
+				await postJsonChecked('/food-room/api/recipes/cleanup-ingredients-stepwise', { recipeId }, 'Cleanup Ingredients');
+				await waitForCleanupCompletion('/food-room/api/recipes/cleanup-ingredients-progress', progressFill);
 
 				try {
-					await postJsonChecked('/api/ingredients/inventory/sync', { recipeId, reseed: true }, 'Inventory Sync');
+					await postJsonChecked('/food-room/api/ingredients/inventory/sync', { recipeId, reseed: true }, 'Inventory Sync');
 				} catch (syncErr) {
 					console.warn(`[DEBUG][Cleanup Ingredients] Inventory reseed sync failed for RecipeID ${recipeId}:`, syncErr);
 				}
@@ -964,7 +964,7 @@ let allRecipesCache = [];
 		const recipeId = Number(resumePublishId);
 		if (Number.isInteger(recipeId) && recipeId > 0) {
 			// Remove the URL parameter so page reloads don't trigger this again
-			window.history.replaceState({}, document.title, '/recipe_publish.html');
+			window.history.replaceState({}, document.title, '/food-room/recipe_publish.html');
 			
 			// Auto-complete the publish
 			(async () => {

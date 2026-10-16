@@ -108,13 +108,13 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   async function loadCategories() {
-    const data = await requestJson('/api/aisle_category');
+    const data = await requestJson('/food-room/api/aisle_category');
     categories = Array.isArray(data.categories) ? data.categories : [];
     renderCategorySelects();
   }
 
   async function loadMasters() {
-    const data = await requestJson('/api/aisle_keywords/masters');
+    const data = await requestJson('/food-room/api/aisle_keywords/masters');
     masters = Array.isArray(data.masters) ? data.masters : [];
     renderMasterPicker();
     renderMastersTable();
@@ -130,7 +130,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     addMasterBtn.disabled = true;
     try {
-      await requestJson('/api/aisle_keywords/masters/add', {
+      await requestJson('/food-room/api/aisle_keywords/masters/add', {
         method: 'POST',
         body: JSON.stringify({ name, aisle_category_id: aisleCategoryId })
       });
@@ -153,7 +153,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     addMemberBtn.disabled = true;
     try {
-      await requestJson('/api/aisle_keywords/masters/members/add', {
+      await requestJson('/food-room/api/aisle_keywords/masters/members/add', {
         method: 'POST',
         body: JSON.stringify({ master_keyword_id: masterId, keyword })
       });
@@ -176,7 +176,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     addLinkedCategoryBtn.disabled = true;
     try {
-      await requestJson('/api/aisle_keywords/masters/categories/add', {
+      await requestJson('/food-room/api/aisle_keywords/masters/categories/add', {
         method: 'POST',
         body: JSON.stringify({ master_keyword_id: masterId, aisle_category_id: aisleCategoryId })
       });
@@ -198,7 +198,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (!window.confirm('Delete this member keyword from the master group?')) return;
 
       try {
-        await requestJson('/api/aisle_keywords/masters/members/delete', {
+        await requestJson('/food-room/api/aisle_keywords/masters/members/delete', {
           method: 'POST',
           body: JSON.stringify({ id: memberId })
         });
@@ -217,7 +217,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (!window.confirm('Remove this linked aisle category from master?')) return;
 
       try {
-        await requestJson('/api/aisle_keywords/masters/categories/delete', {
+        await requestJson('/food-room/api/aisle_keywords/masters/categories/delete', {
           method: 'POST',
           body: JSON.stringify({ master_keyword_id: masterId, aisle_category_id: categoryId })
         });
@@ -235,7 +235,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (!window.confirm('Delete this master keyword and all its member mappings?')) return;
 
       try {
-        await requestJson('/api/aisle_keywords/masters/delete', {
+        await requestJson('/food-room/api/aisle_keywords/masters/delete', {
           method: 'POST',
           body: JSON.stringify({ id: masterId })
         });
@@ -270,7 +270,7 @@ document.addEventListener('DOMContentLoaded', function () {
       }
 
       try {
-        await requestJson('/api/aisle_keywords/masters/edit', {
+        await requestJson('/food-room/api/aisle_keywords/masters/edit', {
           method: 'POST',
           body: JSON.stringify({ id: masterId, name: cleanName, aisle_category_id: newCategoryId })
         });

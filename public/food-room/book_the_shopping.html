@@ -201,7 +201,7 @@
                     extrasPanel.style.display = '';
                     extrasContent.innerHTML = '<em>Loading…</em>';
                     try {
-                        var res = await fetch('/api/shopping-extras?week_date=' + encodeURIComponent(friday), { credentials: 'include' });
+                        var res = await fetch('/food-room/api/shopping-extras?week_date=' + encodeURIComponent(friday), { credentials: 'include' });
                         var data = await res.json().catch(function(){ return {}; });
                         renderExtras(data.standing || [], data.week || []);
                     } catch (err) {

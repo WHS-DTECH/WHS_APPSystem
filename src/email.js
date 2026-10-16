@@ -25,11 +25,13 @@ function encodeBase64Url(value) {
     .replace(/=+$/g, '');
 }
 
-function buildMessage({ to, subject, text, html, from }) {
+function buildMessage({ to, subject, text, html, from, bcc, replyTo }) {
   const toAddresses = Array.isArray(to) ? to : [to].filter(Boolean);
   const headers = [
     `From: ${from || 'WHS APPSystem <noreply@localhost>'}`,
     `To: ${toAddresses.join(', ')}`,
+    ...(bcc && bcc.length ? [`Bcc: ${[].concat(bcc).join(', ')}`] : []),
+    ...(replyTo ? [`Reply-To: ${replyTo}`] : []),
     `Subject: ${subject}`,
     'MIME-Version: 1.0',
     'Content-Type: multipart/alternative; boundary="boundary123"'
@@ -50,7 +52,7 @@ function buildMessage({ to, subject, text, html, from }) {
   return headers.concat(['', body]).join('\r\n');
 }
 
-async function sendEmail({ to, subject, text, html, from } = {}) {
+async function sendEmail({ to, subject, text, html, from, bcc, replyTo } = {}) {
   const recipients = (Array.isArray(to) ? to : [to]).filter(Boolean);
   const defaultRecipients = config.email.gmail.defaultRecipients;
   const targetRecipients = recipients.length ? recipients : defaultRecipients;
@@ -78,6 +80,8 @@ async function sendEmail({ to, subject, text, html, from } = {}) {
       subject,
       text,
       html,
+      bcc,
+      replyTo,
       from: from || gmailClient.senderEmail
     });
 

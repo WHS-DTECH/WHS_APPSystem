@@ -9,7 +9,7 @@
   <h2>Ingredients Inventory (Raw Database View)</h2>
   <div id="ingredients-inventory-debug-table"></div>
   <script>
-    fetch('/api/ingredients/inventory/all')
+    fetch('/food-room/api/ingredients/inventory/all')
       .then(res => res.json())
       .then(data => {
         const ingredients = data.ingredients || [];

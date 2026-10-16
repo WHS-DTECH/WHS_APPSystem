@@ -88,7 +88,7 @@ function runPublicAccessAudit() {
   button.textContent = 'Running...';
   output.textContent = 'Running audit...';
 
-  fetch('/api/auth/public-access-audit', {
+  fetch('/food-room/api/auth/public-access-audit', {
     method: 'GET',
     headers: withAdminIdentityHeaders()
   })
@@ -153,7 +153,7 @@ function showStatus(message, isError = false) {
 
 function fetchOptions() {
   const userType = getSelectedUserType();
-  fetch(`/api/user_roles/options?userType=${encodeURIComponent(userType)}`)
+  fetch(`/food-room/api/user_roles/options?userType=${encodeURIComponent(userType)}`)
     .then(res => res.json())
     .then(data => {
       if (!data.success) {
@@ -285,7 +285,7 @@ function formatRoleName(roleName = '') {
 }
 
 function fetchUserRoles() {
-  fetch('/api/user_roles/all')
+  fetch('/food-room/api/user_roles/all')
     .then(res => res.json())
     .then(data => {
       if (!data.success) {
@@ -305,7 +305,7 @@ function fetchUserProfile(userType, identifier) {
     return;
   }
 
-  fetch(`/api/user_roles/profile?userType=${encodeURIComponent(userType)}&identifier=${encodeURIComponent(identifier)}`)
+  fetch(`/food-room/api/user_roles/profile?userType=${encodeURIComponent(userType)}&identifier=${encodeURIComponent(identifier)}`)
     .then(res => res.json())
     .then(data => {
       if (!data.success) {
@@ -518,7 +518,7 @@ function addRoleToUser() {
   addRoleBtn.disabled = true;
   addRoleBtn.textContent = 'Adding...';
 
-  fetch('/api/user_roles/add', {
+  fetch('/food-room/api/user_roles/add', {
     method: 'POST',
     headers: withAdminIdentityHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ user_type: userType, user_identifier: userIdentifier, role_name: roleName })
@@ -548,7 +548,7 @@ function removeRolesForUser(userType, userIdentifier) {
     return;
   }
 
-  fetch(`/api/user_roles/${encodeURIComponent(userType)}/${encodeURIComponent(userIdentifier)}`, {
+  fetch(`/food-room/api/user_roles/${encodeURIComponent(userType)}/${encodeURIComponent(userIdentifier)}`, {
     method: 'DELETE',
     headers: withAdminIdentityHeaders()
   })

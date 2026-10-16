@@ -1,7 +1,7 @@
 // --- Backend Integration Required ---
 // Remove demo data. Fetch selected bookings, shopping list, and master shopping list from backend API when available.
 // Example fetch (to be implemented):
-// fetch('/api/shoplist').then(res => res.json()).then(data => { renderSelectedBookings(data.selected); renderShoppingList(data.shopping); renderMasterShoppingList(data.master); });
+// fetch('/food-room/api/shoplist').then(res => res.json()).then(data => { renderSelectedBookings(data.selected); renderShoppingList(data.shopping); renderMasterShoppingList(data.master); });
 
 function renderSelectedBookings(selected = []) {
   const el = document.getElementById('selectedBookings');

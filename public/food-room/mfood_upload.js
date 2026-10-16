@@ -76,7 +76,7 @@ function renderClassSummary(classes) {
 }
 
 function refreshSummary() {
-  fetch('/api/mfood_upload/all')
+  fetch('/food-room/api/mfood_upload/all')
     .then((res) => res.json())
     .then((data) => renderClassSummary(data.classes || []))
     .catch(() => {
@@ -139,7 +139,7 @@ window.addEventListener('DOMContentLoaded', function () {
 
         result.textContent = 'Uploading ' + payloadRows.length + ' students...';
 
-        fetch('/api/mfood_upload', {
+        fetch('/food-room/api/mfood_upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

@@ -42,7 +42,7 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 function fetchPermissions() {
-  fetch('/api/permissions/all')
+  fetch('/food-room/api/permissions/all')
     .then(res => res.json())
     .then(data => {
       if (data.success) {
@@ -121,7 +121,7 @@ function savePermissions() {
       permissions[route] = checkbox ? checkbox.checked : false;
     });
 
-    fetch(`/api/permissions/${roleName}`, {
+    fetch(`/food-room/api/permissions/${roleName}`, {
       method: 'PUT',
       headers: withAdminIdentityHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(permissions)
@@ -168,7 +168,7 @@ function resetPermissions() {
   resetBtn.disabled = true;
   resetBtn.textContent = 'Resetting...';
 
-  fetch('/api/permissions/reset', {
+  fetch('/food-room/api/permissions/reset', {
     method: 'POST',
     headers: withAdminIdentityHeaders({ 'Content-Type': 'application/json' })
   })

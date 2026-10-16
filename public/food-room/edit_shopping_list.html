@@ -611,7 +611,7 @@
 
       async function fetchFoodTruckBookings() {
         if (Array.isArray(allFoodTruckBookings)) return allFoodTruckBookings;
-        var data = await requestJson('/api/bookings/all?planner_stream=Food%20Truck');
+        var data = await requestJson('/food-room/api/bookings/all?planner_stream=Food%20Truck');
         allFoodTruckBookings = Array.isArray(data.bookings) ? data.bookings : [];
         return allFoodTruckBookings;
       }
@@ -732,7 +732,7 @@
       async function refreshSavedLists(selectedId) {
         savedListSelect.disabled = true;
         try {
-          var data = await requestJson('/api/saved-shopping-lists');
+          var data = await requestJson('/food-room/api/saved-shopping-lists');
           allSavedLists = Array.isArray(data.lists) ? data.lists : [];
           var filterTerm = String(filterTermSelect.value || '').trim();
           var filterWeek = String(filterWeekSelect.value || '').trim();
@@ -786,7 +786,7 @@
         setStatus('Loading shopping list...', '');
         savedListSelect.disabled = true;
         try {
-          var data = await requestJson('/api/saved-shopping-lists/' + encodeURIComponent(listId));
+          var data = await requestJson('/food-room/api/saved-shopping-lists/' + encodeURIComponent(listId));
           currentSavedListId = data.list.id;
           currentSourceFilename = data.list.sourceFilename || '';
           var state = normalizeWeekMeta(data.list.state || {});
@@ -1051,8 +1051,8 @@
             state: shoppingState
           };
           var url = isUpdate
-            ? '/api/saved-shopping-lists/' + encodeURIComponent(currentSavedListId)
-            : '/api/saved-shopping-lists';
+            ? '/food-room/api/saved-shopping-lists/' + encodeURIComponent(currentSavedListId)
+            : '/food-room/api/saved-shopping-lists';
           var method = isUpdate ? 'PUT' : 'POST';
           var data = await requestJson(url, {
             method: method,

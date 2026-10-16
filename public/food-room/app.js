@@ -1,6 +1,6 @@
 // --- Render Current Recipes Table ---
 function fetchAndRenderRecipes() {
-	fetch('/api/recipes')
+	fetch('/food-room/api/recipes')
 		.then(res => res.json())
 		.then(data => {
 			const tbody = document.querySelector('#mainRecipesTable tbody');
@@ -27,7 +27,7 @@ function fetchAndRenderRecipes() {
 				btn.addEventListener('click', function() {
 					const id = this.getAttribute('data-id');
 					if (confirm('Are you sure you want to delete this recipe?')) {
-						fetch(`/api/recipes/${id}`, { method: 'DELETE' })
+						fetch(`/food-room/api/recipes/${id}`, { method: 'DELETE' })
 						.then(res => res.json())
 						.then(result => {
 							if (result.success) {
@@ -131,7 +131,7 @@ document.getElementById('tableViewBtn').addEventListener('click', () => {
 });
 
 // Fetch uploaded recipes from backend and render
-fetch('/api/uploads')
+fetch('/food-room/api/uploads')
 	.then(res => res.json())
 	.then(uploads => {
 		// Map uploads to recipe card format

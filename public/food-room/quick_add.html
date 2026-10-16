@@ -521,7 +521,7 @@
 
       async function ensureAuthUserEmail() {
         if (currentUserEmail) return currentUserEmail;
-        const authRes = await fetch('/api/auth/me', { credentials: 'include' });
+        const authRes = await fetch('/food-room/api/auth/me', { credentials: 'include' });
         const authData = await authRes.json();
         const email = String(authData && authData.user && authData.user.email || '').trim().toLowerCase();
         if (!email) throw new Error('Sign in required for image edits.');
@@ -578,7 +578,7 @@
         }
 
         try {
-          const payload = await quickImageApi('/api/admin/recipe-images', { method: 'GET' });
+          const payload = await quickImageApi('/food-room/api/admin/recipe-images', { method: 'GET' });
           quickImageRecipesCache = Array.isArray(payload.recipes) ? payload.recipes : [];
           quickImageDisplayRecipe = quickImageRecipesCache.find((item) => String(item && item.recipeid) === String(selectedRecipeId)) || null;
           refreshQuickImageUI();
@@ -871,7 +871,7 @@
         if (preferredRecipeId) selectedRecipeId = String(preferredRecipeId);
         if (recipeMatrixStatus) recipeMatrixStatus.textContent = 'Loading recipe table...';
         try {
-          const res = await fetch('/api/recipes');
+          const res = await fetch('/food-room/api/recipes');
           if (!res.ok) throw new Error('Failed to fetch recipes');
           const recipes = await res.json();
           allRecipeRowsCache = Array.isArray(recipes) ? recipes : [];
@@ -892,7 +892,7 @@
       }
 
       async function runUrlUploadAndSync(url) {
-        const uploadResp = await fetch('/api/recipes/upload-url', {
+        const uploadResp = await fetch('/food-room/api/recipes/upload-url', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url })
@@ -902,7 +902,7 @@
           throw new Error(uploadData.error || 'URL upload failed.');
         }
 
-        const syncResp = await fetch('/api/recipes/sync-from-uploads', { method: 'POST' });
+        const syncResp = await fetch('/food-room/api/recipes/sync-from-uploads', { method: 'POST' });
         const syncData = await syncResp.json();
         if (!syncResp.ok || !syncData.success) {
           throw new Error(syncData.error || 'URL sync failed.');
@@ -923,7 +923,7 @@
           reader.readAsDataURL(selectedPdfFile);
         });
 
-        const uploadResp = await fetch('/api/uploads/pdf', {
+        const uploadResp = await fetch('/food-room/api/uploads/pdf', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -937,7 +937,7 @@
           throw new Error(uploadData.error || 'PDF upload failed.');
         }
 
-        const syncResp = await fetch('/api/recipes/sync-from-uploads', { method: 'POST' });
+        const syncResp = await fetch('/food-room/api/recipes/sync-from-uploads', { method: 'POST' });
         const syncData = await syncResp.json();
         if (!syncResp.ok || !syncData.success) {
           throw new Error(syncData.error || 'PDF sync failed.');
@@ -951,8 +951,8 @@
       async function findRecipeIdByUploadId(uploadId) {
         if (!uploadId) return { recipeId: '', reusedExisting: false };
         const [recipesRes, uploadRes] = await Promise.all([
-          fetch('/api/recipes'),
-          fetch(`/api/uploads/${uploadId}`)
+          fetch('/food-room/api/recipes'),
+          fetch(`/food-room/api/uploads/${uploadId}`)
         ]);
         const recipes = await recipesRes.json();
         const upload = uploadRes.ok ? await uploadRes.json() : null;
@@ -985,7 +985,7 @@
       }
 
       async function getRecipeById(recipeId) {
-        const res = await fetch('/api/recipes');
+        const res = await fetch('/food-room/api/recipes');
         const recipes = await res.json();
         if (!Array.isArray(recipes)) return null;
         return recipes.find(r => String(r.id) === String(recipeId)) || null;
@@ -996,7 +996,7 @@
         const recipe = await getRecipeById(recipeId);
         if (recipe && recipe.upload_raw_data) return recipe.upload_raw_data;
         // Fall back to static file
-        const res = await fetch(`/RawDataTXT/${recipeId}.txt`);
+        const res = await fetch(`/food-room/RawDataTXT/${recipeId}.txt`);
         if (!res.ok) return '';
         return await res.text();
       }
@@ -1017,7 +1017,7 @@
         }
 
         try {
-          const res = await fetch(`/RawDataTXT/${id}.txt`, { cache: 'no-store' });
+          const res = await fetch(`/food-room/RawDataTXT/${id}.txt`, { cache: 'no-store' });
           if (!res.ok) return false;
           const fileRaw = await res.text();
           return hasRawText(fileRaw);
@@ -1208,10 +1208,10 @@
         let skipped = 0;
 
         const attempts = [
-          { solution: extractedServingSize, endpoint: '/api/serving-size/solution' },
-          { solution: extractedTitle, endpoint: '/api/title-extractor/solution' },
-          { solution: extractedInstructions, endpoint: '/api/instructions-extractor/solution' },
-          { solution: extractedIngredients, endpoint: '/api/ingredients-extractor/solution' }
+          { solution: extractedServingSize, endpoint: '/food-room/api/serving-size/solution' },
+          { solution: extractedTitle, endpoint: '/food-room/api/title-extractor/solution' },
+          { solution: extractedInstructions, endpoint: '/food-room/api/instructions-extractor/solution' },
+          { solution: extractedIngredients, endpoint: '/food-room/api/ingredients-extractor/solution' }
         ];
 
         for (const attempt of attempts) {
@@ -1241,7 +1241,7 @@
         const url = recipe && recipe.url ? String(recipe.url).trim() : '';
         if (!url) throw new Error('No URL found for this recipe.');
 
-        const res = await fetch(`/api/extract-visible-text?url=${encodeURIComponent(url)}`);
+        const res = await fetch(`/food-room/api/extract-visible-text?url=${encodeURIComponent(url)}`);
         let data = null;
         try { data = await res.json(); } catch (_) { data = null; }
 
@@ -1268,7 +1268,7 @@
       }
 
       async function saveRawDataByRecipeId(recipeId, rawData) {
-        const res = await fetch(`/api/recipes/${recipeId}/raw`, {
+        const res = await fetch(`/food-room/api/recipes/${recipeId}/raw`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ raw_data: rawData || '' })
@@ -1402,7 +1402,7 @@
       }
 
       async function publishRecipeToDisplay(recipeId) {
-        const resp = await fetch(`/api/recipes/${recipeId}/display`, { method: 'POST' });
+        const resp = await fetch(`/food-room/api/recipes/${recipeId}/display`, { method: 'POST' });
         let data = null;
         try { data = await resp.json(); } catch (_) { data = null; }
         if (!resp.ok || !data || !data.success) {
@@ -1412,7 +1412,7 @@
       }
 
       async function runAsyncSyncFromRecipeId(startRecipeId, statusCallback) {
-        const dropdownResp = await fetch('/api/recipes/display-dropdown');
+        const dropdownResp = await fetch('/food-room/api/recipes/display-dropdown');
         if (!dropdownResp.ok) {
           throw new Error(`Failed to load recipe list: ${dropdownResp.status} ${dropdownResp.statusText}`);
         }
@@ -1438,7 +1438,7 @@
           }
 
           try {
-            const resp = await fetch('/api/ingredients/inventory/sync', {
+            const resp = await fetch('/food-room/api/ingredients/inventory/sync', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ recipeId, reseed: true })
@@ -1591,8 +1591,8 @@
             const warnings = [];
 
             try {
-              await postJsonChecked('/api/recipes/cleanup-instructions-stepwise', { recipeId }, 'Cleanup Instructions');
-              await waitForCleanupCompletion('/api/recipes/cleanup-instructions-progress', autoPublishQuickInstructionsFill);
+              await postJsonChecked('/food-room/api/recipes/cleanup-instructions-stepwise', { recipeId }, 'Cleanup Instructions');
+              await waitForCleanupCompletion('/food-room/api/recipes/cleanup-instructions-progress', autoPublishQuickInstructionsFill);
             } catch (cleanupInstructionsErr) {
               if (autoPublishQuickInstructionsFill) autoPublishQuickInstructionsFill.style.width = '100%';
               const message = cleanupInstructionsErr && cleanupInstructionsErr.message ? cleanupInstructionsErr.message : String(cleanupInstructionsErr);
@@ -1600,8 +1600,8 @@
             }
 
             try {
-              await postJsonChecked('/api/recipes/cleanup-ingredients-stepwise', { recipeId }, 'Cleanup Ingredients');
-              await waitForCleanupCompletion('/api/recipes/cleanup-ingredients-progress', autoPublishQuickIngredientsFill);
+              await postJsonChecked('/food-room/api/recipes/cleanup-ingredients-stepwise', { recipeId }, 'Cleanup Ingredients');
+              await waitForCleanupCompletion('/food-room/api/recipes/cleanup-ingredients-progress', autoPublishQuickIngredientsFill);
             } catch (cleanupIngredientsErr) {
               if (autoPublishQuickIngredientsFill) autoPublishQuickIngredientsFill.style.width = '100%';
               const message = cleanupIngredientsErr && cleanupIngredientsErr.message ? cleanupIngredientsErr.message : String(cleanupIngredientsErr);
@@ -1665,7 +1665,7 @@
             setQuickImageBusy(true);
             setQuickImageStatus('Uploading image...', 'info');
             const imageData = await quickFileToDataUrl(file);
-            const payload = await quickImageApi(`/api/admin/recipe-images/${quickImageDisplayRecipe.id}/upload`, {
+            const payload = await quickImageApi(`/food-room/api/admin/recipe-images/${quickImageDisplayRecipe.id}/upload`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ image_data: imageData, file_name: file.name })
@@ -1703,7 +1703,7 @@
           try {
             setQuickImageBusy(true);
             setQuickImageStatus('Saving image URL...', 'info');
-            const payload = await quickImageApi(`/api/admin/recipe-images/${quickImageDisplayRecipe.id}`, {
+            const payload = await quickImageApi(`/food-room/api/admin/recipe-images/${quickImageDisplayRecipe.id}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ image_url: imageUrl })
@@ -1730,7 +1730,7 @@
           try {
             setQuickImageBusy(true);
             setQuickImageStatus('Clearing custom image...', 'info');
-            const payload = await quickImageApi(`/api/admin/recipe-images/${quickImageDisplayRecipe.id}`, {
+            const payload = await quickImageApi(`/food-room/api/admin/recipe-images/${quickImageDisplayRecipe.id}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ image_url: '' })

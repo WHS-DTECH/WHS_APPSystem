@@ -465,7 +465,7 @@
         if (buttonEl) buttonEl.disabled = true;
         setSavedListsStatus('Deleting shopping list...', '');
         try {
-          await requestJson('/api/saved-shopping-lists/' + encodeURIComponent(String(cleanId)), {
+          await requestJson('/food-room/api/saved-shopping-lists/' + encodeURIComponent(String(cleanId)), {
             method: 'DELETE'
           });
 
@@ -486,7 +486,7 @@
         refreshSavedListsBtn.disabled = true;
         setSavedListsStatus('Loading uploaded shopping lists...', '');
         try {
-          var data = await requestJson('/api/saved-shopping-lists');
+          var data = await requestJson('/food-room/api/saved-shopping-lists');
           var lists = Array.isArray(data.lists) ? data.lists : [];
           lists.sort(function (a, b) {
             function num(v) {
@@ -862,8 +862,8 @@
             state: currentState
           };
           var url = isUpdate
-            ? '/api/saved-shopping-lists/' + encodeURIComponent(currentSavedListId)
-            : '/api/saved-shopping-lists';
+            ? '/food-room/api/saved-shopping-lists/' + encodeURIComponent(currentSavedListId)
+            : '/food-room/api/saved-shopping-lists';
           var method = isUpdate ? 'PUT' : 'POST';
           var data = await requestJson(url, {
             method: method,

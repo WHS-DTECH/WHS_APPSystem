@@ -2,7 +2,7 @@
 // Render the ingredients inventory table
 function renderIngredientsInventory() {
   const container = document.getElementById('ingredients-inventory-table');
-  fetch('/api/ingredients/inventory/all')
+  fetch('/food-room/api/ingredients/inventory/all')
     .then(res => res.json())
     .then(data => {
       // Support both {data: [...]} and legacy {ingredients: [...]} and raw array
@@ -23,7 +23,7 @@ function renderIngredientsInventory() {
       // Fetch brands and aisle categories for dropdowns
       Promise.all([
         fetch('food_brands.json').then(res => res.json()),
-        fetch('/api/aisle_keywords/all').then(res => res.json())
+        fetch('/food-room/api/aisle_keywords/all').then(res => res.json())
       ]).then(([brands, keywordsData]) => {
         const keywords = keywordsData.keywords || [];
         // Build a unique list of categories from keywords
@@ -101,7 +101,7 @@ function renderIngredientsInventory() {
             select.onchange = function() {
               const ingredientId = this.getAttribute('data-id');
               const aisleId = this.value;
-              fetch(`/api/ingredients/inventory/assign-aisle`, {
+              fetch(`/food-room/api/ingredients/inventory/assign-aisle`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ingredient_id: ingredientId, aisle_category_id: aisleId })
@@ -126,7 +126,7 @@ function renderIngredientsInventory() {
 
 // Render the recipes table below the ingredients table
 function renderRecipesTable() {
-  fetch('/api/recipes')
+  fetch('/food-room/api/recipes')
     .then(res => res.json())
     .then(data => {
       const table = document.createElement('table');
@@ -179,7 +179,7 @@ function renderRecipesTable() {
         btn.addEventListener('click', function() {
           const id = this.getAttribute('data-id');
           if (confirm('Are you sure you want to delete this recipe?')) {
-            fetch(`/api/recipes/${id}`, { method: 'DELETE' })
+            fetch(`/food-room/api/recipes/${id}`, { method: 'DELETE' })
               .then(res => res.json())
               .then(result => {
                 if (result.success) {
@@ -211,7 +211,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
     // Render a debug table showing the raw JSON data from the API
     function renderIngredientsInventoryDebug() {
-      fetch('/api/ingredients-inventory')
+      fetch('/food-room/api/ingredients-inventory')
         .then(res => res.json())
         .then(data => {
           const table = document.createElement('table');

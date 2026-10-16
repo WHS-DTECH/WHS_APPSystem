@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', function() {
         alert('Select a recipe first.');
         return;
       }
-      fetch('/api/ingredients/inventory/split-measure', {
+      fetch('/food-room/api/ingredients/inventory/split-measure', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ recipe_id: recipeId })

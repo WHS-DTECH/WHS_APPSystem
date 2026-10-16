@@ -229,7 +229,7 @@
 
       async function loadSavedLists() {
         try {
-          const data = await requestJson('/api/saved-shopping-lists');
+          const data = await requestJson('/food-room/api/saved-shopping-lists');
           const lists = Array.isArray(data.lists) ? data.lists : [];
           if (!lists.length) {
             savedListSelect.innerHTML = '<option value="">No saved shopping lists</option>';
@@ -250,7 +250,7 @@
 
       async function loadSchedules() {
         try {
-          const data = await requestJson('/api/shopping-workflow-email/schedules');
+          const data = await requestJson('/food-room/api/shopping-workflow-email/schedules');
           renderSchedules(data.schedules || []);
         } catch (err) {
           scheduleTableBody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:#b91c1c;">${esc(err.message || 'Failed to load schedules.')}</td></tr>`;
@@ -260,7 +260,7 @@
 
       async function loadSmtpStatus() {
         try {
-          const data = await requestJson('/api/shopping-workflow-email/status');
+          const data = await requestJson('/food-room/api/shopping-workflow-email/status');
           const ok = Boolean(data.smtpReady);
           smtpStatusBadge.className = 'smtp-badge ' + (ok ? 'ok' : 'error');
           smtpStatusBadge.textContent = ok ? 'SMTP Ready' : 'SMTP Not Ready';
@@ -296,7 +296,7 @@
         sendNowBtn.disabled = true;
         setStatus('Sending shopping list email...', '');
         try {
-          const data = await requestJson('/api/shopping-workflow-email/send-list-now', {
+          const data = await requestJson('/food-room/api/shopping-workflow-email/send-list-now', {
             method: 'POST',
             body: JSON.stringify({ savedListId })
           });
@@ -316,7 +316,7 @@
         smtpTestBtn.disabled = true;
         setSmtpTestStatus('Sending SMTP test email...', '');
         try {
-          const data = await requestJson('/api/shopping-workflow-email/send-smtp-test', {
+          const data = await requestJson('/food-room/api/shopping-workflow-email/send-smtp-test', {
             method: 'POST',
             body: JSON.stringify({})
           });
@@ -347,7 +347,7 @@
         scheduleBtn.disabled = true;
         setStatus('Saving schedule...', '');
         try {
-          await requestJson('/api/shopping-workflow-email/schedules', {
+          await requestJson('/food-room/api/shopping-workflow-email/schedules', {
             method: 'POST',
             body: JSON.stringify({ savedListId, triggerAt })
           });
@@ -362,7 +362,7 @@
       async function runScheduleNow(id) {
         setStatus('Running schedule now...', '');
         try {
-          await requestJson(`/api/shopping-workflow-email/schedules/${encodeURIComponent(String(id))}/run-now`, { method: 'POST' });
+          await requestJson(`/food-room/api/shopping-workflow-email/schedules/${encodeURIComponent(String(id))}/run-now`, { method: 'POST' });
           setStatus('Scheduled email sent.', 'ok');
           await loadSchedules();
         } catch (err) {
@@ -375,7 +375,7 @@
         if (!ok) return;
         setStatus('Cancelling schedule...', '');
         try {
-          await requestJson(`/api/shopping-workflow-email/schedules/${encodeURIComponent(String(id))}/cancel`, { method: 'POST' });
+          await requestJson(`/food-room/api/shopping-workflow-email/schedules/${encodeURIComponent(String(id))}/cancel`, { method: 'POST' });
           setStatus('Schedule cancelled.', 'ok');
           await loadSchedules();
         } catch (err) {

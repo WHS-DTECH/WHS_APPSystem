@@ -27,9 +27,12 @@
     "helmet": "^8.0.0",
     "jszip": "^3.10.2",
     "multer": "^2.4.0",
+    "node-cron": "^4.6.0",
     "nodemailer": "^10.1.2",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
+    "pdf-parse": "^1.1.4",
+    "pdfjs-dist": "^5.7.284",
     "pg": "^8.13.1",
     "xlsx": "^0.18.5"
   }

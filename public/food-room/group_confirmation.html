@@ -409,7 +409,7 @@
 
         await Promise.all(uniqueRecipeIds.map(async (recipeId) => {
           try {
-            await fetch('/api/ingredients/inventory/sync', {
+            await fetch('/food-room/api/ingredients/inventory/sync', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ recipeId, reseed: true })
@@ -421,7 +421,7 @@
 
         let inventoryRows = [];
         try {
-          const inventoryRes = await fetch('/api/ingredients/inventory/all');
+          const inventoryRes = await fetch('/food-room/api/ingredients/inventory/all');
           const inventoryPayload = await inventoryRes.json().catch(() => ({}));
           inventoryRows = Array.isArray(inventoryPayload)
             ? inventoryPayload
@@ -444,7 +444,7 @@
           }
 
           try {
-            const saveRes = await fetch('/api/ingredients/desired_servings_ingredients/save', {
+            const saveRes = await fetch('/food-room/api/ingredients/desired_servings_ingredients/save', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -576,8 +576,8 @@
 
         try {
           const [bookingsData, meData] = await Promise.all([
-            fetch(`/api/bookings/all?start=${start}&end=${end}`).then(r => r.json()),
-            fetch('/api/auth/me', { credentials: 'include' }).then(r => r.ok ? r.json() : {}).catch(() => ({}))
+            fetch(`/food-room/api/bookings/all?start=${start}&end=${end}`).then(r => r.json()),
+            fetch('/food-room/api/auth/me', { credentials: 'include' }).then(r => r.ok ? r.json() : {}).catch(() => ({}))
           ]);
 
           const allBookings = Array.isArray(bookingsData.bookings) ? bookingsData.bookings : [];
@@ -672,7 +672,7 @@
           const savedEntries = [];
           await Promise.all(toSave.map(async ([bookingId, groupCount]) => {
             try {
-              const r = await fetch(`/api/bookings/${bookingId}/groups`, {
+              const r = await fetch(`/food-room/api/bookings/${bookingId}/groups`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ groups: groupCount })

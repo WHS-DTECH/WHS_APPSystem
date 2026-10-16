@@ -411,7 +411,7 @@
 
       let bookings = [];
       try {
-        const bResp = await fetch('/api/bookings/all?start=' + week.start + '&end=' + week.end + '&fields=calendar', { credentials: 'include' });
+        const bResp = await fetch('/food-room/api/bookings/all?start=' + week.start + '&end=' + week.end + '&fields=calendar', { credentials: 'include' });
         const bPayload = await bResp.json().catch(() => ({}));
         bookings = Array.isArray(bPayload.bookings) ? bPayload.bookings : [];
       } catch (_) { bookings = []; }
@@ -427,7 +427,7 @@
 
       let missingDesiredServings = 0;
       try {
-        const rResp = await fetch('/api/bookings/admin/resave-candidates?startDate=' + week.start + '&endDate=' + week.end + '&limit=1000', { credentials: 'include' });
+        const rResp = await fetch('/food-room/api/bookings/admin/resave-candidates?startDate=' + week.start + '&endDate=' + week.end + '&limit=1000', { credentials: 'include' });
         const rPayload = await rResp.json().catch(() => ({}));
         const candidates = Array.isArray(rPayload.candidates) ? rPayload.candidates : [];
         missingDesiredServings = candidates.filter((c) => bookingIds.has(Number(c.booking_id))).length;
@@ -500,7 +500,7 @@
     }
 
     async function loadPlanList(selectId) {
-      const resp = await fetch('/api/shopping-plan', { credentials: 'include' });
+      const resp = await fetch('/food-room/api/shopping-plan', { credentials: 'include' });
       const payload = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(payload.error || 'Failed to load plan list');
 
@@ -520,7 +520,7 @@
 
     async function loadPlan(planId) {
       setStatus('Loading plan...', '');
-      const resp = await fetch('/api/shopping-plan/' + planId, { credentials: 'include' });
+      const resp = await fetch('/food-room/api/shopping-plan/' + planId, { credentials: 'include' });
       const payload = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(payload.error || 'Failed to load plan.');
 
@@ -577,7 +577,7 @@
       });
 
       setStatus('Saving changes...', '');
-      const resp = await fetch('/api/shopping-plan/' + currentPlan.id + '/items', {
+      const resp = await fetch('/food-room/api/shopping-plan/' + currentPlan.id + '/items', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -592,7 +592,7 @@
     async function regenerateDraft() {
       if (!currentPlan) return;
       setStatus('Regenerating draft totals...', '');
-      const resp = await fetch('/api/shopping-plan/' + currentPlan.id + '/generate-draft', {
+      const resp = await fetch('/food-room/api/shopping-plan/' + currentPlan.id + '/generate-draft', {
         method: 'POST',
         credentials: 'include'
       });
@@ -623,7 +623,7 @@
       }
 
       setStatus('Repairing legacy unit rows...', '');
-      const resp = await fetch('/api/shopping-plan/' + currentPlan.id + '/fix-legacy-units', {
+      const resp = await fetch('/food-room/api/shopping-plan/' + currentPlan.id + '/fix-legacy-units', {
         method: 'POST',
         credentials: 'include'
       });
@@ -660,7 +660,7 @@
       const hasCategoryBuffer = Object.keys(categoryBuffer).length > 0;
 
       setStatus('Finalizing...', '');
-      const resp = await fetch('/api/shopping-plan/' + currentPlan.id + '/finalize', {
+      const resp = await fetch('/food-room/api/shopping-plan/' + currentPlan.id + '/finalize', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

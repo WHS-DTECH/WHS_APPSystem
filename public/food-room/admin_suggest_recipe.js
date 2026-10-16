@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 url: form.url.value,
                 reason: form.reason.value
             };
-            const res = await fetch('/api/suggestions', {
+            const res = await fetch('/food-room/api/suggestions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function loadSuggestions() {
-    const res = await fetch('/api/suggestions');
+    const res = await fetch('/food-room/api/suggestions');
     const table = document.getElementById('suggestionsTable').querySelector('tbody');
     table.innerHTML = '';
     if (res.ok) {

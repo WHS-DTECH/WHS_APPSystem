@@ -135,7 +135,7 @@ function getStaffDisplayLabel(staff) {
 function populateStaffDropdown(staffList = null) {
   const loadStaff = Array.isArray(staffList)
     ? Promise.resolve({ staff: staffList })
-    : fetch('/api/staff_upload/dropdown').then(res => res.json());
+    : fetch('/food-room/api/staff_upload/dropdown').then(res => res.json());
 
   return loadStaff.then(data => {
     const select = document.getElementById('staffSelect');
@@ -258,7 +258,7 @@ async function readCurrentStaffUserWithAuthFallback() {
   if (fromStorage) return fromStorage;
 
   try {
-    const resp = await fetch('/api/auth/me', { credentials: 'include' });
+    const resp = await fetch('/food-room/api/auth/me', { credentials: 'include' });
     if (!resp.ok) return null;
     const data = await resp.json();
     if (!data || !data.authenticated || !data.user) return null;
@@ -278,7 +278,7 @@ async function readCurrentStaffUserWithAuthFallback() {
 
 async function readCurrentFoodTruckStudentIdentity() {
   try {
-    const authRes = await fetch('/api/auth/me', { credentials: 'include' });
+    const authRes = await fetch('/food-room/api/auth/me', { credentials: 'include' });
     const authData = await authRes.json().catch(() => ({}));
     if (!authRes.ok || !authData || !authData.authenticated || !authData.user) {
       return { id: '', name: '', email: '' };
@@ -291,7 +291,7 @@ async function readCurrentFoodTruckStudentIdentity() {
     let studentId = '';
 
     if (role === 'student' && email) {
-      const profileRes = await fetch('/api/user_roles/profile?userType=student&identifier=' + encodeURIComponent(email), { credentials: 'include' });
+      const profileRes = await fetch('/food-room/api/user_roles/profile?userType=student&identifier=' + encodeURIComponent(email), { credentials: 'include' });
       const profileData = await profileRes.json().catch(() => ({}));
       if (profileRes.ok && profileData && profileData.success && profileData.isStudent && profileData.student) {
         name = String(profileData.student.student_name || name).trim();
@@ -1064,7 +1064,7 @@ function fetchTeacherTimetableForSelectedDate() {
 
     meta.textContent = 'Loading timetable...';
     body.innerHTML = '';
-    fetch(`/api/student_upload/student-day?idNumber=${encodeURIComponent(studentId)}&date=${encodeURIComponent(date)}`)
+    fetch(`/food-room/api/student_upload/student-day?idNumber=${encodeURIComponent(studentId)}&date=${encodeURIComponent(date)}`)
       .then(res => res.json())
       .then(data => {
         if (!data || data.success === false) {
@@ -1091,7 +1091,7 @@ function fetchTeacherTimetableForSelectedDate() {
 
   meta.textContent = 'Loading timetable...';
   body.innerHTML = '';
-  fetch(`/api/upload_timetable/teacher-day?teacherCode=${encodeURIComponent(staffCode)}&date=${encodeURIComponent(date)}`)
+  fetch(`/food-room/api/upload_timetable/teacher-day?teacherCode=${encodeURIComponent(staffCode)}&date=${encodeURIComponent(date)}`)
     .then(res => res.json())
     .then(data => {
       if (!data || data.success === false) {
@@ -1157,8 +1157,8 @@ function fetchStudentsForClass(classCode) {
   const staffId = document.getElementById('staffSelect')?.value || '';
   const staffCode = getStaffCodeById(staffId, _staffArrCache);
   const url = staffCode
-    ? `/api/student_upload/by-class/${encodeURIComponent(classCode)}?staffCode=${encodeURIComponent(staffCode)}`
-    : `/api/student_upload/by-class/${encodeURIComponent(classCode)}`;
+    ? `/food-room/api/student_upload/by-class/${encodeURIComponent(classCode)}?staffCode=${encodeURIComponent(staffCode)}`
+    : `/food-room/api/student_upload/by-class/${encodeURIComponent(classCode)}`;
 
   meta.textContent = 'Loading students...';
   fetch(url)
@@ -1176,7 +1176,7 @@ function fetchStudentsForClass(classCode) {
 }
 
 function populateClassDropdown(staffCode) {
-  let url = '/api/classes/dropdown';
+  let url = '/food-room/api/classes/dropdown';
   if (staffCode) url += '?staffCode=' + encodeURIComponent(staffCode);
   return fetch(url)
     .then(res => res.json())
@@ -1224,7 +1224,7 @@ function populateClassDropdown(staffCode) {
 
 // --- Populate Recipe Dropdown ---
 function populateRecipeDropdown() {
-  const dropdownUrl = '/api/recipes/display-dropdown' + (isFoodTruckStudentMode ? '?scope=food_truck' : '');
+  const dropdownUrl = '/food-room/api/recipes/display-dropdown' + (isFoodTruckStudentMode ? '?scope=food_truck' : '');
   fetch(dropdownUrl)
     .then(res => res.json())
     .then(data => {
@@ -1298,7 +1298,7 @@ function saveDesiredServingsInBackground(details = {}) {
 
   const desiredServings = Math.ceil(classSize / groups);
 
-  const syncPromise = fetch('/api/ingredients/inventory/sync', {
+  const syncPromise = fetch('/food-room/api/ingredients/inventory/sync', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ recipeId, reseed: true })
@@ -1306,7 +1306,7 @@ function saveDesiredServingsInBackground(details = {}) {
     .then(res => res.json().catch(() => ({})))
     .catch(() => ({}));
 
-  return syncPromise.then(() => fetch('/api/ingredients/inventory/all'))
+  return syncPromise.then(() => fetch('/food-room/api/ingredients/inventory/all'))
     .then(res => res.json())
     .then(data => {
       const ingredients = Array.isArray(data)
@@ -1318,7 +1318,7 @@ function saveDesiredServingsInBackground(details = {}) {
         throw new Error('No recipe ingredients were found to calculate desired servings.');
       }
 
-      return fetch('/api/ingredients/desired_servings_ingredients/save', {
+      return fetch('/food-room/api/ingredients/desired_servings_ingredients/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1420,7 +1420,7 @@ function saveBooking(options = {}) {
   setTopSelection('topClasses', className);
   const editId = document.getElementById('saveBookingBtn').dataset.editId;
   const method = editId ? 'PUT' : 'POST';
-  const url = editId ? `/api/bookings/${editId}` : '/api/bookings';
+  const url = editId ? `/food-room/api/bookings/${editId}` : '/food-room/api/bookings';
   return fetch(url, {
     method,
     headers: { 'Content-Type': 'application/json' },
@@ -1505,7 +1505,7 @@ function fetchAndRenderBookings() {
     return;
   }
 
-  fetch('/api/bookings/all', { credentials: 'include' })
+  fetch('/food-room/api/bookings/all', { credentials: 'include' })
     .then(res => res.json())
     .then(data => {
       renderBookings(data.bookings || []);
@@ -1546,7 +1546,7 @@ function renderBookings(bookings = []) {
       const tr = btn.closest('tr');
       const bookingId = tr.getAttribute('data-booking-id');
       if (confirm('Delete this booking?')) {
-        fetch(`/api/bookings/${bookingId}`, { method: 'DELETE' })
+        fetch(`/food-room/api/bookings/${bookingId}`, { method: 'DELETE' })
           .then(res => res.json())
           .then(result => {
             if (result.success) {
@@ -1658,7 +1658,7 @@ function renderBookings(bookings = []) {
 
 // --- Event Listeners ---
 window.addEventListener('DOMContentLoaded', () => {
-  fetch('/api/staff_upload/dropdown')
+  fetch('/food-room/api/staff_upload/dropdown')
     .then(res => res.json())
     .then(async (data) => {
       _staffArrCache = data.staff || [];
@@ -1728,7 +1728,7 @@ window.addEventListener('DOMContentLoaded', () => {
         return;
       }
       if (!confirm('Delete this booking?')) return;
-      fetch(`/api/bookings/${encodeURIComponent(bookingId)}`, { method: 'DELETE' })
+      fetch(`/food-room/api/bookings/${encodeURIComponent(bookingId)}`, { method: 'DELETE' })
         .then(res => res.json())
         .then(result => {
           if (!result || !result.success) {
@@ -1928,7 +1928,7 @@ window.addEventListener('DOMContentLoaded', () => {
           const staffCode = getStaffCodeById(document.getElementById('staffSelect')?.value, _staffArrCache);
           const date = document.getElementById('dateInput')?.value;
           if (!staffCode || !date) return true;
-          const res = await fetch(`/api/upload_timetable/teacher-day?teacherCode=${encodeURIComponent(staffCode)}&date=${encodeURIComponent(date)}`);
+          const res = await fetch(`/food-room/api/upload_timetable/teacher-day?teacherCode=${encodeURIComponent(staffCode)}&date=${encodeURIComponent(date)}`);
           return res.ok;
         }
       }

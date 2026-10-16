@@ -420,7 +420,7 @@
         loadBtn.disabled = true;
         setStatus('Loading recipe photos...', '');
         try {
-          const res = await fetch('/api/ft/recipe-images/' + numericId, { credentials: 'include' });
+          const res = await fetch('/food-room/api/ft/recipe-images/' + numericId, { credentials: 'include' });
           const data = await res.json().catch(() => ({}));
           if (!res.ok || data.success === false) throw new Error((data && data.error) || 'Failed to load recipe photos.');
           currentRecipeId = Number(data.recipeId || numericId);
@@ -448,7 +448,7 @@
       async function updatePrimary(slotNumber, idx) {
         if (!currentRecipeId) return;
         try {
-          const res = await fetch('/api/ft/recipe-images/' + currentRecipeId + '/primary', {
+          const res = await fetch('/food-room/api/ft/recipe-images/' + currentRecipeId + '/primary', {
             method: 'PUT',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
@@ -483,7 +483,7 @@
           setSlotStatus(idx, 'Uploading...', '');
           try {
             const dataUrl = await fileToDataUrl(file);
-            const res = await fetch('/api/ft/recipe-images/' + currentRecipeId + '/upload', {
+            const res = await fetch('/food-room/api/ft/recipe-images/' + currentRecipeId + '/upload', {
               method: 'POST',
               credentials: 'include',
               headers: { 'Content-Type': 'application/json' },
@@ -513,7 +513,7 @@
           slot.clearBtn.disabled = true;
           setSlotStatus(idx, 'Clearing...', '');
           try {
-            const res = await fetch('/api/ft/recipe-images/' + currentRecipeId, {
+            const res = await fetch('/food-room/api/ft/recipe-images/' + currentRecipeId, {
               method: 'PUT',
               credentials: 'include',
               headers: { 'Content-Type': 'application/json' },

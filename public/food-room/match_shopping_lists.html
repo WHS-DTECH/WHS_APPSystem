@@ -649,13 +649,13 @@
       async function loadSavedLists() {
         refreshListsBtn.disabled = true;
         try {
-          const data = await requestJson('/api/saved-shopping-lists');
+          const data = await requestJson('/food-room/api/saved-shopping-lists');
           const baseLists = Array.isArray(data.lists) ? data.lists : [];
           // Pull each state so comparison can run without extra click hops.
           savedLists = [];
           for (const row of baseLists) {
             try {
-              const detail = await requestJson('/api/saved-shopping-lists/' + encodeURIComponent(String(row.id)));
+              const detail = await requestJson('/food-room/api/saved-shopping-lists/' + encodeURIComponent(String(row.id)));
               savedLists.push({
                 id: row.id,
                 title: row.title,
@@ -681,7 +681,7 @@
       async function loadFinalizedPlanOptions(selectedId) {
         loadTechnicianPlansBtn.disabled = true;
         try {
-          const payload = await requestJson('/api/shopping-plan');
+          const payload = await requestJson('/food-room/api/shopping-plan');
           const plans = (Array.isArray(payload.plans) ? payload.plans : [])
             .filter((p) => String(p.status || '').toLowerCase() === 'finalized');
 
@@ -753,7 +753,7 @@
         loadWeekBookingsBtn.disabled = true;
         setStatus(bookingsStatus, 'Loading Add Booking calendar bookings for Date End week...', '');
         try {
-          const res = await requestJson('/api/bookings/all');
+          const res = await requestJson('/food-room/api/bookings/all');
           const rows = Array.isArray(res.bookings) ? res.bookings : [];
           const end = new Date(parsedDateEnd.getFullYear(), parsedDateEnd.getMonth(), parsedDateEnd.getDate());
           const start = new Date(end);
@@ -1187,11 +1187,11 @@
           let sourceItems = [];
           if (isTechnician) {
             const planId = Number(technicianPlanIdInput.value || 0);
-            const technicianData = await requestJson('/api/shopping-plan/' + planId + '/technician-view');
+            const technicianData = await requestJson('/food-room/api/shopping-plan/' + planId + '/technician-view');
             sourceItems = flattenTechnicianItems(technicianData);
           } else {
             const qs = new URLSearchParams({ booking_ids: bookingIds.join(',') });
-            const bookData = await requestJson('/api/ingredients/shopping_list/by_category_inventory?' + qs.toString());
+            const bookData = await requestJson('/food-room/api/ingredients/shopping_list/by_category_inventory?' + qs.toString());
             sourceItems = flattenBookItems(bookData);
           }
 

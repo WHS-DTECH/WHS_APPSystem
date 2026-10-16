@@ -314,7 +314,7 @@
       <h2>Google Docs Planner Sync</h2>
       <div class="rcal-card-sub">Trigger a live sync from configured Google planner docs without uploading a file.</div>
       <div style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;">
-        <a class="rcal-btn" id="googleAuthBtn" href="/google/auth" target="_blank" rel="noopener noreferrer" style="text-decoration:none;display:inline-block;">Connect Google</a>
+        <a class="rcal-btn" id="googleAuthBtn" href="/food-room/google/auth" target="_blank" rel="noopener noreferrer" style="text-decoration:none;display:inline-block;">Connect Google</a>
         <button class="rcal-btn rcal-btn-teal" id="googleSyncNowBtn" type="button">Sync Google Docs Now</button>
       </div>
       <div id="googleSyncConfig" style="margin-top:0.65rem;font-size:0.9rem;color:#4b5563;">Checking sync configuration...</div>
@@ -548,7 +548,7 @@
     async function getCurrentAuthUser() {
       if (currentAuthUser) return currentAuthUser;
       try {
-        const res = await fetch('/api/auth/me', { credentials: 'include' });
+        const res = await fetch('/food-room/api/auth/me', { credentials: 'include' });
         const data = await res.json();
         if (res.ok && data && data.authenticated && data.user) {
           currentAuthUser = data.user;
@@ -564,7 +564,7 @@
       if (!plannerUploadsList) return;
       plannerUploadsList.innerHTML = '<div class="rcal-explorer-empty">Loading uploaded planners...</div>';
       try {
-        const res = await fetch('/api/bookings/planner-upload-history?limit=250', { credentials: 'include' });
+        const res = await fetch('/food-room/api/bookings/planner-upload-history?limit=250', { credentials: 'include' });
         const data = await res.json();
         const rows = (res.ok && data && Array.isArray(data.uploads)) ? data.uploads : [];
 
@@ -607,7 +607,7 @@
 
       let classes = fallbackClasses;
       try {
-        const res = await fetch('/api/bookings/planner-class-options');
+        const res = await fetch('/food-room/api/bookings/planner-class-options');
         const data = await res.json();
         if (res.ok && Array.isArray(data.classes) && data.classes.length) {
           classes = data.classes;
@@ -831,7 +831,7 @@
       if (!googleSyncHistoryBody) return;
       googleSyncHistoryBody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#6b7280;">Loading sync history...</td></tr>';
       try {
-        const res = await fetch('/google/sync-history?limit=30', { credentials: 'include' });
+        const res = await fetch('/food-room/google/sync-history?limit=30', { credentials: 'include' });
         const data = await res.json();
         if (!res.ok || !data || !data.success) {
           throw new Error((data && data.error) || 'Unable to load sync history.');
@@ -848,7 +848,7 @@
       if (!googleSyncConfig) return;
       googleSyncConfig.textContent = 'Checking sync configuration...';
       try {
-        const res = await fetch('/google/sync-config', { credentials: 'include' });
+        const res = await fetch('/food-room/google/sync-config', { credentials: 'include' });
         const data = await res.json();
         if (!res.ok || !data || !data.success) {
           throw new Error((data && data.error) || 'Unable to load Google sync config.');
@@ -882,7 +882,7 @@
       googleSyncNowBtn.disabled = true;
       setGoogleSyncStatus('Syncing configured Google Docs...', '');
       try {
-        const res = await fetch('/google/sync-planners', {
+        const res = await fetch('/food-room/google/sync-planners', {
           method: 'POST',
           credentials: 'include'
         });
@@ -1076,7 +1076,7 @@
         const dataUrl = await readFileAsDataUrl(file);
         parseStatus.textContent = 'Sending file to server for extraction…';
 
-        const res = await fetch('/api/recipe_calendar_pdf/parse', {
+        const res = await fetch('/food-room/api/recipe_calendar_pdf/parse', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fileDataUrl: dataUrl })
@@ -1322,7 +1322,7 @@
       try {
         const authUser = await getCurrentAuthUser();
         const fileName = String((pdfFileInput.files && pdfFileInput.files[0] && pdfFileInput.files[0].name) || '').trim();
-        const res = await fetch('/api/bookings/batch', {
+        const res = await fetch('/food-room/api/bookings/batch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -1357,7 +1357,7 @@
           } else if (hasChanges) {
             saveStatus.textContent = `Saved ${summaryNote}. Auto-matching recipes…`;
             try {
-              const matchRes = await fetch('/api/recipe-matching/auto-match', {
+              const matchRes = await fetch('/food-room/api/recipe-matching/auto-match', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(savedIds.length ? { bookingIds: savedIds } : { bookings })
@@ -1416,7 +1416,7 @@
       try {
         const qs = new URLSearchParams({ stream });
         if (className) qs.set('className', className);
-        const res = await fetch(`/api/bookings/clear-planners?${qs.toString()}`, { method: 'DELETE' });
+        const res = await fetch(`/food-room/api/bookings/clear-planners?${qs.toString()}`, { method: 'DELETE' });
         const data = await res.json();
 
         if (!res.ok) {
@@ -1481,7 +1481,7 @@
 
       let allBookings = [];
       try {
-        const res = await fetch('/api/bookings/all');
+        const res = await fetch('/food-room/api/bookings/all');
         const data = await res.json();
         allBookings = data.bookings || [];
       } catch { }
@@ -1563,7 +1563,7 @@
       if (!confirm(`Delete planner entry "${recipe}"?`)) return;
       btn.disabled = true;
       try {
-        const res = await fetch(`/api/bookings/${id}`, { method: 'DELETE' });
+        const res = await fetch(`/food-room/api/bookings/${id}`, { method: 'DELETE' });
         if (!res.ok) { alert('Failed to delete entry.'); btn.disabled = false; return; }
         await renderMiniCal();
       } catch { alert('Error deleting entry.'); btn.disabled = false; }

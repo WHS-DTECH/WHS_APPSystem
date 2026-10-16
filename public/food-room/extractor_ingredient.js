@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const startStepBtn = document.getElementById('startStepBtn');
   const smartBtn = document.getElementById('smartBtn');
   // Populate recipe dropdown
-  fetch('/api/recipes')
+  fetch('/food-room/api/recipes')
     .then(res => res.json())
     .then(recipes => {
       console.log('[DEBUG][Dropdown] Recipes loaded:', recipes);
@@ -155,7 +155,7 @@ document.addEventListener('DOMContentLoaded', function () {
         alert('Please select a recipe.');
         return;
       }
-      const fetchUrl = `/RawDataTXT/${recipeId}.txt`;
+      const fetchUrl = `/food-room/RawDataTXT/${recipeId}.txt`;
       console.log('[DEBUG][LoadRawData] Fetching URL:', fetchUrl);
       try {
         const res = await fetch(fetchUrl);
@@ -207,7 +207,7 @@ document.addEventListener('DOMContentLoaded', function () {
   function loadRawDataForRecipe(recipeId, callback) {
     if (!recipeId) { if (callback) callback(false); return; }
     const rawDataBox = document.getElementById('rawDataBox');
-    const url = `/RawDataTXT/${recipeId}.txt`;
+    const url = `/food-room/RawDataTXT/${recipeId}.txt`;
     if (startStepBtn) startStepBtn.disabled = true;
     fetch(url)
       .then(res => {
@@ -505,7 +505,7 @@ document.addEventListener('DOMContentLoaded', function () {
         alert('Please enter a solution.');
         return;
       }
-      fetch('/api/ingredients-extractor/solution', {
+      fetch('/food-room/api/ingredients-extractor/solution', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ recipeId: recipeIdToSend, solution })
@@ -583,7 +583,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
       }
       solutionBox.value = autoExtractSolution;
-      fetch('/api/ingredients-extractor/solution', {
+      fetch('/food-room/api/ingredients-extractor/solution', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ recipeId, solution: autoExtractSolution })

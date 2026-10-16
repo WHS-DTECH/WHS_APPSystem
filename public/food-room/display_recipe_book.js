@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function verifySession() {
-    return fetch('/api/auth/me', { credentials: 'include' })
+    return fetch('/food-room/api/auth/me', { credentials: 'include' })
       .then((res) => res.json().catch(() => ({})).then((data) => ({ ok: res.ok, data })))
       .then((result) => {
         const isAuthenticated = Boolean(
@@ -116,7 +116,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     setInlineLoginStatus('Signing you in...', '');
 
-    fetch('/api/auth/google/login', {
+    fetch('/food-room/api/auth/google/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -182,9 +182,13 @@ document.addEventListener('DOMContentLoaded', function() {
     inlineLoginBooted = true;
     inlineLoginReady = false;
 
-    fetch('/api/auth/google/config', { credentials: 'include' })
+    fetch('/food-room/api/auth/google/config', { credentials: 'include' })
       .then((res) => res.json().catch(() => ({})).then((data) => ({ ok: res.ok, data })))
       .then((result) => {
+        if (result.ok && result.data && result.data.loginUrl) {
+          window.location.href = result.data.loginUrl;
+          return;
+        }
         if (!result.ok || !result.data || !result.data.clientId) {
           throw new Error((result.data && result.data.error) || 'Google sign-in is not configured yet.');
         }
@@ -258,7 +262,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function refreshAuthState() {
-    return fetch('/api/auth/me', { credentials: 'include' })
+    return fetch('/food-room/api/auth/me', { credentials: 'include' })
       .then((res) => res.json())
       .then((data) => {
         canOpenRecipeDetails = Boolean(data && data.authenticated && data.user && data.user.email);
@@ -443,7 +447,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Legacy stored filenames are expected in the uploads folder.
-    return `/images/recipe_user_uploads/${raw}`;
+    return `/food-room/images/recipe_user_uploads/${raw}`;
   }
 
   function getFtPrimaryImage(recipe) {
@@ -743,14 +747,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const cardList = document.getElementById('recipeCardList');
     if (!cardList) return;
 
-    const recipeFetch = fetch('/api/recipes/display-table?fields=summary', { cache: 'no-store' })
+    const recipeFetch = fetch('/food-room/api/recipes/display-table?fields=summary', { cache: 'no-store' })
       .then((res) => res.json())
       .catch(() => []);
 
     const weeklyBox = document.getElementById('weeklyRecipeBox');
     const bookingRange = buildBookingsRangeQuery();
     const bookingsFetch = weeklyBox
-      ? fetch(`/api/bookings/all?start=${bookingRange.start}&end=${bookingRange.end}&fields=${bookingRange.fields}&limit=${bookingRange.limit}`, { cache: 'no-store' })
+      ? fetch(`/food-room/api/bookings/all?start=${bookingRange.start}&end=${bookingRange.end}&fields=${bookingRange.fields}&limit=${bookingRange.limit}`, { cache: 'no-store' })
           .then((res) => res.json())
           .catch(() => ({ bookings: [] }))
       : Promise.resolve({ bookings: [] });

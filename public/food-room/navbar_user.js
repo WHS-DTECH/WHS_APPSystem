@@ -105,7 +105,7 @@ function attachLogoutHandler(logoutBtn) {
   logoutBtn.onclick = async function(e) {
     e.preventDefault();
     try {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      await fetch('/food-room/api/auth/logout', { method: 'POST', credentials: 'include' });
     } catch (_) {
       // Ignore logout API errors and clear local view state anyway.
     }
@@ -119,7 +119,7 @@ function attachLogoutHandler(logoutBtn) {
 
 async function setNavbarFromAuthSession() {
   try {
-    const res = await fetch('/api/auth/me', { credentials: 'include' });
+    const res = await fetch('/food-room/api/auth/me', { credentials: 'include' });
     if (!res.ok) return false;
     const data = await res.json();
     if (data && data.authenticated && data.user) {

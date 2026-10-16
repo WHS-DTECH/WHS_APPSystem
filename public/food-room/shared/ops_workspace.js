@@ -47,14 +47,14 @@ window.OpsWorkspace = (() => {
 
   async function getRecipes(force = false) {
     if (!force && cache.recipes) return cache.recipes;
-    const data = await fetchJson('/api/recipes', []);
+    const data = await fetchJson('/food-room/api/recipes', []);
     cache.recipes = toArray(data).map(normalizeRecipe);
     return cache.recipes;
   }
 
   async function getPublishedRecipes(force = false) {
     if (!force && cache.displayTable) return cache.displayTable;
-    const data = await fetchJson('/api/recipes/display-table', []);
+    const data = await fetchJson('/food-room/api/recipes/display-table', []);
     cache.displayTable = toArray(data).map((row) => ({
       ...row,
       recipeid: row?.recipeid !== undefined ? Number(row.recipeid) : null,
@@ -68,7 +68,7 @@ window.OpsWorkspace = (() => {
 
   async function getUploads(force = false) {
     if (!force && cache.uploads) return cache.uploads;
-    const data = await fetchJson('/api/uploads', []);
+    const data = await fetchJson('/food-room/api/uploads', []);
     cache.uploads = toArray(data).map((row) => ({
       ...row,
       id: row?.id !== undefined ? Number(row.id) : null,
@@ -83,62 +83,62 @@ window.OpsWorkspace = (() => {
 
   async function getInventory(force = false) {
     if (!force && cache.inventory) return cache.inventory;
-    const data = await fetchJson('/api/ingredients/inventory/all', { success: true, data: [] });
+    const data = await fetchJson('/food-room/api/ingredients/inventory/all', { success: true, data: [] });
     cache.inventory = toArray(data, 'data');
     return cache.inventory;
   }
 
   async function getBookings(force = false) {
     if (!force && cache.bookings) return cache.bookings;
-    const data = await fetchJson('/api/bookings/all', []);
+    const data = await fetchJson('/food-room/api/bookings/all', []);
     cache.bookings = toArray(data, 'bookings');
     return cache.bookings;
   }
 
   async function getStaff(force = false) {
     if (!force && cache.staff) return cache.staff;
-    const data = await fetchJson('/api/staff_upload/all', { staff: [] });
+    const data = await fetchJson('/food-room/api/staff_upload/all', { staff: [] });
     cache.staff = toArray(data, 'staff');
     return cache.staff;
   }
 
   async function getClasses(force = false) {
     if (!force && cache.classes) return cache.classes;
-    const data = await fetchJson('/api/classes/class_upload/all', { classes: [] });
+    const data = await fetchJson('/food-room/api/classes/class_upload/all', { classes: [] });
     cache.classes = toArray(data, 'classes');
     return cache.classes;
   }
 
   async function getDepartments(force = false) {
     if (!force && cache.departments) return cache.departments;
-    const data = await fetchJson('/api/department/all', { department: [] });
+    const data = await fetchJson('/food-room/api/department/all', { department: [] });
     cache.departments = toArray(data, 'department');
     return cache.departments;
   }
 
   async function getPermissions(force = false) {
     if (!force && cache.permissions) return cache.permissions;
-    cache.permissions = await fetchJson('/api/permissions/all', { success: false, roles: [], routes: [] });
+    cache.permissions = await fetchJson('/food-room/api/permissions/all', { success: false, roles: [], routes: [] });
     return cache.permissions;
   }
 
   async function getUserRoleAssignments(force = false) {
     if (!force && cache.userRoles) return cache.userRoles;
-    const data = await fetchJson('/api/user_roles/all', { success: false, users: [] });
+    const data = await fetchJson('/food-room/api/user_roles/all', { success: false, users: [] });
     cache.userRoles = toArray(data, 'users');
     return cache.userRoles;
   }
 
   async function getStudents(force = false) {
     if (!force && cache.students) return cache.students;
-    const data = await fetchJson('/api/student_upload/all', { students: [] });
+    const data = await fetchJson('/food-room/api/student_upload/all', { students: [] });
     cache.students = toArray(data, 'students');
     return cache.students;
   }
 
   async function getStatus(force = false) {
     if (!force && cache.status) return cache.status;
-    cache.status = await fetchJson('/api/status', { ok: false, status: 'unknown' });
+    cache.status = await fetchJson('/food-room/api/status', { ok: false, status: 'unknown' });
     return cache.status;
   }
 

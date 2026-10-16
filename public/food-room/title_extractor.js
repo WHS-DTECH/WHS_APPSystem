@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const url = recipe && recipe.url ? String(recipe.url).trim() : '';
     if (!url) return '';
 
-    const res = await fetch(`/api/extract-visible-text?url=${encodeURIComponent(url)}`);
+    const res = await fetch(`/food-room/api/extract-visible-text?url=${encodeURIComponent(url)}`);
     if (!res.ok) return '';
     const data = await res.json();
 
@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // Fetch recipes for dropdown
-  fetch('/api/recipes')
+  fetch('/food-room/api/recipes')
     .then(res => res.json())
     .then(recipes => {
       console.log('[DEBUG][Dropdown] Recipes loaded:', recipes);
@@ -132,11 +132,11 @@ document.addEventListener('DOMContentLoaded', function () {
       updateStepControls();
       return;
     }
-    fetch('/api/recipes')
+    fetch('/food-room/api/recipes')
       .then(res => res.json())
       .then(recipes => {
         // Always use the selected RecipeID for the file name
-        const fetchUrl = `/RawDataTXT/${currentRecipeId}.txt`;
+        const fetchUrl = `/food-room/RawDataTXT/${currentRecipeId}.txt`;
         console.log('[DEBUG][LoadRawData] Fetching URL:', fetchUrl, 'for RecipeID:', currentRecipeId);
         fetch(fetchUrl)
           .then(res => res.ok ? res.text() : '')
@@ -159,12 +159,12 @@ document.addEventListener('DOMContentLoaded', function () {
     currentRecipeId = recipeSelect.value;
     const selectedOption = recipeSelect.options[recipeSelect.selectedIndex];
     console.log('[DEBUG][Dropdown] On page load. Selected option:', selectedOption ? selectedOption.textContent : '(none)', 'RecipeID:', currentRecipeId);
-    fetch('/api/recipes')
+    fetch('/food-room/api/recipes')
       .then(res => res.json())
       .then(recipes => {
         const recipe = recipes.find(r => r.id == currentRecipeId);
         const fileId = (recipe && recipe.uploaded_recipe_id) ? recipe.uploaded_recipe_id : currentRecipeId;
-        const fetchUrl = `/RawDataTXT/${fileId}.txt`;
+        const fetchUrl = `/food-room/RawDataTXT/${fileId}.txt`;
         console.log('[DEBUG][LoadRawData] Fetching URL:', fetchUrl, 'for RecipeID:', currentRecipeId);
         fetch(fetchUrl)
           .then(res => res.ok ? res.text() : '')
@@ -388,7 +388,7 @@ function showStep(index) {
 }
 
 function sendTitleSolution(recipeId, solution) {
-  return fetch('/api/title-extractor/solution', {
+  return fetch('/food-room/api/title-extractor/solution', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ recipeId, solution })

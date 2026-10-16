@@ -96,7 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return { success: false, error: 'Please enter a Recipe URL.' };
     }
 
-    const resp = await fetch('/api/recipes/upload-url', {
+    const resp = await fetch('/food-room/api/recipes/upload-url', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url })
@@ -105,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function runSyncUploadedRecipes() {
-    const resp = await fetch('/api/recipes/sync-from-uploads', { method: 'POST' });
+    const resp = await fetch('/food-room/api/recipes/sync-from-uploads', { method: 'POST' });
     return resp.json();
   }
 
@@ -113,7 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const selector = document.getElementById('uploadSelect');
     if (!selector || !uploadedRecordId) return false;
 
-    const res = await fetch('/api/recipes');
+    const res = await fetch('/food-room/api/recipes');
     const recipes = await res.json();
     if (!Array.isArray(recipes)) return false;
 
@@ -258,7 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function fetchAndRenderUploads(options = {}) {
   const { highlightUploadId = null } = options;
-  const res = await fetch('/api/uploads');
+  const res = await fetch('/food-room/api/uploads');
   const data = await res.json();
   const tbody = document.querySelector('#uploadedRecipesTable tbody');
   if (!tbody) return;
@@ -293,7 +293,7 @@ async function fetchAndRenderUploads(options = {}) {
     btn.addEventListener('click', function() {
       const id = this.getAttribute('data-id');
       if (confirm('Are you sure you want to delete this upload record?')) {
-        fetch(`/api/uploads/${id}`, { method: 'DELETE' })
+        fetch(`/food-room/api/uploads/${id}`, { method: 'DELETE' })
           .then(res => res.json())
           .then(result => {
             if (result.success) {

@@ -61,7 +61,7 @@
 
   function isBrowsePracticalsPage() {
     const path = String((window.location && window.location.pathname) || '').toLowerCase();
-    return path.endsWith('/browse_practicals.html') || path.endsWith('browse_practicals.html');
+    return path.endsWith('/food-room/browse_practicals.html') || path.endsWith('browse_practicals.html');
   }
 
   // ── Task definitions ───────────────────────────────────────────────────────
@@ -500,7 +500,7 @@
   // ── Init ───────────────────────────────────────────────────────────────────
   async function init() {
     try {
-      const me = await fetch('/api/auth/me', { credentials: 'include' })
+      const me = await fetch('/food-room/api/auth/me', { credentials: 'include' })
         .then(r => r.ok ? r.json() : {})
         .catch(() => ({}));
       const user = me && me.user;

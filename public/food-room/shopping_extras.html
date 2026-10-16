@@ -220,7 +220,7 @@
 
     async function loadStanding() {
       try {
-        const res = await fetch('/api/shopping-extras', { credentials: 'include' });
+        const res = await fetch('/food-room/api/shopping-extras', { credentials: 'include' });
         const data = await res.json().catch(() => ({}));
         renderStanding(data.standing || []);
       } catch (err) {
@@ -236,7 +236,7 @@
       }
       setStatus(weekStatus, '', '');
       try {
-        const res = await fetch('/api/shopping-extras?week_date=' + encodeURIComponent(weekDate), { credentials: 'include' });
+        const res = await fetch('/food-room/api/shopping-extras?week_date=' + encodeURIComponent(weekDate), { credentials: 'include' });
         const data = await res.json().catch(() => ({}));
         renderWeek(data.week || []);
         if ((data.week || []).length === 0) {
@@ -255,7 +255,7 @@
       }
       statusEl.textContent = 'Saving…';
       try {
-        const res = await fetch('/api/shopping-extras/save', {
+        const res = await fetch('/food-room/api/shopping-extras/save', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },

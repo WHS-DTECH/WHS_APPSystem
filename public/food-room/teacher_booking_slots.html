@@ -707,8 +707,8 @@
         allClassCodeMap = new Map();
 
         const [classesRes, staffRes] = await Promise.all([
-          fetch('/api/classes/class_upload/all').then((r) => r.json().catch(() => ({}))),
-          fetch('/api/staff_upload/dropdown').then((r) => r.json().catch(() => ({})))
+          fetch('/food-room/api/classes/class_upload/all').then((r) => r.json().catch(() => ({}))),
+          fetch('/food-room/api/staff_upload/dropdown').then((r) => r.json().catch(() => ({})))
         ]);
 
         const classes = Array.isArray(classesRes && classesRes.classes) ? classesRes.classes : [];
@@ -820,7 +820,7 @@
 
       async function loadFoodTruckBookingList() {
         const params = new URLSearchParams({ planner_stream: FOOD_TRUCK_STREAM });
-        const res = await fetch(`/api/bookings/all?${params.toString()}`);
+        const res = await fetch(`/food-room/api/bookings/all?${params.toString()}`);
         const data = await res.json().catch(() => ({}));
         const rows = Array.isArray(data && data.bookings) ? data.bookings : [];
         foodTruckBookings = rows
@@ -901,7 +901,7 @@
             const seatIdx = Number(btn.getAttribute('data-seat') || 0);
             if (!slotNum || !seatIdx) return;
             try {
-              const res = await fetch(`/api/booking-slot-lists/${encodeURIComponent(String(bookingId))}/assign/${encodeURIComponent(String(slotNum))}/${encodeURIComponent(String(seatIdx))}`, {
+              const res = await fetch(`/food-room/api/booking-slot-lists/${encodeURIComponent(String(bookingId))}/assign/${encodeURIComponent(String(slotNum))}/${encodeURIComponent(String(seatIdx))}`, {
                 method: 'DELETE'
               });
               const data = await res.json().catch(() => ({}));
@@ -944,7 +944,7 @@
         studentDayMeta.textContent = `Loading timetable for ${student.student_name || ''} (${student.id_number || ''})...`;
         studentDayTableWrap.innerHTML = '';
         try {
-          const url = `/api/student_upload/student-day?idNumber=${encodeURIComponent(String(student.id_number || ''))}&date=${encodeURIComponent(String(booking.booking_date || ''))}`;
+          const url = `/food-room/api/student_upload/student-day?idNumber=${encodeURIComponent(String(student.id_number || ''))}&date=${encodeURIComponent(String(booking.booking_date || ''))}`;
           const res = await fetch(url);
           const data = await res.json().catch(() => ({}));
           if (!res.ok || data.success === false) throw new Error(data.error || 'Failed to load student day timetable.');
@@ -994,7 +994,7 @@
             if (!student) return;
             try {
               btn.title = `Assign ${student.student_name || ''} to Slot ${activeSeat.slot}, Seat ${activeSeat.seat}`;
-              const res = await fetch(`/api/booking-slot-lists/${encodeURIComponent(String(bookingId))}/assign`, {
+              const res = await fetch(`/food-room/api/booking-slot-lists/${encodeURIComponent(String(bookingId))}/assign`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1045,7 +1045,7 @@
           return;
         }
 
-        let url = `/api/student_upload/by-class/${encodeURIComponent(classCode)}`;
+        let url = `/food-room/api/student_upload/by-class/${encodeURIComponent(classCode)}`;
         const selectedTeacherCode = String(selectedTeacherFilter || '').replace(/^code:/i, '').trim().toUpperCase();
         const staffCode = booking ? getTeacherCodeForBooking(booking) : selectedTeacherCode;
         if (staffCode) {
@@ -1058,7 +1058,7 @@
       }
 
       async function loadSlotList() {
-        const res = await fetch(`/api/booking-slot-lists/${encodeURIComponent(String(bookingId))}`);
+        const res = await fetch(`/food-room/api/booking-slot-lists/${encodeURIComponent(String(bookingId))}`);
         const data = await res.json().catch(() => ({}));
         if (!res.ok || data.success === false) {
           throw new Error(data.error || 'Failed to load slot list.');
@@ -1104,7 +1104,7 @@
         try {
           const maxSlots = Number(maxSlotsInput.value || 24);
           const allowPairs = !!allowPairsInput.checked;
-          const res = await fetch(`/api/booking-slot-lists/${encodeURIComponent(String(bookingId))}/config`, {
+          const res = await fetch(`/food-room/api/booking-slot-lists/${encodeURIComponent(String(bookingId))}/config`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ max_slots: maxSlots, allow_pairs: allowPairs })

@@ -2,7 +2,7 @@
 // Assumes backend endpoint /api/class-upload for POST
 
 function fetchAndRenderClassUploadTable() {
-  fetch('/api/class_upload/all')
+  fetch('/food-room/api/class_upload/all')
     .then(res => res.json())
     .then(result => {
       if (result && Array.isArray(result.classes)) {
@@ -64,7 +64,7 @@ function hideUploadProgress() {
 function uploadClassesWithProgress(payload, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/api/class-upload');
+    xhr.open('POST', '/food-room/api/class-upload');
     xhr.setRequestHeader('Content-Type', 'application/json');
 
     xhr.upload.onprogress = (evt) => {
@@ -153,7 +153,7 @@ function renderClassUploadTable(rows) {
   if (delBtn) {
     delBtn.onclick = function() {
       if (confirm('Are you sure you want to delete ALL class records? This cannot be undone.')) {
-        fetch('/api/class-upload/all', { method: 'DELETE' })
+        fetch('/food-room/api/class-upload/all', { method: 'DELETE' })
           .then(res => res.json())
           .then(result => {
             if (result.success) {

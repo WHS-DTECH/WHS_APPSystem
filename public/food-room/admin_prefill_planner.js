@@ -121,7 +121,7 @@ async function runPrefill(dryRun) {
   setStatus(dryRun ? 'Running dry run...' : 'Preloading bookings...', false);
 
   try {
-    const resp = await fetch('/api/bookings/prefill-from-planner', {
+    const resp = await fetch('/food-room/api/bookings/prefill-from-planner', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

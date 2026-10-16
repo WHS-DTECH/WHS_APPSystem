@@ -40,7 +40,7 @@ function saveTeacherRow(teacherKey) {
     return Promise.reject(new Error('Teacher row not found in table state.'));
   }
 
-  return fetch(`/api/upload_timetable/row/${encodeURIComponent(teacherKey)}`, {
+  return fetch(`/food-room/api/upload_timetable/row/${encodeURIComponent(teacherKey)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ row })
@@ -55,7 +55,7 @@ function saveTeacherRow(teacherKey) {
 }
 
 function fetchAndRenderTimetableTable() {
-  fetch('/api/timetable/all')
+  fetch('/food-room/api/timetable/all')
     .then(res => res.json())
     .then(result => {
       if (result && Array.isArray(result.timetable) && result.timetable.length > 0) {
@@ -115,7 +115,7 @@ function hideUploadProgress() {
 function uploadTimetableWithProgress(payload, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/api/upload_timetable');
+    xhr.open('POST', '/food-room/api/upload_timetable');
     xhr.setRequestHeader('Content-Type', 'application/json');
 
     xhr.upload.onprogress = (evt) => {

@@ -49,7 +49,7 @@
       return Promise.resolve(0);
     }
 
-    return fetchJson('/api/bookings/planner-upload-history?email=' + encodeURIComponent(email) + '&limit=5', {
+    return fetchJson('/food-room/api/bookings/planner-upload-history?email=' + encodeURIComponent(email) + '&limit=5', {
       credentials: 'include'
     }).then(function(result) {
       if (!result.ok || !result.data || !Array.isArray(result.data.uploads)) {
@@ -92,7 +92,7 @@
   }
 
   function verifySession() {
-    return fetchJson('/api/auth/me', { credentials: 'include' }).then(function(meResult) {
+    return fetchJson('/food-room/api/auth/me', { credentials: 'include' }).then(function(meResult) {
       var isAuthenticated = Boolean(
         meResult &&
         meResult.ok &&
@@ -148,7 +148,7 @@
 
     setStatus('Signing you in...', '');
 
-    fetchJson('/api/auth/google/login', {
+    fetchJson('/food-room/api/auth/google/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -193,7 +193,7 @@
   }
 
   function boot() {
-    fetchJson('/api/auth/me', { credentials: 'include' })
+    fetchJson('/food-room/api/auth/me', { credentials: 'include' })
       .then(function(meResult) {
         if (meResult.ok && meResult.data && meResult.data.authenticated && meResult.data.user) {
           rememberRole(meResult.data.user);
@@ -207,10 +207,14 @@
           });
         }
 
-        return fetchJson('/api/auth/google/config', { credentials: 'include' });
+        return fetchJson('/food-room/api/auth/google/config', { credentials: 'include' });
       })
       .then(function(configResult) {
         if (!configResult) return;
+        if (configResult.data && configResult.data.loginUrl) {
+          window.location.href = configResult.data.loginUrl;
+          return;
+        }
         if (!configResult.ok || !configResult.data || !configResult.data.clientId) {
           throw new Error((configResult.data && configResult.data.error) || 'Google sign-in is not configured yet.');
         }

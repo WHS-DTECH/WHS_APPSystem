@@ -217,7 +217,7 @@
         }
 
         function sendSolution(recipeId, solution) {
-            return fetch('/api/serving-size/solution', {
+            return fetch('/food-room/api/serving-size/solution', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ recipeId, solution })
@@ -226,7 +226,7 @@
 
         async function ensureRawDataLoaded(recipeId) {
             if ((window.rawData || '').trim()) return window.rawData;
-            const res = await fetch(`/RawDataTXT/${recipeId}.txt`);
+            const res = await fetch(`/food-room/RawDataTXT/${recipeId}.txt`);
             if (!res.ok) return '';
             const raw = await res.text();
             window.rawData = raw || '';
@@ -235,7 +235,7 @@
         }
 
         if (recipeUrlSelect) {
-            fetch('/api/recipes')
+            fetch('/food-room/api/recipes')
                 .then(res => res.json())
                 .then(recipes => {
                     const rows = Array.isArray(recipes) ? recipes : [];
@@ -259,7 +259,7 @@
                     return;
                 }
 
-                fetch(`/RawDataTXT/${selectedId}.txt`)
+                fetch(`/food-room/RawDataTXT/${selectedId}.txt`)
                     .then(res => res.ok ? res.text() : '')
                     .then(raw => {
                         window.rawData = raw || '';

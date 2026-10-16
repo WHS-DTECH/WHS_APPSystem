@@ -1,7 +1,7 @@
 // --- Backend Integration Required ---
 // Remove demo data. Fetch days, periods, and grid from backend API when available.
 // Example fetch (to be implemented):
-// fetch('/api/catering-grid').then(res => res.json()).then(data => renderCalendarGrid(data));
+// fetch('/food-room/api/catering-grid').then(res => res.json()).then(data => renderCalendarGrid(data));
 
 function renderCalendarGrid(days = [], periods = [], grid = []) {
   const table = document.getElementById('calendarGridTable');

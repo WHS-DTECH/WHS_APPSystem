@@ -227,7 +227,7 @@ async function postPlannerDedupe(token) {
   if (normalizedToken) {
     headers['x-planner-sync-token'] = normalizedToken;
   }
-  const res = await fetch('/google/dedupe-planners', {
+  const res = await fetch('/food-room/google/dedupe-planners', {
     method: 'POST',
     credentials: 'include',
     headers
@@ -237,7 +237,7 @@ async function postPlannerDedupe(token) {
 }
 
 async function fetchLinkedRecipesForBooking(bookingId) {
-  const response = await fetch(`/api/recipe-matching/linked-recipes/${encodeURIComponent(String(bookingId))}`);
+  const response = await fetch(`/food-room/api/recipe-matching/linked-recipes/${encodeURIComponent(String(bookingId))}`);
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data && data.error ? data.error : 'Failed to load linked recipes.');
@@ -252,7 +252,7 @@ async function fetchRecipeDetailsForModal(recipeId) {
   const id = Number(recipeId);
   if (_recipeDetailCache.has(id)) return _recipeDetailCache.get(id);
   try {
-    const r = await fetch(`/api/recipes/${encodeURIComponent(String(id))}`);
+    const r = await fetch(`/food-room/api/recipes/${encodeURIComponent(String(id))}`);
     if (!r.ok) return null;
     const data = await r.json();
     _recipeDetailCache.set(id, data);
@@ -517,14 +517,14 @@ async function showAdjustRecipeModal(baseRecipeRef, plannerBooking) {
     const baseId = baseRecipeRef && (baseRecipeRef.recipe_id != null ? baseRecipeRef.recipe_id : baseRecipeRef.id);
     let fullRecipe = baseRecipeRef;
     try {
-      const r = await fetch(`/api/recipes/${encodeURIComponent(String(baseId))}`);
+      const r = await fetch(`/food-room/api/recipes/${encodeURIComponent(String(baseId))}`);
       if (r.ok) fullRecipe = await r.json();
     } catch (_) { /* use what we have */ }
 
     // Get current user name for default recipe name
     let userName = '';
     try {
-      const me = await fetch('/api/auth/me');
+      const me = await fetch('/food-room/api/auth/me');
       if (me.ok) {
         const meData = await me.json();
         if (meData.user && meData.user.name) userName = meData.user.name.split(' ').slice(-1)[0]; // last name
@@ -638,7 +638,7 @@ async function showAdjustRecipeModal(baseRecipeRef, plannerBooking) {
       saveBtn.textContent = 'Saving…';
 
       try {
-        const res = await fetch(`/api/recipes/${encodeURIComponent(String(baseId))}/adjust`, {
+        const res = await fetch(`/food-room/api/recipes/${encodeURIComponent(String(baseId))}/adjust`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, ingredients: ingredientsText, serving_size: servingSize || null })
@@ -1280,7 +1280,7 @@ async function fetchBookingsForWeek(monday) {
 
   try {
     params.set('fields', 'calendar');
-    const res = await fetch(`/api/bookings/all?${params.toString()}`);
+    const res = await fetch(`/food-room/api/bookings/all?${params.toString()}`);
     if (!res.ok) {
       return [];
     }
@@ -1555,7 +1555,7 @@ async function initRecentPlannerSidebar() {
 
   let authData = null;
   try {
-    const res = await fetch('/api/auth/me', { credentials: 'include' });
+    const res = await fetch('/food-room/api/auth/me', { credentials: 'include' });
     authData = await res.json().catch(() => null);
     if (!res.ok || !authData || !authData.authenticated || !authData.user) return;
   } catch (_) {
@@ -1607,7 +1607,7 @@ async function initRecentPlannerSidebar() {
   async function loadRecentUploads() {
     body.innerHTML = '<div class="planner-recent-status">Loading recent planner uploads...</div>';
     try {
-      const res = await fetch('/api/bookings/planner-upload-history?limit=120', { credentials: 'include' });
+      const res = await fetch('/food-room/api/bookings/planner-upload-history?limit=120', { credentials: 'include' });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data || !Array.isArray(data.uploads)) {
         body.innerHTML = '<div class="planner-recent-status">Could not load planner uploads.</div>';
@@ -2005,7 +2005,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!confirm(`Delete planner entry "${recipeName}"?`)) return;
       btn.disabled = true;
       try {
-        const res = await fetch(`/api/bookings/${id}`, { method: 'DELETE' });
+        const res = await fetch(`/food-room/api/bookings/${id}`, { method: 'DELETE' });
         if (!res.ok) { alert('Failed to delete entry.'); btn.disabled = false; return; }
         await renderScheduleCalendar();
       } catch { alert('Error deleting entry.'); btn.disabled = false; }
@@ -2082,7 +2082,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Find the earliest planner entry date so we sync all weeks, not just current
         let startDate = toLocalIsoDate(currentMonday);
         try {
-          const rangeRes = await fetch('/api/bookings/planner-range', { credentials: 'include' });
+          const rangeRes = await fetch('/food-room/api/bookings/planner-range', { credentials: 'include' });
           if (rangeRes.ok) {
             const rangeData = await rangeRes.json();
             if (rangeData.minDate) startDate = rangeData.minDate.slice(0, 10);
@@ -2090,7 +2090,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch { /* use current week as fallback */ }
 
         const endDate = `${new Date().getFullYear()}-12-31`;
-        const res = await fetch('/api/bookings/prefill-from-planner', {
+        const res = await fetch('/food-room/api/bookings/prefill-from-planner', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
@@ -2178,7 +2178,7 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         for (const recipeId of recipeIds) {
           try {
-            const resp = await fetch(`/api/recipes/${encodeURIComponent(String(recipeId))}/refresh`, {
+            const resp = await fetch(`/food-room/api/recipes/${encodeURIComponent(String(recipeId))}/refresh`, {
               method: 'POST',
               credentials: 'include',
               headers: { 'Content-Type': 'application/json' }
@@ -2278,7 +2278,7 @@ async function printBookingInfoSheet(bookingId) {
     if (/^https?:\/\//i.test(raw)) return raw;
     if (raw.startsWith('/')) return raw;
     if (/^images\//i.test(raw)) return `/${raw}`;
-    return `/images/recipe_user_uploads/${raw}`;
+    return `/food-room/images/recipe_user_uploads/${raw}`;
   }
 
   function stableIndex(seed, length) {
@@ -2385,7 +2385,7 @@ async function printBookingInfoSheet(bookingId) {
     if (!Number.isInteger(id) || id <= 0) return '';
     try {
       if (!Array.isArray(window._recipeDisplayImageRowsCache)) {
-        const res = await fetch('/api/recipes/display-table');
+        const res = await fetch('/food-room/api/recipes/display-table');
         if (!res.ok) return '';
         const rows = await res.json();
         window._recipeDisplayImageRowsCache = Array.isArray(rows) ? rows : [];
@@ -2758,8 +2758,8 @@ async function checkAndShowGroupsPopup() {
 
   try {
     const [bookingsData, meData] = await Promise.all([
-      fetch('/api/bookings/all?start=' + startStr + '&end=' + endStr + '&fields=calendar').then(r => r.json()),
-      fetch('/api/auth/me').then(r => r.ok ? r.json() : {}).catch(() => ({}))
+      fetch('/food-room/api/bookings/all?start=' + startStr + '&end=' + endStr + '&fields=calendar').then(r => r.json()),
+      fetch('/food-room/api/auth/me').then(r => r.ok ? r.json() : {}).catch(() => ({}))
     ]);
 
     const allBookings = Array.isArray(bookingsData.bookings) ? bookingsData.bookings : [];
@@ -2902,7 +2902,7 @@ async function showGroupsConfirmationPopup(bookings, firstName, weekStart) {
       let saved = 0, failed = 0;
       await Promise.all(toSave.map(async ([bookingId, groupCount]) => {
         try {
-          const r = await fetch('/api/bookings/' + bookingId + '/groups', {
+          const r = await fetch('/food-room/api/bookings/' + bookingId + '/groups', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ groups: groupCount })

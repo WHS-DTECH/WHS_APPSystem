@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // Fetch recipes for dropdown
-  fetch('/api/recipes')
+  fetch('/food-room/api/recipes')
     .then(res => res.json())
     .then(recipes => {
       recipes.forEach(recipe => {
@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
     // Always use recipeID for file path
-    fetch(`/RawDataTXT/${currentRecipeId}.txt`)
+    fetch(`/food-room/RawDataTXT/${currentRecipeId}.txt`)
       .then(res => res.ok ? res.text() : '')
       .then(async text => {
         rawData = text || '';
@@ -83,7 +83,7 @@ document.addEventListener('DOMContentLoaded', function () {
           const recipeUrl = recipe && recipe.url ? recipe.url.trim() : '';
           if (recipeUrl) {
             try {
-              const visibleRes = await fetch(`/api/extract-visible-text?url=${encodeURIComponent(recipeUrl)}`);
+              const visibleRes = await fetch(`/food-room/api/extract-visible-text?url=${encodeURIComponent(recipeUrl)}`);
               if (visibleRes.ok) {
                 const visibleData = await visibleRes.json();
                 const blocks = [];
@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', function () {
                   rawData = combinedVisible;
                 }
               } else {
-                const freshRes = await fetch(`/api/extract-rendered-html?url=${encodeURIComponent(recipeUrl)}`);
+                const freshRes = await fetch(`/food-room/api/extract-rendered-html?url=${encodeURIComponent(recipeUrl)}`);
                 if (freshRes.ok) {
                   const freshRaw = await freshRes.text();
                   if (freshRaw && freshRaw.length > rawData.length) {
@@ -598,7 +598,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   function sendInstructionsSolution(recipeId, solution) {
-    return fetch('/api/instructions-extractor/solution', {
+    return fetch('/food-room/api/instructions-extractor/solution', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ recipeId, solution })

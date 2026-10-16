@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             try {
-                const response = await fetch('/api/text-conversion', {
+                const response = await fetch('/food-room/api/text-conversion', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text, recipeId })

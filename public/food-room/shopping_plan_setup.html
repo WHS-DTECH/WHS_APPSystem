@@ -279,7 +279,7 @@
       if (!updates.length) return 0;
 
       const results = await Promise.all(updates.map((u) =>
-        fetch('/api/bookings/' + u.id, {
+        fetch('/food-room/api/bookings/' + u.id, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -365,7 +365,7 @@
       setStatus(loadStatus, 'Loading bookings...', '');
 
       try {
-        const resp = await fetch('/api/bookings/all?start=' + encodeURIComponent(mondayIso) + '&end=' + encodeURIComponent(friday), { credentials: 'include' });
+        const resp = await fetch('/food-room/api/bookings/all?start=' + encodeURIComponent(mondayIso) + '&end=' + encodeURIComponent(friday), { credentials: 'include' });
         const payload = await resp.json().catch(() => ({}));
         if (!resp.ok) {
           throw new Error(payload.error || (resp.status + ' ' + resp.statusText));
@@ -404,7 +404,7 @@
           setStatus(createStatus, 'Saved class size/groups for ' + persistedCount + ' booking(s). Creating plan...', '');
         }
 
-        const createResp = await fetch('/api/shopping-plan/create', {
+        const createResp = await fetch('/food-room/api/shopping-plan/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -422,7 +422,7 @@
         const planId = Number(createPayload.plan.id);
         setStatus(createStatus, 'Plan #' + planId + ' created. Generating draft items...', '');
 
-        const genResp = await fetch('/api/shopping-plan/' + planId + '/generate-draft', {
+        const genResp = await fetch('/food-room/api/shopping-plan/' + planId + '/generate-draft', {
           method: 'POST',
           credentials: 'include'
         });

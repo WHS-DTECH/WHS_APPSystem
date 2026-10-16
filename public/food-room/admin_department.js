@@ -21,7 +21,7 @@ function saveDepartmentAssignment() {
     return;
   }
 
-  fetch('/api/department/assign', {
+  fetch('/food-room/api/department/assign', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ staffId, department })
@@ -86,7 +86,7 @@ function uploadDepartmentCsv(event) {
         progressBar.style.width = '30%';
         progressText.textContent = `Parsed ${staff.length} rows. Uploading...`;
 
-        fetch('/api/department/upload-csv', {
+        fetch('/food-room/api/department/upload-csv', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ headers, staff })
@@ -151,7 +151,7 @@ function uploadDepartmentCsv(event) {
 
 // Fetch staff for dropdown
 function fetchAndPopulateStaffDropdown() {
-  fetch('/api/staff_upload/all')
+  fetch('/food-room/api/staff_upload/all')
     .then(res => res.json())
     .then(result => {
       const select = document.getElementById('staffSelect');
@@ -180,7 +180,7 @@ function showStaffEmailAndTimetable() {
     return;
   }
 
-  fetch(`/api/department/timetable/by-staff/${staffId}`)
+  fetch(`/food-room/api/department/timetable/by-staff/${staffId}`)
     .then(res => res.json())
     .then(result => {
       const container = document.getElementById('timetableClassesContainer');
@@ -199,7 +199,7 @@ function showStaffEmailAndTimetable() {
 
 // Fetch and render the department table with all fields
 function fetchAndRenderDepartmentTable() {
-  fetch('/api/department/all')
+  fetch('/food-room/api/department/all')
     .then(res => res.json())
     .then(result => {
       if (result && Array.isArray(result.department)) {
@@ -305,7 +305,7 @@ function updateSelectionCount() {
 function deleteAllDepartmentRows() {
   if (!confirm('Are you sure you want to delete all department data?')) return;
 
-  fetch('/api/department/delete-all', { method: 'POST' })
+  fetch('/food-room/api/department/delete-all', { method: 'POST' })
     .then(res => res.json())
     .then(result => {
       if (result.success) {

@@ -366,7 +366,7 @@
         bodyEl.innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
 
         try {
-          const res = await fetch('/api/recipes/food-truck/moderation-list?status=' + encodeURIComponent(status), { credentials: 'include' });
+          const res = await fetch('/food-room/api/recipes/food-truck/moderation-list?status=' + encodeURIComponent(status), { credentials: 'include' });
           const data = await res.json().catch(() => ({}));
           if (!res.ok || data.success === false) {
             throw new Error((data && (data.error || data.message)) || 'Failed to load moderation list.');
@@ -411,7 +411,7 @@
       }
 
       async function approveRecipe(recipeId) {
-        const res = await fetch('/api/recipes/' + recipeId + '/food-truck/approve', {
+        const res = await fetch('/food-room/api/recipes/' + recipeId + '/food-truck/approve', {
           method: 'POST',
           credentials: 'include'
         });
@@ -425,7 +425,7 @@
       async function declineRecipe(recipeId, reason, ccEmail) {
         const body = { reason };
         if (ccEmail) body.ccEmail = ccEmail;
-        const res = await fetch('/api/recipes/' + recipeId + '/food-truck/decline', {
+        const res = await fetch('/food-room/api/recipes/' + recipeId + '/food-truck/decline', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
@@ -439,7 +439,7 @@
       }
 
       async function sendDeclinePreview(recipeId, reason, previewTo) {
-        const res = await fetch('/api/recipes/' + recipeId + '/food-truck/decline-preview', {
+        const res = await fetch('/food-room/api/recipes/' + recipeId + '/food-truck/decline-preview', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
@@ -537,7 +537,7 @@
       });
 
       // Load teacher email for CC/preview defaults
-      fetch('/api/auth/me', { credentials: 'include' })
+      fetch('/food-room/api/auth/me', { credentials: 'include' })
         .then(function(r) { return r.ok ? r.json() : null; })
         .then(function(me) {
           if (me && me.email) {

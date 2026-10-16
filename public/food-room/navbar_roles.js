@@ -42,7 +42,7 @@
   }
 
   function loadPermissions() {
-    return fetch('/api/permissions/all')
+    return fetch('/food-room/api/permissions/all')
       .then((res) => {
         if (!res.ok) throw new Error('Failed to fetch permissions');
         return res.json();
@@ -70,7 +70,7 @@
   }
 
   function detectRoleFromPermissionsEndpoint() {
-    return fetch('/api/auth/me', { credentials: 'include' })
+    return fetch('/food-room/api/auth/me', { credentials: 'include' })
       .then(res => {
         if (!res.ok) return '';
         return res.json();

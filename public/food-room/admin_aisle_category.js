@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const formContainer = document.getElementById('aisle-form-container');
 
   function fetchCategories() {
-    fetch('/api/aisle_category')
+    fetch('/food-room/api/aisle_category')
       .then(res => res.json())
       .then(data => {
         if (!data.success || !Array.isArray(data.categories)) {
@@ -73,7 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const name = document.getElementById('new-aisle-name').value.trim();
       const master = document.getElementById('new-aisle-master').value.trim();
       if (!name) return alert('Sub aisle name required');
-      fetch('/api/aisle_category', {
+      fetch('/food-room/api/aisle_category', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, master_category: master || name })
@@ -103,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const newName = document.getElementById('edit-aisle-name').value.trim();
       const newMaster = document.getElementById('edit-aisle-master').value.trim();
       if (!newName) return alert('Sub aisle name required');
-      fetch(`/api/aisle_category/${id}`, {
+      fetch(`/food-room/api/aisle_category/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newName, master_category: newMaster || newName })
@@ -123,7 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function deleteCategory(id) {
     if (!confirm('Delete this category?')) return;
-    fetch(`/api/aisle_category/${id}`, { method: 'DELETE' })
+    fetch(`/food-room/api/aisle_category/${id}`, { method: 'DELETE' })
       .then(async res => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to delete category');

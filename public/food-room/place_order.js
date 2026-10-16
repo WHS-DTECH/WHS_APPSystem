@@ -383,7 +383,7 @@
 
   async function loadDashboard(weekStart) {
     var query = weekStart ? ('?week_start=' + encodeURIComponent(weekStart)) : '';
-    var res = await fetch('/api/place-order/dashboard' + query, { credentials: 'include' });
+    var res = await fetch('/food-room/api/place-order/dashboard' + query, { credentials: 'include' });
     var data = await res.json().catch(function () { return {}; });
 
     if (!res.ok || !data.success) {
@@ -424,7 +424,7 @@
     btn.textContent = 'Checking...';
 
     try {
-      var res = await fetch('/api/place-order/admin/live-check', { credentials: 'include' });
+      var res = await fetch('/food-room/api/place-order/admin/live-check', { credentials: 'include' });
       var data = await res.json().catch(function () { return {}; });
       if (!res.ok || !data.success || !data.check) {
         throw new Error(data && data.error ? data.error : 'Live check failed.');
@@ -451,7 +451,7 @@
 
   async function removeManualImport(id) {
     if (!id || id <= 0) return;
-    var res = await fetch('/api/place-order/manual-import/' + encodeURIComponent(String(id)), {
+    var res = await fetch('/food-room/api/place-order/manual-import/' + encodeURIComponent(String(id)), {
       method: 'DELETE',
       credentials: 'include'
     });
@@ -473,7 +473,7 @@
       return;
     }
 
-    var res = await fetch('/api/place-order/recipients', {
+    var res = await fetch('/food-room/api/place-order/recipients', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -491,7 +491,7 @@
 
   async function removeRecipient(encodedEmail) {
     if (!encodedEmail) return;
-    var res = await fetch('/api/place-order/recipients/' + encodedEmail, {
+    var res = await fetch('/food-room/api/place-order/recipients/' + encodedEmail, {
       method: 'DELETE',
       credentials: 'include'
     });
@@ -512,7 +512,7 @@
       throw new Error('Select a teacher from the staff list or enter a valid school email with Place Order access.');
     }
 
-    var res = await fetch('/api/place-order/bulk-recipients', {
+    var res = await fetch('/food-room/api/place-order/bulk-recipients', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -530,7 +530,7 @@
 
   async function removeBulkRecipient(encodedEmail) {
     if (!encodedEmail) return;
-    var res = await fetch('/api/place-order/bulk-recipients/' + encodedEmail, {
+    var res = await fetch('/food-room/api/place-order/bulk-recipients/' + encodedEmail, {
       method: 'DELETE',
       credentials: 'include'
     });
@@ -559,7 +559,7 @@
     statusEl.textContent = 'Importing...';
 
     try {
-      var res = await fetch('/api/place-order/manual-import', {
+      var res = await fetch('/food-room/api/place-order/manual-import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -591,7 +591,7 @@
     btn.textContent = 'Sending...';
 
     try {
-      var res = await fetch('/api/place-order/send-now', {
+      var res = await fetch('/food-room/api/place-order/send-now', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include'
@@ -636,7 +636,7 @@
     btn.textContent = 'Sending...';
 
     try {
-      var res = await fetch('/api/place-order/send-bulk-now', {
+      var res = await fetch('/food-room/api/place-order/send-bulk-now', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include'

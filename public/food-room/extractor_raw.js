@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function getRecipes(forceRefresh = false) {
         if (recipesCache.length && !forceRefresh) return recipesCache;
-        const res = await fetch('/api/recipes');
+        const res = await fetch('/food-room/api/recipes');
         const recipes = await res.json();
         recipesCache = Array.isArray(recipes) ? recipes : [];
         return recipesCache;
@@ -78,7 +78,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return recipe.upload_raw_data;
         }
         // Fall back to static file
-        const res = await fetch(`/RawDataTXT/${recipeId}.txt`);
+        const res = await fetch(`/food-room/RawDataTXT/${recipeId}.txt`);
         if (!res.ok) {
             throw new Error('Raw data not found in database or file');
         }
@@ -90,7 +90,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const url = recipe && recipe.url ? recipe.url : '';
         if (!url) throw new Error('No URL found for this recipe');
 
-        const res = await fetch(`/api/extract-rendered-html?url=${encodeURIComponent(url)}`);
+        const res = await fetch(`/food-room/api/extract-rendered-html?url=${encodeURIComponent(url)}`);
         if (!res.ok) throw new Error('Failed to fetch rendered HTML');
         return res.text();
     }
@@ -100,7 +100,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const url = recipe && recipe.url ? recipe.url : '';
         if (!url) throw new Error('No URL found for this recipe');
 
-        const res = await fetch(`/api/extract-visible-text?url=${encodeURIComponent(url)}`);
+        const res = await fetch(`/food-room/api/extract-visible-text?url=${encodeURIComponent(url)}`);
         let data = null;
         try {
             data = await res.json();
@@ -132,7 +132,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function saveRawData(recipeId, rawData) {
-        const res = await fetch(`/api/recipes/${recipeId}/raw`, {
+        const res = await fetch(`/food-room/api/recipes/${recipeId}/raw`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ raw_data: rawData })

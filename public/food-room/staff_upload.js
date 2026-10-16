@@ -1,6 +1,6 @@
 // Fetch and display the staff_upload table
 function fetchAndRenderStaffUploadTable() {
-  fetch('/api/staff_upload/all')
+  fetch('/food-room/api/staff_upload/all')
     .then(res => res.json())
     .then(result => {
       if (result && Array.isArray(result.staff)) {
@@ -62,7 +62,7 @@ function hideUploadProgress() {
 function uploadStaffWithProgress(payload, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/api/staff_upload');
+    xhr.open('POST', '/food-room/api/staff_upload');
     xhr.setRequestHeader('Content-Type', 'application/json');
 
     xhr.upload.onprogress = (evt) => {

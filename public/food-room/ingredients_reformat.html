@@ -19,7 +19,7 @@
   <script>
     document.getElementById('ingredientsReformatBtn').addEventListener('click', function() {
       if (confirm('Are you sure you want to reformat all ingredients? This may change ingredient names for consistency.')) {
-        fetch('/api/ingredients-inventory/reformat', { method: 'POST' })
+        fetch('/food-room/api/ingredients-inventory/reformat', { method: 'POST' })
           .then(res => res.json())
           .then(data => {
             if (data.success) {

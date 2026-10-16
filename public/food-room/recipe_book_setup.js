@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
 				uploaded_by: 'user@example.com', // Replace with actual user
 				upload_date: new Date().toISOString().slice(0, 19).replace('T', ' ')
 			};
-			fetch('/api/uploads', {
+			fetch('/food-room/api/uploads', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(uploadDetails)
@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Fetch and render recipes in the main table
 function fetchAndRenderRecipes() {
-	fetch('/api/recipes')
+	fetch('/food-room/api/recipes')
 		.then(res => res.json())
 		.then(data => {
 			const tbody = document.querySelector('#mainRecipesTable tbody');
@@ -65,7 +65,7 @@ function fetchAndRenderRecipes() {
 				btn.addEventListener('click', function() {
 					const id = this.getAttribute('data-id');
 					if (confirm('Are you sure you want to delete this recipe?')) {
-						fetch(`/api/recipes/${id}`, { method: 'DELETE' })
+						fetch(`/food-room/api/recipes/${id}`, { method: 'DELETE' })
 							.then(res => res.json())
 							.then(result => {
 								if (result.success) {
@@ -83,7 +83,7 @@ function fetchAndRenderRecipes() {
 
 // Fetch and render published recipes from recipe_display table
 function fetchAndRenderPublishedRecipes() {
-	fetch('/api/recipes/display-table')
+	fetch('/food-room/api/recipes/display-table')
 		.then(res => res.json())
 		.then(data => {
 			const tbody = document.querySelector('#publishedRecipesTable tbody');
@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Fetch and render uploads in the uploaded recipes table
 function fetchAndRenderUploads() {
-	fetch('/api/uploads')
+	fetch('/food-room/api/uploads')
 		.then(res => res.json())
 		.then(data => {
 			const tbody = document.querySelector('#uploadedRecipesTable tbody');
@@ -140,7 +140,7 @@ function fetchAndRenderUploads() {
 				btn.addEventListener('click', function() {
 					const id = this.getAttribute('data-id');
 					if (confirm('Are you sure you want to delete this upload record?')) {
-						fetch(`/api/uploads/${id}`, { method: 'DELETE' })
+						fetch(`/food-room/api/uploads/${id}`, { method: 'DELETE' })
 							.then(res => res.json())
 							.then(result => {
 								if (result.success) {

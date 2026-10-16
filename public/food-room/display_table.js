@@ -2,7 +2,7 @@
 
 document.addEventListener('DOMContentLoaded', function() {
   const runLoad = () => {
-    fetch('/api/recipes/display-table?fields=summary', { cache: 'no-store' })
+    fetch('/food-room/api/recipes/display-table?fields=summary', { cache: 'no-store' })
       .then(res => res.json())
       .then(rows => {
         if (!Array.isArray(rows) || rows.length === 0) return;

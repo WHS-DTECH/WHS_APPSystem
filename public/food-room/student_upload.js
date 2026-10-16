@@ -110,7 +110,7 @@ function formatDisplayDate(value) {
 function uploadStudentsWithProgress(payload, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/api/student_upload');
+    xhr.open('POST', '/food-room/api/student_upload');
     xhr.setRequestHeader('Content-Type', 'application/json');
 
     xhr.upload.onprogress = (evt) => {
@@ -149,7 +149,7 @@ const PERIOD_KEYS = DISPLAY_COLUMNS
   .map(c => c.key);
 
 function fetchAndRenderStudentTable() {
-  fetch('/api/student_upload/all')
+  fetch('/food-room/api/student_upload/all')
     .then(res => res.json())
     .then(result => {
       if (result && Array.isArray(result.students)) {

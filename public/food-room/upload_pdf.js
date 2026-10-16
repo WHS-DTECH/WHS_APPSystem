@@ -90,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsDataURL(selectedFile);
       });
 
-      const response = await fetch('/api/uploads/pdf', {
+      const response = await fetch('/food-room/api/uploads/pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setStatus('Sync in progress...', 'info');
 
     try {
-      const response = await fetch('/api/recipes/sync-from-uploads', { method: 'POST' });
+      const response = await fetch('/food-room/api/recipes/sync-from-uploads', { method: 'POST' });
       const result = await response.json();
       if (!response.ok || !result.success) {
         throw new Error(result.error || 'Sync failed.');
@@ -216,7 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function fetchAndRenderPdfUploads(options = {}) {
   const { highlightUploadId = null } = options;
-  const res = await fetch('/api/uploads');
+  const res = await fetch('/food-room/api/uploads');
   const rows = await res.json();
   const tbody = document.querySelector('#uploadedPdfTable tbody');
   if (!tbody) return;
@@ -249,7 +249,7 @@ async function fetchAndRenderPdfUploads(options = {}) {
     btn.addEventListener('click', async function() {
       const id = this.getAttribute('data-id');
       if (!confirm('Are you sure you want to delete this upload record?')) return;
-      const resp = await fetch(`/api/uploads/${id}`, { method: 'DELETE' });
+      const resp = await fetch(`/food-room/api/uploads/${id}`, { method: 'DELETE' });
       const result = await resp.json();
       if (!result.success) {
         showPdfStatus('Failed to delete upload record.', 'error');

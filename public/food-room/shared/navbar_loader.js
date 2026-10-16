@@ -226,7 +226,7 @@
       btn.setAttribute('data-logout-bound', '1');
       btn.addEventListener('click', function(event) {
         event.preventDefault();
-        fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+        fetch('/food-room/api/auth/logout', { method: 'POST', credentials: 'include' })
           .catch(function() { return null; })
           .finally(function() {
             try {

@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function fetchIngredientsInventory() {
-    return fetch(`/api/ingredients/inventory/all?_t=${Date.now()}`, { cache: 'no-store' })
+    return fetch(`/food-room/api/ingredients/inventory/all?_t=${Date.now()}`, { cache: 'no-store' })
       .then(res => res.json())
       .then(data => {
         if (!data.success) throw new Error(data.error || 'Failed to fetch ingredients');
@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       syncBtn.disabled = true;
       syncBtn.textContent = 'Syncing...';
-      fetch('/api/ingredients/inventory/sync', {
+      fetch('/food-room/api/ingredients/inventory/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ recipeId, reseed: true })
@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (asyncSyncStatus) asyncSyncStatus.textContent = 'Loading recipe list...';
 
       try {
-        const dropdownResp = await fetch('/api/recipes/display-dropdown');
+        const dropdownResp = await fetch('/food-room/api/recipes/display-dropdown');
         if (!dropdownResp.ok) {
           throw new Error(`Failed to load recipe list: ${dropdownResp.status} ${dropdownResp.statusText}`);
         }
@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', function() {
           }
 
           try {
-            const resp = await fetch('/api/ingredients/inventory/sync', {
+            const resp = await fetch('/food-room/api/ingredients/inventory/sync', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ recipeId, reseed: true })
@@ -157,8 +157,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
       try {
         const [dropdownResp, inventoryResp] = await Promise.all([
-          fetch('/api/recipes/display-dropdown'),
-          fetch('/api/ingredients/inventory/all?_t=' + Date.now(), { cache: 'no-store' })
+          fetch('/food-room/api/recipes/display-dropdown'),
+          fetch('/food-room/api/ingredients/inventory/all?_t=' + Date.now(), { cache: 'no-store' })
         ]);
 
         if (!dropdownResp.ok) {
@@ -215,7 +215,7 @@ document.addEventListener('DOMContentLoaded', function() {
           }
 
           try {
-            const resp = await fetch('/api/ingredients/inventory/sync', {
+            const resp = await fetch('/food-room/api/ingredients/inventory/sync', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ recipeId, reseed: doReseed })
@@ -245,7 +245,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Populate recipe filter dropdown and ingredients table
   Promise.all([
     fetchIngredientsInventory(),
-    fetch('/api/recipes/display-dropdown').then(res => res.json())
+    fetch('/food-room/api/recipes/display-dropdown').then(res => res.json())
   ])
     .then(([ingredients, recipesData]) => {
       const recipes = (recipesData && recipesData.recipes) ? recipesData.recipes : [];
@@ -292,7 +292,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
   // Fetch and render published recipes table
-  fetch('/api/recipes/display-table')
+  fetch('/food-room/api/recipes/display-table')
     .then(res => res.json())
     .then(data => {
       allPublishedRecipes = Array.isArray(data) ? data : [];

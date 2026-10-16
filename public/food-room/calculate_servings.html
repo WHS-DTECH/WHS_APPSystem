@@ -152,9 +152,9 @@
           `;
           // Fetch bookings and recipe display names, then populate dropdowns
           Promise.all([
-            fetch('/api/bookings/all').then(res => res.json()),
-            fetch('/api/recipes/display-dropdown').then(res => res.json()).catch(() => ({ recipes: [] })),
-            fetch('/api/recipes/display-table').then(res => res.json()).catch(() => [])
+            fetch('/food-room/api/bookings/all').then(res => res.json()),
+            fetch('/food-room/api/recipes/display-dropdown').then(res => res.json()).catch(() => ({ recipes: [] })),
+            fetch('/food-room/api/recipes/display-table').then(res => res.json()).catch(() => [])
           ])
             .then(([bookingsData, recipeDisplayData, recipeDisplayTable]) => {
               const bookings = bookingsData.bookings || [];
@@ -241,7 +241,7 @@
                   return;
                 }
                 studentsMeta.textContent = 'Loading students...';
-                fetch(`/api/student_upload/by-class/${encodeURIComponent(classCode)}`)
+                fetch(`/food-room/api/student_upload/by-class/${encodeURIComponent(classCode)}`)
                   .then(res => res.json())
                   .then(data => renderScheduledClassStudents(data.students || []))
                   .catch(() => {
@@ -420,7 +420,7 @@
                   window.filteredIngredientsForCalculation = [];
                   return Promise.resolve();
                 }
-                return fetch('/api/ingredients/inventory/all')
+                return fetch('/food-room/api/ingredients/inventory/all')
                   .then(res => res.json())
                   .then(data => {
                     const ingredients = Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : (Array.isArray(data.ingredients) ? data.ingredients : []));
@@ -644,7 +644,7 @@
 
                 // Keep desired serving calculations current with the latest recipe edits.
                 try {
-                  await fetch('/api/ingredients/inventory/sync', {
+                  await fetch('/food-room/api/ingredients/inventory/sync', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ recipeId: classSelect.value, reseed: true })
@@ -727,7 +727,7 @@
               fooditemsCol.appendChild(ul);
             }
             // Send to backend
-            fetch('/api/ingredients/desired_servings_ingredients/save', {
+            fetch('/food-room/api/ingredients/desired_servings_ingredients/save', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({

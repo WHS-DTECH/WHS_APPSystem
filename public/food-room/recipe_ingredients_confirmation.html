@@ -232,7 +232,7 @@
 	</div>
 
 	<script>
-		const API_BASE = '/api';
+		const API_BASE = '/food-room/api';
 		let currentRecipeId = null;
 		let currentRecipeData = null;
 		let bulkQueue = null;
@@ -438,7 +438,7 @@
 
 				showStatus(`Recipe ${currentRecipeId} unpublished from published recipes.`, 'success');
 				if (advanceBulkQueueIfNeeded()) return;
-				window.location.href = '/recipe_publish.html';
+				window.location.href = '/food-room/recipe_publish.html';
 				return;
 			} catch (err) {
 				showStatus(`Could not unpublish recipe: ${err.message}`, 'error');
@@ -454,11 +454,11 @@
 				bulkQueue.completed = Number(bulkQueue.completed || 0) + 1;
 				bulkQueue.current = Number(nextRecipeId);
 				sessionStorage.setItem('bulkReVerifyQueue', JSON.stringify(bulkQueue));
-				window.location.href = `/recipe_ingredients_confirmation.html?recipe_id=${nextRecipeId}&bulk_mode=true`;
+				window.location.href = `/food-room/recipe_ingredients_confirmation.html?recipe_id=${nextRecipeId}&bulk_mode=true`;
 				return true;
 			}
 			sessionStorage.removeItem('bulkReVerifyQueue');
-			window.location.href = '/recipe_publish.html';
+			window.location.href = '/food-room/recipe_publish.html';
 			return true;
 		}
 
@@ -520,7 +520,7 @@
 					const nextRecipeId = getNextBulkRecipeIdAfter(currentRecipeId);
 					if (nextRecipeId) {
 						showStatus(`Recipe ${currentRecipeId} could not be loaded (${err.message}). Skipping to ${nextRecipeId}...`, 'info');
-						window.location.href = `/recipe_ingredients_confirmation.html?recipe_id=${nextRecipeId}&bulk_mode=true`;
+						window.location.href = `/food-room/recipe_ingredients_confirmation.html?recipe_id=${nextRecipeId}&bulk_mode=true`;
 						return;
 					}
 				}
@@ -585,7 +585,7 @@
 				if (advanceBulkQueueIfNeeded()) return;
 
 				// Single recipe mode - go to recipe_publish.html to complete publish
-				window.location.href = `/recipe_publish.html?resume_publish=${currentRecipeId}`;
+				window.location.href = `/food-room/recipe_publish.html?resume_publish=${currentRecipeId}`;
 			} catch (err) {
 				showStatus(`Error confirming ingredients: ${err.message}`, 'error');
 				document.getElementById('confirmBtn').disabled = false;
@@ -602,7 +602,7 @@
 				await flagRecipeIngredientIssue(currentRecipeId);
 				showStatus(`Recipe ${currentRecipeId} flagged for ingredient fixes.`, 'success');
 				if (advanceBulkQueueIfNeeded()) return;
-				window.location.href = '/recipe_publish.html';
+				window.location.href = '/food-room/recipe_publish.html';
 			} catch (err) {
 				showStatus(`Could not flag recipe issue: ${err.message}`, 'error');
 				rejectBtn.disabled = false;

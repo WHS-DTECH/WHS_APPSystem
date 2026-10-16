@@ -431,7 +431,7 @@
       }
 
         async function publishRecipeToDisplay(recipeId) {
-          const res = await fetch('/api/recipes/' + recipeId + '/display', { method: 'POST' });
+          const res = await fetch('/food-room/api/recipes/' + recipeId + '/display', { method: 'POST' });
           const data = await res.json().catch(() => ({}));
           if (!res.ok || data.success === false) {
             throw new Error((data && (data.error || data.message)) || 'Failed to prepare recipe display row.');
@@ -468,16 +468,16 @@
           const warnings = [];
           setStatus('Running: Cleanup Instructions\u2026', '');
           try {
-            await postJsonChecked('/api/recipes/cleanup-instructions-stepwise', { recipeId }, 'Cleanup Instructions');
-            await waitForCleanupCompletion('/api/recipes/cleanup-instructions-progress');
+            await postJsonChecked('/food-room/api/recipes/cleanup-instructions-stepwise', { recipeId }, 'Cleanup Instructions');
+            await waitForCleanupCompletion('/food-room/api/recipes/cleanup-instructions-progress');
           } catch (err) {
             warnings.push('Cleanup Instructions skipped: ' + (err && err.message ? err.message : err));
           }
 
           setStatus('Running: Cleanup Ingredients\u2026', '');
           try {
-            await postJsonChecked('/api/recipes/cleanup-ingredients-stepwise', { recipeId }, 'Cleanup Ingredients');
-            await waitForCleanupCompletion('/api/recipes/cleanup-ingredients-progress');
+            await postJsonChecked('/food-room/api/recipes/cleanup-ingredients-stepwise', { recipeId }, 'Cleanup Ingredients');
+            await waitForCleanupCompletion('/food-room/api/recipes/cleanup-ingredients-progress');
           } catch (err) {
             warnings.push('Cleanup Ingredients skipped: ' + (err && err.message ? err.message : err));
           }
@@ -501,7 +501,7 @@
         }
 
         async function runAsyncSyncFromRecipeId(startRecipeId, statusCallback) {
-          const dropdownResp = await fetch('/api/recipes/display-dropdown');
+          const dropdownResp = await fetch('/food-room/api/recipes/display-dropdown');
           if (!dropdownResp.ok) {
             throw new Error('Failed to load recipe list for async sync.');
           }
@@ -527,7 +527,7 @@
             }
 
             try {
-              const resp = await fetch('/api/ingredients/inventory/sync', {
+              const resp = await fetch('/food-room/api/ingredients/inventory/sync', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ recipeId, reseed: true })
@@ -554,7 +554,7 @@
           }
           nextIdEl.textContent = '...';
           try {
-            const res = await fetch('/api/recipes/next-id');
+            const res = await fetch('/food-room/api/recipes/next-id');
             const data = await res.json();
             if (!res.ok || data.success === false) {
               throw new Error((data && data.error) || 'Failed to fetch next ID.');
@@ -568,7 +568,7 @@
         }
 
         async function loadRecipeForEdit(recipeId) {
-          const res = await fetch('/api/recipes/' + recipeId, { credentials: 'include' });
+          const res = await fetch('/food-room/api/recipes/' + recipeId, { credentials: 'include' });
           const data = await res.json().catch(() => ({}));
           if (!res.ok || !data || data.error) {
             throw new Error((data && data.error) || 'Failed to load recipe.');
@@ -603,7 +603,7 @@
           if (!shouldForce && String(studentNameInput.value || '').trim()) return;
 
           try {
-            const authRes = await fetch('/api/auth/me', { credentials: 'include' });
+            const authRes = await fetch('/food-room/api/auth/me', { credentials: 'include' });
             const authData = await authRes.json().catch(() => ({}));
             if (!authRes.ok || !authData || !authData.authenticated || !authData.user) return;
 
@@ -612,7 +612,7 @@
 
             let displayName = String(authUser.name || '').trim();
             if (String(authUser.role || '').trim().toLowerCase() === 'student' && currentUserEmail) {
-              const profileRes = await fetch('/api/user_roles/profile?userType=student&identifier=' + encodeURIComponent(currentUserEmail), {
+              const profileRes = await fetch('/food-room/api/user_roles/profile?userType=student&identifier=' + encodeURIComponent(currentUserEmail), {
                 credentials: 'include'
               });
               const profileData = await profileRes.json().catch(() => ({}));
@@ -662,7 +662,7 @@
           setStatus(currentRecipeId ? 'Updating recipe…' : 'Saving recipe…', '');
 
           try {
-            const res = await fetch(currentRecipeId ? ('/api/recipes/manual/' + currentRecipeId) : '/api/recipes/manual', {
+            const res = await fetch(currentRecipeId ? ('/food-room/api/recipes/manual/' + currentRecipeId) : '/food-room/api/recipes/manual', {
               method: currentRecipeId ? 'PUT' : 'POST',
               headers: { 'Content-Type': 'application/json' },
               credentials: 'include',

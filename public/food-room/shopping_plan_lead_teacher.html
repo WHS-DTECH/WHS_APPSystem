@@ -484,7 +484,7 @@
       if (!monday) return [];
       const start = isoDateLocal(monday);
       const end = fridayIso;
-      const resp = await fetch('/api/bookings/all?start=' + encodeURIComponent(start) + '&end=' + encodeURIComponent(end) + '&fields=calendar', { credentials: 'include' });
+      const resp = await fetch('/food-room/api/bookings/all?start=' + encodeURIComponent(start) + '&end=' + encodeURIComponent(end) + '&fields=calendar', { credentials: 'include' });
       const payload = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(payload.error || 'Failed to load calendar bookings.');
       const rows = Array.isArray(payload.bookings) ? payload.bookings : [];
@@ -771,7 +771,7 @@
 
         if (!bookingIds.length) continue;
 
-        const createResp = await fetch('/api/shopping-plan/create', {
+        const createResp = await fetch('/food-room/api/shopping-plan/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -789,7 +789,7 @@
         const planId = Number(createPayload.plan.id);
         createdPlanIds.push(planId);
 
-        const genResp = await fetch('/api/shopping-plan/' + planId + '/generate-draft', {
+        const genResp = await fetch('/food-room/api/shopping-plan/' + planId + '/generate-draft', {
           method: 'POST',
           credentials: 'include'
         });
@@ -798,7 +798,7 @@
           throw new Error(genPayload.error || ('Failed generating draft items for plan #' + planId + '.'));
         }
 
-        const planResp = await fetch('/api/shopping-plan/' + planId, { credentials: 'include' });
+        const planResp = await fetch('/food-room/api/shopping-plan/' + planId, { credentials: 'include' });
         const planPayload = await planResp.json().catch(() => ({}));
         if (!planResp.ok) {
           throw new Error(planPayload.error || ('Failed loading generated items for plan #' + planId + '.'));

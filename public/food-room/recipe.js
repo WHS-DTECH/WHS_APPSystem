@@ -75,7 +75,7 @@ function renderRecipeDetails(recipe) {
 async function loadRecipe() {
   const id = getQueryParam('id');
   if (!id) return;
-  const res = await fetch(`/api/recipes/${id}`);
+  const res = await fetch(`/food-room/api/recipes/${id}`);
   if (!res.ok) return;
   const recipe = await res.json();
   renderRecipeDetails(recipe);

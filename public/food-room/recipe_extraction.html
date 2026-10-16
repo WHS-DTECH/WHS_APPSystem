@@ -68,7 +68,7 @@
 	if (syncBtn) {
 		syncBtn.addEventListener('click', function() {
 			if (confirm('This will insert any uploaded recipes not yet in the Recipes table. Continue?')) {
-				fetch('/api/recipes/sync-from-uploads', { method: 'POST' })
+				fetch('/food-room/api/recipes/sync-from-uploads', { method: 'POST' })
 					.then(res => res.json())
 					.then(data => {
 						if (data.success) {

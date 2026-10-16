@@ -206,7 +206,7 @@ function renderGoogleSection(authUser, profileData) {
       actionBtn.textContent = 'Sign Out';
       actionBtn.classList.remove('profile-action-muted');
       actionBtn.onclick = function() {
-        fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+        fetch('/food-room/api/auth/logout', { method: 'POST', credentials: 'include' })
           .catch(() => null)
           .finally(() => {
             sessionStorage.removeItem('navbar_user_role');
@@ -418,7 +418,7 @@ function updateLayoutForProfile(authUser, profileData) {
 }
 
 async function resolveProfileFromUserId(userId) {
-  const staffRes = await fetchJson('/api/staff_upload/all');
+  const staffRes = await fetchJson('/food-room/api/staff_upload/all');
   if (!staffRes.ok || !Array.isArray(staffRes.data.staff)) return null;
   const staff = staffRes.data.staff.find((entry) => String(entry.id) === String(userId));
   if (!staff || !staff.email_school) return null;
@@ -427,7 +427,7 @@ async function resolveProfileFromUserId(userId) {
 
 async function fetchAndRenderUserProfile() {
   try {
-    const authRes = await fetchJson('/api/auth/me');
+    const authRes = await fetchJson('/food-room/api/auth/me');
     const authUser = authRes.ok && authRes.data && authRes.data.authenticated ? authRes.data.user : null;
 
     let profileEmail = authUser && authUser.email ? String(authUser.email).toLowerCase() : '';
@@ -440,14 +440,14 @@ async function fetchAndRenderUserProfile() {
 
     let profileData = null;
     if (profileEmail && authUser && String(authUser.role || '').trim().toLowerCase() === 'student') {
-      const studentProfileRes = await fetchJson(`/api/user_roles/profile?userType=student&identifier=${encodeURIComponent(profileEmail)}`);
+      const studentProfileRes = await fetchJson(`/food-room/api/user_roles/profile?userType=student&identifier=${encodeURIComponent(profileEmail)}`);
       if (studentProfileRes.ok && studentProfileRes.data && studentProfileRes.data.success && studentProfileRes.data.isStudent) {
         profileData = studentProfileRes.data;
       }
     }
 
     if (!profileData && profileEmail) {
-      const profileRes = await fetchJson(`/api/user_roles/profile?userType=staff&identifier=${encodeURIComponent(profileEmail)}`);
+      const profileRes = await fetchJson(`/food-room/api/user_roles/profile?userType=staff&identifier=${encodeURIComponent(profileEmail)}`);
       if (profileRes.ok && profileRes.data && profileRes.data.success && profileRes.data.isStaff) {
         profileData = profileRes.data;
       }

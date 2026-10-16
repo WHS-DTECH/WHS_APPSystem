@@ -8,7 +8,7 @@ let weekOffset = 0; // 0 = current week, -1 = previous, +1 = next, etc.
 let allBookings = [];
 
 window.addEventListener('DOMContentLoaded', () => {
-  fetch('/api/bookings/all')
+  fetch('/food-room/api/bookings/all')
     .then(res => res.json())
     .then(data => {
       allBookings = data.bookings || [];

@@ -10,7 +10,7 @@ function extractRows(payload) {
 }
 
 function loadRecipeLookup() {
-  return fetch('/api/recipes')
+  return fetch('/food-room/api/recipes')
     .then(res => res.json())
     .then(rows => {
       const recipes = Array.isArray(rows) ? rows : [];
@@ -29,7 +29,7 @@ function loadRecipeLookup() {
 
 function loadDesiredServingIngredientsTable() {
   Promise.all([
-    fetch('/api/ingredients/desired_servings_ingredients').then(res => res.json()),
+    fetch('/food-room/api/ingredients/desired_servings_ingredients').then(res => res.json()),
     loadRecipeLookup()
   ]).then(([data]) => {
     allDSIRecords = extractRows(data);
@@ -105,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (delBtn) {
     delBtn.onclick = function() {
       if (confirm('Are you sure you want to delete ALL desired serving ingredients? This cannot be undone.')) {
-        fetch('/api/ingredients/desired_servings_ingredients/all', { method: 'DELETE' })
+        fetch('/food-room/api/ingredients/desired_servings_ingredients/all', { method: 'DELETE' })
           .then(res => res.json())
           .then(data => {
             if (data.success) {
@@ -128,11 +128,11 @@ document.addEventListener('DOMContentLoaded', () => {
     window.QC.addSanityButton('Calculate Servings', [
       {
         name: 'Desired servings endpoint reachable',
-        run: async () => (await fetch('/api/ingredients/desired_servings_ingredients')).ok
+        run: async () => (await fetch('/food-room/api/ingredients/desired_servings_ingredients')).ok
       },
       {
         name: 'Recipe display endpoint reachable',
-        run: async () => (await fetch('/api/recipes/display-dropdown')).ok
+        run: async () => (await fetch('/food-room/api/recipes/display-dropdown')).ok
       },
       {
         name: 'Core selectors present',

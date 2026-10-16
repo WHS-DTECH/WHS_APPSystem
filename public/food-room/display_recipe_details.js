@@ -232,7 +232,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!normalizedRecipeId) return;
 
     try {
-      const response = await fetch(`/api/recipes/${encodeURIComponent(normalizedRecipeId)}/teacher-details`, {
+      const response = await fetch(`/food-room/api/recipes/${encodeURIComponent(normalizedRecipeId)}/teacher-details`, {
         credentials: 'include'
       });
       if (!response.ok) return;
@@ -393,7 +393,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
       }
 
-      const response = await fetch(`/api/recipe-matching/versions/by-recipe/${numericId}`);
+      const response = await fetch(`/food-room/api/recipe-matching/versions/by-recipe/${numericId}`);
       const data = await response.json().catch(() => ({}));
       if (!response.ok || data.success === false) {
         renderRecipeVersionsDock([], recipeId);
@@ -406,7 +406,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  fetch('/api/auth/me', { credentials: 'include' })
+  fetch('/food-room/api/auth/me', { credentials: 'include' })
     .then(res => res.json())
     .then(auth => {
       const isAuthenticated = Boolean(auth && auth.authenticated && auth.user && auth.user.email);
@@ -420,8 +420,8 @@ document.addEventListener('DOMContentLoaded', function() {
       const currentUserEmail = String(auth && auth.user && auth.user.email || '').trim().toLowerCase();
 
       const displayUrl = isFoodTruckScope
-        ? '/api/recipes/display-table?scope=food_truck'
-        : '/api/recipes/display-table';
+        ? '/food-room/api/recipes/display-table?scope=food_truck'
+        : '/food-room/api/recipes/display-table';
 
       return fetch(displayUrl)
         .then(res => res.json())
@@ -563,7 +563,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (adminEditStatus) { adminEditStatus.textContent = 'Saving...'; adminEditStatus.style.color = '#1d4f79'; }
 
                 try {
-                  const res = await fetch(`/api/admin/recipe-display/${recipe.id}`, {
+                  const res = await fetch(`/food-room/api/admin/recipe-display/${recipe.id}`, {
                     method: 'PUT',
                     credentials: 'include',
                     headers: { 'Content-Type': 'application/json', 'x-user-email': currentUserEmail },

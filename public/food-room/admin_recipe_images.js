@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function loadRecipes() {
-    const payload = await api('/api/admin/recipe-images', { credentials: 'include' });
+    const payload = await api('/food-room/api/admin/recipe-images', { credentials: 'include' });
     recipes = Array.isArray(payload.recipes) ? payload.recipes : [];
     filteredRecipes = [...recipes];
 
@@ -150,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       setStatus('Uploading image...', false);
       const imageData = await fileToDataUrl(file);
-      const payload = await api(`/api/admin/recipe-images/${selectedRecipe.id}/upload`, {
+      const payload = await api(`/food-room/api/admin/recipe-images/${selectedRecipe.id}/upload`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       setStatus('Saving image URL...', false);
-      const payload = await api(`/api/admin/recipe-images/${selectedRecipe.id}`, {
+      const payload = await api(`/food-room/api/admin/recipe-images/${selectedRecipe.id}`, {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -206,7 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       setStatus('Clearing custom image...', false);
-      const payload = await api(`/api/admin/recipe-images/${selectedRecipe.id}`, {
+      const payload = await api(`/food-room/api/admin/recipe-images/${selectedRecipe.id}`, {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -222,7 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   searchEl.addEventListener('input', applySearch);
 
-  fetch('/api/auth/me', { credentials: 'include' })
+  fetch('/food-room/api/auth/me', { credentials: 'include' })
     .then((res) => res.json())
     .then((auth) => {
       const isAuthenticated = Boolean(auth && auth.authenticated && auth.user && auth.user.email);

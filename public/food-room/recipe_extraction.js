@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function fetchAndRenderRecipes() {
-    fetch('/api/recipes')
+    fetch('/food-room/api/recipes')
         .then(res => res.json())
         .then(data => {
             allRecipes = Array.isArray(data) ? data : [];
@@ -127,7 +127,7 @@ function renderRecipes() {
         btn.addEventListener('click', function() {
             const id = this.getAttribute('data-id');
             if (confirm('Are you sure you want to delete this recipe?')) {
-                fetch(`/api/recipes/${id}`, { method: 'DELETE' })
+                fetch(`/food-room/api/recipes/${id}`, { method: 'DELETE' })
                     .then(res => res.json())
                     .then(result => {
                         if (result.success) {

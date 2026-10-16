@@ -97,7 +97,7 @@ function askWeekForAutoList(defaultMonday) {
 }
 
 async function getBookingIdsForWeek(mondayDate) {
-    const response = await fetch('/api/bookings/all');
+    const response = await fetch('/food-room/api/bookings/all');
     if (!response.ok) {
         throw new Error('Could not load bookings for selected week.');
     }
@@ -185,7 +185,7 @@ function printCombinedWeekLists(teacherHtml, categoryHtml, mondayDate) {
     weekEnd.setDate(weekStart.getDate() + 6);
     const printDate = new Date().toLocaleDateString();
     const weekLabel = formatDateDMY(weekStart) + ' to ' + formatDateDMY(weekEnd);
-    const logoUrl = window.location.origin + '/images/whs%20logo%20circular%20reo%20.png';
+    const logoUrl = window.location.origin + '/food-room/images/whs%20logo%20circular%20reo%20.png';
 
     const win = window.open('', '', 'width=1100,height=800');
     if (!win) {
@@ -254,7 +254,7 @@ function printArea(areaId, title, extraTitle) {
     let fullTitle = title || 'Print';
     if (extraTitle) fullTitle += ' - ' + extraTitle;
     fullTitle += ' - ' + printDate;
-    const logoUrl = window.location.origin + '/images/whs%20logo%20circular%20reo%20.png';
+    const logoUrl = window.location.origin + '/food-room/images/whs%20logo%20circular%20reo%20.png';
     const weekLabelEl = document.getElementById('calendarWeekLabel');
     const weekText = weekLabelEl ? 'Week: ' + weekLabelEl.textContent.trim() : '';
     const selectedBookingsHtml = getSelectedBookingsHTML();
@@ -360,7 +360,7 @@ document.addEventListener('DOMContentLoaded',()=>{
                 container.innerHTML = '<em>Loading shopping list...</em>';
             }
             try {
-                const response = await fetch(`/api/ingredients/shopping_list/by_teacher?booking_ids=${bookingIds.join(',')}`);
+                const response = await fetch(`/food-room/api/ingredients/shopping_list/by_teacher?booking_ids=${bookingIds.join(',')}`);
                 if (!response.ok) {
                     throw new Error('API request failed with status ' + response.status);
                 }
@@ -421,7 +421,7 @@ document.addEventListener('DOMContentLoaded',()=>{
             }
             if (container) container.innerHTML = '<em>Loading shopping list by category...</em>';
             try {
-                const response = await fetch(`/api/ingredients/shopping_list/by_category?booking_ids=${bookingIds.join(',')}`);
+                const response = await fetch(`/food-room/api/ingredients/shopping_list/by_category?booking_ids=${bookingIds.join(',')}`);
                 if (!response.ok) {
                     throw new Error('API request failed with status ' + response.status);
                 }
@@ -492,8 +492,8 @@ document.addEventListener('DOMContentLoaded',()=>{
                 if (byCategoryContainer) byCategoryContainer.innerHTML = '<em>Loading shopping list by category...</em>';
 
                 const [teacherRes, categoryRes] = await Promise.all([
-                    fetch(`/api/ingredients/shopping_list/by_teacher?booking_ids=${weekBookingIds.join(',')}`),
-                    fetch(`/api/ingredients/shopping_list/by_category?booking_ids=${weekBookingIds.join(',')}`)
+                    fetch(`/food-room/api/ingredients/shopping_list/by_teacher?booking_ids=${weekBookingIds.join(',')}`),
+                    fetch(`/food-room/api/ingredients/shopping_list/by_category?booking_ids=${weekBookingIds.join(',')}`)
                 ]);
                 if (!teacherRes.ok || !categoryRes.ok) {
                     throw new Error('Failed to load one or more shopping list endpoints.');
@@ -543,7 +543,7 @@ document.addEventListener('DOMContentLoaded',()=>{
                 run: async () => {
                     const ids = getNormalizedSelectedBookingIds();
                     if (!ids.length) return true;
-                    return (await fetch(`/api/ingredients/shopping_list/by_teacher?booking_ids=${ids.join(',')}`)).ok;
+                    return (await fetch(`/food-room/api/ingredients/shopping_list/by_teacher?booking_ids=${ids.join(',')}`)).ok;
                 }
             },
             {
@@ -551,7 +551,7 @@ document.addEventListener('DOMContentLoaded',()=>{
                 run: async () => {
                     const ids = getNormalizedSelectedBookingIds();
                     if (!ids.length) return true;
-                    return (await fetch(`/api/ingredients/shopping_list/by_category?booking_ids=${ids.join(',')}`)).ok;
+                    return (await fetch(`/food-room/api/ingredients/shopping_list/by_category?booking_ids=${ids.join(',')}`)).ok;
                 }
             }
         ]);

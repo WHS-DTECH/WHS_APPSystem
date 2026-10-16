@@ -873,7 +873,7 @@
           if (!ids.length) {
             return { dayLabel: String(day && day.label || 'Day'), data: {} };
           }
-          const payload = await requestJson('/api/shopping-list/by_category?booking_ids=' + encodeURIComponent(ids.join(',')));
+          const payload = await requestJson('/food-room/api/shopping-list/by_category?booking_ids=' + encodeURIComponent(ids.join(',')));
           return {
             dayLabel: String(day && day.label || 'Day'),
             data: payload && payload.success && payload.data ? payload.data : {}
@@ -916,7 +916,7 @@
       }
 
       async function loadIngredientColumnsForWeek(term, week, bookings, scheduleRows) {
-        const listsData = await requestJson('/api/saved-shopping-lists');
+        const listsData = await requestJson('/food-room/api/saved-shopping-lists');
         const lists = Array.isArray(listsData && listsData.lists) ? listsData.lists : [];
         const enriched = lists.map((list) => {
           const meta = extractListTermWeek(list);
@@ -928,7 +928,7 @@
           return buildFallbackIngredientColumnsFromBookings(bookings, scheduleRows);
         }
 
-        const detail = await requestJson('/api/saved-shopping-lists/' + encodeURIComponent(String(match.id)));
+        const detail = await requestJson('/food-room/api/saved-shopping-lists/' + encodeURIComponent(String(match.id)));
         const list = detail && detail.list ? detail.list : null;
         const normalizedColumns = normalizeColumns(list && list.state ? list.state : {});
         const orderedColumns = buildTeacherDocColumns(normalizedColumns);
@@ -981,7 +981,7 @@
 
       async function loadStaffEmails() {
         try {
-          const data = await requestJson('/api/staff_upload/dropdown');
+          const data = await requestJson('/food-room/api/staff_upload/dropdown');
           const staff = Array.isArray(data.staff) ? data.staff.slice() : [];
           staff.sort((a, b) => {
             const aName = `${a.last_name || ''} ${a.first_name || ''}`.trim();
@@ -1033,7 +1033,7 @@
 
         setStatus('Loading recipe schedule...', 'info');
         try {
-          const data = await requestJson(`/api/bookings/all?start=${range.start}&end=${range.end}&limit=500`);
+          const data = await requestJson(`/food-room/api/bookings/all?start=${range.start}&end=${range.end}&limit=500`);
           const bookings = Array.isArray(data.bookings) ? data.bookings : [];
 
           const byDay = new Map();
@@ -1361,7 +1361,7 @@
           const ingredientColumns = Array.isArray(currentPreparedState.ingredientColumns) ? currentPreparedState.ingredientColumns : [[], []];
           const ingredientSourceLabel = String(currentPreparedState.ingredientSourceLabel || '').trim();
 
-          const response = await requestJson('/api/shopping-workflow-email/send-prepared-list', {
+          const response = await requestJson('/food-room/api/shopping-workflow-email/send-prepared-list', {
             method: 'POST',
             body: JSON.stringify({
               recipientEmail,
