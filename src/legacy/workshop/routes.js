@@ -1,66 +1,19 @@
 const express = require('express');
 const multer = require('multer');
 const JSZip = require('jszip');
-const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const path = require('path');
 const { pool } = require('../../db');
+const config = require('../../config');
+const { sendEmail } = require('../../email');
 
 // Legacy Workshop Hub API, ported from the original TECH-WORKSHOP server.js.
 // Only login, sessions and role tables were replaced; they now come from the app's Google session.
 const router = express.Router();
 
 
-// Email transport config:
-// 1) Prefer explicit SMTP_* vars (Render settings)
-// 2) Fallback to legacy EMAIL_USER/EMAIL_PASS Gmail transport
-const smtpHost = String(process.env.SMTP_HOST || '').trim();
-const smtpUser = String(process.env.SMTP_USER || '').trim();
-const smtpPass = String(process.env.SMTP_PASS || '').trim();
-const smtpFrom = String(process.env.SMTP_FROM || '').trim();
-const smtpPortParsed = Number.parseInt(String(process.env.SMTP_PORT || '').trim(), 10);
-const smtpPort = Number.isInteger(smtpPortParsed) ? smtpPortParsed : 587;
-const smtpSecure = ['1', 'true', 'yes', 'on'].includes(String(process.env.SMTP_SECURE || '').trim().toLowerCase());
-const smtpConnectionTimeoutParsed = Number.parseInt(String(process.env.SMTP_CONNECTION_TIMEOUT || '').trim(), 10);
-const smtpGreetingTimeoutParsed = Number.parseInt(String(process.env.SMTP_GREETING_TIMEOUT || '').trim(), 10);
-const smtpSocketTimeoutParsed = Number.parseInt(String(process.env.SMTP_SOCKET_TIMEOUT || '').trim(), 10);
-
-const emailUser = String(process.env.EMAIL_USER || '').trim();
-const emailPass = String(process.env.EMAIL_PASS || '').trim();
-
-const useSmtpTransport = Boolean(smtpHost && smtpUser && smtpPass);
-
-const transportOptions = useSmtpTransport
-  ? {
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpSecure,
-      auth: { user: smtpUser, pass: smtpPass },
-      ...(Number.isInteger(smtpConnectionTimeoutParsed) ? { connectionTimeout: smtpConnectionTimeoutParsed } : {}),
-      ...(Number.isInteger(smtpGreetingTimeoutParsed) ? { greetingTimeout: smtpGreetingTimeoutParsed } : {}),
-      ...(Number.isInteger(smtpSocketTimeoutParsed) ? { socketTimeout: smtpSocketTimeoutParsed } : {}),
-    }
-  : (emailUser && emailPass
-      ? {
-          service: 'gmail',
-          auth: { user: emailUser, pass: emailPass },
-        }
-      : null);
-
-const mailer = transportOptions ? nodemailer.createTransport(transportOptions) : null;
-const hasMailerConfig = Boolean(mailer);
-const mailerPrimaryAddress = smtpUser || emailUser || '';
-const mailerFromAddress = smtpFrom || mailerPrimaryAddress;
-
-if (hasMailerConfig) {
-  mailer.verify().then(() => {
-    console.log(`Email transporter is ready (${useSmtpTransport ? 'SMTP' : 'Gmail legacy'} mode).`);
-  }).catch((error) => {
-    console.error('Email transporter verification failed:', error.message);
-  });
-} else {
-  console.warn('Email transporter is not fully configured. Set SMTP_HOST/SMTP_USER/SMTP_PASS (preferred) or EMAIL_USER/EMAIL_PASS.');
-}
+// Email uses the framework's Google Gmail API sender (src/email.js) instead of the legacy SMTP transport.
+const hasMailerConfig = config.email.gmail.isConfigured;
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -1754,11 +1707,9 @@ router.post('/api/suggest-activity', upload.single('pdf'), async (req, res) => {
          WHERE (r.name = 'ADMIN' OR hr.id IS NOT NULL) AND u.email IS NOT NULL`
       );
       if (adminRes.rows.length && hasMailerConfig) {
-        const bccList = adminRes.rows.map(r => String(r.email || '').trim()).filter(Boolean);
-        const toAddress = isValidEmail(mailerPrimaryAddress) ? mailerPrimaryAddress : (bccList[0] || '');
-        const fromAddress = isValidEmail(mailerFromAddress) ? mailerFromAddress : toAddress;
-        if (!isValidEmail(toAddress) || !isValidEmail(fromAddress)) {
-          throw new Error('SMTP sender or recipient address is invalid. Check SMTP_USER/SMTP_FROM (or EMAIL_USER).');
+        const recipients = adminRes.rows.map(r => String(r.email || '').trim()).filter(isValidEmail);
+        if (!recipients.length) {
+          throw new Error('No valid Admin or Lead Teacher email addresses to notify.');
         }
         const submittedAt = insertResult.rows[0].submitted_at;
         const dateStr = new Date(submittedAt).toISOString().slice(0, 10);
@@ -1801,14 +1752,17 @@ router.post('/api/suggest-activity', upload.single('pdf'), async (req, res) => {
   </div>
 </div>`;
 
-        await mailer.sendMail({
-          from: `"Workshop Hub" <${fromAddress}>`,
-          to: toAddress,
-          bcc: bccList,
+        const sendResult = await sendEmail({
+          to: recipients,
           subject: `[Activity Suggestion] ${activity_name.trim()}`,
           html: htmlBody
         });
+        if (!sendResult.ok) {
+          throw new Error(sendResult.error || sendResult.message || 'Gmail API send failed');
+        }
         emailNotificationSent = true;
+      } else if (!hasMailerConfig) {
+        emailNotificationError = 'Google Gmail API is not configured.';
       }
     } catch (emailErr) {
       // Don't fail the request if email fails — just log it
