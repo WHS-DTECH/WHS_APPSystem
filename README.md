@@ -75,7 +75,7 @@ The Technology Hub homepage is public at `/technology-hub`. Its four discipline 
 
 ## Sewing Hub module
 
-The Sewing Hub homepage is public at `/sewing-hub`. Activity access is available at `/sewing-hub/activities` only when the Google-authenticated user has both the matching `Student` or `Teacher` role and an ADMIN-granted Sewing Hub access level. ADMINs manage assignments at `/sewing-hub/admin`. The legacy activity API remains available as a temporary handoff until its data and image storage are migrated into the unified PostgreSQL-backed module.
+The Sewing Hub is the legacy Sewing Room site (`public/sewing-hub`, legacy API in `src/legacy/sewing-hub`) under `/sewing-hub`, using the Google login. Browsing is open as in the legacy site; ADMINs (and Teachers granted "teacher" access at `/sewing-hub/admin`) can upload, edit and delete activities, URL ideas and images. Existing activities and suggestions are copied once from `INTEGRATION_SEWING_HUB_DATABASE_URL` (guarded by `sewing_legacy_import`); all new data is stored in `DATABASE_URL`. Image uploads use the legacy `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `CLOUDINARY_UPLOAD_FOLDER` or `OBJECT_STORAGE_ENDPOINT`, `OBJECT_STORAGE_BUCKET`, `OBJECT_STORAGE_ACCESS_KEY_ID`, `OBJECT_STORAGE_SECRET_ACCESS_KEY`, `OBJECT_STORAGE_PUBLIC_BASE_URL` variables, which must be set on this web service.
 
 ## Kamar Uploader module
 

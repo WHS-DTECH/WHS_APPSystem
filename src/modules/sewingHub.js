@@ -2,9 +2,11 @@ const express = require('express');
 const path = require('path');
 const { query } = require('../db');
 const { ensureAuthenticated, ensureRole } = require('../middleware');
+const legacyRoutes = require('../legacy/sewing-hub/routes');
 
 const router = express.Router();
 const apiRouter = express.Router();
+const pageGuards = express.Router();
 const legacySewingDir = path.join(__dirname, '..', '..', 'public', 'sewing-hub');
 const sewingHubKey = 'SEWING-HUB';
 
@@ -24,21 +26,6 @@ const sortOptions = {
   level: 'year_level ASC, name ASC',
   duration: 'duration_hours ASC, name ASC'
 };
-
-apiRouter.get('/me', (req, res) => {
-  const isAdmin = Boolean(req.user?.roles?.includes('ADMIN'));
-  res.json({
-    authenticated: Boolean(req.user),
-    user: req.user
-      ? {
-          initials: req.user.display_name?.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'U',
-          isAdmin,
-          canBrowseActivities: true,
-          canUploadActivity: isAdmin
-        }
-      : null
-  });
-});
 
 function activityConditions(queryParams) {
   const params = [sewingHubKey];
@@ -64,24 +51,26 @@ function activityConditions(queryParams) {
   return { conditions, params };
 }
 
-function publicActivityColumns() {
+function publicActivityColumns(teacher) {
   return `id, name, year_level, type, activity_category, duration_hours, difficulty,
-          description, outcome_image_url, idea_url, color, is_this_week`;
+          description, outcome_image_url, idea_url, color, is_this_week${
+  teacher ? ', class_management_notes, class_preparation, assessment_focus' : ''}`;
 }
 
 apiRouter.get('/activities', async (req, res, next) => {
   try {
+    const canViewTeacherCard = legacyRoutes.userCanViewTeacherCard(req.user);
     const { conditions, params } = activityConditions(req.query);
     const orderBy = sortOptions[String(req.query.sort || '').toLowerCase()] || sortOptions.az;
     const result = await query(
-      `SELECT ${publicActivityColumns()}
+      `SELECT ${publicActivityColumns(canViewTeacherCard)}
        FROM activities
        WHERE ${conditions.join(' AND ')}
        ORDER BY ${orderBy}`,
       params
     );
 
-    res.json(result.rows.map((activity) => ({ ...activity, canViewTeacherCard: false })));
+    res.json(result.rows.map((activity) => ({ ...activity, canViewTeacherCard })));
   } catch (error) {
     next(error);
   }
@@ -94,8 +83,9 @@ apiRouter.get('/activities/:id', async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid activity id' });
     }
 
+    const canViewTeacherCard = legacyRoutes.userCanViewTeacherCard(req.user);
     const result = await query(
-      `SELECT ${publicActivityColumns()}, instructions, resources, equipment
+      `SELECT ${publicActivityColumns(canViewTeacherCard)}, instructions, resources, equipment
        FROM activities
        WHERE id = $1 AND hub_site = $2
        LIMIT 1`,
@@ -111,10 +101,36 @@ apiRouter.get('/activities/:id', async (req, res, next) => {
       activity.instructions = null;
     }
 
-    return res.json({ ...activity, canViewInstructions: Boolean(req.user), canViewTeacherCard: false });
+    return res.json({ ...activity, canViewInstructions: Boolean(req.user), canViewTeacherCard });
   } catch (error) {
     return next(error);
   }
+});
+
+apiRouter.use(legacyRoutes);
+
+// Role and permission pages are managed by the app's own users/hub access screens.
+pageGuards.get(['/admin_user_roles.html', '/admin_role_permissions.html'], ensureAuthenticated, ensureRole('ADMIN'), (req, res) => {
+  res.redirect(req.path.includes('user_roles') ? '/admin/users' : '/sewing-hub/admin');
+});
+
+pageGuards.get(
+  ['/admin_upload_activity.html', '/admin_upload_url_idea.html', '/admin_upload_assessment_task.html'],
+  ensureAuthenticated,
+  async (req, res, next) => {
+    try {
+      if (await legacyRoutes.userCanUploadActivity(req.user)) {
+        return res.sendFile(path.join(legacySewingDir, path.basename(req.path)));
+      }
+      return res.status(403).render('error', { title: 'Access denied', message: 'You do not have permission to upload Sewing Hub activities.' });
+    } catch (error) {
+      return next(error);
+    }
+  }
+);
+
+pageGuards.get('/admin_assessment_management.html', ensureAuthenticated, ensureRole('ADMIN'), (req, res) => {
+  res.sendFile(path.join(legacySewingDir, 'admin_assessment_management.html'));
 });
 
 router.use(express.static(legacySewingDir));
@@ -123,49 +139,9 @@ router.get('/', (req, res) => {
   res.redirect('/sewing-hub/index.html');
 });
 
-router.get('/index.html', (req, res) => {
-  res.sendFile(path.join(legacySewingDir, 'index.html'));
+router.get('/activities', (req, res) => {
+  res.redirect('/sewing-hub/index.html');
 });
-
-router.get('/activities', ensureAuthenticated, async (req, res, next) => {
-  try {
-    if (req.user.roles.includes('ADMIN')) {
-      return res.render('modules/sewing-hub/activities', { legacyUrl: 'https://tech-sewing.onrender.com/index.html', title: 'Sewing Hub Activities' });
-    }
-
-    const access = (await query(
-      `SELECT access_level FROM sewing_hub_access WHERE user_id = $1`,
-      [req.user.id]
-    )).rows;
-
-    if (!access.length || !req.user.roles.some((role) => ['Student', 'Teacher'].includes(role))) {
-      return res.status(403).render('error', {
-        title: 'Sewing Hub access denied',
-        message: 'Your Google account has not been assigned Sewing Hub access.'
-      });
-    }
-
-    const allowedAccess = access
-      .map((entry) => entry.access_level)
-      .filter((level) => (level === 'student' && req.user.roles.includes('Student')) || (level === 'teacher' && req.user.roles.includes('Teacher')));
-
-    if (!allowedAccess.length) {
-      return res.status(403).render('error', {
-        title: 'Sewing Hub role access denied',
-        message: 'Your assigned Sewing Hub access does not match your current Google role.'
-      });
-    }
-
-    return res.render('modules/sewing-hub/activities', {
-      access: allowedAccess,
-      legacyUrl: 'https://tech-sewing.onrender.com/index.html',
-      title: 'Sewing Hub Activities'
-    });
-  } catch (error) {
-    return next(error);
-  }
-});
-
 router.get('/admin', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
   try {
     const users = (await query(
@@ -210,3 +186,4 @@ router.post('/admin/:userId', ensureAuthenticated, ensureRole('ADMIN'), async (r
 
 module.exports = router;
 module.exports.apiRouter = apiRouter;
+module.exports.pageGuards = pageGuards;

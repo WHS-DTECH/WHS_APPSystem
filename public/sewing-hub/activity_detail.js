@@ -172,7 +172,7 @@ async function loadActivity() {
           </div>
           <p class="detail-desc">${escHtml(a.description || 'Practical sewing task for students.')}</p>
           ${ideaUrl ? `<a class="detail-url-link" href="${escHtml(ideaUrl)}" target="_blank" rel="noopener noreferrer">Open URL Idea</a>` : ''}
-          <a class="detail-back" href="/index.html">&#8592; Back to activity library</a>
+          <a class="detail-back" href="/sewing-hub/index.html">&#8592; Back to activity library</a>
         </div>
         <div class="detail-image">
           <img src="${escHtml(primaryImageUrl || fallbackImage)}" alt="${escHtml(a.name)} outcome" loading="lazy" onerror="this.onerror=null;this.src='${escHtml(fallbackImage)}'" />

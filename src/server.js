@@ -77,6 +77,7 @@ app.use('/', learningSites.pagesRouter);
 app.use('/api', learningSites.apiRouter);
 app.use('/technology-hub', technologyHubPublic);
 app.use('/admin/technology-hub', technologyHubAdmin);
+app.use('/sewing-hub', sewingHub.pageGuards);
 app.use('/sewing-hub', sewingHub);
 app.use('/api', sewingHub.apiRouter);
 app.use('/api', foodRoomApi);
@@ -133,6 +134,10 @@ app.post('/logout', ensureAuthenticated, (req, res, next) => {
 
     return res.redirect('/');
   });
+});
+
+app.get('/auth/logout', ensureAuthenticated, (req, res, next) => {
+  req.logout((error) => (error ? next(error) : res.redirect('/')));
 });
 
 app.get('/dashboard', ensureAuthenticated, async (req, res, next) => {

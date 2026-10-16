@@ -122,7 +122,7 @@ if (deleteBtn) {
       if (!res.ok) throw new Error(data.error || 'Could not delete URL idea');
 
       setStatus('URL idea deleted. Returning to library...', false);
-      window.location.href = '/index.html';
+      window.location.href = '/sewing-hub/index.html';
     } catch (err) {
       setStatus(err.message || 'Could not delete URL idea', true);
     }

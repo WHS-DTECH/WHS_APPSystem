@@ -72,6 +72,11 @@ async function hasColumn(sourcePool, columnName) {
 }
 
 async function importLegacySewingActivities() {
+  const done = await pool.query('SELECT 1 FROM sewing_legacy_import');
+  if (done.rowCount) {
+    return;
+  }
+
   if (!config.legacySewingDatabaseUrl) {
     console.warn('Legacy Sewing Hub import skipped: INTEGRATION_SEWING_HUB_DATABASE_URL is not configured.');
     return;
@@ -160,8 +165,20 @@ async function importLegacySewingActivities() {
           ]
         );
       }
+      const legacySuggestions = await sourcePool.query('SELECT * FROM suggestions ORDER BY id').catch(() => ({ rows: [] }));
+      for (const suggestion of legacySuggestions.rows) {
+        await client.query(
+          `INSERT INTO sewing_hub_suggestions (date, activity_name, suggested_by, email, url, reason, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, NOW()))`,
+          [suggestion.date, suggestion.activity_name, suggestion.suggested_by, suggestion.email, suggestion.url, suggestion.reason, suggestion.created_at]
+        );
+      }
+      await client.query(
+        'INSERT INTO sewing_legacy_import (activities_imported, suggestions_imported) VALUES ($1, $2)',
+        [sourceResult.rows.length, legacySuggestions.rows.length]
+      );
       await client.query('COMMIT');
-      console.log(`Imported ${sourceResult.rows.length} legacy Sewing Hub activity records.`);
+      console.log(`Imported ${sourceResult.rows.length} legacy Sewing Hub activities and ${legacySuggestions.rows.length} suggestions.`);
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
