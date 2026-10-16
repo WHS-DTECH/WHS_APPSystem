@@ -1754,7 +1754,7 @@ router.post('/api/suggest-activity', upload.single('pdf'), async (req, res) => {
 
         const sendResult = await sendEmail({
           to: recipients,
-          subject: `[Activity Suggestion] ${activity_name.trim()}`,
+          subject: `[Workshop Hub] Activity Suggestion: ${activity_name.trim()}`,
           html: htmlBody
         });
         if (!sendResult.ok) {

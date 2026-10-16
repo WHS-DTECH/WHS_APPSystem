@@ -111,7 +111,7 @@ async function sendSuggestionNotification({
   reason,
   suggestionUrl
 }) {
-  const subject = `New sewing hub suggestion: ${activityName || 'Activity suggestion'}`;
+  const subject = `[Sewing Hub] Activity Suggestion: ${activityName || 'Activity suggestion'}`;
   const text = [
     'A new Sewing Hub suggestion has been submitted.',
     '',
