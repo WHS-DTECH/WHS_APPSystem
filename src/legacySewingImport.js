@@ -166,10 +166,17 @@ async function importLegacySewingActivities() {
         );
       }
       const legacySuggestions = await sourcePool.query('SELECT * FROM suggestions ORDER BY id').catch(() => ({ rows: [] }));
-      for (const suggestion of legacySuggestions.rows) {
+      const usableSuggestions = legacySuggestions.rows.filter(
+        (suggestion) => suggestion.activity_name && suggestion.email && suggestion.reason
+      );
+      if (usableSuggestions.length !== legacySuggestions.rows.length) {
+        console.warn(`Skipped ${legacySuggestions.rows.length - usableSuggestions.length} legacy suggestions with missing fields.`);
+      }
+      legacySuggestions.rows = usableSuggestions;
+      for (const suggestion of usableSuggestions) {
         await client.query(
           `INSERT INTO sewing_hub_suggestions (date, activity_name, suggested_by, email, url, reason, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, NOW()))`,
+           VALUES (COALESCE($1, CURRENT_DATE), $2, $3, $4, $5, $6, COALESCE($7, NOW()))`,
           [suggestion.date, suggestion.activity_name, suggestion.suggested_by, suggestion.email, suggestion.url, suggestion.reason, suggestion.created_at]
         );
       }
