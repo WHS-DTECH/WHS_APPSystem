@@ -129,8 +129,8 @@ pageGuards.get(
   }
 );
 
-pageGuards.get('/admin_assessment_management.html', ensureAuthenticated, ensureRole('ADMIN'), (req, res) => {
-  res.sendFile(path.join(legacySewingDir, 'admin_assessment_management.html'));
+pageGuards.get(['/admin_assessment_management.html', '/admin_suggestions.html'], ensureAuthenticated, ensureRole('ADMIN'), (req, res) => {
+  res.sendFile(path.join(legacySewingDir, path.basename(req.path)));
 });
 
 router.use(express.static(legacySewingDir));

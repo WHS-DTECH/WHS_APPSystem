@@ -6,6 +6,7 @@ const multer = require('multer');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { v2: cloudinary } = require('cloudinary');
 const { query } = require('../../db');
+const { sendEmail } = require('../../email');
 
 // Legacy Sewing Room API, ported from the original TECH-SEWING server.js. Login and roles come
 // from the app's Google session (ADMIN, or Teachers granted Sewing Hub "teacher" access).
@@ -442,6 +443,40 @@ router.post('/admin/upload-image', requireAuth, requireUploadPermission, (req, r
   });
 });
 
+const escapeHtml = (value) => String(value ?? '')
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+// Notifies all ADMIN users through the framework's Google Gmail API (replaces the legacy EmailJS step).
+async function notifySuggestion({ activityName, suggestedBy, email, url, reason }) {
+  const admins = await query(
+    `SELECT DISTINCT u.email FROM users u
+     JOIN user_roles ur ON ur.user_id = u.id
+     JOIN roles r ON r.id = ur.role_id
+     WHERE r.name = 'ADMIN' AND u.email IS NOT NULL`
+  );
+  const to = admins.rows.map((row) => row.email).filter(Boolean);
+  if (!to.length) return;
+  const siteUrl = process.env.SITE_URL || 'https://whs-appsystem.onrender.com';
+  const link = `${siteUrl}/sewing-hub/admin_suggestions.html`;
+  const html = `
+<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+  <div style="background:#6b2d8f;padding:22px 28px;border-radius:8px 8px 0 0">
+    <p style="color:rgba(255,255,255,0.75);font-size:11px;letter-spacing:1px;text-transform:uppercase;margin:0 0 4px">SEWING HUB</p>
+    <h2 style="color:#fff;margin:0;font-size:22px">New Activity Suggestion</h2>
+  </div>
+  <div style="padding:24px 28px;border:1px solid #ddd;border-top:none;border-radius:0 0 8px 8px">
+    <p><strong>Activity:</strong> ${escapeHtml(activityName)}</p>
+    <p><strong>Suggested by:</strong> ${escapeHtml(suggestedBy || 'Not provided')}</p>
+    <p><strong>Email:</strong> ${escapeHtml(email)}</p>
+    <p><strong>URL:</strong> ${escapeHtml(url || 'N/A')}</p>
+    <p><strong>Reason:</strong><br>${escapeHtml(reason).replace(/\n/g, '<br>')}</p>
+    <p><a href="${escapeHtml(link)}">Open Suggestions List</a></p>
+  </div>
+</div>`;
+  const sent = await sendEmail({ to, subject: `[Sewing Hub] Activity Suggestion: ${activityName}`, html });
+  if (!sent.ok) throw new Error(sent.error || sent.message || 'Gmail API send failed');
+}
+
 router.get('/suggestions', requireAuth, requireAdmin, async (req, res) => {
   try {
     const result = await query('SELECT * FROM sewing_hub_suggestions ORDER BY created_at DESC');
@@ -478,6 +513,8 @@ router.post('/suggestions', async (req, res) => {
         reason.trim()
       ]
     );
+    notifySuggestion({ activityName: activityName.trim(), suggestedBy, email: email.trim(), url, reason: reason.trim() })
+      .catch((error) => console.error('Sewing suggestion email failed:', error.message));
     return res.json({ success: true, id: result.rows[0].id });
   } catch (error) {
     console.error('POST /api/suggestions error:', error.message);
