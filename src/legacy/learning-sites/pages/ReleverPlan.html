@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Relief Plan | WHS Learning Sites</title>
+    <meta name="description" content="Westland High School learning sites for staff, students, and whanau.">
+    <link rel="icon" href="/images/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/styles.css?v=20260806a">
+  </head>
+  <body>
+    <header class="topbar page-shell">
+      <div class="topbar-inner">
+        <a class="brand" href="/">
+          <img src="/images/whs%20logo%20circular%20reo%20.png" alt="Westland High School logo">
+          <span class="brand-copy">
+            <span>WHS Learning Sites</span>
+            <span>Shared structure, simpler updates</span>
+          </span>
+        </a>
+
+        <nav class="nav" aria-label="Program navigation">
+          <a href="/DTECH/">DTECH</a>
+          <a href="/COMP/">COMP</a>
+          <a href="/Food/">Food</a>
+          <a href="/Textiles/">Textiles</a>
+          <a href="/WOOD/">Woodwork</a>
+          <a href="/DVC/">DVC</a>
+          <a href="/ReleverPlan/" id="relief-plan-nav" hidden>Relief Plan</a>
+          <a href="/ADMIN/">ADMIN</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="page-shell section relief-plan" id="relief-plan-app">
+  <div class="relief-plan-heading">
+    <div>
+      <p class="eyebrow">Staff planning</p>
+      <h1 class="section-title">Relief Plan</h1>
+      <p class="relief-plan-intro">2027 technology events, observances, and planning anchors from the reliever calendar.</p>
+    </div>
+    <button class="button-secondary" id="relief-plan-logout" type="button" hidden>Sign out</button>
+  </div>
+
+  <section class="relief-plan-login" id="relief-plan-login" hidden>
+    <h2>Staff access</h2>
+    <p>Sign in with your WHS Google account (Teachers and ADMINs only).</p>
+    <form class="admin-inline-form" id="relief-plan-login-form">
+      <a class="button" href="/auth/google">Sign in with Google</a>
+    </form>
+    <p class="admin-message is-error" id="relief-plan-login-message" hidden></p>
+  </section>
+
+  <section id="relief-plan-content" hidden>
+    <p class="relief-plan-status" id="relief-plan-status"></p>
+    <div class="relief-plan-controls" aria-label="Calendar navigation">
+      <button class="button-secondary" id="relief-plan-previous" type="button">Previous month</button>
+      <button class="button-secondary" id="relief-plan-today" type="button">Today</button>
+      <label for="relief-plan-date">Go to date</label>
+      <input id="relief-plan-date" type="date" value="">
+      <button class="button-secondary" id="relief-plan-next" type="button">Next month</button>
+    </div>
+    <div class="relief-plan-calendar-heading">
+      <h2 id="relief-plan-month-label"></h2>
+    </div>
+    <div class="relief-plan-calendar" id="relief-plan-calendar"></div>
+    <aside class="relief-plan-details" id="relief-plan-details" aria-live="polite">
+      <h2>Event Details</h2>
+      <p>Select an event in the calendar to view its description and source.</p>
+    </aside>
+    <aside class="relief-plan-description" id="relief-plan-description" aria-live="polite">
+      <h2>Event Description</h2>
+      <p>Select an event in the calendar to view its description and source.</p>
+    </aside>
+    <section class="relief-plan-course-links" aria-labelledby="relief-plan-course-links-title">
+      <h2 id="relief-plan-course-links-title">Relief Lessons</h2>
+      <ul>
+        <li><a href="/DTECH/JDTECH/">JDTECH - Junior Digital Tech</a></li>
+        <li><a href="/DTECH/MDTECH-S1/">MDTECH - Semester 1</a></li>
+        <li><a href="/DTECH/MDTECH-S2/">MDTECH - Semester 2</a></li>
+        <li><a href="/DTECH/11DTECH/">11DTECH - Year 11 Digital Tech</a></li>
+        <li><a href="/DTECH/12DTECH/">12DTECH - Year 12 Digital Tech</a></li>
+        <li><a href="/DTECH/13DTECH/">13DTECH - Year 13 Digital Tech</a></li>
+      </ul>
+    </section>
+  </section>
+</section>
+
+<script>
+  (() => {
+    const login = document.getElementById("relief-plan-login");
+    const loginForm = document.getElementById("relief-plan-login-form");
+    const loginMessage = document.getElementById("relief-plan-login-message");
+    const content = document.getElementById("relief-plan-content");
+    const calendar = document.getElementById("relief-plan-calendar");
+    const details = document.getElementById("relief-plan-details");
+    const eventDescription = document.getElementById("relief-plan-description");
+    const status = document.getElementById("relief-plan-status");
+    const logout = document.getElementById("relief-plan-logout");
+    const previousButton = document.getElementById("relief-plan-previous");
+    const todayButton = document.getElementById("relief-plan-today");
+    const nextButton = document.getElementById("relief-plan-next");
+    const dateInput = document.getElementById("relief-plan-date");
+    const monthLabel = document.getElementById("relief-plan-month-label");
+    let events = [];
+    let viewDate = new Date();
+
+    const escapeHtml = (value) => String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+
+    const parseDate = (value) => {
+      const match = String(value || "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      return match ? new Date(Number(match[3]), Number(match[1]) - 1, Number(match[2])) : null;
+    };
+
+    const isoDate = (date) => date ? [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-") : "";
+
+    const formatDate = (value) => {
+      const date = parseDate(value);
+      return date ? date.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : value;
+    };
+
+    const descriptionHtml = (value) => escapeHtml(value).replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+
+    const showDetails = (event) => {
+      details.innerHTML = `
+        <h2>${escapeHtml(event.subject)}</h2>
+        <p class="relief-plan-detail-date"><strong>${formatDate(event.startDate)}</strong>${event.endDate && event.endDate !== event.startDate ? ` to <strong>${formatDate(event.endDate)}</strong>` : ""}</p>
+        ${event.location ? `<p><strong>Location:</strong> ${escapeHtml(event.location)}</p>` : ""}
+        <p class="relief-plan-description">${descriptionHtml(event.description).replace(/\n/g, "<br>")}</p>
+      `;
+
+      const aboutText = event.aboutTheEvent || event.description || "No description available for this event.";
+      eventDescription.innerHTML = `
+        <h2>Event Description</h2>
+        <p class="relief-plan-about">${descriptionHtml(aboutText).replace(/\n/g, "<br>")}</p>
+      `;
+    };
+
+    const renderCalendar = () => {
+      const byDate = new Map();
+      events.forEach((event, index) => {
+        const date = parseDate(event.startDate);
+        if (!date) return;
+        const key = isoDate(date);
+        if (!byDate.has(key)) byDate.set(key, []);
+        byDate.get(key).push({ event, index });
+      });
+
+      const year = viewDate.getFullYear();
+      const month = viewDate.getMonth();
+      const first = new Date(year, month, 1);
+      const days = new Date(year, month + 1, 0).getDate();
+      const offset = (first.getDay() + 6) % 7;
+      const todayKey = isoDate(new Date());
+      let cells = Array.from({ length: offset }, () => '<div class="relief-plan-day relief-plan-day-empty"></div>').join("");
+
+      for (let day = 1; day <= days; day += 1) {
+        const date = new Date(year, month, day);
+        const dateKey = isoDate(date);
+        const dayEvents = byDate.get(dateKey) || [];
+        const todayClass = dateKey === todayKey ? " relief-plan-day-today" : "";
+        cells += `<div class="relief-plan-day${todayClass}"><time datetime="${dateKey}">${day}</time>${dayEvents.length ? dayEvents.map(({ event, index }) => `<button class="relief-plan-event" type="button" data-event-index="${index}" title="${escapeHtml(event.subject)}">${escapeHtml(event.subject)}</button>`).join("") : '<span class="relief-plan-no-event">No events</span>'}</div>`;
+      }
+
+      monthLabel.textContent = first.toLocaleDateString(undefined, { year: "numeric", month: "long" });
+      dateInput.value = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+      calendar.innerHTML = `<section class="relief-plan-month"><div class="relief-plan-weekdays"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div><div class="relief-plan-days">${cells}</div></section>`;
+
+      calendar.querySelectorAll("[data-event-index]").forEach((button) => {
+        button.addEventListener("click", () => showDetails(events[Number(button.dataset.eventIndex)]));
+      });
+    };
+
+    const changeMonth = (amount) => {
+      viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + amount, 1);
+      renderCalendar();
+    };
+
+    const loadEvents = async () => {
+      const response = await fetch("/api/relief-plan/events", { credentials: "same-origin" });
+      if (!response.ok) throw new Error("Relief Plan access is unavailable.");
+      const data = await response.json();
+      events = data.events || [];
+      status.textContent = `${events.length} events loaded for ${data.year}.`;
+      renderCalendar();
+      content.hidden = false;
+      logout.hidden = false;
+    };
+
+    const checkSession = async () => {
+      const response = await fetch("/api/relief-plan/session", { credentials: "same-origin" });
+      const data = await response.json();
+      if (data.authenticated) {
+        await loadEvents();
+      } else {
+        login.hidden = false;
+      }
+    };
+
+    loginForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      loginMessage.hidden = true;
+      const accessKey = new FormData(loginForm).get("accessKey");
+      const response = await fetch("/api/relief-plan/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ accessKey })
+      });
+      if (!response.ok) {
+        loginMessage.textContent = "That access key was not accepted.";
+        loginMessage.hidden = false;
+        return;
+      }
+      login.hidden = true;
+      await loadEvents();
+    });
+
+    logout.addEventListener("click", async () => {
+      await fetch("/api/relief-plan/logout", { method: "POST", credentials: "same-origin" });
+      window.location.reload();
+    });
+
+    previousButton.addEventListener("click", () => changeMonth(-1));
+    nextButton.addEventListener("click", () => changeMonth(1));
+    todayButton.addEventListener("click", () => {
+      viewDate = new Date();
+      renderCalendar();
+    });
+    dateInput.addEventListener("change", () => {
+      if (!dateInput.value) return;
+      const selected = new Date(`${dateInput.value}T00:00:00`);
+      viewDate = new Date(selected.getFullYear(), selected.getMonth(), 1);
+      renderCalendar();
+    });
+
+    checkSession().catch((error) => {
+      login.hidden = false;
+      loginMessage.textContent = error.message;
+      loginMessage.hidden = false;
+    });
+  })();
+</script>
+
+    </main>
+
+    <footer class="footer page-shell">
+      <section class="site-footer-links" aria-label="Useful links">
+        <article class="site-footer-column">
+          <h2>School Links</h2>
+          <ul>
+            <li><a href="https://www.westlandhigh.school.nz/intranet/our-learning-sites/" target="_blank" rel="noopener noreferrer">Westland High School Learning Sites</a></li>
+            <li><a href="https://www.manaiakalani.org/" target="_blank" rel="noopener noreferrer">Manaiakalani</a></li>
+          </ul>
+        </article>
+
+        <article class="site-footer-column">
+          <h2>Student Links</h2>
+          <ul>
+            <li><a href="https://mystudentdashboard.com/" target="_blank" rel="noopener noreferrer">Hapara Student Dashboard</a></li>
+          </ul>
+        </article>
+
+        <article class="site-footer-column">
+          <h2>Learning Links</h2>
+          <ul>
+            <li><a href="https://www.nzqa.govt.nz/ncea/ncea/" target="_blank" rel="noopener noreferrer">NZQA Exam Hub</a></li>
+            <li><a href="https://studytime.co.nz/exams/" target="_blank" rel="noopener noreferrer">NCEA Past Papers</a></li>
+          </ul>
+        </article>
+      </section>
+
+      <div class="site-footer-updated" id="site-footer-updated">Last Updated:</div>
+    </footer>
+
+    <script>
+      (() => {
+        const reliefPlanNav = document.getElementById("relief-plan-nav");
+        if (reliefPlanNav) {
+          fetch("/api/relief-plan/session", { credentials: "same-origin" })
+            .then((response) => response.json())
+            .then((data) => {
+              reliefPlanNav.hidden = !data.authenticated;
+            })
+            .catch(() => {
+              reliefPlanNav.hidden = true;
+            });
+        }
+
+        const lastUpdatedEl = document.getElementById("site-footer-updated");
+        if (!lastUpdatedEl) {
+          return;
+        }
+
+        const today = new Date();
+        const readableDate = today.toLocaleDateString(undefined, {
+          year: "numeric",
+          month: "long",
+          day: "numeric"
+        });
+
+        lastUpdatedEl.textContent = `Last Updated: ${readableDate}`;
+      })();
+    </script>
+  </body>
+</html>

@@ -29,8 +29,8 @@
           <a href="/Textiles/">Textiles</a>
           <a href="/WOOD/">Woodwork</a>
           <a href="/DVC/">DVC</a>
-          <a href="/learning-sites/relief-planning">Relief Plan</a>
-          <a href="/learning-sites/admin">ADMIN</a>
+          <a href="/ReleverPlan/" id="relief-plan-nav" hidden>Relief Plan</a>
+          <a href="/ADMIN/">ADMIN</a>
         </nav>
       </div>
     </header>
@@ -98,6 +98,18 @@
 
     <script>
       (() => {
+        const reliefPlanNav = document.getElementById("relief-plan-nav");
+        if (reliefPlanNav) {
+          fetch("/api/relief-plan/session", { credentials: "same-origin" })
+            .then((response) => response.json())
+            .then((data) => {
+              reliefPlanNav.hidden = !data.authenticated;
+            })
+            .catch(() => {
+              reliefPlanNav.hidden = true;
+            });
+        }
+
         const lastUpdatedEl = document.getElementById("site-footer-updated");
         if (!lastUpdatedEl) {
           return;

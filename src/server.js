@@ -70,6 +70,8 @@ app.get('/email-status', (req, res) => {
 
 app.use('/admin/kamar-uploader', kamarUploader);
 app.use('/learning-sites', learningSites);
+app.use('/', learningSites.pagesRouter);
+app.use('/api', learningSites.apiRouter);
 app.use('/technology-hub', technologyHubPublic);
 app.use('/admin/technology-hub', technologyHubAdmin);
 app.use('/sewing-hub', sewingHub);

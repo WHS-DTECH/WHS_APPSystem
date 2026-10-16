@@ -50,7 +50,7 @@ Recommended environment values:
 - `APP_BASE_URL`: the public Render service URL, for example `https://whs-appsystem.onrender.com`
 - `GOOGLE_REDIRECT_URI`: `${APP_BASE_URL}/auth/google/callback`
 - `DATABASE_URL`: Render Postgres internal connection string
-- `INTEGRATION_SEWING_HUB_DATABASE_URL`, `INTEGRATION_WORKSHOP_DATABASE_URL`, and `INTEGRATION_FOOD_ROOM_DATABASE_URL`: read-only legacy source connections held in the `LegacyDatabases` environment group.
+- `INTEGRATION_SEWING_HUB_DATABASE_URL`, `INTEGRATION_WORKSHOP_DATABASE_URL`, `INTEGRATION_FOOD_ROOM_DATABASE_URL`, and `INTEGRATION_LEARNING_SITES_DATABASE_URL`: read-only legacy source connections held in the `LegacyDatabases` environment group.
 - `SESSION_SECRET`: long random value. The app also accepts `SECRET_KEY` if that is already set in the Render Environment Group.
 - `ADMIN_EMAILS`: `vanessapringle@westlandhigh.school.nz,tech@westlandhigh.school.nz`
 - `GOOGLE_HOSTED_DOMAIN`: optional Google Workspace domain restriction
@@ -65,7 +65,9 @@ Future systems should be added as modules first, then migrated into routes/contr
 
 ## Learning Sites module
 
-The public entry point is `/learning-sites`. Relief Planning is protected by the unified Google session and is available to `Teacher` and `ADMIN` users. Learning Site administration is protected by `ADMIN`. The legacy API-key and cookie mechanisms are not reused.
+The public entry point is `/learning-sites` (the original legacy homepage and course pages). The original legacy HOD Update Dashboard is served unchanged at `/ADMIN/` and the Relief Plan at `/ReleverPlan/`, with the legacy `/api/admin/*`, `/api/course-content/*` and `/api/relief-plan/*` routes ported to Express (`src/legacy/learning-sites/`). The legacy admin key and cookies are replaced by the Google session: `/ADMIN/` and `/api/admin/*` require `ADMIN`; the Relief Plan requires `Teacher` or `ADMIN`.
+
+Data lives in the unified `DATABASE_URL` database. If `INTEGRATION_LEARNING_SITES_DATABASE_URL` is set, the legacy HOD data (course status, course content, statement PDFs, activity) is copied once into the unified database on first use; from then on all new data is written to the unified database, so the legacy database can be retired.
 
 ## Technology Hub module
 
