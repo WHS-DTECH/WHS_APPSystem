@@ -1,4 +1,6 @@
 async function syncKamarRoles(db, userId, email) {
+  await require('./legacy/kamar-uploader/store').init();
+
   await db.query(
     `DELETE FROM user_roles
      WHERE user_id = $1 AND assignment_source = 'kamar'`,
@@ -11,7 +13,7 @@ async function syncKamarRoles(db, userId, email) {
      FROM roles
      WHERE roles.name = 'Staff'
        AND EXISTS (
-         SELECT 1 FROM kamar.staff
+         SELECT 1 FROM staff_upload
          WHERE LOWER(email_school) = LOWER($2) AND status = 'Current'
        )
      ON CONFLICT (user_id, role_id)
@@ -25,7 +27,7 @@ async function syncKamarRoles(db, userId, email) {
      FROM roles
      WHERE roles.name = 'Student'
        AND EXISTS (
-         SELECT 1 FROM kamar.students
+         SELECT 1 FROM student_details_upload
          WHERE LOWER(email_school) = LOWER($2) AND status = 'Current'
        )
      ON CONFLICT (user_id, role_id)

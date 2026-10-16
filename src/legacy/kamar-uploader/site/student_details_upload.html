@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Upload</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="navbar-include"></div>
+    <script src="shared/navbar_loader.js"></script>
+    <div class="container" style="max-width:900px;margin:2rem auto;background:#fff;padding:2rem;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+        <h1>Student Upload</h1>
+        <p style="font-size:0.93rem;color:#4a5568;margin:0 0 1rem;">
+            Upload a Student List CSV exported from Kamar. Expected columns (in any order):
+            <strong>Student ID</strong>, <strong>Last Name</strong>, <strong>First Name</strong>,
+            <strong>Gender</strong>, <strong>Level</strong>, <strong>Tutor</strong>,
+            <strong>Timetable Class</strong>, <strong>Student email - School</strong>.
+        </p>
+
+        <details style="margin:0 0 1rem; border:1px solid #d8dee6; border-radius:10px; padding:0.75rem 0.9rem; background:#f8fbff;">
+            <summary style="cursor:pointer; font-weight:700; color:#1f2937;">How to export StudentList.csv from Kamar</summary>
+            <ol style="margin:0.8rem 0 0; padding-left:1.2rem; color:#1f2937;">
+                <li style="margin-bottom:0.6rem;">In Kamar, open <strong>Reporting</strong>, then choose <strong>Student Lists</strong>.</li>
+                <li style="margin-bottom:0.6rem;">Select the list you want and include the required fields.</li>
+                <li style="margin-bottom:0.6rem;">Open <strong>Actions</strong> and choose <strong>Spreadsheet</strong>.</li>
+                <li>Download the CSV and upload it here.</li>
+            </ol>
+        </details>
+
+        <form id="uploadForm">
+            <label for="csvFile">Upload Student List CSV File:</label>
+            <input type="file" id="csvFile" accept=".csv" required />
+
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.6rem;margin:0.85rem 0 0.6rem;">
+                <div>
+                    <label for="uploadYear">Upload Year</label>
+                    <input type="number" id="uploadYear" min="2000" max="2100" required />
+                </div>
+                <div>
+                    <label for="uploadTerm">Upload Term</label>
+                    <select id="uploadTerm" required>
+                        <option>Term 1</option>
+                        <option>Term 2</option>
+                        <option>Term 3</option>
+                        <option>Term 4</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="uploadDate">Upload Date</label>
+                    <input type="date" id="uploadDate" required />
+                </div>
+            </div>
+
+            <button type="submit" id="uploadSubmitBtn">Upload</button>
+        </form>
+
+        <div id="uploadResult" style="margin-top:1.5rem;" role="status" aria-live="polite"></div>
+    </div>
+
+    <div id="studentDetailsTableContainer" style="max-width:1400px;margin:2rem auto;padding:0 2rem;overflow-x:auto;"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="student_details_upload.js"></script>
+</body>
+</html>

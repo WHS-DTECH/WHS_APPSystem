@@ -10,6 +10,8 @@ const { pool, query, runMigrations } = require('./db');
 const { importLegacySewingActivities } = require('./legacySewingImport');
 const { ensureAuthenticated, ensureRole } = require('./middleware');
 const kamarUploader = require('./modules/kamarUploader');
+const kamarUploaderApi = require('./legacy/kamar-uploader/routes');
+const kamarStore = require('./legacy/kamar-uploader/store');
 const learningSites = require('./modules/learningSites');
 const { adminRouter: technologyHubAdmin, publicRouter: technologyHubPublic } = require('./modules/technologyHub');
 const sewingHub = require('./modules/sewingHub');
@@ -69,6 +71,7 @@ app.get('/email-status', (req, res) => {
 });
 
 app.use('/admin/kamar-uploader', kamarUploader);
+app.use(kamarUploaderApi);
 app.use('/learning-sites', learningSites);
 app.use('/', learningSites.pagesRouter);
 app.use('/api', learningSites.apiRouter);
@@ -191,11 +194,12 @@ app.get('/admin', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, nex
 
 app.get('/admin/users', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
   try {
+    await kamarStore.init();
     const users = (await query(
       `SELECT users.*,
               COALESCE(array_agg(DISTINCT roles.name) FILTER (WHERE roles.name IS NOT NULL), '{}') AS roles,
-              EXISTS (SELECT 1 FROM kamar.staff WHERE LOWER(kamar.staff.email_school) = LOWER(users.email) AND kamar.staff.status = 'Current') AS is_kamar_staff,
-              EXISTS (SELECT 1 FROM kamar.students WHERE LOWER(kamar.students.email_school) = LOWER(users.email) AND kamar.students.status = 'Current') AS is_kamar_student
+              EXISTS (SELECT 1 FROM staff_upload WHERE LOWER(staff_upload.email_school) = LOWER(users.email) AND staff_upload.status = 'Current') AS is_kamar_staff,
+              EXISTS (SELECT 1 FROM student_details_upload WHERE LOWER(student_details_upload.email_school) = LOWER(users.email) AND student_details_upload.status = 'Current') AS is_kamar_student
        FROM users
        LEFT JOIN user_roles ON user_roles.user_id = users.id
        LEFT JOIN roles ON roles.id = user_roles.role_id

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KamarUploader Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet" />
+</head>
+<body class="home-body">
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+
+  <main class="home-shell">
+    <section class="hero-panel">
+      <div class="hero-text-wrap">
+        <p class="hero-kicker">Westland High School</p>
+        <h1>Kamar Uploader Dashboard</h1>
+        <p class="hero-subtitle">
+          One place to monitor Staff, Student, and Timetable uploads, with secure Google sign-in for school accounts.
+        </p>
+        <div class="hero-actions">
+          <a class="hero-link"           href="staff_upload.html">Open Staff Upload</a>
+                    <a class="hero-link" href="student_upload.html">Open Student Timetable</a>
+                    <a class="hero-link" href="timetable_upload.html">Open Staff Timetable</a>
+        </div>
+      </div>
+      <div class="hero-auth-card" id="authCard" aria-live="polite">
+        <h2>Sign in</h2>
+        <p id="authHint">Use your school Google account to continue.</p>
+        <div id="googleSignInTarget" class="google-signin-target"></div>
+        <button id="signOutBtn" type="button" class="subtle-btn" style="display:none;">Sign out</button>
+      </div>
+    </section>
+
+    <section class="stats-grid" aria-label="Current upload stats">
+      <article class="stat-card">
+        <h3>Staff</h3>
+        <p class="stat-number" id="staffCurrent">-</p>
+        <p class="stat-meta" id="staffMeta">Loading...</p>
+      </article>
+      <article class="stat-card">
+        <h3>Students</h3>
+        <p class="stat-number" id="studentCurrent">-</p>
+        <p class="stat-meta" id="studentMeta">Loading...</p>
+      </article>
+      <article class="stat-card">
+        <h3>Timetables</h3>
+        <p class="stat-number" id="timetableCurrent">-</p>
+        <p class="stat-meta" id="timetableMeta">Loading...</p>
+      </article>
+      <article class="stat-card">
+        <h3>Last Refresh</h3>
+        <p class="stat-number" id="dashboardUpdated">-</p>
+        <p class="stat-meta">Server generated timestamp</p>
+      </article>
+    </section>
+
+    <section class="dashboard-panels">
+      <article class="panel">
+        <h2>Upload Paths</h2>
+        <ul class="panel-list">
+          <li><a href="staff_upload.html">Staff Upload</a> for teacher/staff records.</li>
+                    <li><a href="student_details_upload.html">Student Upload</a> for StudentList data and school emails.</li>
+                    <li><a href="student_upload.html">Student Timetable Upload</a> for class timetable rows.</li>
+                    <li><a href="timetable_upload.html">Staff Timetable Upload</a> for teacher timetable sheets.</li>
+        </ul>
+      </article>
+      <article class="panel">
+        <h2>Signed-in User</h2>
+        <div id="currentUserPanel" class="current-user-panel">Not signed in.</div>
+      </article>
+    </section>
+
+    <section class="project-links-panel" aria-label="WHS Projects">
+      <div class="project-links-header">
+        <div>
+          <h2>WHS Projects Using Kamar Data</h2>
+          <p>Quick links to projects that depend on this uploader data.</p>
+        </div>
+      </div>
+
+      <form id="projectLinkForm" class="project-link-form" style="display:none;">
+        <label for="projectSiteName">Site Name</label>
+        <input id="projectSiteName" type="text" placeholder="e.g. Food Room" maxlength="120" required />
+        <label for="projectSiteUrl">Site URL</label>
+        <input id="projectSiteUrl" type="url" placeholder="https://example.onrender.com" required />
+        <button type="submit" class="subtle-btn">Add Link</button>
+      </form>
+
+      <div id="projectLinkStatus" class="project-link-status" style="display:none;"></div>
+      <div id="projectLinksList" class="project-links-list"></div>
+    </section>
+  </main>
+
+  <script src="index.js"></script>
+</body>
+</html>

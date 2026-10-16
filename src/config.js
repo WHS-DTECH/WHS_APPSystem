@@ -20,6 +20,7 @@ function getConfig() {
     databaseUrl: process.env.DATABASE_URL,
     legacyFoodRoomDatabaseUrl: process.env.INTEGRATION_FOOD_ROOM_DATABASE_URL,
     legacyLearningSitesDatabaseUrl: process.env.INTEGRATION_LEARNING_SITES_DATABASE_URL,
+    legacyKamarDatabaseUrl: process.env.INTEGRATION_KAMAR_DATABASE_URL,
     legacySewingDatabaseUrl: process.env.INTEGRATION_SEWING_HUB_DATABASE_URL,
     legacyWorkshopDatabaseUrl: process.env.INTEGRATION_WORKSHOP_DATABASE_URL,
     email: {

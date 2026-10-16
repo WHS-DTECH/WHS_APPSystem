@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Timetable</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="navbar-include"></div>
+    <script src="shared/navbar_loader.js"></script>
+    <div class="container" style="max-width:900px;margin:2rem auto;background:#fff;padding:2rem;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+        <h1>Student Timetable</h1>
+        <details style="margin:0 0 1rem; border:1px solid #d8dee6; border-radius:10px; padding:0.75rem 0.9rem; background:#f8fbff;">
+            <summary style="cursor:pointer; font-weight:700; color:#1f2937;">How to export Student Timetable CSV from Kamar</summary>
+            <ol style="margin:0.8rem 0 0; padding-left:1.2rem; color:#1f2937;">
+                <li style="margin-bottom:0.6rem;">
+                    In Kamar, open <strong>Reporting</strong> from the top menu.
+                    <div style="margin-top:0.45rem;">
+                        <a href="csv/KamarData/How to Kamar/Upload Students/1-Reporting-Timetable.png" target="_blank" rel="noopener noreferrer">
+                            <img src="csv/KamarData/How to Kamar/Upload Students/1-Reporting-Timetable.png" alt="Step 1: Reporting menu in Kamar" style="width:100%;max-width:520px;border:1px solid #cbd5e1;border-radius:8px;display:block;background:#fff;" loading="lazy">
+                        </a>
+                    </div>
+                </li>
+                <li style="margin-bottom:0.6rem;">
+                    Select <strong>Timetable</strong>, then choose <strong>Student Timetable Summary</strong>.
+                    <div style="margin-top:0.45rem;">
+                        <a href="csv/KamarData/How to Kamar/Upload Students/2-StudentTimetableSummary.png" target="_blank" rel="noopener noreferrer">
+                            <img src="csv/KamarData/How to Kamar/Upload Students/2-StudentTimetableSummary.png" alt="Step 2: Student Timetable Summary selection" style="width:100%;max-width:520px;border:1px solid #cbd5e1;border-radius:8px;display:block;background:#fff;" loading="lazy">
+                        </a>
+                    </div>
+                </li>
+                <li style="margin-bottom:0.6rem;">
+                    In the student filter panel, select the students you want (or use <strong>Select All</strong> if needed), then click <strong>OK</strong>.
+                </li>
+                <li style="margin-bottom:0.6rem;">
+                    Open the <strong>Actions</strong> tab and choose <strong>Spreadsheet</strong>.
+                    <div style="margin-top:0.45rem;">
+                        <a href="csv/KamarData/How to Kamar/Upload Students/3-Actions-Spreadsheet.png" target="_blank" rel="noopener noreferrer">
+                            <img src="csv/KamarData/How to Kamar/Upload Students/3-Actions-Spreadsheet.png" alt="Step 3: Actions Spreadsheet option" style="width:100%;max-width:520px;border:1px solid #cbd5e1;border-radius:8px;display:block;background:#fff;" loading="lazy">
+                        </a>
+                    </div>
+                </li>
+                <li>
+                    In the <strong>Download Files</strong> dialog, click the generated CSV file to download it, then upload that CSV here.
+                    <div style="margin-top:0.45rem;">
+                        <a href="csv/KamarData/How to Kamar/Upload Students/4-DownloadFiles.png" target="_blank" rel="noopener noreferrer">
+                            <img src="csv/KamarData/How to Kamar/Upload Students/4-DownloadFiles.png" alt="Step 4: Download Files dialog" style="width:100%;max-width:520px;border:1px solid #cbd5e1;border-radius:8px;display:block;background:#fff;" loading="lazy">
+                        </a>
+                    </div>
+                </li>
+            </ol>
+        </details>
+        <form id="uploadForm">
+            <label for="csvFile">Upload Student Timetable CSV File:</label>
+            <input type="file" id="csvFile" accept=".csv" required />
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.6rem;margin:0.85rem 0 0.6rem;">
+                <div>
+                    <label for="uploadYear">Upload Year</label>
+                    <input type="number" id="uploadYear" min="2000" max="2100" value="2026" required />
+                </div>
+                <div>
+                    <label for="uploadTerm">Upload Term</label>
+                    <select id="uploadTerm" required>
+                        <option selected>Term 1</option>
+                        <option>Term 2</option>
+                        <option>Term 3</option>
+                        <option>Term 4</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="uploadDate">Upload Date</label>
+                    <input type="date" id="uploadDate" required />
+                </div>
+            </div>
+            <button type="submit">Upload</button>
+        </form>
+        <div style="display:flex;justify-content:flex-end;margin-top:0.65rem;">
+            <button id="syncStudentEmailsBtn" type="button" style="max-width:260px;background:#0f766e;border-color:#0f766e;">Sync Student Emails</button>
+        </div>
+        <div id="uploadResult" style="margin-top:1.5rem;"></div>
+        <div id="studentTableContainer" style="margin-top:2rem;"></div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="student_upload.js"></script>
+</body>
+</html>
