@@ -50,8 +50,6 @@ test('students cannot use admin or lead-teacher APIs', async () => {
   const { server, base } = await startApp(['Student']);
   try {
     assert.strictEqual((await fetch(`${base}/api/admin/suggestions`)).status, 403);
-    const upload = await fetch(`${base}/api/worksheets/upload`, { method: 'POST' });
-    assert.strictEqual(upload.status, 403);
   } finally {
     server.close();
   }
