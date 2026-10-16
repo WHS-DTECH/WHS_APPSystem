@@ -19,7 +19,7 @@ function hasRole(req, ...roles) {
 }
 
 function handler(fn) {
-  return (req, res) => Promise.resolve(fn(req, res)).catch((error) => {
+  return (req, res, next) => Promise.resolve(fn(req, res, next)).catch((error) => {
     res.status(error.status || 500).json({ ok: false, error: error.message || 'Server error' });
   });
 }
