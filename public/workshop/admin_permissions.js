@@ -71,7 +71,7 @@ function showMsg(text, type = 'success') {
 
 async function loadPermissions() {
   try {
-    const res = await fetch('/api/admin/permissions');
+    const res = await fetch('/workshop/api/admin/permissions');
     if (!res.ok) throw new Error(await res.text());
     const rows = await res.json();
     applyPermissions(rows);
@@ -92,7 +92,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
   });
 
   try {
-    const res = await fetch('/api/admin/permissions', {
+    const res = await fetch('/workshop/api/admin/permissions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ permissions }),
@@ -108,7 +108,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
 document.getElementById('resetBtn').addEventListener('click', async () => {
   if (!confirm('Reset all permissions to defaults? This cannot be undone.')) return;
   try {
-    const res = await fetch('/api/admin/permissions/reset', { method: 'POST' });
+    const res = await fetch('/workshop/api/admin/permissions/reset', { method: 'POST' });
     if (!res.ok) throw new Error((await res.json()).error);
     showMsg('Permissions reset to defaults.', 'success');
     loadPermissions();
@@ -139,7 +139,7 @@ function getPrimaryRole(roles) {
   return 'Member';
 }
 
-fetch('/api/user')
+fetch('/workshop/api/user')
   .then(res => res.json())
   .then(async user => {
     if (user) {
@@ -150,7 +150,7 @@ fetch('/api/user')
       const initialsEl = document.getElementById('userInitials');
       if (initialsEl) initialsEl.textContent = getInitials(user.name);
 
-      const rolesRes = await fetch('/api/my-roles');
+      const rolesRes = await fetch('/workshop/api/my-roles');
       const roles = await rolesRes.json();
       const roleEl = document.getElementById('userRoleBadge');
       if (roleEl) roleEl.textContent = getPrimaryRole(roles);

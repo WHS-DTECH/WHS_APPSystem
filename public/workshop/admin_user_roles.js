@@ -69,7 +69,7 @@ function renderTable(users) {
 // Load all users
 async function loadUsers() {
   try {
-    const res = await fetch('/api/admin/users');
+    const res = await fetch('/workshop/api/admin/users');
     if (!res.ok) throw new Error(await res.text());
     allUsers = await res.json();
     populateUserSelect(allUsers);
@@ -91,7 +91,7 @@ document.getElementById('addRoleBtn').addEventListener('click', async () => {
   if (!role) return showMsg(msg, 'Please select a role.', 'error');
 
   try {
-    const res = await fetch('/api/admin/user-roles', {
+    const res = await fetch('/workshop/api/admin/user-roles', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ user_id: parseInt(userId), role, user_type: userType }),
@@ -110,7 +110,7 @@ document.getElementById('addRoleBtn').addEventListener('click', async () => {
 async function removeAllRoles(userId, email) {
   if (!confirm(`Remove all additional roles from ${email}?`)) return;
   try {
-    const res = await fetch(`/api/admin/user-roles/${userId}`, { method: 'DELETE' });
+    const res = await fetch(`/workshop/api/admin/user-roles/${userId}`, { method: 'DELETE' });
     if (!res.ok) throw new Error((await res.json()).error);
     loadUsers();
   } catch (e) {
@@ -140,7 +140,7 @@ function getPrimaryRole(roles) {
   return 'Member';
 }
 
-fetch('/api/user')
+fetch('/workshop/api/user')
   .then(res => res.json())
   .then(async user => {
     if (user) {
@@ -152,7 +152,7 @@ fetch('/api/user')
       if (initialsEl) initialsEl.textContent = getInitials(user.name);
 
       // Check admin role
-      const rolesRes = await fetch('/api/my-roles');
+      const rolesRes = await fetch('/workshop/api/my-roles');
       const roles = await rolesRes.json();
       const roleEl = document.getElementById('userRoleBadge');
       if (roleEl) roleEl.textContent = getPrimaryRole(roles);

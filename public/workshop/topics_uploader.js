@@ -157,7 +157,7 @@ function renderPreview(parsed, result) {
 
 async function hydrateUserState() {
   try {
-    const userRes = await fetch('/api/user');
+    const userRes = await fetch('/workshop/api/user');
     const user = await userRes.json();
 
     if (!user) {
@@ -177,7 +177,7 @@ async function hydrateUserState() {
 
     let primaryRole = 'Member';
     try {
-      const rolesRes = await fetch('/api/my-roles');
+      const rolesRes = await fetch('/workshop/api/my-roles');
       const roles = await rolesRes.json();
       primaryRole = getPrimaryRole(roles);
       canImportTopics = roles.some(r => r.role === 'Admin' || r.role === 'Lead Teacher');
@@ -235,7 +235,7 @@ document.getElementById('topicsUploadForm').addEventListener('submit', async (e)
   setAlert('saving', 'Importing topic document...');
 
   try {
-    const res = await fetch('/api/topics/import-docx', {
+    const res = await fetch('/workshop/api/topics/import-docx', {
       method: 'POST',
       body: data,
     });
@@ -251,7 +251,7 @@ document.getElementById('topicsUploadForm').addEventListener('submit', async (e)
     const openTopicsLink = document.getElementById('openTopicsManagerLink');
     if (openTopicsLink) {
       openTopicsLink.textContent = 'Open Topics Manager';
-      openTopicsLink.href = '/topics.html';
+      openTopicsLink.href = '/workshop/topics.html';
     }
     document.getElementById('topicsUploadForm').reset();
     document.getElementById('topicsUploadYearLevel').value = json.yearLevel || 'Year 13';

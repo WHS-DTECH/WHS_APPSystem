@@ -1,6 +1,6 @@
 async function loadGlobalNavbar() {
   try {
-    const response = await fetch('/navbar.html');
+    const response = await fetch('/workshop/navbar.html');
     if (!response.ok) throw new Error('Failed to load navbar');
     const navbarHtml = await response.text();
     
@@ -47,7 +47,7 @@ function getPrimaryRole(roles) {
 
 async function hydrateUserState() {
   try {
-    const userRes = await fetch('/api/user');
+    const userRes = await fetch('/workshop/api/user');
     const user = await userRes.json();
 
     if (!user) return;
@@ -66,7 +66,7 @@ async function hydrateUserState() {
       logoutButton.addEventListener('click', async () => {
         logoutButton.disabled = true;
         try {
-          const response = await fetch('/auth/logout', {
+          const response = await fetch('/workshop/api/auth/logout', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -79,7 +79,7 @@ async function hydrateUserState() {
             throw new Error('Sign out failed');
           }
 
-          window.location.href = '/';
+          window.location.href = '/workshop/index.html';
         } catch (error) {
           console.error('Logout error:', error);
           logoutButton.disabled = false;
@@ -88,7 +88,7 @@ async function hydrateUserState() {
     }
 
     try {
-      const rolesRes = await fetch('/api/my-roles');
+      const rolesRes = await fetch('/workshop/api/my-roles');
       const roles = await rolesRes.json();
       const roleEl = document.getElementById('userRoleBadge');
       if (roleEl) roleEl.textContent = getPrimaryRole(roles);

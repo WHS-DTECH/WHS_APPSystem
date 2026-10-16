@@ -325,7 +325,7 @@ function wireFilterButtons() {
 
 async function loadWorksheetLibraryItems() {
   try {
-    const response = await fetch("/api/worksheets", { cache: "no-store" });
+    const response = await fetch("/workshop/api/worksheets", { cache: "no-store" });
     if (!response.ok) {
       worksheetLibraryItems = [];
       return;
@@ -341,7 +341,7 @@ async function loadWorksheetLibraryItems() {
 
 async function loadLessonNoteLibraryItems() {
   try {
-    const response = await fetch("/api/lesson-notes", { cache: "no-store" });
+    const response = await fetch("/workshop/api/lesson-notes", { cache: "no-store" });
     if (!response.ok) {
       lessonNoteLibraryItems = [];
       return;
@@ -481,7 +481,7 @@ function getPrimaryRole(roles) {
   return 'Member';
 }
 
-fetch('/api/user')
+fetch('/workshop/api/user')
   .then(res => res.json())
   .then(async user => {
     if (user) {
@@ -491,7 +491,7 @@ fetch('/api/user')
       document.getElementById('userInitials').textContent = getInitials(user.name);
       // Fetch roles and show highest role
       try {
-        const rolesRes = await fetch('/api/my-roles');
+        const rolesRes = await fetch('/workshop/api/my-roles');
         const roles = await rolesRes.json();
         document.getElementById('userRoleBadge').textContent = getPrimaryRole(roles);
         if (roles.some(r => r.role === 'Admin')) {

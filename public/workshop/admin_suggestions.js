@@ -21,7 +21,7 @@ function getPrimaryRole(roles) {
 }
 
 // ── Init ──────────────────────────────────────────────────────────
-fetch('/api/user')
+fetch('/workshop/api/user')
   .then(res => res.json())
   .then(async user => {
     if (user) {
@@ -32,7 +32,7 @@ fetch('/api/user')
       if (initialsEl) initialsEl.textContent = getInitials(user.name);
 
       try {
-        const rolesRes = await fetch('/api/my-roles');
+        const rolesRes = await fetch('/workshop/api/my-roles');
         const roles = await rolesRes.json();
         const roleEl = document.getElementById('userRoleBadge');
         if (roleEl) roleEl.textContent = getPrimaryRole(roles);
@@ -58,7 +58,7 @@ fetch('/api/user')
 // ── Load Suggestions ──────────────────────────────────────────────
 async function loadSuggestions() {
   try {
-    const res = await fetch('/api/admin/suggestions');
+    const res = await fetch('/workshop/api/admin/suggestions');
     if (!res.ok) throw new Error('Failed to load');
     const suggestions = await res.json();
 
@@ -77,7 +77,7 @@ async function loadSuggestions() {
         ? `<a href="${escHtml(s.activity_url)}" target="_blank" rel="noopener" class="sugg-link">View</a>`
         : '<span class="sugg-dash">—</span>';
       const pdf = s.pdf_filename
-        ? `<a href="/api/admin/suggestions/${s.id}/pdf" class="sugg-pdf-link" target="_blank">📄 ${escHtml(s.pdf_filename)}</a>`
+        ? `<a href="/workshop/api/admin/suggestions/${s.id}/pdf" class="sugg-pdf-link" target="_blank">📄 ${escHtml(s.pdf_filename)}</a>`
         : '<span class="sugg-dash">—</span>';
       const reason = s.reason
         ? `<span class="sugg-reason-short" title="${escHtml(s.reason)}">${escHtml(truncate(s.reason, 40))}</span>`
@@ -118,7 +118,7 @@ function openModal(id) {
     ? `<a href="${escHtml(s.activity_url)}" target="_blank" rel="noopener" style="color:#1c74b9">${escHtml(s.activity_url)}</a>`
     : 'N/A';
   const pdfRow = s.pdf_filename
-    ? `<a href="/api/admin/suggestions/${s.id}/pdf" target="_blank" style="color:#1c74b9">📄 ${escHtml(s.pdf_filename)}</a>`
+    ? `<a href="/workshop/api/admin/suggestions/${s.id}/pdf" target="_blank" style="color:#1c74b9">📄 ${escHtml(s.pdf_filename)}</a>`
     : '—';
 
   document.getElementById('modalTitle').textContent = s.activity_name;

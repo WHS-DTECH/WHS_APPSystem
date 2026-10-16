@@ -36,7 +36,7 @@ function setAlert(type, message) {
 
 async function hydrateUserState() {
   try {
-    const userRes = await fetch('/api/user');
+    const userRes = await fetch('/workshop/api/user');
     const user = await userRes.json();
 
     if (!user) {
@@ -55,7 +55,7 @@ async function hydrateUserState() {
 
     let primaryRole = 'Member';
     try {
-      const rolesRes = await fetch('/api/my-roles');
+      const rolesRes = await fetch('/workshop/api/my-roles');
       const roles = await rolesRes.json();
       primaryRole = getPrimaryRole(roles);
       if (roles.some(r => r.role === 'Admin')) {
@@ -102,7 +102,7 @@ form.addEventListener('submit', async (e) => {
     const formData = new FormData(form);
     const payload = Object.fromEntries(formData.entries());
 
-    const res = await fetch('/api/upload-url-idea', {
+    const res = await fetch('/workshop/api/upload-url-idea', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -121,7 +121,7 @@ form.addEventListener('submit', async (e) => {
 });
 
 cancelBtn.addEventListener('click', () => {
-  window.location.href = '/';
+  window.location.href = '/workshop/index.html';
 });
 
 hydrateUserState();

@@ -28,7 +28,7 @@ function wireDropdowns() {
 
 async function hydrateUserState() {
   try {
-    const userRes = await fetch('/api/user');
+    const userRes = await fetch('/workshop/api/user');
     const user = await userRes.json();
 
     if (!user) return;
@@ -42,7 +42,7 @@ async function hydrateUserState() {
     if (initialsEl) initialsEl.textContent = getInitials(user.name);
 
     try {
-      const rolesRes = await fetch('/api/my-roles');
+      const rolesRes = await fetch('/workshop/api/my-roles');
       const roles = await rolesRes.json();
       const roleEl = document.getElementById('userRoleBadge');
       if (roleEl) roleEl.textContent = getPrimaryRole(roles);

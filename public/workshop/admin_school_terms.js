@@ -48,7 +48,7 @@ async function loadTerms() {
   setStatus('admin-msg', 'Loading school terms and holidays...');
 
   try {
-    const res = await fetch('/api/admin/school-terms', { cache: 'no-store' });
+    const res = await fetch('/workshop/api/admin/school-terms', { cache: 'no-store' });
     const data = await res.json();
 
     if (!res.ok) {
@@ -71,7 +71,7 @@ async function initPage() {
   wireDropdowns();
 
   try {
-    const userRes = await fetch('/api/user');
+    const userRes = await fetch('/workshop/api/user');
     const user = await userRes.json();
     if (!user) {
       document.getElementById('accessDenied').style.display = 'block';
@@ -86,7 +86,7 @@ async function initPage() {
     const initialsEl = document.getElementById('userInitials');
     if (initialsEl) initialsEl.textContent = getInitials(user.name);
 
-    const rolesRes = await fetch('/api/my-roles');
+    const rolesRes = await fetch('/workshop/api/my-roles');
     const roles = await rolesRes.json();
     const roleEl = document.getElementById('userRoleBadge');
     if (roleEl) roleEl.textContent = getPrimaryRole(roles);

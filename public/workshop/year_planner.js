@@ -120,7 +120,7 @@ function resolvePlannerSelection() {
 
 async function loadImportedPlannerTemplates() {
   try {
-    const res = await fetch('/api/planning/year-planner-templates', { cache: 'no-store' });
+    const res = await fetch('/workshop/api/planning/year-planner-templates', { cache: 'no-store' });
     const data = await res.json();
 
     if (!res.ok) {
@@ -300,7 +300,7 @@ async function loadPlanner() {
   setStatus('saving', 'Loading term dates...');
 
   try {
-    const termDatesRes = await fetch('/api/planning/term-dates', { cache: 'no-store' });
+    const termDatesRes = await fetch('/workshop/api/planning/term-dates', { cache: 'no-store' });
     const data = await termDatesRes.json();
 
     if (!termDatesRes.ok) {
@@ -319,7 +319,7 @@ async function loadPlanner() {
 
 async function hydrateUserState() {
   try {
-    const userRes = await fetch('/api/user');
+    const userRes = await fetch('/workshop/api/user');
     const user = await userRes.json();
 
     if (!user) return;
@@ -333,7 +333,7 @@ async function hydrateUserState() {
     if (initialsEl) initialsEl.textContent = getInitials(user.name);
 
     try {
-      const rolesRes = await fetch('/api/my-roles');
+      const rolesRes = await fetch('/workshop/api/my-roles');
       const roles = await rolesRes.json();
       const roleEl = document.getElementById('userRoleBadge');
       if (roleEl) roleEl.textContent = getPrimaryRole(roles);

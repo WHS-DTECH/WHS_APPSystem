@@ -112,7 +112,7 @@ function parseStandardsFromManagerScript(scriptText) {
 
 async function loadStandards() {
   try {
-    const response = await fetch('/admin_assessment_management.js', { cache: 'no-cache' });
+    const response = await fetch('/workshop/admin_assessment_management.js', { cache: 'no-cache' });
     if (!response.ok) throw new Error('Could not load standards manager source.');
     const scriptText = await response.text();
     standards = parseStandardsFromManagerScript(scriptText);
@@ -171,7 +171,7 @@ function setSignedOutState() {
 
 async function loadCurrentUser() {
   try {
-    const userRes = await fetch('/api/user', { credentials: 'same-origin' });
+    const userRes = await fetch('/workshop/api/user', { credentials: 'same-origin' });
     if (!userRes.ok) {
       setSignedOutState();
       return;
@@ -184,7 +184,7 @@ async function loadCurrentUser() {
     }
 
     currentUser = userData.user;
-    const rolesRes = await fetch('/api/my-roles', { credentials: 'same-origin' });
+    const rolesRes = await fetch('/workshop/api/my-roles', { credentials: 'same-origin' });
     const rolesData = rolesRes.ok ? await rolesRes.json() : { roles: [] };
     const roles = Array.isArray(rolesData.roles) ? rolesData.roles : [];
 
@@ -214,7 +214,7 @@ form.addEventListener('submit', async event => {
 
   try {
     const formData = new FormData(form);
-    const response = await fetch('/api/upload-assessment-task', {
+    const response = await fetch('/workshop/api/upload-assessment-task', {
       method: 'POST',
       credentials: 'same-origin',
       body: formData,
@@ -237,7 +237,7 @@ form.addEventListener('submit', async event => {
 });
 
 cancelBtn.addEventListener('click', () => {
-  window.location.href = '/';
+  window.location.href = '/workshop/index.html';
 });
 
 standardSelect.addEventListener('change', updateStandardDetails);

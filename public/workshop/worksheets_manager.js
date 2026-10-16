@@ -181,11 +181,11 @@ function renderWorksheetRows(items) {
   });
 
   worksheetListBody.innerHTML = sortItems(items, 'worksheets').map(item => {
-    const reviewHref = `/api/worksheets/${encodeURIComponent(item.id)}/file`;
+    const reviewHref = `/workshop/api/worksheets/${encodeURIComponent(item.id)}/file`;
     const itemId = String(item.id);
     const isSelected = selectedWorksheetIds.has(itemId);
     const strandLabel = strandLabelForItem(item);
-    const linkedLessonHref = item.lesson_note_id ? `/api/lesson-notes/${encodeURIComponent(item.lesson_note_id)}/file` : null;
+    const linkedLessonHref = item.lesson_note_id ? `/workshop/api/lesson-notes/${encodeURIComponent(item.lesson_note_id)}/file` : null;
     const linkedLesson = item.lesson_note_title
       ? (linkedLessonHref
         ? `<a href="${linkedLessonHref}" target="_blank" rel="noopener">${esc(item.lesson_note_title)}</a>`
@@ -237,7 +237,7 @@ function renderLessonNoteRows(items) {
     const strandLabel = strandLabelForItem(item);
     const hasFile = Boolean(item.source_file_name);
     const reviewAction = hasFile
-      ? `<a class="btn btn-secondary btn-sm" href="/api/lesson-notes/${encodeURIComponent(item.id)}/file" target="_blank" rel="noopener">Review</a>`
+      ? `<a class="btn btn-secondary btn-sm" href="/workshop/api/lesson-notes/${encodeURIComponent(item.id)}/file" target="_blank" rel="noopener">Review</a>`
       : '<span class="topic-empty">No file</span>';
 
     return `
@@ -264,7 +264,7 @@ function renderLessonNoteRows(items) {
 
 async function loadWorksheets() {
   try {
-    const res = await fetch('/api/worksheets', { cache: 'no-store' });
+    const res = await fetch('/workshop/api/worksheets', { cache: 'no-store' });
     const json = await res.json();
 
     if (!res.ok) {
@@ -280,7 +280,7 @@ async function loadWorksheets() {
 
 async function loadLessonNotes() {
   try {
-    const res = await fetch('/api/lesson-notes', { cache: 'no-store' });
+    const res = await fetch('/workshop/api/lesson-notes', { cache: 'no-store' });
     const json = await res.json();
 
     if (!res.ok) {
@@ -306,7 +306,7 @@ async function deleteWorksheetById(id, title) {
   setAlert('saving', 'Deleting worksheet...');
 
   try {
-    const response = await fetch(`/api/worksheets/${encodeURIComponent(id)}`, {
+    const response = await fetch(`/workshop/api/worksheets/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     });
     const json = await response.json();
@@ -335,7 +335,7 @@ async function deleteLessonNoteById(id, title) {
   setAlert('saving', 'Deleting lesson note...');
 
   try {
-    const response = await fetch(`/api/lesson-notes/${encodeURIComponent(id)}`, {
+    const response = await fetch(`/workshop/api/lesson-notes/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     });
     const json = await response.json();
@@ -364,7 +364,7 @@ function validateForm() {
 
 async function hydrateUserState() {
   try {
-    const userRes = await fetch('/api/user');
+    const userRes = await fetch('/workshop/api/user');
     const user = await userRes.json();
 
     if (!user) {
@@ -384,7 +384,7 @@ async function hydrateUserState() {
 
     let primaryRole = 'Member';
     try {
-      const rolesRes = await fetch('/api/my-roles');
+      const rolesRes = await fetch('/workshop/api/my-roles');
       const roles = await rolesRes.json();
       primaryRole = getPrimaryRole(roles);
       canManageWorksheets = roles.some(r => r.role === 'Admin' || r.role === 'Lead Teacher');
@@ -451,7 +451,7 @@ form.addEventListener('submit', async (event) => {
 
   try {
     const data = new FormData(form);
-    const response = await fetch('/api/worksheets/upload', {
+    const response = await fetch('/workshop/api/worksheets/upload', {
       method: 'POST',
       body: data,
     });
@@ -511,7 +511,7 @@ lessonNoteForm.addEventListener('submit', async (event) => {
 
   try {
     const data = new FormData(lessonNoteForm);
-    const response = await fetch('/api/lesson-notes/upload', {
+    const response = await fetch('/workshop/api/lesson-notes/upload', {
       method: 'POST',
       body: data,
     });
@@ -655,7 +655,7 @@ bulkDeleteWorksheetsBtn.addEventListener('click', async () => {
   let successCount = 0;
   for (const id of ids) {
     try {
-      const response = await fetch(`/api/worksheets/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const response = await fetch(`/workshop/api/worksheets/${encodeURIComponent(id)}`, { method: 'DELETE' });
       if (response.ok) {
         successCount += 1;
         selectedWorksheetIds.delete(String(id));
@@ -695,7 +695,7 @@ bulkDeleteLessonNotesBtn.addEventListener('click', async () => {
   let successCount = 0;
   for (const id of ids) {
     try {
-      const response = await fetch(`/api/lesson-notes/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const response = await fetch(`/workshop/api/lesson-notes/${encodeURIComponent(id)}`, { method: 'DELETE' });
       if (response.ok) {
         successCount += 1;
         selectedLessonNoteIds.delete(String(id));

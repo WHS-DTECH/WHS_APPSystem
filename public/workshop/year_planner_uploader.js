@@ -78,7 +78,7 @@ function setPreview(template, yearLevel) {
 
 async function hydrateUserState() {
   try {
-    const userRes = await fetch('/api/user');
+    const userRes = await fetch('/workshop/api/user');
     const user = await userRes.json();
 
     if (!user) {
@@ -98,7 +98,7 @@ async function hydrateUserState() {
 
     let primaryRole = 'Member';
     try {
-      const rolesRes = await fetch('/api/my-roles');
+      const rolesRes = await fetch('/workshop/api/my-roles');
       const roles = await rolesRes.json();
       primaryRole = getPrimaryRole(roles);
       canImportPlanner = roles.some(r => r.role === 'Admin' || r.role === 'Lead Teacher');
@@ -156,7 +156,7 @@ form.addEventListener('submit', async (e) => {
   setAlert('saving', 'Importing planner document...');
 
   try {
-    const res = await fetch('/api/planning/import-year-planner', {
+    const res = await fetch('/workshop/api/planning/import-year-planner', {
       method: 'POST',
       body: data,
     });
@@ -176,7 +176,7 @@ form.addEventListener('submit', async (e) => {
     const selectedLabel = selectedYearLevel === yearLevel ? json.yearLevel : `${selectedYearLevel} (${json.yearLevel})`;
     setAlert('success', `Imported ${json.fileName} for ${selectedLabel}. Open Year Planner and select ${selectedLabel}.`);
     if (openYearPlannerLink) {
-      openYearPlannerLink.href = `/year_planner.html?yearLevel=${encodeURIComponent(json.yearLevel)}`;
+      openYearPlannerLink.href = `/workshop/year_planner.html?yearLevel=${encodeURIComponent(json.yearLevel)}`;
       openYearPlannerLink.textContent = `Open Year Planner (${selectedLabel})`;
     }
     form.reset();

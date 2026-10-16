@@ -20,7 +20,7 @@ function getPrimaryRole(roles) {
   return 'Member';
 }
 
-fetch('/api/user')
+fetch('/workshop/api/user')
   .then(res => res.json())
   .then(async user => {
     if (user) {
@@ -38,7 +38,7 @@ fetch('/api/user')
       if (emailInput && !emailInput.value) emailInput.value = user.email || '';
 
       try {
-        const rolesRes = await fetch('/api/my-roles');
+        const rolesRes = await fetch('/workshop/api/my-roles');
         const roles = await rolesRes.json();
         const roleEl = document.getElementById('userRoleBadge');
         if (roleEl) roleEl.textContent = getPrimaryRole(roles);
@@ -118,7 +118,7 @@ form.addEventListener('submit', async e => {
   setStatus('loading', 'Sending your suggestion…');
 
   try {
-    const res = await fetch('/api/suggest-activity', { method: 'POST', body: data });
+    const res = await fetch('/workshop/api/suggest-activity', { method: 'POST', body: data });
     const json = await res.json();
     if (res.ok && json.success) {
       if (json.emailNotificationSent === true) {

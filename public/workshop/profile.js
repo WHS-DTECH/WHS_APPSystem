@@ -24,7 +24,7 @@ function getPrimaryRole(roles) {
   return 'Member';
 }
 
-fetch('/api/user')
+fetch('/workshop/api/user')
   .then(res => res.json())
   .then(async user => {
     // Update nav chip
@@ -41,7 +41,7 @@ fetch('/api/user')
       // Fetch roles for nav chip + admin menu
       let roles = [];
       try {
-        const rolesRes = await fetch('/api/my-roles');
+        const rolesRes = await fetch('/workshop/api/my-roles');
         roles = await rolesRes.json();
         const roleEl = document.getElementById('userRoleBadge');
         if (roleEl) roleEl.textContent = getPrimaryRole(roles);
@@ -94,7 +94,7 @@ fetch('/api/user')
         profileSignOutBtn.addEventListener('click', async () => {
           profileSignOutBtn.disabled = true;
           try {
-            const response = await fetch('/auth/logout', {
+            const response = await fetch('/workshop/api/auth/logout', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -107,7 +107,7 @@ fetch('/api/user')
               throw new Error('Sign out failed');
             }
 
-            window.location.href = '/';
+            window.location.href = '/workshop/index.html';
           } catch {
             profileSignOutBtn.disabled = false;
           }

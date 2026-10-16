@@ -8,6 +8,7 @@ const config = require('./config');
 const passport = require('./auth');
 const { pool, query, runMigrations } = require('./db');
 const { importLegacySewingActivities } = require('./legacySewingImport');
+const { importLegacyWorkshop } = require('./legacyWorkshopImport');
 const { ensureAuthenticated, ensureRole } = require('./middleware');
 const kamarUploader = require('./modules/kamarUploader');
 const kamarUploaderApi = require('./legacy/kamar-uploader/routes');
@@ -476,6 +477,11 @@ async function start() {
       await importLegacySewingActivities();
     } catch (error) {
       console.error('Legacy Sewing Hub import skipped:', error.message);
+    }
+    try {
+      await importLegacyWorkshop();
+    } catch (error) {
+      console.error('Legacy Workshop import skipped:', error.message);
     }
   }
 
