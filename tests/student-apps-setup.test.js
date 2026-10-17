@@ -83,3 +83,18 @@ test('Lead Teachers can reveal optional access without changing automatic core r
   assert.match(html, /class="sa-role-form"/);
   assert.doesNotMatch(html, /class="module-form"/);
 });
+
+test('user access information and action buttons are inside the Step 3 panel', async () => {
+  const html = await render({
+    app: {
+      id: 1, slug: 'guidance-counsellor-app', name: 'Guidance Counsellor App',
+      status: 'active', roles_mapped_at: '2026-10-17', app_roles: []
+    }
+  });
+  const panel = html.match(/<section class="panel">\s*<h2>[^\n]*Step 3 &mdash; App access(?:(?!<\/section>)[\s\S])*<\/section>/);
+  assert.ok(panel);
+  assert.match(panel[0], /<h3>Who can use it<\/h3>/);
+  assert.match(panel[0], /2 role assignment|1 role assignment/);
+  assert.match(panel[0], /Assign user roles/);
+  assert.match(panel[0], /Open the app/);
+});
