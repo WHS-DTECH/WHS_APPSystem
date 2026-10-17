@@ -1,0 +1,1 @@
+ALTER TABLE student_apps ALTER COLUMN app_url DROP NOT NULL;

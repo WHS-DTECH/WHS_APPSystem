@@ -246,13 +246,13 @@ router.post('/new', async (req, res, next) => {
       roles: [].concat(req.body.roles || []),
       client_id: String(req.body.client_id || '').trim()
     };
-    const url = cleanUrl(form.app_url);
+    const url = form.app_url ? cleanUrl(form.app_url) : null;
     const slugBase = slugify(form.name);
     const choices = await clientChoices();
     const client = form.client_id ? choices.find((row) => row.email === form.client_id.toLowerCase()) : null;
     const error = !form.name ? 'Give your project a name.'
       : !slugBase ? 'The name needs some letters or numbers.'
-      : !url ? 'Enter the full web address of your app, starting with https://'
+      : form.app_url && !url ? 'The web address must be a full address starting with https://'
       : !client ? 'Choose who your client is.'
       : null;
     if (error) return await renderNew(res, 400, error, form);
@@ -328,6 +328,20 @@ router.post('/:slug/roles', async (req, res, next) => {
   }
 });
 
+router.post('/:slug/url', async (req, res, next) => {
+  try {
+    const app = await loadApp(req.params.slug);
+    if (!app || !canManage(req.user, app)) return res.status(403).render('error', { title: 'Access denied', message: 'You cannot change this app.' });
+    const raw = String(req.body.app_url || '').trim();
+    const url = raw ? cleanUrl(raw) : null;
+    if (raw && !url) return res.status(400).render('error', { title: 'Check the address', message: 'The web address must be a full address starting with https://' });
+    await query('UPDATE student_apps SET app_url = $1 WHERE id = $2', [url, app.id]);
+    return res.redirect(`/student-apps/${app.slug}`);
+  } catch (error) {
+    return next(error);
+  }
+});
+
 router.get('/:slug/open', async (req, res, next) => {
   try {
     const app = await loadApp(req.params.slug);
@@ -348,6 +362,7 @@ router.get('/:slug/launch', async (req, res, next) => {
     if (!roles.length && !canManage(req.user, app)) {
       return res.status(403).render('error', { title: 'No access', message: `You have not been given a role in ${app.name}. Ask its Lead Teacher.` });
     }
+    if (!app.app_url) return res.status(400).render('error', { title: 'No web address', message: 'Add the app\'s web address on its set-up page first.' });
     const code = crypto.randomBytes(24).toString('hex');
     await query(
       `INSERT INTO student_app_login_codes (code, app_id, user_id, expires_at)
