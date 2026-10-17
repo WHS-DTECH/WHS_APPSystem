@@ -43,6 +43,13 @@ function injectGlobalNav(req, res, next) {
     if (chunk) chunks.push(toBuffer(chunk, encoding));
     const original = Buffer.concat(chunks);
     let html = original.toString('utf8');
+    const pagePath = req.originalUrl.split('?')[0];
+    const guidancePage = /^\/(?:apps|student-apps)\/guidance-counsellor-app(?:\/|$)/.test(pagePath)
+      || pagePath === '/hubs/app-guidance-counsellor-app/roles';
+    if (guidancePage && /<\/head\s*>/i.test(html) && /<\/body>/i.test(html)) {
+      html = html.replace(/<\/head\s*>/i, '<link rel="stylesheet" href="/guidance-navigation.css">\n</head>')
+        .replace(/<\/body>/i, '<script src="/guidance-navigation.js" defer></script>\n</body>');
+    }
     const footer = res.locals.studentAppFooter;
     if (footer && /<body\b[^>]*>/i.test(html) && /<\/body>/i.test(html)) {
       const registered = new Date(footer.registeredAt);
@@ -95,7 +102,9 @@ function navData(query, canManageHubRoles, datasetManagerUrl) {
         : [];
       let assignRolesUrl = null;
       let datasetUrl = null;
-      const appPath = String(req.query.path || '').match(/^\/(?:apps|student-apps)\/([a-z0-9-]+)(?:\/|$)/);
+      const currentPath = String(req.query.path || '');
+      const appPath = currentPath.match(/^\/(?:apps|student-apps)\/([a-z0-9-]+)(?:\/|$)/)
+        || currentPath.match(/^\/hubs\/app-([a-z0-9-]+)\/roles(?:\/|$)/);
       if (user && appPath) {
         const app = (await query('SELECT hub_key FROM student_apps WHERE slug = $1', [appPath[1]])).rows[0];
         if (app && await canManageHubRoles(user, app.hub_key)) {

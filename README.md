@@ -108,6 +108,11 @@ Sync Spreadsheets is on the Dataset Manager page, reached through avatar Setting
 rather than the toolbar. It remains ADMIN-only and returns its result to Students.
 The hosted Guidance app omits the legacy top toolbar entirely, retaining its
 sidebar navigation and the shared Google avatar menu.
+The shared SEND-C app sidebar is also loaded on Dataset Manager, app setup and
+the Guidance Assign User Roles page. It preserves existing contextual actions
+(such as Add Student), supplies New Session on other pages, and uses a compact
+navigation row on mobile. Settings links retain the current app context on the
+role-assignment page. Authorization remains enforced by the existing routes.
 
 Run the isolated Python regressions with
 `python tests\guidance_global_roles_test.py -v` (Flask and the app requirements

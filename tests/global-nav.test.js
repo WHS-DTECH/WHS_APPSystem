@@ -165,7 +165,7 @@ test('account role link uses the current app and the global role-management perm
     }));
   }, async (base) => {
     for (const user of ['admin', 'lead-teacher', 'builder', 'counsellor', 'student', '']) {
-      for (const appPath of ['/apps/guidance-counsellor-app/dashboard', '/student-apps/guidance-counsellor-app']) {
+      for (const appPath of ['/apps/guidance-counsellor-app/dashboard', '/student-apps/guidance-counsellor-app', '/hubs/app-guidance-counsellor-app/roles']) {
         const data = await (await fetch(`${base}/nav-data?user=${user}&path=${encodeURIComponent(appPath)}`)).json();
         assert.equal(data.assignRolesUrl, ['admin', 'lead-teacher'].includes(user) ? '/hubs/app-guidance-counsellor-app/roles' : null);
         assert.equal(data.datasetManagerUrl, user && user !== 'student' ? '/apps/guidance-counsellor-app/infrastructure' : null);
@@ -176,8 +176,27 @@ test('account role link uses the current app and the global role-management perm
       assert.equal(data.assignRolesUrl, null);
       assert.equal(data.datasetManagerUrl, null);
     }
-    assert.equal(checks.length, 10);
+    assert.equal(checks.length, 15);
     assert.ok(checks.every(([, hubKey]) => hubKey === 'app-guidance-counsellor-app'));
+  });
+});
+
+test('Guidance navigation assets cover app pages, setup and role settings only once', async () => {
+  await withServer((app) => {
+    app.use((req, res) => res.send('<html><head></head><body><main>Page</main></body></html>'));
+  }, async (base) => {
+    for (const route of ['/apps/guidance-counsellor-app/dashboard', '/apps/guidance-counsellor-app/infrastructure',
+      '/apps/guidance-counsellor-app/students/edit', '/apps/guidance-counsellor-app/students/sync-spreadsheets',
+      '/student-apps/guidance-counsellor-app', '/hubs/app-guidance-counsellor-app/roles?q=Teacher']) {
+      const html = await (await fetch(base + route)).text();
+      assert.equal((html.match(/src="\/guidance-navigation.js"/g) || []).length, 1);
+      assert.match(html, /href="\/guidance-navigation.css"/);
+      assert.ok(html.indexOf('/guidance-navigation.js') < html.indexOf('/global-nav.js'));
+    }
+    for (const route of ['/profile', '/apps/another-app/dashboard', '/hubs/food-room/roles']) {
+      const html = await (await fetch(base + route)).text();
+      assert.doesNotMatch(html, /guidance-navigation/);
+    }
   });
 });
 
