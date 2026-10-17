@@ -44,6 +44,18 @@ test('global nav script is injected into static and rendered html pages only onc
   });
 });
 
+test('cached pages without the script are refetched in full', async () => {
+  await withServer((app) => {
+    app.get('/page', (req, res) => res.send('<html><body>Hi</body></html>'));
+  }, async (base) => {
+    const first = await fetch(`${base}/page`, { headers: { Accept: 'text/html' } });
+    assert.equal(first.headers.get('etag'), null);
+    const again = await fetch(`${base}/page`, { headers: { Accept: 'text/html', 'If-None-Match': 'W/"anything"' } });
+    assert.equal(again.status, 200);
+    assert.match(await again.text(), /global-nav\.js/);
+  });
+});
+
 test('nav-data returns the module links for a signed in user and none for anonymous visitors', async () => {
   const query = async () => ({ rows: [{ display_name: 'Food Room Hub', path: '/food-room' }] });
   await withServer((app) => {

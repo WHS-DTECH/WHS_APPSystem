@@ -4,6 +4,12 @@ const SCRIPT_TAG = '<script src="/global-nav.js" defer></script>';
 function injectGlobalNav(req, res, next) {
   if (req.method !== 'GET') return next();
 
+  // Pages cached before the script existed would otherwise keep answering 304 Not Modified.
+  if (String(req.headers.accept || '').includes('text/html')) {
+    delete req.headers['if-none-match'];
+    delete req.headers['if-modified-since'];
+  }
+
   const write = res.write.bind(res);
   const end = res.end.bind(res);
   let chunks = null;
@@ -46,6 +52,9 @@ function injectGlobalNav(req, res, next) {
     }
 
     const output = Buffer.from(`${html.slice(0, index)}${SCRIPT_TAG}\n${html.slice(index)}`, 'utf8');
+    res.removeHeader('ETag');
+    res.removeHeader('Last-Modified');
+    res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Content-Length', output.length);
     return end(output, callback);
   };
