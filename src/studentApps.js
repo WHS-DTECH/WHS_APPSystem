@@ -228,7 +228,7 @@ async function renderNew(res, status, error, form) {
 
 router.get('/new', async (req, res, next) => {
   try {
-    await renderNew(res, 200, null, { roles: ['teacher', 'student'] });
+    await renderNew(res, 200, null, { roles: ['lead-teacher'] });
   } catch (error) {
     next(error);
   }
