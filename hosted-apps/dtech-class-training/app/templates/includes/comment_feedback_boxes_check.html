@@ -1,0 +1,177 @@
+<div class="feedback-flex-row" style="gap: 2em;">
+  <div class="feedback-box" style="min-width: 340px; max-width: 480px; width: 100%;">
+    <div class="box-title">Python</div>
+    <div class="feedback-desc">
+<pre>
+Program Name: Quiz Game
+Purpose: This program asks the user multiple questions and keeps track of their score.
+User Input: Answers entered as text
+Output: Final score displayed at the end
+</pre>
+      <b>File / Program Header Comment</b><br>
+      <pre>"""
+Program Name: Quiz Game
+Purpose: This program asks the user multiple questions and keeps track of their score.
+User Input: Answers entered as text
+Output: Final score displayed at the end
+"""</pre>
+      <b>Section Comment (Logic Explanation)</b><br>
+      <pre># This section checks the user's answer and updates the score
+if answer.lower() == correct_answer:
+    score += 1</pre>
+      <b>Inline Comment (Clarifying a Line)</b><br>
+      <pre>attempts -= 1  # Reduce attempts each time the user guesses incorrectly</pre>
+      <b>DEBUG Comment</b><br>
+      <pre># DEBUG:
+# TEST: Entered letters instead of a number
+# ISSUE: Program crashed with ValueError
+# FIX: Used try/except to handle invalid input
+
+try:
+    age = int(input("Enter your age: "))
+except ValueError:
+    print("Please enter a valid number")</pre>
+    </div>
+  </div>
+  <div class="feedback-box" style="min-width: 340px; max-width: 480px; width: 100%;">
+    <div class="box-title">Javascript</div>
+    <div class="feedback-desc">
+      <b>File Header Comment</b><br>
+      <pre>Program Name: Quiz Game
+Purpose: This program asks the user multiple questions and keeps track of their score.
+User Input: Answers entered as text
+Output: Final score displayed at the end</pre>
+      <b>Function Comment</b><br>
+      <pre>// This function checks if the name input is empty
+function validateName() {
+    if (nameInput.value.length === 0) {
+        alert("Name is required");
+        return false;
+    }
+}</pre>
+      <b>Inline Comment</b><br>
+      <pre>score += 10; // Increase score for correct answer</pre>
+      <b>DEBUG Comment</b><br>
+      <pre>// DEBUG:
+// TEST: Clicked submit with empty email field
+// ISSUE: Form submitted without error
+// FIX: Added input length check before submit
+
+if (email.value.length === 0) {
+    alert("Email is required");
+</pre>
+    </div>
+  </div>
+  <div class="feedback-flex-row" style="gap: 2em; flex-wrap: wrap;">
+    <div class="feedback-box" style="min-width: 340px; max-width: 480px; width: 100%;">
+      <div class="box-title">HTML</div>
+      <div class="feedback-desc">
+  <b>Page Purpose Comment</b><br>
+  <pre>&lt;!--
+Page: Quiz Home Page
+Purpose: Allows users to start the quiz and view instructions
+--&gt;</pre>
+  <b>Section Comment</b><br>
+  <pre>&lt;!-- User input section --&gt;
+&lt;label for="username"&gt;Username:&lt;/label&gt;
+&lt;input type="text" id="username"&gt;</pre>
+  <b>Accessibility / UX Comment</b><br>
+  <pre>&lt;!-- Error message displayed when input validation fails --&gt;
+&lt;p id="error-message"&gt;&lt;/p&gt;</pre>
+  <b>DEBUG Comment</b><br>
+  <pre>&lt;!--
+DEBUG:
+TEST: Submitted form without entering name
+ISSUE: Form still submitted
+FIX: Added required attribute to input
+--&gt;
+&lt;input type="text" required&gt;</pre>
+      </div>
+    </div>
+    <div class="feedback-box" style="min-width: 340px; max-width: 480px; width: 100%;">
+      <div class="box-title">CSS</div>
+      <div class="feedback-desc">
+      <b>File Header Comment</b><br>
+      <pre>/*
+Program Name: Quiz Game
+Purpose: This program asks the user multiple questions and keeps track of their score.
+User Input: Answers entered as text
+Output: Final score displayed at the end
+*/</pre>
+      <b>Section Comment</b><br>
+      <pre>/* This section styles the score display */
+#score {
+    font-weight: bold;
+    color: green;
+}</pre>
+      <b>Inline Comment</b><br>
+      <pre>margin-top: 10px; /* Add space above the element */</pre>
+      <b>DEBUG Comment</b><br>
+      <pre>/* DEBUG:
+TEST: Score text not visible on dark background
+ISSUE: Insufficient contrast
+FIX: Changed color to white for better visibility
+*/
+#score {
+    color: white;
+}</pre>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="feedback-flex-row" style="gap: 2em;">
+  <div class="feedback-box" style="min-width: 340px; max-width: 480px; width: 100%;">
+      <div class="box-title">HTML</div>
+      <div class="feedback-desc">
+  <b>Page Purpose Comment</b><br>
+  <pre>&lt;!--
+Page: Quiz Home Page
+Purpose: Allows users to start the quiz and view instructions
+--&gt;</pre>
+  <b>Section Comment</b><br>
+  <pre>&lt;!-- User input section --&gt;
+&lt;label for="username"&gt;Username:&lt;/label&gt;
+&lt;input type="text" id="username"&gt;</pre>
+  <b>Accessibility / UX Comment</b><br>
+  <pre>&lt;!-- Error message displayed when input validation fails --&gt;
+&lt;p id="error-message"&gt;&lt;/p&gt;</pre>
+  <b>DEBUG Comment</b><br>
+  <pre>&lt;!--
+DEBUG:
+TEST: Submitted form without entering name
+ISSUE: Form still submitted
+FIX: Added required attribute to input
+--&gt;
+&lt;input type="text" required&gt;</pre>
+      </div>
+    </div>
+  <div class="feedback-box" style="min-width: 340px; max-width: 480px; width: 100%;">
+    <div class="box-title">CSS</div>
+    <div class="feedback-desc">
+      <b>File Header Comment</b><br>
+      <pre>/*
+Program Name: Quiz Game
+Purpose: This program asks the user multiple questions and keeps track of their score.
+User Input: Answers entered as text
+Output: Final score displayed at the end
+*/</pre>
+      <b>Section Comment</b><br>
+      <pre>/* This section styles the score display */
+#score {
+    font-weight: bold;
+    color: green;
+}</pre>
+      <b>Inline Comment</b><br>
+      <pre>margin-top: 10px; /* Add space above the element */</pre>
+      <b>DEBUG Comment</b><br>
+      <pre>/* DEBUG:
+TEST: Score text not visible on dark background
+ISSUE: Insufficient contrast
+FIX: Changed color to white for better visibility
+*/
+#score {
+    color: white;
+}</pre>
+    </div>
+  </div>
+</div>

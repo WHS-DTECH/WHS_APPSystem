@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Introduction of Code Comments{% endblock %}
+
+{% block content %}
+<div class="lesson-view">
+    <div class="breadcrumb">
+        <a href="{{ url_for('courses.view_course', course_id=course.id) }}">{{ course.title }}</a> / Introduction of Code Comments
+    </div>
+    <h1>Introduction of Code Comments</h1>
+    <div style="max-width: 900px; margin: 0 auto 2.5em auto;">
+      <div style="background: #f8fafd; border: 2.5px solid #b3d1e6; border-radius: 0.8em; padding: 2.2em 2em 1.7em 2em; margin-bottom:2.5em; box-shadow:0 2px 8px rgba(179,209,230,0.07);">
+        <div style="font-size:1.35em; font-weight:bold; color:#1a237e; background:#e3f6ff; border-radius:0.5em 0.5em 0 0; padding:0.7em 1.2em 0.6em 1.2em; margin:-2.2em -2em 1.2em -2em;">What are Code Comments?</div>
+        <div style="font-size:1.13em; color:#222; padding:0 0.2em 0.2em 0.2em;">
+          Code comments are notes you write in your code to explain what your code does, why you made certain choices, or to leave reminders for yourself or others. Comments are ignored by the computer when your program runs, but they are essential for making your code readable and maintainable.
+          <br><br>
+          <b>Why Comments Matter?</b><br>
+          Comments help you and others understand your code, especially when you come back to it after some time. They make it easier to spot mistakes, explain tricky logic, and help teams work together on larger projects.
+        </div>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 2em; justify-content: center; margin-bottom: 2.5em; align-items: flex-start;">
+        <div style="flex:2 1 320px; min-width:320px; background:#e3f6ff; border:2.5px solid #b3d1e6; border-radius:0.7em; padding:1.2em 1.3em 1.1em 1.3em; color:#1a237e;">
+          <div style="font-weight:bold; font-size:1.13em; color:#1a237e; margin-bottom:0.3em;">Python</div>
+          <div style="font-weight:bold; color:#1a237e; margin-bottom:0.5em;">Comment Example</div>
+          <pre style="background:#fff; padding:1em; border-radius:.3em; font-size:1.08em; color:#1a237e;"># This function adds two numbers
+def add(a, b):
+    return a + b</pre>
+        </div>
+        <div style="flex:2 1 320px; min-width:320px; background:#e3f6ff; border:2.5px solid #b3d1e6; border-radius:0.7em; padding:1.2em 1.3em 1.1em 1.3em; color:#1a237e;">
+          <div style="font-weight:bold; font-size:1.13em; color:#1a237e; margin-bottom:0.3em;">Javascript</div>
+          <div style="font-weight:bold; color:#1a237e; margin-bottom:0.5em;">Comment Example</div>
+          <pre style="background:#fff; padding:1em; border-radius:.3em; font-size:1.08em; color:#1a237e;">// This function adds two numbers
+function add(a, b) {
+    return a + b;
+}</pre>
+        </div>
+        <div style="flex:2 1 320px; min-width:320px; background:#e3f6ff; border:2.5px solid #b3d1e6; border-radius:0.7em; padding:1.2em 1.3em 1.1em 1.3em; color:#1a237e;">
+          <div style="font-weight:bold; font-size:1.13em; color:#1a237e; margin-bottom:0.3em;">HTML</div>
+          <div style="font-weight:bold; color:#1a237e; margin-bottom:0.5em;">Comment Example</div>
+          <pre style="background:#fff; padding:1em; border-radius:.3em; font-size:1.08em; color:#1a237e;">&lt;!-- This is a comment in HTML --&gt;
+&lt;p&gt;Hello, world!&lt;/p&gt;</pre>
+        </div>
+        <div style="flex:2 1 320px; min-width:320px; background:#e3f6ff; border:2.5px solid #b3d1e6; border-radius:0.7em; padding:1.2em 1.3em 1.1em 1.3em; color:#1a237e;">
+          <div style="font-weight:bold; font-size:1.13em; color:#1a237e; margin-bottom:0.3em;">CSS</div>
+          <div style="font-weight:bold; color:#1a237e; margin-bottom:0.5em;">Comment Example</div>
+          <pre style="background:#fff; padding:1em; border-radius:.3em; font-size:1.08em; color:#1a237e;">/* This is a comment in CSS */
+body {
+    background-color: #f0f0f0;
+}</pre>
+        </div>
+        <div style="flex:1 1 320px; min-width:320px; margin-left:2em; align-self:stretch; display:flex; flex-direction:column; gap:2em;">
+          <div style="display: flex; flex-direction: column; gap: 0;">
+            <div style="flex:1; background:#f8fafd; border:1.5px solid #b3d1e6; border-right:none; border-radius:0.7em 0 0 0.7em; padding:1.3em 1.3em 1.1em 1.3em; color:#1a237e;">
+              <div style="font-weight:bold; font-size:1.13em; margin-bottom:0.7em;">Conventions 1–4</div>
+              <ul style="margin-bottom:0;">
+                <li><b>Be clear and concise.</b><br><span style="font-size:0.98em; color:#222;">Write comments that are easy to understand and get to the point quickly.</span></li>
+                <li><b>Keep comments up to date.</b><br><span style="font-size:0.98em; color:#222;">Update or remove comments as code changes.</span></li>
+                <li><b>Explain why, not just what.</b><br><span style="font-size:0.98em; color:#222;">Describe the reasoning behind code decisions.</span></li>
+                <li><b>Use proper grammar and spelling.</b><br><span style="font-size:0.98em; color:#222;">Professional comments are easier to read and maintain.</span></li>
+              </ul>
+            </div>
+            <div style="flex:1; background:#fffbe6; border:1.5px solid #ffe066; border-radius:0 0.7em 0.7em 0; border-left:none; padding:1.3em 1.3em 1.1em 1.3em; color:#222; margin-top:1.2em;">
+              <div style="font-weight:bold; font-size:1.13em; margin-bottom:0.7em;">Conventions 5–7</div>
+              <ul style="margin-bottom:0;">
+                <li><b>Use TODO/FIXME/NOTE tags.</b><br><span style="font-size:0.98em; color:#222;">Mark places in the code that need attention or improvement.</span></li>
+                <li><b>Remove commented-out code.</b><br><span style="font-size:0.98em; color:#222;">Keep the codebase clean by deleting unused code.</span></li>
+                <li><b>Use the correct comment syntax.</b><br><span style="font-size:0.98em; color:#222;">Use <b>#</b> for Python, <b>//</b> and <b>/* ... */</b> for JS, <b>&lt;!-- ... --&gt;</b> for HTML, and <b>/* ... */</b> for CSS.</span></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="background: #e3f6ff; border: 2px solid #b3d1e6; border-radius: 0.7em; padding: 1.5em 1.5em 1.2em 1.5em; margin-bottom:2.5em; color:#1a237e;">
+          <div style="font-weight:bold; font-size:1.18em; margin-bottom:0.7em;">Why Comments Matter</div>
+          <ul style="margin-bottom:1.2em;">
+            <li><b>Clarity:</b> Comments help others (and your future self) understand complex code.</li>
+            <li><b>Maintainability:</b> Good comments make it easier to update and debug code.</li>
+            <li><b>Collaboration:</b> Comments communicate intent and important details to teammates.</li>
+          </ul>
+          <div style="font-weight:bold; font-size:1.13em; margin-bottom:0.5em;">The Comment Hierarchy</div>
+          <ol style="margin-bottom:1.2em;">
+            <li><b>Best:</b> Self-documenting code that needs no comments</li>
+            <li><b>Good:</b> Clear code with minimal, meaningful comments</li>
+            <li><b>Acceptable:</b> Comments to explain complex logic or intent</li>
+            <li><b>Bad:</b> Excessive comments explaining obvious code</li>
+            <li><b>Worst:</b> Misleading or outdated comments</li>
+          </ol>
+          <div style="font-weight:bold; font-size:1.13em; margin-bottom:0.5em;">When to Comment</div>
+          <ul>
+            <li>To explain <b>why</b> something is done, not just <b>what</b> the code does</li>
+            <li>For complex algorithms, business rules, or workarounds</li>
+            <li>To warn about side effects or important caveats</li>
+            <li>For documenting APIs, parameters, and return values</li>
+          </ul>
+        </div>
+      <div style="background: #fffbe6; border: 2px solid #ffe066; border-radius: 0.7em; padding: 1.5em 1.5em 1.2em 1.5em; margin-bottom:2.5em; color:#222;">
+          <div style="font-weight:bold; font-size:1.18em; margin-bottom:0.7em;">Best Practices for Comments</div>
+          <ul style="margin-bottom:1.2em;">
+            <li><b>Be concise and clear.</b> Avoid unnecessary words and get to the point.</li>
+            <li><b>Keep comments up to date.</b> Revise or remove comments as code changes.</li>
+            <li><b>Use proper grammar and spelling.</b> Professional comments are easier to read and maintain.</li>
+            <li><b>Use TODO, FIXME, NOTE tags</b> to highlight areas needing attention.</li>
+            <li><b>Remove commented-out code.</b> Use version control for history.</li>
+            <li><b>Use the correct syntax:</b> <code>#</code> for Python, <code>//</code> or <code>/* ... */</code> for JS, <code>&lt;!-- ... --&gt;</code> for HTML.</li>
+          </ul>
+          <div style="font-weight:bold; font-size:1.13em; margin-bottom:0.5em;">Comment Maintenance</div>
+          <ul style="margin-bottom:1.2em;">
+            <li>Review comments during code reviews</li>
+            <li>Delete or update comments for removed or changed code</li>
+            <li>Strive for code that needs fewer comments by improving naming and structure</li>
+          </ul>
+          <div style="background:#f8fafd; border-left:4px solid #b3d1e6; padding:0.7em 1em; border-radius:.3em; font-size:1.08em; color:#1a237e; margin-top:1em;">
+            <em>"Code tells you how, comments tell you why."</em><br>
+            <span style="font-size:0.98em;">- Jeff Atwood, Co-founder of Stack Overflow</span>
+          </div>
+        </div>
+      <div style="background: #f8fafd; border: 2.5px solid #b3d1e6; border-radius: 0.8em; padding: 2em 2em 1.7em 2em; margin-bottom:2.5em; box-shadow:0 2px 8px rgba(179,209,230,0.07);">
+        <div style="font-size:1.25em; font-weight:bold; color:#1a237e; margin-bottom:1.2em;"><span style="font-size:1.1em; margin-right:0.5em;">📝</span>Practice Activities</div>
+        <div style="font-size:1.7em; font-weight:500; margin-bottom:1.2em; color:#222;">Practice: Add Comments</div>
+        <ol style="font-size:1.13em; color:#222;">
+          <li style="margin-bottom:1.2em;">
+            <b>Example 1:</b><br>
+            <pre style="display:inline-block; background:#fff; padding:0.7em 1em; border-radius:.3em; font-size:1.08em; margin-bottom:0.5em;">def multiply(a, b):
+    return a * b</pre><br>
+            Add a comment to explain what this function does: <input type="text" style="width:320px;"> <button type="button">Check</button>
+          </li>
+          <li style="margin-bottom:1.2em;">
+            <b>Example 2:</b><br>
+            <pre style="display:inline-block; background:#fff; padding:0.7em 1em; border-radius:.3em; font-size:1.08em; margin-bottom:0.5em;">// This function greets a user
+function greet(name) {
+    return "Hello, " + name;
+}</pre><br>
+            Add a comment to explain what this function does: <input type="text" style="width:320px;"> <button type="button">Check</button>
+          </li>
+          <li style="margin-bottom:1.2em;">
+            <b>Example 3:</b><br>
+            <pre style="display:inline-block; background:#fff; padding:0.7em 1em; border-radius:.3em; font-size:1.08em; margin-bottom:0.5em;">&lt;!-- This is the main heading --&gt;
+&lt;h1&gt;Welcome!&lt;/h1&gt;</pre><br>
+            Add a comment to explain what this code does: <input type="text" style="width:320px;"> <button type="button">Check</button>
+          </li>
+          <li style="margin-bottom:1.2em;">
+            <b>Example 4:</b><br>
+            <pre style="display:inline-block; background:#fff; padding:0.7em 1em; border-radius:.3em; font-size:1.08em; margin-bottom:0.5em;">/* This CSS rule styles the button */
+.button {
+    color: white;
+}</pre><br>
+            Add a comment to explain what this CSS rule does: <input type="text" style="width:320px;"> <button type="button">Check</button>
+          </li>
+        </ol>
+      </div>
+    </div>
+</div>
+{% endblock %}

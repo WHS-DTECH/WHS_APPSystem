@@ -1,0 +1,12 @@
+{
+  "name": "DTECH Class Training",
+  "module": "whs_training:app",
+  "databaseEnv": "CLASS_TRAINING_DATABASE_URL",
+  "mountPath": "/dtech-hub/class-training",
+  "hubKey": "dtech-hub",
+  "env": {
+    "FLASK_CONFIG": "production",
+    "WHS_ROOT_ROUTE": "/home",
+    "WHS_EXIT_URL": "/dtech-hub/"
+  }
+}

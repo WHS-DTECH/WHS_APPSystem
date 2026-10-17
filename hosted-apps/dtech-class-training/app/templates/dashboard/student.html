@@ -1,0 +1,107 @@
+{% macro student_dashboard(preview_user, preview_enrollments, preview_pending_assignments) %}
+<div class="dashboard">
+    <h1>Welcome back, {{ preview_user.first_name if preview_user else 'Student' }}!</h1>
+    <div class="dashboard-grid">
+        <div class="dashboard-section">
+            <h2>My Courses</h2>
+            {% if preview_enrollments and preview_enrollments|length > 0 %}
+                <div class="course-list">
+                    {% for enrollment in preview_enrollments %}
+                        <div class="course-card">
+                            <h3><a href="{{ url_for('courses.view_course', course_id=enrollment.course.id) }}">{{ enrollment.course.title }}</a></h3>
+                            <p>{{ enrollment.course.description[:100] }}...</p>
+                            <div class="course-meta">
+                                <span>Teacher: {{ enrollment.course.teacher.first_name }} {{ enrollment.course.teacher.last_name }}</span>
+                                <span>Enrolled: {{ enrollment.enrolled_at.strftime('%Y-%m-%d') }}</span>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-muted">You are not enrolled in any courses yet.</p>
+                <a href="{{ url_for('courses.list_courses') }}" class="btn btn-primary">Browse Courses</a>
+            {% endif %}
+        </div>
+        <div class="dashboard-section">
+            <h2>Pending Assignments</h2>
+            {% if preview_pending_assignments and preview_pending_assignments|length > 0 %}
+                <div class="assignment-list">
+                    {% for assignment in preview_pending_assignments %}
+                        <div class="assignment-item">
+                            <a href="{{ url_for('assignments.view_assignment', assignment_id=assignment.id) }}">
+                                {{ assignment.title }}
+                            </a>
+                            <span class="due-date">
+                                {% if assignment.due_date %}
+                                    Due: {{ assignment.due_date.strftime('%Y-%m-%d %H:%M') }}
+                                {% else %}
+                                    No due date
+                                {% endif %}
+                            </span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-muted">No pending assignments</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endmacro %}
+    <h1>Welcome back, {{ preview_user.first_name if preview_user is defined and preview_user else 'Student' }}!</h1>
+    <div class="dashboard-grid">
+        <div class="dashboard-section">
+            <h2>My Courses</h2>
+            {% if preview_enrollments is defined and preview_enrollments is not none %}
+                {% set enrolls = preview_enrollments %}
+            {% else %}
+                {% set enrolls = enrollments %}
+            {% endif %}
+            {% if enrolls and enrolls|length > 0 %}
+                <div class="course-list">
+                    {% for enrollment in enrolls %}
+                        <div class="course-card">
+                            <h3><a href="{{ url_for('courses.view_course', course_id=enrollment.course.id) }}">{{ enrollment.course.title }}</a></h3>
+                            <p>{{ enrollment.course.description[:100] }}...</p>
+                            <div class="course-meta">
+                                <span>Teacher: {{ enrollment.course.teacher.first_name }} {{ enrollment.course.teacher.last_name }}</span>
+                                <span>Enrolled: {{ enrollment.enrolled_at.strftime('%Y-%m-%d') }}</span>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-muted">You are not enrolled in any courses yet.</p>
+                <a href="{{ url_for('courses.list_courses') }}" class="btn btn-primary">Browse Courses</a>
+            {% endif %}
+        </div>
+        <div class="dashboard-section">
+            <h2>Pending Assignments</h2>
+            {% if preview_pending_assignments is defined and preview_pending_assignments is not none %}
+                {% set pendings = preview_pending_assignments %}
+            {% else %}
+                {% set pendings = pending_assignments %}
+            {% endif %}
+            {% if pendings and pendings|length > 0 %}
+                <div class="assignment-list">
+                    {% for assignment in pendings %}
+                        <div class="assignment-item">
+                            <a href="{{ url_for('assignments.view_assignment', assignment_id=assignment.id) }}">
+                                {{ assignment.title }}
+                            </a>
+                            <span class="due-date">
+                                {% if assignment.due_date %}
+                                    Due: {{ assignment.due_date.strftime('%Y-%m-%d %H:%M') }}
+                                {% else %}
+                                    No due date
+                                {% endif %}
+                            </span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-muted">No pending assignments</p>
+            {% endif %}
+        </div>
+    </div>
+</div>

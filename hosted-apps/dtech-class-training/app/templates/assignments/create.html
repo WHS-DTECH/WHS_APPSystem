@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}Create Assignment - {{ course.title }}{% endblock %}
+
+{% block content %}
+<style>
+    .assignment-form-container {
+        max-width: 900px;
+        margin: 2rem auto;
+        padding: 2rem;
+        background: white;
+        border-radius: 0.8em;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .form-header {
+        margin-bottom: 2rem;
+        border-bottom: 3px solid #5c0e2a;
+        padding-bottom: 1rem;
+    }
+
+    .form-header h1 {
+        margin: 0 0 0.5rem 0;
+        color: #5c0e2a;
+        font-size: 2em;
+    }
+
+    .form-header p {
+        margin: 0;
+        color: #666;
+        font-size: 1em;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: #333;
+        font-size: 0.95em;
+    }
+
+    .form-group input[type="text"],
+    .form-group input[type="datetime-local"],
+    .form-group input[type="number"],
+    .form-group textarea,
+    .form-group select {
+        width: 100%;
+        padding: 0.8rem;
+        border: 1px solid #ddd;
+        border-radius: 0.4em;
+        font-size: 1em;
+        font-family: inherit;
+        transition: border-color 0.2s;
+    }
+
+    .form-group input[type="text"]:focus,
+    .form-group input[type="datetime-local"]:focus,
+    .form-group input[type="number"]:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: #5c0e2a;
+        box-shadow: 0 0 0 3px rgba(92, 14, 42, 0.1);
+    }
+
+    .form-group textarea {
+        resize: vertical;
+        min-height: 150px;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+    }
+
+    .btn-primary, .btn-secondary {
+        padding: 0.8rem 1.5rem;
+        border-radius: 0.4em;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        font-size: 1em;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-primary {
+        background: #5c0e2a;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #7a1d3e;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(92, 14, 42, 0.2);
+    }
+
+    .btn-secondary {
+        background: #f0f0f0;
+        color: #333;
+        border: 1px solid #ddd;
+    }
+
+    .btn-secondary:hover {
+        background: #e8e8e8;
+        border-color: #999;
+    }
+
+    .form-help {
+        font-size: 0.85em;
+        color: #666;
+        margin-top: 0.3rem;
+    }
+
+    .error-message {
+        color: #dc3545;
+        font-size: 0.85em;
+        margin-top: 0.3rem;
+    }
+
+    .field-error {
+        border-color: #dc3545 !important;
+    }
+
+    @media (max-width: 768px) {
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+
+        .assignment-form-container {
+            padding: 1.5rem;
+        }
+
+        .form-header h1 {
+            font-size: 1.5em;
+        }
+    }
+</style>
+
+<div class="assignment-form-container">
+    <div class="form-header">
+        <h1><i class="fas fa-plus-circle"></i> Create Assignment</h1>
+        <p>Course: {{ course.title }}</p>
+    </div>
+
+    <form method="POST" novalidate>
+        {{ form.hidden_tag() }}
+
+        <!-- Title -->
+        <div class="form-group">
+            {{ form.title.label }}
+            {{ form.title(class="form-control" + (" field-error" if form.title.errors else "")) }}
+            {% if form.title.errors %}
+                <div class="error-message">
+                    {% for error in form.title.errors %}
+                        <div>{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            <div class="form-help">Enter a descriptive title for the assignment</div>
+        </div>
+
+        <!-- Description -->
+        <div class="form-group">
+            {{ form.description.label }}
+            {{ form.description(class="form-control" + (" field-error" if form.description.errors else "")) }}
+            {% if form.description.errors %}
+                <div class="error-message">
+                    {% for error in form.description.errors %}
+                        <div>{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            <div class="form-help">Provide detailed instructions and requirements for the assignment</div>
+        </div>
+
+        <!-- Due Date and Max Points -->
+        <div class="form-row">
+            <div class="form-group">
+                {{ form.due_date.label }}
+                {{ form.due_date(class="form-control" + (" field-error" if form.due_date.errors else ""), type="datetime-local") }}
+                {% if form.due_date.errors %}
+                    <div class="error-message">
+                        {% for error in form.due_date.errors %}
+                            <div>{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                <div class="form-help">When the assignment is due (optional)</div>
+            </div>
+
+            <div class="form-group">
+                {{ form.max_points.label }}
+                {{ form.max_points(class="form-control" + (" field-error" if form.max_points.errors else "")) }}
+                {% if form.max_points.errors %}
+                    <div class="error-message">
+                        {% for error in form.max_points.errors %}
+                            <div>{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                <div class="form-help">Total points possible for this assignment</div>
+            </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="form-actions">
+            {{ form.submit(class="btn-primary") }}
+            <a href="{{ url_for('assignments.list_assignments', course_id=course.id) }}" class="btn-secondary">
+                <i class="fas fa-arrow-left"></i> Cancel
+            </a>
+        </div>
+    </form>
+</div>
+
+<script>
+    // Convert date input to proper format
+    document.addEventListener('DOMContentLoaded', function() {
+        const dateInput = document.querySelector('input[type="datetime-local"]');
+        if (dateInput && dateInput.value) {
+            // Date is already in the right format
+        }
+    });
+</script>
+
+{% endblock %}

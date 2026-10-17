@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}Introduction to Debugging{% endblock %}
+
+{% block content %}
+<div class="lesson-view">
+    <div class="breadcrumb">
+        <a href="{{ url_for('courses.view_course', course_id=course.id) }}">{{ course.title }}</a> / Introduction to Debugging
+    </div>
+    <h1>Introduction to Debugging</h1>
+    <div style="max-width: 900px; margin: 0 auto 2.5em auto;">
+      <div style="background: #fff3f0; border: 2.5px solid #ff7b6b; border-radius: 0.8em; padding: 2.2em 2em 1.7em 2em; margin-bottom:2.5em; box-shadow:0 2px 8px rgba(255,123,107,0.07);">
+        <div style="font-size:1.35em; font-weight:bold; color:#fff; background:#ff6b6b; border-radius:0.5em 0.5em 0 0; padding:0.7em 1.2em 0.6em 1.2em; margin:-2.2em -2em 1.2em -2em;">What is Code Debugging?</div>
+        <div style="font-size:1.13em; color:#222; padding:0 0.2em 0.2em 0.2em;">
+          Code debugging is the process of identifying, isolating, and fixing errors or bugs in your code. It involves understanding how your program works, finding where things go wrong, and correcting mistakes to ensure your code runs as intended.
+          <br><br>
+          <b>Why does Debugging Matter?</b><br>
+          Debugging is a critical skill for programmers because all code—no matter how experienced the developer—will have bugs at some point. Effective debugging helps you solve problems faster, learn from mistakes, and produce reliable, maintainable software. It also builds your problem-solving skills and persistence, which are essential for success in programming.
+        </div>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 2em; justify-content: center; margin-bottom: 2.5em;">
+        <div style="flex:1; min-width:320px; background:#fff8f8; border:2px solid #f8bebe; border-radius:0.7em; padding:1.2em 1.3em 1.1em 1.3em; color:#b71c1c;">
+          <div style="font-weight:bold; font-size:1.13em; color:#b71c1c; margin-bottom:0.3em;">Golden Rule</div>
+          <div style="font-weight:bold; color:#444; font-size:1.05em;">The Golden Rule of Debugging</div>
+          <div style="color:#444; font-size:1.01em;">Don’t make more than one change at a time.<br>When debugging, always change only one thing in your code or environment before testing again. If you change multiple things at once, you won’t know which change fixed (or broke) your code. This rule helps you isolate the cause of a bug and avoid introducing new problems.<br><br>
+            <ul style="margin:0 0 0 1.2em;">
+                <li>Always reproduce the bug before trying to fix it.</li>
+                <li>Understand the problem fully before making changes.</li>
+                <li>Test after each change.</li>
+            </ul>
+          </div>
+        </div>
+        <div style="flex:1; min-width:320px; background:#f8fafd; border:2px solid #b3d1e6; border-radius:0.7em; padding:1.2em 1.3em 1.1em 1.3em; color:#1a237e;">
+          <div style="font-weight:bold; font-size:1.13em; color:#1a237e; margin-bottom:0.3em;">Debug Examples</div>
+          <div style="font-weight:bold; color:#444; font-size:1.05em;">Bad Debug Example</div>
+          <pre style="margin-bottom:0.5em; background:#f4f4f4; padding:1em; border-radius:.3em; font-size:1.08em;">
+# Bad: Making multiple changes at once and not checking results
+def add(a, b):
+    return a - b  # Bug: should be a + b
+# Developer changes both the function and unrelated code, then tests.
+          </pre>
+          <div style="font-weight:bold; color:#444; font-size:1.05em;">Good Debug Example</div>
+          <pre style="background:#f4f4f4; padding:1em; border-radius:.3em; font-size:1.08em;">
+# Good: Change one thing, test, and document
+def add(a, b):
+    return a + b  # Fixed: changed '-' to '+'
+# Test this change before making any others.
+          </pre>
+        </div>
+        <div style="flex:1; min-width:320px; background:#f0f8ff; border:2px solid #b3d1e6; border-radius:0.7em; padding:1.2em 1.3em 1.1em 1.3em; color:#1a237e;">
+          <div style="font-weight:bold; font-size:1.13em; color:#1a237e; margin-bottom:0.3em;">When should I debug?</div>
+          <div style="font-weight:bold; color:#444; font-size:1.05em;">When to Debug</div>
+          <ul style="color:#444; font-size:1.01em; margin:0 0 0 1.2em;">
+            <li>When your code produces errors or unexpected results.</li>
+            <li>When a feature stops working after a change.</li>
+            <li>When you want to understand how a piece of code works.</li>
+            <li>When you need to optimize or refactor code.</li>
+          </ul>
+        </div>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 2em; justify-content: center; margin-bottom: 2.5em;">
+        <div style="flex:1 1 320px; min-width:320px; background:#ffeaea; border:2.5px solid #ff7b6b; border-radius:0.7em; padding:1.2em 1.3em 1.1em 1.3em; color:#1a237e;">
+          <div style="font-weight:bold; font-size:1.13em; color:#fff; background:#ff6b6b; border-radius:0.5em 0.5em 0 0; padding:0.6em 1.2em 0.5em 1.2em; margin:-1.2em -1.3em 1em -1.3em;">Python</div>
+          <div style="font-weight:bold; color:#b71c1c; margin-bottom:0.5em;">Debugging Example</div>
+          <pre style="background:#fff; padding:1em; border-radius:.3em; font-size:1.08em; color:#1a237e;">
+# DEBUG:
+# Test: User entered letters instead of a number
+# Issue: Program crashed with ValueError
+# Fix: Wrapped input in try/except block
+
+try:
+    age = int(input("Enter your age: "))
+except ValueError:
+    print("Please enter a number")
+          </pre>
+        </div>
+        <div style="flex:1 1 320px; min-width:320px; background:#ffeaea; border:2.5px solid #ff7b6b; border-radius:0.7em; padding:1.2em 1.3em 1.1em 1.3em; color:#1a237e;">
+          <div style="font-weight:bold; font-size:1.13em; color:#fff; background:#ff6b6b; border-radius:0.5em 0.5em 0 0; padding:0.6em 1.2em 0.5em 1.2em; margin:-1.2em -1.3em 1em -1.3em;">Javascript</div>
+          <div style="font-weight:bold; color:#b71c1c; margin-bottom:0.5em;">Debugging Example</div>
+          <pre style="background:#fff; padding:1em; border-radius:.3em; font-size:1.08em; color:#1a237e;">// DEBUG:
+// Test: Clicked submit with empty name field
+// Issue: Form still submitted
+// Fix: Added input length check before submit
+
+if (nameInput.value.length === 0) {
+    alert("Name is required");
+    return;
+}
+          </pre>
+        </div>
+        <div style="flex:1 1 320px; min-width:320px; background:#ffeaea; border:2.5px solid #ff7b6b; border-radius:0.7em; padding:1.2em 1.3em 1.1em 1.3em; color:#1a237e;">
+          <div style="font-weight:bold; font-size:1.13em; color:#fff; background:#ff6b6b; border-radius:0.5em 0.5em 0 0; padding:0.6em 1.2em 0.5em 1.2em; margin:-1.2em -1.3em 1em -1.3em;">HTML</div>
+          <div style="font-weight:bold; color:#b71c1c; margin-bottom:0.5em;">Debugging Example</div>
+          <pre style="background:#fff; padding:1em; border-radius:.3em; font-size:1.08em; color:#1a237e;">&lt;!-- DEBUG:
+Test: Submitted form without email
+Issue: No error shown
+Fix: Added required attribute
+--&gt;
+
+&lt;input type="email" required&gt;
+          </pre>
+        </div>
+        <div style="flex:1 1 320px; min-width:320px; background:#ffeaea; border:2.5px solid #ff7b6b; border-radius:0.7em; padding:1.2em 1.3em 1.1em 1.3em; color:#1a237e;">
+          <div style="font-weight:bold; font-size:1.13em; color:#fff; background:#ff6b6b; border-radius:0.5em 0.5em 0 0; padding:0.6em 1.2em 0.5em 1.2em; margin:-1.2em -1.3em 1em -1.3em;">CSS</div>
+          <div style="font-weight:bold; color:#b71c1c; margin-bottom:0.5em;">Debugging Example</div>
+          <pre style="background:#fff; padding:1em; border-radius:.3em; font-size:1.08em; color:#1a237e;">/* DEBUG:
+TEST: Hovered over button expecting colour change
+ISSUE: No hover effect applied
+FIX: Corrected selector from button.hover to button:hover
+*/
+
+button:hover {
+    background-color: green;
+}
+          </pre>
+        </div>
+      </div>
+      <div style="background: #fff8f8; border: 2px solid #f8bebe; border-radius: 0.8em; padding: 2em 2em 1.7em 2em; margin-bottom:2.5em; box-shadow:0 2px 8px rgba(248,190,190,0.07);">
+        <div style="font-size:1.25em; font-weight:bold; color:#d13c3c; margin-bottom:1.2em;"><span style="font-size:1.1em; margin-right:0.5em;">🎯</span>Practice Activities</div>
+        <div style="font-size:1.7em; font-weight:500; margin-bottom:1.2em; color:#222;">Practice: Where Would You Debug?</div>
+        <ol style="font-size:1.13em; color:#222;">
+          <li style="margin-bottom:1.2em;">
+            <b>Example 1:</b><br>
+            <pre style="display:inline-block; background:#fff; padding:0.7em 1em; border-radius:.3em; font-size:1.08em; margin-bottom:0.5em;">def greet(name):
+    print("Hello" + name)
+
+greet()</pre><br>
+            Where would you debug? (describe the line or issue): <input id="debug1" type="text" style="width:320px;"> <button type="button" onclick="checkDebug1()">Check</button> <button type="button" onclick="showSolution('solution1')">Show Solution</button>
+            <div id="feedback1" style="display:inline-block; margin-left:1em;"></div>
+            <div id="solution1" style="display:none; margin-top:0.5em; background:#f4f4f4; border-radius:0.3em; padding:0.7em 1em; color:#b71c1c;">You should debug the function call greet() because it is missing an argument. The error will be a TypeError.</div>
+          </li>
+          <li style="margin-bottom:1.2em;">
+            <b>Example 2:</b><br>
+            <pre style="display:inline-block; background:#fff; padding:0.7em 1em; border-radius:.3em; font-size:1.08em; margin-bottom:0.5em;">numbers = [1, 2, 3, 4, 5]
+for i in range(6):
+    print(numbers[i])</pre><br>
+            Where would you debug? (describe the line or issue): <input id="debug2" type="text" style="width:320px;"> <button type="button" onclick="checkDebug2()">Check</button> <button type="button" onclick="showSolution('solution2')">Show Solution</button>
+            <div id="feedback2" style="display:inline-block; margin-left:1em;"></div>
+            <div id="solution2" style="display:none; margin-top:0.5em; background:#f4f4f4; border-radius:0.3em; padding:0.7em 1em; color:#b71c1c;">You should debug the line print(numbers[i]) because when i=5, numbers[5] is out of range. The error will be an IndexError.</div>
+          </li>
+          <li style="margin-bottom:1.2em;">
+            <b>Example 3:</b><br>
+            <pre style="display:inline-block; background:#fff; padding:0.7em 1em; border-radius:.3em; font-size:1.08em; margin-bottom:0.5em;">def divide(a, b):
+    return a / b
+
+print(divide(10, 0))</pre><br>
+            Where would you debug? (describe the line or issue): <input id="debug3" type="text" style="width:320px;"> <button type="button" onclick="checkDebug3()">Check</button> <button type="button" onclick="showSolution('solution3')">Show Solution</button>
+            <div id="feedback3" style="display:inline-block; margin-left:1em;"></div>
+            <div id="solution3" style="display:none; margin-top:0.5em; background:#f4f4f4; border-radius:0.3em; padding:0.7em 1em; color:#b71c1c;">You should debug the call print(divide(10, 0)) because dividing by zero will cause a ZeroDivisionError.</div>
+          </li>
+          <li style="margin-bottom:1.2em;">
+            <b>Example 4:</b><br>
+            <pre style="display:inline-block; background:#fff; padding:0.7em 1em; border-radius:.3em; font-size:1.08em; margin-bottom:0.5em;">total = 0
+for i in range(5):
+    total = total + i
+print(totals)</pre><br>
+            Where would you debug? (describe the line or issue): <input id="debug4" type="text" style="width:320px;"> <button type="button" onclick="checkDebug4()">Check</button> <button type="button" onclick="showSolution('solution4')">Show Solution</button>
+            <div id="feedback4" style="display:inline-block; margin-left:1em;"></div>
+            <div id="solution4" style="display:none; margin-top:0.5em; background:#f4f4f4; border-radius:0.3em; padding:0.7em 1em; color:#b71c1c;">You should debug the line print(totals) because the variable name is incorrect. The error will be a NameError.</div>
+          </li>
+        </ol>
+      </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/practice_debug_activities.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{{ section.title }}{% endblock %}
+{% block breadcrumbs %}
+<div class="breadcrumb-nav">
+    <a href="{{ url_for('main.dashboard') }}"><i class="fas fa-home"></i> Dashboard</a>
+    <span>/</span>
+    <a href="{{ url_for('courses.list_courses') }}">Courses</a>
+    <span>/</span>
+    <a href="{{ url_for('courses.view_course', course_id=course.id) }}">{{ course.title }}</a>
+    <span>/</span>
+    <a href="{{ url_for('courses.view_lesson', lesson_id=lesson.id) }}">{{ lesson.title }}</a>
+    <span>/</span>
+    <span>{{ section.title }}</span>
+</div>
+{% endblock %}
+{% block content %}
+<div class="lesson-view">
+    <h1>{{ section.title }}</h1>
+    <div style="max-width: 900px; margin: 0 auto 2.5em auto;">
+        {{ section.content|safe }}
+    </div>
+    <a href="{{ url_for('courses.view_course', course_id=course.id) }}" class="lesson-nav-button secondary" style="margin-top:2em;display:inline-block;">
+        <i class="fas fa-book"></i> Back to Course
+    </a>
+</div>
+{% endblock %}

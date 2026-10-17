@@ -1,0 +1,455 @@
+{% extends "base.html" %}
+
+{% block title %}{% if rubric %}Edit{% else %}Create{% endif %} Rubric - {{ assignment.title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Header -->
+            <div class="mb-4">
+                <h3>{% if rubric %}Edit Rubric{% else %}Create Rubric{% endif %}</h3>
+                <p class="text-muted">{{ assignment.title }}</p>
+            </div>
+
+            {% if not rubric %}
+            <!-- NZQA Preset Selection -->
+            <div class="card mb-4 border-info">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-lightbulb me-2"></i>
+                        Quick Start: NZQA Year 9-10 Technology Curriculum Templates
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-3">Select a pre-built rubric based on NZQA Technology Curriculum standards:</p>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-outline-info btn-block w-100 text-start p-3 preset-btn" data-preset="programming_fundamentals">
+                                <h6 class="mb-1"><i class="fas fa-code me-2"></i>Programming Fundamentals</h6>
+                                <small class="text-muted">Year 9-10 • Design, Logic, Code Quality</small>
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-outline-info btn-block w-100 text-start p-3 preset-btn" data-preset="web_development">
+                                <h6 class="mb-1"><i class="fas fa-globe me-2"></i>Web Development</h6>
+                                <small class="text-muted">Year 9-10 • HTML/CSS/JS • UX Design</small>
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-outline-info btn-block w-100 text-start p-3 preset-btn" data-preset="data_structures_algorithms">
+                                <h6 class="mb-1"><i class="fas fa-sitemap me-2"></i>Data Structures & Algorithms</h6>
+                                <small class="text-muted">Year 10 • Efficiency • Problem-Solving</small>
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-outline-info btn-block w-100 text-start p-3 preset-btn" data-preset="capstone_project">
+                                <h6 class="mb-1"><i class="fas fa-trophy me-2"></i>Capstone Project</h6>
+                                <small class="text-muted">Year 10 • Integrated • Comprehensive</small>
+                            </button>
+                        </div>
+                    </div>
+                    <p class="text-muted small mt-3 mb-0">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Each template is aligned with NZQA Technology draft curriculum and includes detailed assessment criteria.
+                    </p>
+                </div>
+            </div>
+
+            <div class="alert alert-secondary mb-4" id="dividerAlert" style="display: none;">
+                <hr class="my-2">
+                <p class="mb-0 text-center"><small>Or create a custom rubric below</small></p>
+            </div>
+            {% endif %}
+
+            <!-- Rubric Form -->
+            <form method="POST" id="rubricForm">
+                <!-- Rubric Title & Description -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0">Rubric Information</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label"><strong>Rubric Title *</strong></label>
+                            <input type="text" 
+                                class="form-control" 
+                                name="title" 
+                                value="{% if rubric %}{{ rubric.title }}{% else %}Default Rubric{% endif %}" 
+                                required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label"><strong>Description</strong></label>
+                            <textarea class="form-control" 
+                                name="description" 
+                                rows="3" 
+                                placeholder="Explain how this rubric should be used...">{% if rubric %}{{ rubric.description }}{% endif %}</textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label"><strong>Total Points</strong></label>
+                            <input type="number" 
+                                class="form-control" 
+                                name="total_points" 
+                                value="{% if rubric %}{{ rubric.total_points }}{% else %}100{% endif %}" 
+                                min="1" 
+                                id="totalPointsInput">
+                            <small class="text-muted">Sum of all criteria points</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Criteria Section -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">Grading Criteria</h6>
+                            <button type="button" class="btn btn-sm btn-primary" id="addCriterionBtn">
+                                <i class="fas fa-plus me-1"></i>Add Criterion
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <input type="hidden" name="action" value="{% if rubric %}update{% else %}create{% endif %}">
+                        <input type="hidden" name="criteria_count" id="criteriaCount" value="{% if rubric %}{{ rubric.criteria | length }}{% else %}1{% endif %}">
+
+                        <div id="criteriaContainer">
+                            {% if rubric and rubric.criteria %}
+                                {% for criterion in rubric.criteria %}
+                                <div class="criterion-item mb-4 pb-4 border-bottom" data-index="{{ loop.index0 }}">
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label"><strong>Criterion Name *</strong></label>
+                                            <input type="hidden" name="criterion_id_{{ loop.index0 }}" value="{{ criterion.id }}">
+                                            <input type="text" 
+                                                class="form-control" 
+                                                name="criterion_name_{{ loop.index0 }}" 
+                                                value="{{ criterion.name }}" 
+                                                placeholder="e.g., Code Quality, Completeness"
+                                                required>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label"><strong>Points *</strong></label>
+                                            <input type="number" 
+                                                class="form-control criterion-points" 
+                                                name="criterion_points_{{ loop.index0 }}" 
+                                                value="{{ criterion.points }}" 
+                                                min="1" 
+                                                required>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Description</label>
+                                        <textarea class="form-control form-control-sm" 
+                                            name="criterion_desc_{{ loop.index0 }}" 
+                                            rows="2" 
+                                            placeholder="What should students do to earn full points?">{{ criterion.description }}</textarea>
+                                    </div>
+
+                                    <button type="button" class="btn btn-sm btn-outline-danger remove-criterion">
+                                        <i class="fas fa-trash me-1"></i>Remove
+                                    </button>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="criterion-item mb-4 pb-4 border-bottom" data-index="0">
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label"><strong>Criterion Name *</strong></label>
+                                            <input type="text" 
+                                                class="form-control" 
+                                                name="criterion_name_0" 
+                                                placeholder="e.g., Code Quality, Completeness"
+                                                required>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label"><strong>Points *</strong></label>
+                                            <input type="number" 
+                                                class="form-control criterion-points" 
+                                                name="criterion_points_0" 
+                                                value="50" 
+                                                min="1" 
+                                                required>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Description</label>
+                                        <textarea class="form-control form-control-sm" 
+                                            name="criterion_desc_0" 
+                                            rows="2" 
+                                            placeholder="What should students do to earn full points?"></textarea>
+                                    </div>
+
+                                    <button type="button" class="btn btn-sm btn-outline-danger remove-criterion" style="display: none;">
+                                        <i class="fas fa-trash me-1"></i>Remove
+                                    </button>
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="alert alert-info mt-3 mb-0">
+                            <strong>Total Criteria Points:</strong> 
+                            <span id="criteriaTotalPoints">{% if rubric %}{{ rubric.criteria | map(attribute='points') | sum }}{% else %}50{% endif %}</span>
+                            <span id="pointsMismatch" class="text-danger ms-2" style="display: none;">
+                                <i class="fas fa-warning me-1"></i>Does not match rubric total
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="d-grid gap-2 d-sm-flex mb-4">
+                    <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                        <i class="fas fa-save me-2"></i>
+                        {% if rubric %}Update Rubric{% else %}Create Rubric{% endif %}
+                    </button>
+                    <a href="{{ url_for('assignments.grading_dashboard', assignment_id=assignment.id) }}" class="btn btn-outline-secondary btn-lg">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Grading
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <!-- Sidebar - Preview -->
+        <div class="col-lg-4">
+            <div class="card sticky-top" style="top: 20px;">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">Preview</h6>
+                </div>
+                <div class="card-body small">
+                    <div class="mb-3">
+                        <strong>Total Points:</strong>
+                        <span class="float-end badge bg-primary" id="previewTotalPoints">{% if rubric %}{{ rubric.total_points }}{% else %}100{% endif %}</span>
+                    </div>
+
+                    <div class="mb-3">
+                        <strong>Criteria Count:</strong>
+                        <span class="float-end badge bg-info" id="criteriaCountBadge">{% if rubric %}{{ rubric.criteria | length }}{% else %}1{% endif %}</span>
+                    </div>
+
+                    <hr>
+
+                    <h6 class="mb-2">Criteria Breakdown:</h6>
+                    <div id="criteriaPreview">
+                        {% if rubric and rubric.criteria %}
+                            {% for criterion in rubric.criteria %}
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>{{ criterion.name }}</span>
+                                <span class="badge bg-success">{{ criterion.points }}pts</span>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-muted">Criteria will appear here</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tips Card -->
+            <div class="card mt-3">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">Tips</h6>
+                </div>
+                <div class="card-body small">
+                    <ul class="mb-0">
+                        <li><strong>Be specific:</strong> Clear criteria help students understand expectations</li>
+                        <li><strong>Balance points:</strong> Allocate points based on importance</li>
+                        <li><strong>Include descriptions:</strong> Explain what "full credit" looks like</li>
+                        <li><strong>Keep it simple:</strong> 3-5 criteria is usually ideal</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let criterionCounter = {% if rubric %}{{ rubric.criteria | length }}{% else %}1{% endif %};
+
+document.getElementById('addCriterionBtn').addEventListener('click', () => {
+    const container = document.getElementById('criteriaContainer');
+    const index = criterionCounter;
+    
+    const newCriterion = document.createElement('div');
+    newCriterion.className = 'criterion-item mb-4 pb-4 border-bottom';
+    newCriterion.dataset.index = index;
+    newCriterion.innerHTML = `
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label class="form-label"><strong>Criterion Name *</strong></label>
+                <input type="text" 
+                    class="form-control" 
+                    name="criterion_name_${index}" 
+                    placeholder="e.g., Code Quality, Completeness"
+                    required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label"><strong>Points *</strong></label>
+                <input type="number" 
+                    class="form-control criterion-points" 
+                    name="criterion_points_${index}" 
+                    value="20" 
+                    min="1" 
+                    required>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Description</label>
+            <textarea class="form-control form-control-sm" 
+                name="criterion_desc_${index}" 
+                rows="2" 
+                placeholder="What should students do to earn full points?"></textarea>
+        </div>
+
+        <button type="button" class="btn btn-sm btn-outline-danger remove-criterion">
+            <i class="fas fa-trash me-1"></i>Remove
+        </button>
+    `;
+    
+    container.appendChild(newCriterion);
+    criterionCounter++;
+    document.getElementById('criteriaCount').value = criterionCounter;
+    
+    // Add event listener to remove button
+    newCriterion.querySelector('.remove-criterion').addEventListener('click', removeCriterion);
+    newCriterion.querySelector('.criterion-points').addEventListener('input', updateTotals);
+    
+    updateTotals();
+    checkRemoveButtons();
+});
+
+function removeCriterion(e) {
+    e.preventDefault();
+    e.target.closest('.criterion-item').remove();
+    updateTotals();
+    checkRemoveButtons();
+}
+
+function updateTotals() {
+    let total = 0;
+    document.querySelectorAll('.criterion-points').forEach(input => {
+        total += parseInt(input.value) || 0;
+    });
+    
+    const targetTotal = parseInt(document.getElementById('totalPointsInput').value) || 100;
+    document.getElementById('criteriaTotalPoints').textContent = total;
+    
+    const mismatchSpan = document.getElementById('pointsMismatch');
+    if (total !== targetTotal) {
+        mismatchSpan.style.display = 'inline';
+    } else {
+        mismatchSpan.style.display = 'none';
+    }
+}
+
+function checkRemoveButtons() {
+    const items = document.querySelectorAll('.criterion-item');
+    items.forEach(item => {
+        const btn = item.querySelector('.remove-criterion');
+        if (items.length > 1) {
+            btn.style.display = 'block';
+        } else {
+            btn.style.display = 'none';
+        }
+    });
+}
+
+// NZQA Preset Handler
+document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const preset = btn.dataset.preset;
+        loadNZQAPreset(preset);
+    });
+});
+
+// Load NZQA preset rubric
+function loadNZQAPreset(presetKey) {
+    // Here we would normally call a backend endpoint to load the preset
+    // For now, we'll show a message and let them customize
+    alert('Loading NZQA ' + presetKey + ' preset...\n\nThis will be populated with NZQA Technology Curriculum standards.');
+    
+    // Show divider
+    document.getElementById('dividerAlert').style.display = 'block';
+    
+    // Scroll to form
+    document.getElementById('rubricForm').scrollIntoView({ behavior: 'smooth' });
+}
+
+// Add event listeners to existing points inputs
+document.querySelectorAll('.criterion-points').forEach(input => {
+    input.addEventListener('input', updateTotals);
+});
+
+document.getElementById('totalPointsInput').addEventListener('input', updateTotals);
+
+// Add remove listeners
+document.querySelectorAll('.remove-criterion').forEach(btn => {
+    btn.addEventListener('click', removeCriterion);
+});
+
+checkRemoveButtons();
+</script>
+
+<script src="{{ url_for('static', filename='js/nzqa_rubrics.js') }}"></script>
+
+<style>
+    .criterion-item {
+        background: #f8f9fa;
+        padding: 1.5em;
+        border-radius: 0.4em;
+    }
+
+    .card {
+        border-radius: 0.5em;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .sticky-top {
+        z-index: 10;
+    }
+
+    /* NZQA Preset Button Styling */
+    .preset-btn {
+        border: 2px solid #0dcaf0 !important;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .preset-btn:hover {
+        background-color: #e7f5ff !important;
+        border-color: #0096d6 !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(13, 202, 240, 0.25);
+    }
+
+    .preset-btn:active {
+        transform: translateY(0);
+    }
+
+    .preset-btn h6 {
+        color: #0d6efd;
+        font-weight: 600;
+    }
+
+    .btn-block {
+        display: block;
+        width: 100%;
+        text-align: left;
+    }
+
+    @media (max-width: 768px) {
+        .sticky-top {
+            position: relative;
+        }
+
+        .preset-btn {
+            margin-bottom: 0.5rem;
+        }
+    }
+</style>
+{% endblock %}

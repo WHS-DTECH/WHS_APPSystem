@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Assessment Checking Overview{% endblock %}
+{% block content %}
+<div class="lesson-view">
+    <div class="breadcrumb">
+        <a href="#">Module 3: Checking for Assessment Purposes</a> / Assessment Checking Overview
+    </div>
+    <h1>Assessment Checking Overview</h1>
+    <div style="max-width: 1200px; margin: 0 auto;">
+      <div style="border: 2px solid #b3d1e6; border-radius: 0.5em; padding: 2em; background: #f8fafd; margin-bottom:2em;">
+        <h2 style="color:#1a237e; margin-top:0;">Types of Documentation & Comments</h2>
+        <ul style="font-size:1.13em;">
+          <li><b>Inline Comments:</b> Short notes placed directly in code to clarify a specific line or logic. Example: <code># increment counter</code></li>
+          <li><b>Header Comments:</b> Placed at the top of a file or function, describing its purpose, author, date, and important details. Example: <code>"""This script processes student grades. Author: Ms. Smith, 2025"""</code></li>
+          <li><b>README / Program Overview:</b> A separate file or section that explains what the program does, how to use it, and any setup instructions. Example: <code>README.md</code> in a project folder.</li>
+          <li><b>Test Logs:</b> Notes or files that record the results of running tests, including what was tested, expected vs. actual results, and any issues found. Example: <code>test_log.txt</code> or comments like <code># Test: input 0, output OK</code></li>
+        </ul>
+        <div style="font-size:1.05em; color:#444; margin-top:1em;">
+          <b>Tip:</b> Good documentation helps others (and your future self) understand, use, and maintain your code!
+        </div>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 1.5em; justify-content: center; margin-bottom: 2.5em;">
+        <div style="flex:1 1 220px; min-width:220px; max-width:320px; background:#fff6f6; border:2px solid #f8bebe; border-radius:0.7em; padding:1.2em 1.3em 1.1em 1.3em; color:#b71c1c;">
+          <div style="font-weight:bold; font-size:1.13em; color:#b71c1c; margin-bottom:0.3em;">Is the comment clear and descriptive?</div>
+          <div style="font-weight:bold; color:#444; font-size:1.05em;">Clarity and Descriptiveness</div>
+          <div style="color:#444; font-size:1.01em;">Is the comment easy to understand and does it clearly describe the code’s intent?<br> Avoid ambiguous or cryptic comments.</div>
+        </div>
+        <div style="flex:1 1 220px; min-width:220px; max-width:320px; background:#fff6f6; border:2px solid #f8bebe; border-radius:0.7em; padding:1.2em 1.3em 1.1em 1.3em; color:#b71c1c;">
+          <div style="font-weight:bold; font-size:1.13em; color:#b71c1c; margin-bottom:0.3em;">Does it explain why, not just what?</div>
+          <div style="font-weight:bold; color:#444; font-size:1.05em;">Explains “Why”, Not Just “What”</div>
+          <div style="color:#444; font-size:1.01em;">Good comments explain the reasoning behind code decisions, not just what the code does.<br>Example: Instead of “# increment x”, use “# increment x to avoid off-by-one error”.</div>
+        </div>
+        <div style="flex:1 1 220px; min-width:220px; max-width:320px; background:#fff6f6; border:2px solid #f8bebe; border-radius:0.7em; padding:1.2em 1.3em 1.1em 1.3em; color:#b71c1c;">
+          <div style="font-weight:bold; font-size:1.13em; color:#b71c1c; margin-bottom:0.3em;">Is it meaningful, specific, and helpful?</div>
+          <div style="font-weight:bold; color:#444; font-size:1.05em;">Meaningful, Specific, and Helpful</div>
+          <div style="color:#444; font-size:1.01em;">Comments should add value and context, not restate the obvious.<br>Example: “# Fetch user data from API for caching” is better than “# get data”.</div>
+        </div>
+        <div style="flex:1 1 220px; min-width:220px; max-width:320px; background:#fff6f6; border:2px solid #f8bebe; border-radius:0.7em; padding:1.2em 1.3em 1.1em 1.3em; color:#b71c1c;">
+          <div style="font-weight:bold; font-size:1.13em; color:#b71c1c; margin-bottom:0.3em;">Is it too vague or redundant?</div>
+          <div style="font-weight:bold; color:#444; font-size:1.05em;">Avoids Vagueness and Redundancy</div>
+          <div style="color:#444; font-size:1.01em;">Don’t use comments like “# loop” or “# variable” that add no new information.<br> Avoid repeating what the code already says.</div>
+        </div>
+      </div>
+      <hr style="margin:2em 0;">
+      <div>
+        <h2 style="font-size:1.3em; margin-bottom:1em; color:#222;">Practice: Compare Documented vs Undocumented Code</h2>
+        <div style="display: flex; flex-wrap: wrap; gap: 2em; margin-bottom: 2em;">
+          <div style="flex:1; min-width:320px; background:#f8fafd; border:1.5px solid #b3d1e6; border-radius:.5em; padding:1.2em;">
+            <h3 style="color:#1a237e; margin-top:0;">Documented Program</h3>
+            <pre style="background:#f4f4f4; padding:1em; border-radius:.3em; font-size:1.08em;"># Calculate the average of a list of numbers
+def average(numbers):
+    """Return the average of a list of numbers."""
+    if not numbers:
+        return 0
+    total = sum(numbers)
+    return total / len(numbers)
+
+data = [10, 20, 30, 40]
+print("Average:", average(data))
+            </pre>
+          </div>
+          <div style="flex:1; min-width:320px; background:#fff8f8; border:1.5px solid #f8bebe; border-radius:.5em; padding:1.2em;">
+            <h3 style="color:#b71c1c; margin-top:0;">Undocumented Program</h3>
+            <pre style="background:#f4f4f4; padding:1em; border-radius:.3em; font-size:1.08em;">def a(x):
+    if not x:
+        return 0
+    t = sum(x)
+    return t / len(x)
+
+z = [10, 20, 30, 40]
+print(a(z))
+            </pre>
+          </div>
+        </div>
+        <div style="display: flex; align-items: flex-start; margin-bottom:1.5em; gap: 1em;">
+          <div style="flex: 1;">
+            <label for="compare_comments" style="font-weight:bold;">What are the real-world consequences of poor documentation? (Write your thoughts below)</label><br>
+            <textarea id="compare_comments" name="compare_comments" rows="4" style="width:100%; max-width:700px; margin-top:0.5em; font-size:1.08em;"></textarea>
+          </div>
+          <div style="align-self: flex-end;">
+            <button id="saveDiscussionBtn" style="padding: 0.7em 1.5em; font-size:1.08em; background:#1976d2; color:white; border:none; border-radius:0.4em; cursor:pointer;">Save</button>
+            <span id="saveStatus" style="margin-left:0.7em; color:#388e3c; font-weight:bold;"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+</div>
+{% endblock %}
+

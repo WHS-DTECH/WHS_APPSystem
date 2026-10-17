@@ -1,0 +1,355 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile - Class Training System{% endblock %}
+
+{% block content %}
+<style>
+    .profile-header {
+        background: linear-gradient(135deg, #5c0e2a 0%, #7a1d3e 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 0.8em;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 12px rgba(92, 14, 42, 0.2);
+    }
+
+    .profile-header h1 {
+        margin: 0;
+        font-size: 2.5em;
+        margin-bottom: 0.5rem;
+    }
+
+    .profile-header p {
+        margin: 0.3em 0;
+        font-size: 1.1em;
+        opacity: 0.9;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 0.8em;
+        padding: 1.5rem;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+
+    .stat-number {
+        font-size: 2.5em;
+        font-weight: 700;
+        color: #5c0e2a;
+        margin-bottom: 0.3rem;
+    }
+
+    .stat-label {
+        color: #666;
+        font-size: 0.95em;
+    }
+
+    .section-title {
+        font-size: 1.8em;
+        font-weight: 700;
+        color: #5c0e2a;
+        margin: 2rem 0 1.5rem 0;
+        padding-bottom: 0.5rem;
+        border-bottom: 3px solid #5c0e2a;
+    }
+
+    .enrollments-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .enrollment-card {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 0.8em;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        transition: all 0.2s;
+    }
+
+    .enrollment-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        border-color: #5c0e2a;
+    }
+
+    .enrollment-card h3 {
+        margin: 0 0 0.5rem 0;
+        color: #5c0e2a;
+        font-size: 1.2em;
+    }
+
+    .enrollment-card p {
+        margin: 0.3em 0;
+        color: #666;
+        font-size: 0.95em;
+    }
+
+    .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: #eee;
+        border-radius: 4px;
+        margin: 0.5rem 0;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: #28a745;
+        border-radius: 4px;
+        transition: width 0.3s;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 0.4em 0.8em;
+        border-radius: 0.4em;
+        font-size: 0.85em;
+        font-weight: 600;
+        margin-top: 0.5rem;
+    }
+
+    .status-completed {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .status-in-progress {
+        background: #d1ecf1;
+        color: #0c5460;
+    }
+
+    .status-not-started {
+        background: #f5f5f5;
+        color: #666;
+    }
+
+    .submissions-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        border-radius: 0.8em;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .submissions-table thead {
+        background: #f5f5f5;
+        border-bottom: 2px solid #ddd;
+    }
+
+    .submissions-table th {
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: #5c0e2a;
+    }
+
+    .submissions-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #eee;
+    }
+
+    .submissions-table tbody tr:hover {
+        background: #f9f9f9;
+    }
+
+    .settings-link {
+        display: inline-block;
+        margin-top: 1rem;
+        padding: 0.6em 1.5em;
+        background: #5c0e2a;
+        color: white;
+        text-decoration: none;
+        border-radius: 0.4em;
+        transition: background 0.2s;
+    }
+
+    .settings-link:hover {
+        background: #7a1d3e;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 2rem;
+        background: #f9f9f9;
+        border-radius: 0.8em;
+        color: #666;
+    }
+
+    @media (max-width: 768px) {
+        .profile-header {
+            padding: 1.5rem;
+        }
+
+        .profile-header h1 {
+            font-size: 1.8em;
+        }
+
+        .stats-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .enrollments-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .submissions-table {
+            font-size: 0.9em;
+        }
+
+        .submissions-table th,
+        .submissions-table td {
+            padding: 0.7rem;
+        }
+    }
+</style>
+
+<div class="profile-header">
+    <h1><i class="fas fa-user-circle"></i> {{ current_user.username }}</h1>
+    <p><i class="fas fa-envelope"></i> {{ current_user.email }}</p>
+    <p>
+        {% if current_user.is_teacher() %}
+            <span style="background: rgba(255,255,255,0.3); padding: 0.3em 0.8em; border-radius: 0.3em; font-weight: 600;">
+                <i class="fas fa-chalkboard-user"></i> Teacher
+            </span>
+        {% else %}
+            <span style="background: rgba(255,255,255,0.3); padding: 0.3em 0.8em; border-radius: 0.3em; font-weight: 600;">
+                <i class="fas fa-user-graduate"></i> Student
+            </span>
+        {% endif %}
+    </p>
+    <a href="{{ url_for('main.settings') }}" class="settings-link"><i class="fas fa-cog"></i> Account Settings</a>
+</div>
+
+<!-- Statistics -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-number">{{ total_courses }}</div>
+        <div class="stat-label">Enrolled Courses</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ completed_courses }}</div>
+        <div class="stat-label">Completed</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ total_courses - completed_courses }}</div>
+        <div class="stat-label">In Progress</div>
+    </div>
+</div>
+
+<!-- Course Enrollments Section -->
+{% if enrollments %}
+    <h2 class="section-title"><i class="fas fa-book"></i> My Courses</h2>
+    <div class="enrollments-grid">
+        {% for enrollment in enrollments %}
+            {% if enrollment.course %}
+                <div class="enrollment-card">
+                    <h3>{{ enrollment.course.title }}</h3>
+                    <p><strong>Enrolled:</strong> {{ enrollment.enrolled_at.strftime('%B %d, %Y') if enrollment.enrolled_at else 'Unknown' }}</p>
+                    
+                    {% if enrollment.course.description %}
+                        <p style="font-size: 0.9em; color: #888; margin: 0.5rem 0;">
+                            {{ enrollment.course.description[:100] }}{% if enrollment.course.description|length > 100 %}...{% endif %}
+                        </p>
+                    {% endif %}
+                    
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 45%;"></div>
+                    </div>
+                    <small style="color: #888;">45% Complete</small>
+                    
+                    {% if enrollment.completed %}
+                        <div class="status-badge status-completed">
+                            <i class="fas fa-check-circle"></i> Completed
+                        </div>
+                    {% else %}
+                        <div class="status-badge status-in-progress">
+                            <i class="fas fa-spinner"></i> In Progress
+                        </div>
+                    {% endif %}
+                    
+                    <div style="margin-top: 1rem;">
+                        <a href="{{ url_for('courses.view_course', course_id=enrollment.course.id) }}" 
+                           style="color: #5c0e2a; text-decoration: none; font-weight: 600;">
+                            Continue <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="empty-state">
+        <p><i class="fas fa-inbox" style="font-size: 2em; margin-bottom: 1rem; display: block;"></i></p>
+        <p>You haven't enrolled in any courses yet.</p>
+        <a href="{{ url_for('courses.list_courses') }}" style="color: #5c0e2a; text-decoration: none; font-weight: 600;">
+            Browse Available Courses <i class="fas fa-arrow-right"></i>
+        </a>
+    </div>
+{% endif %}
+
+<!-- Recent Submissions Section -->
+{% if recent_submissions %}
+    <h2 class="section-title"><i class="fas fa-file-upload"></i> Recent Submissions</h2>
+    <table class="submissions-table">
+        <thead>
+            <tr>
+                <th>Assignment</th>
+                <th>Course</th>
+                <th>Submitted</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for submission in recent_submissions %}
+                <tr>
+                    <td>
+                        {% if submission.assignment and submission.assignment.title %}
+                            {{ submission.assignment.title }}
+                        {% else %}
+                            Assignment
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if submission.assignment and submission.assignment.lesson and submission.assignment.lesson.course %}
+                            {{ submission.assignment.lesson.course.title }}
+                        {% else %}
+                            --
+                        {% endif %}
+                    </td>
+                    <td>{{ submission.submitted_at.strftime('%b %d, %Y %I:%M %p') if submission.submitted_at else 'N/A' }}</td>
+                    <td>
+                        {% if submission.score %}
+                            <span style="color: #28a745; font-weight: 600;">✓ Graded ({{ submission.score }}%)</span>
+                        {% elif submission.feedback %}
+                            <span style="color: #17a2b8; font-weight: 600;">Feedback Provided</span>
+                        {% else %}
+                            <span style="color: #ffc107; font-weight: 600;">Pending Review</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+
+{% endblock %}

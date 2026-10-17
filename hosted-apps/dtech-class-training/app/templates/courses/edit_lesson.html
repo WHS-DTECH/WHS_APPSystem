@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Lesson - {{ course.title }}{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h1>Edit Lesson in {{ course.title }}</h1>
+    <form method="POST" novalidate>
+        {{ form.hidden_tag() }}
+        <div class="form-group">
+            {{ form.title.label }}
+            {{ form.title(class="form-control") }}
+            {% if form.title.errors %}
+                <div class="error">{{ form.title.errors[0] }}</div>
+            {% endif %}
+        </div>
+        <div class="form-group">
+            {{ form.content.label }}
+            {{ form.content(class="form-control", id="lesson-content-editor", rows=10) }}
+            {% if form.content.errors %}
+                <div class="error">{{ form.content.errors[0] }}</div>
+            {% endif %}
+        </div>
+        <div class="form-group">
+            {{ form.video_url.label }}
+            {{ form.video_url(class="form-control", placeholder="https://...") }}
+            {% if form.video_url.errors %}
+                <div class="error">{{ form.video_url.errors[0] }}</div>
+            {% endif %}
+        </div>
+        <div class="form-group">
+            <button type="submit" class="btn btn-primary">Update Lesson</button>
+            <a href="{{ url_for('courses.view_lesson', lesson_id=lesson.id) }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+<!-- CKEditor CDN -->
+<script src="https://cdn.ckeditor.com/4.25.1-lts/standard/ckeditor.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (document.getElementById('lesson-content-editor')) {
+            CKEDITOR.replace('lesson-content-editor', {
+                removePlugins: 'elementspath',
+                resize_enabled: false,
+                height: 300,
+                toolbar: [
+                    { name: 'basicstyles', items: [ 'Bold', 'Italic', 'Underline', 'Strike', '-', 'RemoveFormat' ] },
+                    { name: 'paragraph', items: [ 'NumberedList', 'BulletedList', '-', 'Blockquote' ] },
+                    { name: 'links', items: [ 'Link', 'Unlink' ] },
+                    { name: 'insert', items: [ 'Image', 'Table', 'HorizontalRule' ] },
+                    { name: 'styles', items: [ 'Format' ] },
+                    { name: 'clipboard', items: [ 'Undo', 'Redo' ] },
+                    { name: 'editing', items: [ 'Scayt' ] }
+                ]
+            });
+        }
+    });
+</script>
+{% endblock %}

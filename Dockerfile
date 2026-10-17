@@ -9,7 +9,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev
 
-# One shared Python environment for every hosted student app (Flask apps run behind /apps/<slug>).
+# One shared Python environment for hosted Flask apps, including original Hub submodules.
 COPY hosted-apps ./hosted-apps
 RUN python3 -m venv /opt/pyenv \
  && cat hosted-apps/requirements.base.txt hosted-apps/*/requirements.txt 2>/dev/null | sort -u > /tmp/requirements.txt \

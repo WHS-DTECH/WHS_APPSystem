@@ -1,0 +1,99 @@
+                    <div style="margin-top:0.8em; background:#e3f6ff; border-left:6px solid #0099cc; padding:1em 1.2em; border-radius:0.5em; font-size:1.08em; color:#005a7a; box-shadow:0 2px 8px rgba(0,153,204,0.07);">
+                        Rule of Thumb: <span style="font-weight:bold;">One debug comment = one problem fixed.</span> You are required to include <b>at least 3</b> debug comment blocks for Achieved.
+                    </div>
+{% extends "base.html" %}
+
+{% block title %}Lesson 2: Debug Checker{% endblock %}
+
+{% block content %}
+<div class="lesson-view">
+    <div class="breadcrumb">
+        <a href="{{ url_for('courses.view_course', course_id=course.id) }}">{{ course.title }}</a> / Lesson 2: Debug Checker
+    </div>
+    <h1>Lesson 2: Debug Checker</h1>
+    <div style="display: flex; flex-direction: row; gap: 2em; align-items: stretch; flex-wrap: wrap; min-height: 1px;">
+        <div style="flex: 2 1 500px; min-width: 320px; display: flex; flex-direction: column; height: 100%;">
+            <div class="debug-example-box">
+                <div class="box-title">Using a Debug Comment Block</div>
+                <div class="description">
+                    <p>
+                        Debug comment blocks help you organize your debugging process and communicate your thought process clearly. Use the following layout in your code:
+                    </p>
+                    <pre>
+# DEBUG TEST: Describe the test you are running (e.g., input values, expected output)
+# DEBUG ISSUE: Clearly state the problem or bug you found
+# DEBUG FIX: Explain the change you made to fix the issue
+                    </pre>
+                    <ul>
+                        <li><b># DEBUG TEST:</b> What did you test? (e.g., "Tested with input x=5, expected result 25.")</li>
+                        <li><b># DEBUG ISSUE:</b> What was the problem? (e.g., "Output was 20 instead of 25 due to missing multiplication.")</li>
+                        <li><b># DEBUG FIX:</b> How did you fix it? (e.g., "Corrected the formula to x*x instead of x+15.")</li>
+                    </ul>
+                    <p>
+                        This structure makes your debugging process transparent and helps teachers and peers understand your approach.
+                    </p>
+                    <div style="margin-top:1.2em; background:#fff3cd; border-left:6px solid #ffb300; padding:1em 1.2em; border-radius:0.5em; font-size:1.13em; font-weight:bold; color:#a05a00; box-shadow:0 2px 8px rgba(255,179,0,0.07);">
+                        Core Principle: <span style="font-style:italic; font-weight:normal;">“When something doesn’t work, write what you tested, what went wrong, and what you changed — right where the code is.”</span>
+                    </div>
+                    <div style="margin-top:0.8em; background:#e3f6ff; border-left:6px solid #0099cc; padding:1em 1.2em; border-radius:0.5em; font-size:1.08em; color:#005a7a; box-shadow:0 2px 8px rgba(0,153,204,0.07);">
+                        Rule of Thumb: <span style="font-weight:bold;">One debug comment = one problem fixed.</span> You are required to include <b>at least 3</b> debug comment blocks for Achieved.
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div style="flex: 1 1 320px; min-width: 260px; max-width: 350px; display: flex; flex-direction: column; height: 100%; justify-content: space-between;">
+            {% include "includes/comment_feedback_boxes_fixed.html" %}
+        </div>
+    </div>
+    <div style="border: 2px solid #f97171; border-radius: 0.5em; padding: 1.5em; margin: 2em 0; background: #fff8f8;">
+        <h2 style="font-size:1.5em; margin-bottom:1em; color:#d13c3c;">🎯 Practice Activities</h2>
+        <a href="{{ url_for('main.practice_debug_checker') }}" style="
+            display: inline-block;
+            margin-bottom: 1.2em;
+            padding: 1.2em 2.2em;
+            background: linear-gradient(90deg, #007bff 60%, #00c6ff 100%);
+            color: #fff;
+            border: none;
+            border-radius: 0.5em;
+            font-size: 1.22em;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            text-decoration: none;
+            transition: background 0.2s, box-shadow 0.2s;
+            text-align: left;
+        "
+        onmouseover="this.style.background='linear-gradient(90deg,#0056b3 60%,#0099cc 100%)'"
+        onmouseout="this.style.background='linear-gradient(90deg,#007bff 60%,#00c6ff 100%)'"
+        >
+            � Try the Debug Checker<br>
+            <span style="font-size:0.93em; font-weight:normal; display:block; margin-top:0.3em;">Go to Debug Checker Practice</span>
+        </a>
+    </div>
+</div>
+{% if extracted_debug_blocks %}
+<div style="margin:2em 0; padding:1.5em; background:#f3f8ff; border:2px solid #0099cc; border-radius:0.5em;">
+    <h2 style="color:#007bff; font-size:1.3em; margin-bottom:1em;">Your Extracted Debug Blocks</h2>
+    {% if debug_summary %}
+        <div style="margin-bottom:1.2em; font-size:1.1em; color:#005a7a; font-weight:bold;">{{ debug_summary|replace('\n', '<br>')|safe }}</div>
+    {% endif %}
+    <form action="{{ url_for('main.download_lesson2_debug_feedback') }}" method="get" style="margin-bottom:1.5em;">
+        <button type="submit" class="btn btn-info" style="font-weight:bold; border-radius:0.5em; padding:0.7em 1.5em; font-size:1.1em; background: linear-gradient(90deg,#0099cc 60%,#00c6ff 100%); color: #fff; border: none;">Download PDF of Debug Blocks & Feedback</button>
+    </form>
+    <ul>
+    {% for block, feedback in extracted_debug_feedback_pairs or [] %}
+        <li style="margin-bottom:1.5em;">
+            <pre style="background:#e9f5ff; border-radius:0.3em; padding:0.7em 1em;">{{ block }}</pre>
+            <ul style="margin-top:0.5em;">
+            {% for fb in feedback %}
+                <li style="color:#005a7a; font-size:1em;">{{ fb }}</li>
+            {% endfor %}
+            </ul>
+        </li>
+    {% endfor %}
+    </ul>
+</div>
+{% endif %}
+<hr style="margin:2em 0;">
+</div>
+{% endblock %}

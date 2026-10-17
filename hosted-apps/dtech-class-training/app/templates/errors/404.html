@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}Page Not Found - 404{% endblock %}
+
+{% block content %}
+<style>
+    .error-container {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1rem;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    }
+
+    .error-content {
+        background: white;
+        border-radius: 1em;
+        padding: 3rem 2rem;
+        max-width: 600px;
+        width: 100%;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+
+    .error-icon {
+        font-size: 5em;
+        color: #5c0e2a;
+        margin-bottom: 1rem;
+        opacity: 0.8;
+    }
+
+    .error-code {
+        font-size: 3.5em;
+        font-weight: 700;
+        color: #5c0e2a;
+        margin: 0.5rem 0;
+    }
+
+    .error-title {
+        font-size: 1.8em;
+        font-weight: 600;
+        color: #333;
+        margin: 1rem 0;
+    }
+
+    .error-message {
+        font-size: 1.1em;
+        color: #666;
+        margin: 1.5rem 0 2rem 0;
+        line-height: 1.6;
+    }
+
+    .error-suggestions {
+        background: #f9f9f9;
+        border-left: 4px solid #5c0e2a;
+        padding: 1.5rem;
+        border-radius: 0.5em;
+        margin: 2rem 0;
+        text-align: left;
+    }
+
+    .error-suggestions h3 {
+        color: #5c0e2a;
+        font-size: 1.1em;
+        margin-top: 0;
+    }
+
+    .error-suggestions ul {
+        margin: 0.5rem 0;
+        padding-left: 1.5rem;
+    }
+
+    .error-suggestions li {
+        margin: 0.5rem 0;
+        color: #666;
+    }
+
+    .error-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-top: 2rem;
+        flex-wrap: wrap;
+    }
+
+    .btn-error {
+        padding: 0.75em 1.5em;
+        background: #5c0e2a;
+        color: white;
+        border: none;
+        border-radius: 0.5em;
+        text-decoration: none;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-error:hover {
+        background: #7a1d3e;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(92, 14, 42, 0.3);
+    }
+
+    .btn-error.secondary {
+        background: #f0f0f0;
+        color: #333;
+        border: 1px solid #ddd;
+    }
+
+    .btn-error.secondary:hover {
+        background: #e0e0e0;
+        border-color: #999;
+    }
+
+    @media (max-width: 600px) {
+        .error-content {
+            padding: 2rem 1rem;
+        }
+
+        .error-code {
+            font-size: 2.5em;
+        }
+
+        .error-title {
+            font-size: 1.4em;
+        }
+
+        .error-actions {
+            flex-direction: column;
+        }
+
+        .btn-error {
+            width: 100%;
+        }
+    }
+</style>
+
+<div class="error-container">
+    <div class="error-content">
+        <div class="error-icon"><i class="fas fa-exclamation-circle"></i></div>
+        <div class="error-code">404</div>
+        <h1 class="error-title">Page Not Found</h1>
+        <p class="error-message">
+            Sorry, the page you're looking for doesn't exist or has been moved.
+            It might have been deleted, or the URL might be incorrect.
+        </p>
+
+        <div class="error-suggestions">
+            <h3><i class="fas fa-lightbulb"></i> What you can try:</h3>
+            <ul>
+                <li>Check the URL for typos or incorrect spelling</li>
+                <li>Return to the home page and navigate from there</li>
+                <li>Use the search function to find what you're looking for</li>
+                <li>Contact support if you believe this is an error</li>
+            </ul>
+        </div>
+
+        <div class="error-actions">
+            <a href="{{ url_for('main.dashboard') }}" class="btn-error">
+                <i class="fas fa-home"></i> Go to Dashboard
+            </a>
+            <a href="{{ url_for('courses.list_courses') }}" class="btn-error secondary">
+                <i class="fas fa-book"></i> Browse Courses
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block content %}
+<div style="max-width: 1100px; margin: 0 auto; padding: 2em 1em;">
+    <h1 style="font-size: 2em; margin-bottom: 0.3em; color: #1a1a1a;">Students</h1>
+    <p style="color: #666; margin-bottom: 1.5em;">Browse student accounts and open details.</p>
+
+    {% if students %}
+    <div style="background: white; border: 1px solid #e0e0e0; border-radius: 0.8em; overflow: hidden;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: #f5f5f5; border-bottom: 1px solid #ddd;">
+                    <th style="padding: 0.9em; text-align: left;">Username</th>
+                    <th style="padding: 0.9em; text-align: left;">Email</th>
+                    <th style="padding: 0.9em; text-align: left;">Joined</th>
+                    <th style="padding: 0.9em; text-align: left;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                <tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 0.9em;">{{ student.username }}</td>
+                    <td style="padding: 0.9em;">{{ student.email }}</td>
+                    <td style="padding: 0.9em;">{{ student.created_at.strftime('%Y-%m-%d') if student.created_at else '-' }}</td>
+                    <td style="padding: 0.9em;">
+                        <a href="{{ url_for('admin.student_detail', student_id=student.id) }}" style="padding: 0.4em 0.8em; background: #007bff; color: #fff; border-radius: 0.35em; text-decoration: none;">View</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if students_pagination is defined and students_pagination.pages > 1 %}
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1em;">
+        <div style="font-size: 0.95em; color: #666;">Page {{ students_pagination.page }} of {{ students_pagination.pages }}</div>
+        <div style="display: flex; gap: 0.5em;">
+            {% if students_pagination.has_prev %}
+            <a href="{{ url_for('admin.students', page=students_pagination.prev_num) }}" style="padding: 0.5em 0.8em; border: 1px solid #ccc; border-radius: 0.35em; text-decoration: none; color: #333;">Previous</a>
+            {% endif %}
+            {% if students_pagination.has_next %}
+            <a href="{{ url_for('admin.students', page=students_pagination.next_num) }}" style="padding: 0.5em 0.8em; border: 1px solid #ccc; border-radius: 0.35em; text-decoration: none; color: #333;">Next</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+    {% else %}
+    <div style="padding: 1.2em; background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 0.6em; color: #666;">No students found.</div>
+    {% endif %}
+</div>
+{% endblock %}

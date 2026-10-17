@@ -1,0 +1,504 @@
+{% extends "base.html" %}
+
+{% block title %}Courses{% endblock %}
+
+{% block content %}
+<style>
+    .courses-container {
+        max-width: 1400px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+    }
+
+    .courses-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .courses-header h1 {
+        margin: 0;
+        font-size: 2em;
+        color: #5c0e2a;
+    }
+
+    .create-course-btn {
+        padding: 0.75em 1.5em;
+        background: #28a745;
+        color: white;
+        text-decoration: none;
+        border-radius: 0.5em;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+
+    .create-course-btn:hover {
+        background: #218838;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+    }
+
+    /* Filter Panel */
+    .filter-panel {
+        background: white;
+        border-radius: 0.8em;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .filter-panel h3 {
+        font-size: 1.1em;
+        font-weight: 600;
+        color: #5c0e2a;
+        margin: 0 0 1rem 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .filter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .filter-group label {
+        font-weight: 600;
+        color: #333;
+        font-size: 0.95em;
+    }
+
+    .filter-input,
+    .filter-select {
+        padding: 0.75em;
+        border: 2px solid #ddd;
+        border-radius: 0.5em;
+        font-size: 0.95em;
+        transition: border-color 0.2s;
+    }
+
+    .filter-input:focus,
+    .filter-select:focus {
+        outline: none;
+        border-color: #5c0e2a;
+        box-shadow: 0 0 0 3px rgba(92, 14, 42, 0.1);
+    }
+
+    .filter-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1.5rem;
+        flex-wrap: wrap;
+    }
+
+    .btn-filter {
+        padding: 0.75em 1.5em;
+        background: #5c0e2a;
+        color: white;
+        border: none;
+        border-radius: 0.5em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-filter:hover {
+        background: #7a1d3e;
+        transform: translateY(-2px);
+    }
+
+    .btn-reset {
+        padding: 0.75em 1.5em;
+        background: #f0f0f0;
+        color: #333;
+        border: 1px solid #ddd;
+        border-radius: 0.5em;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+
+    .btn-reset:hover {
+        background: #e0e0e0;
+        border-color: #999;
+    }
+
+    .active-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .filter-tag {
+        background: #e3f2fd;
+        color: #1565c0;
+        padding: 0.4em 0.8em;
+        border-radius: 20px;
+        font-size: 0.9em;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .filter-tag-close {
+        cursor: pointer;
+        font-weight: 700;
+        margin-left: 0.3rem;
+    }
+
+    .results-info {
+        color: #666;
+        font-size: 0.95em;
+        margin-bottom: 1rem;
+    }
+
+    /* Course Grid */
+    .course-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .course-card {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 0.8em;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        transition: all 0.3s;
+    }
+
+    .course-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.12);
+        border-color: #5c0e2a;
+    }
+
+    .course-card-header {
+        background: linear-gradient(135deg, #5c0e2a 0%, #7a1d3e 100%);
+        color: white;
+        padding: 1.5rem;
+        min-height: 100px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+    }
+
+    .course-card h3 {
+        margin: 0;
+        font-size: 1.3em;
+        line-height: 1.3;
+        color: #fff !important;
+        font-weight: bold;
+        text-shadow: 0 2px 8px #000, 0 0 2px #000, 0 0 1px #000;
+    }
+
+    .course-card h3 a {
+        color: inherit;
+        text-decoration: none;
+    }
+
+    .course-card h3 a:hover {
+        text-decoration: underline;
+    }
+
+    .course-card-body {
+        padding: 1.5rem;
+    }
+
+    .course-description {
+        color: #666;
+        font-size: 0.95em;
+        margin-bottom: 1rem;
+        line-height: 1.5;
+    }
+
+    .course-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        font-size: 0.9em;
+        color: #999;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #eee;
+    }
+
+    .course-meta span {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .course-status {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .badge {
+        display: inline-block;
+        padding: 0.4em 0.8em;
+        border-radius: 0.3em;
+        font-size: 0.85em;
+        font-weight: 600;
+    }
+
+    .badge-success {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .badge-info {
+        background: #d1ecf1;
+        color: #0c5460;
+    }
+
+    .course-actions {
+        display: flex;
+        gap: 0.75rem;
+    }
+
+    .btn-enroll {
+        flex: 1;
+        padding: 0.6em 1em;
+        background: #5c0e2a;
+        color: white;
+        border: none;
+        border-radius: 0.4em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-enroll:hover {
+        background: #7a1d3e;
+    }
+
+    .btn-view {
+        flex: 1;
+        padding: 0.6em 1em;
+        background: #f0f0f0;
+        color: #333;
+        border: 1px solid #ddd;
+        border-radius: 0.4em;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+
+    .btn-view:hover {
+        background: #e0e0e0;
+        border-color: #999;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: #999;
+    }
+
+    .empty-state i {
+        font-size: 3em;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    @media (max-width: 768px) {
+        .courses-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .filter-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .course-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .filter-actions {
+            flex-direction: column;
+        }
+
+        .btn-filter,
+        .btn-reset {
+            width: 100%;
+        }
+    }
+</style>
+
+<div class="courses-container">
+    <!-- Header -->
+    <div class="courses-header">
+        <h1><i class="fas fa-book"></i> {% if current_user.is_teacher() %}My Courses{% else %}Browse Courses{% endif %}</h1>
+        {% if current_user.is_teacher() %}
+            <a href="{{ url_for('courses.create_course') }}" class="create-course-btn">
+                <i class="fas fa-plus"></i> Create Course
+            </a>
+        {% endif %}
+    </div>
+
+    <!-- Filter Panel -->
+    <div class="filter-panel">
+        <h3><i class="fas fa-filter"></i> Filter & Search</h3>
+        
+        <form method="GET" action="{{ url_for('courses.list_courses') }}" id="filterForm">
+            <div class="filter-grid">
+                <!-- Search -->
+                <div class="filter-group">
+                    <label for="search"><i class="fas fa-search"></i> Search Courses</label>
+                    <input type="text" id="search" name="search" class="filter-input" placeholder="Search by title or description..." value="{{ search_query }}">
+                </div>
+
+                <!-- Sort By -->
+                <div class="filter-group">
+                    <label for="sort"><i class="fas fa-sort"></i> Sort By</label>
+                    <select id="sort" name="sort" class="filter-select">
+                        <option value="name" {% if sort_by == 'name' %}selected{% endif %}>Course Name (A-Z)</option>
+                        <option value="created" {% if sort_by == 'created' %}selected{% endif %}>Recently Created</option>
+                        <option value="difficulty" {% if sort_by == 'difficulty' %}selected{% endif %}>Difficulty Level</option>
+                    </select>
+                </div>
+
+                <!-- Enrollment Status (Students Only) -->
+                {% if not current_user.is_teacher() %}
+                    <div class="filter-group">
+                        <label for="status"><i class="fas fa-user-check"></i> Enrollment Status</label>
+                        <select id="status" name="status" class="filter-select">
+                            <option value="" {% if not status_filter %}selected{% endif %}>All Courses</option>
+                            <option value="enrolled" {% if status_filter == 'enrolled' %}selected{% endif %}>Enrolled Only</option>
+                            <option value="not-enrolled" {% if status_filter == 'not-enrolled' %}selected{% endif %}>Not Enrolled</option>
+                        </select>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Filter Actions -->
+            <div class="filter-actions">
+                <button type="submit" class="btn-filter" id="applyFiltersBtn">
+                    <i class="fas fa-check"></i> Apply Filters
+                </button>
+                <a href="{{ url_for('courses.list_courses') }}" class="btn-reset">
+                    <i class="fas fa-redo"></i> Reset
+                </a>
+            </div>
+        </form>
+
+        <!-- Active Filters Display -->
+        {% if search_query or sort_by != 'name' or status_filter %}
+            <div class="active-filters">
+                {% if search_query %}
+                    <div class="filter-tag">
+                        <i class="fas fa-search"></i> "{{ search_query }}"
+                        <a href="{{ url_for('courses.list_courses', sort=sort_by, status=status_filter) }}" class="filter-tag-close">×</a>
+                    </div>
+                {% endif %}
+                {% if sort_by != 'name' %}
+                    <div class="filter-tag">
+                        <i class="fas fa-sort"></i> Sort: {{ sort_by|capitalize }}
+                        <a href="{{ url_for('courses.list_courses', search=search_query, status=status_filter) }}" class="filter-tag-close">×</a>
+                    </div>
+                {% endif %}
+                {% if status_filter %}
+                    <div class="filter-tag">
+                        <i class="fas fa-user-check"></i> {{ status_filter|title }}
+                        <a href="{{ url_for('courses.list_courses', search=search_query, sort=sort_by) }}" class="filter-tag-close">×</a>
+                    </div>
+                {% endif %}
+            </div>
+        {% endif %}
+
+        <!-- Results Info -->
+        {% if courses %}
+            <div class="results-info">
+                <i class="fas fa-info-circle"></i> Showing {{ courses|length }} course{{ 's' if courses|length != 1 else '' }}
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Course Grid -->
+    {% if courses %}
+        <div class="course-grid">
+            {% for course in courses %}
+                <div class="course-card">
+                    <div class="course-card-header">
+                        <h3><a href="{{ url_for('courses.view_course', course_id=course.id) }}">{{ course.title }}</a></h3>
+                    </div>
+                    <div class="course-card-body">
+                        <p class="course-description">{{ course.description[:120] }}{% if course.description|length > 120 %}...{% endif %}</p>
+                        
+                        <div class="course-meta">
+                            <span><i class="fas fa-user"></i> {{ course.teacher.username if course.teacher else 'Unknown' }}</span>
+                            <span><i class="fas fa-book-open"></i> {{ course.lessons|length }} lessons</span>
+                            {% if not current_user.is_teacher() %}
+                                <span>
+                                    {% if course.id in enrolled_course_ids %}
+                                        <i class="fas fa-check-circle" style="color: #28a745;"></i> Enrolled
+                                    {% else %}
+                                        <i class="fas fa-lock"></i> Not Enrolled
+                                    {% endif %}
+                                </span>
+                            {% endif %}
+                        </div>
+
+                        {% if not current_user.is_teacher() %}
+                            <div class="course-actions">
+                                {% if course.id in enrolled_course_ids %}
+                                    <a href="{{ url_for('courses.view_course', course_id=course.id) }}" class="btn-view">
+                                        <i class="fas fa-play"></i> Continue
+                                    </a>
+                                {% else %}
+                                    <form method="POST" action="{{ url_for('courses.enroll', course_id=course.id) }}" style="flex: 1;">
+                                        <button type="submit" class="btn-enroll" style="width: 100%;">
+                                            <i class="fas fa-plus"></i> Enroll Now
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <div class="course-actions">
+                                <a href="{{ url_for('courses.view_course', course_id=course.id) }}" class="btn-view" style="flex: 1;">
+                                    <i class="fas fa-eye"></i> View Course
+                                </a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <p><i class="fas fa-inbox"></i></p>
+            <p>No courses found matching your filters.</p>
+            <p style="font-size: 0.9em;">Try adjusting your search or filters.</p>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+// Add loading state to filter form
+document.getElementById('filterForm').addEventListener('submit', function(e) {
+    LoadingManager.showButtonLoading('#applyFiltersBtn', 'Applying...');
+});
+</script>
+{% endblock %}

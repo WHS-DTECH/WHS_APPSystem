@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+
+{% block title %}{{ course.title }}{% endblock %}
+
+{% block content %}
+<div class="course-view">
+    <div class="course-header">
+        <h1>
+            {% if course.title == 'Introduction to Python Programming' or course.title == 'Introduction to Programming Documentation' %}
+                Module 1: Comments
+            {% elif course.title.startswith('Module 3') %}
+                Module 3: Assessment Checking
+            {% else %}
+                {{ course.title }}
+            {% endif %}
+        </h1>
+        <p class="lead">
+            {% if course.title == 'Introduction to Python Programming' %}
+                Programming documentation is essential for writing code that is understandable, maintainable, and usable by others (and your future self). In this course, you will learn why documentation matters, how it supports collaboration, and how it helps prevent errors and confusion. You’ll explore the key elements of effective documentation, including code comments, docstrings, and external documentation tools.
+            {% else %}
+                {{ course.description }}
+            {% endif %}
+        </p>
+        <div class="course-meta">
+            <span>Instructor: 
+                {% if course.teacher.first_name or course.teacher.last_name %}
+                    {{ course.teacher.first_name or '' }} {{ course.teacher.last_name or '' }}
+                {% else %}
+                    {{ course.teacher.username }}
+                {% endif %}
+            </span>
+            {% if not current_user.is_teacher() %}
+                <span>Status: Enrolled</span>
+            {% endif %}
+        </div>
+    </div>
+    
+    {% if current_user.is_teacher() %}
+        <div class="teacher-actions">
+            <a href="{{ url_for('courses.create_lesson', course_id=course.id) }}" class="btn btn-primary">Add Lesson</a>
+            <a href="{{ url_for('assignments.list_assignments', course_id=course.id) }}" class="btn btn-secondary">View Assignments</a>
+            <a href="{{ url_for('quizzes.list_quizzes', course_id=course.id) }}" class="btn btn-secondary">View Quizzes</a>
+        </div>
+    {% endif %}
+    
+    <div class="course-content">
+        {% if course.title == 'Module 2: Debugging' %}
+            <div class="lessons-list">
+                {% for lesson in lessons %}
+                    <div class="lesson-item">
+                        <div class="lesson-info">
+                            <h3>
+                                <a href="{{ url_for('courses.view_lesson', lesson_id=lesson.id) }}">{{ lesson.title }}</a>
+                            </h3>
+                            {% if lesson.content %}
+                                <p>{{ lesson.content[:160]|safe }}{% if lesson.content|length > 160 %}...{% endif %}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+        {% if course.title != 'Module 2: Debugging' %}
+            <h2>Course Content</h2>
+        {% endif %}
+        {% if course.title == 'Introduction to Python Programming' or course.title == 'Introduction to Programming Documentation' %}
+                    {% if course.title == 'Module 2: Debugging' %}
+                        <h2>Course Content</h2>
+                        <ol style="margin-bottom:2em;">
+                            <li><b>Introduction to Code Debugging</b></li>
+                            <li><b>Section 1: Python Debugging - Best Practices</b></li>
+                            <li><b>Section 2: JavaScript Debugging - Best Practices</b></li>
+                            <li><b>Section 3: HTML and CSS Debugging - Best Practices</b></li>
+                            <!--<li><b>99. Debugging Best Practices - Summary</b></li>-->
+                        </ol>
+                        <div class="lessons-list">
+                            <div class="lesson-item">
+                                <div class="lesson-info">
+                                    <h3>Introduction to Code Debugging</h3>
+                                    <p>Learn what debugging is, why it is a critical skill for programmers, and how to approach finding and fixing errors in your code. This section covers the debugging mindset, common techniques, and the importance of persistence and problem-solving.</p>
+                                </div>
+                            </div>
+                            <div class="lesson-item">
+                                <div class="lesson-info">
+                                    <h3>Section 1: Python Debugging - Best Practices</h3>
+                                    <p>Learn how to use print statements, logging, and Python’s built-in debugger (pdb) to identify and fix issues in your code. Explore common Python errors and how to document your debugging process for future reference.</p>
+                                </div>
+                            </div>
+                            <div class="lesson-item">
+                                <div class="lesson-info">
+                                    <h3>Section 2: JavaScript Debugging - Best Practices</h3>
+                                    <p>Discover how to use browser developer tools, console.log, breakpoints, and error messages to debug JavaScript code. Learn how to document bugs and solutions to help yourself and others in the future.</p>
+                                </div>
+                            </div>
+                            <div class="lesson-item">
+                                <div class="lesson-info">
+                                    <h3>Section 3: HTML and CSS Debugging - Best Practices</h3>
+                                    <p>Understand how to use browser inspection tools to find and fix layout and style issues in HTML and CSS. Learn how to document tricky bugs and the steps you took to resolve them.</p>
+                                </div>
+                            </div>
+                            <!--<div class="lesson-item">
+                                <div class="lesson-info">
+                                    <h3>99. Debugging Best Practices - Summary</h3>
+                                    <p>Review the key strategies and tools for debugging across different languages. Summarize the importance of documenting your debugging process and sharing knowledge with your team.</p>
+                                </div>
+                            </div>-->
+                        </div>
+                    {% endif %}
+            <h3>Why Documentation Matters</h3>
+            <p>Documentation is essential for collaboration, maintenance, and onboarding. Good documentation saves time, reduces errors, and helps everyone understand the codebase.</p>
+
+            <h3>Types of Documentation</h3>
+            <ul>
+                <li><b>Inline Comments:</b> Explain tricky code, logic, or decisions.</li>
+                <li><b>Block Comments:</b> Describe sections or algorithms.</li>
+                <li><b>Docstrings:</b> Document functions, classes, and modules (especially in Python).</li>
+                <li><b>README Files:</b> Project overviews, setup instructions, and usage.</li>
+                <li><b>API Documentation:</b> Explain how to use code libraries or endpoints.</li>
+            </ul>
+
+            <h3>Best Practices</h3>
+            <ul>
+                <li>Write for others (and your future self).</li>
+                <li>Be concise but clear—explain “why” not just “what.”</li>
+                <li>Keep documentation up to date as code changes.</li>
+                <li>Use consistent style and formatting (e.g., PEP 257 for Python docstrings, JSDoc for JavaScript).</li>
+            </ul>
+
+            <h3>Tools and Formats</h3>
+            <ul>
+                <li>Markdown for README and project docs.</li>
+                <li>Sphinx (Python), JSDoc (JavaScript), or Doxygen (C/C++) for generating documentation.</li>
+                <li>Version control for documentation (track changes in Git).</li>
+            </ul>
+
+            <h3>Examples and Templates</h3>
+            <p>Compare well-documented code with poorly documented code. Use templates for docstrings, README files, and API docs to ensure consistency and completeness.</p>
+
+            <h3>Documenting Errors and Debugging</h3>
+            <p>Document known issues, bugs, and troubleshooting steps. Write clear commit messages and changelogs to track changes and fixes.</p>
+
+            <h3>External Documentation</h3>
+            <p>Link to external resources, standards, or references. Write user guides or tutorials to help others get started.</p>
+
+            <h3>Accessibility and Language</h3>
+            <p>Use simple, accessible language. Consider non-native English speakers and beginners when writing documentation.</p>
+
+            <h3>Commenting</h3>
+            <p>
+                Commenting is a fundamental part of programming documentation. In this section, you’ll learn how to write clear, concise comments that explain the purpose and logic of your code. Good comments help others (and yourself) quickly understand what your code is doing, why certain decisions were made, and how to use or modify the code in the future. You’ll explore best practices for inline comments, block comments, and docstrings.
+            </p>
+        {% endif %}
+        {% if course.title != 'Introduction to Python Programming' and course.title != 'Introduction to Programming Documentation' and course.title != 'Module 2: Debugging' %}
+            {% if lessons %}
+                <div class="lessons-list">
+                    {% for lesson in lessons %}
+                        <div class="lesson-item {% if not current_user.is_teacher() and progress.get(lesson.id) %}completed{% endif %}">
+                            <div class="lesson-info">
+                                <h3>
+                                    <a href="{{ url_for('courses.view_lesson', lesson_id=lesson.id) }}">
+                                        {{ lesson.order }}. {{ lesson.title }}
+                                    </a>
+                                </h3>
+                                {% if not current_user.is_teacher() and progress.get(lesson.id) %}
+                                    <span class="badge badge-success">✓ Completed</span>
+                                {% endif %}
+                            </div>
+                            {% if lesson.video_url %}
+                                <span class="video-icon">🎥 Video Available</span>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-muted">No lessons available yet.</p>
+            {% endif %}
+        {% endif %}
+    </div>
+    
+    <div class="course-navigation">
+        <a href="{{ url_for('assignments.list_assignments', course_id=course.id) }}" class="btn btn-secondary">Assignments</a>
+        <a href="{{ url_for('quizzes.list_quizzes', course_id=course.id) }}" class="btn btn-secondary">Quizzes</a>
+    </div>
+</div>
+{% endblock %}

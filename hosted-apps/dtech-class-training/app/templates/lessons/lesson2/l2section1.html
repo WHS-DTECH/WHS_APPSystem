@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block title %}Section 1: Python Debugging - Best Practices{% endblock %}
+{% block content %}
+<div class="lesson-view">
+  <h1>Section 1: Python Debugging - Best Practices</h1>
+  <div style="font-size:1.15em; margin-bottom:1.2em; color:#222; max-width:700px;">
+    Debugging is an essential skill for every Python programmer. Effective debugging not only helps you find and fix errors, but also improves your understanding of how your code works. Here are some best practices for Python debugging:
+  </div>
+  <ul style="font-size:1.08em; margin-bottom:2em; color:#444;">
+    <li><b>Read Error Messages Carefully:</b> Python provides detailed error messages and tracebacks. Take time to read them and understand what they mean.</li>
+    <li><b>Use Print Statements:</b> Insert print statements to check variable values and program flow. Remove or comment them out after debugging.</li>
+    <li><b>Leverage Python's Built-in Debugger (<code>pdb</code>):</b> Use <code>import pdb; pdb.set_trace()</code> to pause execution and inspect variables interactively.</li>
+    <li><b>Test Small Sections:</b> Isolate and test small parts of your code to narrow down where issues occur.</li>
+    <li><b>Check for Common Mistakes:</b> Watch for off-by-one errors, incorrect indentation, and variable scope issues.</li>
+    <li><b>Use Assertions:</b> Add <code>assert</code> statements to verify assumptions and catch unexpected behavior early.</li>
+    <li><b>Write and Run Unit Tests:</b> Use Python's <code>unittest</code> or <code>pytest</code> frameworks to automate testing and catch bugs before deployment.</li>
+    <li><b>Keep Your Code Clean:</b> Follow Python conventions for naming, indentation, and structure. Clean code is easier to debug!</li>
+  </ul>
+  <div style="font-size:1.08em; margin-bottom:2em; color:#1a237e;">
+    <b>Special Mention: Python Conventions</b><br>
+    Adhering to Python conventions (PEP 8) makes your code more readable and maintainable. Consistent naming, indentation, and structure help you and others spot errors quickly. Always use clear variable names, proper spacing, and logical organization in your code.
+  </div>
+</div>
+{% endblock %}

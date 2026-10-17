@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Practice Submission History{% endblock %}
+
+{% block content %}
+<div class="dashboard" style="max-width:900px;margin:2em auto;">
+    <h1>Practice Submission History</h1>
+    <p>View your past code comment and debug checker submissions, with feedback.</p>
+    <hr>
+    <h2>Code Comments Submissions</h2>
+    {% if comment_checks %}
+    <table class="table table-striped">
+        <thead>
+            <tr><th>Filename</th><th>Date</th><th>Feedback</th></tr>
+        </thead>
+        <tbody>
+        {% for check in comment_checks %}
+            <tr>
+                <td>{{ check.filename }}</td>
+                <td>{{ check.checked_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>
+                  <ul style="margin:0;padding-left:1.2em;">
+                  {% for fb in comment_feedbacks[check.filename] %}
+                    <li>Line {{ fb.line_num }}: {{ fb.feedback }}</li>
+                  {% endfor %}
+                  </ul>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p><em>No code comment submissions yet.</em></p>
+    {% endif %}
+    <hr>
+    <h2>Debug Checker Submissions</h2>
+    {% if debug_checks %}
+    <table class="table table-striped">
+        <thead>
+            <tr><th>Filename</th><th>Date</th></tr>
+        </thead>
+        <tbody>
+        {% for check in debug_checks %}
+            <tr>
+                <td>{{ check.filename }}</td>
+                <td>{{ check.checked_at.strftime('%Y-%m-%d %H:%M') }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p><em>No debug checker submissions yet.</em></p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block title %}Section 1: Python Comments - Best Practices{% endblock %}
+{% block content %}
+<div class="lesson-header">
+    <div class="lesson-breadcrumb">
+        <a href="{{ url_for('courses.list_courses') }}">Courses</a> &gt;
+        <a href="{{ url_for('courses.view_course', course_id=lesson.course_id) }}">Module 1: Commenting</a> &gt;
+        Section 1: Python Comments - Best Practices
+    </div>
+    <h1>Section 1: Python Comments - Best Practices</h1>
+</div>
+<div class="lesson-main-box">
+    <p>Follow these conventions to write clear, effective comments in your Python code:</p>
+    <div class="lesson-conventions-grid">
+        <div class="lesson-conventions-col">
+            <h3>Conventions 1–5</h3>
+            <ul>
+                <li><b>Convention 1:</b> Use complete sentences for comments.<br><span class="lesson-convention-detail">Write comments as full sentences to improve clarity and professionalism.</span>
+                    <pre class="lesson-example"># This function adds two numbers together and returns the result.
+def add(a, b):
+    return a + b
+</pre>
+                </li>
+                <li><b>Convention 2:</b> Keep comments concise and relevant.<br><span class="lesson-convention-detail">Only include information that helps understand the code; avoid unnecessary details.</span>
+                    <pre class="lesson-example"># Add two numbers
+def add(a, b):
+    return a + b
+</pre>
+                </li>
+                <li><b>Convention 3:</b> Update comments when code changes.<br><span class="lesson-convention-detail">Always revise comments to match the current code to prevent confusion.</span>
+                    <pre class="lesson-example"># This function multiplies two numbers (updated from addition)
+def multiply(a, b):
+    return a * b
+</pre>
+                </li>
+                <li><b>Convention 4:</b> Avoid obvious comments.<br><span class="lesson-convention-detail">Don't state what is already clear from the code itself.</span>
+                    <pre class="lesson-example"># This is obvious and should be avoided
+# Add a and b
+def add(a, b):
+    return a + b
+</pre>
+                </li>
+                <li><b>Convention 5:</b> Use proper grammar and spelling.<br><span class="lesson-convention-detail">Well-written comments are easier to read and look more professional.</span>
+                    <pre class="lesson-example"># Calculate the sum of two numbers
+def add(a, b):
+    return a + b
+</pre>
+                </li>
+            </ul>
+        </div>
+        <div class="lesson-conventions-col">
+            <h3>Conventions 6–7</h3>
+            <ul>
+                <li><b>Convention 6:</b> Explain why, not just what.<br><span class="lesson-convention-detail">Describe the reasoning or intent behind code decisions, not just what the code does.</span>
+                    <pre class="lesson-example"># We use a loop here to handle multiple inputs efficiently
+for value in values:
+    process(value)
+</pre>
+                </li>
+                <li><b>Convention 7:</b> Use TODO/FIXME tags for future work or known issues.<br><span class="lesson-convention-detail">Mark places in the code that need attention or improvement.</span>
+                    <pre class="lesson-example"># TODO: Handle negative numbers
+# FIXME: This function fails if b is zero
+def divide(a, b):
+    return a / b
+</pre>
+                </li>
+            </ul>
+        </div>
+    </div>
+    <div class="lesson-back-link">
+        <a href="{{ url_for('courses.view_course', course_id=lesson.course_id) }}">Back to Course</a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+{% block title %}Role Permissions Management – Computer Lab Hub{% endblock %}
+
+{% block extra_css %}
+<style>
+  .rp-wrap { max-width: 900px; margin: 0 auto; padding: 2.5rem 1.5rem; }
+
+  .rp-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+    padding-bottom: 1.2rem;
+    border-bottom: 1px solid #e0e0e0;
+  }
+
+  .rp-page-header h1 { font-size: 1.8rem; font-weight: 700; color: #1a1a1a; margin: 0 0 0.25rem; }
+  .rp-page-header p  { color: #666; font-size: 0.95rem; margin: 0; max-width: 540px; }
+
+  .btn-back {
+    text-decoration: none;
+    padding: 0.5rem 1.1rem;
+    border: 1.5px solid #ccc;
+    border-radius: 6px;
+    color: #444;
+    font-size: 0.9rem;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: all 0.2s;
+    background: white;
+  }
+  .btn-back:hover { background: #f5f5f5; border-color: #999; }
+
+  /* permissions matrix card */
+  .rp-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+  }
+
+  .rp-card-body { padding: 1.5rem; }
+
+  .rp-table { width: 100%; border-collapse: collapse; }
+
+  .rp-table thead tr { background: #1d6ef5; color: white; }
+  .rp-table thead th {
+    padding: 0.7rem 1.1rem;
+    text-align: left;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    font-weight: 600;
+  }
+  .rp-table thead th:not(:first-child) { text-align: center; }
+
+  .rp-table tbody tr { border-bottom: 1px solid #f0f0f0; }
+  .rp-table tbody tr:last-child { border-bottom: none; }
+  .rp-table tbody tr:hover { background: #fafafa; }
+
+  .rp-table tbody td {
+    padding: 0.85rem 1.1rem;
+    font-size: 0.93rem;
+    color: #333;
+  }
+  .rp-table tbody td:not(:first-child) { text-align: center; }
+
+  /* custom checkbox */
+  .perm-cb {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: #1d6ef5;
+  }
+
+  .rp-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1.2rem;
+  }
+
+  .btn-save {
+    background: #1d6ef5;
+    color: white;
+    border: none;
+    padding: 0.6rem 1.5rem;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-save:hover { background: #1558d0; }
+  .btn-save:disabled { background: #a0b9f5; cursor: not-allowed; }
+
+  .btn-reset {
+    background: none;
+    color: #c0392b;
+    border: 1.5px solid #f5a0a0;
+    padding: 0.6rem 1.5rem;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-reset:hover { background: #fdf2f2; }
+
+  /* info cards */
+  .info-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .info-card h2 { font-size: 1.1rem; font-weight: 700; color: #1a1a1a; margin: 0 0 1rem; }
+
+  .desc-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.55rem; }
+  .desc-list li { font-size: 0.92rem; color: #444; line-height: 1.5; }
+  .desc-list li strong { color: #1a1a1a; }
+  .desc-list li span { color: #5c0e2a; }
+
+  .notes-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+  .notes-list li { font-size: 0.91rem; color: #444; line-height: 1.5; padding-left: 1rem; position: relative; }
+  .notes-list li::before { content: '•'; position: absolute; left: 0; color: #1d6ef5; }
+  .notes-list li strong { color: #1a1a1a; }
+  .notes-list li span { color: #5c0e2a; }
+
+  .notes-card {
+    background: #fffde7;
+    border: 1px solid #ffe082;
+    border-radius: 8px;
+    padding: 1.5rem;
+  }
+  .notes-card h2 { font-size: 1.1rem; font-weight: 700; color: #1a1a1a; margin: 0 0 1rem; }
+
+  /* toast */
+  #rpToast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: #1a1a1a;
+    color: white;
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px;
+    font-size: 0.92rem;
+    display: none;
+    z-index: 999;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  }
+  #rpToast.show { display: block; }
+  #rpToast.success { border-left: 4px solid #28a745; }
+  #rpToast.error   { border-left: 4px solid #dc3545; }
+
+  .skeleton-row { animation: pulse 1.4s infinite; background: #f5f5f5; height: 44px; margin-bottom: 2px; border-radius: 4px; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="rp-wrap">
+
+  <div class="rp-page-header">
+    <div>
+      <h1>Role Permissions Management</h1>
+      <p>Control which pages each role can access. Check a box to grant access, uncheck to remove access.</p>
+    </div>
+    <a href="{{ url_for('admin.index') }}" class="btn-back">&larr; Back to Admin</a>
+  </div>
+
+  <!-- Permissions matrix -->
+  <div class="rp-card">
+    <div class="rp-card-body">
+      <div style="overflow-x:auto;">
+        <table class="rp-table" id="rpTable">
+          <thead>
+            <tr>
+              <th>Role</th>
+              <th>Dashboard</th>
+              <th>Courses</th>
+              <th>Progress</th>
+              <th>Assignments</th>
+              <th>Admin</th>
+            </tr>
+          </thead>
+          <tbody id="rpTableBody">
+            <tr><td colspan="6"><div class="skeleton-row"></div></td></tr>
+            <tr><td colspan="6"><div class="skeleton-row"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="rp-actions">
+        <button class="btn-save" id="rpSaveBtn" onclick="savePerms()">Save Changes</button>
+        <button class="btn-reset" onclick="resetToDefaults()">Reset to Defaults</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Page descriptions -->
+  <div class="info-card">
+    <h2>Page Descriptions</h2>
+    <ul class="desc-list">
+      <li><strong>Dashboard:</strong> <span>Main hub page showing enrolled courses, recent assignments, and progress summaries.</span></li>
+      <li><strong>Courses:</strong> <span>Browse and enrol in available programming courses.</span></li>
+      <li><strong>Progress:</strong> <span>View detailed learning progress and completion tracking across all modules.</span></li>
+      <li><strong>Assignments:</strong> <span>Submit programming assignments and view feedback from teachers.</span></li>
+      <li><strong>Admin:</strong> <span>Administrative functions — user management, course creation, grading, and system settings.</span></li>
+    </ul>
+  </div>
+
+  <!-- Important notes -->
+  <div class="notes-card">
+    <h2>Important Notes</h2>
+    <ul class="notes-list">
+      <li><strong>Teacher role</strong> <span>should always have Admin access to prevent lockout.</span></li>
+      <li><strong>Student role</strong> <span>cannot be granted Admin access for security reasons.</span></li>
+      <li><strong>Changes take effect</strong> <span>immediately for all users on their next page load.</span></li>
+      <li><strong>Permissions</strong> <span>are stored server-side in <code>role_permissions.json</code>.</span></li>
+    </ul>
+  </div>
+
+</div>
+
+<div id="rpToast"></div>
+
+<script>
+(function () {
+  const PAGES = ['dashboard', 'courses', 'progress', 'assignments', 'admin'];
+  const ROLES = ['teacher', 'student'];
+  const ROLE_LABELS = { teacher: 'Teacher', student: 'Student' };
+
+  // Pages that cannot be unchecked per role (safety)
+  const LOCKED_ON  = { teacher: ['dashboard', 'admin'] };
+  const LOCKED_OFF = { student: ['admin'] };
+
+  let currentPerms = {};
+
+  // ── load permissions ──────────────────────────────────────────────────────
+  fetch('/admin/api/role-permissions')
+    .then(r => r.json())
+    .then(data => {
+      currentPerms = data;
+      renderTable(data);
+    })
+    .catch(() => showToast('Failed to load permissions', 'error'));
+
+  // ── render matrix ─────────────────────────────────────────────────────────
+  function renderTable(perms) {
+    const tbody = document.getElementById('rpTableBody');
+    tbody.innerHTML = ROLES.map(role => {
+      const cells = PAGES.map(page => {
+        const checked = perms[role] && perms[role][page] ? 'checked' : '';
+        const lockedOn  = (LOCKED_ON[role]  || []).includes(page);
+        const lockedOff = (LOCKED_OFF[role] || []).includes(page);
+        const disabled  = (lockedOn || lockedOff) ? 'disabled title="This permission is locked"' : '';
+        return `<td><input type="checkbox" class="perm-cb" data-role="${role}" data-page="${page}"
+          ${checked} ${disabled} onchange="onPermChange(this)"></td>`;
+      }).join('');
+      return `<tr><td style="font-weight:600;">${ROLE_LABELS[role]}</td>${cells}</tr>`;
+    }).join('');
+  }
+
+  // ── checkbox change ───────────────────────────────────────────────────────
+  window.onPermChange = function (cb) {
+    const role = cb.dataset.role;
+    const page = cb.dataset.page;
+    if (!currentPerms[role]) currentPerms[role] = {};
+    currentPerms[role][page] = cb.checked;
+  };
+
+  // ── save ──────────────────────────────────────────────────────────────────
+  window.savePerms = function () {
+    const btn = document.getElementById('rpSaveBtn');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    fetch('/admin/api/role-permissions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(currentPerms)
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { showToast(data.error, 'error'); }
+      else { showToast('Permissions saved successfully', 'success'); }
+    })
+    .catch(() => showToast('Save failed — please try again', 'error'))
+    .finally(() => {
+      btn.disabled = false;
+      btn.textContent = 'Save Changes';
+    });
+  };
+
+  // ── reset ─────────────────────────────────────────────────────────────────
+  window.resetToDefaults = function () {
+    if (!confirm('Reset all permissions to defaults? This will overwrite your saved settings.')) return;
+    const defaults = {
+      teacher: { dashboard: true,  courses: true,  progress: false, assignments: true, admin: true  },
+      student:  { dashboard: true,  courses: true,  progress: true,  assignments: true, admin: false },
+    };
+    currentPerms = defaults;
+    renderTable(defaults);
+    showToast('Reset to defaults — click Save Changes to apply', 'success');
+  };
+
+  // ── toast ─────────────────────────────────────────────────────────────────
+  let toastTimer;
+  function showToast(msg, type) {
+    const el = document.getElementById('rpToast');
+    el.textContent = msg;
+    el.className = `show ${type}`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.className = ''; }, 3500);
+  }
+})();
+</script>
+{% endblock %}

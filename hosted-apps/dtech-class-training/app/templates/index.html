@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Welcome - Class Training System{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <h1>Welcome to Class Training System</h1>
+    <p class="lead">A comprehensive platform for programming education and student training</p>
+    
+    <div class="hero-actions">
+        <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg">Get Started</a>
+        <a href="{{ url_for('auth.login') }}" class="btn btn-secondary btn-lg">Login</a>
+    </div>
+</div>
+
+<div class="features">
+    <h2>Features</h2>
+    <div class="feature-grid">
+        <div class="feature-card">
+            <h3>📚 Course Management</h3>
+            <p>Create and manage comprehensive programming courses with structured lessons</p>
+        </div>
+        <div class="feature-card">
+            <h3>📝 Assignments</h3>
+            <p>Submit and grade programming assignments with detailed feedback</p>
+        </div>
+        <div class="feature-card">
+            <h3>✅ Quizzes</h3>
+            <p>Test knowledge with interactive quizzes and automatic grading</p>
+        </div>
+        <div class="feature-card">
+            <h3>📊 Progress Tracking</h3>
+            <p>Monitor student progress and performance across all courses</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

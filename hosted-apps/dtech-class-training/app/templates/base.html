@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% if csrf_token %}
+        <meta name="csrf-token" content="{{ csrf_token() }}">
+    {% endif %}
+    <title>{% block title %}Computer Lab Hub{% endblock %}</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/whs_logo.png') }}">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    
+    <!-- Prism.js for Code Syntax Highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css">
+    
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body, html {
+            font-family: 'Lexend', 'Segoe UI', 'Roboto', Arial, sans-serif !important;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+
+        /* ===== NAVBAR ===== */
+        .navbar {
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 3px solid #5c0e2a;
+        }
+
+        .navbar-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 1.5rem;
+            max-width: 100%;
+            height: 60px;
+        }
+
+        .navbar-brand {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #5c0e2a;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .navbar-brand:hover {
+            color: #7a1d3e;
+        }
+
+        /* Center nav items */
+        .navbar-menu {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            list-style: none;
+        }
+
+        .navbar-menu a {
+            color: #333;
+            text-decoration: none;
+            padding: 0.6em 1.2em;
+            border-radius: 0.4em;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+        }
+
+        .navbar-menu a:hover {
+            background: #f0f0f0;
+            color: #5c0e2a;
+        }
+
+        /* Right side (user menu) */
+        .navbar-right {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-menu {
+            position: relative;
+        }
+
+        .user-menu-btn {
+            background: none;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.4em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+            color: #333;
+            font-size: 1em;
+        }
+
+        .user-menu-btn:hover {
+            background: #f0f0f0;
+            color: #5c0e2a;
+        }
+
+        /* ===== NOTIFICATION BELL ===== */
+        .notification-bell-container {
+            position: relative;
+        }
+
+        .notification-bell {
+            background: none;
+            border: none;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.4em;
+            cursor: pointer;
+            font-size: 1.2em;
+            color: #333;
+            transition: all 0.2s;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .notification-bell:hover {
+            background: #f0f0f0;
+            color: #5c0e2a;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: #dc3545;
+            color: white;
+            border-radius: 50%;
+            width: 1.5em;
+            height: 1.5em;
+            font-size: 0.7em;
+            display: none;
+            flex-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .notifications-panel {
+            display: none;
+            position: absolute;
+            right: -1rem;
+            top: calc(100% + 0.5rem);
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 0.6em;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            width: 350px;
+            max-height: 500px;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+
+        .notifications-header {
+            padding: 1rem;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f9f9f9;
+            border-radius: 0.6em 0.6em 0 0;
+        }
+
+        .notifications-header h4 {
+            margin: 0;
+            font-size: 1.1em;
+            color: #333;
+        }
+
+        .mark-all-read {
+            background: none;
+            border: none;
+            color: #999;
+            cursor: pointer;
+            padding: 0.4rem;
+            border-radius: 0.3em;
+            transition: all 0.2s;
+        }
+
+        .mark-all-read:hover {
+            background: #eee;
+            color: #5c0e2a;
+        }
+
+        .notifications-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .notification-empty {
+            padding: 2rem 1rem;
+            text-align: center;
+            color: #999;
+            font-size: 0.95em;
+        }
+
+        .notification-item {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #eee;
+            transition: background 0.2s;
+            cursor: pointer;
+        }
+
+        .notification-item:hover {
+            background: #f9f9f9;
+        }
+
+        .notification-item.unread {
+            background: #f0f8ff;
+            border-left: 3px solid #5c0e2a;
+            padding-left: calc(1rem - 3px);
+        }
+
+        .notification-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.4rem;
+        }
+
+        .notification-title {
+            font-weight: 600;
+            color: #333;
+            flex: 1;
+        }
+
+        .notification-delete {
+            background: none;
+            border: none;
+            color: #999;
+            cursor: pointer;
+            font-size: 1.2em;
+            padding: 0;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+
+        .notification-delete:hover {
+            color: #dc3545;
+        }
+
+        .notification-message {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 0.4rem;
+            line-height: 1.4;
+        }
+
+        .notification-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85em;
+        }
+
+        .notification-time {
+            color: #999;
+        }
+
+        .notification-mark-read {
+            background: none;
+            border: none;
+            color: #5c0e2a;
+            cursor: pointer;
+            padding: 0;
+            font-size: 0.85em;
+            text-decoration: underline;
+            transition: color 0.2s;
+        }
+
+        .notification-mark-read:hover {
+            color: #7a1d3e;
+        }
+
+        /* ===== NOTIFICATION TOASTS ===== */
+        #notificationToasts {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .notification-toast {
+            background: white;
+            border-left: 4px solid #5c0e2a;
+            border-radius: 0.4em;
+            padding: 1rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            min-width: 300px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .notification-toast.assignment_submitted {
+            border-left-color: #007bff;
+        }
+
+        .notification-toast.assignment_graded {
+            border-left-color: #28a745;
+        }
+
+        .notification-toast.message {
+            border-left-color: #17a2b8;
+        }
+
+        .notification-toast.system {
+            border-left-color: #ffc107;
+        }
+
+        .toast-content {
+            flex: 1;
+        }
+
+        .toast-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.3rem;
+        }
+
+        .toast-message {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: #999;
+            cursor: pointer;
+            font-size: 1.5em;
+            padding: 0;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+
+        .toast-close:hover {
+            color: #333;
+        }
+
+        .user-dropdown {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 0.5em;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            min-width: 200px;
+            margin-top: 0.5rem;
+        }
+
+        .user-dropdown.active {
+            display: block;
+        }
+
+        .user-dropdown a,
+        .user-dropdown button {
+            display: block;
+            width: 100%;
+            padding: 0.8em 1.2em;
+            border: none;
+            background: none;
+            text-align: left;
+            cursor: pointer;
+            color: #333;
+            text-decoration: none;
+            border-bottom: 1px solid #eee;
+            transition: background 0.2s;
+        }
+
+        .user-dropdown a:last-child,
+        .user-dropdown button:last-child {
+            border-bottom: none;
+        }
+
+        .user-dropdown a:hover,
+        .user-dropdown button:hover {
+            background: #f5f5f5;
+            color: #5c0e2a;
+        }
+
+        /* Hamburger Menu */
+        .hamburger {
+            display: none;
+            flex-direction: column;
+            background: none;
+            border: none;
+            cursor: pointer;
+            gap: 0.4rem;
+        }
+
+        .hamburger span {
+            width: 25px;
+            height: 3px;
+            background: #5c0e2a;
+            transition: all 0.3s;
+            border-radius: 2px;
+        }
+
+        .hamburger.active span:nth-child(1) {
+            transform: rotate(45deg) translate(8px, 8px);
+        }
+
+        .hamburger.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .hamburger.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(8px, -8px);
+        }
+
+        /* Mobile Menu */
+        .mobile-menu {
+            display: none;
+            position: absolute;
+            top: 60px;
+            left: 0;
+            right: 0;
+            background: white;
+            border-bottom: 1px solid #ddd;
+            flex-direction: column;
+            padding: 1rem 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .mobile-menu.active {
+            display: flex;
+        }
+
+        .mobile-menu a,
+        .mobile-menu button {
+            padding: 0.8em 1.5rem;
+            color: #333;
+            text-decoration: none;
+            border: none;
+            background: none;
+            cursor: pointer;
+            text-align: left;
+            transition: background 0.2s;
+        }
+
+        .mobile-menu a:hover,
+        .mobile-menu button:hover {
+            background: #f5f5f5;
+            color: #5c0e2a;
+        }
+
+        /* ===== MAIN CONTENT ===== */
+        .main-content {
+            margin-top: 0;
+            padding: 2rem 1.5rem;
+            max-width: 1400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* ===== FOOTER ===== */
+        footer {
+            background: #f5f5f5;
+            border-top: 1px solid #ddd;
+            padding: 2rem 1.5rem;
+            text-align: center;
+            color: #666;
+            margin-top: 3rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        footer p {
+            margin: 0;
+            flex: 1;
+        }
+
+        .footer-contact-btn {
+            background: linear-gradient(135deg, #5c0e2a 0%, #8b1538 100%);
+            color: white;
+            border: none;
+            padding: 0.6rem 1.5rem;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+        }
+
+        .footer-contact-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(92, 14, 42, 0.3);
+        }
+
+        /* Contact Modal */
+        .contact-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .contact-modal.active {
+            display: flex;
+        }
+
+        .contact-modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .contact-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 1rem;
+        }
+
+        .contact-modal-header h3 {
+            margin: 0;
+            color: #5c0e2a;
+        }
+
+        .contact-modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #999;
+            transition: color 0.3s;
+        }
+
+        .contact-modal-close:hover {
+            color: #333;
+        }
+
+        .contact-form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .contact-form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .contact-form-group input,
+        .contact-form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            transition: border-color 0.3s;
+        }
+
+        .contact-form-group input:focus,
+        .contact-form-group textarea:focus {
+            outline: none;
+            border-color: #5c0e2a;
+            box-shadow: 0 0 0 3px rgba(92, 14, 42, 0.1);
+        }
+
+        .contact-form-group textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .contact-form-submit {
+            background: linear-gradient(135deg, #5c0e2a 0%, #8b1538 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        .contact-form-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(92, 14, 42, 0.3);
+        }
+
+        .contact-form-submit:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .contact-form-message {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .contact-form-message.success {
+            display: block;
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .contact-form-message.error {
+            display: block;
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 1200px) {
+            .navbar-container > div[style*="flex: 0 1 300px"] {
+                flex: 0 1 250px;
+            }
+
+            .navbar-menu a {
+                padding: 0.6em 0.8em;
+                font-size: 0.95em;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .navbar-container > div[style*="flex: 0 1 300px"] {
+                display: none;
+            }
+
+            .navbar-right {
+                gap: 0.5rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .navbar-menu {
+                display: none;
+            }
+
+            .hamburger {
+                display: flex;
+            }
+
+            .navbar-container {
+                padding: 0 1rem;
+                height: auto;
+                gap: 0.5rem;
+            }
+
+            .navbar-brand {
+                font-size: 1.2em;
+            }
+
+            .user-menu-btn {
+                padding: 0.5rem 0.8rem;
+                font-size: 0.9em;
+            }
+
+            .user-menu-btn span {
+                display: none;
+            }
+
+            .main-content {
+                padding: 1.5rem 1rem;
+            }
+
+            .mobile-menu a,
+            .mobile-menu button {
+                padding: 1em 1.5rem;
+                font-size: 1em;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .navbar-container {
+                padding: 0 0.75rem;
+            }
+
+            .navbar-brand {
+                font-size: 1.1em;
+            }
+
+            .navbar-brand span:nth-child(2) {
+                display: none;
+            }
+
+            .main-content {
+                padding: 1rem 0.75rem;
+            }
+
+            .alert {
+                padding: 0.75em 1em;
+                font-size: 0.95em;
+            }
+        }
+
+        /* Flash Messages */
+        .flash-messages {
+            margin-bottom: 2rem;
+        }
+
+        .alert {
+            padding: 1em 1.5em;
+            border-radius: 0.5em;
+            margin-bottom: 1em;
+            border-left: 4px solid;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border-left-color: #28a745;
+        }
+
+        .alert-error, .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+            border-left-color: #dc3545;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left-color: #17a2b8;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border-left-color: #ffc107;
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body data-authenticated="{{ 'true' if current_user.is_authenticated else 'false' }}">
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="{{ url_for('main.dashboard') if current_user.is_authenticated else url_for('main.home') }}" class="navbar-brand">
+                 <img src="/static/img/whslogocircular.png" alt="School Logo" class="navbar-logo" style="height:32px;width:auto;vertical-align:middle;">
+                 <img src="/static/img/school_logo.png" alt="School Logo" class="navbar-logo" style="height:32px;width:auto;vertical-align:middle;margin-left:0.5em;">
+                 <span style="margin-left:0.5em;"><i class="fas fa-desktop"></i> Computer Lab Hub</span>
+            </a>
+
+            <!-- Center Menu -->
+            <ul class="navbar-menu" id="navbarMenu">
+                {% if current_user.is_authenticated %}
+                    <li><a href="{{ url_for('main.dashboard') }}"><i class="fas fa-home"></i> Dashboard</a></li>
+                    <li><a href="{{ url_for('courses.list_courses') }}"><i class="fas fa-book"></i> Courses</a></li>
+                    {% if not current_user.is_teacher() %}
+                        <li><a href="{{ url_for('main.student_progress') }}"><i class="fas fa-chart-line"></i> Progress</a></li>
+                    {% endif %}
+                    {% if current_user.is_teacher() %}
+                        <li><a href="{{ url_for('admin.index') }}"><i class="fas fa-shield-alt"></i> Admin</a></li>
+                        <li><a href="{{ url_for('admin.user_roles') }}"><i class="fas fa-users-cog"></i> User Roles</a></li>
+                        <li><a href="{{ url_for('admin.role_permissions') }}"><i class="fas fa-lock"></i> Permissions</a></li>
+                    {% endif %}
+                {% endif %}
+            </ul>
+
+            <!-- Search Bar -->
+            {% if current_user.is_authenticated %}
+                <div style="flex: 0 1 300px; margin: 0 1rem;">
+                    <form action="{{ url_for('main.search') }}" method="GET" style="display: flex;">
+                        <input type="text" name="q" placeholder="Search courses, lessons..." 
+                               style="flex: 1; padding: 0.6em 1rem; border: 1px solid #ddd; border-radius: 0.4em 0 0 0.4em; font-size: 0.95em;">
+                        <button type="submit" style="padding: 0.6em 1rem; background: #5c0e2a; color: white; border: none; border-radius: 0 0.4em 0.4em 0; cursor: pointer; transition: background 0.2s;">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </form>
+                </div>
+            {% endif %}
+
+            <!-- Right Side -->
+            <div class="navbar-right">
+                {% if current_user.is_authenticated %}
+                    <!-- Notification Bell -->
+                    <div class="notification-bell-container">
+                        <button class="notification-bell" id="notificationBell" onclick="notificationManager && notificationManager.togglePanel()">
+                            <i class="fas fa-bell"></i>
+                            <span class="notification-badge" id="notificationBadge">0</span>
+                        </button>
+                        <div class="notifications-panel" id="notificationsPanel">
+                            <div class="notifications-header">
+                                <h4>Notifications</h4>
+                                <button class="mark-all-read" onclick="notificationManager && notificationManager.markAllAsRead()" title="Mark all as read">
+                                    <i class="fas fa-check-double"></i>
+                                </button>
+                            </div>
+                            <div class="notifications-list" id="notificationsList">
+                                <div class="notification-empty">Loading...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- User Menu Dropdown -->
+                    <div class="user-menu">
+                        <button class="user-menu-btn" id="userMenuBtn">
+                            <i class="fas fa-user-circle"></i>
+                            <span>{{ current_user.username }}</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="user-dropdown" id="userDropdown">
+                            <a href="{{ url_for('main.profile') }}"><i class="fas fa-user"></i> My Profile</a>
+                            <a href="{{ url_for('main.settings') }}"><i class="fas fa-cog"></i> Settings</a>
+                            <a href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                        </div>
+                    </div>
+                {% else %}
+                    <a href="{{ url_for('google.login') }}" style="display:inline-flex;align-items:center;gap:0.5em;padding:0.5em 1.1em;background:white;color:#3c4043;border:1px solid #dadce0;border-radius:0.4em;text-decoration:none;font-size:0.9rem;font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,0.15);">
+                        <svg width="18" height="18" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path fill="#EA4335" d="M24 9.5c3.1 0 5.8 1.1 8 2.9l6-6C34.4 3 29.5 1 24 1 14.7 1 6.8 6.6 3.2 14.6l7 5.4C12 13.9 17.5 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.4 5.7c4.3-4 6.8-9.9 6.8-16.9z" /><path fill="#FBBC05" d="M10.2 28.6A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.7-4.6l-7-5.4A23.9 23.9 0 0 0 0 24c0 3.9.9 7.5 2.6 10.8l7.6-6.2z"/><path fill="#34A853" d="M24 47c5.5 0 10.1-1.8 13.5-4.9l-7.4-5.7c-1.9 1.3-4.3 2.1-6.1 2.1-6.5 0-12-4.4-14-10.3l-7.6 6.2C6.8 41.4 14.7 47 24 47z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+                        Sign in with Google
+                    </a>
+                {% endif %}
+
+                <!-- Hamburger Menu -->
+                <button class="hamburger" id="hamburger">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Menu -->
+        <div class="mobile-menu" id="mobileMenu">
+            {% if current_user.is_authenticated %}
+                <a href="{{ url_for('main.dashboard') }}"><i class="fas fa-home"></i> Dashboard</a>
+                <a href="{{ url_for('courses.list_courses') }}"><i class="fas fa-book"></i> Courses</a>
+                {% if current_user.is_teacher() %}
+                    <a href="{{ url_for('admin.index') }}"><i class="fas fa-shield-alt"></i> Admin</a>
+                    <a href="{{ url_for('admin.user_roles') }}"><i class="fas fa-users-cog"></i> User Roles</a>
+                    <a href="{{ url_for('admin.role_permissions') }}"><i class="fas fa-lock"></i> Permissions</a>
+                {% endif %}
+                <a href="{{ url_for('main.profile') }}"><i class="fas fa-user"></i> My Profile</a>
+                <a href="{{ url_for('main.settings') }}"><i class="fas fa-cog"></i> Settings</a>
+                <a href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            {% else %}
+                <a href="{{ url_for('google.login') }}" style="display:inline-flex;align-items:center;gap:0.5em;padding:0.5em 1em;background:white;color:#3c4043;border:1px solid #dadce0;border-radius:0.4em;text-decoration:none;font-size:0.9rem;font-weight:500;">
+                    <svg width="16" height="16" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path fill="#EA4335" d="M24 9.5c3.1 0 5.8 1.1 8 2.9l6-6C34.4 3 29.5 1 24 1 14.7 1 6.8 6.6 3.2 14.6l7 5.4C12 13.9 17.5 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.4 5.7c4.3-4 6.8-9.9 6.8-16.9z"/><path fill="#FBBC05" d="M10.2 28.6A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.7-4.6l-7-5.4A23.9 23.9 0 0 0 0 24c0 3.9.9 7.5 2.6 10.8l7.6-6.2z"/><path fill="#34A853" d="M24 47c5.5 0 10.1-1.8 13.5-4.9l-7.4-5.7c-1.9 1.3-4.3 2.1-6.1 2.1-6.5 0-12-4.4-14-10.3l-7.6 6.2C6.8 41.4 14.7 47 24 47z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+                    Sign in with Google
+                </a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        {% block fullwidth_content %}{% endblock %}
+        {% block breadcrumbs %}{% endblock %}
+        <div>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-messages">
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+            <!-- Flash Messages to Toast Converter -->
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    // Convert Flask flash messages to toasts
+                    const flashMessages = document.querySelectorAll('.flash-messages .alert');
+                    flashMessages.forEach(alert => {
+                        const message = alert.textContent.trim();
+                        const category = Array.from(alert.classList)
+                            .find(cls => cls.startsWith('alert-'))
+                            ?.replace('alert-', '') || 'info';
+                        // Map Flask categories to toast types
+                        const toastType = {
+                            'error': 'error',
+                            'danger': 'error',
+                            'warning': 'warning',
+                            'success': 'success',
+                            'info': 'info'
+                        }[category] || 'info';
+                        // Show toast
+                        Toast.show(message, toastType);
+                        // Hide flash message
+                        alert.style.display = 'none';
+                    });
+                });
+            </script>
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2025 Computer Lab Hub. Built for programming education.</p>
+        {% if current_user.is_authenticated %}
+        <button class="footer-contact-btn" id="contactTeacherBtn">
+            <i class="fas fa-envelope"></i> Contact Teacher
+        </button>
+        {% endif %}
+    </footer>
+
+    <!-- Contact Teacher Modal -->
+    {% if current_user.is_authenticated %}
+    <div class="contact-modal" id="contactModal">
+        <div class="contact-modal-content">
+            <div class="contact-modal-header">
+                <h3>Contact Teacher</h3>
+                <button class="contact-modal-close" id="contactModalClose">&times;</button>
+            </div>
+            <form id="contactForm">
+                <div class="contact-form-group">
+                    <label for="contactSubject">Subject</label>
+                    <input type="text" id="contactSubject" name="subject" placeholder="e.g., Question about assignment" required>
+                </div>
+                <div class="contact-form-group">
+                    <label for="contactMessage">Message</label>
+                    <textarea id="contactMessage" name="message" placeholder="Please describe your question or issue..." required></textarea>
+                </div>
+                <button type="submit" class="contact-form-submit" id="contactSubmitBtn">
+                    <i class="fas fa-paper-plane"></i> Send Email
+                </button>
+                <div class="contact-form-message" id="contactFormMessage"></div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <script>
+        // User Menu Dropdown
+        const userMenuBtn = document.getElementById('userMenuBtn');
+        const userDropdown = document.getElementById('userDropdown');
+        
+        if (userMenuBtn) {
+            userMenuBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userDropdown.classList.toggle('active');
+            });
+
+            document.addEventListener('click', () => {
+                userDropdown.classList.remove('active');
+            });
+        }
+
+        // Mobile Menu Hamburger
+        const hamburger = document.getElementById('hamburger');
+        const mobileMenu = document.getElementById('mobileMenu');
+        const navbarMenu = document.getElementById('navbarMenu');
+
+        if (hamburger) {
+            hamburger.addEventListener('click', () => {
+                hamburger.classList.toggle('active');
+                mobileMenu.classList.toggle('active');
+            });
+
+            // Close menu when clicking a link
+            mobileMenu.querySelectorAll('a').forEach(link => {
+                link.addEventListener('click', () => {
+                    hamburger.classList.remove('active');
+                    mobileMenu.classList.remove('active');
+                });
+            });
+        }
+    </script>
+
+    <!-- Loading States Manager -->
+    <script src="{{ url_for('static', filename='js/loading.js') }}"></script>
+    
+    <!-- Toast Notifications -->
+    <script src="{{ url_for('static', filename='js/toast.js') }}"></script>
+
+    <!-- Prism.js for Code Syntax Highlighting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+
+    <!-- Syntax Highlighting Manager -->
+    <script src="{{ url_for('static', filename='js/syntax-highlight.js') }}"></script>
+
+
+    <!-- Contact Teacher Form Handler -->
+    <script>
+        {% if current_user.is_authenticated %}
+        const contactModal = document.getElementById('contactModal');
+        const contactForm = document.getElementById('contactForm');
+        const contactBtn = document.getElementById('contactTeacherBtn');
+        const contactClose = document.getElementById('contactModalClose');
+        const contactSubmitBtn = document.getElementById('contactSubmitBtn');
+        const contactMessage = document.getElementById('contactFormMessage');
+
+        // Open modal
+        if (contactBtn) {
+            contactBtn.addEventListener('click', () => {
+                contactModal.classList.add('active');
+            });
+        }
+
+        // Close modal
+        if (contactClose) {
+            contactClose.addEventListener('click', () => {
+                contactModal.classList.remove('active');
+            });
+        }
+
+        // Close on outside click
+        if (contactModal) {
+            contactModal.addEventListener('click', (e) => {
+                if (e.target === contactModal) {
+                    contactModal.classList.remove('active');
+                }
+            });
+        }
+
+        // Handle form submission
+        if (contactForm) {
+            contactForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                contactSubmitBtn.disabled = true;
+                contactMessage.className = 'contact-form-message';
+                
+                try {
+                    const formData = new FormData(contactForm);
+                    const teacherEmail = '{{ admin_email }}';
+                    
+                    if (!teacherEmail || teacherEmail.includes('example.com')) {
+                        contactMessage.className = 'contact-form-message error';
+                        contactMessage.textContent = 'Unable to determine teacher email. Please contact your instructor directly.';
+                        contactSubmitBtn.disabled = false;
+                        return;
+                    }
+                    
+                    formData.append('recipient_email', teacherEmail);
+                    
+                    const response = await fetch('{{ url_for("main.contact_teacher") }}', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    let data = {};
+                    try {
+                        data = await response.json();
+                    } catch (parseError) {
+                        // Response is not valid JSON - server error
+                        console.error('JSON Parse Error:', parseError);
+                        contactMessage.className = 'contact-form-message error';
+                        contactMessage.textContent = `✗ Server error: ${response.status}. Please try again later or contact your instructor directly.`;
+                        contactSubmitBtn.disabled = false;
+                        return;
+                    }
+
+                    if (response.ok) {
+                        contactMessage.className = 'contact-form-message success';
+                        contactMessage.textContent = '✓ Email sent successfully! Your teacher will respond shortly.';
+                        contactForm.reset();
+                        setTimeout(() => {
+                            contactModal.classList.remove('active');
+                            contactMessage.className = 'contact-form-message';
+                        }, 3000);
+                    } else if (response.status === 401 || data.needs_auth) {
+                        // Token expired or needs re-authorization
+                        contactMessage.className = 'contact-form-message error';
+                        contactMessage.textContent = '⚠ Your Google authorization expired. Redirecting to re-authorize...';
+                        setTimeout(() => {
+                            // Redirect to Google OAuth login
+                            window.location.href = '{{ url_for("google.login") }}';
+                        }, 2000);
+                    } else {
+                        contactMessage.className = 'contact-form-message error';
+                        const errorMsg = data.error || 'Failed to send email';
+                        // Extract just the error message, removing technical details
+                        const cleanError = errorMsg.split('(')[0].trim() || 'An error occurred';
+                        contactMessage.textContent = `✗ Error: ${cleanError}`;
+                    }
+                } catch (error) {
+                    contactMessage.className = 'contact-form-message error';
+                    contactMessage.textContent = `✗ Network error: ${error.message}`;
+                } finally {
+                    contactSubmitBtn.disabled = false;
+                }
+            });
+        }
+        {% endif %}
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

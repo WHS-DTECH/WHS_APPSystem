@@ -1,0 +1,385 @@
+{% extends "base.html" %}
+
+{% block title %}{{ lesson.title }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumb-nav">
+    <a href="{{ url_for('main.dashboard') }}"><i class="fas fa-home"></i> Dashboard</a>
+    <span>/</span>
+    <a href="{{ url_for('courses.list_courses') }}">Courses</a>
+    <span>/</span>
+    <a href="{{ url_for('courses.view_course', course_id=course.id) }}">{{ course.title }}</a>
+    <span>/</span>
+    <span>{{ lesson.title }}</span>
+</div>
+{% endblock %}
+{% block content %}
+<style>
+    .breadcrumb-nav {
+        padding: 1rem 0;
+        margin-bottom: 1.5rem;
+        font-size: 0.95em;
+    }
+    .breadcrumb-nav a {
+        color: #5c0e2a;
+        text-decoration: none;
+        font-weight: 600;
+        transition: color 0.2s;
+    }
+    .breadcrumb-nav a:hover {
+        color: #7a1d3e;
+        text-decoration: underline;
+    }
+    .breadcrumb-nav span {
+        color: #999;
+        margin: 0 0.5rem;
+    }
+    .lesson-progress {
+        background: #f0f0f0;
+        padding: 0.75rem 1.25rem;
+        border-radius: 0.4em;
+        margin-bottom: 1.5rem;
+        font-size: 0.95em;
+        color: #666;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .lesson-progress-info {
+        font-weight: 600;
+        color: #5c0e2a;
+    }
+
+    .lesson-view {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .lesson-navigation {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2.5rem;
+        padding-top: 2rem;
+        border-top: 1px solid #ddd;
+        flex-wrap: wrap;
+    }
+
+    .lesson-nav-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75em 1.5em;
+        background: #5c0e2a;
+        color: white;
+        text-decoration: none;
+        border: none;
+        border-radius: 0.4em;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s;
+        white-space: nowrap;
+    }
+
+    .lesson-nav-button:hover {
+        background: #7a1d3e;
+        transform: translateY(-2px);
+        box-shadow: 0 2px 8px rgba(92, 14, 42, 0.2);
+    }
+
+    .lesson-nav-button.disabled,
+    .lesson-nav-button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .lesson-nav-button.secondary {
+        background: #f0f0f0;
+        color: #333;
+    }
+
+    .lesson-nav-button.secondary:hover {
+        background: #e0e0e0;
+    }
+
+    .lesson-nav-button.secondary.disabled {
+        background: #e8e8e8;
+        color: #999;
+    }
+
+    .lesson-nav-spacer {
+        flex: 1;
+    }
+
+    .feedback-widget-container {
+        margin: 2rem 0;
+    }
+
+    .feedback-widget {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 0.6em;
+        overflow: hidden;
+        color: white;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.25);
+    }
+
+    .feedback-widget-header {
+        background: rgba(0, 0, 0, 0.1);
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .feedback-widget-header h6 {
+        color: white;
+        margin: 0;
+    }
+
+    .feedback-widget-body {
+        padding: 1.25rem;
+    }
+
+    .feedback-widget .btn {
+        background: white;
+        border-color: white;
+        color: #667eea;
+        font-weight: 600;
+    }
+
+        .feedback-widget .btn:hover {
+            background: #f0f0f0;
+            border-color: #f0f0f0;
+        }
+
+        /* Enhance code blocks in lesson content */
+        .lesson-display pre {
+            background: #282c34;
+            border-radius: 0.5em;
+            padding: 1.25em 1em;
+            overflow-x: auto;
+            margin: 1.5em 0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .lesson-display code {
+            font-family: 'Fira Code', 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
+        .lesson-display pre code {
+            background: transparent;
+            color: #abb2bf;
+        }
+
+        .lesson-display :not(pre) > code {
+            background: rgba(0, 0, 0, 0.1);
+            color: #e06c75;
+            padding: 0.2em 0.4em;
+            border-radius: 0.3em;
+            font-family: 'Fira Code', 'Courier New', monospace;
+        }
+
+        @media (max-width: 768px) {
+            .lesson-display pre {
+                margin: 1em 0;
+                border-radius: 0.4em;
+                padding: 1em 0.75em;
+            }
+
+            .lesson-display code {
+                font-size: 0.85em;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .breadcrumb-nav {
+                font-size: 0.85em;
+                overflow-x: auto;
+                white-space: nowrap;
+                padding-bottom: 0.75rem;
+            }
+
+            .lesson-progress {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+
+        .lesson-navigation {
+            gap: 0.75rem;
+        }
+
+        .lesson-nav-button {
+            flex: 1;
+            min-width: 120px;
+            font-size: 0.95em;
+        }
+
+        .feedback-widget-body {
+            padding: 1rem;
+        }
+    }
+</style>
+
+<div class="lesson-view">
+    <!-- Breadcrumb Navigation -->
+    <div class="breadcrumb-nav">
+        <a href="{{ url_for('main.dashboard') }}"><i class="fas fa-home"></i> Dashboard</a>
+        <span>/</span>
+        <a href="{{ url_for('courses.list_courses') }}">Courses</a>
+        <span>/</span>
+        <a href="{{ url_for('courses.view_course', course_id=course.id) }}">{{ course.title }}</a>
+        <span>/</span>
+        <span>{{ lesson.title }}</span>
+    </div>
+
+    <!-- Lesson Progress Indicator -->
+    {% if lesson_order and total_lessons %}
+        <div class="lesson-progress">
+            <div>
+                <span class="lesson-progress-info">Lesson {{ lesson_order }} of {{ total_lessons }}</span>
+            </div>
+            <div style="flex: 1; margin: 0 1.5rem;">
+                <div style="background: #ddd; height: 6px; border-radius: 3px; overflow: hidden;">
+                    <div style="background: linear-gradient(90deg, #28a745, #20c997); height: 100%; width: {{ (lesson_order / total_lessons * 100)|int }}%; transition: width 0.3s;"></div>
+                </div>
+            </div>
+            <div style="color: #999; font-size: 0.9em;">
+                {% set progress = ((lesson_order / total_lessons * 100)|int) %}{{ progress }}% Complete
+            </div>
+        </div>
+    {% endif %}
+    
+    <h1>{{ lesson.title }}
+    {% if current_user.is_authenticated and current_user.is_teacher() and course.teacher_id == current_user.id %}
+        <a href="{{ url_for('courses.edit_lesson', lesson_id=lesson.id) }}" class="btn btn-sm btn-warning" style="margin-left: 1rem; font-size: 0.7em;">Edit</a>
+    {% endif %}
+    </h1>
+    
+    {% if lesson.video_url %}
+        <div class="video-container">
+            <iframe src="{{ lesson.video_url }}" allowfullscreen></iframe>
+        </div>
+    {% endif %}
+    
+
+    <div class="lesson-content">
+        {{ lesson.content|safe }}
+        {% if sections %}
+            <div class="section-links">
+                <h2>Sections</h2>
+                <ul>
+                {% for section in sections %}
+                    <li>
+                        <a href="{{ url_for('lessons.view_section', section_id=section.id) }}">{{ section.title }}</a>
+                    </li>
+                {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+        {% if 'PYTHON_CONVENTIONS' in lesson.content %}
+            {% include "includes/conventions_python.html" %}
+        {% elif 'JS_CONVENTIONS' in lesson.content %}
+            {% include "includes/conventions_js.html" %}
+        {% elif 'HTML_CSS_CONVENTIONS' in lesson.content %}
+            {% include "includes/conventions_html_css.html" %}
+        {% elif 'SUMMARY_CONVENTIONS' in lesson.content %}
+            {% include "includes/conventions_summary.html" %}
+        {% endif %}
+    </div>
+    
+    {% if not current_user.is_teacher() %}
+        <div class="lesson-actions">
+            <form method="POST" action="{{ url_for('courses.complete_lesson', lesson_id=lesson.id) }}">
+                <button type="submit" class="btn btn-success">Mark as Complete</button>
+            </form>
+        </div>
+    {% endif %}
+    
+    <!-- Feedback Widget -->
+    {% if not current_user.is_teacher() %}
+    <div class="feedback-widget-container">
+        <div class="feedback-widget">
+            <div class="feedback-widget-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-comments me-2"></i>
+                    Help Us Improve This Lesson
+                </h6>
+            </div>
+            <div class="feedback-widget-body">
+                <p class="text-muted small mb-3">Your feedback helps us create better learning experiences.</p>
+                <a href="{{ url_for('courses.submit_lesson_feedback', lesson_id=lesson.id) }}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-star me-1"></i>
+                    Share Your Feedback
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Lesson Navigation with Prev/Next Buttons -->
+    <div class="lesson-navigation">
+        {% if previous_lesson %}
+            <a href="{{ url_for('courses.view_lesson', lesson_id=previous_lesson.id) }}" class="lesson-nav-button secondary">
+                <i class="fas fa-arrow-left"></i> Previous Lesson
+            </a>
+        {% else %}
+            <button class="lesson-nav-button secondary disabled" disabled>
+                <i class="fas fa-arrow-left"></i> Previous Lesson
+            </button>
+        {% endif %}
+
+        <a href="{{ url_for('courses.view_course', course_id=course.id) }}" class="lesson-nav-button secondary">
+            <i class="fas fa-book"></i> Back to Course
+        </a>
+
+        <div class="lesson-nav-spacer"></div>
+
+        {% if next_lesson %}
+            <a href="{{ url_for('courses.view_lesson', lesson_id=next_lesson.id) }}" class="lesson-nav-button">
+                Next Lesson <i class="fas fa-arrow-right"></i>
+            </a>
+        {% else %}
+            <button class="lesson-nav-button disabled" disabled>
+                Next Lesson <i class="fas fa-arrow-right"></i>
+            </button>
+        {% endif %}
+    </div>
+    </div>
+<script src="{{ url_for('static', filename='js/comment_activities.js') }}"></script>
+<script src="{{ url_for('static', filename='js/debug_activities.js') }}"></script>
+<script src="{{ url_for('static', filename='js/practice_debug_activities.js') }}"></script>
+
+<script>
+// Enhanced code block styling and interaction
+document.addEventListener('DOMContentLoaded', () => {
+    const lessonContent = document.querySelector('.lesson-display') || document.querySelector('.lesson-content');
+    
+    if (lessonContent) {
+        // Wrap code blocks with syntax-highlight class
+        lessonContent.querySelectorAll('pre').forEach(pre => {
+            if (!pre.classList.contains('syntax-highlight')) {
+                pre.classList.add('syntax-highlight');
+            }
+            
+            // Auto-detect language if not specified
+            const code = pre.querySelector('code');
+            if (code && !code.className) {
+                const language = SyntaxHighlighter.detectLanguage(code.textContent);
+                if (language) {
+                    code.className = `language-${language}`;
+                    pre.className += ` language-${language}`;
+                }
+            }
+        });
+
+        // Add copy buttons
+        setTimeout(() => {
+            SyntaxHighlighter.addCopyButtons();
+            SyntaxHighlighter.enhanceCodeBlocks();
+        }, 500);
+    }
+});
+</script>
+{% endblock %}

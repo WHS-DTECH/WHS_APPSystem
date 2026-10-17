@@ -1,8 +1,8 @@
-"""Runs a student's Flask app behind the WHS APPSystem.
+"""Runs a hosted Flask app behind the WHS APPSystem.
 
 The school system signs the person in and sends who they are in X-WHS-* headers.
 This wrapper trusts those headers (only the school system can reach this process),
-so the student's own login is no longer used.
+so the app's own login is no longer used.
 """
 import hmac
 import importlib
@@ -42,9 +42,9 @@ def _sign_in_from_headers():
     session["role"] = role
 
     if request.path == "/":
-        return redirect(PREFIX + "/dashboard")
+        return redirect(PREFIX + os.environ.get("WHS_ROOT_ROUTE", "/dashboard"))
     if request.path == "/logout":
-        return redirect("/student-apps")
+        return redirect(os.environ.get("WHS_EXIT_URL", "/student-apps"))
     return None
 
 

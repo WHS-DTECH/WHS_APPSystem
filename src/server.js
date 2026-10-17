@@ -19,6 +19,7 @@ const sewingHub = require('./modules/sewingHub');
 const workshop = require('./modules/workshop');
 const foodRoom = require('./modules/foodRoom');
 const { createDtechRouter } = require('./modules/dtechHub');
+const { createClassTrainingRouter, trainingEmail } = require('./modules/classTraining');
 const { importLegacyFoodRoom } = require('./legacyFoodRoomImport');
 const hubRoles = require('./hubRoles');
 const assessmentStandards = require('./assessmentStandards');
@@ -38,9 +39,9 @@ app.get('/favicon.ico', (req, res) => res.sendFile(path.join(__dirname, '..', 'p
 app.use(helmet({ contentSecurityPolicy: false }));
 // The Food Room pages make many small API calls, so they are not counted against the shared limit.
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, skip: (req) => req.path.startsWith('/food-room/') || req.path.startsWith('/dtech-hub/') || req.path === '/nav-data' }));
-// Hosted apps receive their request bodies untouched, so the parsers skip /apps/.
+// Hosted Flask apps receive their request bodies untouched, including training uploads.
 const parseBodies = [express.urlencoded({ extended: false }), express.json({ limit: '25mb' })];
-app.use((req, res, next) => (req.path.startsWith('/apps/')
+app.use((req, res, next) => (req.path.startsWith('/apps/') || req.path.startsWith('/dtech-hub/class-training/')
   ? next()
   : parseBodies[0](req, res, (error) => (error ? next(error) : parseBodies[1](req, res, next)))));
 app.use(session({
@@ -182,6 +183,9 @@ app.use('/sewing-hub', sewingHub);
 app.use('/api', sewingHub.apiRouter);
 app.use('/workshop', workshop);
 app.use('/food-room', foodRoom);
+app.post('/internal/dtech-class-training/email', trainingEmail);
+app.get(/^\/dtech-hub\/class-training$/, (req, res) => res.redirect('/dtech-hub/class-training/'));
+app.use('/dtech-hub/class-training', createClassTrainingRouter());
 app.get(/^\/dtech-hub$/, (req, res) => res.redirect(`/dtech-hub/${req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''}`));
 app.use('/dtech-hub', createDtechRouter());
 app.use(express.static(path.join(__dirname, '..', 'public')));

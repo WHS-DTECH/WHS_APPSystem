@@ -1,0 +1,81 @@
+</div>
+<!-- Module 3: Checking for Assessment Purposes - Two Column Padded Boxes Layout -->
+<link rel="stylesheet" href="https://matthewjamestaylor.com/css/padded-boxes.css">
+<style>
+.padded-boxes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+}
+.padded-boxes > * {
+    width: 100%;
+    background: #eee;
+    border-radius: .4rem;
+}
+.padded-boxes .heading {
+    background: #f97171;
+    margin: 0;
+    padding: 1rem;
+    border-top-left-radius: .4rem;
+    border-top-right-radius: .4rem;
+}
+.padded-boxes .padded {
+    padding: .1rem 1rem;
+}
+@media (min-width: 768px) {
+    .padded-boxes > * {
+        width: calc(50% - 1rem);
+    }
+}
+</style>
+
+<div class="padded-boxes">
+    <section>
+        <h3 class="heading">What is Assessment Checking?</h3>
+        <div class="padded">
+            <p>Assessment checking is the process of reviewing student work to ensure it meets the required criteria and learning objectives. It involves:</p>
+            <ul>
+                <li>Verifying code correctness and functionality</li>
+                <li>Checking for adherence to style and conventions</li>
+                <li>Ensuring documentation and comments are present</li>
+                <li>Providing constructive feedback for improvement</li>
+            </ul>
+        </div>
+    </section>
+    <section>
+        <h3 class="heading">Best Practices for Checking</h3>
+        <div class="padded">
+            <ul>
+                <li>Use a checklist or rubric for consistency</li>
+                <li>Test code with a variety of inputs</li>
+                <li>Look for edge cases and error handling</li>
+                <li>Encourage students to self-check before submission</li>
+                <li>Give specific, actionable feedback</li>
+            </ul>
+        </div>
+    </section>
+    <section>
+        <h3 class="heading">Common Mistakes to Watch For</h3>
+        <div class="padded">
+            <ul>
+                <li>Missing or incorrect output</li>
+                <li>Poor variable/function naming</li>
+                <li>Lack of comments or documentation</li>
+                <li>Hardcoded values instead of variables</li>
+                <li>Not following assignment instructions</li>
+            </ul>
+        </div>
+    </section>
+    <section>
+        <h3 class="heading">Tips for Students</h3>
+        <div class="padded">
+            <ul>
+                <li>Read the assessment criteria carefully</li>
+                <li>Test your code before submitting</li>
+                <li>Ask for feedback and revise your work</li>
+                <li>Check your comments and documentation</li>
+                <li>Reflect on what you learned from the task</li>
+            </ul>
+        </div>
+    </section>
+</div>

@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+
+{% block title %}Grade {{ assignment.title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <h2 class="mb-1">{{ assignment.title }}</h2>
+            <p class="text-muted">Grading Dashboard</p>
+        </div>
+        <div class="col-lg-4 text-end">
+            <a href="{{ url_for('assignments.manage_rubric', assignment_id=assignment.id) }}" class="btn btn-outline-primary">
+                <i class="fas fa-tasks me-2"></i>
+                {% if rubric %}Update Rubric{% else %}Create Rubric{% endif %}
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-6 col-lg-3">
+            <div class="card text-center border-start border-primary border-4">
+                <div class="card-body">
+                    <h6 class="card-title text-muted mb-2">Total Submissions</h6>
+                    <h2 class="card-text text-primary">{{ stats.total }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="card text-center border-start border-success border-4">
+                <div class="card-body">
+                    <h6 class="card-title text-muted mb-2">Graded</h6>
+                    <h2 class="card-text text-success">{{ stats.graded }}</h2>
+                    <small class="text-muted">{{ ((stats.graded / stats.total * 100) | int) if stats.total > 0 else 0 }}%</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="card text-center border-start border-warning border-4">
+                <div class="card-body">
+                    <h6 class="card-title text-muted mb-2">Pending</h6>
+                    <h2 class="card-text text-warning">{{ stats.pending }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="card text-center border-start border-info border-4">
+                <div class="card-body">
+                    <h6 class="card-title text-muted mb-2">Average Score</h6>
+                    <h2 class="card-text text-info">{{ stats.average }}</h2>
+                    <small class="text-muted">/ {{ assignment.max_points }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rubric Info -->
+    {% if rubric %}
+    <div class="alert alert-info mb-4">
+        <h6 class="alert-heading mb-2"><i class="fas fa-clipboard-list me-2"></i>Rubric: {{ rubric.title }}</h6>
+        <p class="mb-0">{{ rubric.description }}</p>
+        <small class="text-muted">{{ rubric.criteria | length }} criteria, {{ rubric.total_points }} total points</small>
+    </div>
+    {% endif %}
+
+    <!-- Submissions Table -->
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Student Submissions</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Student</th>
+                        <th>Submitted</th>
+                        <th>Status</th>
+                        <th>Score</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for submission in submissions %}
+                    <tr>
+                        <td>
+                            <strong>{{ submission.student.username }}</strong>
+                            <br>
+                            <small class="text-muted">{{ submission.student.email }}</small>
+                        </td>
+                        <td>
+                            <small>{{ submission.submitted_at.strftime('%m/%d/%Y %I:%M %p') if submission.submitted_at else 'Not submitted' }}</small>
+                        </td>
+                        <td>
+                            {% if submission.graded %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check-circle me-1"></i>Graded
+                                </span>
+                                {% if submission.graded_at %}
+                                <br><small class="text-muted">{{ submission.graded_at.strftime('%m/%d') }}</small>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-warning">
+                                    <i class="fas fa-clock me-1"></i>Pending
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if submission.score %}
+                                <strong class="text-primary">{{ submission.score }}/{{ assignment.max_points }}</strong>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('assignments.grade_submission_advanced', assignment_id=assignment.id, submission_id=submission.id) }}" class="btn btn-sm btn-primary">
+                                <i class="fas fa-edit me-1"></i>Grade
+                            </a>
+                            {% if submission.graded %}
+                            <a href="#" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#viewModal{{ submission.id }}">
+                                <i class="fas fa-eye me-1"></i>View
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- No Submissions Message -->
+    {% if not submissions %}
+    <div class="alert alert-info mt-4">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>No submissions yet.</strong> Students will appear here once they submit their work.
+    </div>
+    {% endif %}
+
+    <!-- Back Button -->
+    <div class="mt-4">
+        <a href="{{ url_for('assignments.view_assignment', assignment_id=assignment.id) }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Assignment
+        </a>
+    </div>
+</div>
+
+<!-- View Submission Modals -->
+{% for submission in submissions %}
+{% if submission.graded %}
+<div class="modal fade" id="viewModal{{ submission.id }}" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{{ submission.student.username }}'s Submission - Grade</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <strong>Score:</strong> {{ submission.score }}/{{ assignment.max_points }}
+                </div>
+                <div class="mb-3">
+                    <strong>Graded:</strong> {{ submission.graded_at.strftime('%m/%d/%Y %I:%M %p') }}
+                </div>
+                {% if submission.feedback %}
+                <div class="bg-light p-3 rounded">
+                    <strong>Feedback:</strong>
+                    <p class="mt-2 mb-0">{{ submission.feedback }}</p>
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="{{ url_for('assignments.grade_submission_advanced', assignment_id=assignment.id, submission_id=submission.id) }}" class="btn btn-primary">
+                    Edit Grade
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+
+<style>
+    .card {
+        border-radius: 0.5em;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    .badge {
+        padding: 0.35em 0.65em;
+        font-weight: 600;
+        font-size: 0.85em;
+    }
+
+    .btn-sm {
+        padding: 0.4em 0.8em;
+        font-size: 0.85em;
+    }
+
+    .border-start {
+        border-left-width: 0.25rem !important;
+    }
+
+    @media (max-width: 768px) {
+        .table {
+            font-size: 0.9em;
+        }
+
+        .btn-sm {
+            padding: 0.3em 0.6em;
+            font-size: 0.75em;
+        }
+    }
+</style>
+{% endblock %}

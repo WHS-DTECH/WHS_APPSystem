@@ -31,6 +31,12 @@ function prefixText(text) {
 
 function prefixData(value) {
   if (typeof value === 'string') {
+    if (/^https:\/\/classtrainingsys\.onrender\.com(?:[/?#]|$)/i.test(value)) {
+      const url = new URL(value);
+      const destination = url.pathname.startsWith('/auth/') || url.pathname.startsWith('/login')
+        ? '/home' : url.pathname;
+      return `${PREFIX}/class-training${destination}${destination === '/home' ? '' : url.search + url.hash}`;
+    }
     if (value.startsWith('/') && !value.startsWith('//') && !value.startsWith(`${PREFIX}/`)) return PREFIX + value;
     return value;
   }

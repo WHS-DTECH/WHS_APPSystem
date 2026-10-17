@@ -1,0 +1,64 @@
+<!-- PRACTICE DEBUGGING BLOCK START -->
+<h2>Practice: Where Would You Debug?</h2>
+<ol>
+  <li>
+    <b>Example 1:</b>
+    <pre>def greet(name):
+    print("Hello" + name)
+
+greet()</pre>
+    <label>Where would you debug? (describe the line or issue):</label>
+    <input type="text" id="debug1" />
+    <button onclick="checkDebug1()">Check</button>
+    <button onclick="showSolution('solution1')">Show Solution</button>
+    <div id="solution1" style="display:none; background-color:#e6ffe6; border:1px solid #b2ffb2; padding:8px; margin-top:5px;">
+      <b>Solution:</b> The function <code>greet()</code> is called without an argument, but it requires one. This will cause a TypeError.
+    </div>
+    <span id="feedback1"></span>
+  </li>
+  <li>
+    <b>Example 2:</b>
+    <pre>numbers = [1, 2, 3, 4, 5]
+for i in range(6):
+    print(numbers[i])</pre>
+    <label>Where would you debug? (describe the line or issue):</label>
+    <input type="text" id="debug2" />
+    <button onclick="checkDebug2()">Check</button>
+    <button onclick="showSolution('solution2')">Show Solution</button>
+    <div id="solution2" style="display:none; background-color:#e6ffe6; border:1px solid #b2ffb2; padding:8px; margin-top:5px;">
+      <b>Solution:</b> The loop goes from 0 to 5, but <code>numbers</code> only has 5 elements (indices 0-4). <code>numbers[5]</code> will cause an IndexError.
+    </div>
+    <span id="feedback2"></span>
+  </li>
+  <li>
+    <b>Example 3:</b>
+    <pre>def divide(a, b):
+    return a / b
+
+print(divide(10, 0))</pre>
+    <label>Where would you debug? (describe the line or issue):</label>
+    <input type="text" id="debug3" />
+    <button onclick="checkDebug3()">Check</button>
+    <button onclick="showSolution('solution3')">Show Solution</button>
+    <div id="solution3" style="display:none; background-color:#e6ffe6; border:1px solid #b2ffb2; padding:8px; margin-top:5px;">
+      <b>Solution:</b> <code>divide(10, 0)</code> will cause a ZeroDivisionError because division by zero is not allowed.
+    </div>
+    <span id="feedback3"></span>
+  </li>
+  <li>
+    <b>Example 4:</b>
+    <pre>total = 0
+for i in range(5):
+    total = total + i
+print(totals)</pre>
+    <label>Where would you debug? (describe the line or issue):</label>
+    <input type="text" id="debug4" />
+    <button onclick="checkDebug4()">Check</button>
+    <button onclick="showSolution('solution4')">Show Solution</button>
+    <div id="solution4" style="display:none; background-color:#e6ffe6; border:1px solid #b2ffb2; padding:8px; margin-top:5px;">
+      <b>Solution:</b> The variable <code>totals</code> is not defined; it should be <code>total</code>.
+    </div>
+    <span id="feedback4"></span>
+  </li>
+</ol>
+<!-- PRACTICE DEBUGGING BLOCK END -->

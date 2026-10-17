@@ -1,0 +1,1 @@
+This is a static file test. If you see this, static file serving works!

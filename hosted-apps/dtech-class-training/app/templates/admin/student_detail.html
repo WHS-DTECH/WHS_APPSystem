@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="max-width: 900px; margin: 0 auto; padding: 2em 1em;">
+    <!-- Back Button -->
+    <a href="{{ url_for('admin.index') }}" style="display: inline-block; margin-bottom: 2em; padding: 0.6em 1.2em; background: #6c757d; color: white; border-radius: 0.4em; text-decoration: none; font-weight: 600;">← Back to Admin Dashboard</a>
+
+    <!-- Student Header Card -->
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 0.8em; padding: 2em; margin-bottom: 2em; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+        <h1 style="font-size: 2.2em; margin-bottom: 0.5em;">{{ student.username }}</h1>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5em; margin-top: 1.5em;">
+            <div>
+                <div style="font-size: 0.9em; opacity: 0.9; margin-bottom: 0.3em;">Email Address</div>
+                <div style="font-size: 1.1em; font-weight: 600;">{{ student.email }}</div>
+            </div>
+            <div>
+                <div style="font-size: 0.9em; opacity: 0.9; margin-bottom: 0.3em;">User Role</div>
+                <div style="font-size: 1.1em; font-weight: 600; text-transform: capitalize;">{{ student.role }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enrollments Section -->
+    <div style="background: white; border-radius: 0.8em; padding: 2em; margin-bottom: 2em; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #e0e0e0;">
+        <h2 style="font-size: 1.5em; margin-bottom: 1.5em; color: #1a1a1a;">📚 Course Enrollments</h2>
+        {% if enrollments %}
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5em;">
+                {% for enrollment in enrollments %}
+                <div style="border: 1px solid #ddd; border-radius: 0.6em; padding: 1.5em; background: #f9f9f9;">
+                    <h3 style="font-size: 1.1em; margin-bottom: 0.5em; color: #1a1a1a;">{{ enrollment.course.title }}</h3>
+                    <div style="font-size: 0.95em; color: #666; margin-bottom: 0.3em;">
+                        <strong>Status:</strong>
+                        <span style="display: inline-block; padding: 0.3em 0.6em; background: #d4edda; color: #155724; border-radius: 0.3em; font-size: 0.9em;">
+                            ✓ {{ enrollment.status|title }}
+                        </span>
+                    </div>
+                    <div style="font-size: 0.95em; color: #666;">
+                        <strong>Enrolled since:</strong> {{ enrollment.enrolled_at.strftime('%B %d, %Y') }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div style="padding: 2em; text-align: center; background: #f5f5f5; border-radius: 0.5em; color: #999;">
+                <p style="font-size: 1.1em;">No course enrollments found</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Reset Checker Section -->
+    <div style="background: #fff3cd; border: 2px solid #ffb300; border-radius: 0.8em; padding: 2em; box-shadow: 0 2px 8px rgba(255, 179, 0, 0.1);">
+        <h2 style="font-size: 1.3em; margin-bottom: 1em; color: #a05a00;">⚠️ Advanced Actions</h2>
+        <p style="color: #856404; margin-bottom: 1.5em;">Reset checker file records for this student. This will clear their Comment Checker and Debug Checker progress, allowing them to re-submit files.</p>
+        
+        <form method="POST" action="{{ url_for('admin.reset_student_checker', student_id=student.id) }}" onsubmit="return confirm('This will reset all Comment and Debug Checker records for {{ student.username }}. This action cannot be undone. Are you sure?');" style="display: inline;">
+            <button type="submit" style="padding: 0.8em 1.5em; background: #ff9800; color: white; border: none; border-radius: 0.4em; cursor: pointer; font-weight: 600; font-size: 1em;">🔄 Reset Checker Files</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

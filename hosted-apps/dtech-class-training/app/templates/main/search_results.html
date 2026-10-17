@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+
+{% block title %}Search Results - Class Training System{% endblock %}
+
+{% block content %}
+<style>
+    .search-header {
+        background: linear-gradient(135deg, #5c0e2a 0%, #7a1d3e 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 0.8em;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 12px rgba(92, 14, 42, 0.2);
+    }
+
+    .search-header h1 {
+        margin: 0 0 1rem 0;
+        font-size: 2em;
+    }
+
+    .search-box {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .search-box input {
+        flex: 1;
+        padding: 0.8em 1rem;
+        border: none;
+        border-radius: 0.4em;
+        font-size: 1em;
+    }
+
+    .search-box button {
+        padding: 0.8em 1.5em;
+        background: rgba(255,255,255,0.3);
+        color: white;
+        border: 2px solid white;
+        border-radius: 0.4em;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+
+    .search-box button:hover {
+        background: white;
+        color: #5c0e2a;
+    }
+
+    .results-section {
+        margin-bottom: 2rem;
+    }
+
+    .section-title {
+        font-size: 1.5em;
+        font-weight: 700;
+        color: #5c0e2a;
+        margin: 0 0 1.5rem 0;
+        padding-bottom: 0.5rem;
+        border-bottom: 3px solid #5c0e2a;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .result-item {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 0.8em;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        transition: all 0.2s;
+    }
+
+    .result-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        border-color: #5c0e2a;
+    }
+
+    .result-title {
+        font-size: 1.2em;
+        font-weight: 700;
+        color: #5c0e2a;
+        margin: 0 0 0.5rem 0;
+    }
+
+    .result-title a {
+        color: #5c0e2a;
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+
+    .result-title a:hover {
+        color: #7a1d3e;
+        text-decoration: underline;
+    }
+
+    .result-type {
+        display: inline-block;
+        padding: 0.3em 0.8em;
+        background: #f0f0f0;
+        color: #666;
+        border-radius: 0.3em;
+        font-size: 0.85em;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .result-type.course {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .result-type.lesson {
+        background: #d1ecf1;
+        color: #0c5460;
+    }
+
+    .result-description {
+        color: #666;
+        margin: 0.5rem 0;
+        line-height: 1.5;
+    }
+
+    .result-meta {
+        display: flex;
+        gap: 1.5rem;
+        margin-top: 1rem;
+        font-size: 0.9em;
+        color: #999;
+    }
+
+    .result-link {
+        display: inline-block;
+        margin-top: 1rem;
+        padding: 0.6em 1.2em;
+        background: #5c0e2a;
+        color: white;
+        text-decoration: none;
+        border-radius: 0.4em;
+        transition: background 0.2s;
+    }
+
+    .result-link:hover {
+        background: #7a1d3e;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 2rem;
+        background: #f9f9f9;
+        border-radius: 0.8em;
+        border: 2px dashed #ddd;
+    }
+
+    .empty-state-icon {
+        font-size: 3em;
+        color: #ccc;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state h2 {
+        color: #999;
+        margin: 0 0 0.5rem 0;
+    }
+
+    .empty-state p {
+        color: #bbb;
+        margin: 0;
+    }
+
+    .search-info {
+        background: #f0f0f0;
+        padding: 1rem 1.5rem;
+        border-radius: 0.4em;
+        margin-bottom: 2rem;
+        color: #666;
+    }
+
+    .highlight {
+        background: #fff3cd;
+        padding: 0.1em 0.3em;
+    }
+
+    @media (max-width: 768px) {
+        .search-header {
+            padding: 1.5rem;
+        }
+
+        .search-header h1 {
+            font-size: 1.5em;
+        }
+
+        .search-box {
+            flex-direction: column;
+        }
+
+        .result-meta {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+    }
+</style>
+
+<div class="search-header">
+    <h1><i class="fas fa-search"></i> Search</h1>
+    <form method="GET" class="search-box">
+        <input type="text" name="q" placeholder="Search courses, lessons..." value="{{ query }}" autofocus>
+        <button type="submit"><i class="fas fa-search"></i> Search</button>
+    </form>
+</div>
+
+{% if query %}
+    {% if results.courses or results.lessons %}
+        <div class="search-info">
+            Found <strong>{{ results.courses|length + results.lessons|length }}</strong> result{{ "s" if (results.courses|length + results.lessons|length) != 1 else "" }} for "<strong>{{ query }}</strong>"
+        </div>
+
+        <!-- Courses Results -->
+        {% if results.courses %}
+            <div class="results-section">
+                <h2 class="section-title">
+                    <i class="fas fa-book"></i> Courses ({{ results.courses|length }})
+                </h2>
+                
+                {% for course in results.courses %}
+                    <div class="result-item">
+                        <span class="result-type course"><i class="fas fa-book"></i> Course</span>
+                        <h3 class="result-title">
+                            <a href="{{ url_for('courses.view_course', course_id=course.id) }}">{{ course.title }}</a>
+                        </h3>
+                        
+                        {% if course.description %}
+                            <p class="result-description">
+                                {{ course.description[:200] }}{% if course.description|length > 200 %}...{% endif %}
+                            </p>
+                        {% endif %}
+                        
+                        <div class="result-meta">
+                            {% if course.lessons %}
+                                <span><i class="fas fa-graduation-cap"></i> {{ course.lessons|length }} Lesson{{ "s" if course.lessons|length != 1 else "" }}</span>
+                            {% endif %}
+                            {% if course.created_at %}
+                                <span><i class="fas fa-calendar"></i> Created {{ course.created_at.strftime('%B %Y') }}</span>
+                            {% endif %}
+                        </div>
+                        
+                        <a href="{{ url_for('courses.view_course', course_id=course.id) }}" class="result-link">
+                            View Course <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- Lessons Results -->
+        {% if results.lessons %}
+            <div class="results-section">
+                <h2 class="section-title">
+                    <i class="fas fa-book-open"></i> Lessons ({{ results.lessons|length }})
+                </h2>
+                
+                {% for lesson in results.lessons %}
+                    <div class="result-item">
+                        <span class="result-type lesson"><i class="fas fa-file-alt"></i> Lesson</span>
+                        <h3 class="result-title">
+                            {{ lesson.title }}
+                        </h3>
+                        
+                        {% if lesson.course %}
+                            <p style="color: #999; font-size: 0.95em; margin: 0.5rem 0;">
+                                <i class="fas fa-folder"></i> Part of <strong>{{ lesson.course.title }}</strong>
+                            </p>
+                        {% endif %}
+                        
+                        {% if lesson.content %}
+                            <p class="result-description">
+                                {{ lesson.content[:200] }}{% if lesson.content|length > 200 %}...{% endif %}
+                            </p>
+                        {% endif %}
+                        
+                        <div class="result-meta">
+                            {% if lesson.order %}
+                                <span><i class="fas fa-list-ol"></i> Lesson {{ lesson.order }}</span>
+                            {% endif %}
+                        </div>
+                        
+                        {% if lesson.course %}
+                            <a href="{{ url_for('courses.view_course', course_id=lesson.course.id) }}" class="result-link">
+                                View Lesson <i class="fas fa-arrow-right"></i>
+                            </a>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon"><i class="fas fa-search"></i></div>
+            <h2>No results found</h2>
+            <p>We couldn't find anything matching "<strong>{{ query }}</strong>"</p>
+            <p style="margin-top: 1rem;">
+                <a href="{{ url_for('courses.list_courses') }}" style="color: #5c0e2a; text-decoration: none; font-weight: 600;">
+                    Browse All Courses <i class="fas fa-arrow-right"></i>
+                </a>
+            </p>
+        </div>
+    {% endif %}
+{% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon"><i class="fas fa-search"></i></div>
+        <h2>Start Searching</h2>
+        <p>Enter a search term to find courses and lessons</p>
+    </div>
+{% endif %}
+
+{% endblock %}

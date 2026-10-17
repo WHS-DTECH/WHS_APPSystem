@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}Practice: Code Comments Extractor{% endblock %}
+
+{% block content %}
+<div style="display: flex; flex-direction: row; gap: 2em; align-items: flex-start;">
+    <div style="flex: 0 0 320px; min-width: 220px; max-width: 350px;">
+        <div style="background:#f8fafd; border:2px solid #b3d1e6; border-radius:0.5em; padding:1.2em; margin-bottom:2em;">
+            <h3 style="margin-top:0; color:#007bff; font-size:1.1em;">Your Checked Files</h3>
+            {% if is_teacher %}
+            <div style="font-size:0.98em; color:#555; margin-bottom:0.5em;">
+                <em>This list shows only files <b>you</b> (the teacher) have checked. It is separate from student checked files.</em>
+            </div>
+            {% endif %}
+            <div class="checked-files-list">
+                {% for row in checked_files_grid %}
+                <div class="checked-file-card">
+                    <div class="checked-file-filename">{{ row.filename }}</div>
+                    <div class="checked-file-statuses">
+                        <span class="checked-file-status"><b>Comments:</b> {{ row.comment or '-' }}</span>
+                        <span class="checked-file-status"><b>Debug:</b> {{ row.debug or '-' }}</span>
+                    </div>
+                </div>
+                {% else %}
+                <div class="checked-file-card" style="text-align:center; color:#aaa;">No files checked yet.</div>
+                {% endfor %}
+            </div>
+            <style>
+            .checked-files-list {
+                display: flex;
+                flex-direction: column;
+                gap: 0.5em;
+                width: 100%;
+            }
+            .checked-file-card {
+                background: #e3f2fd;
+                border-radius: 0.4em;
+                padding: 0.5em 0.8em;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+                display: flex;
+                flex-direction: column;
+                word-break: break-all;
+            }
+            .checked-file-filename {
+                font-weight: 600;
+                color: #0056b3;
+                margin-bottom: 0.2em;
+                font-size: 1em;
+            }
+            .checked-file-statuses {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 1.2em;
+                font-size: 0.97em;
+            }
+            .checked-file-status {
+                color: #333;
+            }
+            @media (max-width: 600px) {
+                .checked-files-list {
+                    gap: 0.3em;
+                }
+                .checked-file-card {
+                    padding: 0.4em 0.5em;
+                }
+                .checked-file-statuses {
+                    flex-direction: column;
+                    gap: 0.2em;
+                }
+            }
+            </style>
+        </div>
+    </div>
+    <div style="flex: 1 1 0; min-width: 0;">
+        <div class="practice-comments-container" style="max-width:700px;margin:auto;">
+    <h1>Practice: Paste Your Python Code</h1>
+
+
+    <form method="post" enctype="multipart/form-data" id="uploadForm" style="margin-bottom:1em;">
+        <div class="form-group">
+            <label for="file">Or upload a Python file:</label>
+            <input type="file" name="file" id="file" accept=".py" class="form-control-file">
+            <button type="submit" class="btn" style="background: linear-gradient(90deg, #ff9800 60%, #ffc107 100%); color: #fff; font-weight: bold; border: none; border-radius: 0.5em; padding: 0.5em 1.2em; margin-top:0.5em;">Upload File</button>
+            {% if uploaded_filename %}<span style="margin-left:1em; color:#888;">Uploaded: {{ uploaded_filename }}</span>{% endif %}
+            {% if username %}<span style="margin-left:1em; color:#888;">User: {{ username }}</span>{% endif %}
+        </div>
+    </form>
+    {% if upload_status %}
+        <div style="margin-bottom:1em; color: {% if can_extract %}green{% else %}red{% endif %}; font-weight:bold;">{{ upload_status }}</div>
+    {% endif %}
+    {% if can_extract and uploaded_filename and not already_checked %}
+        <form method="post" id="extractForm">
+            <input type="hidden" name="uploaded_filename" value="{{ uploaded_filename }}">
+            <input type="hidden" name="uploaded_code" value="{{ code|e }}">
+            <input type="hidden" name="go_to_lesson" value="1">
+            <button type="submit" name="extract_file" value="1" class="btn btn-success" style="font-weight:bold; border-radius:0.5em; padding:0.5em 1.2em;">Extract Comments from File</button>
+        </form>
+    {% endif %}
+
+    {% if not username or (username and current_user.is_authenticated and current_user.is_teacher()) %}
+    <form method="post" id="codeForm">
+        <div class="form-group">
+            <label for="code">Paste your Python code below:</label>
+            <div style="margin-bottom: 0.5em;">
+                <button type="submit" class="btn btn-primary">Submit</button>
+                <button type="button" class="btn btn-secondary ml-2" id="clearBtn">Clear</button>
+            </div>
+            <div id="editor" style="height:320px; border:1px solid #ccc; border-radius:0.4em;"></div>
+            <textarea name="code" id="code" style="display:none;">{{ code or '' }}</textarea>
+            <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+            <script>
+            var initialCode = {{ code|tojson|safe }} || '# Write your Python code here\n';
+            require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' }});
+            require(['vs/editor/editor.main'], function() {
+                window.editor = monaco.editor.create(document.getElementById('editor'), {
+                    value: initialCode,
+                    language: 'python',
+                    theme: 'vs-light',
+                    automaticLayout: true
+                });
+            });
+            document.getElementById('codeForm').addEventListener('submit', function(e) {
+                document.getElementById('code').value = window.editor.getValue();
+            });
+            document.getElementById('clearBtn').addEventListener('click', function() {
+                window.editor.setValue('');
+                var results = document.getElementById('resultsSection');
+                if (results) results.style.display = 'none';
+            });
+            </script>
+        </div>
+    </form>
+    {% endif %}
+
+    <div id="resultsSection" {% if not code and not comment_lines %}style="display:none;"{% endif %}>
+        <hr>
+        <div style="margin-bottom:1em;">
+            {# Find the lesson with title 'Assessment Checking Overview' and link to it #}
+            <!-- Button moved below code box, above comments box -->
+        <h2>Your Code:</h2>
+        <pre style="background:#f8f8f8; border:1px solid #ccc; padding:1em; border-radius:0.5em;">
+            {%- set safe_code = code or '' -%}
+            <div style="display: flex; flex-direction: column;">
+            {%- for line in safe_code.splitlines() -%}
+                <div style="display: flex; flex-direction: row;">
+                    <span style="color:#888; min-width: 2.5em; text-align: right; user-select:none; padding-right:1em; border-right:1px solid #eee;">{{ loop.index }}</span>
+                    <span style="padding-left:1em; white-space: pre;">{{ line }}</span>
+                </div>
+            {%- endfor -%}
+            </div>
+        </pre>
+            <!-- Go to Lesson 1 button removed -->
+        <h2>Extracted Comments & Feedback:</h2>
+        {% if comment_lines %}
+            <ul>
+                        {% for line_num, comment in comment_lines %}
+                                {% set idx = loop.index0 %}
+                                <li>
+                                    <strong>Line {{ line_num }}:</strong> <code>{{ comment }}</code>
+                                    <div style="color:#007bff; margin-left:1em; font-size:0.98em; display:flex; align-items:center; gap:0.5em;">
+                                        {% set feedback = feedback_dict[line_num] if feedback_dict and line_num in feedback_dict else None %}
+                                        {% if feedback %}
+                                            <i class="fas fa-check-circle" style="color:#28a745;"></i>
+                                            <span>Feedback: {{ feedback }}</span>
+                                        {% else %}
+                                            <i class="fas fa-info-circle" style="color:#007bff;"></i>
+                                            <span>Feedback: (No feedback available)</span>
+                                        {% endif %}
+                                    </div>
+                                </li>
+            {% endfor %}
+            </ul>
+            <form method="post" action="{{ url_for('main.download_lesson1_feedback') }}">
+                <input type="hidden" name="code" value="{{ code|e }}">
+                <input type="hidden" name="uploaded_filename" value="{{ uploaded_filename }}">
+                {% for line_num, comment in comment_lines %}
+                    <input type="hidden" name="line_num" value="{{ line_num }}">
+                    <input type="hidden" name="comment" value="{{ comment|e }}">
+                    <input type="hidden" name="feedback" value="{{ feedback_dict[line_num] if feedback_dict and line_num in feedback_dict else '' }}">
+                {% endfor %}
+                <button type="submit" class="btn btn-info" style="background: linear-gradient(90deg, #007bff 60%, #00c6ff 100%); color: #fff; font-weight: bold; border: none; border-radius: 0.5em; padding: 0.7em 1.5em; font-size: 1.1em; text-decoration: none; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-top:1em;">Download PDF</button>
+            </form>
+        {% else %}
+            <p><em>No comments found in your code.</em></p>
+        {% endif %}
+        <hr>
+        <div style="margin-top:2em;">
+            <h3>Sample Solution</h3>
+            <pre style="background:#f4f8fb; border:1px solid #b3d1e6; padding:1em; border-radius:0.5em;">{{ sample_solution }}</pre>
+            <div style="color:#007bff; margin-top:0.5em; font-size:1.05em;"><b>Hint:</b> {{ sample_hint }}</div>
+        </div>
+    </div>
+<script>
+var clearBtn = document.getElementById('clearBtn');
+if (clearBtn) {
+    clearBtn.addEventListener('click', function() {
+        document.getElementById('code').value = '';
+        var results = document.getElementById('resultsSection');
+        if (results) {
+            results.style.display = 'none';
+        }
+    });
+}
+</script>
+        </div>
+    </div>
+</div>
+{% endblock %}

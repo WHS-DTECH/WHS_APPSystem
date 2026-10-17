@@ -1,0 +1,595 @@
+{% extends "base.html" %}
+
+{% block title %}Advanced Search - Class Training System{% endblock %}
+
+{% block content %}
+<style>
+    .search-container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 0 1.5rem;
+    }
+
+    .search-header {
+        background: linear-gradient(135deg, #5c0e2a 0%, #7a1d3e 100%);
+        color: white;
+        padding: 2.5rem;
+        border-radius: 0.8rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 12px rgba(92, 14, 42, 0.2);
+    }
+
+    .search-header h1 {
+        margin: 0 0 1rem 0;
+        font-size: 2.2rem;
+        font-weight: 700;
+    }
+
+    .search-box {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .search-input {
+        flex: 1;
+        padding: 0.8rem 1.2rem;
+        border: none;
+        border-radius: 0.4rem;
+        font-size: 1rem;
+    }
+
+    .search-btn {
+        padding: 0.8rem 1.5rem;
+        background: white;
+        color: #5c0e2a;
+        border: none;
+        border-radius: 0.4rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .search-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Main Content Layout */
+    .search-content {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        gap: 2rem;
+    }
+
+    /* Sidebar Filters */
+    .search-filters {
+        background: white;
+        border-radius: 0.8rem;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        height: fit-content;
+        position: sticky;
+        top: 80px;
+    }
+
+    .filter-section {
+        margin-bottom: 2rem;
+    }
+
+    .filter-section:last-child {
+        margin-bottom: 0;
+    }
+
+    .filter-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #5c0e2a;
+        margin-bottom: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .filter-option {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .filter-option input {
+        cursor: pointer;
+    }
+
+    .filter-option label {
+        cursor: pointer;
+        flex: 1;
+    }
+
+    .filter-select {
+        width: 100%;
+        padding: 0.6rem;
+        border: 1px solid #ddd;
+        border-radius: 0.4rem;
+        font-size: 0.9rem;
+        color: #333;
+    }
+
+    .clear-filters {
+        width: 100%;
+        padding: 0.7rem;
+        background: #f0f0f0;
+        border: 1px solid #ddd;
+        border-radius: 0.4rem;
+        cursor: pointer;
+        color: #666;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+
+    .clear-filters:hover {
+        background: #e0e0e0;
+        color: #333;
+    }
+
+    /* Search Results */
+    .results-section {
+        background: white;
+        border-radius: 0.8rem;
+        padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .results-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .results-count {
+        color: #666;
+        font-size: 1rem;
+    }
+
+    .results-count strong {
+        color: #5c0e2a;
+        font-weight: 700;
+    }
+
+    .sort-control {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .sort-control label {
+        color: #666;
+        font-weight: 500;
+    }
+
+    .sort-select {
+        padding: 0.5rem 0.8rem;
+        border: 1px solid #ddd;
+        border-radius: 0.4rem;
+        font-size: 0.9rem;
+    }
+
+    /* Result Cards */
+    .result-card {
+        border-bottom: 1px solid #e0e0e0;
+        padding: 1.5rem 0;
+        transition: all 0.3s;
+    }
+
+    .result-card:last-child {
+        border-bottom: none;
+    }
+
+    .result-card:hover {
+        background: #f9f9f9;
+        padding-left: 1rem;
+        padding-right: 1rem;
+        margin: 0 -1rem;
+        border-radius: 0.4rem;
+    }
+
+    .result-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #5c0e2a;
+        margin-bottom: 0.5rem;
+    }
+
+    .result-title a {
+        color: #5c0e2a;
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+
+    .result-title a:hover {
+        color: #7a1d3e;
+        text-decoration: underline;
+    }
+
+    .result-meta {
+        display: flex;
+        gap: 1.5rem;
+        font-size: 0.85rem;
+        color: #999;
+        margin-bottom: 0.75rem;
+    }
+
+    .result-badge {
+        display: inline-block;
+        background: #f0f0f0;
+        padding: 0.25rem 0.6rem;
+        border-radius: 0.3rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #5c0e2a;
+    }
+
+    .result-description {
+        color: #666;
+        line-height: 1.5;
+        font-size: 0.95rem;
+    }
+
+    /* Search History */
+    .search-history {
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #ddd;
+    }
+
+    .history-title {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: #5c0e2a;
+        margin-bottom: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .history-items {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .history-item {
+        background: #f0f0f0;
+        padding: 0.5rem 1rem;
+        border-radius: 0.4rem;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .history-item:hover {
+        background: #5c0e2a;
+        color: white;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #999;
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        color: #ddd;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state p {
+        margin: 0.5rem 0;
+    }
+
+    /* Mobile Responsive */
+    @media (max-width: 1024px) {
+        .search-content {
+            grid-template-columns: 1fr;
+        }
+
+        .search-filters {
+            position: static;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .search-container {
+            padding: 0 1rem;
+        }
+
+        .search-header {
+            padding: 1.5rem;
+        }
+
+        .search-header h1 {
+            font-size: 1.5rem;
+        }
+
+        .search-box {
+            flex-direction: column;
+        }
+
+        .results-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .result-meta {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .search-header {
+            padding: 1rem;
+        }
+
+        .search-header h1 {
+            font-size: 1.2rem;
+        }
+
+        .result-title {
+            font-size: 1rem;
+        }
+
+        .result-description {
+            font-size: 0.9rem;
+        }
+    }
+</style>
+
+<div class="search-container">
+    <!-- Search Header -->
+    <div class="search-header">
+        <h1><i class="fas fa-search"></i> Advanced Search</h1>
+        
+        <!-- Search Box -->
+        <form method="GET" action="{{ url_for('main.search') }}" class="search-box">
+            <input type="text" name="q" class="search-input" placeholder="Search courses, lessons, assignments..." value="{{ query }}">
+            <button type="submit" class="search-btn"><i class="fas fa-search"></i> Search</button>
+        </form>
+    </div>
+
+    <div class="search-content">
+        <!-- Sidebar Filters -->
+        <aside class="search-filters">
+            <form method="GET" action="{{ url_for('main.search') }}" id="filterForm">
+                <!-- Hidden query field -->
+                <input type="hidden" name="q" value="{{ query }}">
+
+                <!-- Search Type Filter -->
+                <div class="filter-section">
+                    <div class="filter-title"><i class="fas fa-filter"></i> Search Type</div>
+                    <div class="filter-group">
+                        <div class="filter-option">
+                            <input type="radio" id="type-all" name="type" value="all" {% if search_type == 'all' or not search_type %}checked{% endif %} onchange="document.getElementById('filterForm').submit()">
+                            <label for="type-all">All Results</label>
+                        </div>
+                        <div class="filter-option">
+                            <input type="radio" id="type-courses" name="type" value="courses" {% if search_type == 'courses' %}checked{% endif %} onchange="document.getElementById('filterForm').submit()">
+                            <label for="type-courses">Courses Only</label>
+                        </div>
+                        <div class="filter-option">
+                            <input type="radio" id="type-lessons" name="type" value="lessons" {% if search_type == 'lessons' %}checked{% endif %} onchange="document.getElementById('filterForm').submit()">
+                            <label for="type-lessons">Lessons Only</label>
+                        </div>
+                        <div class="filter-option">
+                            <input type="radio" id="type-assignments" name="type" value="assignments" {% if search_type == 'assignments' %}checked{% endif %} onchange="document.getElementById('filterForm').submit()">
+                            <label for="type-assignments">Assignments Only</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Difficulty Filter -->
+                <div class="filter-section">
+                    <div class="filter-title"><i class="fas fa-chart-line"></i> Difficulty</div>
+                    <div class="filter-group">
+                        <select name="difficulty" class="filter-select" onchange="document.getElementById('filterForm').submit()">
+                            <option value="">All Levels</option>
+                            <option value="beginner" {% if difficulty == 'beginner' %}selected{% endif %}>Beginner</option>
+                            <option value="intermediate" {% if difficulty == 'intermediate' %}selected{% endif %}>Intermediate</option>
+                            <option value="advanced" {% if difficulty == 'advanced' %}selected{% endif %}>Advanced</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Instructor Filter -->
+                {% if instructors %}
+                    <div class="filter-section">
+                        <div class="filter-title"><i class="fas fa-chalkboard-user"></i> Instructor</div>
+                        <div class="filter-group">
+                            <select name="instructor" class="filter-select" onchange="document.getElementById('filterForm').submit()">
+                                <option value="">All Instructors</option>
+                                {% for inst in instructors %}
+                                    <option value="{{ inst }}" {% if instructor == inst %}selected{% endif %}>{{ inst }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- Clear Filters -->
+                <div class="filter-section">
+                    <a href="{{ url_for('main.search', q=query) }}" class="clear-filters">
+                        <i class="fas fa-redo"></i> Clear Filters
+                    </a>
+                </div>
+
+                <!-- Search History -->
+                {% if search_history %}
+                    <div class="search-history">
+                        <div class="history-title"><i class="fas fa-history"></i> Recent</div>
+                        <div class="history-items">
+                            {% for item in search_history %}
+                                <a href="{{ url_for('main.search', q=item) }}" class="history-item" title="Search for '{{ item }}'">
+                                    {{ item }}
+                                </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+            </form>
+        </aside>
+
+        <!-- Results Section -->
+        <main class="results-section">
+            {% if query %}
+                <!-- Results Header -->
+                <div class="results-header">
+                    <div class="results-count">
+                        Found <strong>{{ results.total }}</strong> result{{ 's' if results.total != 1 else '' }}
+                    </div>
+                    <div class="sort-control">
+                        <label for="sortBy">Sort by:</label>
+                        <form method="GET" style="display: inline;">
+                            <input type="hidden" name="q" value="{{ query }}">
+                            <select name="sort" id="sortBy" class="sort-select" onchange="this.form.submit()">
+                                <option value="relevance" {% if sort_by == 'relevance' %}selected{% endif %}>Relevance</option>
+                                <option value="title" {% if sort_by == 'title' %}selected{% endif %}>Title (A-Z)</option>
+                                <option value="created" {% if sort_by == 'created' %}selected{% endif %}>Recently Added</option>
+                                <option value="difficulty" {% if sort_by == 'difficulty' %}selected{% endif %}>Difficulty</option>
+                            </select>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Courses Results -->
+                {% if results.courses %}
+                    <div style="margin-bottom: 2rem;">
+                        <h2 style="font-size: 1.1rem; color: #5c0e2a; margin-bottom: 1rem;">
+                            <i class="fas fa-book"></i> Courses
+                        </h2>
+                        {% for course in results.courses %}
+                            <div class="result-card">
+                                <div class="result-title">
+                                    <a href="{{ url_for('courses.view_course', course_id=course.id) }}">
+                                        {{ course.title }}
+                                    </a>
+                                </div>
+                                <div class="result-meta">
+                                    <span><i class="fas fa-user"></i> {{ course.teacher.username if course.teacher else 'Unknown' }}</span>
+                                    {% if course.difficulty %}
+                                        <span class="result-badge">{{ course.difficulty|capitalize }}</span>
+                                    {% endif %}
+                                    {% if course.created_at %}
+                                        <span><i class="fas fa-calendar"></i> {{ course.created_at.strftime('%b %d, %Y') }}</span>
+                                    {% endif %}
+                                </div>
+                                {% if course.description %}
+                                    <div class="result-description">
+                                        {{ course.description[:200] }}{% if course.description|length > 200 %}...{% endif %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <!-- Lessons Results -->
+                {% if results.lessons %}
+                    <div style="margin-bottom: 2rem;">
+                        <h2 style="font-size: 1.1rem; color: #5c0e2a; margin-bottom: 1rem;">
+                            <i class="fas fa-graduation-cap"></i> Lessons
+                        </h2>
+                        {% for lesson in results.lessons %}
+                            <div class="result-card">
+                                <div class="result-title">
+                                    <a href="{{ url_for('courses.view_lesson', lesson_id=lesson.id) }}">
+                                        {{ lesson.title }}
+                                    </a>
+                                </div>
+                                <div class="result-meta">
+                                    {% if lesson.course %}
+                                        <span><i class="fas fa-book"></i> {{ lesson.course.title }}</span>
+                                    {% endif %}
+                                    {% if lesson.created_at %}
+                                        <span><i class="fas fa-calendar"></i> {{ lesson.created_at.strftime('%b %d, %Y') }}</span>
+                                    {% endif %}
+                                </div>
+                                {% if lesson.description %}
+                                    <div class="result-description">
+                                        {{ lesson.description[:200] }}{% if lesson.description|length > 200 %}...{% endif %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <!-- Assignments Results -->
+                {% if results.assignments %}
+                    <div>
+                        <h2 style="font-size: 1.1rem; color: #5c0e2a; margin-bottom: 1rem;">
+                            <i class="fas fa-tasks"></i> Assignments
+                        </h2>
+                        {% for assignment in results.assignments %}
+                            <div class="result-card">
+                                <div class="result-title">
+                                    <a href="{{ url_for('assignments.view_assignment', assignment_id=assignment.id) }}">
+                                        {{ assignment.title }}
+                                    </a>
+                                </div>
+                                <div class="result-meta">
+                                    {% if assignment.lesson %}
+                                        <span><i class="fas fa-graduation-cap"></i> {{ assignment.lesson.title }}</span>
+                                    {% endif %}
+                                    {% if assignment.due_date %}
+                                        <span><i class="fas fa-calendar-alt"></i> Due: {{ assignment.due_date.strftime('%b %d, %Y') }}</span>
+                                    {% endif %}
+                                </div>
+                                {% if assignment.description %}
+                                    <div class="result-description">
+                                        {{ assignment.description[:200] }}{% if assignment.description|length > 200 %}...{% endif %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <!-- No Results -->
+                {% if results.total == 0 %}
+                    <div class="empty-state">
+                        <i class="fas fa-search"></i>
+                        <p><strong>No results found</strong></p>
+                        <p>Try adjusting your search terms or filters</p>
+                    </div>
+                {% endif %}
+            {% else %}
+                <!-- No Query -->
+                <div class="empty-state">
+                    <i class="fas fa-search"></i>
+                    <p><strong>Start searching</strong></p>
+                    <p>Enter a search term to find courses, lessons, and assignments</p>
+                </div>
+            {% endif %}
+        </main>
+    </div>
+</div>
+
+<script>
+// Initialize search with toast notification
+document.addEventListener('DOMContentLoaded', function() {
+    {% if query and results.total > 0 %}
+        Toast.success('Found {{ results.total }} result{{ "s" if results.total != 1 else "" }}');
+    {% elif query %}
+        Toast.warning('No results found for "{{ query }}"');
+    {% endif %}
+});
+</script>
+{% endblock %}

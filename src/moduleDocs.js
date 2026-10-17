@@ -61,6 +61,8 @@ const moduleDocs = {
     env: [
       { name: 'DTECH_DATABASE_URL', note: 'Existing DTECH-DB internal Render connection string. Must differ from DATABASE_URL.', legacy: true },
       { name: 'DTECH_DATABASE_SSL', note: 'Defaults to true; false only for a local database without TLS.', optional: true },
+      { name: 'CLASS_TRAINING_DATABASE_URL', note: 'Required only for Commenting and Debugging Training: existing DTECH-CLASSWORK-DB2 internal connection string, separate from both Core and DTECH-DB. Original Flask pages inherit DTECH roles.', legacy: true, optional: true },
+      { name: 'CLASS_TRAINING_CONTACT_EMAIL', note: 'Optional Contact Teacher recipient: school email of an existing teacher account in the training database. Messages use shared school Gmail.', optional: true },
       { name: 'GITHUB_ARCHIVE_REPOSITORY', note: 'Private WHS-DTECH/WHS-TECHArchive repository.' },
       { name: 'GITHUB_WRITER_APP_ID', note: 'Existing archive Writer App ID.' },
       { name: 'GITHUB_WRITER_PRIVATE_KEY_FILE', note: 'Existing Writer PEM secret-file path.' },

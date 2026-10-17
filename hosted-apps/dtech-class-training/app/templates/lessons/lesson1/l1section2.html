@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% block title %}Section 2: JavaScript Comments - Best Practices{% endblock %}
+{% block content %}
+<div class="lesson-header">
+    <div class="lesson-breadcrumb">
+        <a href="{{ url_for('courses.list_courses') }}">Courses</a> &gt;
+        <a href="{{ url_for('courses.view_course', course_id=lesson.course_id) }}">Module 1: Commenting</a> &gt;
+        Section 2: JavaScript Comments - Best Practices
+    </div>
+    <h1>Section 2: JavaScript Comments - Best Practices</h1>
+</div>
+<div class="lesson-main-box">
+    <p>Follow these conventions to write clear, effective comments in your JavaScript code:</p>
+    <div class="lesson-conventions-grid">
+        <div class="lesson-conventions-col">
+            <h3>Conventions 1–5</h3>
+            <ul>
+                <li><b>Convention 1:</b> Use JSDoc or block comments for functions and complex logic.<br><span class="lesson-convention-detail">Document parameters, return values, and side effects for better maintainability.</span>
+                    <pre class="lesson-example">/**
+ * Adds two numbers together.
+ * @param {number} a - First number
+ * @param {number} b - Second number
+ * @returns {number} Sum of a and b
+ */
+function add(a, b) {
+    return a + b;
+}
+</pre>
+                </li>
+                <li><b>Convention 2:</b> Use single-line comments (//) for brief notes.<br><span class="lesson-convention-detail">Keep inline comments short and to the point.</span>
+                    <pre class="lesson-example">// Add two numbers
+let sum = a + b;
+</pre>
+                </li>
+                <li><b>Convention 3:</b> Avoid commenting out large blocks of old code.<br><span class="lesson-convention-detail">Remove unused code from the codebase to keep it clean.</span>
+                    <pre class="lesson-example">// Old code (should be removed, not just commented out)
+// function oldAdd(a, b) {
+//     return a + b;
+// }
+</pre>
+                </li>
+                <li><b>Convention 4:</b> Keep comments up to date.<br><span class="lesson-convention-detail">Update or remove comments that no longer apply after code changes.</span>
+                    <pre class="lesson-example">// This function multiplies two numbers (updated from addition)
+function multiply(a, b) {
+    return a * b;
+}
+</pre>
+                </li>
+                <li><b>Convention 5:</b> Use comments to clarify tricky or non-obvious code.<br><span class="lesson-convention-detail">Help future readers understand complex logic or workarounds.</span>
+                    <pre class="lesson-example">// Use bitwise operator to check if number is even
+if ((num & 1) === 0) {
+    // num is even
+}
+</pre>
+                </li>
+            </ul>
+        </div>
+        <div class="lesson-conventions-col">
+            <h3>Conventions 6–7</h3>
+            <ul>
+                <li><b>Convention 6:</b> Explain why, not just what.<br><span class="lesson-convention-detail">Describe the reasoning or intent behind code, especially for hacks or workarounds.</span>
+                    <pre class="lesson-example">// We use a timeout here to avoid blocking the UI
+setTimeout(() => {
+    processData();
+}, 100);
+</pre>
+                </li>
+                <li><b>Convention 7:</b> Use TODO/FIXME/NOTE tags for tasks, bugs, or important notes.<br><span class="lesson-convention-detail">Mark places in the code that need attention or improvement.</span>
+                    <pre class="lesson-example">// TODO: Handle edge cases for negative numbers
+// FIXME: This function fails if b is zero
+function divide(a, b) {
+    return a / b;
+}
+</pre>
+                </li>
+            </ul>
+        </div>
+    </div>
+    <div class="lesson-back-link">
+        <a href="{{ url_for('courses.view_course', course_id=lesson.course_id) }}">Back to Course</a>
+    </div>
+</div>
+{% endblock %}

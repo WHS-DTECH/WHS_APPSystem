@@ -1,0 +1,462 @@
+{% extends "base.html" %}
+{% block title %}User Role Management – Computer Lab Hub{% endblock %}
+
+{% block extra_css %}
+<style>
+  .ur-wrap { max-width: 980px; margin: 0 auto; padding: 2.5rem 1.5rem; }
+
+  .ur-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+    padding-bottom: 1.2rem;
+    border-bottom: 1px solid #e0e0e0;
+  }
+
+  .ur-page-header h1 { font-size: 1.8rem; font-weight: 700; color: #1a1a1a; margin: 0 0 0.25rem; }
+  .ur-page-header p  { color: #666; font-size: 0.95rem; margin: 0; }
+
+  .btn-back {
+    text-decoration: none;
+    padding: 0.5rem 1.1rem;
+    border: 1.5px solid #ccc;
+    border-radius: 6px;
+    color: #444;
+    font-size: 0.9rem;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: all 0.2s;
+    background: white;
+  }
+  .btn-back:hover { background: #f5f5f5; border-color: #999; }
+
+  /* sidebar + content layout */
+  .ur-layout { display: flex; gap: 1.5rem; align-items: flex-start; }
+  .ur-sidebar {
+    flex: 0 0 200px;
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .ur-sidebar a {
+    display: block;
+    padding: 0.85rem 1.2rem;
+    text-decoration: none;
+    color: #5c0e2a;
+    font-size: 0.92rem;
+    font-weight: 500;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background 0.15s;
+  }
+  .ur-sidebar a:hover { background: #fdf2f5; }
+  .ur-sidebar a.active { background: #fdf2f5; font-weight: 700; border-left: 3px solid #5c0e2a; }
+  .ur-sidebar a:last-child { border-bottom: none; }
+
+  .ur-main { flex: 1; display: flex; flex-direction: column; gap: 1.5rem; }
+
+  /* cards */
+  .ur-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .ur-card-header {
+    padding: 1.25rem 1.5rem 1rem;
+    border-bottom: 1px solid #ececec;
+  }
+  .ur-card-header h2 { font-size: 1.15rem; font-weight: 700; color: #1a1a1a; margin: 0; }
+  .ur-card-body { padding: 1.5rem; }
+
+  /* add-role form */
+  .add-role-row {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
+  .add-role-field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .add-role-field label { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.07em; color: #888; font-weight: 600; }
+  .add-role-field select,
+  .add-role-field input {
+    padding: 0.55rem 0.85rem;
+    border: 1.5px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.92rem;
+    font-family: inherit;
+    color: #333;
+    min-width: 180px;
+    outline: none;
+    transition: border-color 0.2s;
+    background: white;
+  }
+  .add-role-field select:focus,
+  .add-role-field input:focus { border-color: #5c0e2a; }
+
+  .btn-add-role {
+    background: #1d6ef5;
+    color: white;
+    border: none;
+    padding: 0.6rem 1.4rem;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    align-self: flex-end;
+    transition: background 0.2s;
+  }
+  .btn-add-role:hover { background: #1558d0; }
+  .btn-add-role:disabled { background: #a0b9f5; cursor: not-allowed; }
+
+  .add-role-hint {
+    margin-top: 0.8rem;
+    font-size: 0.8rem;
+    color: #888;
+  }
+
+  /* user table */
+  .ur-table { width: 100%; border-collapse: collapse; }
+  .ur-table thead tr { background: #1d6ef5; color: white; }
+  .ur-table thead th {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    font-weight: 600;
+  }
+  .ur-table tbody tr { border-bottom: 1px solid #f0f0f0; }
+  .ur-table tbody tr:last-child { border-bottom: none; }
+  .ur-table tbody td { padding: 0.85rem 1rem; font-size: 0.92rem; color: #333; }
+
+  /* badges */
+  .badge {
+    display: inline-block;
+    padding: 0.25em 0.65em;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    border: 1.5px solid;
+  }
+  .badge-teacher { background: #fff3cd; color: #856404; border-color: #ffc107; }
+  .badge-student { background: #cfe2ff; color: #084298; border-color: #93bfff; }
+  .badge-none    { background: #f0f0f0; color: #888; border-color: #ddd; }
+
+  .btn-remove-role {
+    background: none;
+    border: 1.5px solid #f5a0a0;
+    color: #c0392b;
+    padding: 0.35rem 0.9rem;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-remove-role:hover { background: #fdf2f2; }
+
+  .btn-set-role {
+    background: none;
+    border: 1.5px solid #c8d9ff;
+    color: #1d6ef5;
+    padding: 0.35rem 0.9rem;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-right: 0.3rem;
+  }
+  .btn-set-role:hover { background: #eef4ff; }
+
+  /* how it works card */
+  .how-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+  .how-list li { font-size: 0.92rem; color: #444; line-height: 1.5; }
+  .how-list li strong { color: #1a1a1a; }
+  .how-list li span { color: #5c0e2a; }
+
+  /* toast */
+  #urToast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: #1a1a1a;
+    color: white;
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px;
+    font-size: 0.92rem;
+    display: none;
+    z-index: 999;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  }
+  #urToast.show { display: block; }
+  #urToast.success { border-left: 4px solid #28a745; }
+  #urToast.error   { border-left: 4px solid #dc3545; }
+
+  .ur-search {
+    padding: 0.55rem 1rem;
+    border: 1.5px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 260px;
+    margin-bottom: 1rem;
+  }
+  .ur-search:focus { border-color: #5c0e2a; }
+
+  .skeleton-row { animation: pulse 1.4s infinite; background: #f5f5f5; height: 48px; margin-bottom: 2px; border-radius: 4px; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ur-wrap">
+  <!-- Page header -->
+  <div class="ur-page-header">
+    <div>
+      <h1>User Role Management</h1>
+      <p>Assign roles to users within the Computer Lab Hub system.</p>
+    </div>
+    <a href="{{ url_for('admin.index') }}" class="btn-back">&larr; Back to Hub</a>
+  </div>
+
+  <div class="ur-layout">
+    <!-- Sidebar nav -->
+    <nav class="ur-sidebar">
+      <a href="#add-role" class="active" onclick="scrollTo('add-role')">Add Role to User</a>
+      <a href="#users-table" onclick="scrollTo('users-table')">Users with Roles</a>
+      <a href="#how-it-works" onclick="scrollTo('how-it-works')">How It Works</a>
+    </nav>
+
+    <div class="ur-main">
+      <!-- Add Role card -->
+      <div class="ur-card" id="add-role">
+        <div class="ur-card-header"><h2>Add Role to User</h2></div>
+        <div class="ur-card-body">
+          <div class="add-role-row">
+            <div class="add-role-field">
+              <label>User Type</label>
+              <select id="urUserType">
+                <option value="">Select type</option>
+                <option value="student">Student</option>
+                <option value="teacher">Teacher</option>
+              </select>
+            </div>
+            <div class="add-role-field" style="flex:1; min-width:200px;">
+              <label>Username or Email</label>
+              <input type="text" id="urUserSearch" placeholder="Type to search user…" autocomplete="off">
+              <div id="urUserSuggestions" style="position:relative;"></div>
+            </div>
+            <div class="add-role-field">
+              <label>Role to Add</label>
+              <select id="urRoleSelect">
+                <option value="">Select role</option>
+                <option value="student">Student</option>
+                <option value="teacher">Teacher</option>
+              </select>
+            </div>
+            <button class="btn-add-role" id="urAddBtn" onclick="applyRole()">Add Role</button>
+          </div>
+          <p class="add-role-hint" id="urAddHint">Select a user and a role, then click Add Role.</p>
+        </div>
+      </div>
+
+      <!-- Users table card -->
+      <div class="ur-card" id="users-table">
+        <div class="ur-card-header"><h2>Users with Roles</h2></div>
+        <div class="ur-card-body" style="padding-top:1rem;">
+          <input type="search" class="ur-search" id="urTableSearch" placeholder="Search users…">
+          <div style="overflow-x:auto;">
+            <table class="ur-table">
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>User</th>
+                  <th>Current Role</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="urTableBody">
+                <tr><td colspan="4"><div class="skeleton-row"></div></td></tr>
+                <tr><td colspan="4"><div class="skeleton-row"></div></td></tr>
+                <tr><td colspan="4"><div class="skeleton-row"></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- How it works card -->
+      <div class="ur-card" id="how-it-works">
+        <div class="ur-card-header"><h2>How It Works</h2></div>
+        <div class="ur-card-body">
+          <ul class="how-list">
+            <li><strong>Student Role:</strong> <span>Users can browse courses, submit assignments, and track progress.</span></li>
+            <li><strong>Teacher Role:</strong> <span>Users can create courses, manage content, grade submissions, and access the Admin panel.</span></li>
+            <li><strong>Changing Roles:</strong> <span>Click "Make Student" or "Make Teacher" next to any user to update their role immediately.</span></li>
+            <li><strong>Safety Guard:</strong> <span>The system will prevent you from removing the last teacher account to avoid lockout.</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="urToast"></div>
+
+<script>
+(function () {
+  let allUsers = [];
+  let selectedUserId = null;
+
+  // ── load users ────────────────────────────────────────────────────────────
+  fetch('/admin/api/users-with-roles')
+    .then(r => r.json())
+    .then(users => {
+      allUsers = users;
+      renderTable(users);
+    })
+    .catch(() => showToast('Failed to load users', 'error'));
+
+  // ── render table ─────────────────────────────────────────────────────────
+  function renderTable(users) {
+    const tbody = document.getElementById('urTableBody');
+    if (users.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#999;padding:2rem;">No users found.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = users.map(u => {
+      const displayType = u.role === 'teacher' ? 'Teacher' : 'Student';
+      const badgeClass  = u.role === 'teacher' ? 'badge-teacher' : 'badge-student';
+      const name = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username;
+      const email = u.email ? `<br><small style="color:#888;">${esc(u.email)}</small>` : '';
+      const opposite = u.role === 'teacher' ? 'student' : 'teacher';
+      const oppositeLabel = u.role === 'teacher' ? 'Make Student' : 'Make Teacher';
+      return `<tr data-id="${u.id}" data-role="${u.role}" data-name="${esc(u.username)}" data-email="${esc(u.email)}">
+        <td><span class="badge ${badgeClass}">${displayType}</span></td>
+        <td>${esc(name)}${email}</td>
+        <td><span class="badge ${badgeClass}">${displayType}</span></td>
+        <td>
+          <button class="btn-set-role" onclick="setRole(${u.id},'${opposite}')">${oppositeLabel}</button>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ── search filter ─────────────────────────────────────────────────────────
+  document.getElementById('urTableSearch').addEventListener('input', function () {
+    const q = this.value.toLowerCase();
+    const filtered = q
+      ? allUsers.filter(u => (u.username + u.email + u.first_name + u.last_name).toLowerCase().includes(q))
+      : allUsers;
+    renderTable(filtered);
+  });
+
+  // ── user search for "add role" ────────────────────────────────────────────
+  let searchTimer;
+  document.getElementById('urUserSearch').addEventListener('input', function () {
+    clearTimeout(searchTimer);
+    const q = this.value.toLowerCase();
+    selectedUserId = null;
+    if (!q) { hideSuggestions(); return; }
+    searchTimer = setTimeout(() => {
+      const matches = allUsers.filter(u =>
+        (u.username + ' ' + u.email + ' ' + u.first_name + ' ' + u.last_name).toLowerCase().includes(q)
+      ).slice(0, 8);
+      showSuggestions(matches);
+    }, 180);
+  });
+
+  function showSuggestions(users) {
+    const box = document.getElementById('urUserSuggestions');
+    if (users.length === 0) { box.innerHTML = ''; return; }
+    box.innerHTML = `<div style="
+      position:absolute; top:0; left:0; right:0; background:white;
+      border:1.5px solid #ddd; border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,0.1);
+      z-index:100; max-height:220px; overflow-y:auto;">` +
+      users.map(u => {
+        const label = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username;
+        return `<div style="padding:0.6rem 1rem; cursor:pointer; border-bottom:1px solid #f0f0f0; font-size:0.9rem;"
+          onmousedown="selectUser(${u.id}, '${esc(u.username)}', '${esc(u.role)}')"
+          onmouseover="this.style.background='#fdf2f5'" onmouseout="this.style.background='white'">
+          <strong>${esc(label)}</strong>
+          ${u.email ? `<span style="color:#888; margin-left:0.4rem; font-size:0.82rem;">${esc(u.email)}</span>` : ''}
+          <span class="badge ${u.role === 'teacher' ? 'badge-teacher' : 'badge-student'}" style="float:right; margin-top:2px;">${u.role}</span>
+        </div>`;
+      }).join('') + '</div>';
+  }
+
+  window.selectUser = function (id, username, role) {
+    selectedUserId = id;
+    document.getElementById('urUserSearch').value = username;
+    document.getElementById('urUserType').value = role;
+    hideSuggestions();
+  };
+
+  function hideSuggestions() {
+    document.getElementById('urUserSuggestions').innerHTML = '';
+  }
+
+  // ── apply role ────────────────────────────────────────────────────────────
+  window.applyRole = function () {
+    const role = document.getElementById('urRoleSelect').value;
+    if (!selectedUserId) { showToast('Please select a user from the search suggestions', 'error'); return; }
+    if (!role) { showToast('Please select a role', 'error'); return; }
+    doSetRole(selectedUserId, role);
+  };
+
+  window.setRole = function (id, role) {
+    doSetRole(id, role);
+  };
+
+  function doSetRole(id, role) {
+    fetch('/admin/api/set-user-role', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: id, role: role })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { showToast(data.error, 'error'); return; }
+      // update local state
+      const u = allUsers.find(u => u.id === id);
+      if (u) u.role = data.role;
+      renderTable(allUsers);
+      showToast(`${data.username} is now a ${data.role}`, 'success');
+      selectedUserId = null;
+      document.getElementById('urUserSearch').value = '';
+      document.getElementById('urRoleSelect').value = '';
+      document.getElementById('urUserType').value = '';
+    })
+    .catch(() => showToast('Request failed', 'error'));
+  }
+
+  // ── sidebar smooth scroll ─────────────────────────────────────────────────
+  window.scrollTo = function (id) {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.querySelectorAll('.ur-sidebar a').forEach(a => a.classList.remove('active'));
+    event.target.classList.add('active');
+    event.preventDefault();
+  };
+
+  // ── toast ─────────────────────────────────────────────────────────────────
+  let toastTimer;
+  function showToast(msg, type) {
+    const el = document.getElementById('urToast');
+    el.textContent = msg;
+    el.className = `show ${type}`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.className = ''; }, 3500);
+  }
+
+  function esc(s) {
+    return String(s || '')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+})();
+</script>
+{% endblock %}

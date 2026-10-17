@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Section 3: HTML and CSS Debugging - Best Practices{% endblock %}
+
+{% block content %}
+<h1>Section 3: HTML and CSS Debugging - Best Practices</h1>
+
+<p>Debugging HTML and CSS is essential for building visually correct and accessible web pages. Here are some best practice conventions and tips for effective HTML and CSS debugging:</p>
+
+<ul>
+  <li><strong>Use Browser Developer Tools:</strong> Inspect elements, view applied styles, and modify HTML/CSS live in the browser. The <strong>Elements</strong> and <strong>Styles</strong> panels are invaluable for troubleshooting layout and style issues.</li>
+  <li><strong>Validate Your Code:</strong> Use the <a href="https://validator.w3.org/" target="_blank">W3C Markup Validator</a> for HTML and <a href="https://jigsaw.w3.org/css-validator/" target="_blank">W3C CSS Validator</a> for CSS to catch syntax errors and invalid code.</li>
+  <li><strong>Check for Typos and Misspellings:</strong> Small mistakes in tag names, attribute names, or CSS property names can break layouts or cause styles to be ignored.</li>
+  <li><strong>Use Semantic HTML:</strong> Write clear, semantic HTML to improve accessibility and make debugging easier. Use elements like <code>&lt;header&gt;</code>, <code>&lt;nav&gt;</code>, <code>&lt;main&gt;</code>, and <code>&lt;footer&gt;</code> appropriately.</li>
+  <li><strong>Isolate Problems:</strong> Comment out or remove sections of code to isolate the source of a bug. Test changes incrementally.</li>
+  <li><strong>Check the Cascade and Specificity:</strong> Use DevTools to see which CSS rules are being applied or overridden. Understand how specificity and the cascade affect your styles.</li>
+  <li><strong>Box Model Troubleshooting:</strong> Use the DevTools box model visualization to debug spacing, padding, borders, and sizing issues.</li>
+  <li><strong>Responsive Design Debugging:</strong> Use device emulation in DevTools to test how your page looks on different screen sizes. Check for overflow, scaling, and layout issues.</li>
+  <li><strong>Use CSS Resets or Normalize:</strong> Start with a CSS reset or normalize.css to reduce browser inconsistencies.</li>
+  <li><strong>Check for Overlapping Elements:</strong> Use the <strong>Elements</strong> panel to find hidden or overlapping elements that may affect layout or interactivity.</li>
+  <li><strong>Accessibility Checks:</strong> Use accessibility tools in DevTools to check for missing alt text, contrast issues, and keyboard navigation problems.</li>
+  <li><strong>Keep Your CSS Organized:</strong> Use clear class names, avoid !important, and group related styles together for easier maintenance and debugging.</li>
+</ul>
+
+<p>By following these best practices, you can efficiently debug HTML and CSS, resulting in more robust, accessible, and visually appealing web pages.</p>
+{% endblock %}

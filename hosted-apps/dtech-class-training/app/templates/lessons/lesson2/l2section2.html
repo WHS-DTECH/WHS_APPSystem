@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Section 2: JavaScript Debugging - Best Practices{% endblock %}
+
+{% block content %}
+<h1>Section 2: JavaScript Debugging - Best Practices</h1>
+
+<p>Debugging is a critical skill for JavaScript developers. Here are some best practice conventions and tips for effective JavaScript debugging:</p>
+
+<ul>
+  <li><strong>Use <code>console.log()</code> Wisely:</strong> Insert <code>console.log()</code> statements to inspect variable values and program flow. Remove or comment out these statements before deploying to production.</li>
+  <li><strong>Leverage Browser Developer Tools:</strong> Modern browsers (like Chrome, Firefox, Edge) have powerful DevTools. Use the <strong>Sources</strong> tab to set breakpoints, step through code, and inspect call stacks.</li>
+  <li><strong>Understand Error Messages:</strong> Read and interpret error messages in the browser console. They often include the file, line number, and a description of the problem.</li>
+  <li><strong>Use Breakpoints:</strong> Set breakpoints in DevTools to pause execution and examine the current state of your application.</li>
+  <li><strong>Watch Expressions & Call Stack:</strong> Use the <strong>Watch</strong> panel to monitor variables and the <strong>Call Stack</strong> to trace function calls.</li>
+  <li><strong>Check Network Activity:</strong> Use the <strong>Network</strong> tab to debug AJAX requests, API calls, and resource loading issues.</li>
+  <li><strong>Linting & Static Analysis:</strong> Use tools like ESLint to catch common bugs and enforce code quality before running your code.</li>
+  <li><strong>Isolate Problems:</strong> Comment out or simplify code to isolate the source of a bug. Test small pieces independently.</li>
+  <li><strong>Use <code>debugger</code> Statement:</strong> Insert <code>debugger;</code> in your code to trigger a breakpoint in DevTools.</li>
+  <li><strong>Check for Common JavaScript Pitfalls:</strong> Watch out for issues like variable hoisting, type coercion, and asynchronous code bugs (e.g., callbacks, promises).</li>
+  <li><strong>Document Known Issues:</strong> Use comments to document tricky bugs or workarounds for future reference.</li>
+</ul>
+
+<p>By following these best practices, you can debug JavaScript code more efficiently and write more reliable applications.</p>
+{% endblock %}

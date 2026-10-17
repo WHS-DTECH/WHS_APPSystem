@@ -56,16 +56,20 @@ function appEnvironment(item, port) {
   const env = {
     PATH: process.env.PATH,
     PORT: String(port),
-    SCRIPT_NAME: `/apps/${item.slug}`,
+    SCRIPT_NAME: item.manifest.mountPath || `/apps/${item.slug}`,
     PYTHONPATH: HOST_DIR,
     PYTHONUNBUFFERED: '1',
     WHS_APP_MODULE: item.manifest.module || 'app:app',
-    WHS_ROLE_MANAGEMENT_URL: `/hubs/app-${item.slug}/roles`,
+    WHS_ROLE_MANAGEMENT_URL: `/hubs/${item.manifest.hubKey || `app-${item.slug}`}/roles`,
     WHS_PROXY_TOKEN: PROXY_TOKEN,
     SECRET_KEY: crypto.createHmac('sha256', config.sessionSecret || 'dev').update(`hosted:${item.slug}`).digest('hex')
   };
   const databaseEnv = item.manifest.databaseEnv;
   if (databaseEnv && process.env[databaseEnv]) env.DATABASE_URL = process.env[databaseEnv];
+  if (item.slug === 'dtech-class-training') {
+    env.WHS_CORE_INTERNAL_URL = `http://127.0.0.1:${config.port}`;
+    if (process.env.CLASS_TRAINING_CONTACT_EMAIL) env.ADMIN_EMAIL = process.env.CLASS_TRAINING_CONTACT_EMAIL;
+  }
   Object.entries(item.manifest.env || {}).forEach(([key, value]) => { env[key] = String(value); });
   return env;
 }
@@ -92,8 +96,14 @@ function start() {
     console.warn('[hosted-apps] PYTHON_BIN is not set, so hosted Python apps are not started here.');
     return;
   }
-  items.forEach((item, index) => launch(item, FIRST_PORT + index));
-  console.log(`[hosted-apps] started ${items.map((item) => item.slug).join(', ')}`);
+  items.forEach((item, index) => {
+    if (item.slug === 'dtech-class-training' && !process.env.CLASS_TRAINING_DATABASE_URL) {
+      console.warn('[hosted-apps] Class Training awaits CLASS_TRAINING_DATABASE_URL; the existing standalone service is unchanged.');
+      return;
+    }
+    launch(item, FIRST_PORT + index);
+  });
+  console.log(`[hosted-apps] started ${[...hosted.keys()].join(', ')}`);
 }
 
 function stop() {
@@ -135,4 +145,9 @@ function proxy(req, res, slug, identity) {
   return req.pipe(upstream);
 }
 
-module.exports = { start, stop, isHosted, proxy, roleConfig, contentHash };
+function validProxyToken(value) {
+  return typeof value === 'string' && Buffer.byteLength(value) === Buffer.byteLength(PROXY_TOKEN)
+    && crypto.timingSafeEqual(Buffer.from(value), Buffer.from(PROXY_TOKEN));
+}
+
+module.exports = { start, stop, isHosted, proxy, roleConfig, contentHash, validProxyToken };

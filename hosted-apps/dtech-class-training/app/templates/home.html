@@ -1,0 +1,871 @@
+{% extends "base.html" %}
+
+{% block title %}Computer Lab Hub – Project Book{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* ===== HERO ===== */
+  .home-hero {
+    background: linear-gradient(135deg, #3b0764 0%, #5c0e2a 55%, #8b1538 100%);
+    color: white;
+    padding: 3.5rem 2rem 3rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .home-hero::before {
+    content: '';
+    position: absolute;
+    top: -60px;
+    right: -60px;
+    width: 320px;
+    height: 320px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.05);
+    pointer-events: none;
+  }
+
+  .home-hero::after {
+    content: '';
+    position: absolute;
+    bottom: -80px;
+    right: 120px;
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.04);
+    pointer-events: none;
+  }
+
+  .hero-inner {
+    max-width: 1300px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+  }
+
+  .hero-eyebrow {
+    font-size: 0.82rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    opacity: 0.7;
+    margin-bottom: 0.6rem;
+    font-weight: 500;
+    color: white;
+  }
+
+  .hero-title {
+    font-size: clamp(1.8rem, 4vw, 3rem);
+    font-weight: 700;
+    line-height: 1.15;
+    margin-bottom: 0.9rem;
+    color: white;
+  }
+
+  .hero-desc {
+    max-width: 520px;
+    font-size: 0.97rem;
+    line-height: 1.6;
+    opacity: 0.85;
+    margin-bottom: 1.6rem;
+    color: white;
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .btn-hero-primary {
+    background: white;
+    color: #5c0e2a;
+    border: none;
+    padding: 0.65rem 1.4rem;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: all 0.2s;
+  }
+
+  .btn-hero-primary:hover {
+    background: #f0e0e6;
+    color: #3b0764;
+    transform: translateY(-2px);
+  }
+
+  .btn-hero-ghost {
+    background: rgba(255,255,255,0.15);
+    color: white;
+    border: 1.5px solid rgba(255,255,255,0.4);
+    padding: 0.65rem 1.4rem;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: all 0.2s;
+  }
+
+  .btn-hero-ghost:hover {
+    background: rgba(255,255,255,0.25);
+    color: white;
+    transform: translateY(-2px);
+  }
+
+  /* ===== SECTION WRAPPER ===== */
+  .home-section {
+    max-width: 1300px;
+    margin: 0 auto;
+    padding: 2.5rem 2rem;
+  }
+
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 1.4rem;
+    border-bottom: 2px solid #ececec;
+    padding-bottom: 0.8rem;
+  }
+
+  .section-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #222;
+  }
+
+  .section-link {
+    font-size: 0.9rem;
+    color: #5c0e2a;
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .section-link:hover { text-decoration: underline; }
+
+  /* ===== CARD GRID ===== */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.2rem;
+  }
+
+  @media (max-width: 900px) { .card-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .card-grid { grid-template-columns: 1fr; } }
+
+  /* ===== COURSE CARD ===== */
+  .course-card {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.18s, box-shadow 0.18s;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .course-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(92,14,42,0.13);
+  }
+
+  .course-card-thumb {
+    height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.4rem;
+    position: relative;
+  }
+
+  .course-card-body {
+    padding: 0.9rem 1rem 1rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .course-card-eyebrow {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #888;
+    margin-bottom: 0.3rem;
+  }
+
+  .course-card-title {
+    font-size: 0.97rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 0.4rem;
+    line-height: 1.3;
+  }
+
+  .course-card-desc {
+    font-size: 0.84rem;
+    color: #555;
+    line-height: 1.5;
+    flex: 1;
+    /* clamp to 3 lines */
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .course-card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.8rem;
+  }
+
+  .tag {
+    font-size: 0.72rem;
+    padding: 0.22em 0.6em;
+    border-radius: 20px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .tag-course  { background: #ede0f0; color: #5b2d8a; }
+  .tag-python  { background: #dbeafe; color: #1d4ed8; }
+  .tag-debug   { background: #fef3c7; color: #92400e; }
+  .tag-doc     { background: #d1fae5; color: #065f46; }
+  .tag-web     { background: #ffe4e6; color: #9f1239; }
+  .tag-algo    { background: #e0f2fe; color: #0369a1; }
+  .tag-prog    { background: #f0fdf4; color: #15803d; }
+  .tag-lessons { background: #f1f5f9; color: #475569; }
+  .tag-video   { background: #fdf2f8; color: #9d174d; }
+
+  /* ===== LESSON CARD ===== */
+  .lesson-card {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.18s, box-shadow 0.18s;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .lesson-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(92,14,42,0.13);
+  }
+
+  .lesson-card-thumb {
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+  }
+
+  .lesson-card-body {
+    padding: 0.75rem 1rem 0.9rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .lesson-card-eyebrow {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #888;
+    margin-bottom: 0.25rem;
+  }
+
+  .lesson-card-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 0.3rem;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .lesson-card-desc {
+    font-size: 0.8rem;
+    color: #666;
+    line-height: 1.45;
+    flex: 1;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .lesson-card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.65rem;
+  }
+
+  /* ===== LIBRARY FILTERS ===== */
+  .library-filters {
+    display: flex;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.2rem;
+    align-items: center;
+  }
+
+  .filter-search {
+    flex: 1;
+    min-width: 180px;
+    padding: 0.55rem 1rem;
+    border: 1.5px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.92rem;
+    outline: none;
+    transition: border-color 0.2s;
+    font-family: inherit;
+  }
+
+  .filter-search:focus { border-color: #5c0e2a; }
+
+  .filter-select {
+    padding: 0.55rem 0.9rem;
+    border: 1.5px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.88rem;
+    background: white;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+    font-family: inherit;
+    color: #333;
+  }
+
+  .filter-select:focus { border-color: #5c0e2a; }
+
+  .library-count {
+    font-size: 0.88rem;
+    color: #888;
+    margin-left: auto;
+    white-space: nowrap;
+  }
+
+  /* ===== LOADING SKELETON ===== */
+  .skeleton-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.2rem;
+  }
+
+  @media (max-width: 900px) { .skeleton-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .skeleton-grid { grid-template-columns: 1fr; } }
+
+  .skeleton-card {
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+
+  .skeleton-thumb {
+    height: 90px;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+  }
+
+  .skeleton-body { padding: 0.9rem 1rem; }
+
+  .skeleton-line {
+    height: 12px;
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+  }
+
+  .skeleton-line.short { width: 55%; }
+  .skeleton-line.medium { width: 80%; }
+  .skeleton-line.full { width: 100%; }
+
+  @keyframes shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* ===== EMPTY STATE ===== */
+  .empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #999;
+  }
+
+  .empty-state i { font-size: 2.5rem; margin-bottom: 0.8rem; display: block; }
+
+  /* ===== LESSON GRID (smaller cards) ===== */
+  .lesson-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+  }
+
+  @media (max-width: 1100px) { .lesson-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 760px)  { .lesson-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 480px)  { .lesson-grid { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- ===== HERO ===== -->
+<div class="home-hero">
+  <div class="hero-inner">
+    <p class="hero-eyebrow"><i class="fas fa-microchip"></i> &nbsp;Digital Technologies Hub</p>
+    <h1 class="hero-title">Computer Lab Hub<br>Project Book</h1>
+    <p class="hero-desc">
+      Explore practical digital technologies projects. Browse the hub to find your project,
+      work through structured lessons, submit assignments, and track your progress.
+    </p>
+    <div class="hero-actions">
+      {% if current_user.is_authenticated %}
+        <a href="{{ url_for('main.dashboard') }}" class="btn-hero-primary">
+          <i class="fas fa-tachometer-alt"></i> Go to Dashboard
+        </a>
+        <a href="{{ url_for('courses.list_courses') }}" class="btn-hero-primary">
+          <i class="fas fa-book-open"></i> Browse Courses
+        </a>
+      {% else %}
+        <a href="{{ url_for('auth.login') }}" class="btn-hero-primary">
+          <i class="fas fa-sign-in-alt"></i> Log In
+        </a>
+        <a href="{{ url_for('auth.register') }}" class="btn-hero-ghost">
+          <i class="fas fa-user-plus"></i> Register
+        </a>
+      {% endif %}
+      <span class="btn-hero-ghost" id="heroLibCount" style="pointer-events:none;">
+        <i class="fas fa-layer-group"></i> <span id="heroLibCountText">Loading…</span>
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== HUB PROJECTS ===== -->
+<div class="home-section">
+  <div class="section-header">
+    <h2 class="section-title">
+      <i class="fas fa-rocket" style="color:#5c0e2a;"></i> &nbsp;Projects Running This Week
+    </h2>
+    <span id="hubProjectCount" style="font-size:0.88rem;color:#888;"></span>
+  </div>
+  <div id="hubProjectsGrid" class="card-grid">
+    <!-- rendered by JS -->
+    {% for i in range(3) %}
+    <div class="skeleton-card">
+      <div class="skeleton-thumb"></div>
+      <div class="skeleton-body">
+        <div class="skeleton-line short"></div>
+        <div class="skeleton-line medium"></div>
+        <div class="skeleton-line full"></div>
+        <div class="skeleton-line medium"></div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ===== PROJECT LIBRARY ===== -->
+<div style="background:#f8f8fb; padding: 0.1rem 0 2rem;">
+  <div class="home-section">
+    <div class="section-header">
+      <h2 class="section-title">
+        <i class="fas fa-th-large" style="color:#5c0e2a;"></i> &nbsp;Project Library Students Can Choose
+      </h2>
+      <span class="library-count" id="projectLibCount">Loading…</span>
+    </div>
+
+    <!-- Filters -->
+    <div class="library-filters">
+      <input type="search" id="projectSearch" class="filter-search"
+             placeholder="Search projects (e.g. programming, design, robotics)…" autocomplete="off">
+      <select id="filterSubject" class="filter-select">
+        <option value="">All Subjects</option>
+        <option value="Programming">Programming</option>
+        <option value="Design">Design</option>
+      </select>
+      <select id="filterStatus" class="filter-select">
+        <option value="">Any Status</option>
+        <option value="active">Active</option>
+        <option value="coming">Coming Soon</option>
+      </select>
+    </div>
+
+    <div id="projectLibGrid" class="card-grid">
+      {% for i in range(3) %}
+      <div class="skeleton-card">
+        <div class="skeleton-thumb"></div>
+        <div class="skeleton-body">
+          <div class="skeleton-line short"></div>
+          <div class="skeleton-line medium"></div>
+          <div class="skeleton-line full"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- ===== CLASS TRAINING SYSTEM – COURSES ===== -->
+<div class="home-section">
+  <div class="section-header">
+    <h2 class="section-title">
+      <i class="fas fa-laptop-code" style="color:#3b0764;"></i>
+      &nbsp;Class Training System &ndash; Courses
+    </h2>
+    <a href="{{ url_for('courses.list_courses') }}" class="section-link">View all &rarr;</a>
+  </div>
+  <div id="featuredGrid" class="card-grid">
+    {% for i in range(3) %}
+    <div class="skeleton-card">
+      <div class="skeleton-thumb"></div>
+      <div class="skeleton-body">
+        <div class="skeleton-line short"></div>
+        <div class="skeleton-line medium"></div>
+        <div class="skeleton-line full"></div>
+        <div class="skeleton-line medium"></div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ===== LESSON LIBRARY ===== -->
+<div style="background:#f8f8fb; padding: 0.1rem 0 2rem;">
+  <div class="home-section">
+    <div class="section-header">
+      <h2 class="section-title">
+        <i class="fas fa-graduation-cap" style="color:#5c0e2a;"></i> &nbsp;Lesson Library
+      </h2>
+      <span class="library-count" id="lessonCount">Loading…</span>
+    </div>
+
+    <div class="library-filters">
+      <input type="search" id="lessonSearch" class="filter-search"
+             placeholder="Search lessons (e.g. loops, variables, debugging)…" autocomplete="off">
+      <select id="filterCourse" class="filter-select">
+        <option value="">All Courses</option>
+      </select>
+      <select id="filterVideo" class="filter-select">
+        <option value="">Any Type</option>
+        <option value="video">Has Video</option>
+        <option value="novideo">No Video</option>
+      </select>
+      <select id="filterLimit" class="filter-select">
+        <option value="24">Show 24</option>
+        <option value="48">Show 48</option>
+        <option value="0">Show All</option>
+      </select>
+    </div>
+
+    <div id="lessonGrid" class="lesson-grid">
+      {% for i in range(8) %}
+      <div class="skeleton-card">
+        <div class="skeleton-thumb" style="height:72px;"></div>
+        <div class="skeleton-body">
+          <div class="skeleton-line short"></div>
+          <div class="skeleton-line medium"></div>
+          <div class="skeleton-line full"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  // ── Hub Projects (static – add new sub-systems here) ────────────────────
+  const HUB_PROJECTS = [
+    {
+      id: 'cts',
+      title: 'Class Training System',
+      subject: 'Programming',
+      description: 'Structured programming education with courses, lessons, assignments, quizzes, and progress tracking.',
+      icon: '🖥️',
+      color1: '#3b0764', color2: '#6b21a8',
+      status: 'active',
+      href: '{{ url_for("courses.list_courses") }}',
+      lessonCount: null, // filled dynamically from API
+      tag: 'Programming',
+    },
+    {
+      id: 'design',
+      title: 'Design Studio',
+      subject: 'Design',
+      description: 'Digital design, graphics, and product design projects for Years 9–13.',
+      icon: '🎨',
+      color1: '#134e4a', color2: '#0d9488',
+      status: 'coming',
+      href: '#',
+      tag: 'Design',
+    },
+  ];
+
+  // ── colour palette + icons for CTS courses ───────────────────────────────
+  const COURSE_PALETTES = [
+    ['#3b0764','#6b21a8'], ['#1e3a5f','#2563eb'], ['#065f46','#059669'],
+    ['#7c2d12','#ea580c'], ['#1e1b4b','#4f46e5'], ['#4a044e','#a21caf'],
+    ['#134e4a','#0d9488'], ['#172554','#1d4ed8'],
+  ];
+  const COURSE_ICONS = ['📚','🐍','🔍','🌐','🧠','🖥️','⚙️','📝','🔧','🎯'];
+  const TAG_CLASS = {
+    'Python':'tag-python','Debugging':'tag-debug','Documentation':'tag-doc',
+    'Web':'tag-web','Algorithms':'tag-algo','Programming':'tag-prog',
+  };
+  function tagClass(tag) { return TAG_CLASS[tag] || 'tag-prog'; }
+  function palette(idx)  { return COURSE_PALETTES[idx % COURSE_PALETTES.length]; }
+  function iconFor(idx)  { return COURSE_ICONS[idx % COURSE_ICONS.length]; }
+
+  // ── project card (hub-level) ─────────────────────────────────────────────
+  function projectCardHTML(p) {
+    const isActive = p.status === 'active';
+    const statusBadge = isActive
+      ? `<span class="tag tag-prog">Active</span>`
+      : `<span class="tag tag-lessons">Coming Soon</span>`;
+    const lc = (p.lessonCount != null)
+      ? `<span class="tag tag-lessons"><i class="fas fa-layer-group"></i> ${p.lessonCount} lesson${p.lessonCount !== 1 ? 's' : ''}</span>`
+      : '';
+    const overlay = !isActive
+      ? `<div style="position:absolute;inset:0;background:rgba(255,255,255,0.55);display:flex;align-items:center;justify-content:center;border-radius:10px 10px 0 0;">
+           <span style="background:rgba(0,0,0,0.55);color:white;padding:0.3em 0.8em;border-radius:20px;font-size:0.78rem;font-weight:600;">Coming Soon</span>
+         </div>` : '';
+    const linkAttrs = isActive
+      ? `href="${p.href}"`
+      : `href="#" onclick="return false;" style="cursor:default;"`;
+    return `<a ${linkAttrs} class="course-card" ${!isActive ? 'tabindex="-1"' : ''}>
+      <div class="course-card-thumb" style="background:linear-gradient(135deg,${p.color1},${p.color2});position:relative;">
+        <span style="filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));">${p.icon}</span>
+        ${overlay}
+      </div>
+      <div class="course-card-body">
+        <div class="course-card-eyebrow">DT Hub Project &bull; ${esc(p.subject)}</div>
+        <div class="course-card-title">${esc(p.title)}</div>
+        <div class="course-card-desc">${esc(p.description)}</div>
+        <div class="course-card-tags">
+          ${statusBadge}
+          <span class="tag ${tagClass(p.tag)}">${esc(p.tag)}</span>
+          ${lc}
+        </div>
+      </div>
+    </a>`;
+  }
+
+  // ── CTS course card ──────────────────────────────────────────────────────
+  function courseCardHTML(c, idx) {
+    const [bg1, bg2] = palette(idx);
+    const ico = iconFor(idx);
+    const desc = c.description
+      ? c.description.slice(0, 120) + (c.description.length > 120 ? '…' : '')
+      : 'No description available.';
+    return `<a href="/courses/${c.id}" class="course-card">
+      <div class="course-card-thumb" style="background:linear-gradient(135deg,${bg1},${bg2});">
+        <span style="filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));">${ico}</span>
+      </div>
+      <div class="course-card-body">
+        <div class="course-card-eyebrow">Course</div>
+        <div class="course-card-title">${esc(c.title)}</div>
+        <div class="course-card-desc">${esc(desc)}</div>
+        <div class="course-card-tags">
+          <span class="tag ${tagClass(c.tag)}">${esc(c.tag)}</span>
+          <span class="tag tag-lessons"><i class="fas fa-layer-group"></i> ${c.lesson_count} lesson${c.lesson_count !== 1 ? 's' : ''}</span>
+        </div>
+      </div>
+    </a>`;
+  }
+
+  // ── lesson card ──────────────────────────────────────────────────────────
+  function lessonCardHTML(l, courseIdx) {
+    const [bg1, bg2] = palette(courseIdx);
+    const ico = iconFor(courseIdx);
+    const desc = l.description
+      ? l.description.slice(0, 90) + (l.description.length > 90 ? '…' : '') : '';
+    return `<a href="/courses/${l.course_id}" class="lesson-card">
+      <div class="lesson-card-thumb" style="background:linear-gradient(135deg,${bg1},${bg2});">
+        <span style="filter:drop-shadow(0 1px 3px rgba(0,0,0,0.3));">${ico}</span>
+      </div>
+      <div class="lesson-card-body">
+        <div class="lesson-card-eyebrow">${esc(l.course_title)}</div>
+        <div class="lesson-card-title">${esc(l.title)}</div>
+        ${desc ? `<div class="lesson-card-desc">${esc(desc)}</div>` : ''}
+        <div class="lesson-card-tags">
+          ${l.section_count ? `<span class="tag tag-lessons">${l.section_count} section${l.section_count !== 1 ? 's' : ''}</span>` : ''}
+          ${l.video ? '<span class="tag tag-video"><i class="fas fa-play-circle"></i> Video</span>' : ''}
+        </div>
+      </div>
+    </a>`;
+  }
+
+  function esc(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── state ────────────────────────────────────────────────────────────────
+  let allLessons = [];
+  let allCourses = [];
+  let courseIdxMap = {};
+
+  // ── render hub projects ──────────────────────────────────────────────────
+  function renderHubProjects(totalLessons) {
+    // inject lesson count into CTS project card
+    const cts = HUB_PROJECTS.find(p => p.id === 'cts');
+    if (cts) cts.lessonCount = totalLessons;
+
+    const activeCount = HUB_PROJECTS.filter(p => p.status === 'active').length;
+    document.getElementById('hubProjectCount').textContent =
+      activeCount + ' active • ' + HUB_PROJECTS.length + ' total';
+    document.getElementById('hubProjectsGrid').innerHTML =
+      HUB_PROJECTS.map(projectCardHTML).join('');
+
+    // hero count
+    document.getElementById('heroLibCountText').textContent =
+      HUB_PROJECTS.length + ' projects in the hub';
+  }
+
+  // ── render project library (filterable) ─────────────────────────────────
+  function renderProjectLibrary() {
+    const q       = document.getElementById('projectSearch').value.toLowerCase();
+    const subject = document.getElementById('filterSubject').value;
+    const status  = document.getElementById('filterStatus').value;
+
+    let filtered = HUB_PROJECTS.filter(p => {
+      if (subject && p.subject !== subject) return false;
+      if (status  && p.status  !== status)  return false;
+      if (q && !(p.title + ' ' + p.description + ' ' + p.subject).toLowerCase().includes(q)) return false;
+      return true;
+    });
+
+    document.getElementById('projectLibCount').textContent =
+      filtered.length + ' project' + (filtered.length !== 1 ? 's' : '');
+
+    const grid = document.getElementById('projectLibGrid');
+    if (filtered.length === 0) {
+      grid.className = '';
+      grid.innerHTML = '<div class="empty-state"><i class="fas fa-search"></i><p>No projects match your filters.</p></div>';
+      return;
+    }
+    grid.className = 'card-grid';
+    grid.innerHTML = filtered.map(projectCardHTML).join('');
+  }
+
+  // ── render CTS courses ───────────────────────────────────────────────────
+  function renderCourses(courses) {
+    const grid = document.getElementById('featuredGrid');
+    if (courses.length === 0) {
+      grid.innerHTML = '<div class="empty-state"><i class="fas fa-book-open"></i><p>No courses yet.</p></div>';
+      return;
+    }
+    grid.innerHTML = courses.slice(0, 6).map((c, i) => courseCardHTML(c, courseIdxMap[c.id] ?? i)).join('');
+  }
+
+  // ── render / filter lessons ──────────────────────────────────────────────
+  function renderLessons() {
+    const query  = document.getElementById('lessonSearch').value.toLowerCase().trim();
+    const course = document.getElementById('filterCourse').value;
+    const video  = document.getElementById('filterVideo').value;
+    const limit  = parseInt(document.getElementById('filterLimit').value) || 0;
+
+    let filtered = allLessons.filter(l => {
+      if (course && String(l.course_id) !== course) return false;
+      if (video === 'video'   && !l.video)  return false;
+      if (video === 'novideo' &&  l.video)  return false;
+      if (query) {
+        const hay = (l.title + ' ' + l.description + ' ' + l.course_title).toLowerCase();
+        if (!hay.includes(query)) return false;
+      }
+      return true;
+    });
+
+    const total = filtered.length;
+    if (limit > 0) filtered = filtered.slice(0, limit);
+
+    document.getElementById('lessonCount').textContent =
+      total + ' lesson' + (total !== 1 ? 's' : '') +
+      (limit > 0 && total > limit ? ` (showing ${limit})` : '');
+
+    const grid = document.getElementById('lessonGrid');
+    if (filtered.length === 0) {
+      grid.className = '';
+      grid.innerHTML = '<div class="empty-state"><i class="fas fa-search"></i><p>No lessons match your filters.</p></div>';
+      return;
+    }
+    grid.className = 'lesson-grid';
+    grid.innerHTML = filtered.map(l => lessonCardHTML(l, courseIdxMap[l.course_id] ?? 0)).join('');
+  }
+
+  // ── fetch CTS data ───────────────────────────────────────────────────────
+  fetch('/api/home-data')
+    .then(r => r.json())
+    .then(data => {
+      allCourses = data.all_courses || [];
+      allLessons = data.lessons || [];
+      allCourses.forEach((c, i) => { courseIdxMap[c.id] = i; });
+
+      renderHubProjects(allLessons.length);
+      renderProjectLibrary();
+      renderCourses(allCourses);
+
+      // Populate course filter dropdown
+      const sel = document.getElementById('filterCourse');
+      allCourses.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.title;
+        sel.appendChild(opt);
+      });
+      renderLessons();
+    })
+    .catch(() => {
+      renderHubProjects(0);
+      document.getElementById('featuredGrid').innerHTML =
+        '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Could not load courses.</p></div>';
+      document.getElementById('lessonGrid').innerHTML =
+        '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Could not load lessons.</p></div>';
+      document.getElementById('heroLibCountText').textContent =
+        HUB_PROJECTS.length + ' projects in the hub';
+    });
+
+  // ── wire filters ─────────────────────────────────────────────────────────
+  let searchTimer;
+  document.getElementById('projectSearch').addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(renderProjectLibrary, 220);
+  });
+  document.getElementById('filterSubject').addEventListener('change', renderProjectLibrary);
+  document.getElementById('filterStatus').addEventListener('change', renderProjectLibrary);
+
+  let lessonTimer;
+  document.getElementById('lessonSearch').addEventListener('input', () => {
+    clearTimeout(lessonTimer);
+    lessonTimer = setTimeout(renderLessons, 220);
+  });
+  document.getElementById('filterCourse').addEventListener('change', renderLessons);
+  document.getElementById('filterVideo').addEventListener('change', renderLessons);
+  document.getElementById('filterLimit').addEventListener('change', renderLessons);
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,413 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Class Training System{% endblock %}
+
+{% block content %}
+<style>
+    .settings-container {
+        max-width: 700px;
+        margin: 0 auto;
+    }
+
+    .settings-header {
+        background: linear-gradient(135deg, #5c0e2a 0%, #7a1d3e 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 0.8em;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 12px rgba(92, 14, 42, 0.2);
+    }
+
+    .settings-header h1 {
+        margin: 0;
+        font-size: 2em;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .settings-section {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 0.8em;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .section-title {
+        font-size: 1.3em;
+        font-weight: 700;
+        color: #5c0e2a;
+        margin: 0 0 1.5rem 0;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #f0f0f0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group:last-child {
+        margin-bottom: 0;
+    }
+
+    label {
+        display: block;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 0.5rem;
+    }
+
+    input[type="password"],
+    input[type="email"],
+    input[type="text"],
+    select {
+        width: 100%;
+        padding: 0.8em;
+        border: 1px solid #ddd;
+        border-radius: 0.4em;
+        font-family: inherit;
+        font-size: 1em;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input[type="password"]:focus,
+    input[type="email"]:focus,
+    input[type="text"]:focus,
+    select:focus {
+        outline: none;
+        border-color: #5c0e2a;
+        box-shadow: 0 0 0 3px rgba(92, 14, 42, 0.1);
+    }
+
+    .form-help {
+        font-size: 0.85em;
+        color: #888;
+        margin-top: 0.3rem;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+
+    .form-row .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .button-group {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1.5rem;
+    }
+
+    button {
+        flex: 1;
+        padding: 0.8em 1.5em;
+        border: none;
+        border-radius: 0.4em;
+        font-size: 1em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-primary {
+        background: #5c0e2a;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #7a1d3e;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(92, 14, 42, 0.2);
+    }
+
+    .btn-secondary {
+        background: #f0f0f0;
+        color: #333;
+        flex: 0;
+        padding: 0.8em 1.2em;
+    }
+
+    .btn-secondary:hover {
+        background: #e0e0e0;
+    }
+
+    .alert {
+        padding: 1em 1.5em;
+        border-radius: 0.4em;
+        margin-bottom: 1rem;
+        border-left: 4px solid;
+    }
+
+    .alert-info {
+        background: #d1ecf1;
+        color: #0c5460;
+        border-left-color: #17a2b8;
+    }
+
+    .preference-option {
+        display: flex;
+        align-items: center;
+        padding: 1em;
+        background: #f9f9f9;
+        border-radius: 0.4em;
+        margin-bottom: 0.5rem;
+        border: 1px solid #eee;
+        transition: all 0.2s;
+    }
+
+    .preference-option:hover {
+        background: #f0f0f0;
+        border-color: #ddd;
+    }
+
+    .preference-option input[type="checkbox"] {
+        width: auto;
+        margin-right: 1rem;
+        cursor: pointer;
+        width: 18px;
+        height: 18px;
+    }
+
+    .preference-label {
+        flex: 1;
+        cursor: pointer;
+    }
+
+    .preference-label strong {
+        display: block;
+        margin-bottom: 0.2rem;
+    }
+
+    .preference-label small {
+        color: #888;
+    }
+
+    .danger-zone {
+        border: 2px solid #dc3545;
+        padding: 1.5rem;
+        border-radius: 0.8em;
+        background: #fff5f5;
+        margin-top: 2rem;
+    }
+
+    .danger-zone h3 {
+        color: #dc3545;
+        margin-top: 0;
+    }
+
+    .back-link {
+        display: inline-block;
+        margin-bottom: 1.5rem;
+        color: #5c0e2a;
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+    .back-link:hover {
+        text-decoration: underline;
+    }
+
+    @media (max-width: 768px) {
+        .settings-container {
+            max-width: 100%;
+        }
+
+        .settings-header {
+            padding: 1.5rem;
+        }
+
+        .settings-section {
+            padding: 1.5rem;
+        }
+
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+
+        .button-group {
+            flex-direction: column;
+        }
+
+        .btn-secondary {
+            flex: 1;
+        }
+    }
+</style>
+
+<div class="settings-container">
+    <a href="{{ url_for('main.profile') }}" class="back-link"><i class="fas fa-arrow-left"></i> Back to Profile</a>
+
+    <div class="settings-header">
+        <h1><i class="fas fa-cog"></i> Account Settings</h1>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">
+                    {% if category == 'success' %}
+                        <i class="fas fa-check-circle"></i>
+                    {% elif category == 'error' %}
+                        <i class="fas fa-exclamation-circle"></i>
+                    {% endif %}
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Account Information Section -->
+    <div class="settings-section">
+        <h2 class="section-title"><i class="fas fa-user"></i> Account Information</h2>
+        <form method="GET" style="pointer-events: none;">
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" value="{{ current_user.username }}" disabled style="background: #f9f9f9; cursor: not-allowed;">
+            </div>
+            <div class="form-group">
+                <label>Email Address</label>
+                <input type="email" value="{{ current_user.email }}" disabled style="background: #f9f9f9; cursor: not-allowed;">
+            </div>
+            <div class="form-group">
+                <label>Account Type</label>
+                <input type="text" value="{% if current_user.is_teacher() %}Teacher{% else %}Student{% endif %}" disabled style="background: #f9f9f9; cursor: not-allowed;">
+            </div>
+            <p class="form-help"><i class="fas fa-info-circle"></i> To change your email or account type, contact your administrator.</p>
+        </form>
+    </div>
+
+    <!-- Password Section -->
+    <div class="settings-section">
+        <h2 class="section-title"><i class="fas fa-lock"></i> Change Password</h2>
+        <form method="POST">
+            <input type="hidden" name="action" value="change_password">
+            
+            <div class="form-group">
+                <label for="current_password">Current Password</label>
+                <input type="password" id="current_password" name="current_password" required>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="new_password">New Password</label>
+                    <input type="password" id="new_password" name="new_password" required>
+                    <p class="form-help">At least 6 characters</p>
+                </div>
+                <div class="form-group">
+                    <label for="confirm_password">Confirm Password</label>
+                    <input type="password" id="confirm_password" name="confirm_password" required>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button type="submit" class="btn-primary"><i class="fas fa-save"></i> Update Password</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Preferences Section -->
+    <div class="settings-section">
+        <h2 class="section-title"><i class="fas fa-sliders-h"></i> Preferences</h2>
+        <form method="POST">
+            <input type="hidden" name="action" value="update_preferences">
+            
+            <div style="margin-bottom: 1.5rem;">
+                <label style="margin-bottom: 1rem; display: block; font-weight: 600;">Email Notifications</label>
+                
+                <div class="preference-option">
+                    <input type="checkbox" id="notify_assignment" name="notify_assignment" checked>
+                    <div class="preference-label">
+                        <label for="notify_assignment">
+                            <strong>New Assignment Notifications</strong>
+                            <small>Get notified when a new assignment is posted</small>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="preference-option">
+                    <input type="checkbox" id="notify_feedback" name="notify_feedback" checked>
+                    <div class="preference-label">
+                        <label for="notify_feedback">
+                            <strong>Feedback Notifications</strong>
+                            <small>Get notified when feedback is provided on your work</small>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="preference-option">
+                    <input type="checkbox" id="notify_grade" name="notify_grade" checked>
+                    <div class="preference-label">
+                        <label for="notify_grade">
+                            <strong>Grade Notifications</strong>
+                            <small>Get notified when your work is graded</small>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <label style="margin-bottom: 1rem; display: block; font-weight: 600;">Display Settings</label>
+                
+                <div class="form-group">
+                    <label for="theme">Theme</label>
+                    <select id="theme" name="theme" disabled style="background: #f9f9f9; cursor: not-allowed;">
+                        <option>Light (default)</option>
+                        <option>Dark (coming soon)</option>
+                    </select>
+                    <p class="form-help">Dark mode coming in a future update</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="items_per_page">Items Per Page</label>
+                    <select id="items_per_page" name="items_per_page">
+                        <option value="10">10</option>
+                        <option value="20" selected>20</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button type="submit" class="btn-primary"><i class="fas fa-save"></i> Save Preferences</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Security Section -->
+    <div class="settings-section">
+        <h2 class="section-title"><i class="fas fa-shield-alt"></i> Security</h2>
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> You're logged in via 
+            {% if current_user.has_google_oauth %}
+                Google OAuth (more secure)
+            {% else %}
+                Username and password
+            {% endif %}
+        </div>
+        <p style="margin: 0; color: #666;">Last login: <strong>Recent</strong></p>
+        <p style="color: #888; font-size: 0.9em; margin-top: 1rem;">
+            For additional security, consider using Google OAuth to sign in to your account.
+        </p>
+    </div>
+
+    <!-- Help Section -->
+    <div class="settings-section">
+        <h2 class="section-title"><i class="fas fa-question-circle"></i> Need Help?</h2>
+        <p>If you need assistance with your account or have questions, please contact your instructor or administrator.</p>
+        <ul style="margin: 1rem 0; padding-left: 1.5rem;">
+            <li>Can't reset your password? Contact your administrator</li>
+            <li>Having trouble with notifications? Check your email spam folder</li>
+            <li>Found a security issue? Please report it immediately</li>
+        </ul>
+    </div>
+</div>
+
+{% endblock %}

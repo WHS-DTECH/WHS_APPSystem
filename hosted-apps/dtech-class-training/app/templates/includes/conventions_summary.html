@@ -1,0 +1,73 @@
+<!-- Programming Comments: Summary of Best Practices -->
+<div style="display: flex; flex-direction: row; gap: 2em; border: 2px solid #aaa; margin: 2em 0;">
+  <div style="flex: 1; min-width: 260px; border: 2px solid #2196f3; background: #e0f7fa; padding: 1em;">
+    <h3>Why Comments Matter</h3>
+    <ul>
+      <li><b>Clarity:</b> Comments help others (and your future self) understand complex code.</li>
+      <li><b>Maintainability:</b> Good comments make it easier to update and debug code.</li>
+      <li><b>Collaboration:</b> Comments communicate intent and important details to teammates.</li>
+    </ul>
+    <h4>The Comment Hierarchy</h4>
+    <ol>
+      <li><b>Best:</b> Self-documenting code that needs no comments</li>
+      <li><b>Good:</b> Clear code with minimal, meaningful comments</li>
+      <li><b>Acceptable:</b> Comments to explain complex logic or intent</li>
+      <li><b>Bad:</b> Excessive comments explaining obvious code</li>
+      <li><b>Worst:</b> Misleading or outdated comments</li>
+    </ol>
+    <h4>When to Comment</h4>
+    <ul>
+      <li>To explain <b>why</b> something is done, not just <b>what</b> the code does</li>
+      <li>For complex algorithms, business rules, or workarounds</li>
+      <li>To warn about side effects or important caveats</li>
+      <li>For documenting APIs, parameters, and return values</li>
+    </ul>
+  </div>
+  <div style="flex: 1; min-width: 260px; border: 2px solid #ffc107; background: #fff9c4; padding: 1em;">
+    <h3>Best Practices for Comments</h3>
+    <ul>
+      <li><b>Be concise and clear.</b> Avoid unnecessary words and get to the point.</li>
+      <li><b>Keep comments up to date.</b> Revise or remove comments as code changes.</li>
+      <li><b>Use proper grammar and spelling.</b> Professional comments are easier to read and maintain.</li>
+      <li><b>Use TODO, FIXME, NOTE tags</b> to highlight areas needing attention.</li>
+      <li><b>Remove commented-out code.</b> Use version control for history.</li>
+      <li><b>Use the correct syntax:</b> <code>#</code> for Python, <code>//</code> or <code>/* */</code> for JS, <code>&lt;!-- --&gt;</code> for HTML.</li>
+    </ul>
+    <h4>Comment Maintenance</h4>
+    <ul>
+      <li>Review comments during code reviews</li>
+      <li>Delete or update comments for removed or changed code</li>
+      <li>Strive for code that needs fewer comments by improving naming and structure</li>
+    </ul>
+    <blockquote style="margin: 0.5em 0; padding: 0.5em 1em; background: #f5f5f5; border-left: 4px solid #5c0e2a;">
+      "Code tells you how, comments tell you why."<br>
+      <span style="font-size:0.95em;">- Jeff Atwood, Co-founder of Stack Overflow</span>
+    </blockquote>
+  </div>
+</div>
+<!-- TEST FLEXBOX BLOCK FOR DIRECT COMPARISON -->
+<div style="display: flex; flex-direction: row; gap: 2em; border: 3px solid orange; margin: 2em 0; background: #fffbe6;">
+  <div style="flex: 1; min-width: 200px; border: 2px solid blue; background: #e0f7fa;">Test Column 1</div>
+  <div style="flex: 1; min-width: 200px; border: 2px solid green; background: #fff9c4;">Test Column 2</div>
+</div>
+<!-- Forcibly two-column layout for summary conventions block -->
+<!-- CONVENTIONS IN FLEXBOX TEST BLOCKS -->
+<div style="display: flex; flex-direction: row; gap: 2em; border: 3px solid orange; margin: 2em 0; background: #fffbe6;">
+  <div style="flex: 1; min-width: 200px; border: 2px solid blue; background: #e0f7fa;">
+    <h3>Conventions 1–4</h3>
+    <ul>
+      <li><b>Be clear and concise.</b><br><i>Write comments that are easy to understand and get to the point quickly.</i></li>
+      <li><b>Keep comments up to date.</b><br><i>Update or remove comments as code changes.</i></li>
+      <li><b>Explain why, not just what.</b><br><i>Describe the reasoning behind code decisions.</i></li>
+      <li><b>Use proper grammar and spelling.</b><br><i>Professional comments are easier to read and maintain.</i></li>
+    </ul>
+  </div>
+  <div style="flex: 1; min-width: 200px; border: 2px solid green; background: #fff9c4;">
+    <h3>Conventions 5–7</h3>
+    <ul>
+      <li><b>Use TODO/FIXME/NOTE tags.</b><br><i>Mark places in the code that need attention or improvement.</i></li>
+      <li><b>Remove commented-out code.</b><br><i>Keep the codebase clean by deleting unused code.</i></li>
+      <li><b>Use the correct comment syntax.</b><br><i>Use <code>#</code> for Python, <code>//</code> and <code>/* */</code> for JS, <code>&lt;!-- --&gt;</code> for HTML, and <code>/* */</code> for CSS.</i></li>
+    </ul>
+  </div>
+</div>

@@ -885,7 +885,9 @@ async function loadSharedProjects() {
                     status: showInThisWeek ? "active" : "planning",
                     term: String(item.term || "Term 2"),
                     updated: created,
-                    href: `ProjectPages/custom-activity.html?id=${encodeURIComponent(id)}`,
+                    href: String(item.card_url || "").startsWith("/dtech-hub/class-training/")
+                        ? item.card_url
+                        : `ProjectPages/custom-activity.html?id=${encodeURIComponent(id)}`,
                     external: false,
                     summary,
                     keywords: [type, category, String(item.difficulty || ""), "teacher upload"].filter(Boolean),

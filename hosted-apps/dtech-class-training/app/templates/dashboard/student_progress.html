@@ -1,0 +1,493 @@
+{% extends "base.html" %}
+
+{% block title %}My Progress - Class Training System{% endblock %}
+
+{% block content %}
+<style>
+    .progress-container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 0 1.5rem;
+    }
+
+    .progress-header {
+        background: linear-gradient(135deg, #5c0e2a 0%, #7a1d3e 100%);
+        color: white;
+        padding: 2.5rem;
+        border-radius: 0.8rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 12px rgba(92, 14, 42, 0.2);
+    }
+
+    .progress-header h1 {
+        margin: 0 0 0.5rem 0;
+        font-size: 2.2rem;
+        font-weight: 700;
+    }
+
+    .progress-header p {
+        margin: 0;
+        opacity: 0.95;
+        font-size: 1.05rem;
+    }
+
+    /* Overall Stats */
+    .overall-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 3rem;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 0.8rem;
+        padding: 1.8rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        border-left: 4px solid #5c0e2a;
+        transition: all 0.3s;
+    }
+
+    .stat-card:hover {
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+        transform: translateY(-2px);
+    }
+
+    .stat-card h3 {
+        color: #5c0e2a;
+        font-size: 0.95rem;
+        font-weight: 600;
+        margin: 0 0 1rem 0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .stat-content {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+    }
+
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #5c0e2a;
+    }
+
+    .stat-details {
+        flex: 1;
+    }
+
+    .stat-bar {
+        width: 100%;
+        height: 8px;
+        background: #e0e0e0;
+        border-radius: 4px;
+        overflow: hidden;
+        margin: 0.5rem 0;
+    }
+
+    .stat-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #5c0e2a, #7a1d3e);
+        transition: width 0.5s ease;
+    }
+
+    .stat-label {
+        font-size: 0.85rem;
+        color: #666;
+        margin-top: 0.5rem;
+    }
+
+    /* Course Progress Cards */
+    .courses-section h2 {
+        color: #5c0e2a;
+        font-size: 1.5rem;
+        margin: 2rem 0 1.5rem 0;
+        font-weight: 700;
+    }
+
+    .course-progress-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+        gap: 2rem;
+        margin-bottom: 3rem;
+    }
+
+    .course-card {
+        background: white;
+        border-radius: 0.8rem;
+        padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        border-top: 4px solid #5c0e2a;
+        transition: all 0.3s;
+    }
+
+    .course-card:hover {
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+        transform: translateY(-4px);
+    }
+
+    .course-card h3 {
+        color: #5c0e2a;
+        margin: 0 0 1.5rem 0;
+        font-size: 1.3rem;
+        font-weight: 700;
+        word-break: break-word;
+    }
+
+    .progress-item {
+        margin-bottom: 1.8rem;
+    }
+
+    .progress-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .progress-label {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.6rem;
+    }
+
+    .progress-label-text {
+        font-weight: 600;
+        color: #333;
+        font-size: 0.95rem;
+    }
+
+    .progress-count {
+        font-size: 0.9rem;
+        color: #666;
+        background: #f0f0f0;
+        padding: 0.3rem 0.8rem;
+        border-radius: 0.4rem;
+    }
+
+    .progress-bar {
+        width: 100%;
+        height: 10px;
+        background: #e0e0e0;
+        border-radius: 5px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #5c0e2a, #7a1d3e);
+        border-radius: 5px;
+        transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding-right: 0.5rem;
+    }
+
+    .progress-percentage {
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: white;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Overall Progress Chart */
+    .overall-progress {
+        background: white;
+        border-radius: 0.8rem;
+        padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        margin-bottom: 2rem;
+    }
+
+    .overall-progress h2 {
+        color: #5c0e2a;
+        font-size: 1.3rem;
+        margin: 0 0 1.5rem 0;
+        font-weight: 700;
+    }
+
+    .chart-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 2rem;
+    }
+
+    .donut-chart {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .donut-chart-label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #666;
+        margin-top: 1rem;
+        text-align: center;
+    }
+
+    /* Achievement Badge */
+    .achievement-badge {
+        display: inline-block;
+        background: linear-gradient(135deg, #f39c12, #e67e22);
+        color: white;
+        padding: 0.8rem 1.2rem;
+        border-radius: 0.6rem;
+        font-size: 0.9rem;
+        font-weight: 700;
+        text-align: center;
+        margin: 0.5rem 0.5rem 0.5rem 0;
+    }
+
+    .achievement-badge i {
+        margin-right: 0.5rem;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        background: white;
+        border-radius: 0.8rem;
+        color: #666;
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        color: #ccc;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state p {
+        margin: 0.5rem 0;
+    }
+
+    /* Mobile Responsive */
+    @media (max-width: 1024px) {
+        .course-progress-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .stat-card {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .stat-content {
+            flex-direction: column;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .progress-container {
+            padding: 0 1rem;
+        }
+
+        .progress-header {
+            padding: 1.5rem;
+        }
+
+        .progress-header h1 {
+            font-size: 1.5rem;
+        }
+
+        .overall-stats {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+
+        .stat-card {
+            padding: 1.5rem;
+        }
+
+        .course-progress-grid {
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+
+        .course-card {
+            padding: 1.5rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .progress-header {
+            padding: 1rem;
+        }
+
+        .progress-header h1 {
+            font-size: 1.3rem;
+        }
+
+        .progress-header p {
+            font-size: 0.95rem;
+        }
+
+        .chart-container {
+            grid-template-columns: 1fr;
+        }
+
+        .achievement-badge {
+            display: block;
+            margin: 0.5rem 0;
+        }
+    }
+</style>
+
+<div class="progress-container">
+    <!-- Header -->
+    <div class="progress-header">
+        <h1><i class="fas fa-chart-line"></i> My Learning Progress</h1>
+        <p>Track your achievement across all courses and lessons</p>
+    </div>
+
+    <!-- Overall Statistics -->
+    <div class="overall-stats">
+        <!-- Lessons Card -->
+        <div class="stat-card">
+            <h3><i class="fas fa-book"></i> Lessons</h3>
+            <div class="stat-content">
+                <div class="stat-number">{{ overall_stats.lessons.completed }}/{{ overall_stats.lessons.total }}</div>
+                <div class="stat-details">
+                    <div class="stat-bar">
+                        <div class="stat-bar-fill" style="width: {{ overall_stats.lessons.progress }}%"></div>
+                    </div>
+                    <div class="stat-label">{{ "%.1f"|format(overall_stats.lessons.progress) }}% Complete</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Assignments Card -->
+        <div class="stat-card">
+            <h3><i class="fas fa-tasks"></i> Assignments</h3>
+            <div class="stat-content">
+                <div class="stat-number">{{ overall_stats.assignments.submitted }}/{{ overall_stats.assignments.total }}</div>
+                <div class="stat-details">
+                    <div class="stat-bar">
+                        <div class="stat-bar-fill" style="width: {{ overall_stats.assignments.progress }}%"></div>
+                    </div>
+                    <div class="stat-label">{{ "%.1f"|format(overall_stats.assignments.progress) }}% Submitted</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quizzes Card -->
+        <div class="stat-card">
+            <h3><i class="fas fa-question-circle"></i> Quizzes</h3>
+            <div class="stat-content">
+                <div class="stat-number">{{ overall_stats.quizzes.attempts }}/{{ overall_stats.quizzes.total }}</div>
+                <div class="stat-details">
+                    <div class="stat-bar">
+                        <div class="stat-bar-fill" style="width: {{ overall_stats.quizzes.progress }}%"></div>
+                    </div>
+                    <div class="stat-label">{{ "%.1f"|format(overall_stats.quizzes.progress) }}% Attempted</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Course Progress Section -->
+    {% if progress_data %}
+        <div class="courses-section">
+            <h2><i class="fas fa-graduation-cap"></i> Course Progress</h2>
+            
+            <div class="course-progress-grid">
+                {% for course_progress in progress_data %}
+                    <div class="course-card">
+                        <h3>
+                            <a href="{{ url_for('courses.view_course', course_id=course_progress.course.id) }}" 
+                               style="color: #5c0e2a; text-decoration: none;">
+                                {{ course_progress.course.title }}
+                            </a>
+                        </h3>
+
+                        <!-- Lesson Progress -->
+                        <div class="progress-item">
+                            <div class="progress-label">
+                                <span class="progress-label-text"><i class="fas fa-book"></i> Lessons</span>
+                                <span class="progress-count">{{ course_progress.lessons.completed }}/{{ course_progress.lessons.total }}</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-bar-fill" style="width: {{ course_progress.lessons.progress }}%">
+                                    {% if course_progress.lessons.progress > 10 %}
+                                        <span class="progress-percentage">{{ course_progress.lessons.progress }}%</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Assignment Progress -->
+                        <div class="progress-item">
+                            <div class="progress-label">
+                                <span class="progress-label-text"><i class="fas fa-check-square"></i> Assignments</span>
+                                <span class="progress-count">{{ course_progress.assignments.submitted }}/{{ course_progress.assignments.total }}</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-bar-fill" style="width: {{ course_progress.assignments.progress }}%">
+                                    {% if course_progress.assignments.progress > 10 %}
+                                        <span class="progress-percentage">{{ course_progress.assignments.progress }}%</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quiz Progress -->
+                        <div class="progress-item">
+                            <div class="progress-label">
+                                <span class="progress-label-text"><i class="fas fa-quiz"></i> Quizzes</span>
+                                <span class="progress-count">{{ course_progress.quizzes.attempts }}/{{ course_progress.quizzes.total }}</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-bar-fill" style="width: {{ course_progress.quizzes.progress }}%">
+                                    {% if course_progress.quizzes.progress > 10 %}
+                                        <span class="progress-percentage">{{ course_progress.quizzes.progress }}%</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Overall Progress -->
+                        <div class="progress-item" style="border-top: 1px solid #e0e0e0; padding-top: 1rem; margin-top: 1rem;">
+                            <div class="progress-label">
+                                <span class="progress-label-text" style="font-size: 1rem;"><i class="fas fa-chart-pie"></i> Overall</span>
+                                <span class="progress-count" style="background: #5c0e2a; color: white;">{{ course_progress.overall_progress }}%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-bar-fill" style="width: {{ course_progress.overall_progress }}%">
+                                    {% if course_progress.overall_progress > 10 %}
+                                        <span class="progress-percentage">{{ course_progress.overall_progress }}%</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <i class="fas fa-inbox"></i>
+            <p><strong>No courses yet</strong></p>
+            <p>Enroll in a course to start tracking your progress</p>
+            <a href="{{ url_for('courses.list_courses') }}" class="btn btn-primary" style="margin-top: 1rem;">Browse Courses</a>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+// Animate progress bars on load
+document.addEventListener('DOMContentLoaded', function() {
+    const progressBars = document.querySelectorAll('.progress-bar-fill');
+    progressBars.forEach((bar, index) => {
+        setTimeout(() => {
+            bar.style.transition = 'width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        }, 100 * index);
+    });
+    
+    // Show success toast
+    Toast.success('Progress data loaded successfully');
+});
+</script>
+{% endblock %}

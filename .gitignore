@@ -11,3 +11,5 @@ dist/
 tmp/
 LegacySites/
 src/legacy/dtech-hub/TeacherFiles/
+hosted-apps/**/__pycache__/
+hosted-apps/**/*.pyc

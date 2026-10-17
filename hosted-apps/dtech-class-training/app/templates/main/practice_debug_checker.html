@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}Practice: Debug Checker{% endblock %}
+
+{% block content %}
+<div style="display: flex; flex-direction: row; gap: 2em; align-items: flex-start;">
+  <div style="flex: 0 0 320px; min-width: 220px; max-width: 350px;">
+    <div style="background:#f8fafd; border:2px solid #b3d1e6; border-radius:0.5em; padding:1.2em; margin-bottom:2em;">
+      <h3 style="margin-top:0; color:#007bff; font-size:1.1em;">Your Checked Files</h3>
+      <div class="checked-files-list">
+        {% for row in checked_files_grid %}
+        <div class="checked-file-card">
+          <div class="checked-file-filename">{{ row.filename }}</div>
+          <div class="checked-file-statuses">
+            <span class="checked-file-status"><b>Comments:</b> {{ row.comment or '-' }}</span>
+            <span class="checked-file-status"><b>Debug:</b> {{ row.debug or '-' }}</span>
+          </div>
+        </div>
+        {% else %}
+        <div class="checked-file-card" style="text-align:center; color:#aaa;">No files checked yet.</div>
+        {% endfor %}
+      </div>
+      <style>
+      .checked-files-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5em;
+        width: 100%;
+      }
+      .checked-file-card {
+        background: #e3f2fd;
+        border-radius: 0.4em;
+        padding: 0.5em 0.8em;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        display: flex;
+        flex-direction: column;
+        word-break: break-all;
+      }
+      .checked-file-filename {
+        font-weight: 600;
+        color: #0056b3;
+        margin-bottom: 0.2em;
+        font-size: 1em;
+      }
+      .checked-file-statuses {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.2em;
+        font-size: 0.97em;
+      }
+      .checked-file-status {
+        color: #333;
+      }
+      @media (max-width: 600px) {
+        .checked-files-list {
+          gap: 0.3em;
+        }
+        .checked-file-card {
+          padding: 0.4em 0.5em;
+        }
+        .checked-file-statuses {
+          flex-direction: column;
+          gap: 0.2em;
+        }
+      }
+      </style>
+    </div>
+  </div>
+  <div style="flex: 1 1 0; min-width: 0;">
+    <div class="practice-debug-container" style="max-width:700px;margin:auto;">
+        <h1>Practice: Debug Checker</h1>
+
+        <form method="post" enctype="multipart/form-data" id="uploadDebugForm" style="margin-bottom:1em;">
+            <div class="form-group">
+                <label for="debug_file">Upload a Python file for Debug Checking:</label>
+                <input type="file" name="file" id="debug_file" accept=".py" class="form-control-file">
+                <button type="submit" class="btn" style="background: linear-gradient(90deg, #007bff 60%, #00c6ff 100%); color: #fff; font-weight: bold; border: none; border-radius: 0.5em; padding: 0.5em 1.2em; margin-top:0.5em;">Upload File</button>
+                {% if uploaded_filename %}<span style="margin-left:1em; color:#888;">Uploaded: {{ uploaded_filename }}</span>{% endif %}
+                {% if username %}<span style="margin-left:1em; color:#888;">User: {{ username }}</span>{% endif %}
+            </div>
+        </form>
+        {% if upload_status %}
+            <div style="margin-bottom:1em; color: {% if can_extract %}green{% else %}red{% endif %}; font-weight:bold;">{{ upload_status }}</div>
+        {% endif %}
+        <hr>
+        <div style="margin-top:2em;">
+          <h3>Sample Solution</h3>
+          <pre style="background:#f4f8fb; border:1px solid #b3d1e6; padding:1em; border-radius:0.5em;">{{ sample_solution }}</pre>
+          <div style="color:#007bff; margin-top:0.5em; font-size:1.05em;"><b>Hint:</b> {{ sample_hint }}</div>
+        </div>
+        {% if can_extract and uploaded_filename and not already_checked %}
+            <form method="post" id="extractDebugForm">
+              <input type="hidden" name="uploaded_filename" value="{{ uploaded_filename }}">
+              <input type="hidden" name="uploaded_code" value="{{ code|e }}">
+              <button type="submit" name="extract_file" value="1" class="btn btn-success" style="font-weight:bold; border-radius:0.5em; padding:0.5em 1.2em;">Extract Debug Blocks from File</button>
+            </form>
+        {% endif %}
+
+        <form method="post" id="debugCodeForm">
+          <div class="form-group">
+            <label for="code">Paste your code below for Debug Checking:</label>
+            <div style="margin-bottom: 0.5em;">
+              <button type="submit" class="btn btn-primary">Submit</button>
+              <button type="button" class="btn btn-secondary ml-2" id="clearBtn">Clear</button>
+              <select id="languageSelect" style="margin-left:1em; padding:0.3em 0.7em; border-radius:0.3em;">
+                <option value="python">Python</option>
+                <option value="javascript">JavaScript</option>
+              </select>
+            </div>
+            <div id="editor" style="height:320px; border:1px solid #ccc; border-radius:0.4em;"></div>
+            <textarea name="code" id="code" style="display:none;">{{ code or '' }}</textarea>
+            <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+            <script>
+            var initialCode = {{ code|tojson|safe }} || '# Write your code here\n';
+            var initialLang = 'python';
+            require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' }});
+            require(['vs/editor/editor.main'], function() {
+              window.editor = monaco.editor.create(document.getElementById('editor'), {
+                value: initialCode,
+                language: initialLang,
+                theme: 'vs-light',
+                automaticLayout: true
+              });
+              document.getElementById('languageSelect').addEventListener('change', function(e) {
+                var lang = e.target.value;
+                monaco.editor.setModelLanguage(window.editor.getModel(), lang);
+              });
+            });
+            document.getElementById('debugCodeForm').addEventListener('submit', function(e) {
+              document.getElementById('code').value = window.editor.getValue();
+            });
+            document.getElementById('clearBtn').addEventListener('click', function() {
+              window.editor.setValue('');
+            });
+            </script>
+          </div>
+        </form>
+
+        {% if debug_message %}
+            <div style="margin:2em 0; padding:1.2em; background:#fff3cd; border:2px solid #ffb300; border-radius:0.5em; color:#a05a00; font-size:1.13em; font-weight:bold;">
+                {{ debug_message|safe }}
+            </div>
+        {% endif %}
+        {% if debug_blocks %}
+            <div id="extracted-debug-blocks" class="debug-blocks-feedback" style="margin-top:2em;">
+            <h3>Your Code:</h3>
+            <pre style="background:#f8f8f8; border:1px solid #ccc; padding:1em; border-radius:0.5em;">
+            {%- set safe_code = code or '' -%}
+            <div style="display: flex; flex-direction: column;">
+            {%- for line in safe_code.splitlines() -%}
+              <div style="display: flex; flex-direction: row;">
+                <span style="color:#888; min-width: 2.5em; text-align: right; user-select:none; padding-right:1em; border-right:1px solid #eee;">{{ loop.index }}</span>
+                <span style="padding-left:1em; white-space: pre;">{{ line }}</span>
+              </div>
+            {%- endfor -%}
+            </div>
+            </pre>
+            <h3>Extracted Debug Blocks & Feedback:</h3>
+            <ul>
+            {% for block in debug_blocks %}
+              <li style="margin-bottom:1em;">
+                <pre style="margin-bottom:0.3em;">{{ block }}</pre>
+                <div style="color:#007bff; margin-left:1em; font-size:0.98em;">
+                  {% set block_lower = block.lower() %}
+                  {% if '# debug:' in block_lower and ('test' not in block_lower and 'issue' not in block_lower and 'fix' not in block_lower) %}
+                    Feedback: Add a test, issue, and fix description to your DEBUG block.
+                  {% else %}
+                    {% set missing = [] %}
+                    {% if 'test' not in block_lower %}{% set _ = missing.append('TEST') %}{% endif %}
+                    {% if 'issue' not in block_lower %}{% set _ = missing.append('ISSUE') %}{% endif %}
+                    {% if 'fix' not in block_lower %}{% set _ = missing.append('FIX') %}{% endif %}
+                    {% if not missing %}
+                      Feedback: Great! Your DEBUG block is complete.
+                    {% else %}
+                      Feedback: Add a {{ missing|join(', ') }} to your DEBUG block for full marks.
+                    {% endif %}
+                  {% endif %}
+                </div>
+              </li>
+            {% endfor %}
+            </ul>
+            <form method="post" action="{{ url_for('main.download_debug_blocks_pdf') }}">
+              <input type="hidden" name="code" value="{{ code|e }}">
+              <input type="hidden" name="uploaded_filename" value="{{ uploaded_filename }}">
+              <button type="submit" class="btn btn-info" style="background: linear-gradient(90deg, #007bff 60%, #00c6ff 100%); color: #fff; font-weight: bold; border: none; border-radius: 0.5em; padding: 0.7em 1.5em; font-size: 1.1em; text-decoration: none; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-top:1em;">Download PDF</button>
+            </form>
+            </div>
+        {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

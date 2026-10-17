@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Lesson 1: Comment Checker{% endblock %}
+
+{% block content %}
+<div class="lesson-view">
+    <div class="breadcrumb">
+        <a href="{{ url_for('courses.view_course', course_id=course.id) }}">{{ course.title }}</a> / Lesson 1: Comment Checker
+    </div>
+    <h1>Lesson 1: Comment Checker</h1>
+        <div style="max-width: 1200px; margin: 0 auto;">
+            <div style="display: flex; flex-direction: row; gap: 2em; align-items: flex-start; flex-wrap: wrap; min-height: 1px;">
+                <div style="flex: 2 1 500px; min-width: 320px; max-width: 700px; display: flex; flex-direction: column; height: 100%;">
+                    <div style="border: 2px solid #f97171; border-radius: 0.5em; padding: 1.5em; margin-bottom: 2em; background: #fff8f8;">
+                        <h2 style="font-size:1.5em; margin-bottom:1em; color:#d13c3c;">💬 Understanding Comments in Code</h2>
+                        <div style="font-size:1.08em; margin-bottom:1.2em; color:#222;">
+                            <strong>Why are comments important?</strong><br>
+                            Comments are essential for making code readable, maintainable, and understandable by others (and your future self). They explain the purpose, structure, and logic of your code, making it easier to debug, extend, and collaborate on projects. Good comments help teachers, peers, and even automated tools understand what your code is doing and why.<br><br>
+                            <strong>Types of Comments</strong><br>
+                            There are several types of comments, each serving a different purpose. The four feedback boxes on the right show examples for <span style="color:#d13c3c; font-weight:bold;">Python</span>, <span style="color:#e67e22; font-weight:bold;">Javascript</span>, <span style="color:#2980b9; font-weight:bold;">HTML</span>, and <span style="color:#27ae60; font-weight:bold;">CSS</span>:
+                            <ul style="margin-top:0.7em;">
+                                <li><b>File or Program Header Comments</b>: At the top of a file, these describe the program's name, purpose, inputs, and outputs. (See the top section of each feedback box.)</li>
+                                <li><b>Section or Function Comments</b>: Placed above a section of code or a function, these explain what that part does. (See the 'Section Comment' or 'Function Comment' in each box.)</li>
+                                <li><b>Inline Comments</b>: Short notes on the same line as code, clarifying a specific statement. (Look for lines with <code>#</code>, <code>//</code>, or <code>/* ... */</code> at the end of a code line.)</li>
+                                <li><b>DEBUG Comments</b>: Used during testing to record what was tested, any issues found, and how they were fixed. (See the 'DEBUG Comment' in each box for real debugging notes.)</li>
+                                <li><b>Accessibility/UX Comments (HTML only)</b>: Special comments to explain user interface or accessibility features, helping others understand how the UI supports users. (See the HTML box for an example.)</li>
+                            </ul>
+                            <div style="margin-top:0.7em;">
+                                <b>Tip:</b> Use comments generously but meaningfully. Avoid obvious comments (e.g., <code># increment x</code> for <code>x += 1</code>), but always explain complex logic, important decisions, and the overall structure of your code.
+                            </div>
+                        </div>
+                    </div>
+                            <div style="border: 2px solid #f97171; border-radius: 0.5em; padding: 1.5em; margin-bottom: 2em; background: #fff8f8;">
+                            <h2 style="font-size:1.5em; margin-bottom:1em; color:#d13c3c;">🎯 Practice Activities</h2>
+                            <a href="{{ url_for('main.practice_code_comments') }}" style="
+                                display: inline-block;
+                                margin-bottom: 1.2em;
+                                padding: 1em 2em;
+                                background: linear-gradient(90deg, #007bff 60%, #00c6ff 100%);
+                                color: #fff;
+                                border: none;
+                                border-radius: 0.5em;
+                                font-size: 1.2em;
+                                font-weight: bold;
+                                letter-spacing: 0.5px;
+                                box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+                                text-decoration: none;
+                                transition: background 0.2s, box-shadow 0.2s;
+                            "
+                            onmouseover="this.style.background='linear-gradient(90deg,#0056b3 60%,#0099cc 100%)'"
+                            onmouseout="this.style.background='linear-gradient(90deg,#007bff 60%,#00c6ff 100%)'"
+                            >
+                                🚀 Try the Code Comments Extractor
+                            </a>
+                            </div>
+                </div>
+                <div style="flex: 1 1 320px; min-width: 260px; max-width: 420px; display: flex; flex-direction: column; height: 100%; justify-content: flex-start;">
+                    {% include "includes/comment_feedback_boxes_check.html" %}
+                </div>
+            </div>
+        </div>
+        {# Removed practice_debug_block.html include as requested #}
+
+        {% if extracted_comments %}
+        <div id="extracted-comments" style="margin-top:1.5em;">
+            <h3 style="color:#007bff;">📝 Extracted Comments from Your Last Submission</h3>
+            <ul style="background:#f8f8f8; border:1px solid #cce6ff; border-radius:0.5em; padding:1em;">
+            {% for line_num, comment, feedback in extracted_comments %}
+                <li style="margin-bottom:1.2em;">
+                    <span style="color:#888;">Line {{ line_num }}:</span> <code>{{ comment }}</code>
+                    <div style="margin-top:0.3em; margin-left:2em; font-size:0.98em;">
+                        <strong>Feedback:</strong>
+                        <span style="color:{% if 'Well done' in feedback %}#28a745{% else %}#d13c3c{% endif %};">{{ feedback }}</span>
+                    </div>
+                </li>
+            {% endfor %}
+            </ul>
+            <div style="margin-top:2em;">
+                <a href="{{ url_for('main.download_lesson1_feedback') }}" class="btn" style="
+                    display: inline-block;
+                    margin-bottom: 1.2em;
+                    padding: 1em 2em;
+                    background: linear-gradient(90deg, #007bff 60%, #00c6ff 100%);
+                    color: #fff;
+                    border: none;
+                    border-radius: 0.5em;
+                    font-size: 1.2em;
+                    font-weight: bold;
+                    letter-spacing: 0.5px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+                    text-decoration: none;
+                    transition: background 0.2s, box-shadow 0.2s;
+                "
+                onmouseover="this.style.background='linear-gradient(90deg,#0056b3 60%,#0099cc 100%)'"
+                onmouseout="this.style.background='linear-gradient(90deg,#007bff 60%,#00c6ff 100%)'"
+                >
+                    ️ Download Feedback as PDF
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    <hr style="margin:2em 0;">
+</div>
+{% endblock %}

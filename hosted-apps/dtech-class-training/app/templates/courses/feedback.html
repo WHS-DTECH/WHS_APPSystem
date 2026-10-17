@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container" style="margin-top: 30px;">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card" style="border-left: 4px solid #007bff;">
+                <div class="card-header bg-light">
+                    <h4 class="mb-0">{{ lesson.title }}</h4>
+                    <small class="text-muted">Leave feedback to help improve this lesson</small>
+                </div>
+                <div class="card-body">
+                    <!-- Feedback Stats Section -->
+                    {% if avg_stats.total > 0 %}
+                    <div class="alert alert-info mb-4">
+                        <h6 class="mb-3">What others think of this lesson:</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <strong>Overall Rating:</strong>
+                                    <div class="mt-2">
+                                        <span class="stars-display">
+                                            {% for i in range(1, 6) %}
+                                                <i class="fas fa-star {% if i <= avg_stats.rating %}text-warning{% else %}text-secondary{% endif %}" style="opacity: {% if i <= avg_stats.rating %}1{% else %}0.3{% endif %};"></i>
+                                            {% endfor %}
+                                        </span>
+                                        <span class="ms-2">{{ "%.1f"|format(avg_stats.rating) }} / 5.0 ({{ avg_stats.total }} ratings)</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <strong>Clarity:</strong>
+                                    <div class="mt-2">
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar bg-info" style="width: {{ (avg_stats.clarity / 5) * 100 }}%;">
+                                                {{ "%.1f"|format(avg_stats.clarity) }}/5
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <strong>Difficulty:</strong>
+                                <div class="mt-2">
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar bg-warning" style="width: {{ (avg_stats.difficulty / 5) * 100 }}%;">
+                                            {{ "%.1f"|format(avg_stats.difficulty) }}/5
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Engagement:</strong>
+                                <div class="mt-2">
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar bg-success" style="width: {{ (avg_stats.engagement / 5) * 100 }}%;">
+                                            {{ "%.1f"|format(avg_stats.engagement) }}/5
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Recent Comments Section -->
+                    {% if all_feedback and all_feedback|length > 0 %}
+                    <div class="mb-4">
+                        <h6 class="mb-3">Recent student feedback:</h6>
+                        <div class="feedback-comments" style="max-height: 300px; overflow-y: auto;">
+                            {% for feedback in all_feedback %}
+                                {% if feedback.comment %}
+                                <div class="card mb-2" style="border-left: 3px solid #28a745;">
+                                    <div class="card-body py-2 px-3">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <strong>★ {{ feedback.rating }}/5</strong>
+                                                <small class="text-muted d-block">{{ feedback.created_at.strftime('%m/%d/%Y') }}</small>
+                                            </div>
+                                        </div>
+                                        <p class="mb-0 mt-2" style="font-size: 0.95rem;">{{ feedback.comment }}</p>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Feedback Form -->
+                    <hr class="my-4">
+                    <h6 class="mb-3">{% if existing_feedback %}Update your feedback{% else %}Share your feedback{% endif %}</h6>
+                    <form method="POST" id="feedbackForm">
+                        {{ csrf_token() }}
+                        
+                        <!-- Overall Rating -->
+                        <div class="mb-4">
+                            <label class="form-label"><strong>How would you rate this lesson? *</strong></label>
+                            <div class="rating-input">
+                                <div class="star-rating">
+                                    {% for i in range(1, 6) %}
+                                    <input type="radio" id="star{{ i }}" name="rating" value="{{ i }}" 
+                                        {% if existing_feedback and existing_feedback.rating == i %}checked{% endif %} required>
+                                    <label for="star{{ i }}">
+                                        <i class="fas fa-star"></i>
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                                <small class="text-muted ms-3">Click to rate</small>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- Clarity Rating -->
+                            <div class="col-md-6">
+                                <div class="mb-4">
+                                    <label class="form-label"><strong>Clarity (1-5)</strong></label>
+                                    <select name="clarity" class="form-select">
+                                        <option value="">Not rated</option>
+                                        {% for i in range(1, 6) %}
+                                        <option value="{{ i }}" 
+                                            {% if existing_feedback and existing_feedback.clarity == i %}selected{% endif %}>
+                                            {{ i }} - {% if i == 1 %}Very Confusing{% elif i == 2 %}Confusing{% elif i == 3 %}Okay{% elif i == 4 %}Clear{% else %}Very Clear{% endif %}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Difficulty Rating -->
+                            <div class="col-md-6">
+                                <div class="mb-4">
+                                    <label class="form-label"><strong>Difficulty (1-5)</strong></label>
+                                    <select name="difficulty" class="form-select">
+                                        <option value="">Not rated</option>
+                                        {% for i in range(1, 6) %}
+                                        <option value="{{ i }}" 
+                                            {% if existing_feedback and existing_feedback.difficulty == i %}selected{% endif %}>
+                                            {{ i }} - {% if i == 1 %}Too Easy{% elif i == 2 %}Easy{% elif i == 3 %}Just Right{% elif i == 4 %}Challenging{% else %}Too Hard{% endif %}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Engagement Rating -->
+                        <div class="mb-4">
+                            <label class="form-label"><strong>Engagement (1-5)</strong></label>
+                            <select name="engagement" class="form-select">
+                                <option value="">Not rated</option>
+                                {% for i in range(1, 6) %}
+                                <option value="{{ i }}" 
+                                    {% if existing_feedback and existing_feedback.engagement == i %}selected{% endif %}>
+                                    {{ i }} - {% if i == 1 %}Very Boring{% elif i == 2 %}Boring{% elif i == 3 %}Okay{% elif i == 4 %}Interesting{% else %}Very Engaging{% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Comment -->
+                        <div class="mb-4">
+                            <label class="form-label"><strong>Additional Comments</strong></label>
+                            <textarea name="comment" class="form-control" rows="4" 
+                                placeholder="What could we improve? What did you like most?">{% if existing_feedback %}{{ existing_feedback.comment }}{% endif %}</textarea>
+                            <small class="text-muted">Optional but helpful for improvement</small>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" id="submitFeedbackBtn" class="btn btn-primary btn-lg">
+                                <i class="fas fa-paper-plane me-2"></i>
+                                {% if existing_feedback %}Update Feedback{% else %}Submit Feedback{% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Back Link -->
+            <div class="mt-4">
+                <a href="{{ url_for('courses.view_lesson', lesson_id=lesson.id) }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Lesson
+                </a>
+            </div>
+        </div>
+
+        <!-- Sidebar Info -->
+        <div class="col-lg-4">
+            <div class="card mb-3" style="border-left: 4px solid #6c757d;">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">Lesson Info</h6>
+                </div>
+                <div class="card-body">
+                    <p><strong>Course:</strong> {{ lesson.course.name }}</p>
+                    <p><strong>Instructor:</strong> {{ lesson.course.teacher.username }}</p>
+                    <p><strong>Total Ratings:</strong> <span class="badge bg-primary">{{ avg_stats.total }}</span></p>
+                    {% if existing_feedback %}
+                    <div class="alert alert-success mt-3 mb-0">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>You've provided feedback</strong>
+                        <br>
+                        <small>Last updated: {{ existing_feedback.updated_at.strftime('%m/%d/%Y at %I:%M %p') }}</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Tips Card -->
+            <div class="card" style="border-left: 4px solid #ffc107;">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">Feedback Tips</h6>
+                </div>
+                <div class="card-body small">
+                    <ul class="mb-0">
+                        <li><strong>Be specific:</strong> Tell us what could improve</li>
+                        <li><strong>Be constructive:</strong> Focus on the learning experience</li>
+                        <li><strong>Be honest:</strong> Your feedback is anonymous to others</li>
+                        <li><strong>Be helpful:</strong> Future students will benefit</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.star-rating {
+    display: flex;
+    gap: 0.5rem;
+    font-size: 1.8rem;
+    cursor: pointer;
+}
+
+.star-rating input {
+    display: none;
+}
+
+.star-rating label {
+    cursor: pointer;
+    color: #ddd;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.star-rating label:hover,
+.star-rating label:hover ~ label,
+.star-rating input:checked ~ label {
+    color: #ffc107;
+}
+
+.star-rating {
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+}
+
+.star-rating label:hover,
+.star-rating label:hover ~ label,
+.star-rating input:checked ~ label {
+    text-shadow: 0 0 5px rgba(255, 193, 7, 0.5);
+}
+
+.feedback-comments {
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 10px;
+    background-color: #f8f9fa;
+}
+
+.stars-display {
+    display: inline-flex;
+    gap: 0.2rem;
+}
+
+.stars-display i {
+    font-size: 1.1rem;
+}
+</style>
+
+<script>
+document.getElementById('feedbackForm').addEventListener('submit', function(e) {
+    const rating = document.querySelector('input[name="rating"]:checked');
+    if (!rating) {
+        e.preventDefault();
+        alert('Please provide an overall rating');
+        return false;
+    }
+    
+    // Show loading state
+    const submitBtn = document.getElementById('submitFeedbackBtn');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Submitting...';
+    
+    // Restore on completion (form will redirect)
+    setTimeout(() => {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    }, 3000);
+});
+</script>
+{% endblock %}

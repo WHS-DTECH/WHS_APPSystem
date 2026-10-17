@@ -1,0 +1,305 @@
+{% extends "base.html" %}
+
+{% block title %}Assignments - {{ course.title }}{% endblock %}
+
+{% block content %}
+<style>
+    .assignments-container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+    }
+
+    .assignments-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 3px solid #5c0e2a;
+    }
+
+    .assignments-header h1 {
+        margin: 0;
+        color: #5c0e2a;
+        font-size: 2em;
+    }
+
+    .assignments-header p {
+        margin: 0;
+        color: #666;
+        font-size: 0.95em;
+    }
+
+    .create-btn {
+        background: #5c0e2a;
+        color: white;
+        padding: 0.8rem 1.5rem;
+        border-radius: 0.4em;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.2s;
+        display: inline-block;
+    }
+
+    .create-btn:hover {
+        background: #7a1d3e;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(92, 14, 42, 0.2);
+    }
+
+    .assignments-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .assignment-card {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 0.8em;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        transition: all 0.3s;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .assignment-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.12);
+        border-color: #5c0e2a;
+    }
+
+    .assignment-header {
+        background: linear-gradient(135deg, #f0f0f0 0%, #e8e8e8 100%);
+        padding: 1.5rem;
+        border-bottom: 2px solid #ddd;
+    }
+
+    .assignment-header h3 {
+        margin: 0 0 0.3rem 0;
+        color: #5c0e2a;
+        font-size: 1.2em;
+    }
+
+    .assignment-body {
+        padding: 1.5rem;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .assignment-description {
+        color: #666;
+        font-size: 0.95em;
+        margin-bottom: 1rem;
+        flex: 1;
+    }
+
+    .assignment-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #eee;
+        font-size: 0.85em;
+        color: #666;
+    }
+
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .assignment-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+
+    .btn-small {
+        flex: 1;
+        padding: 0.6rem 1rem;
+        border-radius: 0.4em;
+        text-decoration: none;
+        text-align: center;
+        font-weight: 600;
+        font-size: 0.9em;
+        transition: all 0.2s;
+        border: none;
+        cursor: pointer;
+    }
+
+    .btn-view {
+        background: #5c0e2a;
+        color: white;
+    }
+
+    .btn-view:hover {
+        background: #7a1d3e;
+    }
+
+    .btn-edit {
+        background: #0066cc;
+        color: white;
+    }
+
+    .btn-edit:hover {
+        background: #0052a3;
+    }
+
+    .btn-delete {
+        background: #dc3545;
+        color: white;
+    }
+
+    .btn-delete:hover {
+        background: #c82333;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 0.3em 0.8em;
+        border-radius: 0.3em;
+        font-weight: 600;
+        font-size: 0.8em;
+    }
+
+    .status-submitted {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .status-pending {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .status-graded {
+        background: #d1ecf1;
+        color: #0c5460;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 2rem;
+        background: white;
+        border-radius: 0.8em;
+        color: #666;
+    }
+
+    .empty-state i {
+        font-size: 3em;
+        color: #ddd;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state h2 {
+        color: #333;
+        margin-bottom: 0.5rem;
+    }
+
+    @media (max-width: 768px) {
+        .assignments-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .assignments-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="assignments-container">
+    <!-- Header -->
+    <div class="assignments-header">
+        <div>
+            <h1><i class="fas fa-tasks"></i> Assignments</h1>
+            <p>{{ course.title }}</p>
+        </div>
+        {% if current_user.is_teacher() and current_user.id == course.teacher_id %}
+            <a href="{{ url_for('assignments.create_assignment', course_id=course.id) }}" class="create-btn">
+                <i class="fas fa-plus"></i> Create Assignment
+            </a>
+        {% endif %}
+    </div>
+
+    <!-- Assignments List -->
+    {% if assignments and assignments|length > 0 %}
+        <div class="assignments-grid">
+            {% for assignment in assignments %}
+                <div class="assignment-card">
+                    <div class="assignment-header">
+                        <h3>{{ assignment.title }}</h3>
+                    </div>
+                    <div class="assignment-body">
+                        <div class="assignment-description">
+                            {{ assignment.description[:100] if assignment.description else "No description" }}{% if assignment.description and assignment.description|length > 100 %}...{% endif %}
+                        </div>
+
+                        <div class="assignment-meta">
+                            <div class="meta-item">
+                                <i class="fas fa-star"></i>
+                                <span>{{ assignment.max_points }} points</span>
+                            </div>
+                            {% if assignment.due_date %}
+                                <div class="meta-item">
+                                    <i class="fas fa-calendar"></i>
+                                    <span>Due: {{ assignment.due_date.strftime('%b %d, %Y') }}</span>
+                                </div>
+                            {% endif %}
+                            {% if not current_user.is_teacher() and submissions.get(assignment.id) %}
+                                <div class="meta-item">
+                                    <span class="status-badge status-submitted">
+                                        <i class="fas fa-check-circle"></i> Submitted
+                                    </span>
+                                </div>
+                            {% elif not current_user.is_teacher() and not submissions.get(assignment.id) %}
+                                <div class="meta-item">
+                                    <span class="status-badge status-pending">
+                                        <i class="fas fa-clock"></i> Pending
+                                    </span>
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="assignment-actions">
+                            <a href="{{ url_for('assignments.view_assignment', assignment_id=assignment.id) }}" class="btn-small btn-view">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                            {% if not current_user.is_teacher() and not submissions.get(assignment.id) %}
+                                <a href="{{ url_for('assignments.submit_assignment', assignment_id=assignment.id) }}" class="btn-small btn-view">
+                                    <i class="fas fa-upload"></i> Submit
+                                </a>
+                            {% endif %}
+                            {% if current_user.is_teacher() and current_user.id == course.teacher_id %}
+                                <a href="#" class="btn-small btn-edit" onclick="alert('Edit feature coming soon'); return false;">
+                                    <i class="fas fa-edit"></i> Edit
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <div><i class="fas fa-inbox"></i></div>
+            <h2>No Assignments Yet</h2>
+            <p>There are currently no assignments for this course.</p>
+            {% if current_user.is_teacher() and current_user.id == course.teacher_id %}
+                <a href="{{ url_for('assignments.create_assignment', course_id=course.id) }}" class="create-btn" style="margin-top: 1rem;">
+                    <i class="fas fa-plus"></i> Create the First Assignment
+                </a>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,439 @@
+{% extends "base.html" %}
+
+{% block title %}Teacher Dashboard{% endblock %}
+
+{% block content %}
+<style>
+    .dashboard-container {
+        max-width: 1400px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+    }
+
+    .dashboard-header {
+        background: linear-gradient(135deg, #5c0e2a 0%, #7a1d3e 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 0.8em;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 12px rgba(92, 14, 42, 0.2);
+    }
+
+    .dashboard-header h1 {
+        margin: 0 0 0.5rem 0;
+        font-size: 2.5em;
+    }
+
+    .dashboard-header p {
+        margin: 0.3em 0;
+        opacity: 0.9;
+    }
+
+    /* Statistics Grid */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 0.8em;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border-left: 5px solid #5c0e2a;
+        transition: all 0.3s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.12);
+    }
+
+    .stat-label {
+        color: #666;
+        font-size: 0.95em;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .stat-value {
+        font-size: 2.5em;
+        font-weight: 700;
+        color: #5c0e2a;
+    }
+
+    .stat-detail {
+        font-size: 0.85em;
+        color: #999;
+        margin-top: 0.5rem;
+    }
+
+    /* Sections */
+    .dashboard-section {
+        background: white;
+        border-radius: 0.8em;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .section-title {
+        font-size: 1.5em;
+        font-weight: 700;
+        color: #5c0e2a;
+        margin: 0 0 1.5rem 0;
+        padding-bottom: 1rem;
+        border-bottom: 3px solid #5c0e2a;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* Courses Grid */
+    .courses-mini-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .course-mini-card {
+        background: linear-gradient(135deg, #f9f5f9 0%, #f0e8f0 100%);
+        border: 1px solid #ddd;
+        border-radius: 0.6em;
+        padding: 1.25rem;
+        transition: all 0.2s;
+    }
+
+    .course-mini-card:hover {
+        border-color: #5c0e2a;
+        box-shadow: 0 4px 12px rgba(92, 14, 42, 0.1);
+    }
+
+    .course-mini-card h4 {
+        margin: 0 0 0.5rem 0;
+        color: #5c0e2a;
+        font-size: 1.1em;
+    }
+
+    .course-mini-card p {
+        margin: 0.3em 0;
+        font-size: 0.9em;
+        color: #666;
+    }
+
+    /* Recent Submissions Table */
+    .submissions-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+    }
+
+    .submissions-table thead {
+        background: #f5f5f5;
+        border-bottom: 2px solid #ddd;
+    }
+
+    .submissions-table th {
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: #5c0e2a;
+    }
+
+    .submissions-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #eee;
+    }
+
+    .submissions-table tbody tr:hover {
+        background: #f9f9f9;
+    }
+
+    .submission-status {
+        display: inline-block;
+        padding: 0.4em 0.8em;
+        border-radius: 0.3em;
+        font-size: 0.85em;
+        font-weight: 600;
+    }
+
+    .status-pending {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .status-reviewed {
+        background: #d1ecf1;
+        color: #0c5460;
+    }
+
+    .status-graded {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    /* Student List */
+    .student-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .student-card {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 0.6em;
+        padding: 1.25rem;
+        transition: all 0.2s;
+    }
+
+    .student-card:hover {
+        border-color: #5c0e2a;
+        box-shadow: 0 4px 12px rgba(92, 14, 42, 0.1);
+    }
+
+    .student-name {
+        font-weight: 600;
+        color: #5c0e2a;
+        margin-bottom: 0.5rem;
+    }
+
+    .student-info {
+        font-size: 0.9em;
+        color: #666;
+        margin: 0.3em 0;
+    }
+
+    .progress-bar {
+        width: 100%;
+        height: 6px;
+        background: #e9ecef;
+        border-radius: 3px;
+        overflow: hidden;
+        margin: 0.75rem 0 0.5rem 0;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #28a745, #20c997);
+        transition: width 0.3s;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 2rem;
+        color: #999;
+    }
+
+    .empty-state i {
+        font-size: 2.5em;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .dashboard-header h1 {
+            font-size: 1.8em;
+        }
+
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .courses-mini-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .student-list {
+            grid-template-columns: 1fr;
+        }
+
+        .submissions-table {
+            font-size: 0.9em;
+        }
+
+        .submissions-table th,
+        .submissions-table td {
+            padding: 0.75rem;
+        }
+    }
+</style>
+
+<div class="dashboard-container">
+    <!-- Header -->
+    <div class="dashboard-header">
+        <h1><i class="fas fa-chart-line"></i> Teacher Dashboard</h1>
+        <p>Welcome back, {{ current_user.username }}! Here's your class overview.</p>
+    </div>
+
+    <!-- Statistics -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-label"><i class="fas fa-book"></i> Total Courses</div>
+            <div class="stat-value">{{ teacher_courses|length }}</div>
+            <div class="stat-detail">Courses you created</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-label"><i class="fas fa-users"></i> Total Students</div>
+            <div class="stat-value">{{ total_students }}</div>
+            <div class="stat-detail">Enrolled across all courses</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-label"><i class="fas fa-file-upload"></i> Submissions</div>
+            <div class="stat-value">{{ recent_submissions|length }}</div>
+            <div class="stat-detail">Recent submissions to grade</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-label"><i class="fas fa-graduation-cap"></i> Enrollments</div>
+            <div class="stat-value">{{ total_enrollments }}</div>
+            <div class="stat-detail">Total course enrollments</div>
+        </div>
+    </div>
+
+    <!-- Your Courses Section -->
+    {% if teacher_courses %}
+        <div class="dashboard-section">
+            <h2 class="section-title"><i class="fas fa-book"></i> Your Courses</h2>
+            <div class="courses-mini-grid">
+                {% for course in teacher_courses %}
+                    <div class="course-mini-card">
+                        <h4>{{ course.title }}</h4>
+                        <p><i class="fas fa-user-graduate"></i> {{ course.enrollments|length }} students enrolled</p>
+                        <p><i class="fas fa-book-open"></i> {{ course.lessons|length }} lessons</p>
+                        <a href="{{ url_for('courses.view_course', course_id=course.id) }}" style="display: inline-block; margin-top: 0.75rem; color: #5c0e2a; font-weight: 600; text-decoration: none;">
+                            View Course <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </div>
+                {% endfor %}
+            </div>
+            <a href="{{ url_for('courses.create_course') }}" style="display: inline-block; margin-top: 1rem; padding: 0.75em 1.5em; background: #28a745; color: white; border-radius: 0.5em; text-decoration: none; font-weight: 600;">
+                <i class="fas fa-plus"></i> Create New Course
+            </a>
+        </div>
+    {% endif %}
+
+    <!-- Recent Submissions Section -->
+    {% if recent_submissions %}
+        <div class="dashboard-section">
+            <h2 class="section-title"><i class="fas fa-inbox"></i> Recent Student Submissions</h2>
+            <table class="submissions-table">
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Assignment</th>
+                        <th>Course</th>
+                        <th>Submitted</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for submission in recent_submissions %}
+                        <tr>
+                            <td>
+                                {% if submission.student %}
+                                    <strong>{{ submission.student.username }}</strong>
+                                {% else %}
+                                    Unknown
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if submission.assignment %}
+                                    {{ submission.assignment.title }}
+                                {% else %}
+                                    Assignment
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if submission.assignment and submission.assignment.course %}
+                                    {{ submission.assignment.course.title }}
+                                {% else %}
+                                    --
+                                {% endif %}
+                            </td>
+                            <td>{{ submission.submitted_at.strftime('%b %d, %Y %I:%M %p') if submission.submitted_at else 'N/A' }}</td>
+                            <td>
+                                {% if submission.score %}
+                                    <span class="submission-status status-graded">
+                                        <i class="fas fa-check-circle"></i> Graded ({{ submission.score }}%)
+                                    </span>
+                                {% elif submission.feedback %}
+                                    <span class="submission-status status-reviewed">
+                                        <i class="fas fa-eye"></i> Reviewed
+                                    </span>
+                                {% else %}
+                                    <span class="submission-status status-pending">
+                                        <i class="fas fa-clock"></i> Pending
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="dashboard-section">
+            <h2 class="section-title"><i class="fas fa-inbox"></i> Recent Student Submissions</h2>
+            <div class="empty-state">
+                <p><i class="fas fa-inbox"></i></p>
+                <p>No submissions yet. Once students submit assignments, they will appear here.</p>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Students Section -->
+    {% if students %}
+        <div class="dashboard-section">
+            <h2 class="section-title"><i class="fas fa-users"></i> Your Students</h2>
+            <div class="student-list">
+                {% for student in students[:8] %}
+                    <div class="student-card">
+                        <div class="student-name">{{ student.username }}</div>
+                        <div class="student-info">
+                            <i class="fas fa-envelope"></i> {{ student.email }}
+                        </div>
+                        <div class="student-info">
+                            <i class="fas fa-book"></i> Enrolled in 
+                            {% set course_count = student.enrollments|length %}
+                            {{ course_count }} course{{ 's' if course_count != 1 else '' }}
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: {{ (student.enrollments|length / teacher_courses|length * 100) if teacher_courses else 0 }}%;"></div>
+                        </div>
+                        <a href="{{ url_for('admin.student_detail', student_id=student.id) }}" style="display: inline-block; margin-top: 0.75rem; color: #5c0e2a; font-weight: 600; text-decoration: none; font-size: 0.9em;">
+                            View Details <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </div>
+                {% endfor %}
+            </div>
+            {% if students|length > 8 %}
+                <div style="text-align: center; margin-top: 1.5rem;">
+                    <a href="{{ url_for('admin.students') }}" style="color: #5c0e2a; font-weight: 600; text-decoration: none;">
+                        View all {{ students|length }} students <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    {% else %}
+        <div class="dashboard-section">
+            <h2 class="section-title"><i class="fas fa-users"></i> Your Students</h2>
+            <div class="empty-state">
+                <p><i class="fas fa-users"></i></p>
+                <p>No students enrolled in your courses yet.</p>
+                <p style="font-size: 0.9em;">Once students enroll, they will appear here.</p>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

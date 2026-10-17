@@ -102,6 +102,53 @@ Absolute HTTP/HTTPS references can be opened, but old relative template paths ar
 shown without inventing a new hosting location. Restoring those files may require
 the original storage/location separately. Existing records are not copied to Core.
 
+### Class Training: original DTECH activity
+
+**Commenting and Debugging Training** opens at `/dtech-hub/class-training/`.
+This is a DTECH submodule, **not a Student App**. Its deployable source is copied
+from `LegacySites/ClassTraining/ClassTrainingSys` into
+`hosted-apps/dtech-class-training`, retaining the original templates, assets,
+checkers, courses and database models. Hosting changes replace local Google/password
+sign-in and role editing with Core controls; they do not recreate the site.
+The supplied section-based progress model is used by the course completion action.
+Original course ownership still applies to teacher editing.
+
+Before activation:
+
+1. Back up **DTECH-CLASSWORK-DB2** and keep
+   `https://classtrainingsys.onrender.com` running during verification.
+2. Set **`CLASS_TRAINING_DATABASE_URL`** on the main WHS APPSystem Render service
+   to that existing database's **Internal Database URL**. Leave Core
+   `DATABASE_URL` and `DTECH_DATABASE_URL` unchanged. This database is used for
+   both existing and new training data; no records are copied into Core.
+3. Redeploy the Docker service. No additional public service, Google OAuth
+   credentials, training passwords or Student Apps registration are required.
+   No training schema creation, seed, import or migration runs on startup.
+   Missing configuration leaves this activity unavailable without disabling DTECH.
+4. Verify with existing teacher and student school accounts. Matching is
+   case-insensitive by email and retains the existing user ID and progress.
+   Unmatched school accounts get a new student record. Duplicate email matches
+   require administrator review rather than merging records.
+5. Manage access in **DTECH Hub > Assign User Roles**. Global ADMIN and DTECH
+   Lead Teacher/Teacher receive teacher tools; other active school users receive
+   student access. The current Core role is checked on every request, including
+   for old training accounts previously stored as teachers. Local role editors
+   redirect to Core and cannot change that authority.
+6. Optionally set **`CLASS_TRAINING_CONTACT_EMAIL`** to the email of an existing
+   training teacher for the original Contact Teacher button. The message uses
+   the shared school Gmail configuration and email log, not standalone Gmail OAuth.
+   Without a contact address, the original button reports that configuration is needed.
+
+The existing DTECH activity URL is translated when served, not rewritten in the
+database. The standalone site and database remain available; do not retire the
+standalone service until live content, progress and teacher tools have been checked.
+The exact live source revision has not been established: `ClassTrainingSys` was
+selected from the supplied copies using the service name and matching homepage.
+This integration is not a full repair/audit of unrelated legacy features.
+For example, the supplied Share Your Feedback route references a removed
+`LessonFeedback` model. It has not been reimplemented or given a new database
+table; confirm that feature against the live standalone version before retiring it.
+
 ## Local setup
 
 1. Copy `.env.example` to `.env`.
