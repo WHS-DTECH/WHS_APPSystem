@@ -4354,6 +4354,22 @@ async function ensureUnitPlanSchema() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `);
+  // Older databases used numeric IDs; current lessons also use named IDs.
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1 FROM pg_attribute
+        WHERE attrelid = 'lessons'::regclass
+          AND attname = 'id'
+          AND atttypid IN ('smallint'::regtype, 'integer'::regtype, 'bigint'::regtype)
+          AND NOT attisdropped
+      ) THEN
+        ALTER TABLE lessons ALTER COLUMN id TYPE TEXT USING id::text;
+      END IF;
+    END
+    $$;
+  `);
   await pool.query(`ALTER TABLE lessons ADD COLUMN IF NOT EXISTS lesson_week TEXT`);
   await pool.query(`ALTER TABLE lessons ADD COLUMN IF NOT EXISTS lesson_date TEXT`);
   await pool.query(`ALTER TABLE lessons ADD COLUMN IF NOT EXISTS lesson_duration_minutes INTEGER NOT NULL DEFAULT 60`);

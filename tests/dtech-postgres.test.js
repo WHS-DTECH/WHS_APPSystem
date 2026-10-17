@@ -36,10 +36,18 @@ test('shared Core role grants and revocations immediately control DTECH', {
   }
 });
 
-test('original DTECH HTTP pages, dynamic libraries and uploaded bytes survive restart', {
+for (const legacyLessonIds of [false, true]) {
+test(`original DTECH HTTP pages and uploads survive restart (${legacyLessonIds ? 'legacy integer lesson IDs' : 'fresh schema'})`, {
   skip: !process.env.DTECH_TEST_DATABASE_URL
 }, async () => {
-  const env = { DTECH_DATABASE_URL: process.env.DTECH_TEST_DATABASE_URL, DTECH_DATABASE_SSL: 'false' };
+  const { Client } = require('pg');
+  const schema = `dtech_fixture_${require('crypto').randomUUID().replaceAll('-', '')}`;
+  const client = new Client({ connectionString: process.env.DTECH_TEST_DATABASE_URL, ssl: false });
+  await client.connect();
+  await client.query(`CREATE SCHEMA "${schema}"`);
+  const databaseUrl = new URL(process.env.DTECH_TEST_DATABASE_URL);
+  databaseUrl.searchParams.set('options', `-c search_path=${schema}`);
+  const env = { DTECH_DATABASE_URL: databaseUrl.toString(), DTECH_DATABASE_SSL: 'false' };
   const instances = [];
   const servers = [];
   let uploaded;
@@ -71,9 +79,22 @@ test('original DTECH HTTP pages, dynamic libraries and uploaded bytes survive re
     return `http://127.0.0.1:${server.address().port}`;
   }
   try {
+    if (legacyLessonIds) {
+      await client.query(`CREATE TABLE "${schema}".lessons (
+        id SERIAL PRIMARY KEY,
+        lesson_title TEXT NOT NULL,
+        lesson_type TEXT NOT NULL,
+        activity_name TEXT NOT NULL,
+        lesson_year_level TEXT NOT NULL,
+        lesson_focus TEXT NOT NULL
+      )`);
+      await client.query(`INSERT INTO "${schema}".lessons
+        (lesson_title, lesson_type, activity_name, lesson_year_level, lesson_focus)
+        VALUES ('Existing legacy lesson', 'Digital Technologies', 'Legacy activity', 'Year 9', 'Keep existing work')`);
+    }
     const base = await start();
     let response = await fetch(`${base}/dtech-hub/`);
-    assert.equal(response.status, 200);
+    assert.equal(response.status, 200, response.status === 200 ? undefined : await response.text());
     const cookie = response.headers.get('set-cookie').split(';')[0];
     const html = await response.text();
     assert.match(html, /Computer Lab/);
@@ -88,6 +109,18 @@ test('original DTECH HTTP pages, dynamic libraries and uploaded bytes survive re
       response = await fetch(base + url);
       assert.equal(response.status, 200, url);
       if (url.endsWith('.json')) assert.ok(Array.isArray(await response.json()), url);
+    }
+    if (legacyLessonIds) {
+      response = await fetch(`${base}/dtech-hub/api/lessons/1`);
+      assert.equal(response.status, 200);
+      const existing = await response.json();
+      assert.equal(existing.id, '1');
+      assert.equal(existing.lesson_title, 'Existing legacy lesson');
+      const generated = await client.query(`INSERT INTO "${schema}".lessons
+        (lesson_title, lesson_type, activity_name, lesson_year_level, lesson_focus)
+        VALUES ('Default ID lesson', 'Digital Technologies', 'Legacy activity', 'Year 9', 'Keep sequence')
+        RETURNING id`);
+      assert.equal(generated.rows[0].id, '2');
     }
     for (const url of ['/dtech-hub/server.js', '/dtech-hub/SERVER.js', '/dtech-hub/package.json', '/dtech-hub/learning-pathways/library-store.js',
       '/dtech-hub/node_modules/express/index.js', '/dtech-hub/TeacherFiles/private.csv']) {
@@ -105,6 +138,7 @@ test('original DTECH HTTP pages, dynamic libraries and uploaded bytes survive re
     response = await fetch(`${base}/dtech-hub/api/lessons`, { method: 'POST', headers: { cookie, 'x-dtech-csrf': context.csrf }, body: form });
     const lesson = await response.json();
     assert.equal(response.status, 201, JSON.stringify(lesson));
+    assert.match(lesson.id, /^lesson-/);
     const url = lesson.lesson_plan.attachedResources[0].url;
     assert.match(url, /^\/dtech-hub\/TeacherFiles\//);
     uploaded = path.join(__dirname, '..', 'src', 'legacy', 'dtech-hub', ...decodeURIComponent(url).split('/').slice(2));
@@ -115,9 +149,18 @@ test('original DTECH HTTP pages, dynamic libraries and uploaded bytes survive re
     response = await fetch(restarted + url);
     assert.equal(response.status, 200);
     assert.equal(await response.text(), '%PDF-fixture-upload');
+    if (legacyLessonIds) {
+      response = await fetch(`${restarted}/dtech-hub/api/lessons/1`);
+      assert.equal((await response.json()).lesson_title, 'Existing legacy lesson');
+    }
   } finally {
     for (const server of servers) await new Promise((resolve) => server.close(resolve));
-    for (const instance of instances) await instance.pool.end();
+    for (const instance of instances) {
+      if (!instance.pool.ended) await instance.pool.end();
+    }
     if (uploaded) await fs.rm(uploaded, { force: true });
+    await client.query(`DROP SCHEMA "${schema}" CASCADE`);
+    await client.end();
   }
 });
+}
