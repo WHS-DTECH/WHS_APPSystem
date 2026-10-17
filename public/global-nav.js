@@ -4,7 +4,7 @@
 
   var WIDTH = 240;
   var STORE = 'whs.globalNav.open';
-  var mobile = window.matchMedia('(max-width: 860px)');
+  var mobile = window.matchMedia('(max-width: 640px)');
   var shifted = [];
 
   var css = [
