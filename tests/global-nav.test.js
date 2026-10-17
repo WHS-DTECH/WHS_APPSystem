@@ -23,6 +23,35 @@ test('shared search advertises only the signed-in current module', async () => {
   }
 });
 
+test('role views belong to the current module and only authorised teachers can preview Class Training', async () => {
+  for (const [page, admin, allowed, selected, keys] of [
+    ['/dtech-hub/class-training/home', true, true, undefined, ['teacher', 'student']],
+    ['/dtech-hub/class-training/dashboard', false, true, 'student', ['teacher', 'student']],
+    ['/dtech-hub/class-training/dashboard', false, false, 'teacher', []],
+    ['/dtech-hub/', true, true, 'student', []],
+    ['/food-room/', true, true, 'student', []],
+    ['/dashboard', true, true, 'student', ['admin', 'teacher', 'student']],
+    ['/dashboard', false, true, undefined, []]
+  ]) {
+    let body;
+    await navData(async () => ({ rows: [] }), async () => false, async () => null, async () => allowed)(
+      { user: { email: 'teacher@example.test', roles: admin ? ['ADMIN'] : ['Teacher'] },
+        session: { classTrainingView: selected }, query: { path: page } },
+      { locals: {}, set() {}, json(value) { body = value; } },
+      (error) => { throw error; }
+    );
+    assert.deepEqual(body.roleViews.map((view) => view.key), keys, page);
+    if (keys[0] === 'teacher') {
+      assert.equal(body.activeView, selected || 'teacher');
+      assert.equal(body.roleViewModule, 'Class Training');
+      assert.equal(body.roleViews[0].url, '/dtech-hub/class-training/view/teacher');
+      assert.equal(body.roleViews[1].url, '/dtech-hub/class-training/view/student');
+      assert.equal(body.courseManagementUrl, selected === 'student'
+        ? '/dtech-hub/class-training/view/teacher?page=management' : '/dtech-hub/class-training/admin/');
+    }
+  }
+});
+
 test('Course Management settings are contextual and require current training teacher access', async () => {
   for (const [page, user, allowed, expected] of [
     ['/dtech-hub/class-training/home', { email: 'teacher@example.test' }, true, '/dtech-hub/class-training/admin/'],

@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
+const session = require('express-session');
 const path = require('path');
 const { createClassTrainingRouter, trainingEmail } = require('../src/modules/classTraining');
 const hostedApps = require('../src/hostedApps');
@@ -38,6 +39,64 @@ test('training mail uses the shared sender and reports authentication, validatio
     const response = await send(payload);
     assert.equal(response.status, 502);
     assert.equal((await response.json()).success, false);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('module views persist locally, send reduced authority to every training route, and recheck teacher access', async () => {
+  const app = express();
+  app.set('view engine', 'ejs');
+  app.set('views', path.join(__dirname, '..', 'views'));
+  app.use(session({ secret: 'isolated-role-view-test', resave: false, saveUninitialized: false }));
+  app.use((req, res, next) => {
+    req.user = { email: 'fixture@westlandhigh.school.nz', display_name: 'Fixture', roles: ['ADMIN'] };
+    res.locals.activeRole = 'ADMIN';
+    next();
+  });
+  let permissions = { active: true, admin: true, role: 'Student' };
+  app.use('/dtech-hub/class-training', createClassTrainingRouter({
+    env: { CLASS_TRAINING_DATABASE_URL: 'isolated-training-database' },
+    access: async () => permissions,
+    proxy(req, res, slug, identity) {
+      res.json({ role: identity.role, email: identity.email, path: req.path });
+    }
+  }));
+  app.get('/other-module', (req, res) => res.json({ role: res.locals.activeRole, globalRoles: req.user.roles }));
+  const server = app.listen(0);
+  const base = `http://127.0.0.1:${server.address().port}`;
+  let cookie = '';
+  const get = async (url) => {
+    const response = await fetch(base + url, { headers: { Cookie: cookie, 'X-WHS-Role': 'teacher' }, redirect: 'manual' });
+    if (response.headers.get('set-cookie')) cookie = response.headers.get('set-cookie').split(';')[0];
+    return response;
+  };
+  const root = '/dtech-hub/class-training';
+  try {
+    assert.equal((await (await get(root + '/dashboard')).json()).role, 'teacher');
+    const student = await get(root + '/view/student');
+    assert.equal(student.status, 302);
+    assert.equal(student.headers.get('location'), root + '/dashboard');
+    for (const route of ['/dashboard', '/courses/', '/api/school-search?q=Original', '/admin/', '/dashboard?view=teacher']) {
+      const body = await (await get(root + route)).json();
+      assert.equal(body.role, 'student', route);
+      assert.equal(body.email, 'fixture@westlandhigh.school.nz');
+    }
+    assert.equal((await (await fetch(base + root + '/dashboard')).json()).role, 'teacher');
+    const other = await (await get('/other-module')).json();
+    assert.equal(other.role, 'ADMIN');
+    assert.deepEqual(other.globalRoles, ['ADMIN']);
+    const management = await get(root + '/view/teacher?page=management');
+    assert.equal(management.headers.get('location'), root + '/admin/');
+    assert.equal((await (await get(root + '/dashboard')).json()).role, 'teacher');
+    assert.equal((await get(root + '/view/teacher?page=https://other.example.test')).headers.get('location'), root + '/dashboard');
+    assert.equal((await fetch(base + root + '/view/student', { method: 'POST', headers: { Cookie: cookie } })).status, 405);
+    permissions = { active: true, admin: false, role: 'Student' };
+    assert.equal((await (await get(root + '/dashboard')).json()).role, 'student');
+    assert.equal((await get(root + '/view/teacher')).status, 403);
+    assert.equal((await get(root + '/view/student')).status, 403);
+    permissions = { active: false, admin: true, role: 'Teacher' };
+    assert.equal((await get(root + '/view/teacher')).status, 403);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

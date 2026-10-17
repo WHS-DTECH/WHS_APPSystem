@@ -829,9 +829,6 @@
                     {% if not current_user.is_teacher() %}
                         <li><a href="{{ url_for('main.student_progress') }}"><i class="fas fa-chart-line"></i> Progress</a></li>
                     {% endif %}
-                    {% if current_user.is_teacher() %}
-                        <li><a href="{{ url_for('admin.index') }}"><i class="fas fa-shield-alt"></i> Course Management</a></li>
-                    {% endif %}
                 {% endif %}
             </ul>
 
@@ -891,9 +888,6 @@
             {% if current_user.is_authenticated %}
                 <a href="{{ url_for('main.dashboard') }}"><i class="fas fa-home"></i> Dashboard</a>
                 <a href="{{ url_for('courses.list_courses') }}"><i class="fas fa-book"></i> Courses</a>
-                {% if current_user.is_teacher() %}
-                    <a href="{{ url_for('admin.index') }}"><i class="fas fa-shield-alt"></i> Course Management</a>
-                {% endif %}
                 <a href="{{ url_for('main.profile') }}"><i class="fas fa-user"></i> My Profile</a>
                 <a href="{{ url_for('main.settings') }}"><i class="fas fa-cog"></i> Settings</a>
                 <a href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a>

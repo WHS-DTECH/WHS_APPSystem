@@ -11,6 +11,10 @@ async function canManageCourses(user) {
   return hasTeacherAccess(await accessForEmail(user.email));
 }
 
+function effectiveTrainingRole(teacherAccess, session) {
+  return teacherAccess && session?.classTrainingView !== 'student' ? 'teacher' : 'student';
+}
+
 function createClassTrainingRouter({ access = accessForEmail, proxy = hostedApps.proxy, env = process.env } = {}) {
   const router = express.Router();
   router.use(async (req, res, next) => {
@@ -22,6 +26,17 @@ function createClassTrainingRouter({ access = accessForEmail, proxy = hostedApps
       }
       const permissions = await access(req.user.email);
       if (!permissions.active) return res.status(403).render('error', { title: 'Access denied', message: 'This school account is inactive.' });
+      const teacherAccess = hasTeacherAccess(permissions);
+      const view = req.path.match(/^\/view\/(teacher|student)\/?$/);
+      if (view) {
+        if (!teacherAccess) return res.status(403).render('error', {
+          title: 'Access denied', message: 'Only current Class Training teachers can switch role views.'
+        });
+        if (req.method !== 'GET') return res.sendStatus(405);
+        req.session.classTrainingView = view[1];
+        return res.redirect(view[1] === 'teacher' && req.query.page === 'management'
+          ? '/dtech-hub/class-training/admin/' : '/dtech-hub/class-training/dashboard');
+      }
       if (!env.CLASS_TRAINING_DATABASE_URL) {
         return res.status(503).render('error', {
           title: 'Class Training setup required',
@@ -33,7 +48,7 @@ function createClassTrainingRouter({ access = accessForEmail, proxy = hostedApps
       }
       return proxy(req, res, 'dtech-class-training', {
         email: req.user.email, name: req.user.display_name,
-        role: hasTeacherAccess(permissions) ? 'teacher' : 'student'
+        role: effectiveTrainingRole(teacherAccess, req.session)
       });
     } catch (error) { return next(error); }
   });
@@ -59,4 +74,4 @@ async function trainingEmail(req, res, next) {
   } catch (error) { return next(error); }
 }
 
-module.exports = { createClassTrainingRouter, trainingEmail, canManageCourses };
+module.exports = { createClassTrainingRouter, trainingEmail, canManageCourses, effectiveTrainingRole };

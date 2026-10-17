@@ -1,6 +1,7 @@
 const SCRIPT_TAG = '<script src="/global-nav.js" defer></script>';
 const FAVICON_TAG = '<link rel="icon" type="image/x-icon" href="/images/favicon.ico">';
 const { moduleForPath } = require('./moduleSearch');
+const { effectiveTrainingRole } = require('./modules/classTraining');
 
 // Adds the global left navigation script to every full HTML page, including the static legacy pages.
 function injectGlobalNav(req, res, next) {
@@ -104,9 +105,25 @@ function navData(query, canManageHubRoles, datasetManagerUrl, canManageCourses =
       let assignRolesUrl = null;
       let datasetUrl = null;
       let courseManagementUrl = null;
+      let roleViews = [];
+      let roleViewModule = null;
+      let activeView = null;
       const currentPath = String(req.query.path || '');
       if (user && /^\/dtech-hub\/class-training(?:\/|$)/.test(currentPath) && await canManageCourses(user)) {
-        courseManagementUrl = '/dtech-hub/class-training/admin/';
+        activeView = effectiveTrainingRole(true, req.session);
+        roleViewModule = 'Class Training';
+        roleViews = ['teacher', 'student'].map((key) => ({
+          key, label: key === 'teacher' ? 'Teacher View' : 'Student View',
+          url: `/dtech-hub/class-training/view/${key}`
+        }));
+        courseManagementUrl = activeView === 'student'
+          ? '/dtech-hub/class-training/view/teacher?page=management' : '/dtech-hub/class-training/admin/';
+      } else if (user?.roles?.includes('ADMIN') && moduleForPath(currentPath)?.key === 'core') {
+        roleViewModule = 'Core Administration';
+        roleViews = ['admin', 'teacher', 'student'].map((key) => ({
+          key, label: key === 'admin' ? 'ADMIN View' : key === 'teacher' ? 'Teacher View' : 'Student View',
+          url: `/dashboard?view=${key}`
+        }));
       }
       const appPath = currentPath.match(/^\/(?:apps|student-apps)\/([a-z0-9-]+)(?:\/|$)/)
         || currentPath.match(/^\/hubs\/app-([a-z0-9-]+)\/roles(?:\/|$)/);
@@ -130,6 +147,9 @@ function navData(query, canManageHubRoles, datasetManagerUrl, canManageCourses =
         assignRolesUrl,
         datasetManagerUrl: datasetUrl,
         courseManagementUrl,
+        roleViews,
+        roleViewModule,
+        activeView,
         searchModule: user ? moduleForPath(currentPath) : null,
         role: res.locals.activeRole,
         isAdmin: res.locals.isAdmin,

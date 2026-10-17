@@ -162,10 +162,31 @@ class TrainingRuntimeTests(unittest.TestCase):
             self.assertNotIn(b"/admin/role_permissions", response.data)
             self.assertNotIn(b"User Role Management", response.data)
             self.assertNotIn(b"Role Permissions", response.data)
-            self.assertIn(b"Course Management", response.data)
+            if path == "/admin/":
+                self.assertIn(b"Course Management", response.data)
+            self.assertNotIn(b'fa-shield-alt"></i> Course Management</a>', response.data)
             self.assertNotIn(b"Admin Dashboard", response.data)
         response = self.get("/admin/")
         self.assertIn(b"<title>Course Management</title>", response.data)
+
+    def test_shared_teacher_student_views_use_original_dashboards_and_do_not_change_stored_role(self):
+        self.headers["X-WHS-Role"] = "teacher"
+        teacher = self.get("/dashboard")
+        self.assertEqual(teacher.status_code, 200)
+        self.assertIn(b"Teacher Dashboard", teacher.data)
+        self.assertIn(b"Total Courses", teacher.data)
+        self.headers["X-WHS-Role"] = "student"
+        student = self.get("/dashboard")
+        self.assertEqual(student.status_code, 200)
+        self.assertNotIn(b"Teacher Dashboard", student.data)
+        self.assertNotIn(b"Total Courses", student.data)
+        self.assertIn(b"Module 1: Commenting", student.data)
+        self.assertEqual(self.get("/admin/").status_code, 302)
+        self.assertEqual(self.get(f"/courses/{self.course_id}/lessons/create").status_code, 302)
+        self.headers["X-WHS-Role"] = "teacher"
+        self.assertIn(b"Teacher Dashboard", self.get("/dashboard").data)
+        with app.app_context():
+            self.assertEqual(db.session.get(User, self.user_id).role, "teacher")
 
     def test_no_forged_or_missing_proxy_identity(self):
         self.assertEqual(self.client.get("/home").status_code, 403)

@@ -95,6 +95,12 @@
 #whs-account-header .whs-account-settings a { padding-left: 24px; }
 #whs-account-header [role="alert"] { color: #b3261e; }
 #whs-account-header .whs-account-retry { border: 1px solid #dadce0; border-radius: 6px; background: #fff; color: #174ea6; padding: 6px 12px; }
+#whs-account-header .whs-role-views { display: flex; flex: 0 0 auto; gap: 4px; font-size: 12px; }
+#whs-account-header .whs-role-views a { color: #174ea6; padding: 4px; text-decoration: none; }
+#whs-account-header .whs-role-views a[aria-current] { background: #e8f0fe; font-weight: bold; border-radius: 4px; }
+@media (max-width: 640px) {
+  #whs-account-header .whs-role-views { flex-direction: column; gap: 0; font-size: 10px; }
+}
 #whs-account-header .whs-module-search { position: relative; flex: 0 1 560px; min-width: 0; width: 100%; }
 #whs-account-header .whs-module-search form { display: flex; gap: 0; margin: 0; padding: 0; width: 100%; }
 #whs-account-header .whs-module-search input {

@@ -56,6 +56,29 @@ search: they need an explicit permission-aware provider before displaying the
 shared search bar. No additional environment keys or replacement databases are
 required.
 
+## Module-sensitive role views
+
+Role View controls now describe the current module instead of always linking to
+the Core dashboard. Core Administration retains its existing ADMIN/Teacher/Student
+dashboard views. Other modules do not display those Core toggles.
+
+Class Training is the first capsule with integrated Teacher View / Student View:
+
+- Current DTECH teachers, Lead Teachers and global ADMIN can switch views.
+- Teacher View opens the original Teacher Dashboard; Student View opens the
+  original student dashboard using the signed-in person's own enrolments.
+- The choice persists only for Class Training in that school session, including
+  navigation, searches and subsequent requests. It does not change Global Control
+  roles, the stored legacy role, or any other module.
+- Student View reduces the effective capsule permissions, hiding teacher tools
+  and blocking teacher-only actions. Switching back rechecks current authority;
+  a revoked teacher cannot recover access with a saved view or a direct URL.
+- Administrators use the contextual sidebar controls. Other authorised teachers
+  get the same controls beside the avatar in the shared header.
+- Course Management remains in avatar Settings, not the capsule's desktop/mobile
+  navigation. Opening it from Student View restores Teacher View after checking
+  current teacher access.
+
 ## DTECH Hub: original site, separate database and private files
 
 The deployable copy in `src/legacy/dtech-hub` comes directly from

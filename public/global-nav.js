@@ -102,11 +102,17 @@
       link(nav, 'Profile', '/profile');
       if (data.isAdmin) {
         link(nav, 'Admin', '/admin');
+      }
+      if (data.roleViews && data.roleViews.length) {
+        nav.appendChild(el('div', { 'class': 'gn-head' }, data.roleViewModule + ' Views'));
         var views = el('div', { 'class': 'gn-views' });
-        var current = new URLSearchParams(location.search).get('view') || 'admin';
-        [['admin', 'ADMIN view'], ['teacher', 'Teacher view'], ['student', 'Student view']].forEach(function (item) {
-          var button = el('a', { href: '/dashboard?view=' + item[0] }, item[1]);
-          if (location.pathname.replace(/\/+$/, '') === '/dashboard' && current === item[0]) button.className = 'gn-view-on';
+        var current = data.activeView || new URLSearchParams(location.search).get('view') || 'admin';
+        data.roleViews.forEach(function (item) {
+          var button = el('a', { href: item.url }, item.label);
+          if (current === item.key) {
+            button.className = 'gn-view-on';
+            button.setAttribute('aria-current', 'true');
+          }
           views.appendChild(button);
         });
         nav.appendChild(views);
@@ -217,6 +223,15 @@
       return;
     }
     if (data.searchModule) buildSearch(header, data.searchModule);
+    if (!data.isAdmin && data.roleViews && data.roleViews.length) {
+      var roleViews = el('nav', { 'class': 'whs-role-views', 'aria-label': data.roleViewModule + ' Views' });
+      data.roleViews.forEach(function (view) {
+        var anchor = el('a', { href: view.url }, view.label);
+        if (view.key === data.activeView) anchor.setAttribute('aria-current', 'true');
+        roleViews.appendChild(anchor);
+      });
+      header.appendChild(roleViews);
+    }
     function menuButton(id, label, className) {
       var button = el('button', { type: 'button', 'class': 'whs-account-button ' + (className || ''), 'aria-label': label, 'aria-controls': id, 'aria-expanded': 'false' });
       header.appendChild(button);
