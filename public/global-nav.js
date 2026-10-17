@@ -19,7 +19,9 @@
     '#gn-nav .gn-brand a{padding:0;border:0;color:#fff;width:auto}',
     '#gn-nav .gn-user{padding:8px 18px 10px;border-bottom:1px solid rgba(255,255,255,.12);margin-bottom:6px;font-size:13px}',
     '#gn-nav .gn-badge{display:inline-block;margin-top:4px;padding:1px 8px;border-radius:999px;background:#e5eee8;color:#093f34;font-size:11px;font-weight:700}',
-    '#gn-nav .gn-head{padding:12px 18px 4px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9fb5ab}',
+    '#gn-nav .gn-head{padding:12px 18px 4px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#f0b84a}',
+    '#gn-nav .gn-gap{height:16px}',
+    '#gn-nav .gn-empty{padding:4px 18px;font-size:12px;color:#9fb5ab}',
     '#gn-nav .gn-spacer{flex:1}',
     'html.gn-open.gn-push body{margin-left:' + WIDTH + 'px!important}',
     'html.gn-open.gn-push{overflow-x:hidden}',
@@ -95,9 +97,30 @@
       link(nav, 'Dashboard', '/dashboard');
       link(nav, 'Profile', '/profile');
       if (data.isAdmin) link(nav, 'Admin', '/admin');
-      if (data.modules && data.modules.length) {
-        nav.appendChild(el('div', { 'class': 'gn-head' }, 'Modules'));
-        data.modules.forEach(function (module) { link(nav, module.name, module.path); });
+      var modules = data.modules || [];
+      var used = {};
+      function section(title, order, match, rename) {
+        nav.appendChild(el('div', { 'class': 'gn-head' }, title));
+        var found = 0;
+        order.forEach(function (name) {
+          modules.forEach(function (module) {
+            if (used[module.path] || !match(module, name)) return;
+            used[module.path] = true;
+            found++;
+            link(nav, rename ? rename(module) : module.name, module.path);
+          });
+        });
+        return found;
+      }
+      section('Modules', ['Core Administration', 'Kamar Uploader', 'WHS Learning Sites'], function (module, name) { return module.name === name; });
+      nav.appendChild(el('div', { 'class': 'gn-gap' }));
+      var hubPaths = ['/technology-hub', '/food-room', '/sewing-hub', '/workshop'];
+      section('Hubs', hubPaths, function (module, prefix) { return module.path.indexOf(prefix) === 0; },
+        function (module) { return /hub$/i.test(module.name) ? module.name : module.name + ' Hub'; });
+      nav.appendChild(el('div', { 'class': 'gn-gap' }));
+      var remaining = modules.map(function (module) { return module.name; });
+      if (!section('Student Apps', remaining, function (module, name) { return module.name === name; })) {
+        nav.appendChild(el('div', { 'class': 'gn-empty' }, 'None yet'));
       }
       nav.appendChild(el('div', { 'class': 'gn-spacer' }));
       var signOut = el('button', { type: 'button', 'class': 'gn-link' }, 'Sign out');
