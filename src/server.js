@@ -80,6 +80,19 @@ app.get('/email-status', (req, res) => {
   });
 });
 
+app.get('/admin/school-terms', ensureAuthenticated, ensureRole('ADMIN'), (req, res) => {
+  res.render('admin/school-terms', { title: 'School Terms & Holidays' });
+});
+
+app.get('/admin/school-terms/data', ensureAuthenticated, ensureRole('ADMIN'), async (req, res) => {
+  try {
+    res.json(await require('./legacy/workshop/routes').loadSchoolTerms());
+  } catch (error) {
+    console.error('School terms fetch error:', error);
+    res.status(502).json({ error: 'Failed to load school terms from the Ministry website.' });
+  }
+});
+
 app.get('/admin/emails', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
   try {
     const source = String(req.query.source || '').slice(0, 80);

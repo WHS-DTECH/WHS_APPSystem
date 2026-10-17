@@ -377,6 +377,7 @@ router.get(['/admin_user_roles.html', '/admin_permissions.html'], (req, res) => 
   res.redirect(req.path.includes('user_roles') ? '/hubs/workshop/roles' : '/admin/roles');
 });
 
+router.get('/admin_school_terms.html', (req, res) => res.redirect('/admin/school-terms'));
 
 const SCHOOL_TERMS_SOURCE_URL = 'https://www.education.govt.nz/school-terms-and-holidays-dates';
 
@@ -1810,3 +1811,10 @@ router.get('/api/admin/suggestions/:id/pdf', requireAuth, requireAdmin, async (r
 });
 
 module.exports = router;
+
+// Shared with the Global Control School Terms & Holidays page.
+module.exports.loadSchoolTerms = async () => ({
+  sourceUrl: SCHOOL_TERMS_SOURCE_URL,
+  fetchedAt: new Date().toISOString(),
+  html: sanitizeMinistryHtml(await fetchMinistryTermsRawHtml())
+});

@@ -1,0 +1,53 @@
+<%- include('../partials/header') %>
+
+<section class="page-title">
+  <p class="eyebrow">Operations</p>
+  <h1>School Terms &amp; Holidays</h1>
+  <p>Live content loaded from the Ministry of Education terms and holidays page. The Workshop year planner uses the same source.</p>
+</section>
+
+<section class="panel">
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+    <button id="refreshTermsBtn" class="button" type="button">Refresh data</button>
+    <a class="button secondary" href="https://www.education.govt.nz/school-terms-and-holidays-dates" target="_blank" rel="noopener">Open source page</a>
+  </div>
+  <p id="termsMeta" style="font-size:.85rem;margin:0 0 12px">Loading latest term and holiday dates...</p>
+  <div id="termsStatus" style="display:none;padding:10px 12px;border-radius:8px;margin-bottom:12px"></div>
+  <div id="termsContent" class="terms-view"></div>
+</section>
+
+<style>
+  .terms-view { border: 1px solid #d9d9d0; border-radius: 10px; background: #fff; padding: 16px; max-height: 70vh; overflow: auto; }
+  .terms-view img { max-width: 100%; height: auto; }
+  .terms-view table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: .85rem; }
+  .terms-view th, .terms-view td { border: 1px solid #d9d9d0; padding: 8px; text-align: left; vertical-align: top; }
+</style>
+
+<script>
+  (function () {
+    var status = document.getElementById('termsStatus');
+    function say(ok, text) {
+      status.style.display = text ? 'block' : 'none';
+      status.style.background = ok ? '#e3f4e8' : '#fbe4e4';
+      status.style.color = ok ? '#1d6b3c' : '#a32b2b';
+      status.textContent = text;
+    }
+    function load() {
+      say(true, 'Loading school terms and holidays...');
+      fetch('/admin/school-terms/data', { credentials: 'same-origin', cache: 'no-store' })
+        .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || 'Failed to load terms data.'); return d; }); })
+        .then(function (d) {
+          var box = document.getElementById('termsContent');
+          box.innerHTML = d.html || '<p>No terms content found.</p>';
+          box.querySelectorAll('a').forEach(function (a) { a.target = '_blank'; a.rel = 'noopener'; });
+          document.getElementById('termsMeta').textContent = 'Source: ' + d.sourceUrl + ' | Last refreshed: ' + new Date(d.fetchedAt).toLocaleString();
+          say(true, 'Terms and holidays loaded successfully.');
+        })
+        .catch(function (e) { say(false, e.message || 'Unable to load school terms data.'); });
+    }
+    document.getElementById('refreshTermsBtn').addEventListener('click', load);
+    load();
+  })();
+</script>
+
+<%- include('../partials/footer') %>
