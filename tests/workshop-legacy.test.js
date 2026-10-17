@@ -59,7 +59,7 @@ test('legacy role pages redirect to the app user administration', async () => {
   const { server, base } = await startApp(['ADMIN']);
   try {
     const response = await fetch(`${base}/admin_user_roles.html`, { redirect: 'manual' });
-    assert.strictEqual(response.headers.get('location'), '/admin/users');
+    assert.strictEqual(response.headers.get('location'), '/hubs/workshop/roles');
     const user = await (await fetch(`${base}/api/user`)).json();
     assert.strictEqual(user.name, 'Test User');
   } finally {

@@ -81,7 +81,11 @@ const isTeacher = (user) => Boolean(user?.roles?.includes('Teacher'));
 async function userCanUploadActivity(user) {
   if (!user) return false;
   if (isAdmin(user)) return true;
-  return userHasHubPermission(user, 'sewing-hub', 'activities.upload');
+  try {
+    return await userHasHubPermission(user, 'sewing-hub', 'activities.upload');
+  } catch (err) {
+    return false;
+  }
 }
 
 const userCanViewTeacherCard = (user) => isAdmin(user) || isTeacher(user);
