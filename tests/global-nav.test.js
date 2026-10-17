@@ -130,3 +130,28 @@ test('login return path only accepts same-site relative paths', () => {
   assert.equal(safeNext('/food-room/index.html?a=1'), '/food-room/index.html?a=1');
   for (const bad of ['//evil.com', 'https://evil.com', '/\\evil.com', 'food-room', '', null]) assert.equal(safeNext(bad), null);
 });
+
+test('hosted student app pages receive a centred footer with persisted dates and a reserved viewport', async () => {
+  await withServer((app) => {
+    app.all('/hosted', (req, res) => {
+      res.locals.studentAppFooter = {
+        registeredAt: '2024-03-01T00:00:00Z',
+        updatedAt: '2026-10-17T00:00:00Z'
+      };
+      res.send('<html><head><title>App</title></head><body><main>Student app</main></body></html>');
+    });
+    app.get('/normal', (req, res) => res.send('<html><head></head><body>Other module</body></html>'));
+  }, async (base) => {
+    for (const method of ['GET', 'POST']) {
+      const response = await fetch(`${base}/hosted`, { method });
+      const html = await response.text();
+      assert.match(html, /<body><div id="whs-student-app-viewport"><main>Student app<\/main><\/div>/);
+      assert.match(html, /href="\/student-app-footer.css"/);
+      assert.match(html, /This website was made by a Westland High School student\. &copy; 2024\. Last Updated: October 2026/);
+      assert.equal((html.match(/<footer id="whs-student-app-footer"/g) || []).length, 1);
+      assert.equal(Number(response.headers.get('content-length')), Buffer.byteLength(html));
+    }
+    const normal = await (await fetch(`${base}/normal`)).text();
+    assert.doesNotMatch(normal, /whs-student-app-footer|student-app-footer.css/);
+  });
+});

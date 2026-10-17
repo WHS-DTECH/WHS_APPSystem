@@ -11,6 +11,27 @@ const FIRST_PORT = 5100;
 const SLUG = /^[a-z0-9-]+$/;
 const PROXY_TOKEN = crypto.randomBytes(24).toString('hex');
 const hosted = new Map();
+const contentHashes = new Map();
+
+function contentHash(slug) {
+  if (contentHashes.has(slug)) return contentHashes.get(slug);
+  if (!isHosted(slug)) throw new Error(`Unknown hosted app: ${slug}`);
+  const hash = crypto.createHash('sha256');
+  function visit(dir, prefix = '') {
+    const entries = fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
+    for (const entry of entries) {
+      if (['__pycache__', '.venv', '.git'].includes(entry.name) || /\.(?:pyc|db|sqlite3?|log)$/i.test(entry.name)) continue;
+      const relative = `${prefix}${entry.name}`;
+      const filename = path.join(dir, entry.name);
+      if (entry.isDirectory()) visit(filename, `${relative}/`);
+      else if (entry.isFile()) hash.update(relative).update('\0').update(fs.readFileSync(filename)).update('\0');
+    }
+  }
+  visit(path.join(APPS_DIR, slug));
+  const value = hash.digest('hex');
+  contentHashes.set(slug, value);
+  return value;
+}
 
 function readManifests() {
   if (!fs.existsSync(APPS_DIR)) return [];
@@ -113,4 +134,4 @@ function proxy(req, res, slug, identity) {
   return req.pipe(upstream);
 }
 
-module.exports = { start, stop, isHosted, proxy, roleConfig };
+module.exports = { start, stop, isHosted, proxy, roleConfig, contentHash };

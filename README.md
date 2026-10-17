@@ -72,6 +72,17 @@ the external sign-in verification. Other hosted apps can declare known core
 mappings using `defaultRoleMap` and supported internal roles using `roles` in
 their manifest; unknown external app role names still need a Lead Teacher or
 administrator to configure them.
+
+Every hosted student app receives a fixed, centred 1 cm school attribution footer.
+The app scrolls in its own reserved area above the footer; fixed app controls stay
+inside that area, while the school navigation toggle sits in the footer strip.
+The copyright year is the project's first registration year. `Last Updated`
+shows the month and year (New Zealand time) when changed app files are first
+served. A persisted content hash means refreshes, restarts and unrelated system
+deployments do not advance the date. The first hosted visit after migration 023
+establishes the content baseline and initial update date. Runtime databases, logs,
+Python caches and virtual environments are excluded from the hash.
+Apps on external web services cannot receive this host-injected footer.
 Separately hosted Flask apps still show the sign-in code and placement instructions.
 
 Docker Desktop on Windows supplies the Linux environment needed by Gunicorn.

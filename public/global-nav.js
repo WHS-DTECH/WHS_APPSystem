@@ -55,7 +55,7 @@
       Array.prototype.forEach.call(child.children, function (grand) { candidates.push(grand); });
     });
     candidates.forEach(function (node) {
-      if (node.id === 'gn-nav' || node.id === 'gn-toggle') return;
+      if (node.id === 'gn-nav' || node.id === 'gn-toggle' || node.id === 'whs-student-app-footer') return;
       var style = getComputedStyle(node);
       if (style.position !== 'fixed' || parseFloat(style.left) !== 0) return;
       var item = { node: node, left: node.style.left, width: node.style.width };

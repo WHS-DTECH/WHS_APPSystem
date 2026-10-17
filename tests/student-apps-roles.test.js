@@ -7,7 +7,9 @@ process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgres://x:x@localhost
 const registered = {
   id: 'project', slug: 'guidance-counsellor-app', hub_key: 'app-guidance-counsellor-app',
   name: 'Guidance', owner_user_id: 'builder', client_user_id: 'client',
-  status: 'active', roles_mapped_at: '2026-10-17', app_roles: ['Builder', 'Lead Teacher']
+  status: 'active', roles_mapped_at: '2026-10-17', app_roles: ['Builder', 'Lead Teacher'],
+  created_at: '2024-03-01T00:00:00Z', last_updated_at: '2024-03-01T00:00:00Z',
+  hosted_content_hash: null
 };
 let statements = [];
 let failInsert = false;
@@ -18,6 +20,11 @@ async function query(sql, params = []) {
   if (sql.startsWith('SELECT id FROM users')) return { rows: [{ id: 'client' }], rowCount: 1 };
   if (sql.includes('INSERT INTO student_apps')) return { rows: [{ ...registered, status: 'pending' }] };
   if (sql.startsWith('SELECT * FROM student_apps WHERE slug')) return { rows: [registered] };
+  if (sql.includes('SET hosted_content_hash = $2')) {
+    registered.hosted_content_hash = params[1];
+    registered.last_updated_at = '2026-10-17T00:00:00Z';
+    return { rows: [{ last_updated_at: registered.last_updated_at }] };
+  }
   if (sql.startsWith('SELECT COUNT(*)')) return { rows: [{ count: 2 }] };
   if (sql.startsWith('SELECT id, display_name, email FROM users')) {
     return { rows: [
@@ -44,8 +51,10 @@ require.cache[require.resolve('../src/db')] = {
   }
 };
 require.cache[require.resolve('../src/email')] = { exports: { sendEmail: async () => ({ ok: true }) } };
-const { router, resolveAppRole } = require('../src/studentApps');
-const { roleConfig } = require('../src/hostedApps');
+const { router, hostedProxy, resolveAppRole } = require('../src/studentApps');
+const hostedApps = require('../src/hostedApps');
+const { roleConfig, contentHash } = hostedApps;
+hostedApps.proxy = (req, res) => res.json({ footer: res.locals.studentAppFooter });
 
 let server;
 test.before(async () => {
@@ -59,6 +68,7 @@ test.before(async () => {
     next();
   });
   app.use('/student-apps', router);
+  app.use('/apps/:slug', hostedProxy);
   app.use((error, req, res, next) => res.status(500).json({ error: error.message }));
   server = await new Promise((resolve) => {
     const listener = app.listen(0, '127.0.0.1', () => resolve(listener));
@@ -152,4 +162,26 @@ test('sign-in uses stored role mappings and denies unmapped optional roles', asy
   assert.equal(await resolveAppRole(registered, ['builder']), 'AppBuilder');
   assert.equal(await resolveAppRole(registered, ['lead-teacher']), 'ADMIN');
   assert.equal(await resolveAppRole(registered, ['student']), null);
+});
+
+test('app content has a stable hash across repeated requests', () => {
+  assert.match(contentHash(registered.slug), /^[a-f0-9]{64}$/);
+  assert.equal(contentHash(registered.slug), contentHash(registered.slug));
+  assert.throws(() => contentHash('unknown-project'), /Unknown hosted app/);
+});
+
+test('footer preserves registration year and changes its update date only for changed app content', async () => {
+  registered.hosted_content_hash = null;
+  const url = `http://127.0.0.1:${server.address().port}/apps/${registered.slug}/dashboard`;
+  for (let i = 0; i < 2; i += 1) {
+    const response = await fetch(url, { headers: { 'x-test-user': 'admin' } });
+    assert.equal(response.status, 200);
+    assert.deepEqual((await response.json()).footer, {
+      registeredAt: '2024-03-01T00:00:00Z', updatedAt: '2026-10-17T00:00:00Z'
+    });
+  }
+  assert.equal(statements.filter(({ sql }) => sql.includes('SET hosted_content_hash = $2')).length, 1);
+  registered.hosted_content_hash = 'old-version';
+  await fetch(url, { headers: { 'x-test-user': 'admin' } });
+  assert.equal(statements.filter(({ sql }) => sql.includes('SET hosted_content_hash = $2')).length, 2);
 });

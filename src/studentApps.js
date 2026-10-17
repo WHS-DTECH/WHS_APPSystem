@@ -587,6 +587,18 @@ async function hostedProxy(req, res, next) {
       if (await canManage(req.user, app)) return res.redirect(`/student-apps/${slug}`);
       return res.status(403).render('error', { title: 'No access', message: `You have not been given a role in ${app.name}. Ask its Lead Teacher.` });
     }
+    const contentHash = hostedApps.contentHash(slug);
+    if (app.hosted_content_hash !== contentHash) {
+      const updated = await query(
+        `UPDATE student_apps SET hosted_content_hash = $2, last_updated_at = NOW()
+         WHERE id = $1 AND hosted_content_hash IS DISTINCT FROM $2
+         RETURNING last_updated_at`,
+        [app.id, contentHash]
+      );
+      if (updated.rows.length) app.last_updated_at = updated.rows[0].last_updated_at;
+      else app.last_updated_at = (await loadApp(slug)).last_updated_at;
+    }
+    res.locals.studentAppFooter = { registeredAt: app.created_at, updatedAt: app.last_updated_at };
     return hostedApps.proxy(req, res, slug, { email: req.user.email, name: req.user.display_name || req.user.name, role: appRole });
   } catch (error) {
     return next(error);

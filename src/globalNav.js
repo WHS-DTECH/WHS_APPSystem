@@ -43,6 +43,19 @@ function injectGlobalNav(req, res, next) {
     if (chunk) chunks.push(toBuffer(chunk, encoding));
     const original = Buffer.concat(chunks);
     let html = original.toString('utf8');
+    const footer = res.locals.studentAppFooter;
+    if (footer && /<body\b[^>]*>/i.test(html) && /<\/body>/i.test(html)) {
+      const registered = new Date(footer.registeredAt);
+      const updated = new Date(footer.updatedAt);
+      if (!Number.isFinite(registered.getTime()) || !Number.isFinite(updated.getTime())) {
+        throw new Error('Student app footer requires valid registration and update dates.');
+      }
+      const year = new Intl.DateTimeFormat('en-NZ', { year: 'numeric', timeZone: 'Pacific/Auckland' }).format(registered);
+      const monthYear = new Intl.DateTimeFormat('en-NZ', { month: 'long', year: 'numeric', timeZone: 'Pacific/Auckland' }).format(updated);
+      html = html.replace(/<\/head\s*>/i, '<link rel="stylesheet" href="/student-app-footer.css">\n</head>')
+        .replace(/<body\b[^>]*>/i, '$&<div id="whs-student-app-viewport">')
+        .replace(/<\/body>/i, `</div><footer id="whs-student-app-footer"><span>This website was made by a Westland High School student. &copy; ${year}. Last Updated: ${monthYear}</span></footer></body>`);
+    }
     if (/<\/head\s*>/i.test(html)) {
       html = html.replace(/<link\b[^>]*>/gi, (tag) => {
         const rel = tag.match(/\brel\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
