@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const express = require('express');
 const config = require('./config');
 const { query } = require('./db');
+const { sendEmail } = require('./email');
 
 const router = express.Router();
 const apiRouter = express.Router();
@@ -130,6 +131,58 @@ async function loadApp(slug) {
 
 const canManage = (user, app) => isAdmin(user) || (app.owner_user_id && app.owner_user_id === user.id);
 
+function baseFor(req) {
+  if (!/localhost|127\.0\.0\.1/.test(config.appBaseUrl)) return config.appBaseUrl;
+  return `${req.get('x-forwarded-proto') || req.protocol}://${req.get('host')}`;
+}
+
+const escapeHtml = (value) => String(value || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+async function adminEmails() {
+  const result = await query(
+    `SELECT DISTINCT users.email FROM users
+     JOIN user_roles ON user_roles.user_id = users.id
+     JOIN roles ON roles.id = user_roles.role_id
+     WHERE roles.name = 'ADMIN' AND users.is_active`
+  );
+  return result.rows.map((row) => row.email);
+}
+
+async function emailAdminNewProject({ app, builder, client, secret, base }) {
+  const reviewUrl = `${base}/student-apps/${app.slug}`;
+  const lines = [
+    `Project: ${app.name}`,
+    `Built by: ${builder.display_name} (${builder.email})`,
+    `Client (Lead Teacher): ${client.display_name} (${client.email})`,
+    `Roles: ${app.app_roles.join(', ')}`,
+    `Web address: ${app.app_url || 'not supplied yet'}`,
+    `What it does: ${app.description || 'not supplied'}`
+  ];
+  const text = `${lines.join('\n')}\n\nWHS_APP_SECRET:\n${secret}\n\nAdd WHS_APP_SECRET to the project's Render service, then open:\n${reviewUrl}\nand press "Secret loaded - project is registered".`;
+  const html = `<p><strong>New Student Apps project</strong></p><p>${lines.map(escapeHtml).join('<br>')}</p>`
+    + `<p><strong>WHS_APP_SECRET</strong><br><code>${escapeHtml(secret)}</code></p>`
+    + `<p>Add it to the project's Render service, then <a href="${escapeHtml(reviewUrl)}">open the project</a> and press <em>Secret loaded - project is registered</em>.</p>`;
+  const redacted = (value) => value.split(secret).join('[secret sent by email only]');
+  return sendEmail({
+    to: await adminEmails(),
+    subject: `[Student Apps] New project to register: ${app.name}`,
+    text,
+    html,
+    logText: redacted(text),
+    logHtml: redacted(html)
+  });
+}
+
+function emailBuilderRegistered({ app, builder, base }) {
+  const url = `${base}/student-apps/${app.slug}`;
+  return sendEmail({
+    to: builder.email,
+    subject: `[Student Apps] ${app.name} is registered`,
+    text: `Your project "${app.name}" is registered.\n\nLog in to continue: ${url}`,
+    html: `<p>Your project <strong>${escapeHtml(app.name)}</strong> is registered.</p><p><a href="${escapeHtml(url)}">Log in to continue</a></p>`
+  });
+}
+
 async function userPlatformRoles(user, app) {
   const roles = new Set();
   if (isAdmin(user)) roles.add('admin');
@@ -150,8 +203,7 @@ async function resolveAppRole(app, platformRoles) {
   return match ? byRole.get(match) : null;
 }
 
-function snippetFor(app) {
-  const base = config.appBaseUrl;
+function snippetFor(app, base) {
   return `import json
 import os
 import urllib.error
@@ -198,11 +250,14 @@ function setupModel(app, user, extra = {}) {
     mapping: Object.fromEntries(map.rows.map((row) => [row.platform_role, row.app_role])),
     platformRoles: PLATFORM_ROLES,
     assignedCount: assigned.rows[0].count,
-    snippet: snippetFor(app),
+    snippet: snippetFor(app, extra.base),
     launchUrl: `/student-apps/${app.slug}/launch`,
     rolesUrl: `/hubs/${app.hub_key}/roles`,
     secret: null,
     saved: false,
+    submitted: false,
+    activated: false,
+    siteAdmin: isAdmin(user),
     ...extra
   }));
 }
@@ -262,20 +317,40 @@ router.post('/new', async (req, res, next) => {
     const roles = chosenRoles(form.roles);
     const clientId = await findOrCreateUser(client.email, client.display_name);
     const created = await query(
-      `INSERT INTO student_apps (slug, hub_key, name, description, app_url, app_roles, owner_user_id, client_user_id, secret_hash)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      `INSERT INTO student_apps (slug, hub_key, name, description, app_url, app_roles, owner_user_id, client_user_id, secret_hash, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending') RETURNING *`,
       [slug, `app-${slug}`, form.name, form.description || null, url, roles, req.user.id, clientId, hashSecret(secret)]
     );
     const app = created.rows[0];
     await seedAppRoles(app);
     await grantHubRole(app, req.user.id, 'builder', req.user.id);
     await grantHubRole(app, clientId, 'lead-teacher', req.user.id);
-    await query(
-      `INSERT INTO modules (module_key, display_name, description, path) VALUES ($1, $2, $3, $4)
-       ON CONFLICT (module_key) DO NOTHING`,
-      [`student-app-${slug}`, app.name, app.description || 'Student app', `/student-apps/${slug}/open`]
-    );
-    return res.render('student-apps/setup', await setupModel(app, req.user, { secret }));
+    const mail = await emailAdminNewProject({ app, builder: req.user, client, secret, base: baseFor(req) });
+    if (!mail.ok) console.error('Student Apps: could not email the new project details:', mail.error || mail.message);
+    return res.redirect(`/student-apps/${app.slug}?submitted=1`);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post('/:slug/activate', async (req, res, next) => {
+  try {
+    const app = await loadApp(req.params.slug);
+    if (!app || !isAdmin(req.user)) return res.status(403).render('error', { title: 'Access denied', message: 'Only an administrator can register a project.' });
+    if (app.status !== 'active') {
+      await query(`UPDATE student_apps SET status = 'active', activated_at = NOW() WHERE id = $1`, [app.id]);
+      await query(
+        `INSERT INTO modules (module_key, display_name, description, path) VALUES ($1, $2, $3, $4)
+         ON CONFLICT (module_key) DO NOTHING`,
+        [`student-app-${app.slug}`, app.name, app.description || 'Student app', `/student-apps/${app.slug}/open`]
+      );
+      const builder = (await query('SELECT display_name, email FROM users WHERE id = $1', [app.owner_user_id])).rows[0];
+      if (builder) {
+        const mail = await emailBuilderRegistered({ app, builder, base: baseFor(req) });
+        if (!mail.ok) console.error('Student Apps: could not email the builder:', mail.error || mail.message);
+      }
+    }
+    return res.redirect(`/student-apps/${app.slug}?activated=1`);
   } catch (error) {
     return next(error);
   }
@@ -288,7 +363,12 @@ router.get('/:slug', async (req, res, next) => {
     if (!canManage(req.user, app)) {
       return res.status(403).render('error', { title: 'Access denied', message: 'Only the builder or an administrator can set up this app.' });
     }
-    return res.render('student-apps/setup', await setupModel(app, req.user, { saved: req.query.saved === '1' }));
+    return res.render('student-apps/setup', await setupModel(app, req.user, {
+      base: baseFor(req),
+      saved: req.query.saved === '1',
+      submitted: req.query.submitted === '1',
+      activated: req.query.activated === '1'
+    }));
   } catch (error) {
     return next(error);
   }
@@ -297,10 +377,10 @@ router.get('/:slug', async (req, res, next) => {
 router.post('/:slug/secret', async (req, res, next) => {
   try {
     const app = await loadApp(req.params.slug);
-    if (!app || !canManage(req.user, app)) return res.status(403).render('error', { title: 'Access denied', message: 'You cannot change this app.' });
+    if (!app || !isAdmin(req.user)) return res.status(403).render('error', { title: 'Access denied', message: 'Only an administrator can make a new secret.' });
     const secret = newSecret();
     await query('UPDATE student_apps SET secret_hash = $1 WHERE id = $2', [hashSecret(secret), app.id]);
-    return res.render('student-apps/setup', await setupModel(app, req.user, { secret }));
+    return res.render('student-apps/setup', await setupModel(app, req.user, { base: baseFor(req), secret }));
   } catch (error) {
     return next(error);
   }
@@ -363,6 +443,7 @@ router.get('/:slug/launch', async (req, res, next) => {
       return res.status(403).render('error', { title: 'No access', message: `You have not been given a role in ${app.name}. Ask its Lead Teacher.` });
     }
     if (!app.app_url) return res.status(400).render('error', { title: 'No web address', message: 'Add the app\'s web address on its set-up page first.' });
+    if (app.status !== 'active') return res.status(403).render('error', { title: 'Not registered yet', message: 'This project is waiting to be registered by an administrator.' });
     const code = crypto.randomBytes(24).toString('hex');
     await query(
       `INSERT INTO student_app_login_codes (code, app_id, user_id, expires_at)

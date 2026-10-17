@@ -20,6 +20,30 @@
   <p><%= app.app_url || "No web address yet" %></p>
 </section>
 
+<% if (app.status !== 'active') { %>
+<section class="panel">
+  <h2><%- tick(false) %> Waiting to be registered</h2>
+  <% if (submitted) { %><p style="background:#e3f4e8;color:#1d6b3c;padding:10px 12px;border-radius:8px">Thanks! Your project details have been sent. You will get an email when it is registered.</p><% } %>
+  <% if (siteAdmin) { %>
+    <p>The WHS_APP_SECRET was emailed to you when the project was submitted. Add it to the project's Render service, then confirm below. The student is emailed to log in and continue.</p>
+    <form method="post" action="/student-apps/<%= app.slug %>/activate">
+      <button class="sa-btn" type="submit">Secret loaded - project is registered</button>
+    </form>
+    <form method="post" action="/student-apps/<%= app.slug %>/secret" onsubmit="return confirm('Make a new secret? The old one stops working.')">
+      <button class="sa-btn sa-alt" type="submit">Make a new secret (shown here once)</button>
+    </form>
+    <% if (secret) { %>
+      <div style="background:#fff8e6;border:1px solid #e8c36a;border-radius:8px;padding:12px;margin-top:12px">
+        <strong>New secret &mdash; shown once.</strong>
+        <p><code style="user-select:all"><%= secret %></code></p>
+      </div>
+    <% } %>
+  <% } else { %>
+    <p>An administrator is setting up your project's connection. You will get an email when it is registered, then log in here to continue.</p>
+  <% } %>
+</section>
+<% } else { %>
+<% if (activated) { %><section class="panel"><p style="background:#e3f4e8;color:#1d6b3c;padding:10px 12px;border-radius:8px">Project registered. The student has been emailed.</p></section><% } %>
 <section class="panel">
   <h2><%- tick(true) %> Step 1 &mdash; Registered</h2>
   <p>Your project is registered. It keeps its own database and web service.</p>
@@ -29,13 +53,13 @@
   <h2><%- tick(loginDone) %> Step 2 &mdash; Google sign-in</h2>
   <% if (secret) { %>
     <div style="background:#fff8e6;border:1px solid #e8c36a;border-radius:8px;padding:12px;margin-bottom:12px">
-      <strong>Your app secret &mdash; copy it now, it is only shown once.</strong>
+      <strong>New app secret &mdash; shown once.</strong>
       <p><code style="font-size:1.05em;user-select:all"><%= secret %></code></p>
-      <p>Add it to your app's Render service as an environment variable named <code>WHS_APP_SECRET</code>. Never put it in GitHub.</p>
+      <p>Add it to the app's Render service as <code>WHS_APP_SECRET</code>. Never put it in GitHub.</p>
     </div>
   <% } %>
   <ol>
-    <li>Add <code>WHS_APP_SECRET</code> to your app's environment variables.</li>
+    <li>Your teacher has already loaded the app secret, so you do not need Render access.</li>
     <li>Add this route to your app. It receives the person who just signed in with Google:
       <pre style="background:#f3f7fc;padding:12px;border-radius:8px;overflow:auto"><code><%= snippet %></code></pre>
     </li>
@@ -51,9 +75,9 @@
     </label>
     <button class="sa-btn sa-alt" type="submit">Save address</button>
   </form>
-  <form method="post" action="/student-apps/<%= app.slug %>/secret" onsubmit="return confirm('Make a new secret? The old one stops working.')">
+  <% if (siteAdmin) { %><form method="post" action="/student-apps/<%= app.slug %>/secret" onsubmit="return confirm('Make a new secret? The old one stops working.')">
     <button class="sa-btn sa-alt" type="submit">Make a new secret</button>
-  </form>
+  </form><% } %>
 </section>
 
 <section class="panel">
@@ -90,5 +114,7 @@
   <p><a class="sa-btn sa-alt" href="<%= rolesUrl %>">Assign user roles</a>
      <% if (loginDone && rolesDone) { %><a class="sa-btn" href="/student-apps/<%= app.slug %>/launch">Open the app</a><% } %></p>
 </section>
+
+<% } %>
 
 <%- include('../partials/footer') %>

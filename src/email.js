@@ -130,8 +130,8 @@ async function recordEmail(input, result) {
         to,
         list(input.bcc),
         String(input.subject || ''),
-        String(input.text || '').slice(0, LOG_BODY_LIMIT),
-        String(input.html || '').slice(0, LOG_BODY_LIMIT),
+        String(input.logText ?? input.text ?? '').slice(0, LOG_BODY_LIMIT),
+        String(input.logHtml ?? input.html ?? '').slice(0, LOG_BODY_LIMIT),
         result.messageId || null,
         result.ok ? null : result.error || result.message || null
       ]

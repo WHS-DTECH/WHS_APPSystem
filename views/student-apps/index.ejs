@@ -27,7 +27,7 @@
           <tr>
             <td><strong><%= app.name %></strong></td>
             <td><%= app.app_url %></td>
-            <td><%= app.login_verified_at ? 'Verified' : 'Not tested' %></td>
+            <td><%= app.status !== 'active' ? 'Awaiting registration' : app.login_verified_at ? 'Verified' : 'Not tested' %></td>
             <td><%= app.roles_mapped_at ? 'Mapped' : 'Not mapped' %></td>
             <td><a class="sa-btn sa-alt" href="/student-apps/<%= app.slug %>">Set up</a></td>
           </tr>
