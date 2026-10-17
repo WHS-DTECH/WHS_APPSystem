@@ -747,27 +747,38 @@ document.addEventListener('DOMContentLoaded', function() {
     const cardList = document.getElementById('recipeCardList');
     if (!cardList) return;
 
-    const recipeFetch = fetch('/food-room/api/recipes/display-table?fields=summary', { cache: 'no-store' })
-      .then((res) => res.json())
-      .catch(() => []);
+    const fetchJson = async (url) => {
+      const response = await fetch(url, { cache: 'no-store' });
+      if (!response.ok) throw new Error(`Request failed (${response.status}): ${url}`);
+      return response.json();
+    };
+
+    const recipeFetch = fetchJson('/food-room/api/recipes/display-table?fields=summary')
+      .then((rows) => {
+        if (!Array.isArray(rows)) throw new Error('Invalid recipe gallery response.');
+        return rows;
+      });
 
     const weeklyBox = document.getElementById('weeklyRecipeBox');
     const bookingRange = buildBookingsRangeQuery();
     const bookingsFetch = weeklyBox
-      ? fetch(`/food-room/api/bookings/all?start=${bookingRange.start}&end=${bookingRange.end}&fields=${bookingRange.fields}&limit=${bookingRange.limit}`, { cache: 'no-store' })
-          .then((res) => res.json())
-          .catch(() => ({ bookings: [] }))
+      ? fetchJson(`/food-room/api/bookings/all?start=${bookingRange.start}&end=${bookingRange.end}&fields=${bookingRange.fields}&limit=${bookingRange.limit}`)
+          .then((payload) => {
+            if (!payload || !Array.isArray(payload.bookings)) throw new Error('Invalid weekly bookings response.');
+            return payload;
+          })
       : Promise.resolve({ bookings: [] });
 
-    Promise.all([
+    Promise.allSettled([
       refreshAuthState(),
       recipeFetch,
       bookingsFetch
     ])
-      .then(([, displayRows, bookingsPayload]) => {
-        const rows = (Array.isArray(displayRows) ? displayRows : [])
+      .then(([authResult, recipeResult, bookingsResult]) => {
+        if (authResult.status === 'rejected') throw authResult.reason;
+        if (recipeResult.status === 'rejected') throw recipeResult.reason;
+        const rows = recipeResult.value
           .filter((row) => !isNonRecipePlannerLabel(row && row.name));
-        if (rows.length === 0) return;
         const badge = document.getElementById('recipeCountBadge');
         const chips = document.getElementById('recipeCategoryChips');
         const recipeIndexSearch = document.getElementById('recipeIndexSearch');
@@ -785,7 +796,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const displayByRecipeId = new Map(rows.map(row => [rowRecipeKey(row), row]));
         const displayByName = new Map(rows.map(row => [String(row.name || '').trim().toLowerCase(), row]));
         const displayByNormalizedName = new Map(rows.map(row => [normalizeRecipeLookupName(row.name || ''), row]));
-        const bookings = Array.isArray(bookingsPayload && bookingsPayload.bookings) ? bookingsPayload.bookings : [];
+        const bookings = bookingsResult.status === 'fulfilled' ? bookingsResult.value.bookings : [];
+        if (bookingsResult.status === 'rejected') {
+          console.error('[Recipe Book] Failed to load weekly bookings:', bookingsResult.reason);
+        }
 
       const now = new Date();
       const weekStart = getWeekStart(now);
@@ -843,6 +857,9 @@ document.addEventListener('DOMContentLoaded', function() {
       });
 
       if (weeklyBox && weeklyList && weeklyEmpty) {
+        weeklyEmpty.textContent = bookingsResult.status === 'rejected'
+          ? 'Weekly bookings could not be loaded. Sign in if needed, then reload to retry.'
+          : 'No recipes are booked for this week yet.';
         if (featuredRows.length > 0) {
           weeklyBox.style.display = '';
           weeklyEmpty.style.display = 'none';
@@ -878,6 +895,9 @@ document.addEventListener('DOMContentLoaded', function() {
       }
 
       const refreshGallery = () => {
+        if (recipeFilterEmpty) {
+          recipeFilterEmpty.textContent = rows.length ? 'No recipes match that search.' : 'No recipes are available yet.';
+        }
         applyRecipeFilters({
           cardList,
           emptyEl: recipeFilterEmpty,
@@ -900,6 +920,28 @@ document.addEventListener('DOMContentLoaded', function() {
     })
     .catch((error) => {
       console.error('[Recipe Book] Failed to initialise gallery data:', error);
+      const badge = document.getElementById('recipeCountBadge');
+      if (badge) badge.textContent = 'Recipes unavailable';
+      const empty = document.getElementById('recipeFilterEmpty');
+      if (empty) {
+        empty.textContent = 'Recipes could not be loaded. ';
+        empty.style.display = '';
+        empty.setAttribute('role', 'alert');
+        const retry = document.createElement('button');
+        retry.type = 'button';
+        retry.textContent = 'Retry';
+        retry.addEventListener('click', () => {
+          empty.style.display = 'none';
+          if (badge) badge.textContent = 'Loading recipes...';
+          loadRecipeGallery();
+        }, { once: true });
+        empty.appendChild(retry);
+      }
+      const weeklyEmpty = document.getElementById('weeklyRecipeEmpty');
+      if (weeklyEmpty) {
+        weeklyEmpty.textContent = 'Weekly recipes could not be loaded. Retry the recipe gallery.';
+        weeklyEmpty.style.display = '';
+      }
     });
   }
 

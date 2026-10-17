@@ -88,7 +88,7 @@ def school_search():
     sections = Section.query.join(Lesson, Section.lesson_id == Lesson.id).join(Course, Lesson.course_id == Course.id).filter(
         content_access, or_(Section.title.ilike(pattern, escape="\\"), Section.content.ilike(pattern, escape="\\"))).order_by(Section.title).limit(51).all()
     add(sections, "Section", "lessons.view_section", "section_id")
-    pages = [("Class Training", "main.home"), ("Courses", "courses.list_courses")]
+    pages = [("Class Training", "main.home"), ("My Capsules", "courses.list_courses")]
     if teacher:
         pages.append(("Course Management", "admin.index"))
     for title, endpoint in pages:

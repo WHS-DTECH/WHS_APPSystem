@@ -185,6 +185,10 @@ checkers, courses and database models. Hosting changes replace local Google/pass
 sign-in and role editing with Core controls; they do not recreate the site.
 The supplied section-based progress model is used by the course completion action.
 Original course ownership still applies to teacher editing.
+The capsule header and home hero use **DTECH Course Capsules**. Desktop and
+mobile navigation label the original course catalogue **My Capsules**; dashboard
+access remains available through the shared Teacher View / Student View controls
+and the original routes, rather than a duplicate navbar Dashboard link.
 
 Before activation:
 
@@ -482,5 +486,11 @@ Data lives in the unified `DATABASE_URL` database using the legacy tables (`staf
 The Workshop is the legacy Workshop site (public/workshop, legacy API in src/legacy/workshop) under /workshop, using the Google login. Admins and users given the Workshop Lead Teacher hub role (assign at /admin/users) can upload worksheets, lesson notes and planners; signed-in users can upload activities. Existing data is copied once from INTEGRATION_WORKSHOP_DATABASE_URL (guarded by workshop_legacy_import); new data goes to DATABASE_URL. Suggestion notification emails are sent through the framework's Google Gmail API (GOOGLE_GMAIL_* variables) to Admins and Workshop Lead Teachers; SITE_URL is used in the email links.
 
 ## Food Room module
+
+The homepage recipe gallery reports failed requests with a Retry button instead
+of remaining on "Loading recipes". Weekly booking errors are shown separately
+and do not hide successfully loaded recipes. An HTTP 502 HTML response from
+Render is a service/gateway failure, not proof of a disconnected legacy database;
+check the main service's Render deployment/runtime logs before changing DB URLs.
 
 The Food Room is the legacy recipeCalculator site (public/food-room, legacy API in src/legacy/food-room) under /food-room, using the Google login. The legacy tables live in the ood_room schema (migration 014) and existing data is copied once from INTEGRATION_FOOD_ROOM_DATABASE_URL (guarded by food_room_legacy_import); new data goes to DATABASE_URL. The app's roles are mirrored into the legacy role tables on each request: ADMIN -> admin, Food Room Lead Teacher hub role -> lead_teacher, Food Room Technician hub role -> technician, Teacher/Staff -> teacher, Student -> student (assign hub roles at /admin/users). Emails (suggestions, weekly digest, place order, shopping reviews) are sent through the Google Gmail API (GOOGLE_GMAIL_* variables) with a [Food Room Hub] subject prefix. Food Room specific variables: PLACE_ORDER_* (pilot recipient, admin copy, Tuesday cron, Google form/sheet URLs), GOOGLE_CREDENTIALS, GOOGLE_TOKEN_JSON, GOOGLE_OAUTH_REDIRECT_URI and GOOGLE_PLANNER_* (planner sync), WEEKLY_DIGEST_CRON, SUGGESTION_NOTIFY_TO and SITE_URL. The Puppeteer recipe extractor pages need the optional puppeteer package.

@@ -64,7 +64,7 @@ class TrainingRuntimeTests(unittest.TestCase):
     def test_original_home_and_course_data_use_existing_account(self):
         response = self.get("/home")
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Computer Lab Hub", response.data)
+        self.assertIn(b'<h1 class="hero-title">DTECH Course Capsules</h1>', response.data)
         self.assertIn(b"/dtech-hub/class-training/static/css/style.css", response.data)
         data = self.get("/api/home-data").json
         self.assertEqual(data["all_courses"][0]["title"], "Module 1: Commenting")
@@ -72,6 +72,20 @@ class TrainingRuntimeTests(unittest.TestCase):
         with app.app_context():
             self.assertEqual(User.query.filter_by(email="existing@westlandhigh.school.nz").count(), 1)
             self.assertEqual(db.session.get(User, self.user_id).role, "teacher")
+
+    def test_capsule_navigation_retains_routes_without_duplicate_dashboard(self):
+        for role in ("teacher", "student"):
+            self.headers["X-WHS-Role"] = role
+            response = self.get("/home")
+            self.assertEqual(response.status_code, 200)
+            html = response.get_data(as_text=True)
+            navbar = html.split('<nav class="navbar">', 1)[1].split("</nav>", 1)[0]
+            self.assertNotIn("school_logo.png", navbar)
+            self.assertIn("whslogocircular.png", navbar)
+            self.assertNotIn("> Dashboard</a>", navbar)
+            self.assertEqual(navbar.count("> My Capsules</a>"), 2)
+            self.assertIn("/dtech-hub/class-training/courses/", navbar)
+            self.assertEqual(self.get("/dashboard").status_code, 200)
 
     def test_shared_search_enforces_enrolment_ownership_and_current_roles(self):
         with app.app_context():
@@ -125,7 +139,7 @@ class TrainingRuntimeTests(unittest.TestCase):
         self.assertTrue(any(record["kind"] == "Section" for record in section))
         self.assertTrue(all(record["url"].startswith("/dtech-hub/class-training/") for record in section))
         self.assertIn("no-store", self.get("/api/school-search?q=Original").headers["Cache-Control"])
-        self.assertEqual(self.get("/api/school-search?q=Courses").json["results"][0]["title"], "Courses")
+        self.assertEqual(self.get("/api/school-search?q=My%20Capsules").json["results"][0]["title"], "My Capsules")
         self.assertEqual(self.get("/api/school-search?q=Course%20Management").json["results"], [])
         response = self.get("/search?q=Original")
         self.assertEqual(response.status_code, 302)
