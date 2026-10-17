@@ -155,6 +155,13 @@ test(`original DTECH HTTP pages and uploads survive restart (${legacyLessonIds ?
     assert.equal(context.profile.email, 'teacher@westlandhigh.school.nz');
     assert.ok(context.expiresAt > Date.now());
     assert.match(html, /href="\/dtech-hub\/suggest-activity\.html"/);
+    response = await fetch(`${base}/dtech-hub/api/relief-plan/events`);
+    assert.equal(response.status, 200);
+    const calendar = await response.json();
+    assert.equal(calendar.ok, true);
+    assert.equal(calendar.year, 2027);
+    assert.deepEqual(calendar.events, require('../src/legacy/learning-sites/reliefPlan').readReliefPlanEvents());
+    assert.ok(calendar.events.length > 0);
     for (const url of ['/dtech-hub/teacher-view.html', '/dtech-hub/learning-pathways/', '/dtech-hub/practical-skills/', '/dtech-hub/script.js',
       '/dtech-hub/practical-skills/library.json', '/dtech-hub/learning-pathways/library.json', '/dtech-hub/api/activities']) {
       response = await fetch(base + url);

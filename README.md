@@ -46,11 +46,14 @@ existing Technology Hub is a separate module and is not replaced.
    none are committed to this public application repository.
 4. Retain any DTECH-specific optional integration settings from its old service:
    `GITHUB_TOKEN` for existing repository analysis, `TRELLO_API_KEY`,
-   `EXTERNAL_EXAM_FORM_WEBHOOK_SECRET`, `RELIEF_PLAN_ACCESS_KEY`,
+   `EXTERNAL_EXAM_FORM_WEBHOOK_SECRET`,
    `SEARCH_KIT_REPORT_TEMPLATE_ID`, `STAFF_DIRECTORY_API_URL` and
    `STAFF_DIRECTORY_API_KEY`, where used. The archive App does not replace the
    existing student-repository analysis token. Do not copy the old `DATABASE_URL`,
    `PORT`, `AUTH_MODE` or developer-admin bypass settings into the shared service.
+   The Relief Plan feed now reads the integrated Learning Sites calendar directly
+   through the existing DTECH school-account check. `RELIEF_PLAN_ACCESS_KEY` is no
+   longer used by integrated DTECH; no external calendar login/service is required.
 5. Add the shared service's origin to the Google OAuth client's **Authorized
    JavaScript origins** for the existing Drive tools. DTECH uses the shared
    `GOOGLE_CLIENT_ID`; Drive permissions still require explicit consent by the

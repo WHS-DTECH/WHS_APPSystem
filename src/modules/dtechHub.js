@@ -7,6 +7,7 @@ const { createArchiveService } = require('../studentAppArchive');
 const { createTeachingFileStore } = require('../dtechFiles');
 const config = require('../config');
 const { sendEmail } = require('../email');
+const { readReliefPlanEvents } = require('../legacy/learning-sites/reliefPlan');
 
 const PREFIX = '/dtech-hub';
 const SOURCE = path.join(__dirname, '..', 'legacy', 'dtech-hub');
@@ -94,6 +95,7 @@ function createDtechRouter({ env = process.env, dbQuery = query, createLegacy, a
       legacy = factory({
         databaseUrl: env.DTECH_DATABASE_URL,
         databaseSsl: env.DTECH_DATABASE_SSL !== 'false',
+        getReliefPlanEvents: () => ({ ok: true, year: 2027, events: readReliefPlanEvents() }),
         emailSender: config.email.gmail.senderEmail,
         mailTransport: config.email.gmail.isConfigured ? {
           async sendMail(options) {
