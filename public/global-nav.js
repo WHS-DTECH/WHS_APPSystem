@@ -228,21 +228,6 @@
       Array.prototype.forEach.call(header.querySelectorAll('.whs-account-menu'), function (menu) { menu.hidden = true; });
       Array.prototype.forEach.call(header.querySelectorAll('[aria-expanded]'), function (button) { button.setAttribute('aria-expanded', 'false'); });
     }
-    var apps = menuButton('whs-apps-menu', 'WHS apps', 'whs-apps-button');
-    var dots = el('span', { 'class': 'whs-apps-dots', 'aria-hidden': 'true' });
-    for (var i = 0; i < 9; i++) dots.appendChild(el('span'));
-    apps.button.appendChild(dots);
-    link(apps.menu, 'Dashboard', '/dashboard');
-    link(apps.menu, 'Student Apps dashboard', '/student-apps');
-    [['Hubs', function (module) { return /^\/(?:technology-hub|food-room|sewing-hub|workshop)(?:\/|$)/.test(module.path); }],
-      ['Student Apps', function (module) { return module.path.indexOf('/student-apps/') === 0; }],
-      ['Modules', function (module) { return !/^\/(?:technology-hub|food-room|sewing-hub|workshop|student-apps)(?:\/|$)/.test(module.path); }]
-    ].forEach(function (group) {
-      var modules = (data.modules || []).filter(group[1]);
-      if (!modules.length) return;
-      apps.menu.appendChild(el('h2', {}, group[0]));
-      modules.forEach(function (module) { link(apps.menu, module.name, module.path); });
-    });
     var account = menuButton('whs-account-menu', 'School account: ' + (data.name || data.email));
     account.button.textContent = (data.name || data.email || '?').trim().charAt(0).toUpperCase();
     if (data.avatarUrl && /^https:\/\//i.test(data.avatarUrl)) {

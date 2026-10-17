@@ -53,9 +53,6 @@
   color: #fff;
   overflow: hidden;
 }
-#whs-account-header .whs-apps-button { background: transparent; color: #5f6368; }
-#whs-account-header .whs-apps-dots { display: grid; grid-template-columns: repeat(3, 4px); gap: 3px; }
-#whs-account-header .whs-apps-dots span { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
 #whs-account-header img { width: 100%; height: 100%; object-fit: cover; }
 #whs-account-header :focus-visible { outline: 3px solid #1a73e8; outline-offset: 3px; }
 #whs-account-header .whs-account-menu {

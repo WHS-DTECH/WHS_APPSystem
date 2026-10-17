@@ -51,8 +51,8 @@ All full HTML pages, including legacy and hosted pages, use the shared
 `public/images/favicon.ico`. The `/favicon.ico` fallback serves that same file.
 The shared top-right account header also appears on public pages, Hubs and hosted
 Student Apps. Signed-out visitors see a blue Google sign-in button that returns
-them to the page they started from. Signed-in users see the WHS apps grid and
-their Google avatar (or initial). The grid links to Hubs, Student Apps and modules;
+them to the page they started from. Signed-in users see only
+their Google avatar (or initial), without an apps grid;
 the account menu contains their name, email, Profile and Sign out. These controls
 use the existing school OAuth session, not a second Google login. Route permissions
 still apply to all app links. Only administrators receive the existing left sidebar.
