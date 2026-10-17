@@ -8,13 +8,16 @@ const apiRouter = express.Router();
 
 const PLATFORM_ROLES = [
   { key: 'admin', label: 'Administrator (platform ADMIN)' },
+  { key: 'builder', label: 'Builder' },
   { key: 'lead-teacher', label: 'Lead Teacher' },
   { key: 'teacher', label: 'Teacher' },
   { key: 'technician', label: 'Technician' },
   { key: 'student', label: 'Student' }
 ];
+const CHOOSABLE_ROLES = PLATFORM_ROLES.filter((role) => !['admin', 'builder'].includes(role.key));
 const ROLE_PRIORITY = PLATFORM_ROLES.map((role) => role.key);
 const BASE_HUB_ROLES = [
+  ['builder', 'Builder', 'The student who built the app.'],
   ['lead-teacher', 'Lead Teacher', 'Manages the app and who holds roles in it.'],
   ['teacher', 'Teacher', 'Uses the app as a teacher.'],
   ['technician', 'Technician', 'Uses assigned technical features in the app.'],
@@ -40,8 +43,29 @@ function cleanUrl(value) {
   }
 }
 
-function parseRoles(text) {
-  return Array.from(new Set(String(text || '').split(/[,\n]/).map((role) => role.trim()).filter(Boolean))).slice(0, 12);
+function chosenRoles(value) {
+  const picked = [].concat(value || []);
+  return ['Builder'].concat(CHOOSABLE_ROLES.filter((role) => picked.includes(role.key)).map((role) => role.label));
+}
+
+async function clientChoices() {
+  const result = await query(
+    `SELECT DISTINCT users.id, users.display_name, users.email FROM users
+     JOIN user_roles ON user_roles.user_id = users.id
+     JOIN roles ON roles.id = user_roles.role_id
+     WHERE users.is_active AND roles.name IN ('Teacher', 'Staff', 'ADMIN')
+     ORDER BY users.display_name`
+  );
+  return result.rows;
+}
+
+async function grantHubRole(app, userId, roleKey, grantedBy) {
+  await query(
+    `INSERT INTO user_hub_roles (user_id, hub_role_id, granted_by)
+     SELECT $1, id, $3 FROM hub_roles WHERE hub_key = $2 AND role_key = $4
+     ON CONFLICT DO NOTHING`,
+    [userId, app.hub_key, grantedBy, roleKey]
+  );
 }
 
 async function uniqueSlug(base) {
@@ -181,8 +205,18 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-router.get('/new', (req, res) => {
-  res.render('student-apps/new', { title: 'Register a project', error: null, form: {} });
+async function renderNew(res, status, error, form) {
+  res.status(status).render('student-apps/new', {
+    title: 'Register a project', error, form, clients: await clientChoices(), roleChoices: CHOOSABLE_ROLES
+  });
+}
+
+router.get('/new', async (req, res, next) => {
+  try {
+    await renderNew(res, 200, null, { roles: ['teacher', 'student'] });
+  } catch (error) {
+    next(error);
+  }
 });
 
 router.post('/new', async (req, res, next) => {
@@ -191,26 +225,31 @@ router.post('/new', async (req, res, next) => {
       name: String(req.body.name || '').trim(),
       description: String(req.body.description || '').trim(),
       app_url: String(req.body.app_url || '').trim(),
-      app_roles: String(req.body.app_roles || '').trim()
+      roles: [].concat(req.body.roles || []),
+      client_id: String(req.body.client_id || '').trim()
     };
     const url = cleanUrl(form.app_url);
     const slugBase = slugify(form.name);
+    const client = form.client_id ? (await clientChoices()).find((row) => row.id === form.client_id) : null;
     const error = !form.name ? 'Give your project a name.'
       : !slugBase ? 'The name needs some letters or numbers.'
       : !url ? 'Enter the full web address of your app, starting with https://'
+      : !client ? 'Choose who your client is.'
       : null;
-    if (error) return res.status(400).render('student-apps/new', { title: 'Register a project', error, form });
+    if (error) return await renderNew(res, 400, error, form);
 
     const slug = await uniqueSlug(slugBase);
     const secret = newSecret();
-    const roles = parseRoles(form.app_roles);
+    const roles = chosenRoles(form.roles);
     const created = await query(
-      `INSERT INTO student_apps (slug, hub_key, name, description, app_url, app_roles, owner_user_id, secret_hash)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [slug, `app-${slug}`, form.name, form.description || null, url, roles, req.user.id, hashSecret(secret)]
+      `INSERT INTO student_apps (slug, hub_key, name, description, app_url, app_roles, owner_user_id, client_user_id, secret_hash)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [slug, `app-${slug}`, form.name, form.description || null, url, roles, req.user.id, client.id, hashSecret(secret)]
     );
     const app = created.rows[0];
     await seedAppRoles(app);
+    await grantHubRole(app, req.user.id, 'builder', req.user.id);
+    await grantHubRole(app, client.id, 'lead-teacher', req.user.id);
     await query(
       `INSERT INTO modules (module_key, display_name, description, path) VALUES ($1, $2, $3, $4)
        ON CONFLICT (module_key) DO NOTHING`,
@@ -258,7 +297,7 @@ router.post('/:slug/roles', async (req, res, next) => {
     let mapped = 0;
     for (const role of PLATFORM_ROLES) {
       const appRole = String(req.body[`map_${role.key}`] || '').trim();
-      if (!appRole || (app.app_roles.length && !app.app_roles.includes(appRole))) continue;
+      if (!appRole) continue;
       await query('INSERT INTO student_app_role_map (app_id, platform_role, app_role) VALUES ($1, $2, $3)', [app.id, role.key, appRole]);
       mapped += 1;
     }

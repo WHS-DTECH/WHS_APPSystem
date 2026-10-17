@@ -1,0 +1,1 @@
+ALTER TABLE student_apps ADD COLUMN IF NOT EXISTS client_user_id UUID REFERENCES users(id) ON DELETE SET NULL;

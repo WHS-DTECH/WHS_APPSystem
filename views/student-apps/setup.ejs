@@ -47,7 +47,7 @@
     <p style="color:#6a84a1">Finish step 2 first. Roles are mapped once sign-in works.</p>
   <% } else { %>
     <% if (saved) { %><p style="background:#e3f4e8;color:#1d6b3c;padding:10px 12px;border-radius:8px">Roles saved.</p><% } %>
-    <p>When someone signs in, their school role becomes one of your app's roles. Leave a row empty to give that school role no access.</p>
+    <p>When someone signs in, their school role becomes one of your app's roles. Leave a row empty to give that school role no access. Type your app's own role name (for example Counsellor) or pick one from the list.</p>
     <form method="post" action="/student-apps/<%= app.slug %>/roles" class="module-form">
       <table>
         <thead><tr><th>School role</th><th>Becomes this role in your app</th></tr></thead>
@@ -56,21 +56,13 @@
             <tr>
               <td><%= role.label %></td>
               <td>
-                <% if (app.app_roles.length) { %>
-                  <select name="map_<%= role.key %>">
-                    <option value="">No access</option>
-                    <% app.app_roles.forEach(function (appRole) { %>
-                      <option value="<%= appRole %>" <%= mapping[role.key] === appRole ? 'selected' : '' %>><%= appRole %></option>
-                    <% }) %>
-                  </select>
-                <% } else { %>
-                  <input name="map_<%= role.key %>" value="<%= mapping[role.key] || '' %>" placeholder="Role name in your app">
-                <% } %>
+                <input name="map_<%= role.key %>" list="roles-<%= app.id %>" value="<%= mapping[role.key] || '' %>" placeholder="Role name in your app">
               </td>
             </tr>
           <% }) %>
         </tbody>
       </table>
+      <datalist id="roles-<%= app.id %>"><% app.app_roles.forEach(function (r) { %><option value="<%= r %>"><% }) %></datalist>
       <button class="button" type="submit">Save roles</button>
     </form>
   <% } %>

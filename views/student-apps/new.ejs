@@ -18,9 +18,23 @@
     <label>Web address of your app
       <input name="app_url" value="<%= form.app_url || '' %>" required placeholder="https://your-app.onrender.com">
     </label>
-    <label>Roles your app already uses (comma separated)
-      <input name="app_roles" value="<%= form.app_roles || '' %>" placeholder="ADMIN, Counsellor, AppBuilder">
+    <label>Who is your client?
+      <select name="client_id" required>
+        <option value="">Choose a staff member…</option>
+        <% clients.forEach(function (c) { %>
+          <option value="<%= c.id %>" <%= form.client_id === c.id ? 'selected' : '' %>><%= c.display_name %> (<%= c.email %>)</option>
+        <% }) %>
+      </select>
+      <small style="color:#6a84a1">They become the Lead Teacher of your app automatically. You are the Builder.</small>
     </label>
+    <fieldset style="border:0;padding:0;margin:0">
+      <legend>Who will use your app?</legend>
+      <% roleChoices.forEach(function (r) { %>
+        <label style="display:block;font-weight:normal">
+          <input type="checkbox" name="roles" value="<%= r.key %>" <%= (form.roles || []).includes(r.key) ? 'checked' : '' %>> <%= r.label %>
+        </label>
+      <% }) %>
+    </fieldset>
     <p style="color:#6a84a1">Your app keeps its own database. Only the sign-in is handled by the school system.</p>
     <button class="button" type="submit">Register project</button>
     <a class="button secondary" href="/student-apps">Cancel</a>
