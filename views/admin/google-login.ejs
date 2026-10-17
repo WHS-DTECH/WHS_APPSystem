@@ -1,0 +1,51 @@
+<%- include('../partials/header') %>
+
+<section class="page-title">
+  <p class="eyebrow">Operations</p>
+  <h1>Google Login Status</h1>
+  <p>Health of Google sign-in for every hub, and who has been signing in.</p>
+</section>
+
+<section class="panel">
+  <h2>Configuration</h2>
+  <ul style="list-style:none;padding:0;margin:0">
+    <% checks.forEach(function (check) { %>
+      <li style="padding:6px 0"><strong style="color:<%= check.ok ? '#1d6b3c' : '#b42318' %>"><%= check.ok ? '&#10003;' : '&#10007;' %></strong>
+        <%= check.label %><% if (check.detail) { %> <span style="color:#6a84a1">&mdash; <%= check.detail %></span><% } %></li>
+    <% }) %>
+  </ul>
+  <p style="margin-top:12px">Redirect URI registered with Google must be:<br><code><%= callbackUrl %></code></p>
+  <p style="color:#6a84a1">Food Room's own Google connection uses <code>/food-room/google/oauth2callback</code> on the same host.</p>
+</section>
+
+<section class="panel">
+  <h2>Users</h2>
+  <p>
+    <strong><%= totals.total %></strong> accounts &middot;
+    <strong><%= totals.active %></strong> active &middot;
+    <strong><%= totals.week %></strong> signed in this week &middot;
+    <strong><%= totals.month %></strong> this month
+  </p>
+  <% if (noRoles > 0) { %>
+    <p>&#9888; <strong><%= noRoles %></strong> account(s) have no role yet. Assign them at <a href="/admin/roles">Role Permissions</a> or <a href="/admin/hub-access">Global Hub Access</a>.</p>
+  <% } %>
+</section>
+
+<section class="panel table-panel">
+  <h2>Recent sign-ins</h2>
+  <table>
+    <thead><tr><th>Name</th><th>Email</th><th>Last sign-in</th><th>Status</th></tr></thead>
+    <tbody>
+      <% recent.forEach(function (row) { %>
+        <tr>
+          <td><%= row.display_name %></td>
+          <td><%= row.email %></td>
+          <td><%= row.last_login_at ? new Date(row.last_login_at).toLocaleString('en-NZ') : 'Never' %></td>
+          <td><%= row.is_active ? 'Active' : 'Disabled' %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</section>
+
+<%- include('../partials/footer') %>

@@ -81,6 +81,38 @@ app.get('/email-status', (req, res) => {
   });
 });
 
+app.get('/admin/google-login', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
+  try {
+    const [totals, recent, noRoles] = await Promise.all([
+      query(`SELECT COUNT(*)::int AS total,
+                    COUNT(*) FILTER (WHERE is_active)::int AS active,
+                    COUNT(*) FILTER (WHERE last_login_at > NOW() - INTERVAL '7 days')::int AS week,
+                    COUNT(*) FILTER (WHERE last_login_at > NOW() - INTERVAL '30 days')::int AS month
+             FROM users`),
+      query('SELECT display_name, email, last_login_at, is_active FROM users ORDER BY last_login_at DESC NULLS LAST LIMIT 15'),
+      query(`SELECT COUNT(*)::int AS count FROM users
+             WHERE NOT EXISTS (SELECT 1 FROM user_roles WHERE user_roles.user_id = users.id)`)
+    ]);
+    const google = config.google;
+    const checks = [
+      { label: 'Google client ID and secret', ok: google.isConfigured },
+      { label: 'Domain restriction', ok: Boolean(google.hostedDomain), detail: google.hostedDomain || 'Not set - any Google account can attempt sign-in' },
+      { label: 'Administrator emails', ok: config.adminEmails.length > 0, detail: `${config.adminEmails.length} configured` },
+      { label: 'Secure session cookies', ok: config.isProduction, detail: config.isProduction ? 'Production mode' : 'Development mode' },
+      { label: 'Gmail sending (Email Service)', ok: config.email.gmail.isConfigured }
+    ];
+    res.render('admin/google-login', {
+      title: 'Google Login Status',
+      callbackUrl: google.callbackUrl,
+      checks,
+      noRoles: noRoles.rows[0].count,
+      recent: recent.rows,
+      totals: totals.rows[0]
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 app.get('/admin/school-terms', ensureAuthenticated, ensureRole('ADMIN'), (req, res) => {
   res.render('admin/school-terms', { title: 'School Terms & Holidays' });
 });

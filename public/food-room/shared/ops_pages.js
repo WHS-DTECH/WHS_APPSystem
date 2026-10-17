@@ -839,89 +839,6 @@ const OpsPages = (() => {
     );
   }
 
-  async function renderAccountSettings() {
-    const [permissions, assignments, staff] = await Promise.all([
-      Ops.getPermissions(),
-      Ops.getUserRoleAssignments(),
-      Ops.getStaff()
-    ]);
-
-    setHero({
-      title: 'Auth And Account Settings',
-      subtitle: 'Review role permissions, existing additional role assignments, and current staff footprint ahead of Google Login rollout.',
-      chips: [
-        { text: `${staff.length} staff records` },
-        { text: `${assignments.length} users with extra roles` }
-      ]
-    });
-
-    Ops.renderStats('opsSummary', [
-      { label: 'Role Types', value: String((permissions.roles || []).length), copy: 'Permission profiles currently defined in the database.' },
-      { label: 'Assigned Users', value: String(assignments.length), copy: 'Users with explicit additional roles saved.' },
-      { label: 'Staff Records', value: String(staff.length), copy: 'Potential user accounts available for future sign-in linking.' }
-    ]);
-
-    setSections(
-      `
-        <section class="ops-card">
-          <h2>Role Permissions</h2>
-          <div id="accountPermissionsTable"></div>
-        </section>
-      `,
-      `
-        <section class="ops-card">
-          <h2>Assigned Additional Roles</h2>
-          <div id="accountAssignmentsTable"></div>
-        </section>
-        <section class="ops-card">
-          <h2>Google Login Readiness</h2>
-          <ul class="ops-list">
-            <li>User profile page exists and can accept a staff-linked user query.</li>
-            <li>Staff emails are already present and can become Google identity anchors.</li>
-            <li>Role permissions and extra roles are already stored separately, which makes future auth mapping cleaner.</li>
-          </ul>
-        </section>
-      `
-    );
-
-    Ops.renderTable(
-      'accountPermissionsTable',
-      [
-        { label: 'Role', render: (role) => escape(role.role_name || 'Unknown') },
-        { label: 'Recipes', render: (role) => role.recipes ? Ops.tag('Yes', 'success') : Ops.tag('No') },
-        { label: 'Add Recipes', render: (role) => role.add_recipes ? Ops.tag('Yes', 'success') : Ops.tag('No') },
-        { label: 'Inventory', render: (role) => role.inventory ? Ops.tag('Yes', 'success') : Ops.tag('No') },
-        { label: 'Shopping', render: (role) => role.shopping ? Ops.tag('Yes', 'success') : Ops.tag('No') },
-        { label: 'Booking', render: (role) => role.booking ? Ops.tag('Yes', 'success') : Ops.tag('No') },
-        { label: 'Admin', render: (role) => role.admin ? Ops.tag('Yes', 'success') : Ops.tag('No') }
-      ],
-      permissions.roles || [],
-      'No role permissions found.'
-    );
-
-    Ops.renderTable(
-      'accountAssignmentsTable',
-      [
-        { label: 'User', render: (user) => {
-            // Mask email/ID for privacy
-            let label = user.user_label || user.user_identifier || 'Unknown';
-            if (label && label.includes('@')) {
-              const [name, domain] = label.split('@');
-              label = name.slice(0,2) + '***@' + domain;
-            } else if (/\d{4,}/.test(label)) {
-              label = label.slice(0,2) + '***' + label.slice(-2);
-            }
-            return escape(label);
-          }
-        },
-        { label: 'Type', render: (user) => escape(user.user_type || 'Unknown') },
-        { label: 'Roles', render: (user) => escape((user.roles || []).join(', ') || 'None') }
-      ],
-      assignments,
-      'No additional role assignments found.'
-    );
-  }
-
   async function renderDuplicateDetection() {
     const [recipes, uploads] = await Promise.all([Ops.getRecipes(), Ops.getUploads()]);
 
@@ -1091,7 +1008,6 @@ const OpsPages = (() => {
     exceptions: renderExceptions,
     recipe_compare: renderRecipeCompare,
     shopping_readiness: renderShoppingReadiness,
-    account_settings: renderAccountSettings,
     duplicate_detection: renderDuplicateDetection,
     data_health: renderDataHealth
   };

@@ -1044,6 +1044,7 @@ app.get('/admin_user_roles.html', (req, res) => res.redirect('/hubs/food-room/ro
 app.get(['/admin_permissions.html', '/admin/admin_permissions.html'], (req, res) => res.redirect('/admin/roles'));
 app.get(['/subscription_preferences.html', '/subscription_preferences'], (req, res) => res.redirect('/profile/email-preferences'));
 app.get(['/user_profile.html', '/user_profile'], (req, res) => res.redirect('/profile'));
+app.get(['/ops_account_settings.html', '/ops_account_settings'], (req, res) => res.redirect('/admin/google-login'));
 
 app.get('/api/auth/me', (req, res) => {
   if (!req.authUserEmail) {
