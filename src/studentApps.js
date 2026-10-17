@@ -48,15 +48,30 @@ function chosenRoles(value) {
   return ['Builder'].concat(CHOOSABLE_ROLES.filter((role) => picked.includes(role.key)).map((role) => role.label));
 }
 
+// Kamar staff list: admins first (the first one is the default), then teachers already chosen as a client, then everyone else.
 async function clientChoices() {
   const result = await query(
-    `SELECT DISTINCT users.id, users.display_name, users.email FROM users
-     JOIN user_roles ON user_roles.user_id = users.id
-     JOIN roles ON roles.id = user_roles.role_id
-     WHERE users.is_active AND roles.name IN ('Teacher', 'Staff', 'ADMIN')
-     ORDER BY users.display_name`
+    `SELECT LOWER(staff.email_school) AS email,
+            TRIM(CONCAT_WS(' ', NULLIF(staff.title, ''), staff.first_name, staff.last_name)) AS display_name,
+            EXISTS (SELECT 1 FROM users u JOIN user_roles ur ON ur.user_id = u.id JOIN roles r ON r.id = ur.role_id
+                    WHERE LOWER(u.email) = LOWER(staff.email_school) AND r.name = 'ADMIN') AS is_admin,
+            (SELECT COUNT(*) FROM student_apps sa JOIN users u ON u.id = sa.client_user_id
+              WHERE LOWER(u.email) = LOWER(staff.email_school))::int AS times_chosen
+     FROM kamar.staff staff
+     WHERE staff.status = 'Current' AND COALESCE(staff.email_school, '') <> ''
+     ORDER BY is_admin DESC, (times_chosen > 0) DESC, times_chosen DESC, staff.last_name, staff.first_name`
   );
   return result.rows;
+}
+
+async function findOrCreateUser(email, displayName) {
+  const found = await query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+  if (found.rowCount) return found.rows[0].id;
+  const created = await query(
+    'INSERT INTO users (email, display_name) VALUES ($1, $2) ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email RETURNING id',
+    [email, displayName]
+  );
+  return created.rows[0].id;
 }
 
 async function grantHubRole(app, userId, roleKey, grantedBy) {
@@ -230,7 +245,8 @@ router.post('/new', async (req, res, next) => {
     };
     const url = cleanUrl(form.app_url);
     const slugBase = slugify(form.name);
-    const client = form.client_id ? (await clientChoices()).find((row) => row.id === form.client_id) : null;
+    const choices = await clientChoices();
+    const client = form.client_id ? choices.find((row) => row.email === form.client_id.toLowerCase()) : null;
     const error = !form.name ? 'Give your project a name.'
       : !slugBase ? 'The name needs some letters or numbers.'
       : !url ? 'Enter the full web address of your app, starting with https://'
@@ -241,15 +257,16 @@ router.post('/new', async (req, res, next) => {
     const slug = await uniqueSlug(slugBase);
     const secret = newSecret();
     const roles = chosenRoles(form.roles);
+    const clientId = await findOrCreateUser(client.email, client.display_name);
     const created = await query(
       `INSERT INTO student_apps (slug, hub_key, name, description, app_url, app_roles, owner_user_id, client_user_id, secret_hash)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [slug, `app-${slug}`, form.name, form.description || null, url, roles, req.user.id, client.id, hashSecret(secret)]
+      [slug, `app-${slug}`, form.name, form.description || null, url, roles, req.user.id, clientId, hashSecret(secret)]
     );
     const app = created.rows[0];
     await seedAppRoles(app);
     await grantHubRole(app, req.user.id, 'builder', req.user.id);
-    await grantHubRole(app, client.id, 'lead-teacher', req.user.id);
+    await grantHubRole(app, clientId, 'lead-teacher', req.user.id);
     await query(
       `INSERT INTO modules (module_key, display_name, description, path) VALUES ($1, $2, $3, $4)
        ON CONFLICT (module_key) DO NOTHING`,

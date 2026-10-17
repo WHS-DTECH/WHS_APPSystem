@@ -20,9 +20,8 @@
     </label>
     <label>Who is your client?
       <select name="client_id" required>
-        <option value="">Choose a staff member…</option>
-        <% clients.forEach(function (c) { %>
-          <option value="<%= c.id %>" <%= form.client_id === c.id ? 'selected' : '' %>><%= c.display_name %> (<%= c.email %>)</option>
+        <% clients.forEach(function (c, i) { %>
+          <option value="<%= c.email %>" <%= (form.client_id ? form.client_id === c.email : i === 0) ? 'selected' : '' %>><%= c.display_name %><%= c.is_admin ? ' (Admin)' : '' %></option>
         <% }) %>
       </select>
       <small style="color:#6a84a1">They become the Lead Teacher of your app automatically. You are the Builder.</small>
