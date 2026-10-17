@@ -1184,3 +1184,11 @@ select {
   border-color: var(--line);
   color: var(--muted);
 }
+.module-doc { margin: -4px 0 14px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 8px; background: #fbfaf6; font-size: 14px; }
+.module-doc summary { cursor: pointer; font-weight: 600; color: var(--accent); }
+.module-doc-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+.module-doc-table th, .module-doc-table td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.module-doc-table code { font-size: 12px; word-break: break-all; }
+.env-set { color: #0d5c4a; font-weight: 600; }
+.env-unset { color: var(--muted); }
+.env-missing { color: #b3261e; font-weight: 600; }

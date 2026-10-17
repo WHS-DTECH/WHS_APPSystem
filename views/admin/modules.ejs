@@ -17,7 +17,7 @@
 </section>
 
 <section class="panel table-panel">
-  <% modules.forEach((module) => { %>
+  <% modules.forEach((module) => { const doc = moduleDocs[module.module_key]; %>
     <article class="module-row">
       <div>
         <strong><%= module.display_name %></strong>
@@ -25,6 +25,30 @@
       </div>
       <span class="status"><%= module.is_active ? 'Active' : 'Inactive' %></span>
     </article>
+    <% if (doc) { %>
+      <details class="module-doc">
+        <summary>Setup details: environment variables and database</summary>
+        <p><%= doc.summary %></p>
+        <p><strong>Legacy database:</strong> <%= doc.legacyDatabase.used ? 'Yes' : 'No' %>. <%= doc.legacyDatabase.how %></p>
+        <% if (doc.env.length) { %>
+          <table class="module-doc-table">
+            <thead><tr><th>Environment variable</th><th>Needed</th><th>Status</th><th>Purpose</th></tr></thead>
+            <tbody>
+              <% doc.env.forEach((item) => { %>
+                <tr>
+                  <td><code><%= item.name %></code><%= item.legacy ? ' (legacy database)' : '' %></td>
+                  <td><%= item.optional ? 'Optional' : 'Required' %></td>
+                  <td class="<%= item.isSet ? 'env-set' : (item.optional ? 'env-unset' : 'env-missing') %>"><%= item.isSet ? 'Set' : 'Not set' %></td>
+                  <td><%= item.note %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        <% } else { %>
+          <p>No environment variables of its own.</p>
+        <% } %>
+      </details>
+    <% } %>
   <% }) %>
 </section>
 

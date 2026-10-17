@@ -20,6 +20,7 @@ const workshop = require('./modules/workshop');
 const foodRoom = require('./modules/foodRoom');
 const { importLegacyFoodRoom } = require('./legacyFoodRoomImport');
 const { injectGlobalNav, navData } = require('./globalNav');
+const { describeModules } = require('./moduleDocs');
 
 const app = express();
 
@@ -428,7 +429,7 @@ app.post('/admin/hub-access/:userId', ensureAuthenticated, ensureRole('ADMIN'), 
 app.get('/admin/modules', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
   try {
     const modules = (await query('SELECT * FROM modules ORDER BY display_name')).rows;
-    res.render('admin/modules', { modules, title: 'App Module Management' });
+    res.render('admin/modules', { modules, moduleDocs: describeModules(), title: 'App Module Management' });
   } catch (error) {
     next(error);
   }
