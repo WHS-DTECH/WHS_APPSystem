@@ -189,6 +189,8 @@ The capsule header and home hero use **DTECH Course Capsules**. Desktop and
 mobile navigation label the original course catalogue **My Capsules**; dashboard
 access remains available through the shared Teacher View / Student View controls
 and the original routes, rather than a duplicate navbar Dashboard link.
+**My Capsules** is a burgundy pill with white text beside the notification bell,
+including on mobile.
 
 Before activation:
 

@@ -83,7 +83,11 @@ class TrainingRuntimeTests(unittest.TestCase):
             self.assertNotIn("school_logo.png", navbar)
             self.assertIn("whslogocircular.png", navbar)
             self.assertNotIn("> Dashboard</a>", navbar)
-            self.assertEqual(navbar.count("> My Capsules</a>"), 2)
+            self.assertEqual(navbar.count("> My Capsules</a>"), 1)
+            right_side = navbar.split('<div class="navbar-right">', 1)[1]
+            self.assertIn('class="capsules-pill"', right_side)
+            self.assertLess(right_side.index("> My Capsules</a>"), right_side.index('id="notificationBell"'))
+            self.assertNotIn("My Capsules", navbar.split('<ul class="navbar-menu"', 1)[1].split("</ul>", 1)[0])
             self.assertIn("/dtech-hub/class-training/courses/", navbar)
             self.assertEqual(self.get("/dashboard").status_code, 200)
 
@@ -291,7 +295,10 @@ class TrainingRuntimeTests(unittest.TestCase):
                 self.assertNotIn("> Settings</a>", html)
                 self.assertNotIn("> Logout</a>", html)
                 self.assertIn('id="notificationBell"', html)
-                self.assertIn('id="hamburger"', html)
+                if role == "student":
+                    self.assertIn('id="hamburger"', html)
+                else:
+                    self.assertNotIn('id="hamburger"', html)
                 self.assertIn("/dtech-hub/class-training/courses/", html)
 
     def test_csrf_required_and_original_post_persists(self):

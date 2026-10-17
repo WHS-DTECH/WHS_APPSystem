@@ -100,6 +100,31 @@
             display: flex;
             align-items: center;
             gap: 1rem;
+            margin-left: auto;
+        }
+
+        .capsules-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1rem;
+            border-radius: 999px;
+            background: #5c0e2a;
+            color: #fff;
+            text-decoration: none;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .capsules-pill:hover,
+        .capsules-pill:focus-visible {
+            background: #7a1d3e;
+            color: #fff;
+        }
+
+        .capsules-pill:focus-visible {
+            outline: 2px solid #5c0e2a;
+            outline-offset: 3px;
         }
 
         .user-menu {
@@ -723,6 +748,7 @@
                 padding: 0 1rem;
                 height: auto;
                 gap: 0.5rem;
+                flex-wrap: wrap;
             }
 
             .navbar-brand {
@@ -823,7 +849,6 @@
             <!-- Center Menu -->
             <ul class="navbar-menu" id="navbarMenu">
                 {% if current_user.is_authenticated %}
-                    <li><a href="{{ url_for('courses.list_courses') }}"><i class="fas fa-book"></i> My Capsules</a></li>
                     {% if not current_user.is_teacher() %}
                         <li><a href="{{ url_for('main.student_progress') }}"><i class="fas fa-chart-line"></i> Progress</a></li>
                     {% endif %}
@@ -833,6 +858,7 @@
             <!-- Right Side -->
             <div class="navbar-right">
                 {% if current_user.is_authenticated %}
+                    <a class="capsules-pill" href="{{ url_for('courses.list_courses') }}"><i class="fas fa-book" aria-hidden="true"></i> My Capsules</a>
                     <!-- Notification Bell -->
                     <div class="notification-bell-container">
                         <button class="notification-bell" id="notificationBell" onclick="notificationManager && notificationManager.togglePanel()">
@@ -860,18 +886,22 @@
                 {% endif %}
 
                 <!-- Hamburger Menu -->
+                {% if not current_user.is_authenticated or not current_user.is_teacher() %}
                 <button class="hamburger" id="hamburger">
                     <span></span>
                     <span></span>
                     <span></span>
                 </button>
+                {% endif %}
             </div>
         </div>
 
         <!-- Mobile Menu -->
         <div class="mobile-menu" id="mobileMenu">
             {% if current_user.is_authenticated %}
-                <a href="{{ url_for('courses.list_courses') }}"><i class="fas fa-book"></i> My Capsules</a>
+                {% if not current_user.is_teacher() %}
+                    <a href="{{ url_for('main.student_progress') }}"><i class="fas fa-chart-line"></i> Progress</a>
+                {% endif %}
             {% else %}
                 <a href="{{ url_for('google.login') }}" style="display:inline-flex;align-items:center;gap:0.5em;padding:0.5em 1em;background:white;color:#3c4043;border:1px solid #dadce0;border-radius:0.4em;text-decoration:none;font-size:0.9rem;font-weight:500;">
                     <svg width="16" height="16" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path fill="#EA4335" d="M24 9.5c3.1 0 5.8 1.1 8 2.9l6-6C34.4 3 29.5 1 24 1 14.7 1 6.8 6.6 3.2 14.6l7 5.4C12 13.9 17.5 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.4 5.7c4.3-4 6.8-9.9 6.8-16.9z"/><path fill="#FBBC05" d="M10.2 28.6A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.7-4.6l-7-5.4A23.9 23.9 0 0 0 0 24c0 3.9.9 7.5 2.6 10.8l7.6-6.2z"/><path fill="#34A853" d="M24 47c5.5 0 10.1-1.8 13.5-4.9l-7.4-5.7c-1.9 1.3-4.3 2.1-6.1 2.1-6.5 0-12-4.4-14-10.3l-7.6 6.2C6.8 41.4 14.7 47 24 47z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
