@@ -23,7 +23,9 @@
     '#gn-nav .gn-spacer{flex:1}',
     'html.gn-open.gn-push body{margin-left:' + WIDTH + 'px!important}',
     'html.gn-open.gn-push{overflow-x:hidden}',
-    '@media print{#gn-nav,#gn-toggle{display:none!important}html.gn-open.gn-push body{margin-left:0!important}}'
+    '@media print{#gn-nav,#gn-toggle{display:none!important}html.gn-open.gn-push body{margin-left:0!important}}',
+    // Hub sign in / sign out controls are replaced by the sidebar.
+    '#google-signout,#google-user-initials,#googleSignIn,#logoutButton,.nb2-logout-btn,.nb2-user-menu-item[data-role="guest"],.nb2-panel-section[data-role="guest"],.nb2-panel-link[href^="google_login"]{display:none!important}'
   ].join('\n');
 
   function el(tag, attrs, text) {
@@ -107,9 +109,19 @@
     } else {
       link(nav, 'Home', '/');
       nav.appendChild(el('div', { 'class': 'gn-spacer' }));
-      nav.appendChild(el('a', { href: '/auth/google' }, 'Sign in with Google'));
+      nav.appendChild(el('a', { href: '/auth/google?next=' + encodeURIComponent(location.pathname + location.search) }, 'Sign in with Google'));
     }
   }
+
+  // Any remaining hub "sign in" links return the user to the page they were on.
+  document.addEventListener('click', function (event) {
+    var anchor = event.target.closest && event.target.closest('a[href]');
+    if (!anchor) return;
+    var raw = anchor.getAttribute('href');
+    if (raw === '/auth/google') {
+      anchor.setAttribute('href', '/auth/google?next=' + encodeURIComponent(location.pathname + location.search));
+    }
+  }, true);
 
   function init() {
     var style = el('style');

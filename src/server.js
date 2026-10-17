@@ -19,7 +19,7 @@ const sewingHub = require('./modules/sewingHub');
 const workshop = require('./modules/workshop');
 const foodRoom = require('./modules/foodRoom');
 const { importLegacyFoodRoom } = require('./legacyFoodRoomImport');
-const { injectGlobalNav, navData } = require('./globalNav');
+const { injectGlobalNav, navData, safeNext, readCookie, NEXT_COOKIE } = require('./globalNav');
 const { describeModules } = require('./moduleDocs');
 
 const app = express();
@@ -112,6 +112,9 @@ app.get('/auth/google', (req, res, next) => {
     });
   }
 
+  const next_ = safeNext(req.query.next);
+  if (next_) res.cookie(NEXT_COOKIE, next_, { maxAge: 10 * 60 * 1000, httpOnly: true, sameSite: 'lax', secure: req.secure });
+
   return passport.authenticate('google', {
     hd: config.google.hostedDomain,
     prompt: 'select_account',
@@ -127,10 +130,11 @@ app.get('/auth/google/callback', (req, res, next) => {
     });
   }
 
-  return passport.authenticate('google', {
-    failureRedirect: '/?login=failed',
-    successRedirect: '/dashboard'
-  })(req, res, next);
+  return passport.authenticate('google', { failureRedirect: '/?login=failed' })(req, res, () => {
+    const target = safeNext(readCookie(req, NEXT_COOKIE)) || '/dashboard';
+    res.clearCookie(NEXT_COOKIE);
+    res.redirect(target);
+  });
 });
 
 app.post('/logout', ensureAuthenticated, (req, res, next) => {

@@ -4,7 +4,7 @@ const express = require('express');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { injectGlobalNav, navData } = require('../src/globalNav');
+const { injectGlobalNav, navData, safeNext } = require('../src/globalNav');
 
 async function withServer(setup, run) {
   const app = express();
@@ -91,4 +91,9 @@ test('nav-data returns the module links for a signed in user and none for anonym
     assert.equal(user.name, 'Vanessa');
     assert.deepEqual(user.modules, [{ name: 'Food Room Hub', path: '/food-room' }]);
   });
+});
+
+test('login return path only accepts same-site relative paths', () => {
+  assert.equal(safeNext('/food-room/index.html?a=1'), '/food-room/index.html?a=1');
+  for (const bad of ['//evil.com', 'https://evil.com', '/\\evil.com', 'food-room', '', null]) assert.equal(safeNext(bad), null);
 });

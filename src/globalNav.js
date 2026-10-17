@@ -83,4 +83,18 @@ function navData(query) {
   };
 }
 
-module.exports = { injectGlobalNav, navData };
+const NEXT_COOKIE = 'whs_next';
+
+// Only same-site relative paths are accepted, so login can't be used as an open redirect.
+function safeNext(value) {
+  const next = String(value || '');
+  if (!next.startsWith('/') || next.startsWith('//') || next.includes('\\') || /[\r\n]/.test(next)) return null;
+  return next.slice(0, 500);
+}
+
+function readCookie(req, name) {
+  const match = String(req.headers.cookie || '').split(/;\s*/).find((part) => part.startsWith(`${name}=`));
+  return match ? decodeURIComponent(match.slice(name.length + 1)) : null;
+}
+
+module.exports = { injectGlobalNav, navData, safeNext, readCookie, NEXT_COOKIE };
