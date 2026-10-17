@@ -173,7 +173,7 @@ the original storage/location separately. Existing records are not copied to Cor
 ### Class Training: original DTECH activity
 
 **Commenting and Debugging Training** opens at `/dtech-hub/class-training/`.
-The shared sidebar lists **Class Training** under **CAPSULES**, between HUBS
+The shared sidebar lists **Capsule DASHBOARD** under **CAPSULES**, between HUBS
 and STUDENT APPS. **HUB Dashboard** is the sidebar label for `/technology-hub/`;
 **APPs Dashboard** opens `/student-apps`. These labels do not change routes or roles.
 Original DTECH activity detail pages recognise the shared school session, so

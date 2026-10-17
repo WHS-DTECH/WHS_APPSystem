@@ -98,7 +98,7 @@ test('HUB Dashboard, DTECH and Class Training use the requested navigation group
   const capsules = entries.findIndex((entry) => entry.text === 'CAPSULES');
   const training = entries.findIndex((entry) => entry.href === '/dtech-hub/class-training/');
   assert.ok(capsules > technology && training > capsules && training < studentApps);
-  assert.equal(entries[training].text, 'Class Training');
+  assert.equal(entries[training].text, 'Capsule DASHBOARD');
   assert.equal(entries.filter((entry) => entry.href === '/dtech-hub/class-training/').length, 1);
   assert.equal(entries.find((entry) => entry.href === '/student-apps').text, 'APPs Dashboard');
   assert.ok(technology > hubs && technology + 1 < studentApps);

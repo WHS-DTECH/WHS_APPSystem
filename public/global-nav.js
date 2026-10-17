@@ -144,7 +144,7 @@
       nav.appendChild(el('div', { 'class': 'gn-gap' }));
       nav.appendChild(el('div', { 'class': 'gn-head' }, 'CAPSULES'));
       if (modules.some(function (module) { return /^\/dtech-hub(?:\/|$)/.test(module.path); })) {
-        link(nav, 'Class Training', '/dtech-hub/class-training/');
+        link(nav, 'Capsule DASHBOARD', '/dtech-hub/class-training/');
       } else {
         nav.appendChild(el('div', { 'class': 'gn-empty' }, 'None yet'));
       }
