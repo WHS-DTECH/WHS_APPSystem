@@ -24,9 +24,6 @@
     <label>What does it do?
       <textarea name="description" rows="8" maxlength="600" style="width:100%;min-height:180px"><%= form.description || '' %></textarea>
     </label>
-    <label>Web address of your app
-      <input name="app_url" value="<%= form.app_url || '' %>" placeholder="https://your-app.onrender.com (optional - add later)">
-    </label>
     <label>Who is your client?
       <select name="client_id" required>
         <% clients.forEach(function (c, i) { %>

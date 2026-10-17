@@ -155,7 +155,7 @@ async function emailAdminNewProject({ app, builder, client, secret, base }) {
     `Built by: ${builder.display_name} (${builder.email})`,
     `Client (Lead Teacher): ${client.display_name} (${client.email})`,
     `Roles: ${app.app_roles.join(', ')}`,
-    `Web address: ${app.app_url || 'not supplied yet'}`,
+    `Web address (assigned when registered): ${base}/apps/${app.slug}`,
     `What it does: ${app.description || 'not supplied'}`
   ];
   const text = `${lines.join('\n')}\n\nWHS_APP_SECRET:\n${secret}\n\nAdd WHS_APP_SECRET to the project's Render service, then open:\n${reviewUrl}\nand press "Secret loaded - project is registered".`;
@@ -178,8 +178,8 @@ function emailBuilderRegistered({ app, builder, base }) {
   return sendEmail({
     to: builder.email,
     subject: `[Student Apps] ${app.name} is registered`,
-    text: `Your project "${app.name}" is registered.\n\nLog in to continue: ${url}`,
-    html: `<p>Your project <strong>${escapeHtml(app.name)}</strong> is registered.</p><p><a href="${escapeHtml(url)}">Log in to continue</a></p>`
+    text: `Your project "${app.name}" is registered.\n\nYour web address: ${app.app_url}\n\nLog in to continue: ${url}`,
+    html: `<p>Your project <strong>${escapeHtml(app.name)}</strong> is registered.</p><p>Your web address: <a href="${escapeHtml(app.app_url)}">${escapeHtml(app.app_url)}</a></p><p><a href="${escapeHtml(url)}">Log in to continue</a></p>`
   });
 }
 
@@ -338,7 +338,8 @@ router.post('/:slug/activate', async (req, res, next) => {
     const app = await loadApp(req.params.slug);
     if (!app || !isAdmin(req.user)) return res.status(403).render('error', { title: 'Access denied', message: 'Only an administrator can register a project.' });
     if (app.status !== 'active') {
-      await query(`UPDATE student_apps SET status = 'active', activated_at = NOW() WHERE id = $1`, [app.id]);
+      app.app_url = app.app_url || `${baseFor(req)}/apps/${app.slug}`;
+      await query(`UPDATE student_apps SET status = 'active', activated_at = NOW(), app_url = $2 WHERE id = $1`, [app.id, app.app_url]);
       await query(
         `INSERT INTO modules (module_key, display_name, description, path) VALUES ($1, $2, $3, $4)
          ON CONFLICT (module_key) DO NOTHING`,

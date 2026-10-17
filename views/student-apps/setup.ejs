@@ -17,7 +17,7 @@
 <section class="page-title">
   <p class="eyebrow">Student Apps</p>
   <h1><%= app.name %></h1>
-  <p><%= app.app_url || "No web address yet" %></p>
+  <p><%= app.app_url || "Web address assigned when registered" %></p>
 </section>
 
 <% if (app.status !== 'active') { %>
@@ -66,15 +66,9 @@
     <li>Click <strong>Test sign-in</strong>. You sign in with your school Google account, are sent to your app, and your app asks the school system who you are.</li>
   </ol>
   <p>
-    <% if (app.app_url) { %><a class="sa-btn" href="<%= launchUrl %>">Test sign-in</a><% } else { %><span style="color:#b9770e">Add your app's web address below first.</span><% } %>
+    <% if (app.app_url) { %><a class="sa-btn" href="<%= launchUrl %>">Test sign-in</a><% } else { %><span style="color:#b9770e">Your web address is assigned when the project is registered.</span><% } %>
     <% if (loginDone) { %> Verified <%= new Date(app.login_verified_at).toLocaleString('en-NZ') %><% } else { %> Not tested yet<% } %>
   </p>
-  <form method="post" action="/student-apps/<%= app.slug %>/url" class="module-form" style="margin:10px 0">
-    <label>Web address of your app
-      <input name="app_url" value="<%= app.app_url || '' %>" placeholder="https://your-app.onrender.com">
-    </label>
-    <button class="sa-btn sa-alt" type="submit">Save address</button>
-  </form>
   <% if (siteAdmin) { %><form method="post" action="/student-apps/<%= app.slug %>/secret" onsubmit="return confirm('Make a new secret? The old one stops working.')">
     <button class="sa-btn sa-alt" type="submit">Make a new secret</button>
   </form><% } %>
