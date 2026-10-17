@@ -20,6 +20,7 @@ const workshop = require('./modules/workshop');
 const foodRoom = require('./modules/foodRoom');
 const { importLegacyFoodRoom } = require('./legacyFoodRoomImport');
 const hubRoles = require('./hubRoles');
+const assessmentStandards = require('./assessmentStandards');
 const { injectGlobalNav, navData, safeNext, readCookie, NEXT_COOKIE } = require('./globalNav');
 const { describeModules } = require('./moduleDocs');
 
@@ -111,6 +112,7 @@ app.get('/admin/emails', ensureAuthenticated, ensureRole('ADMIN'), async (req, r
   }
 });
 
+app.use('/hubs', assessmentStandards.router);
 app.use('/hubs', hubRoles.router);
 app.use('/admin/kamar-uploader', kamarUploader);
 app.use(kamarUploaderApi);

@@ -129,7 +129,19 @@ pageGuards.get(
   }
 );
 
-pageGuards.get(['/admin_assessment_management.html', '/admin_suggestions.html'], ensureAuthenticated, ensureRole('ADMIN'), (req, res) => {
+pageGuards.get('/admin_assessment_management.html', ensureAuthenticated, async (req, res, next) => {
+  try {
+    const { canManageHubRoles } = require('../hubRoles');
+    if (await canManageHubRoles(req.user, 'sewing-hub')) {
+      return res.sendFile(path.join(legacySewingDir, 'admin_assessment_management.html'));
+    }
+    return res.status(403).render('error', { title: 'Access denied', message: 'Only an administrator or the Sewing Hub Lead Teacher can manage assessment standards.' });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+pageGuards.get('/admin_suggestions.html', ensureAuthenticated, ensureRole('ADMIN'), (req, res) => {
   res.sendFile(path.join(legacySewingDir, path.basename(req.path)));
 });
 

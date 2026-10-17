@@ -36,68 +36,9 @@
     </div>
   </nav>
 
-  <main class="admin-page-wrap">
-    <section class="admin-page-head">
-      <div>
-        <h1>Assessment Management</h1>
-        <p>NZQA Level 1 Materials and Processing Technology achievement standards.</p>
-      </div>
-      <a class="admin-back-btn" href="/sewing-hub/index.html">&#8592; Back to Hub</a>
-    </section>
-
-    <section class="admin-card">
-      <h2>Assessment Standards Manager</h2>
-      <form id="assessment-filters" class="admin-form-grid" style="grid-template-columns: 1.2fr 1fr 1fr auto; align-items:end;">
-        <div class="field">
-          <label for="subject-set-filter">Subject Set</label>
-          <select id="subject-set-filter">
-            <option value="">All subject sets</option>
-          </select>
-        </div>
-
-        <div class="field">
-          <label for="level-filter">Level</label>
-          <select id="level-filter">
-            <option value="">All levels</option>
-            <option value="Level 1" selected>Level 1</option>
-          </select>
-        </div>
-
-        <div class="field">
-          <label for="standard-search">Standard Number</label>
-          <input id="standard-search" placeholder="e.g. 92013" />
-        </div>
-
-        <div class="actions-row" style="margin:0;">
-          <button class="admin-primary-btn" type="button" id="refresh-standards">Refresh NZQA Data</button>
-        </div>
-      </form>
-
-      <p id="assessment-management-status" class="admin-note"></p>
-
-      <div class="admin-table-wrap">
-        <table class="admin-table" id="assessment-standards-table">
-          <thead>
-            <tr>
-              <th>Standard #</th>
-              <th>Standard Name</th>
-              <th>Level</th>
-              <th>Credits</th>
-              <th>Type</th>
-              <th>NZQA</th>
-            </tr>
-          </thead>
-          <tbody id="assessment-standards-body">
-            <tr>
-              <td colspan="6" style="text-align:left; color:#5c7590;">Loading standards...</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-  </main>
+  <div id="assessment-root" data-hub="sewing-hub"></div>
 
   <script src="auth-client.js"></script>
-  <script src="admin_assessment_management.js"></script>
+  <script src="/assessment-standards.js"></script>
 </body>
 </html>
