@@ -59,8 +59,8 @@ async function clientChoices() {
                       WHERE LOWER(u.email) = LOWER(staff.email_school) AND r.name = 'ADMIN') AS is_admin,
               (SELECT COUNT(*) FROM student_apps sa JOIN users u ON u.id = sa.client_user_id
                 WHERE LOWER(u.email) = LOWER(staff.email_school))::int AS times_chosen
-       FROM kamar.staff staff
-       WHERE staff.status = 'Current' AND COALESCE(staff.email_school, '') <> ''
+       FROM staff_upload staff
+       WHERE COALESCE(staff.status, 'Current') = 'Current' AND COALESCE(staff.email_school, '') <> ''
      ) ranked
      ORDER BY is_admin DESC, times_chosen DESC, last_name, first_name`
   );
