@@ -19,6 +19,7 @@ const sewingHub = require('./modules/sewingHub');
 const workshop = require('./modules/workshop');
 const foodRoom = require('./modules/foodRoom');
 const { importLegacyFoodRoom } = require('./legacyFoodRoomImport');
+const { injectGlobalNav, navData } = require('./globalNav');
 
 const app = express();
 
@@ -27,8 +28,9 @@ app.set('views', path.join(__dirname, '..', 'views'));
 app.set('trust proxy', 1);
 
 app.use(helmet({ contentSecurityPolicy: false }));
+app.use(injectGlobalNav);
 // The Food Room pages make many small API calls, so they are not counted against the shared limit.
-app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, skip: (req) => req.path.startsWith('/food-room/') }));
+app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, skip: (req) => req.path.startsWith('/food-room/') || req.path === '/nav-data' }));
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json({ limit: '25mb' }));
 app.use(session({
@@ -63,6 +65,8 @@ app.use((req, res, next) => {
 app.get('/healthz', (req, res) => {
   res.status(200).json({ ok: true });
 });
+
+app.get('/nav-data', navData(query));
 
 app.get('/email-status', (req, res) => {
   res.json({
