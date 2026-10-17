@@ -1042,6 +1042,7 @@ app.post('/api/auth/logout', (req, res) => {
 // Role management now lives in the app's user administration.
 app.get('/admin_user_roles.html', (req, res) => res.redirect('/hubs/food-room/roles'));
 app.get(['/admin_permissions.html', '/admin/admin_permissions.html'], (req, res) => res.redirect('/admin/roles'));
+app.get(['/subscription_preferences.html', '/subscription_preferences'], (req, res) => res.redirect('/profile/email-preferences'));
 
 app.get('/api/auth/me', (req, res) => {
   if (!req.authUserEmail) {

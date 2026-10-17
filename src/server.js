@@ -21,6 +21,7 @@ const foodRoom = require('./modules/foodRoom');
 const { importLegacyFoodRoom } = require('./legacyFoodRoomImport');
 const hubRoles = require('./hubRoles');
 const assessmentStandards = require('./assessmentStandards');
+const emailPreferences = require('./emailPreferences');
 const { injectGlobalNav, navData, safeNext, readCookie, NEXT_COOKIE } = require('./globalNav');
 const { describeModules } = require('./moduleDocs');
 
@@ -233,6 +234,8 @@ app.get('/dashboard', ensureAuthenticated, async (req, res, next) => {
     next(error);
   }
 });
+
+app.use('/profile/email-preferences', emailPreferences.router);
 
 app.get('/profile', ensureAuthenticated, (req, res) => {
   res.render('profile', { title: 'User Profile' });

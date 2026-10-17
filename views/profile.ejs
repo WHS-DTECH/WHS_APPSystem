@@ -19,6 +19,7 @@
     <dt>Last login</dt>
     <dd><%= currentUser.last_login_at ? new Date(currentUser.last_login_at).toLocaleString() : 'Current session' %></dd>
   </dl>
+  <p><a class="button" href="/profile/email-preferences">Email preferences</a></p>
 </section>
 
 <% if (isAdmin) { %>

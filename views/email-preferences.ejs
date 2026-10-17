@@ -1,0 +1,59 @@
+<%- include('partials/header') %>
+
+<section class="page-title">
+  <p class="eyebrow">User profile</p>
+  <h1>Email Preferences</h1>
+  <p>Choose which emails the WHS system sends to <strong><%= currentUser.email %></strong>.</p>
+</section>
+
+<section class="panel">
+  <% if (saved) { %><p style="background:#e3f4e8;color:#1d6b3c;padding:10px 12px;border-radius:8px">Preferences saved.</p><% } %>
+  <form method="post" action="/profile/email-preferences">
+    <label style="display:flex;gap:10px;align-items:flex-start;margin-bottom:16px">
+      <input type="checkbox" name="recipes" <%= prefs.recipes ? 'checked' : '' %> style="margin-top:4px">
+      <span><strong>New recipe notifications</strong><br>Receive an email when a new recipe is published to the Food Room collection.</span>
+    </label>
+    <% if (canCalendar) { %>
+      <label style="display:flex;gap:10px;align-items:flex-start;margin-bottom:16px">
+        <input type="checkbox" name="calendar" <%= prefs.calendar ? 'checked' : '' %> style="margin-top:4px">
+        <span><strong>Teacher calendar change notifications</strong><br>Receive an email when a Food Room booking or calendar entry changes.</span>
+      </label>
+    <% } %>
+    <button class="button" type="submit">Save preferences</button>
+    <a class="button secondary" href="/profile">Back to profile</a>
+  </form>
+</section>
+
+<% if (isAdmin) { %>
+<section class="panel">
+  <h2>Weekly digest (administrators)</h2>
+  <p>Preview the weekly Food Room digest, send a test to your inbox, or send it to all current staff. It also sends automatically each Monday morning.</p>
+  <p id="digestStatus" style="min-height:1.2em"></p>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <a class="button secondary" href="/food-room/api/weekly-digest/preview" target="_blank" rel="noopener">Preview email</a>
+    <button class="button" type="button" id="digestTest">Send test email</button>
+    <button class="button secondary" type="button" id="digestAll">Send to all staff</button>
+  </div>
+</section>
+<script>
+  (function () {
+    var status = document.getElementById('digestStatus');
+    function send(url, label, confirmText) {
+      if (confirmText && !window.confirm(confirmText)) return;
+      status.textContent = 'Sending...';
+      fetch(url, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'x-user-email': <%- JSON.stringify(currentUser.email) %> } })
+        .then(function (r) { return r.json(); })
+        .then(function (d) { status.textContent = d.success ? label(d) : 'Error: ' + (d.error || 'Unknown error'); })
+        .catch(function (e) { status.textContent = 'Network error: ' + e.message; });
+    }
+    document.getElementById('digestTest').addEventListener('click', function () {
+      send('/food-room/api/weekly-digest/send-test', function () { return 'Test email sent. Check your inbox.'; });
+    });
+    document.getElementById('digestAll').addEventListener('click', function () {
+      send('/food-room/api/weekly-digest/send', function (d) { return 'Sent to ' + (d.count || 0) + ' staff member(s).'; }, 'Send the weekly digest to ALL current staff now?');
+    });
+  })();
+</script>
+<% } %>
+
+<%- include('partials/footer') %>
