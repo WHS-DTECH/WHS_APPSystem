@@ -74,6 +74,26 @@ are disabled until an administrator or Lead Teacher enables them. Builders can
 view the assigned accounts and mappings but cannot change access or grant
 themselves app administration. Clients and assigned Lead Teachers can find the
 project on the Student Apps dashboard and manage access.
+Guidance uses the validated per-request role from Global Control, without reading
+or writing its legacy role table. Its old User Roles and restore-admin endpoints
+redirect to the global app-role assignment page; the User Roles navbar link is
+removed and Open Admin Items opens that global page. Legacy local registration
+and Google login endpoints are disabled when hosted.
+
+Privacy remains separate from settings management: `AppBuilder` sees dummy data,
+`ADMIN` (including the client / Lead Teacher) sees masked data, and only
+`Counsellor` sees plaintext profiles and session details. Builders cannot write
+student records or access spreadsheet upload/sync, and masked administrators
+cannot delete students. To grant confidential-data access, an administrator or
+Lead Teacher must explicitly map an optional school role to `Counsellor` and assign
+that role through Global Control. A school administrator or client also holding
+that optional role still gets the higher-priority masked `ADMIN` mapping.
+The legacy encryption key is unchanged; secure key management is still required
+before using real counselling notes.
+
+Run the isolated Python regressions with
+`python tests\guidance_global_roles_test.py -v` (Flask and the app requirements
+must be installed). They use a temporary dummy database, never the live database.
 Existing active hosted registrations can use automatic sign-in without repeating
 the external sign-in verification. Other hosted apps can declare known core
 mappings using `defaultRoleMap` and supported internal roles using `roles` in

@@ -10,10 +10,12 @@ import os
 import re
 from urllib.parse import unquote
 
-from flask import redirect, request, session
+from flask import g, redirect, request, session
 
 module_name, _, attr = os.environ["WHS_APP_MODULE"].partition(":")
 app = getattr(importlib.import_module(module_name), attr or "app")
+app.config["WHS_HOSTED"] = True
+app.config["WHS_ROLE_MANAGEMENT_URL"] = os.environ["WHS_ROLE_MANAGEMENT_URL"]
 
 PREFIX = os.environ.get("SCRIPT_NAME", "").rstrip("/")
 TOKEN = os.environ.get("WHS_PROXY_TOKEN", "")
@@ -31,29 +33,19 @@ def _sign_in_from_headers():
     role = request.headers.get("X-WHS-Role", "")
     if not email:
         return "Sign in through the school system.", 401
+    if not role:
+        return "No app role has been assigned through Global Control.", 403
 
+    g.whs_role = role
     session["user"] = email
     session["name"] = unquote(request.headers.get("X-WHS-Name", ""))
     session["role"] = role
-
-    # Apps like the Guidance Counsellor App keep roles in their own database, so keep it in step.
-    backend = getattr(sys_module(), "backend", None)
-    if backend is not None and role:
-        try:
-            if backend.get_user_role(email) != role:
-                backend.set_user_role(email, role)
-        except Exception:
-            app.logger.exception("Could not sync the role for %s", email)
 
     if request.path == "/":
         return redirect(PREFIX + "/dashboard")
     if request.path == "/logout":
         return redirect("/student-apps")
     return None
-
-
-def sys_module():
-    return importlib.import_module(module_name)
 
 
 def _prefix_links(response):
@@ -63,6 +55,8 @@ def _prefix_links(response):
 
     def replace(match):
         start = match.end() - 1
+        if text.startswith(app.config["WHS_ROLE_MANAGEMENT_URL"], start):
+            return match.group(0)
         if text.startswith(PREFIX + "/", start) or text.startswith(PREFIX + '"', start):
             return match.group(0)
         return f"{match.group(1)}{match.group(2)}{PREFIX}/"

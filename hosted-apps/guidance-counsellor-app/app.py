@@ -2,7 +2,7 @@ import os
 import time
 import hashlib
 import datetime
-from flask import Flask, request, redirect, session, url_for, render_template_string
+from flask import Flask, abort, g, request, redirect, session, url_for, render_template_string
 
 from database import StudentBackend, ADMIN_USERNAME
 from dashboard import DASHBOARD_WEB_TEMPLATE, build_dashboard_context
@@ -39,6 +39,11 @@ def current_user():
 
 
 def current_role():
+    if app.config.get("WHS_HOSTED"):
+        role = getattr(g, "whs_role", None)
+        if role not in {"ADMIN", "Counsellor", "AppBuilder"}:
+            abort(403, description="A valid app role must be assigned through Global Control.")
+        return role
     user = current_user()
     if not user:
         return None
@@ -55,7 +60,19 @@ def login_required():
 
 def current_global_navbar():
     role = current_role()
-    return build_global_navbar(role)
+    return build_global_navbar(role, app.config.get("WHS_ROLE_MANAGEMENT_URL"))
+
+
+@app.before_request
+def enforce_hosted_role_control():
+    if not app.config.get("WHS_HOSTED"):
+        return None
+    current_role()
+    if request.path in {"/user-roles", "/account/restore-admin"}:
+        return redirect(app.config["WHS_ROLE_MANAGEMENT_URL"], code=303)
+    if request.path in {"/login", "/register", "/auth/google/login", "/auth/google/callback"}:
+        abort(403, description="Use the school Google sign-in, not the legacy login.")
+    return None
 
 
 def current_global_footer():
@@ -236,7 +253,7 @@ def dashboard():
         role=role,
         data_label=data_label,
         students=students,
-        can_restore_admin=(role != "ADMIN" and user_email == recovery_email),
+        can_restore_admin=(not app.config.get("WHS_HOSTED") and role != "ADMIN" and user_email == recovery_email),
     )
     context["global_navbar"] = current_global_navbar()
     return render_template_string(DASHBOARD_WEB_TEMPLATE, **context)
@@ -323,6 +340,8 @@ def students_edit():
         return redirect(url_for("index"))
 
     role = current_role()
+    if role == "AppBuilder":
+        abort(403, description="Builders use dummy data and cannot write student records.")
     if role != "Counsellor":
         # Non-counsellor users may open blank forms and save new test records,
         # but they cannot open or overwrite existing live records.
@@ -445,6 +464,8 @@ def students_sync_spreadsheets_page():
                 return redirect(url_for("index"))
 
         role = current_role()
+        if role == "AppBuilder":
+                abort(403, description="Builders cannot access live spreadsheet uploads or synchronisation.")
         if role not in {"ADMIN", "Counsellor", "AppBuilder"}:
                 return redirect(url_for("dashboard"))
 
@@ -615,8 +636,8 @@ def students_delete():
         return redirect(url_for("index"))
 
     role = current_role()
-    if role == "AppBuilder":
-        return redirect(url_for("students"))
+    if role != "Counsellor":
+        abort(403, description="Only a Counsellor can delete student records.")
 
     student_id = (request.form.get("student_id") or "").strip()
     if student_id:

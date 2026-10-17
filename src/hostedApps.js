@@ -60,6 +60,7 @@ function appEnvironment(item, port) {
     PYTHONPATH: HOST_DIR,
     PYTHONUNBUFFERED: '1',
     WHS_APP_MODULE: item.manifest.module || 'app:app',
+    WHS_ROLE_MANAGEMENT_URL: `/hubs/app-${item.slug}/roles`,
     WHS_PROXY_TOKEN: PROXY_TOKEN,
     SECRET_KEY: crypto.createHmac('sha256', config.sessionSecret || 'dev').update(`hosted:${item.slug}`).digest('hex')
   };
