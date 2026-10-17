@@ -287,3 +287,76 @@ window.addEventListener("hub-auth-state-changed", (event) => {
     if (event.detail?.signedIn) loadReliefPlan();
 });
 loadReliefPlan();
+
+async function loadLegacyCourseLessons() {
+    const host = document.querySelector("#legacy-course-lessons");
+    const status = document.querySelector("#legacy-course-lessons-status");
+    const select = document.querySelector("#legacy-course-lesson-select");
+    const details = document.querySelector("#legacy-course-lesson-details");
+    if (!window.whsDtech) return;
+    host.hidden = false;
+    status.textContent = "Loading existing course lessons...";
+    try {
+        const response = await fetch("/api/lessons");
+        if (!response.ok) throw new Error("Could not load existing course lessons. Please refresh to retry.");
+        const lessons = (await response.json()).filter((lesson) => lesson.legacy_course_lesson);
+        if (!lessons.length) {
+            host.hidden = true;
+            return;
+        }
+        for (const lesson of lessons) {
+            const option = document.createElement("option");
+            option.value = lesson.id;
+            option.textContent = `Course ${lesson.course_id} - ${lesson.lesson_title}`;
+            select.appendChild(option);
+        }
+        status.textContent = `${lessons.length} existing lessons available.`;
+        select.addEventListener("change", () => {
+            details.replaceChildren();
+            const lesson = lessons.find((entry) => entry.id === select.value);
+            if (!lesson) return;
+            function append(tag, text) {
+                if (!text) return;
+                const element = document.createElement(tag);
+                element.textContent = text;
+                if (tag === "p") element.style.whiteSpace = "pre-wrap";
+                details.appendChild(element);
+            }
+            function content(value) {
+                if (!value) return;
+                const parsed = new DOMParser().parseFromString(String(value), "text/html");
+                parsed.querySelectorAll("script, style, iframe, object").forEach((node) => node.remove());
+                parsed.querySelectorAll("p, div, li, br, h1, h2, h3, tr").forEach((node) => node.append("\n"));
+                append("p", parsed.body.textContent);
+            }
+            function resource(label, value) {
+                if (!value) return;
+                append("p", `${label}: ${value}`);
+                // Unknown old file paths remain visible, rather than linking to a guessed location.
+                if (!/^https?:\/\//i.test(value) || !URL.canParse(value)) return;
+                const url = new URL(value);
+                const link = document.createElement("a");
+                link.href = url.href;
+                link.textContent = `Open ${label.toLowerCase()}`;
+                link.target = "_blank";
+                link.rel = "noopener noreferrer";
+                details.appendChild(link);
+            }
+            append("h3", lesson.lesson_title);
+            append("p", lesson.description);
+            content(lesson.lesson_plan.legacy_content);
+            resource("Template", lesson.template_path);
+            for (const section of lesson.lesson_plan.legacy_sections) {
+                append("h3", section.title);
+                content(section.content);
+                resource("Template", section.template_path);
+                resource("Video", section.video_url);
+            }
+        });
+    } catch (error) {
+        console.error("DTECH existing course lessons:", error);
+        status.textContent = error.message;
+    }
+}
+
+loadLegacyCourseLessons();

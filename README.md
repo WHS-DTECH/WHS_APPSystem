@@ -82,12 +82,22 @@ The original legacy schema initialization and existing seed/backfill operations
 still run against DTECH-DB only on first use after each deployment. Take a Render
 database backup before first activation. The rest of WHS APPSystem remains
 available if DTECH initialization fails.
-For older databases, initialization widens numeric `lessons.id` columns to text
-so the original site's named lesson IDs work. Numeric foreign-key columns linked
-to those IDs (including section records) are widened in the same atomic operation.
-Foreign keys are restored with their original rules; a failure rolls back the
-whole ID conversion. Existing values and serial defaults are retained; no lessons
-or sections are deleted or copied to Core.
+Some existing DTECH databases use course-based `lessons` (`course_id`, `title`)
+and linked `sections`, rather than the supplied site's lesson-plan structure.
+These tables are now read-only to the integrated Hub: no further ID conversions
+or changes to their required fields/foreign keys are performed. This also supports
+databases whose IDs were converted to text by the earlier compatibility update.
+New-style lesson plans, uploads and unit-plan lesson cards use `whs_dtech_lessons`
+in the same DTECH database when that older structure is detected. Databases already
+using the supplied site's structure continue to use their original `lessons` table.
+
+In **Browse > Relief Lessons Library**, **Existing Course Lessons** lists the original
+lessons by course ID, with their content and ordered sections. This is a read-only
+compatibility addition to the supplied page, not a replacement site. Stored HTML is
+displayed as safe readable text; template paths and video references are retained.
+Absolute HTTP/HTTPS references can be opened, but old relative template paths are
+shown without inventing a new hosting location. Restoring those files may require
+the original storage/location separately. Existing records are not copied to Core.
 
 ## Local setup
 

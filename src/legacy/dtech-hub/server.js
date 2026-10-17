@@ -6,6 +6,7 @@ const multer = require("multer");
 const mammoth = require("mammoth");
 const nodemailer = require("nodemailer");
 const { Pool } = require("pg");
+const { createLegacyLessonReader } = require("../../dtechLegacyLessons");
 const { PASSWORD_PROBLEMS_ID, APPS_WORDSEARCH_ID, withShortLoginKit, withLoginAppsActivity, withLearningSitesActivity, withPasswordProblemsActivity, withLoginIdentityActivity, getStudentAssessment, gradePasswordProblems, gradeLoginIdentity, gradeAppsWordsearch } = require("./practical-skills-assessment");
 const { LEARNING_SITES_ID, getHuntProfile, gradeLearningSites, getCourseProgrammeFolder, needsCourseCheckIn } = require("./learning-sites-assessment");
 const { SEARCH_RESEARCH_REPORT_FILE_NAME, resolveResearchReportTemplateId, getResearchReportProgrammeFolder, buildResearchReportReplacements, applyResearchReportReplacements, gradeResearchReport } = require("./research-report");
@@ -479,6 +480,8 @@ const pool = new Pool({
   connectionString: integration.databaseUrl,
   ssl: integration.databaseSsl === false ? false : { rejectUnauthorized: false }
 });
+const legacyLessons = createLegacyLessonReader(pool);
+let lessonTable = "lessons";
 
 const googleAuthClient = OAuth2Client ? new OAuth2Client() : null;
 
@@ -3701,14 +3704,14 @@ async function syncUnitPlanLessonsToLibrary(unitPlan) {
     return syncedCount;
   }
 
-  await pool.query("DELETE FROM lessons WHERE id LIKE $1", [`${cardPrefix}%`]);
+  await pool.query(`DELETE FROM ${lessonTable} WHERE id LIKE $1`, [`${cardPrefix}%`]);
 
   for (let index = 0; index < lessons.length; index += 1) {
     const lesson = lessons[index];
     const card = buildLessonCardFromUnitLesson(unitPlan, lesson, index + 1);
 
     const duplicateResult = await pool.query(
-      `SELECT id FROM lessons
+      `SELECT id FROM ${lessonTable}
        WHERE id LIKE 'unitplan-%'
          AND id <> $1
          AND lower(trim(COALESCE(lesson_title, ''))) = lower(trim($2))
@@ -3724,7 +3727,7 @@ async function syncUnitPlanLessonsToLibrary(unitPlan) {
     }
 
     await pool.query(
-      `INSERT INTO lessons
+      `INSERT INTO ${lessonTable}
       (id, lesson_title, lesson_week, lesson_date, lesson_duration_minutes, lesson_type, lesson_card_color,
         activity_name, lesson_year_level, lesson_link_url, lesson_focus, lesson_notes, publish_activity,
         add_to_calendar, created_by_email, created_at, updated_at)
@@ -4334,7 +4337,7 @@ async function ensureUnitPlanSchema() {
   await pool.query(`ALTER TABLE unit_plans ADD COLUMN IF NOT EXISTS lessons JSONB NOT NULL DEFAULT '[]'::jsonb`);
   await pool.query(`ALTER TABLE unit_plans ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS lessons (
+    CREATE TABLE IF NOT EXISTS ${lessonTable} (
       id TEXT PRIMARY KEY,
       lesson_title TEXT NOT NULL,
       lesson_week TEXT,
@@ -4354,93 +4357,19 @@ async function ensureUnitPlanSchema() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `);
-  // Widen older lesson IDs and linked columns atomically, preserving FK rules.
-  await pool.query(`
-    DO $$
-    DECLARE
-      linked_columns JSONB;
-      linked_constraints JSONB;
-      item RECORD;
-    BEGIN
-      IF EXISTS (
-        SELECT 1 FROM pg_attribute
-        WHERE attrelid = 'lessons'::regclass
-          AND attname = 'id'
-          AND atttypid IN ('smallint'::regtype, 'integer'::regtype, 'bigint'::regtype)
-          AND NOT attisdropped
-      ) THEN
-        WITH RECURSIVE fk_pairs AS (
-          SELECT c.conrelid AS child_table, keys.child_column,
-                 c.confrelid AS parent_table, keys.parent_column
-          FROM pg_constraint c
-          CROSS JOIN LATERAL unnest(c.conkey, c.confkey) AS keys(child_column, parent_column)
-          WHERE c.contype = 'f'
-        ), edges AS (
-          SELECT child_table AS source_table, child_column AS source_column,
-                 parent_table AS target_table, parent_column AS target_column FROM fk_pairs
-          UNION
-          SELECT parent_table, parent_column, child_table, child_column FROM fk_pairs
-        ), connected(table_id, column_id) AS (
-          SELECT attrelid, attnum FROM pg_attribute
-          WHERE attrelid = 'lessons'::regclass AND attname = 'id' AND NOT attisdropped
-          UNION
-          SELECT e.target_table, e.target_column
-          FROM connected c JOIN edges e
-            ON e.source_table = c.table_id AND e.source_column = c.column_id
-        )
-        SELECT jsonb_agg(jsonb_build_object(
-          'table_id', c.table_id, 'column_id', c.column_id,
-          'table_name', c.table_id::regclass::text, 'column_name', a.attname
-        )) INTO linked_columns
-        FROM connected c JOIN pg_attribute a
-          ON a.attrelid = c.table_id AND a.attnum = c.column_id
-        WHERE a.atttypid IN ('smallint'::regtype, 'integer'::regtype, 'bigint'::regtype);
-
-        SELECT COALESCE(jsonb_agg(jsonb_build_object(
-          'table_name', c.conrelid::regclass::text, 'constraint_name', c.conname,
-          'definition', pg_get_constraintdef(c.oid)
-        )), '[]'::jsonb) INTO linked_constraints
-        FROM pg_constraint c
-        WHERE c.contype = 'f' AND EXISTS (
-          SELECT 1 FROM jsonb_to_recordset(linked_columns) AS col(table_id OID, column_id SMALLINT)
-          WHERE (c.conrelid = col.table_id AND col.column_id = ANY(c.conkey))
-             OR (c.confrelid = col.table_id AND col.column_id = ANY(c.confkey))
-        );
-
-        FOR item IN SELECT * FROM jsonb_to_recordset(linked_constraints)
-          AS fk(table_name TEXT, constraint_name TEXT, definition TEXT)
-        LOOP
-          EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %I', item.table_name, item.constraint_name);
-        END LOOP;
-        FOR item IN SELECT * FROM jsonb_to_recordset(linked_columns)
-          AS col(table_name TEXT, column_name TEXT)
-        LOOP
-          EXECUTE format('ALTER TABLE %s ALTER COLUMN %I TYPE TEXT USING %I::text',
-            item.table_name, item.column_name, item.column_name);
-        END LOOP;
-        FOR item IN SELECT * FROM jsonb_to_recordset(linked_constraints)
-          AS fk(table_name TEXT, constraint_name TEXT, definition TEXT)
-        LOOP
-          EXECUTE format('ALTER TABLE %s ADD CONSTRAINT %I %s',
-            item.table_name, item.constraint_name, item.definition);
-        END LOOP;
-      END IF;
-    END
-    $$;
-  `);
-  await pool.query(`ALTER TABLE lessons ADD COLUMN IF NOT EXISTS lesson_week TEXT`);
-  await pool.query(`ALTER TABLE lessons ADD COLUMN IF NOT EXISTS lesson_date TEXT`);
-  await pool.query(`ALTER TABLE lessons ADD COLUMN IF NOT EXISTS lesson_duration_minutes INTEGER NOT NULL DEFAULT 60`);
-  await pool.query(`ALTER TABLE lessons ADD COLUMN IF NOT EXISTS lesson_card_color TEXT`);
-  await pool.query(`ALTER TABLE lessons ADD COLUMN IF NOT EXISTS lesson_link_url TEXT`);
-  await pool.query(`ALTER TABLE lessons ADD COLUMN IF NOT EXISTS lesson_notes TEXT`);
-  await pool.query(`ALTER TABLE lessons ADD COLUMN IF NOT EXISTS relief_course_code TEXT`);
-  await pool.query(`ALTER TABLE lessons ADD COLUMN IF NOT EXISTS lesson_plan JSONB NOT NULL DEFAULT '{}'::jsonb`);
-  await pool.query(`ALTER TABLE lessons ADD COLUMN IF NOT EXISTS publish_activity BOOLEAN NOT NULL DEFAULT FALSE`);
-  await pool.query(`ALTER TABLE lessons ADD COLUMN IF NOT EXISTS add_to_calendar BOOLEAN NOT NULL DEFAULT FALSE`);
-  await pool.query(`ALTER TABLE lessons ADD COLUMN IF NOT EXISTS created_by_email TEXT`);
-  await pool.query(`ALTER TABLE lessons ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
-  await pool.query(`ALTER TABLE lessons ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
+  await pool.query(`ALTER TABLE ${lessonTable} ADD COLUMN IF NOT EXISTS lesson_week TEXT`);
+  await pool.query(`ALTER TABLE ${lessonTable} ADD COLUMN IF NOT EXISTS lesson_date TEXT`);
+  await pool.query(`ALTER TABLE ${lessonTable} ADD COLUMN IF NOT EXISTS lesson_duration_minutes INTEGER NOT NULL DEFAULT 60`);
+  await pool.query(`ALTER TABLE ${lessonTable} ADD COLUMN IF NOT EXISTS lesson_card_color TEXT`);
+  await pool.query(`ALTER TABLE ${lessonTable} ADD COLUMN IF NOT EXISTS lesson_link_url TEXT`);
+  await pool.query(`ALTER TABLE ${lessonTable} ADD COLUMN IF NOT EXISTS lesson_notes TEXT`);
+  await pool.query(`ALTER TABLE ${lessonTable} ADD COLUMN IF NOT EXISTS relief_course_code TEXT`);
+  await pool.query(`ALTER TABLE ${lessonTable} ADD COLUMN IF NOT EXISTS lesson_plan JSONB NOT NULL DEFAULT '{}'::jsonb`);
+  await pool.query(`ALTER TABLE ${lessonTable} ADD COLUMN IF NOT EXISTS publish_activity BOOLEAN NOT NULL DEFAULT FALSE`);
+  await pool.query(`ALTER TABLE ${lessonTable} ADD COLUMN IF NOT EXISTS add_to_calendar BOOLEAN NOT NULL DEFAULT FALSE`);
+  await pool.query(`ALTER TABLE ${lessonTable} ADD COLUMN IF NOT EXISTS created_by_email TEXT`);
+  await pool.query(`ALTER TABLE ${lessonTable} ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
+  await pool.query(`ALTER TABLE ${lessonTable} ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS practical_schedule (
       id SERIAL PRIMARY KEY,
@@ -4460,7 +4389,7 @@ async function ensureUnitPlanSchema() {
   `);
   // Backfill older unit-plan lesson cards that were unintentionally saved as unpublished.
   await pool.query(`
-    UPDATE lessons
+    UPDATE ${lessonTable}
     SET publish_activity = TRUE
     WHERE publish_activity = FALSE
       AND id LIKE 'unitplan-%'
@@ -6091,21 +6020,21 @@ async function seedOzoneLayerReliefLesson() {
   }
 
   await pool.query(
-    `INSERT INTO lessons (id, lesson_title, lesson_week, lesson_date, lesson_duration_minutes, lesson_type, lesson_card_color, activity_name, lesson_year_level, lesson_link_url, lesson_focus, lesson_notes, relief_course_code, lesson_plan, publish_activity, add_to_calendar, created_by_email)
+    `INSERT INTO ${lessonTable} (id, lesson_title, lesson_week, lesson_date, lesson_duration_minutes, lesson_type, lesson_card_color, activity_name, lesson_year_level, lesson_link_url, lesson_focus, lesson_notes, relief_course_code, lesson_plan, publish_activity, add_to_calendar, created_by_email)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb, $15, $16, $17)
     ON CONFLICT (id) DO NOTHING`,
     [payload.id, payload.lesson_title, payload.lesson_week, payload.lesson_date, payload.lesson_duration_minutes, payload.lesson_type, payload.lesson_card_color, payload.activity_name, payload.lesson_year_level, payload.lesson_link_url, payload.lesson_focus, payload.lesson_notes, payload.relief_course_code, JSON.stringify(payload.lesson_plan), payload.publish_activity, payload.add_to_calendar, payload.created_by_email]
   );
 
   await pool.query(
-    `INSERT INTO lessons (id, lesson_title, lesson_week, lesson_date, lesson_duration_minutes, lesson_type, lesson_card_color, activity_name, lesson_year_level, lesson_link_url, lesson_focus, lesson_notes, relief_course_code, lesson_plan, publish_activity, add_to_calendar, created_by_email)
+    `INSERT INTO ${lessonTable} (id, lesson_title, lesson_week, lesson_date, lesson_duration_minutes, lesson_type, lesson_card_color, activity_name, lesson_year_level, lesson_link_url, lesson_focus, lesson_notes, relief_course_code, lesson_plan, publish_activity, add_to_calendar, created_by_email)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb, $15, $16, $17)
      ON CONFLICT (id) DO NOTHING`,
     [seniorPayload.id, seniorPayload.lesson_title, seniorPayload.lesson_week, seniorPayload.lesson_date, seniorPayload.lesson_duration_minutes, seniorPayload.lesson_type, seniorPayload.lesson_card_color, seniorPayload.activity_name, seniorPayload.lesson_year_level, seniorPayload.lesson_link_url, seniorPayload.lesson_focus, seniorPayload.lesson_notes, seniorPayload.relief_course_code, JSON.stringify(seniorPayload.lesson_plan), seniorPayload.publish_activity, seniorPayload.add_to_calendar, seniorPayload.created_by_email]
   );
 
   await pool.query(
-    `INSERT INTO lessons (id, lesson_title, lesson_week, lesson_date, lesson_duration_minutes, lesson_type, lesson_card_color, activity_name, lesson_year_level, lesson_link_url, lesson_focus, lesson_notes, relief_course_code, lesson_plan, publish_activity, add_to_calendar, created_by_email)
+    `INSERT INTO ${lessonTable} (id, lesson_title, lesson_week, lesson_date, lesson_duration_minutes, lesson_type, lesson_card_color, activity_name, lesson_year_level, lesson_link_url, lesson_focus, lesson_notes, relief_course_code, lesson_plan, publish_activity, add_to_calendar, created_by_email)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb, $15, $16, $17)
      ON CONFLICT (id) DO NOTHING`,
     [seniorDtechPayload.id, seniorDtechPayload.lesson_title, seniorDtechPayload.lesson_week, seniorDtechPayload.lesson_date, seniorDtechPayload.lesson_duration_minutes, seniorDtechPayload.lesson_type, seniorDtechPayload.lesson_card_color, seniorDtechPayload.activity_name, seniorDtechPayload.lesson_year_level, seniorDtechPayload.lesson_link_url, seniorDtechPayload.lesson_focus, seniorDtechPayload.lesson_notes, seniorDtechPayload.relief_course_code, JSON.stringify(seniorDtechPayload.lesson_plan), seniorDtechPayload.publish_activity, seniorDtechPayload.add_to_calendar, seniorDtechPayload.created_by_email]
@@ -15399,7 +15328,7 @@ app.delete("/api/unit-plans/:id", async (req, res) => {
 
     let deletedLessonCards = 0;
     if (shouldDeleteLessons) {
-      const deletedLessonsResult = await client.query("DELETE FROM lessons WHERE id LIKE $1", [`${lessonCardPrefix}%`]);
+      const deletedLessonsResult = await client.query(`DELETE FROM ${lessonTable} WHERE id LIKE $1`, [`${lessonCardPrefix}%`]);
       deletedLessonCards = Number(deletedLessonsResult.rowCount || 0);
     }
 
@@ -17628,10 +17557,11 @@ app.get("/api/lessons", async (_req, res) => {
   }
 
   try {
-    const result = await pool.query("SELECT * FROM lessons ORDER BY created_at DESC");
-    res.json(result.rows || []);
-  } catch (_error) {
-    res.json([]);
+    const result = await pool.query(`SELECT * FROM ${lessonTable} ORDER BY created_at DESC`);
+    res.json([...result.rows, ...await legacyLessons.list()]);
+  } catch (error) {
+    console.error("Lesson library error:", error);
+    res.status(500).json({ error: "Could not load the lesson library." });
   }
 });
 
@@ -17687,14 +17617,18 @@ app.get("/api/lessons/:id", async (req, res) => {
   }
 
   try {
-    const result = await pool.query("SELECT * FROM lessons WHERE id = $1", [req.params.id]);
+    const legacyId = req.params.id.startsWith("legacy-course-") ? req.params.id.slice("legacy-course-".length) : null;
+    const result = legacyId === null
+      ? await pool.query(`SELECT * FROM ${lessonTable} WHERE id = $1`, [req.params.id])
+      : { rows: await legacyLessons.list(legacyId) };
     if (result.rows && result.rows.length > 0) {
       res.json(result.rows[0]);
     } else {
       res.status(404).send("Lesson not found");
     }
-  } catch (_error) {
-    res.status(404).send("Lesson not found");
+  } catch (error) {
+    console.error("Lesson load error:", error);
+    res.status(500).json({ error: "Could not load the lesson." });
   }
 });
 
@@ -17716,14 +17650,14 @@ app.get("/api/relief-lessons/:courseCode", requireSchoolAccountAccess, async (re
 
   try {
     let result = await pool.query(
-      `SELECT * FROM lessons WHERE UPPER(TRIM(relief_course_code)) = $1 AND publish_activity = TRUE ORDER BY lesson_date ASC NULLS LAST, lesson_title ASC`,
+      `SELECT * FROM ${lessonTable} WHERE UPPER(TRIM(relief_course_code)) = $1 AND publish_activity = TRUE ORDER BY lesson_date ASC NULLS LAST, lesson_title ASC`,
       [courseCode]
     );
 
     if (courseCode === "SENIORDTECH" && (!result.rows || result.rows.length === 0)) {
       const seededLesson = await seedOzoneLayerReliefLesson();
       result = await pool.query(
-        `SELECT * FROM lessons WHERE UPPER(TRIM(relief_course_code)) = $1 AND publish_activity = TRUE ORDER BY lesson_date ASC NULLS LAST, lesson_title ASC`,
+        `SELECT * FROM ${lessonTable} WHERE UPPER(TRIM(relief_course_code)) = $1 AND publish_activity = TRUE ORDER BY lesson_date ASC NULLS LAST, lesson_title ASC`,
         [courseCode]
       );
       if (!result.rows || result.rows.length === 0) {
@@ -17769,6 +17703,10 @@ app.post("/api/lessons", lessonResourceUpload.fields([{ name: "resourceFiles", m
   }
 
   const lessonId = String(body.id || `lesson-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
+  if (lessonId.startsWith("legacy-course-")) {
+    res.status(409).json({ error: "Existing course lessons are read-only. Upload a new lesson instead." });
+    return;
+  }
   const parseBooleanPayload = (value) => value === true || value === "true" || value === "1" || value === 1 || value === "on";
   let parsedLessonPlan = body.lesson_plan;
   if (typeof parsedLessonPlan === "string") {
@@ -17840,7 +17778,7 @@ app.post("/api/lessons", lessonResourceUpload.fields([{ name: "resourceFiles", m
   }
 
     const result = await pool.query(
-      `INSERT INTO lessons
+      `INSERT INTO ${lessonTable}
       (id, lesson_title, lesson_week, lesson_date, lesson_duration_minutes, lesson_type, lesson_card_color,
        activity_name, lesson_year_level, lesson_link_url, lesson_focus, lesson_notes, relief_course_code, lesson_plan,
        publish_activity, add_to_calendar, created_by_email, created_at, updated_at)
@@ -17900,6 +17838,7 @@ return {
   app,
   pool,
   async initialize() {
+    if (hasDatabase && await legacyLessons.initialize()) lessonTable = "whs_dtech_lessons";
     await ensureSchema();
     await syncDtechExcludedActivitiesVisibility();
     const tables = await resolveExistingTableNames(STUDENT_TABLE_CANDIDATES);
