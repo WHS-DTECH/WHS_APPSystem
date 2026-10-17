@@ -23,7 +23,7 @@ const columnTypes = {
 
 async function connectSource(url) {
   for (const ssl of [{ rejectUnauthorized: false }, false]) {
-    const source = new Pool({ connectionString: url, ssl, max: 1 });
+    const source = new Pool({ connectionString: url, ssl, max: 1, connectionTimeoutMillis: 15000 });
     try {
       await source.query('SELECT 1');
       return source;
