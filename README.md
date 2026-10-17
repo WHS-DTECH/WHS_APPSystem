@@ -104,6 +104,8 @@ permission. Guidance's Dataset Manager (formerly Infrastructure) is available
 with a supported mapped app role, preserving dummy/masked/confidential views.
 The existing `/infrastructure` URL remains valid. Neither control is duplicated
 in the Guidance toolbar.
+Sync Spreadsheets is on the Dataset Manager page, reached through avatar Settings,
+rather than the toolbar. It remains ADMIN-only and returns its result to Students.
 
 Run the isolated Python regressions with
 `python tests\guidance_global_roles_test.py -v` (Flask and the app requirements

@@ -2,17 +2,8 @@ def build_global_navbar(role, role_management_url=None):
     if role not in {"ADMIN", "AppBuilder"}:
         return ""
 
-    sync_button = ""
-    if role == "ADMIN":
-        sync_button = """
-      <form method=\"post\" action=\"/admin/sync-spreadsheets\" style=\"display:inline-block; margin-left:10px;\">
-        <button type=\"submit\" style=\"display:inline-block; padding:8px 12px; border-radius:8px; background:#0f766e; color:white; border:0; cursor:pointer;\">Sync Spreadsheets</button>
-      </form>
-        """
-
-    return f"""
+    return """
     <div style="background:#ffffff; border-bottom:1px solid #e5e7eb; padding:10px 16px; margin-bottom:12px;">
       <a href="/dashboard">Home</a>
-      {sync_button}
     </div>
     """

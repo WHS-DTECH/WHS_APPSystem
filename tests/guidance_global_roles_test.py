@@ -124,6 +124,26 @@ class GlobalRoleTests(unittest.TestCase):
         self.assertIn("grid-template-rows: auto minmax(0, 1fr)", css)
         response.close()
 
+    def test_spreadsheet_sync_moves_to_dataset_manager_and_remains_admin_only(self):
+        action = 'action="/apps/guidance-counsellor-app/admin/sync-spreadsheets"'
+        for role in ["ADMIN", "AppBuilder", "Counsellor"]:
+            for route in ["/dashboard", "/students"]:
+                html = self.client.get(route, headers=self.headers(role)).get_data(as_text=True)
+                self.assertNotIn(action, html)
+            html = self.client.get("/infrastructure", headers=self.headers(role)).get_data(as_text=True)
+            self.assertEqual(action in html, role == "ADMIN")
+            self.assertEqual("Sync Spreadsheets</button>" in html, role == "ADMIN")
+        with patch.object(guidance, "sync_spreadsheet_folder", return_value={
+            "imported": 1, "skipped": 0, "files": ["Test.xlsx"],
+        }) as sync:
+            for role in ["AppBuilder", "Counsellor"]:
+                self.client.post("/admin/sync-spreadsheets", headers=self.headers(role))
+                sync.assert_not_called()
+            response = self.client.post("/admin/sync-spreadsheets", headers=self.headers("ADMIN"))
+            sync.assert_called_once()
+            self.assertEqual(response.status_code, 302)
+            self.assertIn("sync_result=Sync+complete", response.headers["Location"])
+
     def test_privacy_views_remain_dummy_masked_and_counsellor_only(self):
         for role, visible in [("AppBuilder", False), ("ADMIN", False), ("Counsellor", True)]:
             html = self.client.get("/students", headers=self.headers(role)).get_data(as_text=True)

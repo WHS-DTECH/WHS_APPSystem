@@ -673,6 +673,11 @@ def infrastructure():
           <body style="font-family: Arial, sans-serif; margin: 24px;">
                         {{ global_navbar|safe }}
             <h1>Dataset Manager</h1>
+            {% if role == "ADMIN" %}
+              <form method="post" action="/admin/sync-spreadsheets">
+                <button type="submit" style="padding:8px 12px; border-radius:8px; background:#0f766e; color:white; border:0; cursor:pointer;">Sync Spreadsheets</button>
+              </form>
+            {% endif %}
             <p>Role: {{ role }}</p>
             <p>This view is restricted to {{ data_label }} for AppBuilder users.</p>
             <p><a href="/dashboard">Dashboard</a> | <a href="/students">Students</a> | <a href="/logout">Logout</a></p>
