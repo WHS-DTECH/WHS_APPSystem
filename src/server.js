@@ -35,8 +35,11 @@ app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: false }));
 // The Food Room pages make many small API calls, so they are not counted against the shared limit.
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, skip: (req) => req.path.startsWith('/food-room/') || req.path === '/nav-data' }));
-app.use(express.urlencoded({ extended: false }));
-app.use(express.json({ limit: '25mb' }));
+// Hosted apps receive their request bodies untouched, so the parsers skip /apps/.
+const parseBodies = [express.urlencoded({ extended: false }), express.json({ limit: '25mb' })];
+app.use((req, res, next) => (req.path.startsWith('/apps/')
+  ? next()
+  : parseBodies[0](req, res, (error) => (error ? next(error) : parseBodies[1](req, res, next)))));
 app.use(session({
   cookie: {
     httpOnly: true,
@@ -161,6 +164,7 @@ app.get('/admin/emails', ensureAuthenticated, ensureRole('ADMIN'), async (req, r
 
 app.use('/hubs', assessmentStandards.router);
 app.use('/hubs', hubRoles.router);
+app.use('/apps/:slug', studentApps.hostedProxy);
 app.use('/student-apps', studentApps.router);
 app.use('/api/student-apps', studentApps.apiRouter);
 app.use('/admin/kamar-uploader', kamarUploader);
@@ -600,6 +604,7 @@ async function start() {
 
   app.listen(config.port, () => {
     console.log(`WHS APPSystem listening on port ${config.port}`);
+    require('./hostedApps').start();
     if (config.databaseUrl) {
       console.log('Legacy Food Room import: starting in background...');
       importLegacyFoodRoom()

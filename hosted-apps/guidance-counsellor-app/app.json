@@ -1,0 +1,5 @@
+{
+  "name": "Guidance Counsellor App",
+  "module": "app:app",
+  "databaseEnv": "GUIDANCE_COUNSELLOR_APP_DATABASE_URL"
+}

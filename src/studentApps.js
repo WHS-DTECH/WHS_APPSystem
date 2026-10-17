@@ -3,6 +3,7 @@ const express = require('express');
 const config = require('./config');
 const { query } = require('./db');
 const { sendEmail } = require('./email');
+const hostedApps = require('./hostedApps');
 
 const router = express.Router();
 const apiRouter = express.Router();
@@ -339,7 +340,12 @@ router.post('/:slug/activate', async (req, res, next) => {
     if (!app || !isAdmin(req.user)) return res.status(403).render('error', { title: 'Access denied', message: 'Only an administrator can register a project.' });
     if (app.status !== 'active') {
       app.app_url = app.app_url || `${baseFor(req)}/apps/${app.slug}`;
-      await query(`UPDATE student_apps SET status = 'active', activated_at = NOW(), app_url = $2 WHERE id = $1`, [app.id, app.app_url]);
+      await query(
+        `UPDATE student_apps SET status = 'active', activated_at = NOW(), app_url = $2,
+           login_verified_at = CASE WHEN $3 THEN COALESCE(login_verified_at, NOW()) ELSE login_verified_at END
+         WHERE id = $1`,
+        [app.id, app.app_url, hostedApps.isHosted(app.slug)]
+      );
       await query(
         `INSERT INTO modules (module_key, display_name, description, path) VALUES ($1, $2, $3, $4)
          ON CONFLICT (module_key) DO NOTHING`,
@@ -443,6 +449,7 @@ router.get('/:slug/launch', async (req, res, next) => {
     if (!roles.length && !canManage(req.user, app)) {
       return res.status(403).render('error', { title: 'No access', message: `You have not been given a role in ${app.name}. Ask its Lead Teacher.` });
     }
+    if (hostedApps.isHosted(app.slug) && app.status === 'active') return res.redirect(`/apps/${app.slug}/`);
     if (!app.app_url) return res.status(400).render('error', { title: 'No web address', message: 'Add the app\'s web address on its set-up page first.' });
     if (app.status !== 'active') return res.status(403).render('error', { title: 'Not registered yet', message: 'This project is waiting to be registered by an administrator.' });
     const code = crypto.randomBytes(24).toString('hex');
@@ -505,4 +512,26 @@ apiRouter.post('/exchange', async (req, res, next) => {
   }
 });
 
-module.exports = { router, apiRouter, PLATFORM_ROLES, resolveAppRole };
+// Sends /apps/<slug>/... to the hosted Flask app once the person is signed in and has a mapped role.
+async function hostedProxy(req, res, next) {
+  try {
+    const slug = req.params.slug;
+    if (!hostedApps.isHosted(slug)) return next();
+    if (!req.isAuthenticated()) return res.redirect(`/auth/google?next=${encodeURIComponent(req.originalUrl)}`);
+    const app = await loadApp(slug);
+    if (!app || app.status !== 'active') {
+      return res.status(403).render('error', { title: 'Not registered yet', message: 'This project is waiting to be registered by an administrator.' });
+    }
+    const roles = await userPlatformRoles(req.user, app);
+    let appRole = await resolveAppRole(app, roles);
+    if (!appRole) {
+      if (canManage(req.user, app)) return res.redirect(`/student-apps/${slug}`);
+      return res.status(403).render('error', { title: 'No access', message: `You have not been given a role in ${app.name}. Ask its Lead Teacher.` });
+    }
+    return hostedApps.proxy(req, res, slug, { email: req.user.email, name: req.user.display_name || req.user.name, role: appRole });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+module.exports = { router, apiRouter, hostedProxy, PLATFORM_ROLES, resolveAppRole };
