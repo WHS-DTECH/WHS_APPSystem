@@ -243,65 +243,12 @@
         <div class="admin-layout">
             <div class="main-column">
 
-        <div class="dashboard-grid">
-            <div class="metric-card">
-                <h3>Database</h3>
-                <div class="metric-value">Railway</div>
-                <div class="metric-subtext">Postgres (migrated from Neon)</div>
-            </div>
-            <div class="metric-card warning-card" id="neonTransferCard">
-                <h3>Neon Monthly Cost (Egress)</h3>
-                <div class="metric-value" id="neonCostValue">—</div>
-                <div class="metric-subtext" id="neonCostDetail">Loading...</div>
-            </div>
-            <div class="metric-card savings-card" id="railwaySavingsCard">
-                <h3>Monthly Savings</h3>
-                <div class="metric-value" id="savingsValue">—</div>
-                <div class="metric-subtext" id="savingsDetail">vs Neon at 1076 GB/month</div>
-            </div>
-        </div>
-
-        <div class="cost-comparison">
-            <h2>Transfer Cost Comparison</h2>
-            <div class="comparison-row">
-                <div class="provider">
-                    <div class="provider-name">Neon (Previous)</div>
-                    <div class="provider-detail">💾 Pricing: $0.09/GB egress (after 100 GB free)</div>
-                    <div class="provider-detail">📊 Monthly transfer: ~1076 GB</div>
-                    <div class="provider-detail">🔓 Issue: Unprotected API endpoints caused high egress</div>
-                    <div class="provider-cost" id="neonCostDisplay">~$96.84/month</div>
-                </div>
-                <div class="provider">
-                    <div class="provider-name">Railway (Current)</div>
-                    <div class="provider-detail">💾 Pricing: $0.05/GB egress (after 10 GB free)</div>
-                    <div class="provider-detail">📊 Expected transfer: ~50-100 GB/month (with auth)</div>
-                    <div class="provider-detail">🔒 Solution: Added auth guards to sensitive endpoints</div>
-                    <div class="provider-cost" id="railwayCostDisplay">~$2.50-4.50/month</div>
-                </div>
-            </div>
-            <div class="comparison-row">
-                <div class="provider">
-                    <div class="provider-name">Root Cause</div>
-                    <div class="provider-detail">• <code>/api/bookings/all</code> was unprotected</div>
-                    <div class="provider-detail">• Called repeatedly from 6 different pages</div>
-                    <div class="provider-detail">• No authentication required = unlimited access</div>
-                    <div class="provider-detail">• Full booking data returned (~478 records each call)</div>
-                </div>
-                <div class="provider">
-                    <div class="provider-name">Solution Applied</div>
-                    <div class="provider-detail">✓ Added <code>requireSignedIn</code> guard to bookings endpoints</div>
-                    <div class="provider-detail">✓ Bounded queries to ±120 day window by default</div>
-                    <div class="provider-detail">✓ Limited results to 1500 rows (max 4000)</div>
-                    <div class="provider-detail">✓ Added transfer-size logging ([TRANSFER] logs)</div>
-                </div>
-            </div>
-        </div>
-
         <div class="admin-links">
             <h2>Admin Tools</h2>
             <div class="links-grid">
                 <a href="admin_user_roles.html" class="admin-link">👥 User Roles</a>
                 <a href="admin_department.html" class="admin-link">🏢 Department</a>
+                <a href="admin_assessment_management.html" class="admin-link">&#128209; Assessment Management</a>
                 <a href="admin_aisle_category.html" class="admin-link">📦 Aisle Categories</a>
                 <a href="admin_food_brands.html" class="admin-link">🏷️ Food Brands</a>
                 <a href="admin_aisle_keywords.html" class="admin-link">🔑 Aisle Keywords</a>
@@ -312,130 +259,8 @@
 
             </div>
 
-            <aside class="status-sidebar" aria-label="Infrastructure status">
-                <h2>Live Infrastructure Status</h2>
-                <div id="infraCheckedAt" class="status-updated">Checking...</div>
-
-                <div class="status-card">
-                    <h3>Render Deploy</h3>
-                    <div class="status-row"><span>State</span><span id="renderStatePill" class="status-pill pill-warn">Checking</span></div>
-                    <div class="status-row"><span>Service</span><span id="renderServiceName">—</span></div>
-                    <div class="status-row"><span>Latest Deploy</span><span id="renderLatestDeploy">—</span></div>
-                    <div class="status-row"><span>Finished</span><span id="renderFinishedAt">—</span></div>
-                    <div id="renderStatusNote" class="status-note"></div>
-                </div>
-
-                <div class="status-card">
-                    <h3>Railway DB / Transfer</h3>
-                    <div class="status-row"><span>State</span><span id="railwayStatePill" class="status-pill pill-warn">Checking</span></div>
-                    <div class="status-row"><span>Project</span><span id="railwayProjectName">—</span></div>
-                    <div class="status-row"><span>Public Transfer (GB)</span><span id="railwayTransfer">—</span></div>
-                    <div class="status-row"><span>Credits Remaining</span><span id="railwayCredits">—</span></div>
-                    <div id="railwayStatusNote" class="status-note"></div>
-                </div>
-            </aside>
         </div>
     </div>
 
-    <script>
-        // Calculate and display cost metrics
-        async function loadMetrics() {
-            try {
-                const response = await fetch('/food-room/api/bookings/admin/transfer-metrics', { credentials: 'include' });
-                const data = await response.json();
-                
-                if (data.success) {
-                    updateCostDisplay(data);
-                }
-            } catch (err) {
-                console.error('Failed to load metrics:', err);
-            }
-        }
-
-        function updateCostDisplay(data) {
-            // Fixed Neon cost based on documented overage
-            const neonMonthlyGB = 1076; // Documented overage
-            const neonRate = 0.09; // $/GB
-            const neonCost = (neonMonthlyGB - 100) * neonRate; // First 100 GB free
-
-            // Railway estimation - assuming 50-100 GB/month with auth guards
-            const railwayMonthlyGB = 75; // Conservative mid-range estimate
-            const railwayRate = 0.05; // $/GB
-            const railwayCost = Math.max(0, (railwayMonthlyGB - 10) * railwayRate); // First 10 GB free
-
-            const monthlySavings = neonCost - railwayCost;
-            const yearlySavings = monthlySavings * 12;
-
-            // Update cards
-            document.getElementById('neonCostValue').textContent = `$${neonCost.toFixed(2)}`;
-            document.getElementById('neonCostDetail').textContent = `${neonMonthlyGB} GB/month (pre-fix)`;
-            document.getElementById('neonCostDisplay').textContent = `~$${neonCost.toFixed(2)}/month`;
-
-            document.getElementById('savingsValue').textContent = `$${monthlySavings.toFixed(2)}`;
-            document.getElementById('savingsDetail').textContent = `${yearlySavings.toFixed(0)} saved annually`;
-            document.getElementById('railwayCostDisplay').textContent = `~$${railwayCost.toFixed(2)}/month`;
-        }
-
-        // Load metrics on page load
-        loadMetrics();
-
-        function toLocalDateTime(value) {
-            if (!value) return '—';
-            const d = new Date(value);
-            if (Number.isNaN(d.getTime())) return String(value);
-            return d.toLocaleString();
-        }
-
-        function setPill(elementId, state, ok) {
-            const el = document.getElementById(elementId);
-            if (!el) return;
-            const normalized = String(state || '').toLowerCase();
-            let cls = 'status-pill pill-warn';
-            if (ok === true || ['live', 'succeeded', 'connected', 'healthy'].includes(normalized)) {
-                cls = 'status-pill pill-good';
-            } else if (ok === false || ['error', 'failed'].includes(normalized)) {
-                cls = 'status-pill pill-bad';
-            }
-            el.className = cls;
-            el.textContent = state || 'unknown';
-        }
-
-        async function loadInfraStatus() {
-            try {
-                const response = await fetch('/food-room/api/admin/infra-status', { credentials: 'include' });
-                const data = await response.json();
-
-                if (!response.ok || !data?.success) {
-                    throw new Error(data?.error || `HTTP ${response.status}`);
-                }
-
-                const render = data.render || {};
-                const railway = data.railway || {};
-
-                document.getElementById('infraCheckedAt').textContent = `Checked: ${toLocalDateTime(data.checkedAt)}`;
-
-                setPill('renderStatePill', render.state || 'unknown', render.ok === true);
-                document.getElementById('renderServiceName').textContent = render.serviceName || 'Not configured';
-                document.getElementById('renderLatestDeploy').textContent = render.latestDeploy?.status || '—';
-                document.getElementById('renderFinishedAt').textContent = toLocalDateTime(render.latestDeploy?.finishedAt || render.latestDeploy?.createdAt);
-                document.getElementById('renderStatusNote').textContent = render.message || '';
-
-                setPill('railwayStatePill', railway.state || 'unknown', railway.ok === true);
-                document.getElementById('railwayProjectName').textContent = railway.projectName || 'Not configured';
-                document.getElementById('railwayTransfer').textContent = railway.transferGb || 'Unavailable';
-                document.getElementById('railwayCredits').textContent = railway.creditsRemaining || 'Unavailable';
-                document.getElementById('railwayStatusNote').textContent = railway.message || railway.note || '';
-            } catch (err) {
-                document.getElementById('infraCheckedAt').textContent = `Status error: ${err.message}`;
-                setPill('renderStatePill', 'error', false);
-                setPill('railwayStatePill', 'error', false);
-                document.getElementById('renderStatusNote').textContent = 'Could not load infra status.';
-                document.getElementById('railwayStatusNote').textContent = 'Could not load infra status.';
-            }
-        }
-
-        loadInfraStatus();
-        setInterval(loadInfraStatus, 60000);
-    </script>
 </body>
 </html>
