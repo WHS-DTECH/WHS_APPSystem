@@ -1,10 +1,8 @@
 // Food Brands CRUD endpoints as a separate router
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
 
-const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://neondb_owner:password@host:port/db?sslmode=require';
-const pool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
+const pool = require('../db');
 
 function normalizeBrandName(value) {
   return typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';

@@ -63,9 +63,34 @@ async function syncRoles(user, email) {
   }
 }
 
+// Several legacy routes decide "admin" from ADMIN_BOOTSTRAP_EMAILS. The app's ADMIN users are merged into
+// that list (refreshed regularly) so those checks follow the app's roles instead of a separate setting.
+const configuredAdmins = String(process.env.ADMIN_BOOTSTRAP_EMAILS || '');
+let adminRefreshedAt = 0;
+
+async function refreshAdminEmails() {
+  if (Date.now() - adminRefreshedAt < SYNC_TTL_MS) return;
+  adminRefreshedAt = Date.now();
+  try {
+    const result = await appPool.query(
+      `SELECT DISTINCT lower(u.email) AS email
+       FROM users u
+       INNER JOIN user_roles ur ON ur.user_id = u.id
+       INNER JOIN roles r ON r.id = ur.role_id
+       WHERE r.name = 'ADMIN' AND u.email IS NOT NULL`
+    );
+    const emails = [...new Set([...configuredAdmins.split(','), ...result.rows.map((row) => row.email)].map((entry) => entry.trim()).filter(Boolean))];
+    process.env.ADMIN_BOOTSTRAP_EMAILS = emails.join(',');
+  } catch (error) {
+    adminRefreshedAt = 0;
+    console.error('[FOOD-ROOM] Admin list refresh failed:', error.message);
+  }
+}
+
 // Replaces the legacy JWT cookie: the signed-in Google user comes from the app session, and the
 // identity headers the legacy code used to trust are overwritten so they cannot be spoofed.
 async function attachAuthUser(req, res, next) {
+  await refreshAdminEmails();
   const email = normalizeEmail(req.user && req.user.email);
 
   delete req.headers['x-user-email'];

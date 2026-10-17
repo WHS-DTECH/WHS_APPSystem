@@ -5,10 +5,8 @@
 // ================================
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
 
-const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://neondb_owner:password@host:port/db?sslmode=require';
-const pool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
+const pool = require('../db');
 
 // POST /api/ingredients/inventory/sync
 router.post('/sync', async (req, res) => {
