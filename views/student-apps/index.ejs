@@ -17,6 +17,7 @@
 
 <section class="panel">
   <p><a class="sa-btn" href="/student-apps/new">Register a project</a></p>
+  <% if (canImportGithub) { %><p><a class="sa-btn sa-alt" href="/student-apps/github-import">GitHub Import / Archive</a></p><% } %>
   <% if (!apps.length) { %>
     <p>No projects registered yet.</p>
   <% } else { %>

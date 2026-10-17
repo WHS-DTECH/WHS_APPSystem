@@ -114,6 +114,92 @@ the Guidance Assign User Roles page. It preserves existing contextual actions
 navigation row on mobile. Settings links retain the current app context on the
 role-assignment page. Authorization remains enforced by the existing routes.
 
+### Private GitHub source archive
+
+Administrators can open **Student Apps > GitHub Import / Archive**
+(`/student-apps/github-import`). Students and Lead Teachers cannot import.
+Register each project in Student Apps first. Enter its source repository and,
+optionally, a branch/tag/commit. A preview resolves that reference to an immutable
+commit, lists eligible and excluded files, and expires after one hour. The same
+administrator must review the pinned source, acknowledge the exclusions and
+separate data handover, and explicitly confirm before any source is written.
+
+The importer uses two GitHub Apps, not a personal access token or school Google
+credentials:
+
+* **Reader:** repository Contents **read-only**, Metadata read-only, installable
+  on any account. Each student/repository owner must install it on only their
+  selected project repositories. Being a collaborator alone does not install it.
+* **Writer:** Contents **read and write**, Metadata read-only, installable only
+  on the school account and installed on **WHS-TECHArchive only**.
+* Leave other optional permissions unset. No OAuth user authorization, client
+  secrets, callbacks, device flow or webhooks are required for these manual
+  imports. App JWTs generate short-lived installation tokens narrowed to the
+  specific repository and Contents permission for each operation.
+
+On the **main WHS APPSystem Render service** (not the legacy app services):
+
+1. Under **Environment > Secret Files**, create `github-reader.pem` containing
+   the complete downloaded Reader PEM, including its BEGIN/END lines. Create
+   `github-writer.pem` using the separate Writer PEM. Never commit these files,
+   paste them into chat, or put them into a student project's folder.
+2. Add `GITHUB_READER_APP_ID` and `GITHUB_WRITER_APP_ID` using the **App ID**
+   on each GitHub App's settings page (not Client ID or installation ID).
+3. Add `GITHUB_READER_PRIVATE_KEY_FILE=/etc/secrets/github-reader.pem` and
+   `GITHUB_WRITER_PRIVATE_KEY_FILE=/etc/secrets/github-writer.pem`.
+4. Add `GITHUB_ARCHIVE_REPOSITORY=WHS-DTECH/WHS-TECHArchive`.
+5. Save and redeploy. The existing migration runner applies
+   `024_student_app_imports.sql`. The import page reports missing settings;
+   configuration presence alone does not mean GitHub access has been verified.
+6. Share the Reader App's public installation page with each student (GitHub App
+   settings > Public page > Install). They select their project repository.
+   Test one reviewed preview/import before handing over all eight projects.
+
+No private source is stored in this public application repository or served
+from its public/static folders. Source bytes are held in memory during an
+operation. The database keeps preview metadata, the originating administrator,
+source commit, exclusion reasons, status and the resulting private archive URL.
+GitHub's API is the fixed network destination; repository input cannot select
+arbitrary hosts. The destination is checked for private visibility before use.
+Administrator confirmation uses a session CSRF token and an atomic one-time
+preview claim. The Writer never writes to student repositories.
+
+Snapshots are stored in the private archive as:
+
+```
+LegacySites/StudentApps/<registered-project-slug>/snapshots/<source-commit>-<review-digest>/
+```
+
+Each snapshot contains eligible files and `_whs-import.json` recording provenance,
+date and omissions. Executable source modes are retained. Existing archive
+content is preserved, duplicate snapshots are rejected, and branch updates
+never force-push. A concurrent GitHub update requires a fresh preview.
+The importer stops on incomplete listings or more than **300 repository files**,
+**1 MiB per eligible file**, or **15 MiB total eligible source scanned**; larger
+projects require a separate handover rather than a partial success.
+
+Common credentials, private keys, database files/dumps, spreadsheets, runtime
+uploads/backups, dependency/build folders, symlinks, submodules and LFS pointers
+are excluded and listed. Embedded-token/credential checks are precautionary,
+**not a guarantee**: an administrator must inspect the linked pinned source
+before confirming. Binary assets can contain personal information too.
+Keep author attribution/licence files and obtain permission for archival.
+
+This is a **reviewed source snapshot**, not a full Git mirror or deployment.
+Databases, externally stored uploads, Git LFS contents, submodules and deployment
+secrets need their own secure backups. It neither changes live app addresses nor
+runs imported code. To keep a local copy, open the private archive in GitHub and
+use **Code > Download ZIP**, then copy the desired project snapshot to that
+computer's `LegacySites\StudentApps` folder. Do not commit private student source
+to WHS_APPSystem: its existing `LegacySites/` exclusion remains in place.
+
+Recent history shows success, failure, previews and in-progress operations.
+If Render restarts mid-import or a response/database write fails after the
+GitHub commit, check the archive's Git history for the displayed import UUID
+before retrying; the commit may already exist. Stale in-progress rows are not
+reported as successful. No live repository import is performed by automated
+tests; use the first real project as a supervised connectivity/handover test.
+
 Run the isolated Python regressions with
 `python tests\guidance_global_roles_test.py -v` (Flask and the app requirements
 must be installed). They use a temporary dummy database, never the live database.

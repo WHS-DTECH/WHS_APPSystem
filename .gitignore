@@ -1,5 +1,9 @@
 node_modules/
 .env
+*.pem
+*.key
+*.p12
+*.pfx
 .DS_Store
 npm-debug.log*
 coverage/

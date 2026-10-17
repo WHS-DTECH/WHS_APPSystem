@@ -1,0 +1,87 @@
+<%- include('../partials/header') %>
+<style>
+  .sa-github-import { min-width: 0; overflow-wrap: anywhere; }
+  .sa-github-import form.stacked { display: grid; gap: 16px; }
+  .sa-github-import .button { justify-self: start; max-width: 100%; white-space: normal; }
+  .sa-github-import .sa-import-history { overflow-x: auto; }
+  .sa-github-import table { min-width: 600px; }
+  .sa-github-import code { white-space: normal; }
+</style>
+<div class="sa-github-import">
+<section class="page-title">
+  <p class="eyebrow">Student Apps · Administrator</p>
+  <h1>GitHub Import</h1>
+  <p>Preserve student project source in the school's private archive. This does not deploy an app or change its live address.</p>
+  <p><a href="/student-apps">Back to Student Apps</a></p>
+</section>
+<% if (error) { %><section class="panel" role="alert"><strong><%= error %></strong></section><% } %>
+<section class="panel">
+  <h2>Connection</h2>
+  <p>Destination: <strong><%= configuration.destination %></strong>. The importer checks that it is private before writing.</p>
+  <% if (!configuration.ready) { %>
+    <p role="status">Not configured. Add the following environment settings and private-key secret files to the main WHS APPSystem Render service:</p>
+    <ul><% configuration.missing.forEach((key) => { %><li><code><%= key %></code></li><% }) %></ul>
+  <% } else { %>
+    <p>App settings are present. GitHub access is checked when creating a preview; credentials are never shown here.</p>
+  <% } %>
+  <p>The student must install the Reader App on their selected repository. The Writer App must be installed only on the school archive.</p>
+</section>
+<section class="panel">
+  <h2>1. Preview a project</h2>
+  <form action="/student-apps/github-import/preview" method="post" class="stacked">
+    <input type="hidden" name="csrf" value="<%= csrf %>">
+    <label>Registered project
+      <select name="appId" required>
+        <option value="">Select a project</option>
+        <% apps.forEach((app) => { %><option value="<%= app.id %>" <%= form.appId === app.id ? 'selected' : '' %>><%= app.name %> (<%= app.slug %>)</option><% }) %>
+      </select>
+    </label>
+    <label>Student repository<input name="repository" value="<%= form.repository || '' %>" placeholder="student-account/project-name" maxlength="200" required></label>
+    <label>Branch, tag or commit (optional)<input name="ref" value="<%= form.ref || '' %>" maxlength="200" placeholder="Default branch if blank"></label>
+    <label><input type="checkbox" name="reviewConsent" value="yes" required> I have permission to preserve this work and will review its source for credentials and private data.</label>
+    <p>Limits: 300 repository files, 1 MiB per eligible file, 15 MiB total. Larger projects need a separate handover; they are not silently truncated.</p>
+    <button class="button" type="submit" <%= configuration.ready && apps.length ? '' : 'disabled' %>>Preview source</button>
+  </form>
+</section>
+<% if (preview) { const snapshot = preview.snapshot; %>
+<section class="panel">
+  <h2>2. Review and confirm</h2>
+  <p>Project: <strong><%= preview.app.name %></strong></p>
+  <p>Source: <a href="https://github.com/<%= snapshot.repository %>/tree/<%= snapshot.commit %>" target="_blank" rel="noopener noreferrer"><%= snapshot.repository %> at <%= snapshot.commit %></a></p>
+  <p><%= snapshot.files.length %> eligible files; <%= snapshot.bytes %> bytes. Preview expires after one hour.</p>
+  <p>Each import is stored separately under <code>LegacySites/StudentApps/<%= preview.app.slug %>/snapshots/</code> in the private archive, with its source commit and handover manifest. Older copies are not overwritten.</p>
+  <details><summary>Eligible file list</summary><ul><% snapshot.files.forEach((file) => { %><li><code><%= file.path %></code> (<%= file.size %> bytes)</li><% }) %></ul></details>
+  <h3>Skipped files (<%= snapshot.excluded.length %>)</h3>
+  <% if (!snapshot.excluded.length) { %><p>No files were automatically excluded. This is not a guarantee that the source is free of secrets or personal information.</p><% } %>
+  <ul><% snapshot.excluded.forEach((file) => { %><li><code><%= file.path %></code>: <%= file.reason %></li><% }) %></ul>
+  <p><strong>Source snapshot only:</strong> Git history, databases, external uploads, deployment secrets, Git LFS file contents and submodules need a separate handover. Automated checks cannot detect every secret or private record. Review the linked source before confirming. Keep copyright and licence files intact.</p>
+  <form action="/student-apps/github-import/confirm" method="post">
+    <input type="hidden" name="csrf" value="<%= csrf %>">
+    <input type="hidden" name="importId" value="<%= preview.id %>">
+    <label><input type="checkbox" name="confirmReview" value="yes" required> I have reviewed the pinned source and skipped files, have permission to archive it, and understand separate data and secrets backups are required.</label>
+    <p><button class="button" type="submit">Save reviewed source to private archive</button></p>
+  </form>
+</section>
+<% } %>
+<section class="panel table-panel">
+  <h2>Recent imports and previews</h2>
+  <p>An interrupted import may have committed before the connection failed. Check the archive's Git history for the import ID before retrying. Imports stuck at “importing” after a service restart also need this check.</p>
+  <% if (!history.length) { %><p>No imports yet.</p><% } else { %>
+  <div class="sa-import-history"><table>
+    <thead><tr><th>Project / import ID</th><th>Source</th><th>Created</th><th>Status / result</th></tr></thead>
+    <tbody><% history.forEach((item) => { %>
+      <tr>
+        <td><%= item.name %><br><small><%= item.id %></small></td>
+        <td><%= item.repository %><br><small><%= item.source_commit %></small></td>
+        <td><%= new Date(item.created_at).toLocaleString('en-NZ', { timeZone: 'Pacific/Auckland' }) %></td>
+        <td><%= item.status %>
+          <% if (item.archive_url) { %><br><a href="<%= item.archive_url %>" target="_blank" rel="noopener noreferrer">Open archived source</a><% } %>
+          <% if (item.error_message) { %><p role="alert"><%= item.error_message %></p><% } %>
+        </td>
+      </tr>
+    <% }) %></tbody>
+  </table></div>
+  <% } %>
+</section>
+</div>
+<%- include('../partials/footer') %>

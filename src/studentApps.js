@@ -303,6 +303,8 @@ router.use((req, res, next) => {
   return res.redirect(`/auth/google?next=${encodeURIComponent(req.originalUrl)}`);
 });
 
+router.use('/github-import', require('./studentAppImports').createImportRouter());
+
 router.get('/', async (req, res, next) => {
   try {
     const apps = isAdmin(req.user)
@@ -315,7 +317,7 @@ router.get('/', async (req, res, next) => {
            WHERE assigned.user_id = $1 AND roles.hub_key = apps.hub_key AND roles.role_key = 'lead-teacher'
          ) ORDER BY name`, [req.user.id]
       )).rows;
-    res.render('student-apps/index', { title: 'Student Apps', apps });
+    res.render('student-apps/index', { title: 'Student Apps', apps, canImportGithub: isAdmin(req.user) });
   } catch (error) {
     next(error);
   }
