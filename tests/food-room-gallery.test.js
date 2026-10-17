@@ -78,10 +78,14 @@ test('gallery retry recovers and a genuinely empty catalogue is not a loading er
 
 test('weekly booking failures remain visible without failing the recipe catalogue', async () => {
   for (const response of [502, 401, { error: 'Unavailable' }]) {
-    const { elements, errors } = await gallery([[{ id: 1, name: 'Original recipe' }]], response);
+    const { elements, errors } = await gallery([[{
+      id: 1, name: 'Original recipe',
+      image_url: '/food-room/api/recipes/display-table/1/image.jpg', ft_images: '[]'
+    }]], response);
     assert.equal(elements.recipeCountBadge.textContent, '1 recipes in the student showcase');
     assert.equal(elements.recipeCardList.children.length, 1);
     assert.match(elements.recipeCardList.children[0].innerHTML, /Original recipe/);
+    assert.match(elements.recipeCardList.children[0].innerHTML, /src="\/food-room\/api\/recipes\/display-table\/1\/image.jpg"/);
     assert.match(elements.weeklyRecipeEmpty.textContent, /could not be loaded/);
     assert.equal(elements.weeklyRecipeEmpty.style.display, '');
     assert.equal(errors.length, 1);

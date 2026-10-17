@@ -492,5 +492,10 @@ of remaining on "Loading recipes". Weekly booking errors are shown separately
 and do not hide successfully loaded recipes. An HTTP 502 HTML response from
 Render is a service/gateway failure, not proof of a disconnected legacy database;
 check the main service's Render deployment/runtime logs before changing DB URLs.
+The recipe `display-table?fields=summary` query selects only gallery metadata.
+Stored base64 images are served individually by
+`/food-room/api/recipes/display-table/:id/image.jpg`, preserving the selected
+primary image and original image data without embedding every image in one
+large JSON response. Full recipe/detail responses are unchanged.
 
 The Food Room is the legacy recipeCalculator site (public/food-room, legacy API in src/legacy/food-room) under /food-room, using the Google login. The legacy tables live in the ood_room schema (migration 014) and existing data is copied once from INTEGRATION_FOOD_ROOM_DATABASE_URL (guarded by food_room_legacy_import); new data goes to DATABASE_URL. The app's roles are mirrored into the legacy role tables on each request: ADMIN -> admin, Food Room Lead Teacher hub role -> lead_teacher, Food Room Technician hub role -> technician, Teacher/Staff -> teacher, Student -> student (assign hub roles at /admin/users). Emails (suggestions, weekly digest, place order, shopping reviews) are sent through the Google Gmail API (GOOGLE_GMAIL_* variables) with a [Food Room Hub] subject prefix. Food Room specific variables: PLACE_ORDER_* (pilot recipient, admin copy, Tuesday cron, Google form/sheet URLs), GOOGLE_CREDENTIALS, GOOGLE_TOKEN_JSON, GOOGLE_OAUTH_REDIRECT_URI and GOOGLE_PLANNER_* (planner sync), WEEKLY_DIGEST_CRON, SUGGESTION_NOTIFY_TO and SITE_URL. The Puppeteer recipe extractor pages need the optional puppeteer package.

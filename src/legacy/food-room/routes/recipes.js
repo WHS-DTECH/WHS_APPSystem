@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const nodemailer = require('../mailShim');
 const pool = require('../db');
+const { parseFtImages, normalizeFtPrimarySlot, parseImageDataUrl } = require('../recipeImages');
 
 let foodTruckModerationColumnsEnsured = false;
 let recipeIssueColumnsEnsured = false;
@@ -619,16 +620,58 @@ router.get('/display-dropdown', async (req, res) => {
 });
 
 // GET /api/recipes/display-table - Get all rows from recipe_display
+router.get('/display-table/:id/image.jpg', async (req, res) => {
+  if (!/^[1-9]\d*$/.test(req.params.id) || Number(req.params.id) > 2147483647) {
+    return res.status(400).json({ success: false, error: 'Invalid recipe display ID.' });
+  }
+  try {
+    const result = await pool.query(
+      `SELECT rd.image_url, coalesce(r.ft_images, '[]') AS ft_images, r.ft_primary_slot
+         FROM recipe_display rd
+         LEFT JOIN recipes r ON r.id = rd.recipeid
+        WHERE rd.id = $1`,
+      [req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ success: false, error: 'Recipe image not found.' });
+    const row = result.rows[0];
+    const images = parseFtImages(row.ft_images);
+    const slot = normalizeFtPrimarySlot(row.ft_primary_slot, images);
+    const image = String((slot && images[slot - 1]) || row.image_url || '').trim();
+    if (!image) return res.status(404).json({ success: false, error: 'Recipe image not found.' });
+    const data = parseImageDataUrl(image);
+    if (data) {
+      return res.set('Cache-Control', 'public, max-age=300').type(data.ext).send(data.buffer);
+    }
+    if (/^data:/i.test(image)) {
+      return res.status(415).json({ success: false, error: 'Unsupported recipe image format.' });
+    }
+    const target = /^https?:\/\//i.test(image) || image.startsWith('/') ? image
+      : /^images\//i.test(image) ? `/food-room/${image}`
+        : `/food-room/images/recipe_user_uploads/${image}`;
+    return res.redirect(target);
+  } catch (err) {
+    console.error('[ERROR][GET /api/recipes/display-table/:id/image.jpg]', err);
+    return res.status(500).json({ success: false, error: 'Failed to load recipe image.' });
+  }
+});
+
 router.get('/display-table', async (req, res) => {
   try {
     await ensureFoodTruckModerationColumns();
     const scope = String(req.query && req.query.scope || '').trim().toLowerCase();
     const fieldsMode = String(req.query && req.query.fields || '').trim().toLowerCase();
 
-    const sql = `
-      SELECT rd.*,
+    const selection = fieldsMode === 'summary'
+      ? `rd.id, rd.recipeid, rd.name, rd.url,
+         CASE WHEN nullif(trim(rd.image_url), '') IS NOT NULL
+                    OR coalesce(trim(r.ft_images), '') NOT IN ('', '[]', 'null')
+              THEN '/food-room/api/recipes/display-table/' || rd.id || '/image.jpg'
+              ELSE '' END AS image_url`
+      : `rd.*,
              coalesce(r.ft_images, '[]') AS ft_images,
-             r.ft_primary_slot
+             r.ft_primary_slot`;
+    const sql = `
+      SELECT ${selection}
         FROM recipe_display rd
         LEFT JOIN recipes r ON r.id = rd.recipeid
        WHERE (
@@ -650,8 +693,8 @@ router.get('/display-table', async (req, res) => {
         name: row.name,
         url: row.url,
         image_url: row.image_url,
-        ft_images: row.ft_images,
-        ft_primary_slot: row.ft_primary_slot,
+        ft_images: '[]',
+        ft_primary_slot: null,
         planner_stream: row.planner_stream,
         department: row.department
       }));

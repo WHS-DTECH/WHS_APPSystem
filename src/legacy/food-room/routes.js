@@ -787,20 +787,7 @@ async function ensureRecipeDisplayImageColumn() {
   recipeDisplayImageColumnEnsured = true;
 }
 
-function parseFtImages(rawValue) {
-  const images = JSON.parse(rawValue || 'null') || [null, null, null, null, null];
-  while (images.length < 5) images.push(null);
-  return images.slice(0, 5);
-}
-
-function normalizeFtPrimarySlot(slot, images) {
-  const numericSlot = Number(slot);
-  if (Number.isInteger(numericSlot) && numericSlot >= 1 && numericSlot <= 5 && images[numericSlot - 1]) {
-    return numericSlot;
-  }
-  const firstFilledIndex = (images || []).findIndex(Boolean);
-  return firstFilledIndex >= 0 ? firstFilledIndex + 1 : null;
-}
+const { parseFtImages, normalizeFtPrimarySlot, parseImageDataUrl } = require('./recipeImages');
 
 async function getFtRecipeImageRecord(recipeId) {
   const displayResult = await pool.query(
@@ -870,18 +857,6 @@ async function writeFtRecipeImages(recipeId, images, primarySlot) {
     console.warn('[startup] Could not ensure adjusted recipe columns:', e.message);
   }
 })();
-
-function parseImageDataUrl(dataUrl) {
-  const raw = String(dataUrl || '');
-  const match = /^data:image\/(png|jpeg|jpg|webp|gif)(?:;charset=[^;,]+)?;base64,(.+)$/i.exec(raw);
-  if (!match) return null;
-  const type = String(match[1] || '').toLowerCase();
-  const ext = type === 'jpeg' || type === 'jpg' ? 'jpg' : type;
-  return {
-    ext,
-    buffer: Buffer.from(match[2], 'base64')
-  };
-}
 
 function sanitizeImageFileBase(name) {
   const base = String(name || 'recipe-image').trim();
