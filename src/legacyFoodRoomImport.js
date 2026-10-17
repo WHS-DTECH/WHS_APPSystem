@@ -83,7 +83,7 @@ async function insertRow(client, table, columns, types, row) {
   }
 }
 
-async function importLegacyFoodRoom() {
+async function runImport() {
   const done = await pool.query('SELECT summary FROM food_room.food_room_legacy_import');
   const imported = done.rows.some((row) => {
     const summary = typeof row.summary === 'string' ? JSON.parse(row.summary) : row.summary || {};
@@ -127,6 +127,7 @@ async function importLegacyFoodRoom() {
         if (await insertRow(client, table, columns, types, row)) summary[table] += 1;
         else retry.push({ table, columns, types, row });
       }
+      console.log(`Legacy Food Room import: ${table} done (${summary[table]}/${rows.rows.length})`);
     }
 
     let skipped = 0;
@@ -164,6 +165,13 @@ async function importLegacyFoodRoom() {
     client.release();
     await source.end().catch(() => {});
   }
+}
+
+// Memoised so the legacy routes and schedulers can wait for it instead of racing its transaction.
+let importPromise;
+function importLegacyFoodRoom() {
+  importPromise = importPromise || runImport();
+  return importPromise;
 }
 
 module.exports = { importLegacyFoodRoom };

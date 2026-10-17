@@ -489,14 +489,17 @@ async function start() {
     console.log(`WHS APPSystem listening on port ${config.port}`);
     if (config.databaseUrl) {
       console.log('Legacy Food Room import: starting in background...');
-      importLegacyFoodRoom().catch((error) => {
-        console.error('Legacy Food Room import skipped:', error.message);
-      });
-      try {
-        require('./legacy/food-room/routes').startSchedulers();
-      } catch (error) {
-        console.error('Food Room schedulers not started:', error.message);
-      }
+      importLegacyFoodRoom()
+        .catch((error) => {
+          console.error('Legacy Food Room import skipped:', error.message);
+        })
+        .then(() => {
+          try {
+            require('./legacy/food-room/routes').startSchedulers();
+          } catch (error) {
+            console.error('Food Room schedulers not started:', error.message);
+          }
+        });
     }
   });
 }
