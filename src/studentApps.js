@@ -51,15 +51,18 @@ function chosenRoles(value) {
 // Kamar staff list: admins first (the first one is the default), then teachers already chosen as a client, then everyone else.
 async function clientChoices() {
   const result = await query(
-    `SELECT LOWER(staff.email_school) AS email,
-            TRIM(CONCAT_WS(' ', NULLIF(staff.title, ''), staff.first_name, staff.last_name)) AS display_name,
-            EXISTS (SELECT 1 FROM users u JOIN user_roles ur ON ur.user_id = u.id JOIN roles r ON r.id = ur.role_id
-                    WHERE LOWER(u.email) = LOWER(staff.email_school) AND r.name = 'ADMIN') AS is_admin,
-            (SELECT COUNT(*) FROM student_apps sa JOIN users u ON u.id = sa.client_user_id
-              WHERE LOWER(u.email) = LOWER(staff.email_school))::int AS times_chosen
-     FROM kamar.staff staff
-     WHERE staff.status = 'Current' AND COALESCE(staff.email_school, '') <> ''
-     ORDER BY is_admin DESC, (times_chosen > 0) DESC, times_chosen DESC, staff.last_name, staff.first_name`
+    `SELECT * FROM (
+       SELECT LOWER(staff.email_school) AS email,
+              TRIM(CONCAT_WS(' ', NULLIF(staff.title, ''), staff.first_name, staff.last_name)) AS display_name,
+              staff.last_name, staff.first_name,
+              EXISTS (SELECT 1 FROM users u JOIN user_roles ur ON ur.user_id = u.id JOIN roles r ON r.id = ur.role_id
+                      WHERE LOWER(u.email) = LOWER(staff.email_school) AND r.name = 'ADMIN') AS is_admin,
+              (SELECT COUNT(*) FROM student_apps sa JOIN users u ON u.id = sa.client_user_id
+                WHERE LOWER(u.email) = LOWER(staff.email_school))::int AS times_chosen
+       FROM kamar.staff staff
+       WHERE staff.status = 'Current' AND COALESCE(staff.email_school, '') <> ''
+     ) ranked
+     ORDER BY is_admin DESC, times_chosen DESC, last_name, first_name`
   );
   return result.rows;
 }
