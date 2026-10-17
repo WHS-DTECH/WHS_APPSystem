@@ -8,14 +8,14 @@
   var shifted = [];
 
   var css = [
-    '#gn-toggle{position:fixed;top:10px;left:10px;z-index:2147483000;width:38px;height:38px;border-radius:8px;border:1px solid rgba(0,0,0,.2);background:#0d5c4a;color:#fff;font-size:20px;line-height:1;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25)}',
+    '#gn-toggle{position:fixed;bottom:10px;left:10px;z-index:2147483000;width:38px;height:38px;border-radius:8px;border:1px solid rgba(0,0,0,.2);background:#0d5c4a;color:#fff;font-size:20px;line-height:1;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25)}',
     '#gn-toggle:hover{background:#093f34}',
-    '#gn-nav{position:fixed;top:0;left:0;bottom:0;width:' + WIDTH + 'px;z-index:2147482999;background:#0f2a23;color:#e8f0ec;font:14px/1.4 system-ui,-apple-system,Segoe UI,sans-serif;display:flex;flex-direction:column;box-sizing:border-box;padding:58px 0 12px;overflow-y:auto;transform:translateX(-100%);transition:transform .2s ease;box-shadow:2px 0 12px rgba(0,0,0,.25)}',
+    '#gn-nav{position:fixed;top:0;left:0;bottom:0;width:' + WIDTH + 'px;z-index:2147482999;background:#0f2a23;color:#e8f0ec;font:14px/1.4 system-ui,-apple-system,Segoe UI,sans-serif;display:flex;flex-direction:column;box-sizing:border-box;padding:58px 0 64px;overflow-y:auto;transform:translateX(-100%);transition:transform .2s ease;box-shadow:2px 0 12px rgba(0,0,0,.25)}',
     'html.gn-open #gn-nav{transform:none}',
     '#gn-nav a,#gn-nav button.gn-link{display:block;width:100%;box-sizing:border-box;text-align:left;padding:9px 18px;color:#e8f0ec;text-decoration:none;background:none;border:0;border-left:3px solid transparent;font:inherit;cursor:pointer}',
     '#gn-nav a:hover,#gn-nav button.gn-link:hover{background:rgba(255,255,255,.08)}',
     '#gn-nav a.gn-active{background:rgba(255,255,255,.12);border-left-color:#c08a2c;font-weight:600}',
-    '#gn-nav .gn-brand{position:absolute;top:0;left:0;right:0;height:58px;padding:0 0 0 62px;display:flex;align-items:center;font-weight:700;font-size:16px;color:#fff}',
+    '#gn-nav .gn-brand{position:absolute;top:0;left:0;right:0;height:58px;padding:0 0 0 18px;display:flex;align-items:center;font-weight:700;font-size:16px;color:#fff}',
     '#gn-nav .gn-brand a{padding:0;border:0;color:#fff;width:auto}',
     '#gn-nav .gn-user{padding:8px 18px 10px;border-bottom:1px solid rgba(255,255,255,.12);margin-bottom:6px;font-size:13px}',
     '#gn-nav .gn-badge{display:inline-block;margin-top:4px;padding:1px 8px;border-radius:999px;background:#e5eee8;color:#093f34;font-size:11px;font-weight:700}',
