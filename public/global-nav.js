@@ -112,8 +112,9 @@
       }
       var modules = data.modules || [];
       var used = {};
-      function section(title, order, match, rename) {
+      function section(title, order, match, rename, headLink) {
         nav.appendChild(el('div', { 'class': 'gn-head' }, title));
+        if (headLink) link(nav, headLink[0], headLink[1]);
         var found = 0;
         order.forEach(function (name) {
           modules.forEach(function (module) {
@@ -132,9 +133,8 @@
         function (module) { return /hub$/i.test(module.name) ? module.name : module.name + ' Hub'; });
       nav.appendChild(el('div', { 'class': 'gn-gap' }));
       var remaining = modules.map(function (module) { return module.name; });
-      if (!section('Student Apps', remaining, function (module, name) { return module.name === name; })) {
-        nav.appendChild(el('div', { 'class': 'gn-empty' }, 'None yet'));
-      }
+      var studentApps = section('Student Apps', remaining, function (module, name) { return module.name === name; }, null, ['Dashboard', '/student-apps']);
+      if (!studentApps) nav.appendChild(el('div', { 'class': 'gn-empty' }, 'None yet'));
       nav.appendChild(el('div', { 'class': 'gn-spacer' }));
       var signOut = el('button', { type: 'button', 'class': 'gn-link' }, 'Sign out');
       signOut.addEventListener('click', function () {
