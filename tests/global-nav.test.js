@@ -6,6 +6,43 @@ const os = require('os');
 const path = require('path');
 const { injectGlobalNav, navData, safeNext } = require('../src/globalNav');
 
+test('DTECH is grouped directly below Technology Hub, not under Student Apps', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'global-nav.js'), 'utf8');
+  const start = source.indexOf('var modules = data.modules || [];');
+  const end = source.indexOf("nav.appendChild(el('div', { 'class': 'gn-spacer' }));", start);
+  assert.ok(start !== -1 && end > start);
+  const entries = [];
+  const modules = [
+    { name: 'Guidance Counsellor App', path: '/student-apps/guidance-counsellor-app' },
+    { name: 'DTECH Hub', path: '/dtech-hub/' },
+    { name: 'Food Room Hub', path: '/food-room/' },
+    { name: 'Technology Hub', path: '/technology-hub/' }
+  ];
+  const renderSections = new Function('data', 'nav', 'el', 'link', source.slice(start, end));
+  renderSections({ modules }, { appendChild(node) { entries.push(node); } },
+    (tag, attrs, text) => ({ text }),
+    (nav, text, href) => entries.push({ text, href }));
+  const technology = entries.findIndex((entry) => entry.href === '/technology-hub/');
+  assert.equal(entries[technology + 1].href, '/dtech-hub/');
+  const hubs = entries.findIndex((entry) => entry.text === 'Hubs');
+  const studentApps = entries.findIndex((entry) => entry.text === 'Student Apps');
+  assert.ok(technology > hubs && technology + 1 < studentApps);
+  assert.equal(entries.filter((entry) => entry.href === '/dtech-hub/').length, 1);
+  assert.ok(entries.findIndex((entry) => entry.href === '/student-apps/guidance-counsellor-app') > studentApps);
+
+  const html = await require('ejs').renderFile(path.join(__dirname, '..', 'views', 'dashboard.ejs'), {
+    title: 'Dashboard', currentUser: { display_name: 'Fixture Admin' }, activeRole: 'ADMIN', isAdmin: true,
+    modules: modules.map((module) => ({
+      module_key: module.path === '/dtech-hub/' ? 'dtech-hub' : module.path === '/technology-hub/' ? 'technology-hub' : 'other',
+      path: module.path, display_name: module.name
+    }))
+  });
+  const technologyCard = html.indexOf('<strong>Technology Hub</strong>');
+  const dtechCard = html.indexOf('<strong>DTECH Hub</strong>');
+  assert.ok(technologyCard !== -1 && dtechCard > technologyCard);
+  assert.match(html, /href="\/hubs\/dtech-hub\/roles"/);
+});
+
 async function withServer(setup, run) {
   const app = express();
   app.use(injectGlobalNav);

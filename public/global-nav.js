@@ -129,7 +129,7 @@
       }
       section('Modules', ['Core Administration', 'Kamar Uploader', 'WHS Learning Sites'], function (module, name) { return module.name === name; });
       nav.appendChild(el('div', { 'class': 'gn-gap' }));
-      var hubPaths = ['/technology-hub', '/food-room', '/sewing-hub', '/workshop'];
+      var hubPaths = ['/technology-hub', '/dtech-hub', '/food-room', '/sewing-hub', '/workshop'];
       section('Hubs', hubPaths, function (module, prefix) { return module.path.indexOf(prefix) === 0; },
         function (module) { return /hub$/i.test(module.name) ? module.name : module.name + ' Hub'; });
       nav.appendChild(el('div', { 'class': 'gn-gap' }));
