@@ -108,3 +108,44 @@ test('shared header rejects off-site result URLs instead of rendering unsafe lin
   assert.equal(ui.status.attrs.role, 'alert');
   assert.match(ui.status.textContent, /invalid result link/);
 });
+
+test('the shared sign-out pill uses school logout, disables during requests, and permits retry on failure', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'global-nav.js'), 'utf8');
+  const start = source.indexOf('  function signOutAccount(');
+  const end = source.indexOf('  function reserveAccountHeader(', start);
+  const location = {};
+  let resolve;
+  const requests = [];
+  const signOut = new Function('fetch', 'location', 'console', `return ${source.slice(start, end)}`)(
+    (url, options) => {
+      requests.push({ url, options });
+      return new Promise((done) => { resolve = done; });
+    }, location, { error() {} });
+  const button = node('button');
+  const status = node('p');
+  signOut(button, status);
+  assert.equal(button.disabled, true);
+  assert.deepEqual(requests[0], { url: '/logout', options: { method: 'POST', credentials: 'same-origin' } });
+  resolve({ ok: false });
+  await tick();
+  assert.equal(button.disabled, false);
+  assert.equal(status.attrs.role, 'alert');
+  assert.match(status.textContent, /Could not sign out/);
+  assert.equal(location.href, undefined);
+  signOut(button, status);
+  assert.equal(status.textContent, '');
+  resolve({ ok: true });
+  await tick();
+  assert.equal(location.href, '/');
+});
+
+test('sign out is a single header pill directly before the avatar and search aligns left', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'global-nav.js'), 'utf8');
+  const sidebar = source.slice(source.indexOf('  function render('), source.indexOf('  function signOutAccount('));
+  assert.doesNotMatch(sidebar, /Sign out|signOutAccount/);
+  assert.equal((source.match(/}, 'Sign out'\)/g) || []).length, 1);
+  assert.match(source, /header\.appendChild\(signOut\);\s+var account = menuButton/);
+  const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'account-controls.css'), 'utf8');
+  assert.match(css, /\.whs-module-search \{[^}]*margin-right: auto/);
+  assert.match(css, /\.whs-signout-pill \{[^}]*border-radius: 999px;[^}]*background: #09618a; color: #fff/);
+});

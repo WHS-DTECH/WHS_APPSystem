@@ -153,13 +153,6 @@
       var studentApps = section('Student Apps', remaining, function (module, name) { return module.name === name; }, null, ['APPs Dashboard', '/student-apps']);
       if (!studentApps) nav.appendChild(el('div', { 'class': 'gn-empty' }, 'None yet'));
       nav.appendChild(el('div', { 'class': 'gn-spacer' }));
-      var signOut = el('button', { type: 'button', 'class': 'gn-link' }, 'Sign out');
-      var signOutStatus = el('div', { role: 'status' });
-      signOut.addEventListener('click', function () {
-        signOutAccount(signOut, signOutStatus);
-      });
-      nav.appendChild(signOut);
-      nav.appendChild(signOutStatus);
     } else {
       link(nav, 'Home', '/');
       nav.appendChild(el('div', { 'class': 'gn-spacer' }));
@@ -168,6 +161,8 @@
   }
 
   function signOutAccount(button, status) {
+    status.textContent = '';
+    status.setAttribute('role', 'status');
     button.disabled = true;
     fetch('/logout', { method: 'POST', credentials: 'same-origin' })
       .then(function (response) {
@@ -254,7 +249,12 @@
       Array.prototype.forEach.call(header.querySelectorAll('.whs-account-menu'), function (menu) { menu.hidden = true; });
       Array.prototype.forEach.call(header.querySelectorAll('button[aria-expanded]'), function (button) { button.setAttribute('aria-expanded', 'false'); });
     }
+    var status = el('p', { 'class': 'whs-signout-status', role: 'status', id: 'whs-signout-status' });
+    var signOut = el('button', { type: 'button', 'class': 'whs-signout-pill', 'aria-describedby': 'whs-signout-status' }, 'Sign out');
+    signOut.addEventListener('click', function () { signOutAccount(signOut, status); });
+    header.appendChild(signOut);
     var account = menuButton('whs-account-menu', 'School account: ' + (data.name || data.email));
+    header.appendChild(status);
     account.button.textContent = (data.name || data.email || '?').trim().charAt(0).toUpperCase();
     if (data.avatarUrl && /^https:\/\//i.test(data.avatarUrl)) {
       var photo = el('img', { src: data.avatarUrl, alt: '', referrerpolicy: 'no-referrer' });
@@ -275,11 +275,6 @@
       if (data.assignRolesUrl) link(settings, 'Assign User Roles', data.assignRolesUrl);
       account.menu.appendChild(settings);
     }
-    var status = el('p', { role: 'status' });
-    var signOut = el('button', { type: 'button' }, 'Sign out');
-    signOut.addEventListener('click', function () { signOutAccount(signOut, status); });
-    account.menu.appendChild(signOut);
-    account.menu.appendChild(status);
     header.onkeydown = function (event) {
       if (event.key === 'Escape') {
         var active = header.querySelector('[aria-expanded="true"]');

@@ -22,6 +22,11 @@ Unified Westland High School app shell for one Render Web Service and one Google
 
 ## Shared module-sensitive search
 
+The shared account header places search at the left, with a blue Sign out pill
+immediately before the Google avatar at the right. Sign out uses the existing
+school-session logout action and reports failures visibly; it is no longer
+duplicated in the Global Control sidebar or avatar dropdown.
+
 Signed-in users can search from the shared Google-avatar navbar. The placeholder
 identifies the **current module**; submitting never searches other hubs or
 capsules, and there is no all-modules option. Class Training's duplicate local
