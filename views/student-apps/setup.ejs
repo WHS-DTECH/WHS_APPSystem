@@ -120,7 +120,10 @@
               <td><%= role.label %></td>
               <td>
                 <% if (roleDefaults[role.key]) { %>
-                  <strong><%= roleDefaults[role.key] %></strong> &mdash; automatic
+                  <strong><%= role.key === 'lead-teacher' ? 'Lead Teacher' : roleDefaults[role.key] %></strong> &mdash; automatic
+                  <% if (role.key === 'lead-teacher') { %>
+                    <br><small>Full app management (internal app role: <%= roleDefaults[role.key] %>).</small>
+                  <% } %>
                 <% } else if (canEditRoles) { %>
                   <input name="map_<%= role.key %>" list="roles-<%= app.id %>" value="<%= mapping[role.key] || '' %>" placeholder="Role name in your app">
                 <% } else { %>

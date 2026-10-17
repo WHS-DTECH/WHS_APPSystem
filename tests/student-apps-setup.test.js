@@ -47,6 +47,9 @@ test('hosted active apps show automatic sign-in and allow mapping without an old
   assert.match(html, /Connected automatically/);
   assert.match(html, /AppBuilder<\/strong> &mdash; automatic/);
   assert.match(html, /<strong>ADMIN<\/strong> &mdash; automatic/);
+  assert.equal((html.match(/<strong>ADMIN<\/strong> &mdash; automatic/g) || []).length, 1);
+  assert.match(html, /<strong>Lead Teacher<\/strong> &mdash; automatic/);
+  assert.match(html, /Full app management \(internal app role: ADMIN\)/);
   assert.doesNotMatch(html, /name="map_builder"/);
   assert.doesNotMatch(html, /EXTERNAL_SIGN_IN_CODE|Make a new secret|Test sign-in/);
 });
