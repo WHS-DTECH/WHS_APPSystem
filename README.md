@@ -480,8 +480,11 @@ The Sewing Hub is the legacy Sewing Room site (`public/sewing-hub`, legacy API i
 ## Kamar Uploader module
 
 Sign-in, profile and sign-out use Global Control's shared Google avatar/header
-and `/profile` page. The uploader has no duplicate account cards or navbar
-sign-out controls. Its navigation reads the current school session on every
+and `/profile` page. The uploader has no local sign-in card or navbar
+sign-out controls. A read-only **Signed-in User** summary sits beside the
+dashboard heading. **User Role Management** is in the shared avatar's
+**Settings** menu for ADMIN users visiting Kamar, not in a local Admin dropdown.
+Its navigation reads the current school session on every
 page, including direct upload-page visits, rather than trusting a cached local
 account. Upload pages, ADMIN access and legacy data APIs are unchanged.
 

@@ -267,12 +267,13 @@
     account.menu.appendChild(el('strong', {}, data.name || 'School account'));
     account.menu.appendChild(el('p', {}, data.email || ''));
     link(account.menu, 'Profile', '/profile');
-    if (data.datasetManagerUrl || data.assignRolesUrl || data.courseManagementUrl) {
+    if (data.datasetManagerUrl || data.assignRolesUrl || data.courseManagementUrl || data.userRoleManagementUrl) {
       var settings = el('details', { 'class': 'whs-account-settings' });
       settings.appendChild(el('summary', {}, 'Settings'));
       if (data.datasetManagerUrl) link(settings, 'Dataset Manager', data.datasetManagerUrl);
       if (data.courseManagementUrl) link(settings, 'Course Management', data.courseManagementUrl);
       if (data.assignRolesUrl) link(settings, 'Assign User Roles', data.assignRolesUrl);
+      if (data.userRoleManagementUrl) link(settings, 'User Role Management', data.userRoleManagementUrl);
       account.menu.appendChild(settings);
     }
     header.onkeydown = function (event) {

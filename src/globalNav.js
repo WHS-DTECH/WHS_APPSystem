@@ -147,6 +147,8 @@ function navData(query, canManageHubRoles, datasetManagerUrl, canManageCourses =
         assignRolesUrl,
         datasetManagerUrl: datasetUrl,
         courseManagementUrl,
+        userRoleManagementUrl: user?.roles?.includes('ADMIN') && /^\/admin\/kamar-uploader(?:\/|$)/.test(currentPath)
+          ? '/admin/users' : null,
         roleViews,
         roleViewModule,
         activeView,

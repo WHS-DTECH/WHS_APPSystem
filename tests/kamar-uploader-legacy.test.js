@@ -38,8 +38,13 @@ test('ADMIN gets the legacy Kamar Uploader pages and session permissions', async
       const html = await response.text();
       assert.ok(html.includes('/global-nav.js'), page);
       assert.ok(html.includes('/account-controls.css'), page);
-      for (const duplicate of ['id="authCard"', 'id="currentUserPanel"', 'id="signOutBtn"', 'id="googleSignInTarget"']) {
+      for (const duplicate of ['id="authCard"', 'id="signOutBtn"', 'id="googleSignInTarget"']) {
         assert.ok(!html.includes(duplicate), `${page}: ${duplicate}`);
+      }
+      if (!page) {
+        const hero = html.split('<section class="hero-panel">')[1].split('</section>')[0];
+        assert.ok(hero.includes('id="currentUserPanel"'));
+        assert.strictEqual(html.split('id="currentUserPanel"').length - 1, 1);
       }
     }
 
@@ -80,10 +85,11 @@ test('every direct Kamar page gets navigation from the school session without a 
       status: 200, payload: { success: true, user: { email: 'admin@example.test', role: 'admin', permissions } }
     });
     assert.strictEqual(location.href, undefined);
-    for (const label of ['Home', 'Staff Upload', 'Student Upload', 'Student Timetable', 'Staff Timetable', 'User Role Management']) {
+    for (const label of ['Home', 'Staff Upload', 'Student Upload', 'Student Timetable', 'Staff Timetable']) {
       assert.ok(host.innerHTML.includes(`>${label}</a>`), label);
     }
     assert.ok(!/Sign out|Sign in|top-nav-user|admin@example/.test(host.innerHTML));
+    assert.ok(!/User Role Management|top-nav-admin/.test(host.innerHTML));
     assert.strictEqual(errors.length, 0);
   }
 });
@@ -112,6 +118,7 @@ test('dashboard keeps project editing tied to the school session without duplica
   const elements = {
     projectLinkForm: { style: {} },
     projectLinksList: {},
+    currentUserPanel: {},
     projectLinkStatus: { style: {} }
   };
   let ready;
@@ -133,6 +140,8 @@ test('dashboard keeps project editing tied to the school session without duplica
   vm.runInNewContext(fs.readFileSync(path.join(siteDir, 'index.js'), 'utf8'), context);
   await ready();
   assert.strictEqual(elements.projectLinkForm.style.display, 'grid');
+  assert.match(elements.currentUserPanel.innerHTML, /admin@example.test/);
+  assert.match(elements.currentUserPanel.innerHTML, /Role: ADMIN/);
   assert.strictEqual(requests[0], '/api/auth/session');
   assert.ok(requests.includes('/api/feed/summary/current-counts'));
   assert.ok(requests.includes('/api/projects/links'));

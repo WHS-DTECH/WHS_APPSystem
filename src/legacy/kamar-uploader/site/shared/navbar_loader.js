@@ -11,11 +11,6 @@
     { href: base + 'timetable_upload.html', label: 'Staff Timetable', permission: 'staff_timetable' }
   ];
 
-  // Roles and access are managed in the main app, not in this site.
-  const adminLinks = [
-    { href: '/admin/users', label: 'User Role Management' }
-  ];
-
   const pagePermissionMap = {
     'staff_upload.html': 'staff_upload',
     'student_details_upload.html': 'student_upload',
@@ -47,22 +42,6 @@
       .join('');
   }
 
-  function renderAdminMenu(user) {
-    const role = String((user && user.role) || '').trim().toLowerCase();
-    if (!user || !user.email || role !== 'admin' || !hasPermission(user, 'admin_menu')) {
-      return '';
-    }
-
-    return `
-      <div class="top-nav-admin-menu">
-        <button type="button" class="top-nav-admin-btn">Admin</button>
-        <div class="top-nav-admin-dropdown">
-          ${adminLinks.map((item) => `<a href="${item.href}">${item.label}</a>`).join('')}
-        </div>
-      </div>
-    `;
-  }
-
   function applyNav(user) {
     enforceRouteAccess(user);
 
@@ -71,7 +50,6 @@
         <div class="top-nav-inner">
           <div class="top-nav-links">
             ${renderNavLinks(user)}
-            ${renderAdminMenu(user)}
           </div>
         </div>
       </nav>

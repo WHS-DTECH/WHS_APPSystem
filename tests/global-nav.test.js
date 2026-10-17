@@ -6,6 +6,26 @@ const os = require('os');
 const path = require('path');
 const { injectGlobalNav, navData, safeNext } = require('../src/globalNav');
 
+test('Kamar user role management appears in shared Settings only for current ADMIN users', async () => {
+  for (const [page, roles, expected] of [
+    ['/admin/kamar-uploader/', ['ADMIN'], '/admin/users'],
+    ['/admin/kamar-uploader/staff_upload.html', ['ADMIN'], '/admin/users'],
+    ['/admin/kamar-uploader/', ['Teacher'], null],
+    ['/food-room/', ['ADMIN'], null],
+    ['/admin/kamar-uploader-other/', ['ADMIN'], null]
+  ]) {
+    let body;
+    await navData(async () => ({ rows: [] }), async () => false, async () => null)(
+      { user: { email: 'fixture@example.test', roles }, query: { path: page } },
+      { locals: {}, set() {}, json(value) { body = value; } },
+      (error) => { throw error; }
+    );
+    assert.equal(body.userRoleManagementUrl, expected);
+  }
+  const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'global-nav.js'), 'utf8');
+  assert.ok(source.includes("link(settings, 'User Role Management', data.userRoleManagementUrl)"));
+});
+
 test('shared search advertises only the signed-in current module', async () => {
   for (const [page, user, expected] of [
     ['/dtech-hub/class-training/home', { email: 'fixture@example.test' }, 'training'],
@@ -70,7 +90,7 @@ test('Course Management settings are contextual and require current training tea
     assert.equal(body.courseManagementUrl, expected, page);
   }
   const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'global-nav.js'), 'utf8');
-  assert.match(source, /if \(data\.datasetManagerUrl \|\| data\.assignRolesUrl \|\| data\.courseManagementUrl\)/);
+  assert.match(source, /if \(data\.datasetManagerUrl \|\| data\.assignRolesUrl \|\| data\.courseManagementUrl \|\| data\.userRoleManagementUrl\)/);
   assert.match(source, /link\(settings, 'Course Management', data\.courseManagementUrl\)/);
 });
 

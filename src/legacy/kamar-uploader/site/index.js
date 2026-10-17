@@ -187,6 +187,22 @@ async function loadDashboardStats() {
   }
 }
 
+function renderUserSummary(user, errorMessage) {
+  const panel = document.getElementById('currentUserPanel');
+  if (!panel) return;
+  if (!user) {
+    panel.textContent = errorMessage;
+    return;
+  }
+  panel.innerHTML = `
+    <div class="current-user-row"><strong>${safeText(user.name || user.email)}</strong></div>
+    <div class="current-user-row">${safeText(user.email)}</div>
+    <div class="current-user-row">Role: ${safeText(String(user.role || 'guest').toUpperCase())}</div>
+    <div class="current-user-row">Staff record: ${user.in_staff_upload ? 'Yes' : 'No'}</div>
+    <div class="current-user-row">Student record: ${user.in_student_upload ? 'Yes' : 'No'}</div>
+  `;
+}
+
 async function bootstrapExistingSession() {
   try {
     const res = await fetch('/api/auth/session', { cache: 'no-store' });
@@ -200,11 +216,13 @@ async function bootstrapExistingSession() {
     }
 
     currentAuthUser = payload.user;
+    renderUserSummary(payload.user);
     applyProjectLinkEditorVisibility();
     return payload.user;
   } catch (error) {
     console.error('[Kamar dashboard] Could not confirm school session:', error);
     showProjectLinkStatus(error.message, true);
+    renderUserSummary(null, error.message);
     currentAuthUser = null;
     applyProjectLinkEditorVisibility();
     return null;
