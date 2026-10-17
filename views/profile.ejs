@@ -1,36 +1,110 @@
 <%- include('partials/header') %>
+<link rel="stylesheet" href="/profile.css">
+<%
+  const initial = (currentUser.display_name || currentUser.email || '?').trim().charAt(0).toUpperCase();
+  const since = currentUser.created_at ? new Date(currentUser.created_at).toLocaleDateString('en-NZ', { year: 'numeric', month: 'long', day: 'numeric' }) : '—';
+  const lastLogin = currentUser.last_login_at ? new Date(currentUser.last_login_at).toLocaleString('en-NZ') : 'Current session';
+%>
+<div class="pf" id="pf-root" data-email="<%= currentUser.email %>">
 
-<section class="page-title">
-  <p class="eyebrow">User profile</p>
-  <h1><%= currentUser.display_name %></h1>
-</section>
-
-<section class="panel profile">
-  <% if (currentUser.avatar_url) { %>
-    <img src="<%= currentUser.avatar_url %>" alt="" class="avatar">
-  <% } %>
-  <dl>
-    <dt>Email</dt>
-    <dd><%= currentUser.email %></dd>
-    <dt>Roles</dt>
-    <dd><%= currentUser.roles.length ? currentUser.roles.join(', ') : 'No roles assigned' %></dd>
-    <dt>Active view</dt>
-    <dd><%= activeRole %></dd>
-    <dt>Last login</dt>
-    <dd><%= currentUser.last_login_at ? new Date(currentUser.last_login_at).toLocaleString() : 'Current session' %></dd>
-  </dl>
-  <p><a class="button" href="/profile/email-preferences">Email preferences</a></p>
-</section>
-
-<% if (isAdmin) { %>
-  <section class="panel">
-    <h2>Switch view</h2>
-    <div class="view-switcher">
-      <a class="button" href="/dashboard?view=admin">ADMIN</a>
-      <a class="button" href="/dashboard?view=teacher">Teacher</a>
-      <a class="button" href="/dashboard?view=student">Student</a>
+  <section class="pf-card pf-hero">
+    <% if (currentUser.avatar_url) { %>
+      <img class="pf-avatar" src="<%= currentUser.avatar_url %>" alt="" referrerpolicy="no-referrer">
+    <% } else { %>
+      <div class="pf-avatar pf-initial"><%= initial %></div>
+    <% } %>
+    <div class="pf-hero-info">
+      <h1><%= currentUser.display_name || currentUser.email %></h1>
+      <p class="pf-email"><%= currentUser.email %></p>
+      <div class="pf-badges">
+        <% (currentUser.roles.length ? currentUser.roles : ['No roles assigned']).forEach(function (role) { %>
+          <span class="pf-badge"><%= role %></span>
+        <% }) %>
+        <span class="pf-badge pf-soft">Joined <%= since %></span>
+        <span class="pf-badge pf-soft" id="pf-record-badge" hidden></span>
+      </div>
+    </div>
+    <div class="pf-actions">
+      <a class="pf-btn" href="/profile/email-preferences">Email preferences</a>
+      <form method="post" action="/logout"><button class="pf-btn pf-danger" type="submit">Sign out</button></form>
     </div>
   </section>
-<% } %>
+
+  <div class="pf-grid">
+    <section class="pf-card">
+      <h2>Account overview</h2>
+      <div class="pf-details" id="pf-overview">
+        <div><span>Display name</span><strong><%= currentUser.display_name || '—' %></strong></div>
+        <div><span>Google email</span><strong><%= currentUser.email %></strong></div>
+        <div><span>Role in app</span><strong><%= activeRole %></strong></div>
+        <div><span>Additional roles</span><strong><%= currentUser.roles.filter(function (r) { return r !== activeRole; }).join(', ') || 'None' %></strong></div>
+        <div><span>Account ID</span><strong class="pf-mono"><%= currentUser.id %></strong></div>
+        <div><span>Member since</span><strong><%= since %></strong></div>
+      </div>
+      <div class="pf-details" id="pf-school"></div>
+    </section>
+
+    <section class="pf-card">
+      <h2>Sign-in settings</h2>
+      <div class="pf-details">
+        <div><span>Auth provider</span><strong>Google Workspace</strong></div>
+        <div><span>Status</span><strong><i class="pf-dot"></i>Connected</strong></div>
+        <div><span>Session source</span><strong>Google session cookie</strong></div>
+        <div><span>Last sign-in</span><strong><%= lastLogin %></strong></div>
+      </div>
+      <h2 class="pf-sub">Hub roles</h2>
+      <% if (hubRoles.length) { %>
+        <ul class="pf-list">
+          <% hubRoles.forEach(function (item) { %><li><strong><%= item.hub %></strong> &mdash; <%= item.role %></li><% }) %>
+        </ul>
+      <% } else { %>
+        <p class="pf-muted"><%= isAdmin ? 'Administrators have access to every hub.' : 'No hub roles have been assigned to you yet.' %></p>
+      <% } %>
+    </section>
+  </div>
+
+  <section class="pf-card">
+    <h2>Google sign-in connection</h2>
+    <div class="pf-connection">
+      <div><i class="pf-dot"></i><strong>Connected as <%= currentUser.email %></strong></div>
+      <p class="pf-muted">Session is active and profile data is being resolved from your Google account and school records.</p>
+      <ul class="pf-checks" id="pf-checks">
+        <li><span>&#10003;</span> Session: Active</li>
+        <li><span>&#10003;</span> Google account: Verified</li>
+        <li><span>&#10003;</span> Effective role: <%= activeRole %></li>
+        <li id="pf-record-check"><span>&hellip;</span> School record: Checking</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="pf-card" id="pf-timetable-card" hidden>
+    <h2>Weekly timetable</h2>
+    <p class="pf-muted" id="pf-timetable-note"></p>
+    <div id="pf-timetable" class="pf-scroll"></div>
+  </section>
+
+  <section class="pf-card" id="pf-classes-card" hidden>
+    <h2>My classes &amp; students</h2>
+    <div id="pf-classes"></div>
+  </section>
+
+  <section class="pf-card" id="pf-history-card" hidden>
+    <h2>Staff upload history</h2>
+    <div id="pf-history" class="pf-scroll"></div>
+  </section>
+
+  <% if (isAdmin) { %>
+    <section class="pf-card">
+      <h2>Switch view</h2>
+      <p class="pf-muted">Preview the system as another role.</p>
+      <div class="pf-actions-row">
+        <a class="pf-btn" href="/dashboard?view=admin">ADMIN</a>
+        <a class="pf-btn" href="/dashboard?view=teacher">Teacher</a>
+        <a class="pf-btn" href="/dashboard?view=student">Student</a>
+      </div>
+    </section>
+  <% } %>
+</div>
+<script src="/profile.js"></script>
 
 <%- include('partials/footer') %>

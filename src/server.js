@@ -237,8 +237,24 @@ app.get('/dashboard', ensureAuthenticated, async (req, res, next) => {
 
 app.use('/profile/email-preferences', emailPreferences.router);
 
-app.get('/profile', ensureAuthenticated, (req, res) => {
-  res.render('profile', { title: 'User Profile' });
+app.get('/profile', ensureAuthenticated, async (req, res, next) => {
+  try {
+    const hubRoleRows = (await query(
+      `SELECT hub_roles.hub_key, hub_roles.display_name
+       FROM user_hub_roles
+       JOIN hub_roles ON hub_roles.id = user_hub_roles.hub_role_id
+       WHERE user_hub_roles.user_id = $1 AND user_hub_roles.area_key IS NULL
+       ORDER BY hub_roles.hub_key, hub_roles.display_name`,
+      [req.user.id]
+    )).rows;
+    const myHubRoles = hubRoleRows.map((row) => ({
+      hub: (hubRoles.HUBS[row.hub_key] || {}).label || row.hub_key,
+      role: row.display_name
+    }));
+    res.render('profile', { title: 'User Profile', hubRoles: myHubRoles });
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.get('/admin', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {

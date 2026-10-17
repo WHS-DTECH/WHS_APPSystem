@@ -378,6 +378,7 @@ router.get(['/admin_user_roles.html', '/admin_permissions.html'], (req, res) => 
 });
 
 router.get('/admin_school_terms.html', (req, res) => res.redirect('/admin/school-terms'));
+router.get('/profile.html', (req, res) => res.redirect('/profile'));
 
 const SCHOOL_TERMS_SOURCE_URL = 'https://www.education.govt.nz/school-terms-and-holidays-dates';
 

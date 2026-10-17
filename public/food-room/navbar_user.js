@@ -68,7 +68,7 @@ function setNavbarAccountDisplay(user) {
     link.classList.remove('is-google-login');
     const displayName = String(user.name || '').trim() || deriveNameFromEmail(user.email);
     setLinkNameWithRole(link, displayName, user.role);
-    link.href = 'user_profile.html';
+    link.href = '/profile';
 
     persistCurrentStaffUser({
       id: '',

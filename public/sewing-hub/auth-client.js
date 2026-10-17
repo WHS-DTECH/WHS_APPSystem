@@ -24,6 +24,9 @@
     }
 
     avatar.textContent = data.user.initials || 'U';
+    avatar.title = 'My profile';
+    avatar.style.cursor = 'pointer';
+    avatar.onclick = function () { window.location.href = '/profile'; };
     signoutLink.textContent = 'Sign out';
     signoutLink.setAttribute('href', '/auth/logout');
 
