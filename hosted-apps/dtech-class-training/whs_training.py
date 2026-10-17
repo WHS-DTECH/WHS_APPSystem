@@ -26,7 +26,7 @@ def school_identity():
         return redirect("/dtech-hub/")
     if request.path.startswith("/auth/") or request.path.startswith("/login"):
         return redirect(request.script_root + "/home")
-    if request.path == "/settings":
+    if request.path in ["/profile", "/settings"]:
         return redirect("/profile")
     if request.path == "/search":
         return redirect(request.script_root + "/home")

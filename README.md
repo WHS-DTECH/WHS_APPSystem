@@ -78,6 +78,10 @@ Class Training is the first capsule with integrated Teacher View / Student View:
 - Course Management remains in avatar Settings, not the capsule's desktop/mobile
   navigation. Opening it from Student View restores Teacher View after checking
   current teacher access.
+- Class Training's duplicate username/account dropdown and mobile Profile,
+  Settings and Logout links are removed. Profile, Settings and Sign out use the
+  shared Google-avatar menu; old capsule `/profile` and `/settings` URLs redirect
+  to the shared profile. Original notifications and course navigation remain.
 
 ## DTECH Hub: original site, separate database and private files
 

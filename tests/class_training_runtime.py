@@ -261,7 +261,24 @@ class TrainingRuntimeTests(unittest.TestCase):
         self.assertEqual(self.get("/admin/user_roles").location, "/hubs/dtech-hub/roles")
         self.assertEqual(self.get("/admin/role_permissions").location, "/admin/roles")
         self.assertEqual(self.get("/settings").location, "/profile")
+        self.assertEqual(self.get("/profile").location, "/profile")
         self.assertEqual(self.get("/admin/api/users-with-roles").status_code, 409)
+
+    def test_account_controls_are_consolidated_in_shared_avatar_for_both_views(self):
+        for role in ["teacher", "student"]:
+            self.headers["X-WHS-Role"] = role
+            for path in ["/home", "/dashboard", "/courses/"]:
+                response = self.get(path)
+                self.assertEqual(response.status_code, 200, (role, path))
+                html = response.get_data(as_text=True)
+                self.assertNotIn('id="userMenuBtn"', html)
+                self.assertNotIn('id="userDropdown"', html)
+                self.assertNotIn("> My Profile</a>", html)
+                self.assertNotIn("> Settings</a>", html)
+                self.assertNotIn("> Logout</a>", html)
+                self.assertIn('id="notificationBell"', html)
+                self.assertIn('id="hamburger"', html)
+                self.assertIn("/dtech-hub/class-training/courses/", html)
 
     def test_csrf_required_and_original_post_persists(self):
         url = f"/courses/{self.course_id}/enroll"
