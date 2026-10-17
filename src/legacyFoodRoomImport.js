@@ -83,8 +83,13 @@ async function insertRow(client, table, columns, types, row) {
 }
 
 async function importLegacyFoodRoom() {
-  const done = await pool.query('SELECT 1 FROM food_room.food_room_legacy_import');
-  if (done.rowCount) return;
+  const done = await pool.query('SELECT summary FROM food_room.food_room_legacy_import');
+  const imported = done.rows.some((row) => {
+    const summary = typeof row.summary === 'string' ? JSON.parse(row.summary) : row.summary || {};
+    return Object.values(summary).some((count) => Number(count) > 0);
+  });
+  if (imported) return;
+  if (done.rowCount) await pool.query('DELETE FROM food_room.food_room_legacy_import');
 
   if (!config.legacyFoodRoomDatabaseUrl) {
     console.warn('Legacy Food Room import skipped: INTEGRATION_FOOD_ROOM_DATABASE_URL is not configured.');
@@ -100,7 +105,10 @@ async function importLegacyFoodRoom() {
     const retry = [];
 
     for (const table of tables) {
-      const rows = await source.query(`SELECT * FROM public."${table}"`).catch(() => ({ rows: [] }));
+      const rows = await source.query(`SELECT * FROM public."${table}"`).catch((error) => {
+        console.warn(`Legacy Food Room import: could not read ${table}: ${error.message}`);
+        return { rows: [] };
+      });
       summary[table] = 0;
       if (!rows.rows.length) continue;
 
