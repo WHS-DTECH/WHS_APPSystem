@@ -52,7 +52,7 @@ function buildMessage({ to, subject, text, html, from, bcc, replyTo }) {
   return headers.concat(['', body]).join('\r\n');
 }
 
-async function sendEmail({ to, subject, text, html, from, bcc, replyTo } = {}) {
+async function deliverEmail({ to, subject, text, html, from, bcc, replyTo } = {}) {
   const recipients = (Array.isArray(to) ? to : [to]).filter(Boolean);
   const defaultRecipients = config.email.gmail.defaultRecipients;
   const targetRecipients = recipients.length ? recipients : defaultRecipients;
@@ -105,6 +105,46 @@ async function sendEmail({ to, subject, text, html, from, bcc, replyTo } = {}) {
       error: error.message || 'Unknown Gmail API error'
     };
   }
+}
+
+const LOG_BODY_LIMIT = 50000;
+
+function emailSource(subject) {
+  const match = String(subject || '').match(/^\[([^\]]+)\]/);
+  return match ? match[1] : 'System';
+}
+
+// Every email the framework sends (any hub) is recorded for the admin Email Service page.
+async function recordEmail(input, result) {
+  try {
+    const { query } = require('./db');
+    const list = (value) => (Array.isArray(value) ? value : [value]).filter(Boolean).join(', ');
+    const to = list(input.to) || list(config.email.gmail.defaultRecipients);
+    const status = result.ok ? 'sent' : result.skipped ? 'skipped' : 'failed';
+    await query(
+      `INSERT INTO email_log (source, status, to_addresses, bcc_addresses, subject, body_text, body_html, message_id, error)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [
+        emailSource(input.subject),
+        status,
+        to,
+        list(input.bcc),
+        String(input.subject || ''),
+        String(input.text || '').slice(0, LOG_BODY_LIMIT),
+        String(input.html || '').slice(0, LOG_BODY_LIMIT),
+        result.messageId || null,
+        result.ok ? null : result.error || result.message || null
+      ]
+    );
+  } catch (error) {
+    console.error('Could not record email in email_log:', error.message);
+  }
+}
+
+async function sendEmail(input = {}) {
+  const result = await deliverEmail(input);
+  await recordEmail(input, result);
+  return result;
 }
 
 async function sendSuggestionNotification({

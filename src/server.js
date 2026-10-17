@@ -78,6 +78,38 @@ app.get('/email-status', (req, res) => {
   });
 });
 
+app.get('/admin/emails', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
+  try {
+    const source = String(req.query.source || '').slice(0, 80);
+    const status = ['sent', 'failed', 'skipped'].includes(req.query.status) ? req.query.status : '';
+    const where = [];
+    const params = [];
+    if (source) { params.push(source); where.push(`source = $${params.length}`); }
+    if (status) { params.push(status); where.push(`status = $${params.length}`); }
+    const clause = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const [emails, sources, totals] = await Promise.all([
+      query(`SELECT id, sent_at, source, status, to_addresses, bcc_addresses, subject, body_text, message_id, error
+             FROM email_log ${clause} ORDER BY sent_at DESC, id DESC LIMIT 200`, params),
+      query('SELECT DISTINCT source FROM email_log ORDER BY source'),
+      query('SELECT status, COUNT(*)::int AS n FROM email_log GROUP BY status')
+    ]);
+    res.render('admin/emails', {
+      title: 'Email Service',
+      emails: emails.rows,
+      sources: sources.rows.map((row) => row.source),
+      totals: Object.fromEntries(totals.rows.map((row) => [row.status, row.n])),
+      filter: { source, status },
+      emailStatus: {
+        enabled: config.email.gmail.isConfigured,
+        sender: config.email.gmail.senderEmail || null,
+        recipients: config.email.gmail.defaultRecipients
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.use('/admin/kamar-uploader', kamarUploader);
 app.use(kamarUploaderApi);
 app.use('/learning-sites', learningSites);

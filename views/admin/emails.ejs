@@ -1,0 +1,44 @@
+<%- include('../partials/header') %>
+
+<section class="page-title">
+  <p class="eyebrow">Administration</p>
+  <h1>Email Service</h1>
+  <p>Every email sent through the shared Gmail sender is recorded here, whichever hub sent it. Sender: <strong><%= emailStatus.sender || 'not configured' %></strong> (<%= emailStatus.enabled ? 'enabled' : 'disabled' %>).</p>
+</section>
+
+<section class="panel">
+  <form method="get" action="/admin/emails" class="module-form">
+    <label>Hub / source
+      <select name="source">
+        <option value="">All</option>
+        <% sources.forEach((s) => { %><option value="<%= s %>" <%= filter.source === s ? 'selected' : '' %>><%= s %></option><% }) %>
+      </select>
+    </label>
+    <label>Status
+      <select name="status">
+        <option value="">All</option>
+        <% ['sent', 'failed', 'skipped'].forEach((s) => { %><option value="<%= s %>" <%= filter.status === s ? 'selected' : '' %>><%= s %></option><% }) %>
+      </select>
+    </label>
+    <button class="button" type="submit">Filter</button>
+  </form>
+  <p>Sent: <strong><%= totals.sent || 0 %></strong> &middot; Failed: <strong><%= totals.failed || 0 %></strong> &middot; Skipped: <strong><%= totals.skipped || 0 %></strong>. Showing the latest 200.</p>
+</section>
+
+<section class="panel table-panel">
+  <% if (!emails.length) { %>
+    <p>No emails recorded yet.</p>
+  <% } %>
+  <% emails.forEach((mail) => { %>
+    <details class="module-doc">
+      <summary>
+        <strong><%= mail.subject || '(no subject)' %></strong>
+        <span><%= new Date(mail.sent_at).toLocaleString('en-NZ', { timeZone: 'Pacific/Auckland' }) %> &middot; <%= mail.source %> &middot; <b><%= mail.status %></b></span>
+      </summary>
+      <p><strong>To:</strong> <%= mail.to_addresses || '-' %><% if (mail.bcc_addresses) { %> &middot; <strong>Bcc:</strong> <%= mail.bcc_addresses %><% } %></p>
+      <% if (mail.error) { %><p><strong>Error:</strong> <%= mail.error %></p><% } %>
+      <% if (mail.message_id) { %><p><strong>Gmail message id:</strong> <%= mail.message_id %></p><% } %>
+      <pre style="white-space:pre-wrap"><%= mail.body_text || '' %></pre>
+    </details>
+  <% }) %>
+</section>

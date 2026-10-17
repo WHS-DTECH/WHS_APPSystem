@@ -23,9 +23,8 @@
     '#gn-nav .gn-spacer{flex:1}',
     'html.gn-open.gn-push body{margin-left:' + WIDTH + 'px!important}',
     'html.gn-open.gn-push{overflow-x:hidden}',
-    '@media print{#gn-nav,#gn-toggle{display:none!important}html.gn-open.gn-push body{margin-left:0!important}}',
-    // Hub sign in / sign out controls are replaced by the sidebar.
-    '#google-signout,#google-user-initials,#googleSignIn,#logoutButton,.nb2-logout-btn,.nb2-user-menu-item[data-role="guest"],.nb2-panel-section[data-role="guest"],.nb2-panel-link[href^="google_login"]{display:none!important}'
+    '@media print{#gn-nav,#gn-toggle{display:none!important}html.gn-open.gn-push body{margin-left:0!important}}'
+
   ].join('\n');
 
   function el(tag, attrs, text) {
@@ -123,7 +122,7 @@
     }
   }, true);
 
-  function init() {
+  function build(data) {
     var style = el('style');
     style.textContent = css;
     document.head.appendChild(style);
@@ -145,10 +144,15 @@
     // Legacy pages build their top bar after load, so shift again once it exists.
     setTimeout(function () { if (isOpen()) shiftFixed(!mobile.matches); }, 1200);
 
+    render(nav, data);
+  }
+
+  // Only administrators get the sidebar; students and teachers use each hub's own top bar.
+  function init() {
     fetch('/nav-data', { credentials: 'same-origin', cache: 'no-store' })
       .then(function (response) { return response.json(); })
-      .then(function (data) { render(nav, data); })
-      .catch(function () { render(nav, { signedIn: false }); });
+      .then(function (data) { if (data && data.isAdmin) build(data); })
+      .catch(function () { /* no sidebar */ });
   }
 
   if (document.body) init();
