@@ -84,7 +84,7 @@ test('Lead Teachers can reveal optional access without changing automatic core r
   assert.doesNotMatch(html, /class="module-form"/);
 });
 
-test('user access information and action buttons are inside the Step 3 panel', async () => {
+test('Step 3 contains assignments and Step 4 contains the app launch button', async () => {
   const html = await render({
     app: {
       id: 1, slug: 'guidance-counsellor-app', name: 'Guidance Counsellor App',
@@ -96,5 +96,14 @@ test('user access information and action buttons are inside the Step 3 panel', a
   assert.match(panel[0], /<h3>Who can use it<\/h3>/);
   assert.match(panel[0], /2 role assignment|1 role assignment/);
   assert.match(panel[0], /Assign user roles/);
-  assert.match(panel[0], /Open the app/);
+  assert.doesNotMatch(panel[0], />Open the app<\/a>/);
+  const launchPanel = html.match(/<section class="panel">\s*<h2>Step 4 &mdash; Open the app(?:(?!<\/section>)[\s\S])*<\/section>/);
+  assert.ok(launchPanel);
+  assert.match(launchPanel[0], /href="\/student-apps\/guidance-counsellor-app\/launch">Open the app<\/a>/);
+});
+
+test('Step 4 waits for sign-in and role setup before offering launch', async () => {
+  const html = await render();
+  assert.match(html, /Finish steps 2 and 3 before opening the app/);
+  assert.doesNotMatch(html, />Open the app<\/a>/);
 });

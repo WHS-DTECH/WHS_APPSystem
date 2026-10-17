@@ -67,7 +67,7 @@
   <h2><%- tick(loginDone) %> Step 2 &mdash; Google sign-in</h2>
   <% if (hosted) { %>
     <p>Connected automatically through your school Google login. You do not need to paste code, load a secret or access Render.</p>
-    <p>Check <strong>Step 3 &mdash; App access</strong>, then click <strong>Open the app</strong> below.</p>
+    <p>Check <strong>Step 3 &mdash; App access</strong>, then continue to <strong>Step 4 &mdash; Open the app</strong>.</p>
   <% } else { %>
   <% if (secret) { %>
     <div style="background:#fff8e6;border:1px solid #e8c36a;border-radius:8px;padding:12px;margin-bottom:12px">
@@ -158,8 +158,17 @@
   <h3>Who can use it</h3>
   <p>The app's Lead Teacher gives staff and students a role in the app. Only people with a role can sign in.
     <%= assignedCount %> role assignment(s) so far.</p>
-  <p><% if (canEditRoles) { %><a class="sa-btn sa-alt" href="<%= rolesUrl %>">Assign user roles</a><% } %>
-     <% if (loginDone && rolesDone) { %><a class="sa-btn" href="/student-apps/<%= app.slug %>/launch">Open the app</a><% } %></p>
+  <% if (canEditRoles) { %><p><a class="sa-btn sa-alt" href="<%= rolesUrl %>">Assign user roles</a></p><% } %>
+</section>
+
+<section class="panel">
+  <h2>Step 4 &mdash; Open the app</h2>
+  <% if (loginDone && rolesDone) { %>
+    <p>Your sign-in and app access are set up. Open the app to continue.</p>
+    <p><a class="sa-btn" href="/student-apps/<%= app.slug %>/launch">Open the app</a></p>
+  <% } else { %>
+    <p>Finish steps 2 and 3 before opening the app.</p>
+  <% } %>
 </section>
 
 <% } %>
