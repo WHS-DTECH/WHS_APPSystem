@@ -8491,6 +8491,11 @@ async function setupDetailStandardsPicker(form, setStatus) {
 }
 
 function hasDetailPageAccess() {
+    if (window.whsDtech) {
+        const email = String(window.whsDtech.profile?.email || "").trim().toLowerCase();
+        return Boolean(email && Number(window.whsDtech.expiresAt) > Date.now()
+            && (!detailAllowedDomain || email.endsWith(`@${detailAllowedDomain}`)));
+    }
     const raw = localStorage.getItem(DETAIL_HUB_AUTH_STORAGE_KEY) || sessionStorage.getItem(DETAIL_HUB_AUTH_STORAGE_KEY);
     if (!raw) return false;
 

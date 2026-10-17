@@ -131,10 +131,20 @@
       nav.appendChild(el('div', { 'class': 'gn-gap' }));
       var hubPaths = ['/technology-hub', '/dtech-hub', '/food-room', '/sewing-hub', '/workshop'];
       section('Hubs', hubPaths, function (module, prefix) { return module.path.indexOf(prefix) === 0; },
-        function (module) { return /hub$/i.test(module.name) ? module.name : module.name + ' Hub'; });
+        function (module) {
+          if (/^\/technology-hub(?:\/|$)/.test(module.path)) return 'HUB Dashboard';
+          return /hub$/i.test(module.name) ? module.name : module.name + ' Hub';
+        });
+      nav.appendChild(el('div', { 'class': 'gn-gap' }));
+      nav.appendChild(el('div', { 'class': 'gn-head' }, 'CAPSULES'));
+      if (modules.some(function (module) { return /^\/dtech-hub(?:\/|$)/.test(module.path); })) {
+        link(nav, 'Class Training', '/dtech-hub/class-training/');
+      } else {
+        nav.appendChild(el('div', { 'class': 'gn-empty' }, 'None yet'));
+      }
       nav.appendChild(el('div', { 'class': 'gn-gap' }));
       var remaining = modules.map(function (module) { return module.name; });
-      var studentApps = section('Student Apps', remaining, function (module, name) { return module.name === name; }, null, ['Dashboard', '/student-apps']);
+      var studentApps = section('Student Apps', remaining, function (module, name) { return module.name === name; }, null, ['APPs Dashboard', '/student-apps']);
       if (!studentApps) nav.appendChild(el('div', { 'class': 'gn-empty' }, 'None yet'));
       nav.appendChild(el('div', { 'class': 'gn-spacer' }));
       var signOut = el('button', { type: 'button', 'class': 'gn-link' }, 'Sign out');

@@ -10,6 +10,33 @@ const { accessForEmail, prefixText, prefixData, canWrite, createDtechRouter } = 
 const { createTeachingFileStore } = require('../src/dtechFiles');
 const { navData } = require('../src/globalNav');
 
+test('original activity details accept the shared school session without legacy OAuth tokens', async () => {
+  const source = prefixText(await fs.readFile(path.join(__dirname, '..', 'src', 'legacy', 'dtech-hub', 'ProjectPages', 'activity-detail.js'), 'utf8'));
+  const start = source.indexOf('function hasDetailPageAccess()');
+  const end = source.indexOf('const DETAIL_HUB_VIEW_MODE_KEY', start);
+  const storage = new Map();
+  const context = {
+    window: { whsDtech: { profile: { email: 'teacher@westlandhigh.school.nz' }, expiresAt: Date.now() + 60000 } },
+    localStorage: { getItem: (key) => storage.get(key) },
+    sessionStorage: { getItem: (key) => storage.get(key) },
+    detailAllowedDomain: 'westlandhigh.school.nz', DETAIL_HUB_AUTH_STORAGE_KEY: 'whs_dtech_auth_v1'
+  };
+  vm.createContext(context);
+  vm.runInContext(source.slice(start, end), context);
+  assert.equal(vm.runInContext('hasDetailPageAccess()', context), true);
+  context.window.whsDtech.profile.email = 'outside@example.test';
+  assert.equal(vm.runInContext('hasDetailPageAccess()', context), false);
+  context.window.whsDtech.profile.email = 'teacher@westlandhigh.school.nz';
+  context.window.whsDtech.expiresAt = Date.now() - 1000;
+  assert.equal(vm.runInContext('hasDetailPageAccess()', context), false);
+  delete context.window.whsDtech;
+  assert.equal(vm.runInContext('hasDetailPageAccess()', context), false);
+  storage.set('whs_dtech_auth_v1', JSON.stringify({
+    profile: { email: 'student@westlandhigh.school.nz' }, idToken: 'legacy-token', expiresAt: Date.now() + 60000
+  }));
+  assert.equal(vm.runInContext('hasDetailPageAccess()', context), true);
+});
+
 test('DTECH appears in the shared account Settings role controls', async () => {
   let body;
   await navData(async () => ({ rows: [] }), async (user, hub) => hub === 'dtech-hub')(

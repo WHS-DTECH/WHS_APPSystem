@@ -6,7 +6,7 @@ const os = require('os');
 const path = require('path');
 const { injectGlobalNav, navData, safeNext } = require('../src/globalNav');
 
-test('DTECH is grouped directly below Technology Hub, not under Student Apps', async () => {
+test('HUB Dashboard, DTECH and Class Training use the requested navigation groups', async () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'global-nav.js'), 'utf8');
   const start = source.indexOf('var modules = data.modules || [];');
   const end = source.indexOf("nav.appendChild(el('div', { 'class': 'gn-spacer' }));", start);
@@ -23,9 +23,16 @@ test('DTECH is grouped directly below Technology Hub, not under Student Apps', a
     (tag, attrs, text) => ({ text }),
     (nav, text, href) => entries.push({ text, href }));
   const technology = entries.findIndex((entry) => entry.href === '/technology-hub/');
+  assert.equal(entries[technology].text, 'HUB Dashboard');
   assert.equal(entries[technology + 1].href, '/dtech-hub/');
   const hubs = entries.findIndex((entry) => entry.text === 'Hubs');
   const studentApps = entries.findIndex((entry) => entry.text === 'Student Apps');
+  const capsules = entries.findIndex((entry) => entry.text === 'CAPSULES');
+  const training = entries.findIndex((entry) => entry.href === '/dtech-hub/class-training/');
+  assert.ok(capsules > technology && training > capsules && training < studentApps);
+  assert.equal(entries[training].text, 'Class Training');
+  assert.equal(entries.filter((entry) => entry.href === '/dtech-hub/class-training/').length, 1);
+  assert.equal(entries.find((entry) => entry.href === '/student-apps').text, 'APPs Dashboard');
   assert.ok(technology > hubs && technology + 1 < studentApps);
   assert.equal(entries.filter((entry) => entry.href === '/dtech-hub/').length, 1);
   assert.ok(entries.findIndex((entry) => entry.href === '/student-apps/guidance-counsellor-app') > studentApps);
@@ -37,7 +44,7 @@ test('DTECH is grouped directly below Technology Hub, not under Student Apps', a
       path: module.path, display_name: module.name
     }))
   });
-  const technologyCard = html.indexOf('<strong>Technology Hub</strong>');
+  const technologyCard = html.indexOf('<strong>HUB Dashboard</strong>');
   const dtechCard = html.indexOf('<strong>DTECH Hub</strong>');
   assert.ok(technologyCard !== -1 && dtechCard > technologyCard);
   assert.match(html, /href="\/hubs\/dtech-hub\/roles"/);
