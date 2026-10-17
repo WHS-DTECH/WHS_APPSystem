@@ -21,6 +21,9 @@
     '#gn-nav .gn-badge{display:inline-block;margin-top:4px;padding:1px 8px;border-radius:999px;background:#e5eee8;color:#093f34;font-size:11px;font-weight:700}',
     '#gn-nav .gn-head{padding:12px 18px 4px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#f0b84a}',
     '#gn-nav .gn-gap{height:16px}',
+    '#gn-nav .gn-views{display:flex;flex-direction:column;gap:6px;padding:6px 18px 8px}',
+    '#gn-nav .gn-views a{padding:6px 10px;border:1px solid #c07a1a;border-radius:6px;font-size:13px;text-align:center;color:#fff}',
+    '#gn-nav .gn-views a.gn-view-on{background:#a85d0a;border-color:#a85d0a}',
     '#gn-nav .gn-empty{padding:4px 18px;font-size:12px;color:#9fb5ab}',
     '#gn-nav .gn-spacer{flex:1}',
     'html.gn-open.gn-push body{margin-left:' + WIDTH + 'px!important}',
@@ -96,7 +99,17 @@
       nav.appendChild(user);
       link(nav, 'Dashboard', '/dashboard');
       link(nav, 'Profile', '/profile');
-      if (data.isAdmin) link(nav, 'Admin', '/admin');
+      if (data.isAdmin) {
+        link(nav, 'Admin', '/admin');
+        var views = el('div', { 'class': 'gn-views' });
+        var current = new URLSearchParams(location.search).get('view') || 'admin';
+        [['admin', 'ADMIN view'], ['teacher', 'Teacher view'], ['student', 'Student view']].forEach(function (item) {
+          var button = el('a', { href: '/dashboard?view=' + item[0] }, item[1]);
+          if (location.pathname.replace(/\/+$/, '') === '/dashboard' && current === item[0]) button.className = 'gn-view-on';
+          views.appendChild(button);
+        });
+        nav.appendChild(views);
+      }
       var modules = data.modules || [];
       var used = {};
       function section(title, order, match, rename) {

@@ -6,14 +6,6 @@
   <p class="role-line">Viewing as <strong><%= activeRole %></strong></p>
 </section>
 
-<% if (isAdmin) { %>
-  <nav class="view-switcher" aria-label="Dashboard views">
-    <a class="button <%= activeRole === 'ADMIN' ? 'button-primary' : '' %>" href="/dashboard?view=admin">ADMIN view</a>
-    <a class="button <%= activeRole === 'Teacher' ? 'button-primary' : '' %>" href="/dashboard?view=teacher">Teacher view</a>
-    <a class="button <%= activeRole === 'Student' ? 'button-primary' : '' %>" href="/dashboard?view=student">Student view</a>
-  </nav>
-<% } %>
-
 <% if (isAdmin && activeRole === 'ADMIN') { %>
   <% const moduleByKey = Object.fromEntries(modules.map((module) => [module.module_key, module])); %>
   <section class="admin-dashboard" aria-label="Administrator controls">
