@@ -106,6 +106,8 @@ The existing `/infrastructure` URL remains valid. Neither control is duplicated
 in the Guidance toolbar.
 Sync Spreadsheets is on the Dataset Manager page, reached through avatar Settings,
 rather than the toolbar. It remains ADMIN-only and returns its result to Students.
+The hosted Guidance app omits the legacy top toolbar entirely, retaining its
+sidebar navigation and the shared Google avatar menu.
 
 Run the isolated Python regressions with
 `python tests\guidance_global_roles_test.py -v` (Flask and the app requirements

@@ -59,6 +59,8 @@ def login_required():
 
 
 def current_global_navbar():
+    if app.config.get("WHS_HOSTED"):
+        return ""
     role = current_role()
     return build_global_navbar(role, app.config.get("WHS_ROLE_MANAGEMENT_URL"))
 

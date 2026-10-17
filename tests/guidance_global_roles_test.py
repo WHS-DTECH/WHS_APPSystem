@@ -103,6 +103,21 @@ class GlobalRoleTests(unittest.TestCase):
         students_html = self.client.get("/students", headers=self.headers("ADMIN")).get_data(as_text=True)
         self.assertNotIn(">User Roles</a>", students_html)
 
+    def test_hosted_pages_omit_legacy_toolbar_and_keep_sidebar(self):
+        for role in ["ADMIN", "AppBuilder", "Counsellor"]:
+            for route in ["/dashboard", "/students", "/students/sessions/new", "/infrastructure"]:
+                response = self.client.get(route, headers=self.headers(role))
+                self.assertEqual(response.status_code, 200)
+                html = response.get_data(as_text=True)
+                self.assertNotIn(">Home</a>", html)
+                self.assertNotIn("margin-bottom:12px;", html)
+                if route in ["/dashboard", "/students"]:
+                    self.assertIn('class="sidebar"', html)
+                    self.assertIn(">DASHBOARD</a>", html)
+                    self.assertIn(">STUDENTS</a>", html)
+        with guidance.app.test_request_context():
+            self.assertEqual(guidance.current_global_navbar(), "")
+
     def test_dataset_manager_renamed_without_changing_privacy_views(self):
         for role, visible in [("ADMIN", False), ("AppBuilder", False), ("Counsellor", True)]:
             response = self.client.get("/infrastructure", headers=self.headers(role))
