@@ -176,6 +176,9 @@ the original storage/location separately. Existing records are not copied to Cor
 The shared sidebar lists **Capsule DASHBOARD** under **CAPSULES**, between HUBS
 and STUDENT APPS. **HUB Dashboard** is the sidebar label for `/technology-hub/`;
 **APPs Dashboard** opens `/student-apps`. These labels do not change routes or roles.
+The HUB Dashboard's **Digital Technologies** card opens the original DTECH Hub
+directly at `/dtech-hub/`. The old Technology Hub digital discipline URL redirects
+there after its existing access check, rather than showing the placeholder page.
 Original DTECH activity detail pages recognise the shared school session, so
 Assessment Tasks and Projects open without a separate legacy Google token.
 This is a DTECH submodule, **not a Student App**. Its deployable source is copied

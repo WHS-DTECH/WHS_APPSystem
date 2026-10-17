@@ -58,6 +58,7 @@ publicRouter.get('/:file', async (req, res, next) => {
       });
     }
 
+    if (area.key === 'digital-technologies') return res.redirect('/dtech-hub/');
     return res.sendFile(path.join(publicDir, area.file));
   } catch (error) {
     return next(error);
