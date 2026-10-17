@@ -1,4 +1,13 @@
 <%- include('../partials/header') %>
+<style>
+  .sa-btn{margin:4px 8px 4px 0;display:inline-flex;align-items:center;justify-content:center;min-height:0;height:auto;padding:9px 22px;border-radius:999px;border:2px solid #0b5d4b;background:#0b5d4b;color:#fff!important;font:600 15px/1.2 inherit;font-family:inherit;text-decoration:none;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,.18);transition:background .15s,transform .05s}
+  .sa-btn:hover{background:#08463a;border-color:#08463a}
+  .sa-btn:active{transform:translateY(1px)}
+  .sa-btn.sa-alt{background:#fff;color:#0b5d4b!important}
+  .sa-btn.sa-alt:hover{background:#e6f2ee}
+  .sa-btn.sa-warn{background:#a85d0a;border-color:#a85d0a}
+  .sa-btn.sa-warn:hover{background:#8a4c08}
+</style>
 
 <section class="page-title">
   <p class="eyebrow">Student Apps &middot; Step 1 of 3</p>
@@ -34,8 +43,8 @@
         </label>
       <% }) %>
     </fieldset>
-    <button class="button" type="submit">Register project</button>
-    <a class="button secondary" href="/student-apps">Cancel</a>
+    <button class="sa-btn" type="submit">Register project</button>
+    <a class="sa-btn sa-alt" href="/student-apps">Cancel</a>
   </form>
 </section>
 
