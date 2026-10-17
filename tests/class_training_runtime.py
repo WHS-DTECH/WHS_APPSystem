@@ -90,6 +90,10 @@ class TrainingRuntimeTests(unittest.TestCase):
             self.assertNotIn(b"/admin/role_permissions", response.data)
             self.assertNotIn(b"User Role Management", response.data)
             self.assertNotIn(b"Role Permissions", response.data)
+            self.assertIn(b"Course Management", response.data)
+            self.assertNotIn(b"Admin Dashboard", response.data)
+        response = self.get("/admin/")
+        self.assertIn(b"<title>Course Management</title>", response.data)
 
     def test_no_forged_or_missing_proxy_identity(self):
         self.assertEqual(self.client.get("/home").status_code, 403)

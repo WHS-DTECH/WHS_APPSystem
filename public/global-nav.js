@@ -251,10 +251,11 @@
     account.menu.appendChild(el('strong', {}, data.name || 'School account'));
     account.menu.appendChild(el('p', {}, data.email || ''));
     link(account.menu, 'Profile', '/profile');
-    if (data.datasetManagerUrl || data.assignRolesUrl) {
+    if (data.datasetManagerUrl || data.assignRolesUrl || data.courseManagementUrl) {
       var settings = el('details', { 'class': 'whs-account-settings' });
       settings.appendChild(el('summary', {}, 'Settings'));
       if (data.datasetManagerUrl) link(settings, 'Dataset Manager', data.datasetManagerUrl);
+      if (data.courseManagementUrl) link(settings, 'Course Management', data.courseManagementUrl);
       if (data.assignRolesUrl) link(settings, 'Assign User Roles', data.assignRolesUrl);
       account.menu.appendChild(settings);
     }

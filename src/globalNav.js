@@ -93,7 +93,7 @@ function injectGlobalNav(req, res, next) {
   return next();
 }
 
-function navData(query, canManageHubRoles, datasetManagerUrl) {
+function navData(query, canManageHubRoles, datasetManagerUrl, canManageCourses = async () => false) {
   return async (req, res, next) => {
     try {
       const user = req.user;
@@ -102,7 +102,11 @@ function navData(query, canManageHubRoles, datasetManagerUrl) {
         : [];
       let assignRolesUrl = null;
       let datasetUrl = null;
+      let courseManagementUrl = null;
       const currentPath = String(req.query.path || '');
+      if (user && /^\/dtech-hub\/class-training(?:\/|$)/.test(currentPath) && await canManageCourses(user)) {
+        courseManagementUrl = '/dtech-hub/class-training/admin/';
+      }
       const appPath = currentPath.match(/^\/(?:apps|student-apps)\/([a-z0-9-]+)(?:\/|$)/)
         || currentPath.match(/^\/hubs\/app-([a-z0-9-]+)\/roles(?:\/|$)/);
       if (user && appPath) {
@@ -124,6 +128,7 @@ function navData(query, canManageHubRoles, datasetManagerUrl) {
         avatarUrl: user ? user.avatar_url || null : null,
         assignRolesUrl,
         datasetManagerUrl: datasetUrl,
+        courseManagementUrl,
         role: res.locals.activeRole,
         isAdmin: res.locals.isAdmin,
         modules: modules.map((module) => ({ name: module.display_name, path: module.path }))

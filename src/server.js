@@ -19,7 +19,7 @@ const sewingHub = require('./modules/sewingHub');
 const workshop = require('./modules/workshop');
 const foodRoom = require('./modules/foodRoom');
 const { createDtechRouter } = require('./modules/dtechHub');
-const { createClassTrainingRouter, trainingEmail } = require('./modules/classTraining');
+const { createClassTrainingRouter, trainingEmail, canManageCourses } = require('./modules/classTraining');
 const { importLegacyFoodRoom } = require('./legacyFoodRoomImport');
 const hubRoles = require('./hubRoles');
 const assessmentStandards = require('./assessmentStandards');
@@ -79,7 +79,7 @@ app.get('/healthz', (req, res) => {
   res.status(200).json({ ok: true });
 });
 
-app.get('/nav-data', navData(query, hubRoles.canManageHubRoles, studentApps.datasetManagerUrl));
+app.get('/nav-data', navData(query, hubRoles.canManageHubRoles, studentApps.datasetManagerUrl, canManageCourses));
 
 app.get('/email-status', (req, res) => {
   res.json({

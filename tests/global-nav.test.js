@@ -6,6 +6,28 @@ const os = require('os');
 const path = require('path');
 const { injectGlobalNav, navData, safeNext } = require('../src/globalNav');
 
+test('Course Management settings are contextual and require current training teacher access', async () => {
+  for (const [page, user, allowed, expected] of [
+    ['/dtech-hub/class-training/home', { email: 'teacher@example.test' }, true, '/dtech-hub/class-training/admin/'],
+    ['/dtech-hub/class-training/admin/', { email: 'teacher@example.test' }, true, '/dtech-hub/class-training/admin/'],
+    ['/dtech-hub/class-training/home', { email: 'student@example.test' }, false, null],
+    ['/dtech-hub/', { email: 'teacher@example.test' }, true, null],
+    ['/apps/guidance-counsellor-app/dashboard', { email: 'teacher@example.test' }, true, null],
+    ['/dtech-hub/class-training/home', null, true, null]
+  ]) {
+    let body;
+    await navData(async () => ({ rows: [] }), async () => false, async () => null, async () => allowed)(
+      { user, query: { path: page } },
+      { locals: {}, set() {}, json(value) { body = value; } },
+      (error) => { throw error; }
+    );
+    assert.equal(body.courseManagementUrl, expected, page);
+  }
+  const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'global-nav.js'), 'utf8');
+  assert.match(source, /if \(data\.datasetManagerUrl \|\| data\.assignRolesUrl \|\| data\.courseManagementUrl\)/);
+  assert.match(source, /link\(settings, 'Course Management', data\.courseManagementUrl\)/);
+});
+
 test('HUB Dashboard, DTECH and Class Training use the requested navigation groups', async () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'global-nav.js'), 'utf8');
   const start = source.indexOf('var modules = data.modules || [];');

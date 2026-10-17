@@ -141,6 +141,9 @@ Before activation:
    redirect to Core and cannot change that authority.
    Local User Roles and Permissions links are removed from desktop/mobile menus
    and the training Admin page; use the shared account controls instead.
+   The original Admin Dashboard is labelled **Course Management**. While inside
+   Class Training, its teacher tools also appear under the shared Google avatar's
+   **Settings > Course Management**, using the same current DTECH teacher access.
 6. Optionally set **`CLASS_TRAINING_CONTACT_EMAIL`** to the email of an existing
    training teacher for the original Contact Teacher button. The message uses
    the shared school Gmail configuration and email log, not standalone Gmail OAuth.

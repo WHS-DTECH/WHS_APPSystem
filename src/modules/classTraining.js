@@ -3,6 +3,14 @@ const hostedApps = require('../hostedApps');
 const { accessForEmail } = require('./dtechHub');
 const email = require('../email');
 
+function hasTeacherAccess(access) {
+  return Boolean(access.active && (access.admin || ['Lead Teacher', 'Teacher'].includes(access.role)));
+}
+
+async function canManageCourses(user) {
+  return hasTeacherAccess(await accessForEmail(user.email));
+}
+
 function createClassTrainingRouter({ access = accessForEmail, proxy = hostedApps.proxy, env = process.env } = {}) {
   const router = express.Router();
   router.use(async (req, res, next) => {
@@ -25,7 +33,7 @@ function createClassTrainingRouter({ access = accessForEmail, proxy = hostedApps
       }
       return proxy(req, res, 'dtech-class-training', {
         email: req.user.email, name: req.user.display_name,
-        role: permissions.admin || ['Lead Teacher', 'Teacher'].includes(permissions.role) ? 'teacher' : 'student'
+        role: hasTeacherAccess(permissions) ? 'teacher' : 'student'
       });
     } catch (error) { return next(error); }
   });
@@ -51,4 +59,4 @@ async function trainingEmail(req, res, next) {
   } catch (error) { return next(error); }
 }
 
-module.exports = { createClassTrainingRouter, trainingEmail };
+module.exports = { createClassTrainingRouter, trainingEmail, canManageCourses };
