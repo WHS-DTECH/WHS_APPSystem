@@ -1,0 +1,31 @@
+<%- include('../partials/header') %>
+
+<section class="page-title">
+  <p class="eyebrow">Student Apps</p>
+  <h1>Student Apps</h1>
+  <p>Apps built by students that sign in through the school's Google login. Each keeps its own database.</p>
+</section>
+
+<section class="panel">
+  <p><a class="button" href="/student-apps/new">Register a project</a></p>
+  <% if (!apps.length) { %>
+    <p>No projects registered yet.</p>
+  <% } else { %>
+    <table>
+      <thead><tr><th>Project</th><th>Address</th><th>Sign-in</th><th>Roles</th><th></th></tr></thead>
+      <tbody>
+        <% apps.forEach(function (app) { %>
+          <tr>
+            <td><strong><%= app.name %></strong></td>
+            <td><%= app.app_url %></td>
+            <td><%= app.login_verified_at ? 'Verified' : 'Not tested' %></td>
+            <td><%= app.roles_mapped_at ? 'Mapped' : 'Not mapped' %></td>
+            <td><a class="button secondary" href="/student-apps/<%= app.slug %>">Set up</a></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+</section>
+
+<%- include('../partials/footer') %>

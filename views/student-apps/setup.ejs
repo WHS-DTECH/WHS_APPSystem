@@ -1,0 +1,87 @@
+<%- include('../partials/header') %>
+<%
+  const loginDone = Boolean(app.login_verified_at);
+  const rolesDone = Boolean(app.roles_mapped_at);
+  const tick = (done) => done ? '<span style="color:#1d6b3c">&#10003;</span>' : '<span style="color:#b9770e">&#9679;</span>';
+%>
+
+<section class="page-title">
+  <p class="eyebrow">Student Apps</p>
+  <h1><%= app.name %></h1>
+  <p><%= app.app_url %></p>
+</section>
+
+<section class="panel">
+  <h2><%- tick(true) %> Step 1 &mdash; Registered</h2>
+  <p>Your project is registered. It keeps its own database and web service.</p>
+</section>
+
+<section class="panel">
+  <h2><%- tick(loginDone) %> Step 2 &mdash; Google sign-in</h2>
+  <% if (secret) { %>
+    <div style="background:#fff8e6;border:1px solid #e8c36a;border-radius:8px;padding:12px;margin-bottom:12px">
+      <strong>Your app secret &mdash; copy it now, it is only shown once.</strong>
+      <p><code style="font-size:1.05em;user-select:all"><%= secret %></code></p>
+      <p>Add it to your app's Render service as an environment variable named <code>WHS_APP_SECRET</code>. Never put it in GitHub.</p>
+    </div>
+  <% } %>
+  <ol>
+    <li>Add <code>WHS_APP_SECRET</code> to your app's environment variables.</li>
+    <li>Add this route to your app. It receives the person who just signed in with Google:
+      <pre style="background:#f3f7fc;padding:12px;border-radius:8px;overflow:auto"><code><%= snippet %></code></pre>
+    </li>
+    <li>Click <strong>Test sign-in</strong>. You sign in with your school Google account, are sent to your app, and your app asks the school system who you are.</li>
+  </ol>
+  <p>
+    <a class="button" href="<%= launchUrl %>">Test sign-in</a>
+    <% if (loginDone) { %> Verified <%= new Date(app.login_verified_at).toLocaleString('en-NZ') %><% } else { %> Not tested yet<% } %>
+  </p>
+  <form method="post" action="/student-apps/<%= app.slug %>/secret" onsubmit="return confirm('Make a new secret? The old one stops working.')">
+    <button class="button secondary" type="submit">Make a new secret</button>
+  </form>
+</section>
+
+<section class="panel">
+  <h2><%- tick(rolesDone) %> Step 3 &mdash; Map roles</h2>
+  <% if (!loginDone) { %>
+    <p style="color:#6a84a1">Finish step 2 first. Roles are mapped once sign-in works.</p>
+  <% } else { %>
+    <% if (saved) { %><p style="background:#e3f4e8;color:#1d6b3c;padding:10px 12px;border-radius:8px">Roles saved.</p><% } %>
+    <p>When someone signs in, their school role becomes one of your app's roles. Leave a row empty to give that school role no access.</p>
+    <form method="post" action="/student-apps/<%= app.slug %>/roles" class="module-form">
+      <table>
+        <thead><tr><th>School role</th><th>Becomes this role in your app</th></tr></thead>
+        <tbody>
+          <% platformRoles.forEach(function (role) { %>
+            <tr>
+              <td><%= role.label %></td>
+              <td>
+                <% if (app.app_roles.length) { %>
+                  <select name="map_<%= role.key %>">
+                    <option value="">No access</option>
+                    <% app.app_roles.forEach(function (appRole) { %>
+                      <option value="<%= appRole %>" <%= mapping[role.key] === appRole ? 'selected' : '' %>><%= appRole %></option>
+                    <% }) %>
+                  </select>
+                <% } else { %>
+                  <input name="map_<%= role.key %>" value="<%= mapping[role.key] || '' %>" placeholder="Role name in your app">
+                <% } %>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+      <button class="button" type="submit">Save roles</button>
+    </form>
+  <% } %>
+</section>
+
+<section class="panel">
+  <h2>Who can use it</h2>
+  <p>The app's Lead Teacher gives staff and students a role in the app. Only people with a role can sign in.
+    <%= assignedCount %> role assignment(s) so far.</p>
+  <p><a class="button secondary" href="<%= rolesUrl %>">Assign user roles</a>
+     <% if (loginDone && rolesDone) { %><a class="button" href="/student-apps/<%= app.slug %>/launch">Open the app</a><% } %></p>
+</section>
+
+<%- include('../partials/footer') %>

@@ -48,10 +48,19 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-router.param('hubKey', (req, res, next, hubKey) => {
-  if (!HUBS[hubKey]) return res.status(404).render('error', { title: 'Not found', message: 'Unknown hub.' });
-  req.hub = { key: hubKey, ...HUBS[hubKey] };
-  return next();
+router.param('hubKey', async (req, res, next, hubKey) => {
+  try {
+    let hub = HUBS[hubKey];
+    if (!hub && hubKey.startsWith('app-')) {
+      const found = (await query('SELECT name, slug FROM student_apps WHERE hub_key = $1', [hubKey])).rows[0];
+      if (found) hub = { label: found.name, home: `/student-apps/${found.slug}` };
+    }
+    if (!hub) return res.status(404).render('error', { title: 'Not found', message: 'Unknown hub.' });
+    req.hub = { key: hubKey, ...hub };
+    return next();
+  } catch (error) {
+    return next(error);
+  }
 });
 
 router.use('/:hubKey', async (req, res, next) => {

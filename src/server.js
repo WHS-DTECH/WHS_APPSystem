@@ -22,6 +22,7 @@ const { importLegacyFoodRoom } = require('./legacyFoodRoomImport');
 const hubRoles = require('./hubRoles');
 const assessmentStandards = require('./assessmentStandards');
 const emailPreferences = require('./emailPreferences');
+const studentApps = require('./studentApps');
 const { injectGlobalNav, navData, safeNext, readCookie, NEXT_COOKIE } = require('./globalNav');
 const { describeModules } = require('./moduleDocs');
 
@@ -160,6 +161,8 @@ app.get('/admin/emails', ensureAuthenticated, ensureRole('ADMIN'), async (req, r
 
 app.use('/hubs', assessmentStandards.router);
 app.use('/hubs', hubRoles.router);
+app.use('/student-apps', studentApps.router);
+app.use('/api/student-apps', studentApps.apiRouter);
 app.use('/admin/kamar-uploader', kamarUploader);
 app.use(kamarUploaderApi);
 app.use('/learning-sites', learningSites);

@@ -1,0 +1,30 @@
+<%- include('../partials/header') %>
+
+<section class="page-title">
+  <p class="eyebrow">Student Apps &middot; Step 1 of 3</p>
+  <h1>Register your project</h1>
+  <p>Tell the school system about your app. You'll then connect Google sign-in (step 2) and choose how roles work (step 3).</p>
+</section>
+
+<section class="panel">
+  <% if (error) { %><p style="background:#fdeeee;color:#b42318;padding:10px 12px;border-radius:8px"><%= error %></p><% } %>
+  <form method="post" action="/student-apps/new" class="module-form">
+    <label>Project name
+      <input name="name" value="<%= form.name || '' %>" required maxlength="80" placeholder="e.g. Guidance Counsellor App">
+    </label>
+    <label>What does it do?
+      <textarea name="description" rows="3" maxlength="300"><%= form.description || '' %></textarea>
+    </label>
+    <label>Web address of your app
+      <input name="app_url" value="<%= form.app_url || '' %>" required placeholder="https://your-app.onrender.com">
+    </label>
+    <label>Roles your app already uses (comma separated)
+      <input name="app_roles" value="<%= form.app_roles || '' %>" placeholder="ADMIN, Counsellor, AppBuilder">
+    </label>
+    <p style="color:#6a84a1">Your app keeps its own database. Only the sign-in is handled by the school system.</p>
+    <button class="button" type="submit">Register project</button>
+    <a class="button secondary" href="/student-apps">Cancel</a>
+  </form>
+</section>
+
+<%- include('../partials/footer') %>
