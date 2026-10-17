@@ -45,6 +45,7 @@ function render(overrides = {}) {
 test('hosted active apps show automatic sign-in and allow mapping without an old verification timestamp', async () => {
   const html = await render();
   assert.match(html, /Connected automatically/);
+  assert.match(html, /shared top-right school account controls/);
   assert.match(html, /AppBuilder<\/strong> &mdash; automatic/);
   assert.match(html, /<strong>ADMIN<\/strong> &mdash; automatic/);
   assert.equal((html.match(/<strong>ADMIN<\/strong> &mdash; automatic/g) || []).length, 1);

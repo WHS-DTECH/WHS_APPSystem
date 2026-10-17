@@ -6,6 +6,7 @@
   var STORE = 'whs.globalNav.open';
   var mobile = window.matchMedia('(max-width: 640px)');
   var shifted = [];
+  var headerOffsets = new WeakMap();
 
   var css = [
     '#gn-toggle{position:fixed;bottom:10px;left:10px;z-index:2147483000;width:38px;height:38px;border-radius:8px;border:1px solid rgba(0,0,0,.2);background:#0d5c4a;color:#fff;font-size:20px;line-height:1;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25)}',
@@ -55,7 +56,7 @@
       Array.prototype.forEach.call(child.children, function (grand) { candidates.push(grand); });
     });
     candidates.forEach(function (node) {
-      if (node.id === 'gn-nav' || node.id === 'gn-toggle' || node.id === 'whs-student-app-footer') return;
+      if (node.id === 'gn-nav' || node.id === 'gn-toggle' || node.id === 'whs-student-app-footer' || node.id === 'whs-account-header') return;
       var style = getComputedStyle(node);
       if (style.position !== 'fixed' || parseFloat(style.left) !== 0) return;
       var item = { node: node, left: node.style.left, width: node.style.width };
@@ -137,15 +138,139 @@
       if (!studentApps) nav.appendChild(el('div', { 'class': 'gn-empty' }, 'None yet'));
       nav.appendChild(el('div', { 'class': 'gn-spacer' }));
       var signOut = el('button', { type: 'button', 'class': 'gn-link' }, 'Sign out');
+      var signOutStatus = el('div', { role: 'status' });
       signOut.addEventListener('click', function () {
-        fetch('/logout', { method: 'POST', credentials: 'same-origin' }).finally(function () { location.href = '/'; });
+        signOutAccount(signOut, signOutStatus);
       });
       nav.appendChild(signOut);
+      nav.appendChild(signOutStatus);
     } else {
       link(nav, 'Home', '/');
       nav.appendChild(el('div', { 'class': 'gn-spacer' }));
       nav.appendChild(el('a', { href: '/auth/google?next=' + encodeURIComponent(location.pathname + location.search) }, 'Sign in with Google'));
     }
+  }
+
+  function signOutAccount(button, status) {
+    button.disabled = true;
+    fetch('/logout', { method: 'POST', credentials: 'same-origin' })
+      .then(function (response) {
+        if (!response.ok) throw new Error('Sign out failed.');
+        location.href = '/';
+      })
+      .catch(function (error) {
+        console.error('WHS account sign out:', error);
+        status.setAttribute('role', 'alert');
+        status.textContent = 'Could not sign out. Please try again.';
+        button.disabled = false;
+      });
+  }
+
+  function reserveAccountHeader() {
+    // Older hubs use fixed top bars outside document flow.
+    Array.prototype.forEach.call(document.querySelectorAll('body > *, body > * > *'), function (node) {
+      if (/^(?:gn-|whs-)/.test(node.id) || node.closest('#whs-account-header, #whs-student-app-viewport, #gn-nav')) return;
+      var style = getComputedStyle(node);
+      var offset = headerOffsets.get(node);
+      if (offset !== undefined) {
+        node.style.top = (offset + 60) + 'px';
+      } else if (style.position === 'fixed' && parseFloat(style.top) >= 0 && parseFloat(style.top) < 60) {
+        offset = parseFloat(style.top);
+        headerOffsets.set(node, offset);
+        node.style.top = (offset + 60) + 'px';
+      }
+    });
+  }
+
+  function buildAccount(data) {
+    var header = document.getElementById('whs-account-header');
+    if (!header) {
+      document.body.insertBefore(el('div', { id: 'whs-account-spacer', 'aria-hidden': 'true' }), document.body.firstChild);
+      header = el('header', { id: 'whs-account-header', 'aria-label': 'School account' });
+      document.body.appendChild(header);
+    }
+    header.replaceChildren();
+    if (!data || data.error) {
+      header.appendChild(el('span', { role: data ? 'alert' : 'status' }, data ? 'School account could not be loaded.' : 'Loading school account...'));
+      if (data) {
+        var retry = el('button', { type: 'button', 'class': 'whs-account-retry' }, 'Retry');
+        retry.addEventListener('click', init);
+        header.appendChild(retry);
+      }
+      return;
+    }
+    if (!data.signedIn) {
+      var login = el('a', { 'class': 'whs-google-signin', href: '/auth/google?next=' + encodeURIComponent(location.pathname + location.search) });
+      login.appendChild(el('span', { 'class': 'whs-google-mark', 'aria-hidden': 'true' }, 'G'));
+      login.appendChild(el('span', {}, 'Sign in with Google'));
+      header.appendChild(login);
+      return;
+    }
+    function menuButton(id, label, className) {
+      var button = el('button', { type: 'button', 'class': 'whs-account-button ' + (className || ''), 'aria-label': label, 'aria-controls': id, 'aria-expanded': 'false' });
+      header.appendChild(button);
+      var menu = el('div', { id: id, 'class': 'whs-account-menu', role: 'region', 'aria-label': label });
+      menu.hidden = true;
+      header.appendChild(menu);
+      button.addEventListener('click', function () {
+        var open = menu.hidden;
+        closeMenus();
+        menu.hidden = !open;
+        button.setAttribute('aria-expanded', String(open));
+        if (open) {
+          var first = menu.querySelector('a,button');
+          if (first) first.focus();
+        }
+      });
+      return { button: button, menu: menu };
+    }
+    function closeMenus() {
+      Array.prototype.forEach.call(header.querySelectorAll('.whs-account-menu'), function (menu) { menu.hidden = true; });
+      Array.prototype.forEach.call(header.querySelectorAll('[aria-expanded]'), function (button) { button.setAttribute('aria-expanded', 'false'); });
+    }
+    var apps = menuButton('whs-apps-menu', 'WHS apps', 'whs-apps-button');
+    var dots = el('span', { 'class': 'whs-apps-dots', 'aria-hidden': 'true' });
+    for (var i = 0; i < 9; i++) dots.appendChild(el('span'));
+    apps.button.appendChild(dots);
+    link(apps.menu, 'Dashboard', '/dashboard');
+    link(apps.menu, 'Student Apps dashboard', '/student-apps');
+    [['Hubs', function (module) { return /^\/(?:technology-hub|food-room|sewing-hub|workshop)(?:\/|$)/.test(module.path); }],
+      ['Student Apps', function (module) { return module.path.indexOf('/student-apps/') === 0; }],
+      ['Modules', function (module) { return !/^\/(?:technology-hub|food-room|sewing-hub|workshop|student-apps)(?:\/|$)/.test(module.path); }]
+    ].forEach(function (group) {
+      var modules = (data.modules || []).filter(group[1]);
+      if (!modules.length) return;
+      apps.menu.appendChild(el('h2', {}, group[0]));
+      modules.forEach(function (module) { link(apps.menu, module.name, module.path); });
+    });
+    var account = menuButton('whs-account-menu', 'School account: ' + (data.name || data.email));
+    account.button.textContent = (data.name || data.email || '?').trim().charAt(0).toUpperCase();
+    if (data.avatarUrl && /^https:\/\//i.test(data.avatarUrl)) {
+      var photo = el('img', { src: data.avatarUrl, alt: '', referrerpolicy: 'no-referrer' });
+      photo.addEventListener('error', function () { photo.remove(); });
+      account.button.appendChild(photo);
+      account.button.style.position = 'relative';
+      photo.style.position = 'absolute';
+      photo.style.inset = '0';
+    }
+    account.menu.appendChild(el('strong', {}, data.name || 'School account'));
+    account.menu.appendChild(el('p', {}, data.email || ''));
+    link(account.menu, 'Profile', '/profile');
+    var status = el('p', { role: 'status' });
+    var signOut = el('button', { type: 'button' }, 'Sign out');
+    signOut.addEventListener('click', function () { signOutAccount(signOut, status); });
+    account.menu.appendChild(signOut);
+    account.menu.appendChild(status);
+    header.onkeydown = function (event) {
+      if (event.key === 'Escape') {
+        var active = header.querySelector('[aria-expanded="true"]');
+        closeMenus();
+        if (active) active.focus();
+      }
+    };
+    document.addEventListener('click', function (event) {
+      if (!header.contains(event.target)) closeMenus();
+    });
   }
 
   // Any remaining hub "sign in" links return the user to the page they were on.
@@ -185,10 +310,22 @@
 
   // Only administrators get the sidebar; students and teachers use each hub's own top bar.
   function init() {
+    buildAccount(null);
+    reserveAccountHeader();
+    setTimeout(reserveAccountHeader, 1200);
     fetch('/nav-data', { credentials: 'same-origin', cache: 'no-store' })
-      .then(function (response) { return response.json(); })
-      .then(function (data) { if (data && data.isAdmin) build(data); })
-      .catch(function () { /* no sidebar */ });
+      .then(function (response) {
+        if (!response.ok) throw new Error('School account request failed.');
+        return response.json();
+      })
+      .then(function (data) {
+        buildAccount(data);
+        if (data && data.isAdmin) build(data);
+      })
+      .catch(function (error) {
+        console.error('WHS account controls:', error);
+        buildAccount({ error: true });
+      });
   }
 
   if (document.body) init();

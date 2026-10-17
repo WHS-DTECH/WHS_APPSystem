@@ -57,6 +57,9 @@ function injectGlobalNav(req, res, next) {
         .replace(/<\/body>/i, `</div><footer id="whs-student-app-footer"><span>This website was made by a Westland High School student. &copy; ${year}. Last Updated: ${monthYear}</span></footer></body>`);
     }
     if (/<\/head\s*>/i.test(html)) {
+      if (!html.includes('href="/account-controls.css"')) {
+        html = html.replace(/<\/head\s*>/i, '<link rel="stylesheet" href="/account-controls.css">\n</head>');
+      }
       html = html.replace(/<link\b[^>]*>/gi, (tag) => {
         const rel = tag.match(/\brel\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
         return rel && /^(?:icon|shortcut\s+icon)$/i.test((rel[1] ?? rel[2] ?? rel[3]).trim()) ? '' : tag;
@@ -94,6 +97,8 @@ function navData(query) {
       res.json({
         signedIn: Boolean(user),
         name: user ? user.display_name || user.email : null,
+        email: user ? user.email : null,
+        avatarUrl: user ? user.avatar_url || null : null,
         role: res.locals.activeRole,
         isAdmin: res.locals.isAdmin,
         modules: modules.map((module) => ({ name: module.display_name, path: module.path }))

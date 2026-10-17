@@ -112,17 +112,35 @@ test('nav-data returns the module links for a signed in user and none for anonym
     app.use((req, res, next) => {
       res.locals.activeRole = 'ADMIN';
       res.locals.isAdmin = true;
-      if (req.query.in) req.user = { display_name: 'Vanessa', email: 'v@x.nz' };
+      if (req.query.in) req.user = { display_name: 'Vanessa', email: 'v@x.nz', avatar_url: 'https://example.invalid/avatar.png' };
       next();
     });
     app.get('/nav-data', navData(query));
   }, async (base) => {
     const anon = await (await fetch(`${base}/nav-data`)).json();
     assert.equal(anon.signedIn, false);
+    assert.equal(anon.email, null);
+    assert.equal(anon.avatarUrl, null);
     assert.deepEqual(anon.modules, []);
     const user = await (await fetch(`${base}/nav-data?in=1`)).json();
     assert.equal(user.name, 'Vanessa');
+    assert.equal(user.email, 'v@x.nz');
+    assert.equal(user.avatarUrl, 'https://example.invalid/avatar.png');
+    assert.equal(user.role, 'ADMIN');
     assert.deepEqual(user.modules, [{ name: 'Food Room Hub', path: '/food-room' }]);
+  });
+
+});
+
+test('public pages load the shared account-control assets', async () => {
+  await withServer((app) => {
+    app.get('/page', (req, res) => res.send('<html><head><title>Hub</title></head><body>Hub</body></html>'));
+  }, async (base) => {
+    const response = await fetch(`${base}/page`);
+    const html = await response.text();
+    assert.match(html, /<link rel="stylesheet" href="\/account-controls.css">/);
+    assert.match(html, /<script src="\/global-nav.js" defer><\/script>/);
+    assert.equal((html.match(/account-controls.css/g) || []).length, 1);
   });
 });
 
