@@ -65,6 +65,8 @@ class TrainingRuntimeTests(unittest.TestCase):
         response = self.get("/home")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'<h1 class="hero-title">DTECH Course Capsules</h1>', response.data)
+        self.assertIn(b"title: 'Senior DTECH Capsule'", response.data)
+        self.assertNotIn(b"Class Training System", response.data)
         self.assertIn(b"/dtech-hub/class-training/static/css/style.css", response.data)
         data = self.get("/api/home-data").json
         self.assertEqual(data["all_courses"][0]["title"], "Module 1: Commenting")
