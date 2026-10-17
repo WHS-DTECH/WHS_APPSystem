@@ -47,9 +47,20 @@ class GlobalRoleTests(unittest.TestCase):
                 ("ADMIN", "live dataset (masked)"),
                 ("Counsellor", "live dataset"),
             ]:
-                response = self.client.get("/dashboard", headers=self.headers(role))
+                response = self.client.get("/students", headers=self.headers(role))
                 self.assertEqual(response.status_code, 200)
                 self.assertIn(dataset, response.get_data(as_text=True))
+
+    def test_hosted_dashboard_uses_shared_account_controls(self):
+        for role in ["ADMIN", "AppBuilder", "Counsellor"]:
+            response = self.client.get("/dashboard", headers=self.headers(role))
+            self.assertEqual(response.status_code, 200)
+            html = response.get_data(as_text=True)
+            self.assertIn("Overview & Analytics", html)
+            self.assertNotIn("Welcome,", html)
+            self.assertNotIn("Role:", html)
+            self.assertNotIn('class="logout-line"', html)
+            self.assertNotIn("Restore ADMIN Access", html)
 
     def test_invalid_roles_and_untrusted_requests_are_denied(self):
         for headers in [{}, self.headers(""), self.headers("UnknownRole")]:

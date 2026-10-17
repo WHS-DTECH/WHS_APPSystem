@@ -217,6 +217,7 @@ DASHBOARD_WEB_TEMPLATE = """
 
       <main class="main">
         <h1 class="title">Overview & Analytics</h1>
+        {% if not config.get('WHS_HOSTED') %}
         <p class="meta">Welcome, {{ user }}.</p>
         <p class="meta">Role: {{ role }} | Viewing {{ data_label }}.</p>
         {% if can_restore_admin %}
@@ -225,6 +226,7 @@ DASHBOARD_WEB_TEMPLATE = """
           </form>
         {% endif %}
         <p class="logout-line"><a href="/logout">Logout</a></p>
+        {% endif %}
 
         <div class="stats">
           <div class="card">

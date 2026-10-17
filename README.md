@@ -96,6 +96,8 @@ space between the school header and footer. Sidebar actions remain visible;
 on narrow screens they move into a compact navigation row. Long student lists
 and forms scroll within the main content area rather than moving the sidebar
 buttons off screen. The dashboard cards adapt to the available space.
+The hosted dashboard omits the legacy welcome, role summary and Logout link;
+account details and sign-out are provided by the shared Google avatar menu.
 
 Run the isolated Python regressions with
 `python tests\guidance_global_roles_test.py -v` (Flask and the app requirements
