@@ -81,6 +81,16 @@ class TrainingRuntimeTests(unittest.TestCase):
         self.headers["X-WHS-Role"] = "student"
         self.assertEqual(self.get("/admin/dashboard").status_code, 302)
 
+    def test_local_role_controls_are_absent_from_teacher_pages(self):
+        self.headers["X-WHS-Role"] = "teacher"
+        for path in ["/home", "/admin/dashboard", "/admin/"]:
+            response = self.get(path)
+            self.assertEqual(response.status_code, 200, path)
+            self.assertNotIn(b"/admin/user_roles", response.data)
+            self.assertNotIn(b"/admin/role_permissions", response.data)
+            self.assertNotIn(b"User Role Management", response.data)
+            self.assertNotIn(b"Role Permissions", response.data)
+
     def test_no_forged_or_missing_proxy_identity(self):
         self.assertEqual(self.client.get("/home").status_code, 403)
         self.headers["X-WHS-Token"] = "forged"

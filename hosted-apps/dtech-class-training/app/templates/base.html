@@ -831,8 +831,6 @@
                     {% endif %}
                     {% if current_user.is_teacher() %}
                         <li><a href="{{ url_for('admin.index') }}"><i class="fas fa-shield-alt"></i> Admin</a></li>
-                        <li><a href="{{ url_for('admin.user_roles') }}"><i class="fas fa-users-cog"></i> User Roles</a></li>
-                        <li><a href="{{ url_for('admin.role_permissions') }}"><i class="fas fa-lock"></i> Permissions</a></li>
                     {% endif %}
                 {% endif %}
             </ul>
@@ -908,8 +906,6 @@
                 <a href="{{ url_for('courses.list_courses') }}"><i class="fas fa-book"></i> Courses</a>
                 {% if current_user.is_teacher() %}
                     <a href="{{ url_for('admin.index') }}"><i class="fas fa-shield-alt"></i> Admin</a>
-                    <a href="{{ url_for('admin.user_roles') }}"><i class="fas fa-users-cog"></i> User Roles</a>
-                    <a href="{{ url_for('admin.role_permissions') }}"><i class="fas fa-lock"></i> Permissions</a>
                 {% endif %}
                 <a href="{{ url_for('main.profile') }}"><i class="fas fa-user"></i> My Profile</a>
                 <a href="{{ url_for('main.settings') }}"><i class="fas fa-cog"></i> Settings</a>

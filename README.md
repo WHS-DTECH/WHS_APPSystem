@@ -139,6 +139,8 @@ Before activation:
    student access. The current Core role is checked on every request, including
    for old training accounts previously stored as teachers. Local role editors
    redirect to Core and cannot change that authority.
+   Local User Roles and Permissions links are removed from desktop/mobile menus
+   and the training Admin page; use the shared account controls instead.
 6. Optionally set **`CLASS_TRAINING_CONTACT_EMAIL`** to the email of an existing
    training teacher for the original Contact Teacher button. The message uses
    the shared school Gmail configuration and email log, not standalone Gmail OAuth.
