@@ -91,6 +91,12 @@ that optional role still gets the higher-priority masked `ADMIN` mapping.
 The legacy encryption key is unchanged; secure key management is still required
 before using real counselling notes.
 
+Guidance's hosted layout sizes its navigation and app shell to the available
+space between the school header and footer. Sidebar actions remain visible;
+on narrow screens they move into a compact navigation row. Long student lists
+and forms scroll within the main content area rather than moving the sidebar
+buttons off screen. The dashboard cards adapt to the available space.
+
 Run the isolated Python regressions with
 `python tests\guidance_global_roles_test.py -v` (Flask and the app requirements
 must be installed). They use a temporary dummy database, never the live database.

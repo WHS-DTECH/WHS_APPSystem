@@ -1,0 +1,111 @@
+#whs-student-app-viewport:has(> .app-shell) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  container-type: size;
+}
+#whs-student-app-viewport > :not(.app-shell) {
+  flex: 0 0 auto;
+  margin-bottom: 0 !important;
+}
+#whs-student-app-viewport > .app-shell {
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+  grid-template-columns: 220px minmax(0, 1fr);
+  overflow: hidden;
+}
+#whs-student-app-viewport .sidebar {
+  display: flex;
+  min-height: 0;
+  padding: 18px 14px;
+  overflow: auto;
+}
+#whs-student-app-viewport .brand { font-size: 32px; margin: 0 0 18px; }
+#whs-student-app-viewport .nav-link { padding: 10px 12px; }
+#whs-student-app-viewport .sidebar-footer {
+  display: flex;
+  justify-content: center;
+  margin-top: auto;
+  padding: 18px 0 0;
+  flex-shrink: 0;
+}
+#whs-student-app-viewport .app-shell > main {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 18px;
+}
+#whs-student-app-viewport .app-shell > .wrap { margin: 0; }
+#whs-student-app-viewport .app-shell > .main {
+  display: flex;
+  flex-direction: column;
+}
+#whs-student-app-viewport .title { font-size: 30px; }
+#whs-student-app-viewport .meta { font-size: 12px; margin: 2px 0; }
+#whs-student-app-viewport .logout-line { margin: 4px 0; }
+#whs-student-app-viewport .stats,
+#whs-student-app-viewport .charts {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+#whs-student-app-viewport .stats { flex-shrink: 0; }
+#whs-student-app-viewport .stat-value { font-size: 30px; }
+#whs-student-app-viewport .card { padding: 12px; }
+#whs-student-app-viewport .charts { flex: 1 1 0; min-height: 180px; }
+#whs-student-app-viewport .chart-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+#whs-student-app-viewport .chart-card h3 { font-size: 20px; margin-bottom: 8px; }
+#whs-student-app-viewport .chart-header { gap: 8px; align-items: start; }
+#whs-student-app-viewport .distribution-list { overflow: auto; }
+#whs-student-app-viewport .distribution-name { font-size: 16px; }
+#whs-student-app-viewport .distribution-top { gap: 8px; flex-wrap: wrap; }
+#whs-student-app-viewport .timeline-toolbar { gap: 4px; margin-bottom: 4px; }
+#whs-student-app-viewport .dropdown-pill,
+#whs-student-app-viewport .export-btn { padding: 5px 7px; font-size: 11px; }
+#whs-student-app-viewport .timeline-area {
+  flex: 1 1 0;
+  min-height: 60px;
+  gap: 3px;
+  margin-top: 4px;
+}
+#whs-student-app-viewport .timeline-col { height: 100%; min-height: 0; }
+#whs-student-app-viewport .timeline-bar { max-height: calc(100% - 22px); width: min(18px, 70%); }
+#whs-student-app-viewport .timeline-label { font-size: 9px; }
+@container (max-width: 760px) {
+  #whs-student-app-viewport > .app-shell { grid-template-columns: 155px minmax(0, 1fr); }
+  #whs-student-app-viewport .brand { font-size: 25px; }
+  #whs-student-app-viewport .sidebar { padding: 14px 10px; }
+  #whs-student-app-viewport .app-shell > main { padding: 12px; }
+  #whs-student-app-viewport .charts { grid-template-columns: 1fr; min-height: 300px; }
+}
+@container (max-width: 520px) {
+  #whs-student-app-viewport > .app-shell {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  #whs-student-app-viewport .sidebar {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px;
+  }
+  #whs-student-app-viewport .sidebar .brand { display: none; }
+  #whs-student-app-viewport .nav-link { padding: 7px; font-size: 11px; margin: 0; }
+  #whs-student-app-viewport .sidebar-footer { margin: 0 0 0 auto; padding: 0; }
+  #whs-student-app-viewport .session-btn,
+  #whs-student-app-viewport .add-student-btn { font-size: 11px; padding: 8px; }
+  #whs-student-app-viewport .title { font-size: 24px; }
+}
+@media print {
+  #whs-student-app-viewport:has(> .app-shell),
+  #whs-student-app-viewport > .app-shell,
+  #whs-student-app-viewport .app-shell > main { display: block; overflow: visible; }
+  #whs-student-app-viewport .sidebar { display: none; }
+}

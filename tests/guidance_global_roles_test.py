@@ -89,6 +89,19 @@ class GlobalRoleTests(unittest.TestCase):
         self.assertIn("Open Admin Items", html)
         builder_html = self.client.get("/dashboard", headers=self.headers("AppBuilder")).get_data(as_text=True)
         self.assertNotIn("Open Admin Items", builder_html)
+        students_html = self.client.get("/students", headers=self.headers("ADMIN")).get_data(as_text=True)
+        self.assertNotIn(">User Roles</a>", students_html)
+
+    def test_hosted_pages_load_viewport_layout_and_static_css(self):
+        for route in ["/dashboard", "/students", "/students/sessions/new"]:
+            html = self.client.get(route, headers=self.headers("ADMIN")).get_data(as_text=True)
+            self.assertIn('href="/apps/guidance-counsellor-app/static/hosted-layout.css"', html)
+        response = self.client.get("/static/hosted-layout.css", headers=self.headers("ADMIN"))
+        self.assertEqual(response.status_code, 200)
+        css = response.get_data(as_text=True)
+        self.assertIn("min-height: 0", css)
+        self.assertIn("grid-template-rows: auto minmax(0, 1fr)", css)
+        response.close()
 
     def test_privacy_views_remain_dummy_masked_and_counsellor_only(self):
         for role, visible in [("AppBuilder", False), ("ADMIN", False), ("Counsellor", True)]:

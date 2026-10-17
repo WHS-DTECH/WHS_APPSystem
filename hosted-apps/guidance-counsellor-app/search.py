@@ -102,7 +102,6 @@ SEARCH_TEMPLATE = """
             <h1>Student Database</h1>
             <div>
               <a href="/dashboard">Dashboard</a>
-              {% if is_admin %}| <a href="/user-roles">User Roles</a>{% endif %}
               | <a href="/logout">Logout</a>
             </div>
           </div>

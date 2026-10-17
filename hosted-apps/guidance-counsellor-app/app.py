@@ -84,6 +84,16 @@ def inject_global_layout_bits():
     return {"global_footer": current_global_footer()}
 
 
+@app.after_request
+def hosted_screen_layout(response):
+    if app.config.get("WHS_HOSTED") and response.mimetype == "text/html" and not response.direct_passthrough:
+        html = response.get_data(as_text=True)
+        prefix = request.script_root or os.getenv("SCRIPT_NAME", "")
+        stylesheet = f'{prefix.rstrip("/")}/static/hosted-layout.css'
+        response.set_data(html.replace("</head>", f'<link rel="stylesheet" href="{stylesheet}"></head>'))
+    return response
+
+
 def students_for_role(role):
     def mask_value(value):
         text = str(value or "").strip()
