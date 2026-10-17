@@ -4354,9 +4354,13 @@ async function ensureUnitPlanSchema() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `);
-  // Older databases used numeric IDs; current lessons also use named IDs.
+  // Widen older lesson IDs and linked columns atomically, preserving FK rules.
   await pool.query(`
     DO $$
+    DECLARE
+      linked_columns JSONB;
+      linked_constraints JSONB;
+      item RECORD;
     BEGIN
       IF EXISTS (
         SELECT 1 FROM pg_attribute
@@ -4365,7 +4369,61 @@ async function ensureUnitPlanSchema() {
           AND atttypid IN ('smallint'::regtype, 'integer'::regtype, 'bigint'::regtype)
           AND NOT attisdropped
       ) THEN
-        ALTER TABLE lessons ALTER COLUMN id TYPE TEXT USING id::text;
+        WITH RECURSIVE fk_pairs AS (
+          SELECT c.conrelid AS child_table, keys.child_column,
+                 c.confrelid AS parent_table, keys.parent_column
+          FROM pg_constraint c
+          CROSS JOIN LATERAL unnest(c.conkey, c.confkey) AS keys(child_column, parent_column)
+          WHERE c.contype = 'f'
+        ), edges AS (
+          SELECT child_table AS source_table, child_column AS source_column,
+                 parent_table AS target_table, parent_column AS target_column FROM fk_pairs
+          UNION
+          SELECT parent_table, parent_column, child_table, child_column FROM fk_pairs
+        ), connected(table_id, column_id) AS (
+          SELECT attrelid, attnum FROM pg_attribute
+          WHERE attrelid = 'lessons'::regclass AND attname = 'id' AND NOT attisdropped
+          UNION
+          SELECT e.target_table, e.target_column
+          FROM connected c JOIN edges e
+            ON e.source_table = c.table_id AND e.source_column = c.column_id
+        )
+        SELECT jsonb_agg(jsonb_build_object(
+          'table_id', c.table_id, 'column_id', c.column_id,
+          'table_name', c.table_id::regclass::text, 'column_name', a.attname
+        )) INTO linked_columns
+        FROM connected c JOIN pg_attribute a
+          ON a.attrelid = c.table_id AND a.attnum = c.column_id
+        WHERE a.atttypid IN ('smallint'::regtype, 'integer'::regtype, 'bigint'::regtype);
+
+        SELECT COALESCE(jsonb_agg(jsonb_build_object(
+          'table_name', c.conrelid::regclass::text, 'constraint_name', c.conname,
+          'definition', pg_get_constraintdef(c.oid)
+        )), '[]'::jsonb) INTO linked_constraints
+        FROM pg_constraint c
+        WHERE c.contype = 'f' AND EXISTS (
+          SELECT 1 FROM jsonb_to_recordset(linked_columns) AS col(table_id OID, column_id SMALLINT)
+          WHERE (c.conrelid = col.table_id AND col.column_id = ANY(c.conkey))
+             OR (c.confrelid = col.table_id AND col.column_id = ANY(c.confkey))
+        );
+
+        FOR item IN SELECT * FROM jsonb_to_recordset(linked_constraints)
+          AS fk(table_name TEXT, constraint_name TEXT, definition TEXT)
+        LOOP
+          EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %I', item.table_name, item.constraint_name);
+        END LOOP;
+        FOR item IN SELECT * FROM jsonb_to_recordset(linked_columns)
+          AS col(table_name TEXT, column_name TEXT)
+        LOOP
+          EXECUTE format('ALTER TABLE %s ALTER COLUMN %I TYPE TEXT USING %I::text',
+            item.table_name, item.column_name, item.column_name);
+        END LOOP;
+        FOR item IN SELECT * FROM jsonb_to_recordset(linked_constraints)
+          AS fk(table_name TEXT, constraint_name TEXT, definition TEXT)
+        LOOP
+          EXECUTE format('ALTER TABLE %s ADD CONSTRAINT %I %s',
+            item.table_name, item.constraint_name, item.definition);
+        END LOOP;
       END IF;
     END
     $$;

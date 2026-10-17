@@ -83,8 +83,11 @@ still run against DTECH-DB only on first use after each deployment. Take a Rende
 database backup before first activation. The rest of WHS APPSystem remains
 available if DTECH initialization fails.
 For older databases, initialization widens numeric `lessons.id` columns to text
-so the original site's named lesson IDs work. Existing numeric ID values and
-serial defaults are retained; no lessons are deleted or copied to Core.
+so the original site's named lesson IDs work. Numeric foreign-key columns linked
+to those IDs (including section records) are widened in the same atomic operation.
+Foreign keys are restored with their original rules; a failure rolls back the
+whole ID conversion. Existing values and serial defaults are retained; no lessons
+or sections are deleted or copied to Core.
 
 ## Local setup
 

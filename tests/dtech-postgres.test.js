@@ -51,6 +51,7 @@ test(`original DTECH HTTP pages and uploads survive restart (${legacyLessonIds ?
   const instances = [];
   const servers = [];
   let uploaded;
+  let originalConstraints;
   async function start() {
     const app = express();
     app.set('view engine', 'ejs');
@@ -91,6 +92,24 @@ test(`original DTECH HTTP pages and uploads survive restart (${legacyLessonIds ?
       await client.query(`INSERT INTO "${schema}".lessons
         (lesson_title, lesson_type, activity_name, lesson_year_level, lesson_focus)
         VALUES ('Existing legacy lesson', 'Digital Technologies', 'Legacy activity', 'Year 9', 'Keep existing work')`);
+      await client.query(`CREATE TABLE "${schema}".sections (
+        id SERIAL PRIMARY KEY,
+        lesson_id INTEGER NOT NULL REFERENCES "${schema}".lessons(id) ON DELETE CASCADE,
+        section_text TEXT NOT NULL,
+        UNIQUE (lesson_id, id)
+      )`);
+      await client.query(`CREATE TABLE "${schema}".section_notes (
+        lesson_id INTEGER NOT NULL,
+        section_id INTEGER NOT NULL,
+        note TEXT NOT NULL,
+        CONSTRAINT section_notes_section_fkey FOREIGN KEY (lesson_id, section_id)
+          REFERENCES "${schema}".sections(lesson_id, id) ON UPDATE CASCADE ON DELETE CASCADE
+          DEFERRABLE INITIALLY DEFERRED
+      )`);
+      await client.query(`INSERT INTO "${schema}".sections (lesson_id, section_text) VALUES (1, 'Existing section')`);
+      await client.query(`INSERT INTO "${schema}".section_notes VALUES (1, 1, 'Existing note')`);
+      originalConstraints = (await client.query(`SELECT conname, pg_get_constraintdef(oid) AS definition
+        FROM pg_constraint WHERE connamespace = $1::regnamespace AND contype = 'f' ORDER BY conname`, [schema])).rows;
     }
     const base = await start();
     let response = await fetch(`${base}/dtech-hub/`);
@@ -121,6 +140,15 @@ test(`original DTECH HTTP pages and uploads survive restart (${legacyLessonIds ?
         VALUES ('Default ID lesson', 'Digital Technologies', 'Legacy activity', 'Year 9', 'Keep sequence')
         RETURNING id`);
       assert.equal(generated.rows[0].id, '2');
+      assert.deepEqual((await client.query(`SELECT lesson_id, section_text FROM "${schema}".sections`)).rows,
+        [{ lesson_id: '1', section_text: 'Existing section' }]);
+      assert.deepEqual((await client.query(`SELECT lesson_id, section_id, note FROM "${schema}".section_notes`)).rows,
+        [{ lesson_id: '1', section_id: 1, note: 'Existing note' }]);
+      assert.deepEqual((await client.query(`SELECT conname, pg_get_constraintdef(oid) AS definition
+        FROM pg_constraint WHERE connamespace = $1::regnamespace AND contype = 'f' ORDER BY conname`, [schema])).rows,
+      originalConstraints);
+      await assert.rejects(client.query(`INSERT INTO "${schema}".sections (lesson_id, section_text)
+        VALUES ('missing-lesson', 'Invalid reference')`), { code: '23503' });
     }
     for (const url of ['/dtech-hub/server.js', '/dtech-hub/SERVER.js', '/dtech-hub/package.json', '/dtech-hub/learning-pathways/library-store.js',
       '/dtech-hub/node_modules/express/index.js', '/dtech-hub/TeacherFiles/private.csv']) {
@@ -152,6 +180,11 @@ test(`original DTECH HTTP pages and uploads survive restart (${legacyLessonIds ?
     if (legacyLessonIds) {
       response = await fetch(`${restarted}/dtech-hub/api/lessons/1`);
       assert.equal((await response.json()).lesson_title, 'Existing legacy lesson');
+      await client.query(`UPDATE "${schema}".sections SET lesson_id = '2' WHERE id = 1`);
+      assert.equal((await client.query(`SELECT lesson_id FROM "${schema}".section_notes`)).rows[0].lesson_id, '2');
+      await client.query(`DELETE FROM "${schema}".lessons WHERE id = '2'`);
+      assert.equal((await client.query(`SELECT * FROM "${schema}".sections`)).rowCount, 0);
+      assert.equal((await client.query(`SELECT * FROM "${schema}".section_notes`)).rowCount, 0);
     }
   } finally {
     for (const server of servers) await new Promise((resolve) => server.close(resolve));
