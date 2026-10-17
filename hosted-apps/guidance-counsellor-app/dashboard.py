@@ -57,7 +57,12 @@ DASHBOARD_WEB_TEMPLATE = """
       }
       .nav-link.active { background: var(--nav-pill); }
       .nav-link.secondary { margin-top: 8px; opacity: 0.82; }
-      .sidebar-footer { margin-top: auto; }
+      .sidebar-footer {
+        margin-top: auto;
+        padding-bottom: 64px;
+        display: flex;
+        justify-content: center;
+      }
       .session-btn {
         display: inline-block;
         background: var(--green);
