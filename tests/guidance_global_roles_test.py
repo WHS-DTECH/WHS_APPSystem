@@ -51,6 +51,42 @@ class GlobalRoleTests(unittest.TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertIn(dataset, response.get_data(as_text=True))
 
+    def test_shared_search_preserves_masked_live_and_dummy_dataset_boundaries(self):
+        for role in ["ADMIN", "AppBuilder"]:
+            response = self.client.get("/api/school-search?q=Private%20Test%20Name", headers=self.headers(role))
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json["results"], [])
+        masked = self.client.get("/api/school-search?q=PRIVATE-TEST", headers=self.headers("ADMIN"))
+        self.assertTrue(masked.json["results"][0]["title"].startswith("ENC-"))
+        for secret in ["Private Test Name", "Private Test Notes", "Private Session"]:
+            self.assertNotIn(secret, masked.get_data(as_text=True))
+        with patch.object(guidance.backend, "get_dummy_students", return_value=[
+            {"student_id": "DUMMY-SEARCH", "full_name": "Dummy Search Student"}
+        ]):
+            builder = self.client.get("/api/school-search?q=Dummy", headers=self.headers("AppBuilder"))
+            self.assertEqual(builder.json["results"][0]["title"], "Dummy Search Student")
+        live = self.client.get("/api/school-search?q=Private%20Test%20Name", headers=self.headers("Counsellor"))
+        self.assertEqual(live.json["results"][0]["title"], "Private Test Name")
+        self.assertIn("/students/profile?student_id=PRIVATE-TEST", live.json["results"][0]["url"])
+        self.assertNotIn("Private Test Notes", live.get_data(as_text=True))
+        self.assertIn("no-store", live.headers["Cache-Control"])
+        self.assertEqual(self.client.get("/api/school-search?q=x", headers=self.headers("Counsellor")).status_code, 400)
+        self.assertEqual(self.client.get("/api/school-search?q=Private").status_code, 403)
+        revoked = self.client.get("/api/school-search?q=Private%20Test%20Name", headers=self.headers("AppBuilder"))
+        self.assertEqual(revoked.json["results"], [])
+
+    def test_shared_search_navigation_and_result_limit(self):
+        navigation = self.client.get("/api/school-search?q=Dataset", headers=self.headers("AppBuilder"),
+                                     environ_overrides={"SCRIPT_NAME": "/apps/guidance-counsellor-app"})
+        self.assertEqual(navigation.json["results"][0]["title"], "Dataset Manager")
+        self.assertTrue(navigation.json["results"][0]["url"].startswith("/apps/guidance-counsellor-app/"))
+        with patch.object(guidance.backend, "get_dummy_students", return_value=[
+            {"student_id": f"DUMMY-{index}", "full_name": f"Student Fixture {index}"} for index in range(55)
+        ]):
+            response = self.client.get("/api/school-search?q=Student", headers=self.headers("AppBuilder"))
+            self.assertEqual(len(response.json["results"]), 50)
+            self.assertTrue(response.json["truncated"])
+
     def test_hosted_dashboard_uses_shared_account_controls(self):
         for role in ["ADMIN", "AppBuilder", "Counsellor"]:
             response = self.client.get("/dashboard", headers=self.headers(role))

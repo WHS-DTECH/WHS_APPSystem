@@ -835,19 +835,6 @@
                 {% endif %}
             </ul>
 
-            <!-- Search Bar -->
-            {% if current_user.is_authenticated %}
-                <div style="flex: 0 1 300px; margin: 0 1rem;">
-                    <form action="{{ url_for('main.search') }}" method="GET" style="display: flex;">
-                        <input type="text" name="q" placeholder="Search courses, lessons..." 
-                               style="flex: 1; padding: 0.6em 1rem; border: 1px solid #ddd; border-radius: 0.4em 0 0 0.4em; font-size: 0.95em;">
-                        <button type="submit" style="padding: 0.6em 1rem; background: #5c0e2a; color: white; border: none; border-radius: 0 0.4em 0.4em 0; cursor: pointer; transition: background 0.2s;">
-                            <i class="fas fa-search"></i>
-                        </button>
-                    </form>
-                </div>
-            {% endif %}
-
             <!-- Right Side -->
             <div class="navbar-right">
                 {% if current_user.is_authenticated %}

@@ -11,23 +11,23 @@ const areas = [
   { key: 'woodwork-furniture', label: 'Woodwork and Furniture', file: 'woodwork-furniture.html' }
 ];
 
-function isAdmin(req) {
-  return req.user?.roles?.includes('ADMIN');
-}
-
 function areaForFile(file) {
   return areas.find((area) => area.file === file);
 }
 
-async function canViewArea(req, areaKey) {
-  if (isAdmin(req)) return true;
-  if (!req.user?.roles?.some((role) => ['Student', 'Teacher'].includes(role))) return false;
+async function searchableAreas(user, dbQuery = query) {
+  if (user?.roles?.includes('ADMIN')) return areas;
+  if (!user?.roles?.some((role) => ['Student', 'Teacher'].includes(role))) return [];
 
-  const result = await query(
-    'SELECT 1 FROM technology_hub_access WHERE user_id = $1 AND area_key = $2',
-    [req.user.id, areaKey]
+  const result = await dbQuery(
+    'SELECT area_key FROM technology_hub_access WHERE user_id = $1',
+    [user.id]
   );
-  return result.rowCount > 0;
+  return areas.filter((area) => result.rows.some((row) => row.area_key === area.key));
+}
+
+async function canViewArea(req, areaKey) {
+  return (await searchableAreas(req.user)).some((area) => area.key === areaKey);
 }
 
 const publicRouter = express.Router();
@@ -121,4 +121,4 @@ adminRouter.post('/:userId', ensureAuthenticated, ensureRole('ADMIN'), async (re
   }
 });
 
-module.exports = { adminRouter, publicRouter };
+module.exports = { adminRouter, publicRouter, searchableAreas };

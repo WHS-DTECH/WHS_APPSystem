@@ -20,6 +20,7 @@ const workshop = require('./modules/workshop');
 const foodRoom = require('./modules/foodRoom');
 const { createDtechRouter } = require('./modules/dtechHub');
 const { createClassTrainingRouter, trainingEmail, canManageCourses } = require('./modules/classTraining');
+const { createModuleSearch } = require('./moduleSearch');
 const { importLegacyFoodRoom } = require('./legacyFoodRoomImport');
 const hubRoles = require('./hubRoles');
 const assessmentStandards = require('./assessmentStandards');
@@ -80,6 +81,7 @@ app.get('/healthz', (req, res) => {
 });
 
 app.get('/nav-data', navData(query, hubRoles.canManageHubRoles, studentApps.datasetManagerUrl, canManageCourses));
+app.get('/module-search', createModuleSearch());
 
 app.get('/email-status', (req, res) => {
   res.json({

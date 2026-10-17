@@ -20,6 +20,42 @@ Unified Westland High School app shell for one Render Web Service and one Google
 - Initial Kamar Uploader module under the ADMIN dashboard, with term-aware PostgreSQL uploads and history.
 - Docker and Render Blueprint configuration.
 
+## Shared module-sensitive search
+
+Signed-in users can search from the shared Google-avatar navbar. The placeholder
+identifies the **current module**; submitting never searches other hubs or
+capsules, and there is no all-modules option. Class Training's duplicate local
+search form is removed, and its old `/search` route returns to the original home
+page instead of running the former unscoped search.
+
+| Current module | Searchable content |
+| --- | --- |
+| Class Training | Course catalogue titles/descriptions; enrolled students' lessons, sections, assignments and quizzes; teachers' own course content and Course Management |
+| DTECH Hub | Original activity metadata, including assessments and projects; lesson/unit-plan metadata for current teachers only |
+| Sewing Hub | Activity names, descriptions and categories; never teacher notes |
+| Food Room Hub | Recipe names and descriptions |
+| Workshop Hub | Stored worksheet and lesson-note titles and strand names, linked to their original files |
+| WHS Learning Sites | Public course and assessment titles; Relief Plan/HOD navigation only for the applicable global roles |
+| HUB Dashboard | Only the user's assigned learning spaces, or all spaces for global ADMIN |
+| Guidance Counsellor App | Student ID/name from the original role-specific dataset: masked live names for ADMIN, dummy data for AppBuilder, live names for Counsellor; no notes or sessions |
+| Kamar Uploader | Staff/student names and school email/student IDs, ADMIN only |
+| APPs Dashboard | Only registry apps already visible to that user through the original dashboard query |
+| Core Administration | Personal navigation; administrator navigation and active account names/emails for ADMIN only |
+
+Results open existing pages/files; no legacy content is copied into a new search
+database. Permissions are enforced on the server using current Core/module
+authority, and hosted capsule searches run through the normal authenticated
+proxy. Results are private/no-store, limited to 50, and require a 2–100 character
+query. Provider failures display an error rather than pretending there are no
+matches.
+
+Search covers the metadata/content listed above, not file/PDF contents, external
+Drive/GitHub/Trello services, or Workshop topics saved only in a browser's local
+storage. Unrecognised/new hosted applications do not inherit another module's
+search: they need an explicit permission-aware provider before displaying the
+shared search bar. No additional environment keys or replacement databases are
+required.
+
 ## DTECH Hub: original site, separate database and private files
 
 The deployable copy in `src/legacy/dtech-hub` comes directly from

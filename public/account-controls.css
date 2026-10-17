@@ -95,6 +95,34 @@
 #whs-account-header .whs-account-settings a { padding-left: 24px; }
 #whs-account-header [role="alert"] { color: #b3261e; }
 #whs-account-header .whs-account-retry { border: 1px solid #dadce0; border-radius: 6px; background: #fff; color: #174ea6; padding: 6px 12px; }
+#whs-account-header .whs-module-search { position: relative; flex: 0 1 560px; min-width: 0; width: 100%; }
+#whs-account-header .whs-module-search form { display: flex; gap: 0; margin: 0; padding: 0; width: 100%; }
+#whs-account-header .whs-module-search input {
+  flex: 1 1 auto; min-width: 0; width: 100%; height: 38px; margin: 0; padding: 8px 12px;
+  border: 1px solid #dadce0; border-radius: 6px 0 0 6px; background: #fff; color: #202124; font: inherit;
+}
+#whs-account-header .whs-module-search button {
+  flex: 0 0 auto; height: 38px; padding: 8px 12px; border: 1px solid #174ea6;
+  border-radius: 0 6px 6px 0; background: #174ea6; color: #fff;
+}
+#whs-account-header .whs-module-search button:disabled { opacity: .65; cursor: wait; }
+#whs-account-header .whs-search-results {
+  position: absolute; top: 46px; right: 0; width: min(560px, calc(100vw - 32px));
+  max-height: calc(100dvh - 100px); overflow-y: auto; padding: 16px;
+  background: #fff; color: #202124; border: 1px solid #dadce0; border-radius: 8px; box-shadow: 0 6px 24px #0003;
+}
+#whs-account-header .whs-search-results ul { display: block; margin: 12px 0 0; padding: 0; list-style: none; }
+#whs-account-header .whs-search-results li { display: block; margin: 0; padding: 0; }
+#whs-account-header .whs-search-results a { display: block; padding: 10px 6px; color: #174ea6; text-decoration: none; overflow-wrap: anywhere; }
+#whs-account-header .whs-search-results a:hover { background: #e8f0fe; }
+#whs-account-header .whs-search-results a strong, #whs-account-header .whs-search-results a span { display: block; }
+#whs-account-header .whs-search-results a span { color: #444; font-size: 12px; }
+#whs-account-header .whs-search-results p { margin: 12px 0 0; }
+#whs-account-header .whs-search-results .whs-search-close { float: right; height: auto; padding: 2px 6px; border: 0; border-radius: 4px; background: transparent; color: #174ea6; }
+@media (max-width: 640px) {
+  #whs-account-header { gap: 8px; padding: 8px; }
+  #whs-account-header .whs-search-results { position: fixed; top: 60px; left: 8px; right: 8px; width: auto; }
+}
 body:has(#whs-account-header) #gn-nav { top: 60px; }
 body:has(#whs-account-header) #whs-student-app-viewport {
   height: calc(100vh - 60px - var(--whs-footer-height));

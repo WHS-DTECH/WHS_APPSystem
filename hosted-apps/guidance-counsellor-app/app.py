@@ -2,7 +2,7 @@ import os
 import time
 import hashlib
 import datetime
-from flask import Flask, abort, g, request, redirect, session, url_for, render_template_string
+from flask import Flask, abort, g, request, redirect, session, url_for, render_template_string, jsonify
 
 from database import StudentBackend, ADMIN_USERNAME
 from dashboard import DASHBOARD_WEB_TEMPLATE, build_dashboard_context
@@ -283,6 +283,31 @@ def account_restore_admin():
     backend.set_user_role(user_email, "ADMIN")
     session["role"] = backend.get_user_role(user_email)
     return redirect(url_for("dashboard"))
+
+
+@app.get("/api/school-search")
+def school_search():
+    if not login_required():
+        return jsonify(error="Sign in through the school system to search."), 401
+    query = (request.args.get("q") or "").strip()
+    if not 2 <= len(query) <= 100:
+        return jsonify(error="Enter between 2 and 100 characters to search this module."), 400
+    role = current_role()
+    permitted, _, _ = students_for_role(role)
+    matches = filter_students(permitted, query)
+    results = []
+    for title, endpoint in [("Dashboard", "dashboard"), ("Students", "students"), ("Dataset Manager", "infrastructure")]:
+        if query.lower() in title.lower():
+            results.append({"title": title, "kind": "Page", "description": "", "url": url_for(endpoint)})
+    for student in matches[:51]:
+        student_id = str(student.get("student_id", ""))
+        url = url_for("student_profile", student_id=student_id) if role == "Counsellor" else url_for("students", q=student_id)
+        results.append({"title": str(student.get("full_name") or student_id),
+                        "description": student_id, "kind": "Student", "url": url})
+    results.sort(key=lambda record: record["title"].lower())
+    response = jsonify(module="Guidance Counsellor App", results=results[:50], truncated=len(results) > 50)
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
 
 
 @app.route("/students")

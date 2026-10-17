@@ -6,6 +6,23 @@ const os = require('os');
 const path = require('path');
 const { injectGlobalNav, navData, safeNext } = require('../src/globalNav');
 
+test('shared search advertises only the signed-in current module', async () => {
+  for (const [page, user, expected] of [
+    ['/dtech-hub/class-training/home', { email: 'fixture@example.test' }, 'training'],
+    ['/dtech-hub/', { email: 'fixture@example.test' }, 'dtech'],
+    ['/unknown', { email: 'fixture@example.test' }, null],
+    ['/food-room/', null, null]
+  ]) {
+    let body;
+    await navData(async () => ({ rows: [] }), async () => false, async () => null, async () => false)(
+      { user, query: { path: page } },
+      { locals: {}, set() {}, json(value) { body = value; } },
+      (error) => { throw error; }
+    );
+    assert.equal(body.searchModule?.key || null, expected);
+  }
+});
+
 test('Course Management settings are contextual and require current training teacher access', async () => {
   for (const [page, user, allowed, expected] of [
     ['/dtech-hub/class-training/home', { email: 'teacher@example.test' }, true, '/dtech-hub/class-training/admin/'],

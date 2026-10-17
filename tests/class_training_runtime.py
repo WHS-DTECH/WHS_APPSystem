@@ -23,7 +23,7 @@ os.environ.update({
 
 from whs_host import app
 from app import db
-from app.models import User, Course, Lesson, Section, Enrollment, LessonProgress, CommentCheck
+from app.models import User, Course, Lesson, Section, Enrollment, LessonProgress, CommentCheck, Assignment, Quiz
 
 
 class TrainingRuntimeTests(unittest.TestCase):
@@ -72,6 +72,78 @@ class TrainingRuntimeTests(unittest.TestCase):
         with app.app_context():
             self.assertEqual(User.query.filter_by(email="existing@westlandhigh.school.nz").count(), 1)
             self.assertEqual(db.session.get(User, self.user_id).role, "teacher")
+
+    def test_shared_search_enforces_enrolment_ownership_and_current_roles(self):
+        with app.app_context():
+            other = User(email="search-owner@westlandhigh.school.nz", username="search-owner", role="teacher")
+            db.session.add(other)
+            db.session.flush()
+            courses = [
+                Course(title="SearchFixture public catalogue", teacher_id=other.id, is_active=True),
+                Course(title="SearchFixture hidden course", teacher_id=other.id, is_active=False),
+                Course(title="SearchFixture owned course", teacher_id=self.user_id, is_active=True),
+            ]
+            db.session.add_all(courses)
+            db.session.flush()
+            for course in courses:
+                db.session.add(Lesson(title="SearchFixture lesson", course_id=course.id))
+                db.session.add(Assignment(title="SearchFixture assignment", course_id=course.id))
+                db.session.add(Quiz(title="SearchFixture quiz", course_id=course.id))
+            db.session.commit()
+            course_ids, other_id = [course.id for course in courses], other.id
+        try:
+            student = self.get("/api/school-search?q=SearchFixture")
+            self.assertEqual(student.status_code, 200)
+            self.assertEqual({record["kind"] for record in student.json["results"]}, {"Course"})
+            self.assertNotIn("hidden course", student.get_data(as_text=True))
+            self.assertTrue(all("/courses/?search=" in record["url"] for record in student.json["results"]))
+            with app.app_context():
+                db.session.add(Enrollment(student_id=self.user_id, course_id=course_ids[0]))
+                db.session.commit()
+            enrolled = self.get("/api/school-search?q=SearchFixture").json["results"]
+            self.assertEqual(sum(record["kind"] == "Lesson" for record in enrolled), 1)
+            self.assertTrue(any("/quizzes/" in record["url"] and "/take" not in record["url"] for record in enrolled))
+            self.headers["X-WHS-Role"] = "teacher"
+            teacher = self.get("/api/school-search?q=SearchFixture").json["results"]
+            self.assertEqual({record["kind"] for record in teacher}, {"Course", "Lesson", "Assignment", "Quiz"})
+            self.assertTrue(all("public catalogue" not in record["title"] for record in teacher))
+            self.assertTrue(all("hidden course" not in record["title"] for record in teacher))
+            self.headers["X-WHS-Role"] = "student"
+            self.assertEqual(sum(record["kind"] == "Lesson" for record in self.get("/api/school-search?q=SearchFixture").json["results"]), 1)
+        finally:
+            with app.app_context():
+                for course_id in course_ids:
+                    db.session.delete(db.session.get(Course, course_id))
+                db.session.delete(db.session.get(User, other_id))
+                db.session.commit()
+
+    def test_shared_search_content_literals_limits_and_old_search_retirement(self):
+        self.assertEqual(self.get("/api/school-search?q=%25_").json["results"], [])
+        self.assertEqual(self.get("/api/school-search?q=a").status_code, 400)
+        self.assertEqual(self.get("/api/school-search?q=" + "x" * 101).status_code, 400)
+        section = self.get("/api/school-search?q=Retained%20section").json["results"]
+        self.assertTrue(any(record["kind"] == "Section" for record in section))
+        self.assertTrue(all(record["url"].startswith("/dtech-hub/class-training/") for record in section))
+        self.assertIn("no-store", self.get("/api/school-search?q=Original").headers["Cache-Control"])
+        self.assertEqual(self.get("/api/school-search?q=Courses").json["results"][0]["title"], "Courses")
+        self.assertEqual(self.get("/api/school-search?q=Course%20Management").json["results"], [])
+        response = self.get("/search?q=Original")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.location, "/dtech-hub/class-training/home")
+        with app.app_context():
+            records = [Lesson(title=f"LimitFixture {index}", course_id=self.course_id) for index in range(52)]
+            db.session.add_all(records)
+            db.session.commit()
+            record_ids = [record.id for record in records]
+        try:
+            response = self.get("/api/school-search?q=LimitFixture")
+            self.assertEqual(len(response.json["results"]), 50)
+            self.assertTrue(response.json["truncated"])
+            self.assertEqual(set(response.json["results"][0]), {"title", "url", "kind", "description"})
+        finally:
+            with app.app_context():
+                Lesson.query.filter(Lesson.id.in_(record_ids)).delete(synchronize_session=False)
+                db.session.commit()
 
     def test_core_role_overrides_stored_teacher_and_can_be_revoked(self):
         response = self.get("/admin/dashboard")

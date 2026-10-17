@@ -216,6 +216,7 @@
       header.appendChild(login);
       return;
     }
+    if (data.searchModule) buildSearch(header, data.searchModule);
     function menuButton(id, label, className) {
       var button = el('button', { type: 'button', 'class': 'whs-account-button ' + (className || ''), 'aria-label': label, 'aria-controls': id, 'aria-expanded': 'false' });
       header.appendChild(button);
@@ -236,7 +237,7 @@
     }
     function closeMenus() {
       Array.prototype.forEach.call(header.querySelectorAll('.whs-account-menu'), function (menu) { menu.hidden = true; });
-      Array.prototype.forEach.call(header.querySelectorAll('[aria-expanded]'), function (button) { button.setAttribute('aria-expanded', 'false'); });
+      Array.prototype.forEach.call(header.querySelectorAll('button[aria-expanded]'), function (button) { button.setAttribute('aria-expanded', 'false'); });
     }
     var account = menuButton('whs-account-menu', 'School account: ' + (data.name || data.email));
     account.button.textContent = (data.name || data.email || '?').trim().charAt(0).toUpperCase();
@@ -273,6 +274,104 @@
     };
     document.addEventListener('click', function (event) {
       if (!header.contains(event.target)) closeMenus();
+    });
+  }
+
+  function buildSearch(header, module) {
+    var wrapper = el('div', { 'class': 'whs-module-search' });
+    var form = el('form', { role: 'search', 'aria-label': 'Search ' + module.label });
+    var input = el('input', {
+      type: 'search', name: 'q', minlength: '2', maxlength: '100', required: '',
+      placeholder: 'Search ' + module.label + '...', 'aria-label': 'Search ' + module.label,
+      'aria-controls': 'whs-search-results', 'aria-expanded': 'false', autocomplete: 'off'
+    });
+    var submit = el('button', { type: 'submit' }, 'Search');
+    var panel = el('section', { id: 'whs-search-results', 'class': 'whs-search-results', 'aria-label': module.label + ' search results' });
+    panel.hidden = true;
+    var status = el('p', { role: 'status', 'aria-live': 'polite' });
+    var list = el('ul');
+    var close = el('button', { type: 'button', 'class': 'whs-search-close' }, 'Close results');
+    panel.appendChild(el('strong', {}, module.label));
+    panel.appendChild(close);
+    panel.appendChild(status);
+    panel.appendChild(list);
+    form.appendChild(input);
+    form.appendChild(submit);
+    wrapper.appendChild(form);
+    wrapper.appendChild(panel);
+    header.appendChild(wrapper);
+    var pending = null;
+    function hide() {
+      panel.hidden = true;
+      input.setAttribute('aria-expanded', 'false');
+    }
+    close.addEventListener('click', function () { hide(); input.focus(); });
+    input.addEventListener('input', function () {
+      if (pending) pending.abort();
+      pending = null;
+      submit.disabled = false;
+      form.removeAttribute('aria-busy');
+      list.replaceChildren();
+      hide();
+    });
+    header.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && !panel.hidden) { hide(); input.focus(); }
+    });
+    document.addEventListener('click', function (event) {
+      if (!wrapper.contains(event.target)) hide();
+    });
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+      if (pending) pending.abort();
+      var controller = new AbortController();
+      pending = controller;
+      panel.hidden = false;
+      input.setAttribute('aria-expanded', 'true');
+      status.setAttribute('role', 'status');
+      status.textContent = 'Searching ' + module.label + '...';
+      list.replaceChildren();
+      form.setAttribute('aria-busy', 'true');
+      submit.disabled = true;
+      fetch('/module-search?path=' + encodeURIComponent(location.pathname) + '&q=' + encodeURIComponent(input.value.trim()), {
+        credentials: 'same-origin', cache: 'no-store', signal: controller.signal
+      }).then(function (response) {
+        if (!String(response.headers.get('Content-Type')).includes('application/json')) {
+          throw new Error('Search could not be loaded. Check the module is configured and you are signed in.');
+        }
+        return response.json().then(function (body) {
+          if (!response.ok) throw new Error(body.error || 'This module could not be searched.');
+          if (!Array.isArray(body.results)) throw new Error('Search returned an invalid response.');
+          return body;
+        });
+      }).then(function (body) {
+        if (pending !== controller) return;
+        body.results.forEach(function (result) {
+          var destination = new URL(result.url, location.origin);
+          if (destination.origin !== location.origin || !result.url.startsWith('/') || result.url.startsWith('//')) {
+            throw new Error('Search returned an invalid result link.');
+          }
+          var row = el('li');
+          var anchor = el('a', { href: result.url });
+          anchor.appendChild(el('strong', {}, result.title));
+          anchor.appendChild(el('span', {}, result.kind + (result.description ? ' - ' + result.description : '')));
+          row.appendChild(anchor);
+          list.appendChild(row);
+        });
+        status.textContent = body.results.length
+          ? body.results.length + ' result(s) in ' + module.label + (body.truncated ? '. Refine your search for more results.' : '.')
+          : 'No matching results you can access in ' + module.label + '.';
+      }).catch(function (error) {
+        if (error.name === 'AbortError' || pending !== controller) return;
+        console.error('Module search:', error);
+        list.replaceChildren();
+        status.setAttribute('role', 'alert');
+        status.textContent = error.message || 'Search failed. Please retry.';
+      }).finally(function () {
+        if (pending !== controller) return;
+        pending = null;
+        form.removeAttribute('aria-busy');
+        submit.disabled = false;
+      });
     });
   }
 

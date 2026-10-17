@@ -1,5 +1,6 @@
 const SCRIPT_TAG = '<script src="/global-nav.js" defer></script>';
 const FAVICON_TAG = '<link rel="icon" type="image/x-icon" href="/images/favicon.ico">';
+const { moduleForPath } = require('./moduleSearch');
 
 // Adds the global left navigation script to every full HTML page, including the static legacy pages.
 function injectGlobalNav(req, res, next) {
@@ -129,6 +130,7 @@ function navData(query, canManageHubRoles, datasetManagerUrl, canManageCourses =
         assignRolesUrl,
         datasetManagerUrl: datasetUrl,
         courseManagementUrl,
+        searchModule: user ? moduleForPath(currentPath) : null,
         role: res.locals.activeRole,
         isAdmin: res.locals.isAdmin,
         modules: modules.map((module) => ({ name: module.display_name, path: module.path }))

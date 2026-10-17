@@ -305,9 +305,8 @@ router.use((req, res, next) => {
 
 router.use('/github-import', require('./studentAppImports').createImportRouter());
 
-router.get('/', async (req, res, next) => {
-  try {
-    const apps = isAdmin(req.user)
+async function searchableApps(user) {
+  return isAdmin(user)
       ? (await query('SELECT * FROM student_apps ORDER BY name')).rows
       : (await query(
         `SELECT apps.* FROM student_apps apps
@@ -315,8 +314,13 @@ router.get('/', async (req, res, next) => {
            SELECT 1 FROM user_hub_roles assigned
            JOIN hub_roles roles ON roles.id = assigned.hub_role_id
            WHERE assigned.user_id = $1 AND roles.hub_key = apps.hub_key AND roles.role_key = 'lead-teacher'
-         ) ORDER BY name`, [req.user.id]
+         ) ORDER BY name`, [user.id]
       )).rows;
+}
+
+router.get('/', async (req, res, next) => {
+  try {
+    const apps = await searchableApps(req.user);
     res.render('student-apps/index', { title: 'Student Apps', apps, canImportGithub: isAdmin(req.user) });
   } catch (error) {
     next(error);
@@ -615,4 +619,4 @@ async function datasetManagerUrl(user, slug) {
   return ['ADMIN', 'AppBuilder', 'Counsellor'].includes(role) ? `/apps/${slug}/infrastructure` : null;
 }
 
-module.exports = { router, apiRouter, hostedProxy, PLATFORM_ROLES, resolveAppRole, datasetManagerUrl };
+module.exports = { router, apiRouter, hostedProxy, PLATFORM_ROLES, resolveAppRole, datasetManagerUrl, searchableApps };
