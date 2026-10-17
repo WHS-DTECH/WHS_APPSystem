@@ -7,10 +7,17 @@
   .sa-btn.sa-alt:hover{background:#e6f2ee}
   .sa-btn.sa-warn{background:#a85d0a;border-color:#a85d0a}
   .sa-btn.sa-warn:hover{background:#8a4c08}
+  .sa-role-form{display:block}
+  .sa-role-form .sa-btn{width:auto;align-self:start;justify-self:start}
+  .sa-role-table{width:100%;table-layout:auto}
+  .sa-role-table input{min-width:130px}
 </style>
 <%
   const loginDone = Boolean(app.login_verified_at) || (hosted && app.status === 'active');
   const rolesDone = Boolean(app.roles_mapped_at);
+  const coreRoles = platformRoles.filter((role) => ['admin', 'builder', 'lead-teacher'].includes(role.key));
+  const optionalRoles = platformRoles.filter((role) => !['admin', 'builder', 'lead-teacher'].includes(role.key));
+  const personLabel = (person) => person ? `${person.display_name} (${person.email})` : 'No account assigned';
   const tick = (done) => done ? '<span style="color:#1d6b3c">&#10003;</span>' : '<span style="color:#b9770e">&#9679;</span>';
 %>
 
@@ -60,7 +67,7 @@
   <h2><%- tick(loginDone) %> Step 2 &mdash; Google sign-in</h2>
   <% if (hosted) { %>
     <p>Connected automatically through your school Google login. You do not need to paste code, load a secret or access Render.</p>
-    <p>Continue to <strong>Step 3 &mdash; Map roles</strong>, save your role mapping, then click <strong>Open the app</strong> below.</p>
+    <p>Check <strong>Step 3 &mdash; App access</strong>, then click <strong>Open the app</strong> below.</p>
   <% } else { %>
   <% if (secret) { %>
     <div style="background:#fff8e6;border:1px solid #e8c36a;border-radius:8px;padding:12px;margin-bottom:12px">
@@ -94,28 +101,57 @@
 </section>
 
 <section class="panel">
-  <h2><%- tick(rolesDone) %> Step 3 &mdash; Map roles</h2>
+  <h2><%- tick(rolesDone) %> Step 3 &mdash; App access</h2>
   <% if (!loginDone) { %>
     <p style="color:#6a84a1">Finish step 2 first. Roles are mapped once sign-in works.</p>
   <% } else { %>
     <% if (saved) { %><p style="background:#e3f4e8;color:#1d6b3c;padding:10px 12px;border-radius:8px">Roles saved.</p><% } %>
-    <p>When someone signs in, their school role becomes one of your app's roles. Leave a row empty to give that school role no access. Type your app's own role name (for example Counsellor) or pick one from the list.</p>
-    <form method="post" action="/student-apps/<%= app.slug %>/roles" class="module-form">
-      <table>
-        <thead><tr><th>School role</th><th>Becomes this role in your app</th></tr></thead>
+    <p>The Builder and client were assigned when the project was registered. Platform Administrator means a school system administrator, not the Student Builder.</p>
+    <p><strong>Builder:</strong> <%= personLabel(builder) %><br>
+       <strong>Client / Lead Teacher:</strong> <%= personLabel(appClient) %></p>
+    <p>The client manages all settings within this app. Known app roles are connected automatically below.</p>
+    <% if (!canEditRoles) { %><p>Only an administrator or Lead Teacher can change app access. Other roles have no access unless they enable them.</p><% } %>
+    <form method="post" action="/student-apps/<%= app.slug %>/roles" class="sa-role-form">
+      <table class="sa-role-table">
+        <thead><tr><th>School role</th><th>Role inside this app</th></tr></thead>
         <tbody>
-          <% platformRoles.forEach(function (role) { %>
+          <% coreRoles.forEach(function (role) { %>
             <tr>
               <td><%= role.label %></td>
               <td>
-                <input name="map_<%= role.key %>" list="roles-<%= app.id %>" value="<%= mapping[role.key] || '' %>" placeholder="Role name in your app">
+                <% if (roleDefaults[role.key]) { %>
+                  <strong><%= roleDefaults[role.key] %></strong> &mdash; automatic
+                <% } else if (canEditRoles) { %>
+                  <input name="map_<%= role.key %>" list="roles-<%= app.id %>" value="<%= mapping[role.key] || '' %>" placeholder="Role name in your app">
+                <% } else { %>
+                  <%= mapping[role.key] || 'Waiting for the Lead Teacher to configure this app role' %>
+                <% } %>
               </td>
             </tr>
           <% }) %>
         </tbody>
       </table>
-      <datalist id="roles-<%= app.id %>"><% app.app_roles.forEach(function (r) { %><option value="<%= r %>"><% }) %></datalist>
-      <button class="sa-btn" type="submit">Save roles</button>
+      <% if (canEditRoles) { %>
+        <details>
+          <summary>Optional access &mdash; Teacher, Technician and Student</summary>
+          <p>Leave a role blank for no access. Enabling a mapping does not assign anyone that role; use Assign user roles below.</p>
+          <table class="sa-role-table">
+            <thead><tr><th>School role</th><th>Role inside this app</th></tr></thead>
+            <tbody>
+              <% optionalRoles.forEach(function (role) { %>
+                <tr>
+                  <td><%= role.label %></td>
+                  <td>
+                    <input name="map_<%= role.key %>" list="roles-<%= app.id %>" value="<%= mapping[role.key] || '' %>" placeholder="No access">
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </details>
+        <datalist id="roles-<%= app.id %>"><% appRoleChoices.forEach(function (r) { %><option value="<%= r %>"><% }) %></datalist>
+        <button class="sa-btn" type="submit">Save access</button>
+      <% } %>
     </form>
   <% } %>
 </section>
@@ -124,7 +160,7 @@
   <h2>Who can use it</h2>
   <p>The app's Lead Teacher gives staff and students a role in the app. Only people with a role can sign in.
     <%= assignedCount %> role assignment(s) so far.</p>
-  <p><a class="sa-btn sa-alt" href="<%= rolesUrl %>">Assign user roles</a>
+  <p><% if (canEditRoles) { %><a class="sa-btn sa-alt" href="<%= rolesUrl %>">Assign user roles</a><% } %>
      <% if (loginDone && rolesDone) { %><a class="sa-btn" href="/student-apps/<%= app.slug %>/launch">Open the app</a><% } %></p>
 </section>
 

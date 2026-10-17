@@ -55,8 +55,20 @@ service to retain its legacy database.
 
 Hosted apps use the school sign-in wrapper automatically: students do not paste
 the external sign-in route or load an app secret. After administrator registration,
-map the roles in step 3 and open the app. Existing active hosted registrations
-can also map roles without repeating the external sign-in verification.
+check app access in step 3 and open the app. Guidance automatically connects the
+platform Administrator to `ADMIN`, the registering Builder to `AppBuilder`, and
+the selected client / Lead Teacher to `ADMIN` (full app settings access).
+Migration 022 fills these mappings for existing Guidance registrations too.
+Teacher, Technician and Student mappings are hidden under optional access and
+are disabled until an administrator or Lead Teacher enables them. Builders can
+view the assigned accounts and mappings but cannot change access or grant
+themselves app administration. Clients and assigned Lead Teachers can find the
+project on the Student Apps dashboard and manage access.
+Existing active hosted registrations can use automatic sign-in without repeating
+the external sign-in verification. Other hosted apps can declare known core
+mappings using `defaultRoleMap` and supported internal roles using `roles` in
+their manifest; unknown external app role names still need a Lead Teacher or
+administrator to configure them.
 Separately hosted Flask apps still show the sign-in code and placement instructions.
 
 Docker Desktop on Windows supplies the Linux environment needed by Gunicorn.

@@ -1,0 +1,155 @@
+const assert = require('node:assert/strict');
+const test = require('node:test');
+const express = require('express');
+
+process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgres://x:x@localhost:1/x';
+
+const registered = {
+  id: 'project', slug: 'guidance-counsellor-app', hub_key: 'app-guidance-counsellor-app',
+  name: 'Guidance', owner_user_id: 'builder', client_user_id: 'client',
+  status: 'active', roles_mapped_at: '2026-10-17', app_roles: ['Builder', 'Lead Teacher']
+};
+let statements = [];
+let failInsert = false;
+
+async function query(sql, params = []) {
+  statements.push({ sql, params });
+  if (sql.includes('FROM staff_upload staff')) return { rows: [{ email: 'client@example.invalid', display_name: 'Client Teacher' }] };
+  if (sql.startsWith('SELECT id FROM users')) return { rows: [{ id: 'client' }], rowCount: 1 };
+  if (sql.includes('INSERT INTO student_apps')) return { rows: [{ ...registered, status: 'pending' }] };
+  if (sql.startsWith('SELECT * FROM student_apps WHERE slug')) return { rows: [registered] };
+  if (sql.startsWith('SELECT COUNT(*)')) return { rows: [{ count: 2 }] };
+  if (sql.startsWith('SELECT id, display_name, email FROM users')) {
+    return { rows: [
+      { id: 'builder', display_name: 'Student Builder', email: 'builder@example.invalid' },
+      { id: 'client', display_name: 'Client Teacher', email: 'client@example.invalid' }
+    ] };
+  }
+  if (sql.includes('SELECT hub_roles.role_key')) {
+    return { rows: [{ role_key: params[0] === 'lead' ? 'lead-teacher' : params[0] }] };
+  }
+  if (sql.startsWith('SELECT platform_role, app_role FROM student_app_role_map')) {
+    return { rows: Object.entries(roleConfig(registered.slug).defaults).map(([platform_role, app_role]) => ({ platform_role, app_role })) };
+  }
+  if (sql.startsWith('INSERT INTO student_app_role_map') && failInsert) throw new Error('insert failed');
+  return { rows: [], rowCount: 0 };
+}
+
+require.cache[require.resolve('../src/db')] = {
+  exports: {
+    query,
+    pool: {
+      connect: async () => ({ query, release() { statements.push({ sql: 'RELEASE' }); } })
+    }
+  }
+};
+require.cache[require.resolve('../src/email')] = { exports: { sendEmail: async () => ({ ok: true }) } };
+const { router, resolveAppRole } = require('../src/studentApps');
+const { roleConfig } = require('../src/hostedApps');
+
+let server;
+test.before(async () => {
+  const app = express();
+  app.use(express.urlencoded({ extended: false }));
+  app.use((req, res, next) => {
+    const id = req.get('x-test-user') || 'builder';
+    req.user = { id, roles: id === 'admin' ? ['ADMIN'] : [] };
+    req.isAuthenticated = () => true;
+    res.render = (view, model) => res.json({ view, ...model });
+    next();
+  });
+  app.use('/student-apps', router);
+  app.use((error, req, res, next) => res.status(500).json({ error: error.message }));
+  server = await new Promise((resolve) => {
+    const listener = app.listen(0, '127.0.0.1', () => resolve(listener));
+  });
+});
+test.after(() => new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve())));
+test.beforeEach(() => { statements = []; failInsert = false; });
+
+async function saveAs(user, body) {
+  return fetch(`http://127.0.0.1:${server.address().port}/student-apps/${registered.slug}/roles`, {
+    method: 'POST', headers: { 'x-test-user': user, 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams(body), redirect: 'manual'
+  });
+}
+
+test('Guidance defaults distinguish system administrator, Builder and full-access client', () => {
+  assert.deepEqual(roleConfig(registered.slug).defaults, { admin: 'ADMIN', builder: 'AppBuilder', 'lead-teacher': 'ADMIN' });
+  assert.deepEqual(roleConfig('external-project').defaults, {});
+});
+
+test('registration automatically assigns the Builder, chosen client and Guidance mappings', async () => {
+  const response = await fetch(`http://127.0.0.1:${server.address().port}/student-apps/new`, {
+    method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ name: 'Guidance Counsellor App', client_id: 'client@example.invalid', roles: 'lead-teacher' }),
+    redirect: 'manual'
+  });
+  assert.equal(response.status, 302);
+  const assigned = statements.filter(({ sql }) => sql.includes('INSERT INTO user_hub_roles'));
+  assert.deepEqual(assigned.map(({ params }) => [params[0], params[3]]), [['builder', 'builder'], ['client', 'lead-teacher']]);
+  const mappings = statements.filter(({ sql }) => sql.startsWith('INSERT INTO student_app_role_map'));
+  assert.deepEqual(mappings.map(({ params }) => params.slice(1)), [
+    ['admin', 'ADMIN'], ['builder', 'AppBuilder'], ['lead-teacher', 'ADMIN']
+  ]);
+});
+
+test('the client can open setup to manage access, while the Builder sees it read-only', async () => {
+  for (const user of ['client', 'builder']) {
+    const response = await fetch(`http://127.0.0.1:${server.address().port}/student-apps/${registered.slug}`, {
+      headers: { 'x-test-user': user }
+    });
+    assert.equal(response.status, 200);
+    const model = await response.json();
+    assert.equal(model.canEditRoles, user === 'client');
+    assert.equal(model.appClient.email, 'client@example.invalid');
+    assert.equal(model.builder.email, 'builder@example.invalid');
+  }
+});
+
+test('Builder cannot enable optional access by posting directly', async () => {
+  const response = await saveAs('builder', { map_student: 'ADMIN' });
+  assert.equal(response.status, 403);
+  assert.equal(statements.some(({ sql }) => /DELETE|INSERT|UPDATE/.test(sql)), false);
+});
+
+test('client, administrator and assigned Lead Teacher can configure optional access', async () => {
+  for (const user of ['client', 'admin', 'lead']) {
+    statements = [];
+    const response = await saveAs(user, { map_teacher: 'Counsellor', map_builder: 'ADMIN', map_admin: 'AppBuilder' });
+    assert.equal(response.status, 302);
+    const inserts = statements.filter(({ sql }) => sql.startsWith('INSERT INTO student_app_role_map'));
+    assert.deepEqual(inserts.map(({ params }) => params.slice(1)), [
+      ['admin', 'ADMIN'], ['builder', 'AppBuilder'], ['lead-teacher', 'ADMIN'], ['teacher', 'Counsellor']
+    ]);
+    assert.ok(statements.some(({ sql }) => sql === 'COMMIT'));
+  }
+});
+
+test('unrecognised Guidance app roles are rejected before deleting saved mappings', async () => {
+  const response = await saveAs('client', { map_student: 'UnknownRole' });
+  assert.equal(response.status, 400);
+  assert.equal(statements.some(({ sql }) => sql.startsWith('DELETE')), false);
+});
+
+test('saving with optional roles blank preserves core defaults and disables optional access', async () => {
+  const response = await saveAs('client', {});
+  assert.equal(response.status, 302);
+  assert.equal(statements.filter(({ sql }) => sql.startsWith('INSERT INTO student_app_role_map')).length, 3);
+});
+
+test('a failed save rolls back and releases its database connection', async () => {
+  failInsert = true;
+  const response = await saveAs('client', { map_teacher: 'Counsellor' });
+  assert.equal(response.status, 500);
+  assert.ok(statements.some(({ sql }) => sql === 'ROLLBACK'));
+  assert.ok(statements.some(({ sql }) => sql === 'RELEASE'));
+  assert.equal(statements.some(({ sql }) => sql === 'COMMIT'), false);
+});
+
+test('sign-in uses stored role mappings and denies unmapped optional roles', async () => {
+  assert.equal(await resolveAppRole(registered, ['admin']), 'ADMIN');
+  assert.equal(await resolveAppRole(registered, ['builder']), 'AppBuilder');
+  assert.equal(await resolveAppRole(registered, ['lead-teacher']), 'ADMIN');
+  assert.equal(await resolveAppRole(registered, ['student']), null);
+});

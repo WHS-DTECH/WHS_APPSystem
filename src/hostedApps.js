@@ -24,6 +24,12 @@ function readManifests() {
 
 const isHosted = (slug) => fs.existsSync(path.join(APPS_DIR, String(slug), 'app.json')) && SLUG.test(String(slug));
 
+function roleConfig(slug) {
+  if (!isHosted(slug)) return { defaults: {}, roles: [] };
+  const manifest = JSON.parse(fs.readFileSync(path.join(APPS_DIR, slug, 'app.json'), 'utf8'));
+  return { defaults: manifest.defaultRoleMap || {}, roles: manifest.roles || [] };
+}
+
 // Hosted apps get only what they need. They never see the platform's database or Google secrets.
 function appEnvironment(item, port) {
   const env = {
@@ -104,4 +110,4 @@ function proxy(req, res, slug, identity) {
   return req.pipe(upstream);
 }
 
-module.exports = { start, stop, isHosted, proxy };
+module.exports = { start, stop, isHosted, proxy, roleConfig };

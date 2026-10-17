@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const express = require('express');
 const config = require('./config');
-const { query } = require('./db');
+const { pool, query } = require('./db');
 const { sendEmail } = require('./email');
 const hostedApps = require('./hostedApps');
 
@@ -130,7 +130,28 @@ async function loadApp(slug) {
   return result.rows[0] || null;
 }
 
-const canManage = (user, app) => isAdmin(user) || (app.owner_user_id && app.owner_user_id === user.id);
+async function canConfigureRoles(user, app) {
+  if (isAdmin(user) || app.client_user_id === user.id) return true;
+  return (await userPlatformRoles(user, app)).includes('lead-teacher');
+}
+
+async function canManage(user, app) {
+  return app.owner_user_id === user.id || await canConfigureRoles(user, app);
+}
+
+async function seedRoleMapping(app) {
+  const { defaults } = hostedApps.roleConfig(app.slug);
+  for (const [role, appRole] of Object.entries(defaults)) {
+    await query(
+      `INSERT INTO student_app_role_map (app_id, platform_role, app_role) VALUES ($1, $2, $3)
+       ON CONFLICT (app_id, platform_role) DO NOTHING`,
+      [app.id, role, appRole]
+    );
+  }
+  if (Object.keys(defaults).length) {
+    await query('UPDATE student_apps SET roles_mapped_at = COALESCE(roles_mapped_at, NOW()) WHERE id = $1', [app.id]);
+  }
+}
 
 function baseFor(req) {
   if (!/localhost|127\.0\.0\.1/.test(config.appBaseUrl)) return config.appBaseUrl;
@@ -243,17 +264,25 @@ def auth_whs():
 }
 
 function setupModel(app, user, extra = {}) {
+  const { defaults, roles } = hostedApps.roleConfig(app.slug);
   return Promise.all([
     query('SELECT platform_role, app_role FROM student_app_role_map WHERE app_id = $1', [app.id]),
     query(
       `SELECT COUNT(*)::int AS count FROM user_hub_roles JOIN hub_roles ON hub_roles.id = user_hub_roles.hub_role_id
        WHERE hub_roles.hub_key = $1`,
       [app.hub_key]
-    )
-  ]).then(([map, assigned]) => ({
+    ),
+    query('SELECT id, display_name, email FROM users WHERE id = $1 OR id = $2', [app.owner_user_id, app.client_user_id]),
+    canConfigureRoles(user, app)
+  ]).then(([map, assigned, people, canEditRoles]) => ({
     title: `${app.name} - Set up`,
     app,
     hosted: hostedApps.isHosted(app.slug),
+    roleDefaults: defaults,
+    appRoleChoices: roles.length ? roles : app.app_roles,
+    canEditRoles,
+    builder: people.rows.find((person) => person.id === app.owner_user_id),
+    appClient: people.rows.find((person) => person.id === app.client_user_id),
     mapping: Object.fromEntries(map.rows.map((row) => [row.platform_role, row.app_role])),
     platformRoles: PLATFORM_ROLES,
     assignedCount: assigned.rows[0].count,
@@ -278,7 +307,14 @@ router.get('/', async (req, res, next) => {
   try {
     const apps = isAdmin(req.user)
       ? (await query('SELECT * FROM student_apps ORDER BY name')).rows
-      : (await query('SELECT * FROM student_apps WHERE owner_user_id = $1 ORDER BY name', [req.user.id])).rows;
+      : (await query(
+        `SELECT apps.* FROM student_apps apps
+         WHERE owner_user_id = $1 OR client_user_id = $1 OR EXISTS (
+           SELECT 1 FROM user_hub_roles assigned
+           JOIN hub_roles roles ON roles.id = assigned.hub_role_id
+           WHERE assigned.user_id = $1 AND roles.hub_key = apps.hub_key AND roles.role_key = 'lead-teacher'
+         ) ORDER BY name`, [req.user.id]
+      )).rows;
     res.render('student-apps/index', { title: 'Student Apps', apps });
   } catch (error) {
     next(error);
@@ -332,6 +368,7 @@ router.post('/new', async (req, res, next) => {
     await seedAppRoles(app);
     await grantHubRole(app, req.user.id, 'builder', req.user.id);
     await grantHubRole(app, clientId, 'lead-teacher', req.user.id);
+    await seedRoleMapping(app);
     const mail = await emailAdminNewProject({ app, builder: req.user, client, secret, base: baseFor(req) });
     if (!mail.ok) console.error('Student Apps: could not email the new project details:', mail.error || mail.message);
     return res.redirect(`/student-apps/${app.slug}?submitted=1`);
@@ -373,8 +410,8 @@ router.get('/:slug', async (req, res, next) => {
   try {
     const app = await loadApp(req.params.slug);
     if (!app) return res.status(404).render('error', { title: 'Not found', message: 'That app is not registered.' });
-    if (!canManage(req.user, app)) {
-      return res.status(403).render('error', { title: 'Access denied', message: 'Only the builder or an administrator can set up this app.' });
+    if (!await canManage(req.user, app)) {
+      return res.status(403).render('error', { title: 'Access denied', message: 'Only the builder, Lead Teacher or an administrator can set up this app.' });
     }
     return res.render('student-apps/setup', await setupModel(app, req.user, {
       base: baseFor(req),
@@ -402,19 +439,35 @@ router.post('/:slug/secret', async (req, res, next) => {
 router.post('/:slug/roles', async (req, res, next) => {
   try {
     const app = await loadApp(req.params.slug);
-    if (!app || !canManage(req.user, app)) return res.status(403).render('error', { title: 'Access denied', message: 'You cannot change this app.' });
+    if (!app || !await canConfigureRoles(req.user, app)) return res.status(403).render('error', { title: 'Access denied', message: 'Only an administrator or Lead Teacher can configure app access.' });
     if (!app.login_verified_at && !(hostedApps.isHosted(app.slug) && app.status === 'active')) {
       return res.status(400).render('error', { title: 'Sign-in first', message: 'Test the Google sign-in (step 2) before mapping roles.' });
     }
-    await query('DELETE FROM student_app_role_map WHERE app_id = $1', [app.id]);
-    let mapped = 0;
+    const { defaults, roles: allowedRoles } = hostedApps.roleConfig(app.slug);
+    const mappings = [];
     for (const role of PLATFORM_ROLES) {
-      const appRole = String(req.body[`map_${role.key}`] || '').trim();
+      const appRole = defaults[role.key] || String(req.body[`map_${role.key}`] || '').trim();
       if (!appRole) continue;
-      await query('INSERT INTO student_app_role_map (app_id, platform_role, app_role) VALUES ($1, $2, $3)', [app.id, role.key, appRole]);
-      mapped += 1;
+      if (allowedRoles.length && !allowedRoles.includes(appRole)) {
+        return res.status(400).render('error', { title: 'Invalid role', message: `Choose one of this app's roles: ${allowedRoles.join(', ')}.` });
+      }
+      mappings.push([role.key, appRole]);
     }
-    await query('UPDATE student_apps SET roles_mapped_at = CASE WHEN $2 > 0 THEN NOW() ELSE NULL END WHERE id = $1', [app.id, mapped]);
+    const connection = await pool.connect();
+    try {
+      await connection.query('BEGIN');
+      await connection.query('DELETE FROM student_app_role_map WHERE app_id = $1', [app.id]);
+      for (const [role, appRole] of mappings) {
+        await connection.query('INSERT INTO student_app_role_map (app_id, platform_role, app_role) VALUES ($1, $2, $3)', [app.id, role, appRole]);
+      }
+      await connection.query('UPDATE student_apps SET roles_mapped_at = CASE WHEN $2 > 0 THEN NOW() ELSE NULL END WHERE id = $1', [app.id, mappings.length]);
+      await connection.query('COMMIT');
+    } catch (error) {
+      await connection.query('ROLLBACK');
+      throw error;
+    } finally {
+      connection.release();
+    }
     return res.redirect(`/student-apps/${app.slug}?saved=1`);
   } catch (error) {
     return next(error);
@@ -424,7 +477,7 @@ router.post('/:slug/roles', async (req, res, next) => {
 router.post('/:slug/url', async (req, res, next) => {
   try {
     const app = await loadApp(req.params.slug);
-    if (!app || !canManage(req.user, app)) return res.status(403).render('error', { title: 'Access denied', message: 'You cannot change this app.' });
+    if (!app || !await canManage(req.user, app)) return res.status(403).render('error', { title: 'Access denied', message: 'You cannot change this app.' });
     const raw = String(req.body.app_url || '').trim();
     const url = raw ? cleanUrl(raw) : null;
     if (raw && !url) return res.status(400).render('error', { title: 'Check the address', message: 'The web address must be a full address starting with https://' });
@@ -440,7 +493,7 @@ router.get('/:slug/open', async (req, res, next) => {
     const app = await loadApp(req.params.slug);
     if (!app) return res.status(404).render('error', { title: 'Not found', message: 'That app is not registered.' });
     if ((app.login_verified_at || hostedApps.isHosted(app.slug)) && app.roles_mapped_at && app.status === 'active') return res.redirect(`/student-apps/${app.slug}/launch`);
-    if (canManage(req.user, app)) return res.redirect(`/student-apps/${app.slug}`);
+    if (await canManage(req.user, app)) return res.redirect(`/student-apps/${app.slug}`);
     return res.status(403).render('error', { title: 'Not ready', message: 'This app is still being set up.' });
   } catch (error) {
     return next(error);
@@ -452,7 +505,7 @@ router.get('/:slug/launch', async (req, res, next) => {
     const app = await loadApp(req.params.slug);
     if (!app) return res.status(404).render('error', { title: 'Not found', message: 'That app is not registered.' });
     const roles = await userPlatformRoles(req.user, app);
-    if (!roles.length && !canManage(req.user, app)) {
+    if (!roles.length && !await canManage(req.user, app)) {
       return res.status(403).render('error', { title: 'No access', message: `You have not been given a role in ${app.name}. Ask its Lead Teacher.` });
     }
     if (hostedApps.isHosted(app.slug) && app.status === 'active') return res.redirect(`/apps/${app.slug}/`);
@@ -531,7 +584,7 @@ async function hostedProxy(req, res, next) {
     const roles = await userPlatformRoles(req.user, app);
     let appRole = await resolveAppRole(app, roles);
     if (!appRole) {
-      if (canManage(req.user, app)) return res.redirect(`/student-apps/${slug}`);
+      if (await canManage(req.user, app)) return res.redirect(`/student-apps/${slug}`);
       return res.status(403).render('error', { title: 'No access', message: `You have not been given a role in ${app.name}. Ask its Lead Teacher.` });
     }
     return hostedApps.proxy(req, res, slug, { email: req.user.email, name: req.user.display_name || req.user.name, role: appRole });
