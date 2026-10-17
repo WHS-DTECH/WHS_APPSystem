@@ -1,6 +1,6 @@
 const express = require('express');
 const path = require('path');
-const { importLegacyFoodRoom } = require('../legacyFoodRoomImport');
+const { importLegacyFoodRoom, isImportRunning } = require('../legacyFoodRoomImport');
 
 const router = express.Router();
 const legacyFoodRoomDir = path.join(__dirname, '..', '..', 'public', 'food-room');
@@ -11,6 +11,12 @@ let legacyApi;
 router.use(async (req, res, next) => {
   try {
     if (!legacyApi) {
+      if (isImportRunning()) {
+        if (req.path.startsWith('/api/') || req.path.startsWith('/google/')) {
+          return res.status(503).set('Retry-After', '30').json({ error: 'Legacy Food Room data is still being imported. Please retry in a minute.' });
+        }
+        return next();
+      }
       await importLegacyFoodRoom().catch(() => {});
       legacyApi = require('../legacy/food-room/routes');
     }

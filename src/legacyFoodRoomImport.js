@@ -111,7 +111,8 @@ async function runImport() {
     const retry = [];
 
     for (const table of tables) {
-      const rows = await source.query(`SELECT * FROM public."${table}"`).catch((error) => {
+      const limit = table === 'google_planner_sync_history' ? ' ORDER BY id DESC LIMIT 1000' : '';
+      const rows = await source.query(`SELECT * FROM public."${table}"${limit}`).catch((error) => {
         console.warn(`Legacy Food Room import: could not read ${table}: ${error.message}`);
         return { rows: [] };
       });
@@ -169,9 +170,12 @@ async function runImport() {
 
 // Memoised so the legacy routes and schedulers can wait for it instead of racing its transaction.
 let importPromise;
+let importFinished = false;
 function importLegacyFoodRoom() {
-  importPromise = importPromise || runImport();
+  importPromise = importPromise || runImport().finally(() => {
+    importFinished = true;
+  });
   return importPromise;
 }
 
-module.exports = { importLegacyFoodRoom };
+module.exports = { importLegacyFoodRoom, isImportRunning: () => Boolean(importPromise) && !importFinished };
