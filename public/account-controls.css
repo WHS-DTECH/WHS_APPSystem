@@ -85,6 +85,14 @@
 #whs-account-header .whs-account-menu a:hover, #whs-account-header .whs-account-menu button:hover { background: #e8f0fe; }
 #whs-account-header .whs-account-menu h2 { margin: 12px 0 4px; font: 600 14px system-ui, sans-serif; }
 #whs-account-header .whs-account-menu p { margin: 4px 0 10px; }
+#whs-account-header .whs-account-settings summary {
+  padding: 10px;
+  color: #174ea6;
+  cursor: pointer;
+  border-radius: 6px;
+}
+#whs-account-header .whs-account-settings summary:hover { background: #e8f0fe; }
+#whs-account-header .whs-account-settings a { padding-left: 24px; }
 #whs-account-header [role="alert"] { color: #b3261e; }
 #whs-account-header .whs-account-retry { border: 1px solid #dadce0; border-radius: 6px; background: #fff; color: #174ea6; padding: 6px 12px; }
 body:has(#whs-account-header) #gn-nav { top: 60px; }

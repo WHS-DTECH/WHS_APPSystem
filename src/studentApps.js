@@ -605,4 +605,12 @@ async function hostedProxy(req, res, next) {
   }
 }
 
-module.exports = { router, apiRouter, hostedProxy, PLATFORM_ROLES, resolveAppRole };
+async function datasetManagerUrl(user, slug) {
+  if (slug !== 'guidance-counsellor-app') return null;
+  const app = await loadApp(slug);
+  if (!app || app.status !== 'active') return null;
+  const role = await resolveAppRole(app, await userPlatformRoles(user, app));
+  return ['ADMIN', 'AppBuilder', 'Counsellor'].includes(role) ? `/apps/${slug}/infrastructure` : null;
+}
+
+module.exports = { router, apiRouter, hostedProxy, PLATFORM_ROLES, resolveAppRole, datasetManagerUrl };

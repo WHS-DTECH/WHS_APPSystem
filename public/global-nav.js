@@ -241,7 +241,13 @@
     account.menu.appendChild(el('strong', {}, data.name || 'School account'));
     account.menu.appendChild(el('p', {}, data.email || ''));
     link(account.menu, 'Profile', '/profile');
-    if (data.assignRolesUrl) link(account.menu, 'Assign User Roles', data.assignRolesUrl);
+    if (data.datasetManagerUrl || data.assignRolesUrl) {
+      var settings = el('details', { 'class': 'whs-account-settings' });
+      settings.appendChild(el('summary', {}, 'Settings'));
+      if (data.datasetManagerUrl) link(settings, 'Dataset Manager', data.datasetManagerUrl);
+      if (data.assignRolesUrl) link(settings, 'Assign User Roles', data.assignRolesUrl);
+      account.menu.appendChild(settings);
+    }
     var status = el('p', { role: 'status' });
     var signOut = el('button', { type: 'button' }, 'Sign out');
     signOut.addEventListener('click', function () { signOutAccount(signOut, status); });

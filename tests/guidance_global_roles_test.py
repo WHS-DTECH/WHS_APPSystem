@@ -97,10 +97,21 @@ class GlobalRoleTests(unittest.TestCase):
         self.assertNotIn(">User Roles</a>", html)
         self.assertNotIn('href="/apps/guidance-counsellor-app/hubs/', html)
         self.assertNotIn("Open Admin Items", html)
+        self.assertNotIn('href="/apps/guidance-counsellor-app/infrastructure"', html)
         builder_html = self.client.get("/dashboard", headers=self.headers("AppBuilder")).get_data(as_text=True)
         self.assertNotIn("Open Admin Items", builder_html)
         students_html = self.client.get("/students", headers=self.headers("ADMIN")).get_data(as_text=True)
         self.assertNotIn(">User Roles</a>", students_html)
+
+    def test_dataset_manager_renamed_without_changing_privacy_views(self):
+        for role, visible in [("ADMIN", False), ("AppBuilder", False), ("Counsellor", True)]:
+            response = self.client.get("/infrastructure", headers=self.headers(role))
+            self.assertEqual(response.status_code, 200)
+            html = response.get_data(as_text=True)
+            self.assertIn("<title>Dataset Manager</title>", html)
+            self.assertIn("<h1>Dataset Manager</h1>", html)
+            self.assertNotIn("Infrastructure", html)
+            self.assertEqual(self.student["full_name"] in html, visible)
 
     def test_hosted_pages_load_viewport_layout_and_static_css(self):
         for route in ["/dashboard", "/students", "/students/sessions/new"]:

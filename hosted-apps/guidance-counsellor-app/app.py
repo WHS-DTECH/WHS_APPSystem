@@ -669,14 +669,14 @@ def infrastructure():
         """
         <!doctype html>
         <html>
-          <head><meta charset="utf-8"><title>Infrastructure</title></head>
+          <head><meta charset="utf-8"><title>Dataset Manager</title></head>
           <body style="font-family: Arial, sans-serif; margin: 24px;">
                         {{ global_navbar|safe }}
-            <h1>Infrastructure</h1>
+            <h1>Dataset Manager</h1>
             <p>Role: {{ role }}</p>
             <p>This view is restricted to {{ data_label }} for AppBuilder users.</p>
             <p><a href="/dashboard">Dashboard</a> | <a href="/students">Students</a> | <a href="/logout">Logout</a></p>
-            <h2>Sample infrastructure records</h2>
+            <h2>Sample dataset records</h2>
             <ul>
               {% for student in students %}
                 <li>{{ student.get('student_id') }} - {{ student.get('full_name') }}</li>

@@ -51,7 +51,7 @@ require.cache[require.resolve('../src/db')] = {
   }
 };
 require.cache[require.resolve('../src/email')] = { exports: { sendEmail: async () => ({ ok: true }) } };
-const { router, hostedProxy, resolveAppRole } = require('../src/studentApps');
+const { router, hostedProxy, resolveAppRole, datasetManagerUrl } = require('../src/studentApps');
 const hostedApps = require('../src/hostedApps');
 const { roleConfig, contentHash } = hostedApps;
 hostedApps.proxy = (req, res) => res.json({ footer: res.locals.studentAppFooter });
@@ -87,6 +87,22 @@ async function saveAs(user, body) {
 test('Guidance defaults distinguish system administrator, Builder and full-access client', () => {
   assert.deepEqual(roleConfig(registered.slug).defaults, { admin: 'ADMIN', builder: 'AppBuilder', 'lead-teacher': 'ADMIN' });
   assert.deepEqual(roleConfig('external-project').defaults, {});
+});
+
+test('Dataset Manager menu access follows active Guidance role mappings', async () => {
+  for (const id of ['admin', 'builder', 'lead', 'student']) {
+    const user = { id, roles: id === 'admin' ? ['ADMIN'] : [] };
+    assert.equal(await datasetManagerUrl(user, registered.slug),
+      id === 'student' ? null : '/apps/guidance-counsellor-app/infrastructure');
+    assert.equal(await datasetManagerUrl(user, 'other-app'), null);
+  }
+  const oldStatus = registered.status;
+  try {
+    registered.status = 'pending';
+    assert.equal(await datasetManagerUrl({ id: 'admin', roles: ['ADMIN'] }, registered.slug), null);
+  } finally {
+    registered.status = oldStatus;
+  }
 });
 
 test('registration automatically assigns the Builder, chosen client and Guidance mappings', async () => {

@@ -115,7 +115,7 @@ test('nav-data returns the module links for a signed in user and none for anonym
       if (req.query.in) req.user = { display_name: 'Vanessa', email: 'v@x.nz', avatar_url: 'https://example.invalid/avatar.png' };
       next();
     });
-    app.get('/nav-data', navData(query, async () => false));
+    app.get('/nav-data', navData(query, async () => false, async () => null));
   }, async (base) => {
     const anon = await (await fetch(`${base}/nav-data`)).json();
     assert.equal(anon.signedIn, false);
@@ -159,17 +159,22 @@ test('account role link uses the current app and the global role-management perm
     app.get('/nav-data', navData(query, async (user, hubKey) => {
       checks.push([user.id, hubKey]);
       return ['admin', 'lead-teacher'].includes(user.id);
+    }, async (user, slug) => {
+      assert.equal(slug, 'guidance-counsellor-app');
+      return user.id === 'student' ? null : '/apps/guidance-counsellor-app/infrastructure';
     }));
   }, async (base) => {
     for (const user of ['admin', 'lead-teacher', 'builder', 'counsellor', 'student', '']) {
       for (const appPath of ['/apps/guidance-counsellor-app/dashboard', '/student-apps/guidance-counsellor-app']) {
         const data = await (await fetch(`${base}/nav-data?user=${user}&path=${encodeURIComponent(appPath)}`)).json();
         assert.equal(data.assignRolesUrl, ['admin', 'lead-teacher'].includes(user) ? '/hubs/app-guidance-counsellor-app/roles' : null);
+        assert.equal(data.datasetManagerUrl, user && user !== 'student' ? '/apps/guidance-counsellor-app/infrastructure' : null);
       }
     }
     for (const appPath of ['/apps/unknown/dashboard', '/profile', '//evil.invalid/apps/guidance-counsellor-app']) {
       const data = await (await fetch(`${base}/nav-data?user=admin&path=${encodeURIComponent(appPath)}`)).json();
       assert.equal(data.assignRolesUrl, null);
+      assert.equal(data.datasetManagerUrl, null);
     }
     assert.equal(checks.length, 10);
     assert.ok(checks.every(([, hubKey]) => hubKey === 'app-guidance-counsellor-app'));

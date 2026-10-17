@@ -86,7 +86,7 @@ function injectGlobalNav(req, res, next) {
   return next();
 }
 
-function navData(query, canManageHubRoles) {
+function navData(query, canManageHubRoles, datasetManagerUrl) {
   return async (req, res, next) => {
     try {
       const user = req.user;
@@ -94,12 +94,14 @@ function navData(query, canManageHubRoles) {
         ? (await query('SELECT display_name, path FROM modules WHERE is_active = true ORDER BY display_name')).rows
         : [];
       let assignRolesUrl = null;
+      let datasetUrl = null;
       const appPath = String(req.query.path || '').match(/^\/(?:apps|student-apps)\/([a-z0-9-]+)(?:\/|$)/);
       if (user && appPath) {
         const app = (await query('SELECT hub_key FROM student_apps WHERE slug = $1', [appPath[1]])).rows[0];
         if (app && await canManageHubRoles(user, app.hub_key)) {
           assignRolesUrl = `/hubs/${app.hub_key}/roles`;
         }
+        if (app) datasetUrl = await datasetManagerUrl(user, appPath[1]);
       }
       res.set('Cache-Control', 'no-store');
       res.json({
@@ -108,6 +110,7 @@ function navData(query, canManageHubRoles) {
         email: user ? user.email : null,
         avatarUrl: user ? user.avatar_url || null : null,
         assignRolesUrl,
+        datasetManagerUrl: datasetUrl,
         role: res.locals.activeRole,
         isAdmin: res.locals.isAdmin,
         modules: modules.map((module) => ({ name: module.display_name, path: module.path }))
