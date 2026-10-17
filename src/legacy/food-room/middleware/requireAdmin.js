@@ -25,8 +25,8 @@ async function legacyRolesFor(user) {
   if (isAdminUser(user)) roles.add('admin');
   if (await hasFoodRoomHubRole(user.id, 'lead-teacher')) roles.add('lead_teacher');
   if (await hasFoodRoomHubRole(user.id, 'technician')) roles.add('technician');
-  if (user.roles.includes('Teacher') || user.roles.includes('Staff')) roles.add('teacher');
-  if (user.roles.includes('Student')) roles.add('student');
+  if (user.roles.includes('Teacher') || user.roles.includes('Staff') || await hasFoodRoomHubRole(user.id, 'teacher')) roles.add('teacher');
+  if (user.roles.includes('Student') || await hasFoodRoomHubRole(user.id, 'student')) roles.add('student');
   return [...roles];
 }
 

@@ -1,0 +1,54 @@
+<%- include('partials/header') %>
+
+<section class="page-title">
+  <p class="eyebrow"><%= hub.label %></p>
+  <h1>Assign User Roles</h1>
+  <p>Set who is a Lead Teacher, Teacher, Technician or Student in <strong><%= hub.label %></strong>. What each role can do is set by the administrator under Role Permissions.
+    People appear here after they have signed in once.
+    <a href="<%= hub.home %>">Back to <%= hub.label %></a></p>
+</section>
+
+<section class="panel">
+  <form method="get" class="module-form">
+    <label>Search<input name="q" value="<%= filter.q %>" placeholder="Name or email"></label>
+    <label>Show
+      <select name="type">
+        <option value="">Everyone</option>
+        <option value="staff" <%= filter.type === 'staff' ? 'selected' : '' %>>Staff</option>
+        <option value="student" <%= filter.type === 'student' ? 'selected' : '' %>>Students</option>
+      </select>
+    </label>
+    <button class="button" type="submit">Filter</button>
+  </form>
+  <% if (saved) { %><p><strong>Saved.</strong></p><% } %>
+</section>
+
+<section class="panel table-panel">
+  <% if (!users.length) { %><p>No matching people.</p><% } %>
+  <% users.forEach((user) => { %>
+    <form class="row-form stacked" action="/hubs/<%= hub.key %>/roles/<%= user.id %>" method="post">
+      <input type="hidden" name="q" value="<%= filter.q %>">
+      <input type="hidden" name="type" value="<%= filter.type %>">
+      <div>
+        <strong><%= user.display_name %></strong>
+        <span><%= user.email %></span>
+        <div class="access-source-list">
+          <% if (user.is_staff) { %><span class="access-source">Staff</span><% } %>
+          <% if (user.is_student) { %><span class="access-source">Student</span><% } %>
+        </div>
+      </div>
+      <fieldset class="checks permissions">
+        <% roles.forEach((role) => { %>
+          <label title="<%= role.description || '' %>">
+            <input type="checkbox" name="hubRoleIds" value="<%= role.id %>"
+              <%= user.hub_role_ids.includes(role.id) ? 'checked' : '' %> <%= role.assignable ? '' : 'disabled' %>>
+            <span><%= role.display_name %></span>
+          </label>
+        <% }) %>
+      </fieldset>
+      <button class="button" type="submit">Save</button>
+    </form>
+  <% }) %>
+</section>
+
+<%- include('partials/footer') %>

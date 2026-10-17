@@ -320,10 +320,10 @@ async function legacyRolesFor(user) {
   const roles = [];
   if (isAdminUser(user)) roles.push('Admin');
   if (await hasWorkshopHubRole(user, 'lead-teacher')) roles.push('Lead Teacher');
-  if (user.roles.includes('Teacher')) roles.push('Teacher');
+  if (user.roles.includes('Teacher') || await hasWorkshopHubRole(user, 'teacher')) roles.push('Teacher');
   if (await hasWorkshopHubRole(user, 'technician')) roles.push('Technician');
   if (user.roles.includes('Staff')) roles.push('Staff');
-  if (user.roles.includes('Student')) roles.push('Student');
+  if (user.roles.includes('Student') || await hasWorkshopHubRole(user, 'student')) roles.push('Student');
   return roles;
 }
 
@@ -374,7 +374,7 @@ router.post('/api/auth/logout', requireAuth, (req, res) => {
 
 // Role management now lives in the app's user administration.
 router.get(['/admin_user_roles.html', '/admin_permissions.html'], (req, res) => {
-  res.redirect('/admin/users');
+  res.redirect(req.path.includes('user_roles') ? '/hubs/workshop/roles' : '/admin/roles');
 });
 
 

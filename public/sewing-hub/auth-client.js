@@ -27,6 +27,15 @@
     signoutLink.textContent = 'Sign out';
     signoutLink.setAttribute('href', '/auth/logout');
 
+    if (data.user.canManageRoles && !data.user.isAdmin && !document.getElementById('nav-assign-roles')) {
+      const link = document.createElement('a');
+      link.id = 'nav-assign-roles';
+      link.href = '/hubs/sewing-hub/roles';
+      link.className = 'nav-signout';
+      link.textContent = 'Assign User Roles';
+      avatar.parentNode.insertBefore(link, avatar);
+    }
+
     if (adminBadge) {
       if (data.user.isAdmin) {
         adminBadge.style.display = 'flex';

@@ -110,8 +110,8 @@ apiRouter.get('/activities/:id', async (req, res, next) => {
 apiRouter.use(legacyRoutes);
 
 // Role and permission pages are managed by the app's own users/hub access screens.
-pageGuards.get(['/admin_user_roles.html', '/admin_role_permissions.html'], ensureAuthenticated, ensureRole('ADMIN'), (req, res) => {
-  res.redirect(req.path.includes('user_roles') ? '/admin/users' : '/sewing-hub/admin');
+pageGuards.get(['/admin_user_roles.html', '/admin_role_permissions.html'], ensureAuthenticated, (req, res) => {
+  res.redirect(req.path.includes('user_roles') ? '/hubs/sewing-hub/roles' : '/admin/roles');
 });
 
 pageGuards.get(
@@ -142,47 +142,8 @@ router.get('/', (req, res) => {
 router.get('/activities', (req, res) => {
   res.redirect('/sewing-hub/index.html');
 });
-router.get('/admin', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
-  try {
-    const users = (await query(
-      `SELECT users.id, users.display_name, users.email,
-              COALESCE(array_agg(access.access_level) FILTER (WHERE access.access_level IS NOT NULL), '{}') AS access_levels,
-              COALESCE(array_agg(DISTINCT roles.name) FILTER (WHERE roles.name IS NOT NULL), '{}') AS roles
-       FROM users
-       LEFT JOIN sewing_hub_access access ON access.user_id = users.id
-       LEFT JOIN user_roles ON user_roles.user_id = users.id
-       LEFT JOIN roles ON roles.id = user_roles.role_id
-       GROUP BY users.id
-       ORDER BY users.email`
-    )).rows;
-
-    res.render('admin/sewing-hub', { title: 'Sewing Hub Access', users });
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.post('/admin/:userId', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
-  try {
-    const levels = Array.isArray(req.body.accessLevels)
-      ? req.body.accessLevels
-      : req.body.accessLevels ? [req.body.accessLevels] : [];
-    const valid = levels.filter((level) => ['student', 'teacher'].includes(level));
-
-    await query('DELETE FROM sewing_hub_access WHERE user_id = $1', [req.params.userId]);
-    for (const level of valid) {
-      await query(
-        `INSERT INTO sewing_hub_access (user_id, access_level, granted_by)
-         VALUES ($1, $2, $3) ON CONFLICT (user_id, access_level) DO UPDATE SET granted_by = EXCLUDED.granted_by`,
-        [req.params.userId, level, req.user.id]
-      );
-    }
-
-    res.redirect('/sewing-hub/admin');
-  } catch (error) {
-    next(error);
-  }
-});
+// Sewing Hub access is held as hub roles in the Global Control framework.
+router.get('/admin', ensureAuthenticated, (req, res) => res.redirect('/hubs/sewing-hub/roles'));
 
 module.exports = router;
 module.exports.apiRouter = apiRouter;

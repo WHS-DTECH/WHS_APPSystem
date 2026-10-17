@@ -19,6 +19,7 @@ const sewingHub = require('./modules/sewingHub');
 const workshop = require('./modules/workshop');
 const foodRoom = require('./modules/foodRoom');
 const { importLegacyFoodRoom } = require('./legacyFoodRoomImport');
+const hubRoles = require('./hubRoles');
 const { injectGlobalNav, navData, safeNext, readCookie, NEXT_COOKIE } = require('./globalNav');
 const { describeModules } = require('./moduleDocs');
 
@@ -110,6 +111,7 @@ app.get('/admin/emails', ensureAuthenticated, ensureRole('ADMIN'), async (req, r
   }
 });
 
+app.use('/hubs', hubRoles.router);
 app.use('/admin/kamar-uploader', kamarUploader);
 app.use(kamarUploaderApi);
 app.use('/learning-sites', learningSites);

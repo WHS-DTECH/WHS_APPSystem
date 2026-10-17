@@ -1,0 +1,16 @@
+<%- include('partials/header') %>
+
+<section class="page-title">
+  <p class="eyebrow">Hubs</p>
+  <h1>Assign User Roles</h1>
+  <p>Choose a hub you lead.</p>
+</section>
+
+<section class="panel">
+  <% if (!hubs.length) { %><p>You are not a Lead Teacher of any hub.</p><% } %>
+  <% hubs.forEach((hub) => { %>
+    <p><a class="button" href="/hubs/<%= hub.key %>/roles"><%= hub.label %></a></p>
+  <% }) %>
+</section>
+
+<%- include('partials/footer') %>

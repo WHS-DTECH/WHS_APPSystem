@@ -74,19 +74,14 @@ const categoryMap = {
   urlidea: 'URL Idea'
 };
 
+const { userHasHubPermission, canManageHubRoles } = require('../../hubRoles');
 const isAdmin = (user) => Boolean(user?.roles?.includes('ADMIN'));
 const isTeacher = (user) => Boolean(user?.roles?.includes('Teacher'));
 
 async function userCanUploadActivity(user) {
   if (!user) return false;
   if (isAdmin(user)) return true;
-  if (!isTeacher(user)) return false;
-
-  const result = await query(
-    `SELECT 1 FROM sewing_hub_access WHERE user_id = $1 AND access_level = 'teacher' LIMIT 1`,
-    [user.id]
-  );
-  return result.rowCount > 0;
+  return userHasHubPermission(user, 'sewing-hub', 'activities.upload');
 }
 
 const userCanViewTeacherCard = (user) => isAdmin(user) || isTeacher(user);
@@ -300,7 +295,8 @@ router.get('/me', async (req, res, next) => {
         isAdmin: isAdmin(req.user),
         canBrowseActivities: true,
         canUploadActivity: await userCanUploadActivity(req.user),
-        canViewTeacherCard: userCanViewTeacherCard(req.user)
+        canViewTeacherCard: userCanViewTeacherCard(req.user),
+        canManageRoles: await canManageHubRoles(req.user, 'sewing-hub')
       }
     });
   } catch (error) {
