@@ -159,8 +159,13 @@ async function emailAdminNewProject({ app, builder, client, secret, base }) {
     `Web address (assigned when registered): ${base}/apps/${app.slug}`,
     `What it does: ${app.description || 'not supplied'}`
   ];
-  const text = `${lines.join('\n')}\n\nWHS_APP_SECRET:\n${secret}\n\nAdd WHS_APP_SECRET to the project's Render service, then open:\n${reviewUrl}\nand press "Secret loaded - project is registered".`;
-  const html = `<p><strong>New Student Apps project</strong></p><p>${lines.map(escapeHtml).join('<br>')}</p>`
+  const hosted = hostedApps.isHosted(app.slug);
+  const text = hosted
+    ? `${lines.join('\n')}\n\nHosted on the school system. Sign-in is connected automatically; no app secret or pasted code is needed.\nReview and register the project:\n${reviewUrl}`
+    : `${lines.join('\n')}\n\nWHS_APP_SECRET:\n${secret}\n\nAdd WHS_APP_SECRET to the project's Render service, then open:\n${reviewUrl}\nand press "Secret loaded - project is registered".`;
+  const html = hosted
+    ? `<p><strong>New Student Apps project</strong></p><p>${lines.map(escapeHtml).join('<br>')}</p><p>Hosted on the school system. Sign-in is connected automatically; no app secret or pasted code is needed.</p><p><a href="${escapeHtml(reviewUrl)}">Review and register the project</a></p>`
+    : `<p><strong>New Student Apps project</strong></p><p>${lines.map(escapeHtml).join('<br>')}</p>`
     + `<p><strong>WHS_APP_SECRET</strong><br><code>${escapeHtml(secret)}</code></p>`
     + `<p>Add it to the project's Render service, then <a href="${escapeHtml(reviewUrl)}">open the project</a> and press <em>Secret loaded - project is registered</em>.</p>`;
   const redacted = (value) => value.split(secret).join('[secret sent by email only]');
@@ -248,6 +253,7 @@ function setupModel(app, user, extra = {}) {
   ]).then(([map, assigned]) => ({
     title: `${app.name} - Set up`,
     app,
+    hosted: hostedApps.isHosted(app.slug),
     mapping: Object.fromEntries(map.rows.map((row) => [row.platform_role, row.app_role])),
     platformRoles: PLATFORM_ROLES,
     assignedCount: assigned.rows[0].count,
@@ -397,7 +403,7 @@ router.post('/:slug/roles', async (req, res, next) => {
   try {
     const app = await loadApp(req.params.slug);
     if (!app || !canManage(req.user, app)) return res.status(403).render('error', { title: 'Access denied', message: 'You cannot change this app.' });
-    if (!app.login_verified_at) {
+    if (!app.login_verified_at && !(hostedApps.isHosted(app.slug) && app.status === 'active')) {
       return res.status(400).render('error', { title: 'Sign-in first', message: 'Test the Google sign-in (step 2) before mapping roles.' });
     }
     await query('DELETE FROM student_app_role_map WHERE app_id = $1', [app.id]);
@@ -433,7 +439,7 @@ router.get('/:slug/open', async (req, res, next) => {
   try {
     const app = await loadApp(req.params.slug);
     if (!app) return res.status(404).render('error', { title: 'Not found', message: 'That app is not registered.' });
-    if (app.login_verified_at && app.roles_mapped_at) return res.redirect(`/student-apps/${app.slug}/launch`);
+    if ((app.login_verified_at || hostedApps.isHosted(app.slug)) && app.roles_mapped_at && app.status === 'active') return res.redirect(`/student-apps/${app.slug}/launch`);
     if (canManage(req.user, app)) return res.redirect(`/student-apps/${app.slug}`);
     return res.status(403).render('error', { title: 'Not ready', message: 'This app is still being set up.' });
   } catch (error) {

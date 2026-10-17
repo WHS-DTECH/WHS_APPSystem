@@ -9,7 +9,7 @@
   .sa-btn.sa-warn:hover{background:#8a4c08}
 </style>
 <%
-  const loginDone = Boolean(app.login_verified_at);
+  const loginDone = Boolean(app.login_verified_at) || (hosted && app.status === 'active');
   const rolesDone = Boolean(app.roles_mapped_at);
   const tick = (done) => done ? '<span style="color:#1d6b3c">&#10003;</span>' : '<span style="color:#b9770e">&#9679;</span>';
 %>
@@ -25,6 +25,12 @@
   <h2><%- tick(false) %> Waiting to be registered</h2>
   <% if (submitted) { %><p style="background:#e3f4e8;color:#1d6b3c;padding:10px 12px;border-radius:8px">Thanks! Your project details have been sent. You will get an email when it is registered.</p><% } %>
   <% if (siteAdmin) { %>
+    <% if (hosted) { %>
+    <p>This app runs on the school system. Sign-in is connected automatically; there is no app secret to load. Confirm registration to email the student and let them continue to role mapping.</p>
+    <form method="post" action="/student-apps/<%= app.slug %>/activate">
+      <button class="sa-btn" type="submit">Project is registered</button>
+    </form>
+    <% } else { %>
     <p>The WHS_APP_SECRET was emailed to you when the project was submitted. Add it to the project's Render service, then confirm below. The student is emailed to log in and continue.</p>
     <form method="post" action="/student-apps/<%= app.slug %>/activate">
       <button class="sa-btn" type="submit">Secret loaded - project is registered</button>
@@ -38,6 +44,7 @@
         <p><code style="user-select:all"><%= secret %></code></p>
       </div>
     <% } %>
+    <% } %>
   <% } else { %>
     <p>An administrator is setting up your project's connection. You will get an email when it is registered, then log in here to continue.</p>
   <% } %>
@@ -46,11 +53,15 @@
 <% if (activated) { %><section class="panel"><p style="background:#e3f4e8;color:#1d6b3c;padding:10px 12px;border-radius:8px">Project registered. The student has been emailed.</p></section><% } %>
 <section class="panel">
   <h2><%- tick(true) %> Step 1 &mdash; Registered</h2>
-  <p>Your project is registered. It keeps its own database and web service.</p>
+  <p><%= hosted ? 'Your project is registered and hosted on the school system. It keeps its own database.' : 'Your project is registered. It keeps its own database and web service.' %></p>
 </section>
 
 <section class="panel">
   <h2><%- tick(loginDone) %> Step 2 &mdash; Google sign-in</h2>
+  <% if (hosted) { %>
+    <p>Connected automatically through your school Google login. You do not need to paste code, load a secret or access Render.</p>
+    <p>Continue to <strong>Step 3 &mdash; Map roles</strong>, save your role mapping, then click <strong>Open the app</strong> below.</p>
+  <% } else { %>
   <% if (secret) { %>
     <div style="background:#fff8e6;border:1px solid #e8c36a;border-radius:8px;padding:12px;margin-bottom:12px">
       <strong>New app secret &mdash; shown once.</strong>
@@ -61,6 +72,13 @@
   <ol>
     <li>Your teacher has already loaded the app secret, so you do not need Render access.</li>
     <li>Add this route to your app. It receives the person who just signed in with Google:
+      <ol>
+        <li>Open your Flask entry file (usually <code>app.py</code>) in VS Code.</li>
+        <li>Find the line that creates your Flask application, such as <code>app = Flask(__name__)</code>.</li>
+        <li>Paste the block below after that line and before any <code>app.run(...)</code> call. The example assumes your Flask object is named <code>app</code>.</li>
+        <li>Change <code>/dashboard</code> in the last line to your app's actual landing page if it is different.</li>
+        <li>Save and push your changes. Wait for your teacher to confirm the app has redeployed, then test sign-in.</li>
+      </ol>
       <pre style="background:#f3f7fc;padding:12px;border-radius:8px;overflow:auto"><code><%= snippet %></code></pre>
     </li>
     <li>Click <strong>Test sign-in</strong>. You sign in with your school Google account, are sent to your app, and your app asks the school system who you are.</li>
@@ -72,6 +90,7 @@
   <% if (siteAdmin) { %><form method="post" action="/student-apps/<%= app.slug %>/secret" onsubmit="return confirm('Make a new secret? The old one stops working.')">
     <button class="sa-btn sa-alt" type="submit">Make a new secret</button>
   </form><% } %>
+  <% } %>
 </section>
 
 <section class="panel">

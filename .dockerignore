@@ -1,0 +1,15 @@
+.git
+node_modules
+.env
+.env.*
+LegacySites
+tmp
+coverage
+dist
+**/.venv
+**/__pycache__
+**/*.pyc
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+npm-debug.log*

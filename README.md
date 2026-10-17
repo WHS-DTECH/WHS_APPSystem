@@ -45,6 +45,24 @@ npm run dev
 
 Use the existing Render Web Service with Docker.
 
+### Hosted Student Apps
+
+Flask apps in `hosted-apps/<slug>/` with an `app.json` manifest run inside the
+school Docker service through Gunicorn. Register the project with the matching
+slug (for Guidance, use the name **Guidance Counsellor App**, producing
+`guidance-counsellor-app`). Set `GUIDANCE_COUNSELLOR_APP_DATABASE_URL` on the main
+service to retain its legacy database.
+
+Hosted apps use the school sign-in wrapper automatically: students do not paste
+the external sign-in route or load an app secret. After administrator registration,
+map the roles in step 3 and open the app. Existing active hosted registrations
+can also map roles without repeating the external sign-in verification.
+Separately hosted Flask apps still show the sign-in code and placement instructions.
+
+Docker Desktop on Windows supplies the Linux environment needed by Gunicorn.
+Build locally with `docker build -t whs-appsystem:local .`. Local environment
+files, legacy folders and database files are excluded from the image.
+
 Recommended environment values:
 
 - `APP_BASE_URL`: the public Render service URL, for example `https://whs-appsystem.onrender.com`
