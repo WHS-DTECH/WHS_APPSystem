@@ -58,7 +58,7 @@ function esc(str) {
 }
 
 function getSiteUrl() {
-  return String(process.env.SITE_URL || process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || 'https://recipe-calculator-backend.onrender.com').replace(/\/$/, '');
+  return require('../paths').foodRoomSiteUrl();
 }
 
 function getFromAddress() {
@@ -367,7 +367,7 @@ function buildEmailHtml({ twoWeekMonday, twoWeekFriday, thisWeekMonday, thisWeek
             <table width="100%" cellpadding="0" cellspacing="0" border="0">
               <tr>
                 <td style="font-size:11px;color:#9ca3af;">
-                  Westland High School Food Room &bull; <a href="${siteUrl}" style="color:#6b7280;">recipe-calculator-backend.onrender.com</a>
+                  Westland High School Food Room &bull; <a href="${siteUrl}" style="color:#6b7280;">whs-appsystem.onrender.com</a>
                 </td>
                 <td align="right">
                   <a href="${siteUrl}/browse_practicals.html" style="font-size:11px;color:#1976d2;text-decoration:none;">View calendar</a>

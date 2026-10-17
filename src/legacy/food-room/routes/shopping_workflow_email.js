@@ -28,7 +28,7 @@ function escapeHtml(value) {
 }
 
 function getSiteUrl() {
-  return String(process.env.SITE_URL || process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || 'https://recipe-calculator-backend.onrender.com').replace(/\/$/, '');
+  return require('../paths').foodRoomSiteUrl();
 }
 
 function getFromAddress() {

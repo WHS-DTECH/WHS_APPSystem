@@ -419,11 +419,7 @@ function escapeHtml(value) {
 }
 
 function buildSuggestionEmailPayload(suggestion) {
-  const appBaseUrl = String(
-    process.env.APP_BASE_URL ||
-    process.env.RENDER_EXTERNAL_URL ||
-    'https://recipe-calculator-backend.onrender.com'
-  ).trim().replace(/\/+$/, '');
+  const appBaseUrl = require('./paths').foodRoomSiteUrl();
   const suggestionsListUrl = `${appBaseUrl}/admin_suggest_recipe.html`;
 
   const recipeName = suggestion.recipe_name || 'Untitled Recipe Suggestion';
