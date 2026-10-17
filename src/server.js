@@ -32,6 +32,8 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '..', 'views'));
 app.set('trust proxy', 1);
 
+app.get('/favicon.ico', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'images', 'favicon.ico')));
+
 app.use(helmet({ contentSecurityPolicy: false }));
 // The Food Room pages make many small API calls, so they are not counted against the shared limit.
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, skip: (req) => req.path.startsWith('/food-room/') || req.path === '/nav-data' }));

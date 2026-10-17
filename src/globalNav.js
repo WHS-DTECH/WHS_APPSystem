@@ -1,9 +1,8 @@
 const SCRIPT_TAG = '<script src="/global-nav.js" defer></script>';
+const FAVICON_TAG = '<link rel="icon" type="image/x-icon" href="/images/favicon.ico">';
 
 // Adds the global left navigation script to every full HTML page, including the static legacy pages.
 function injectGlobalNav(req, res, next) {
-  if (req.method !== 'GET') return next();
-
   // Pages cached before the script existed would otherwise keep answering 304 Not Modified.
   if (String(req.headers.accept || '').includes('text/html')) {
     delete req.headers['if-none-match'];
@@ -43,15 +42,24 @@ function injectGlobalNav(req, res, next) {
 
     if (chunk) chunks.push(toBuffer(chunk, encoding));
     const original = Buffer.concat(chunks);
-    const html = original.toString('utf8');
+    let html = original.toString('utf8');
+    if (/<\/head\s*>/i.test(html)) {
+      html = html.replace(/<link\b[^>]*>/gi, (tag) => {
+        const rel = tag.match(/\brel\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
+        return rel && /^(?:icon|shortcut\s+icon)$/i.test((rel[1] ?? rel[2] ?? rel[3]).trim()) ? '' : tag;
+      }).replace(/<\/head\s*>/i, `${FAVICON_TAG}\n</head>`);
+    }
     const index = html.toLowerCase().lastIndexOf('</body>');
     chunks = null;
 
-    if (index === -1 || html.includes('/global-nav.js')) {
+    if (index !== -1 && !html.includes('/global-nav.js')) {
+      html = `${html.slice(0, index)}${SCRIPT_TAG}\n${html.slice(index)}`;
+    }
+    if (html === original.toString('utf8')) {
       return end(original, callback);
     }
 
-    const output = Buffer.from(`${html.slice(0, index)}${SCRIPT_TAG}\n${html.slice(index)}`, 'utf8');
+    const output = Buffer.from(html, 'utf8');
     res.removeHeader('ETag');
     res.removeHeader('Last-Modified');
     res.setHeader('Cache-Control', 'no-cache');

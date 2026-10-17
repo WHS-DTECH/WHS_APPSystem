@@ -54,6 +54,39 @@ test('cached pages without the script are refetched in full', async () => {
     assert.equal(again.status, 200);
     assert.match(await again.text(), /global-nav\.js/);
   });
+
+});
+
+test('all full pages use the shared favicon even with existing legacy icons or navigation', async () => {
+  await withServer((app) => {
+    app.get('/page', (req, res) => res.send('<html><head><link rel="shortcut icon" href="/old.ico"><link rel=icon href="/another.ico"><link rel="stylesheet" href="/styles.css"></head><body><script src="/global-nav.js" defer></script></body></html>'));
+  }, async (base) => {
+    const response = await fetch(`${base}/page`);
+    const html = await response.text();
+    assert.equal((html.match(/rel="icon"/g) || []).length, 1);
+    assert.match(html, /href="\/images\/favicon.ico"/);
+    assert.doesNotMatch(html, /old.ico|another.ico/);
+    assert.match(html, /rel="stylesheet"/);
+    assert.equal((html.match(/global-nav.js/g) || []).length, 1);
+    assert.equal(Number(response.headers.get('content-length')), Buffer.byteLength(html));
+  });
+});
+
+test('streamed hosted HTML and POST pages receive the shared favicon', async () => {
+  await withServer((app) => {
+    app.all('/stream', (req, res) => {
+      res.status(200).setHeader('Content-Type', 'text/html');
+      res.write('<html><head><title>Hosted app</title>');
+      res.end('</head><body>App</body></html>');
+    });
+  }, async (base) => {
+    for (const method of ['GET', 'POST']) {
+      const response = await fetch(`${base}/stream`, { method });
+      const html = await response.text();
+      assert.match(html, /href="\/images\/favicon.ico"/);
+      assert.equal(Number(response.headers.get('content-length')), Buffer.byteLength(html));
+    }
+  });
 });
 
 test('script is still injected when a signed-in session refreshes on the response', async () => {

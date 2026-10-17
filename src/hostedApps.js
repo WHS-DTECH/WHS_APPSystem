@@ -100,7 +100,10 @@ function proxy(req, res, slug, identity) {
   const upstream = http.request(
     { host: '127.0.0.1', port: target.port, method: req.method, path: req.originalUrl, headers },
     (response) => {
-      res.writeHead(response.statusCode, response.headers);
+      res.status(response.statusCode);
+      Object.entries(response.headers).forEach(([key, value]) => {
+        if (value !== undefined) res.setHeader(key, value);
+      });
       response.pipe(res);
     }
   );

@@ -47,6 +47,9 @@ Use the existing Render Web Service with Docker.
 
 ### Hosted Student Apps
 
+All full HTML pages, including legacy and hosted pages, use the shared
+`public/images/favicon.ico`. The `/favicon.ico` fallback serves that same file.
+
 Flask apps in `hosted-apps/<slug>/` with an `app.json` manifest run inside the
 school Docker service through Gunicorn. Register the project with the matching
 slug (for Guidance, use the name **Guidance Counsellor App**, producing
