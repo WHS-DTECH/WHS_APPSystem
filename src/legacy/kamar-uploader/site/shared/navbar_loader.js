@@ -23,25 +23,6 @@
     'timetable_upload.html': 'staff_timetable'
   };
 
-  function escapeHtml(value) {
-    return String(value || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
-
-  function getAuthUser() {
-    try {
-      const raw = localStorage.getItem('kamarAuthUser');
-      const parsed = raw ? JSON.parse(raw) : null;
-      return parsed && typeof parsed === 'object' ? parsed : null;
-    } catch (_err) {
-      return null;
-    }
-  }
-
   function hasPermission(user, permission) {
     if (!permission) return true;
     if (!user || !user.email) return permission === 'homepage';
@@ -82,14 +63,8 @@
     `;
   }
 
-  function applyNav() {
-    const user = getAuthUser();
+  function applyNav(user) {
     enforceRouteAccess(user);
-
-    const signedIn = Boolean(user && user.email);
-    const userText = signedIn
-      ? `${user.name || user.email} (${String(user.role || 'guest').toUpperCase()})`
-      : 'Not signed in';
 
     host.innerHTML = `
       <nav class="top-nav" aria-label="Main navigation">
@@ -98,34 +73,26 @@
             ${renderNavLinks(user)}
             ${renderAdminMenu(user)}
           </div>
-          <div class="top-nav-user">
-            <span class="top-nav-user-chip">${escapeHtml(userText)}</span>
-            ${signedIn
-              ? '<button id="topNavSignOutBtn" type="button" class="top-nav-signout">Sign out</button>'
-              : `<a href="/auth/google" class="top-nav-signin-link">Sign in</a>`}
-          </div>
         </div>
       </nav>
     `;
-
-    const signOutBtn = document.getElementById('topNavSignOutBtn');
-    if (signOutBtn) {
-      signOutBtn.addEventListener('click', async () => {
-        try {
-          await fetch('/api/auth/logout', { method: 'POST' });
-        } catch (_err) {
-          // Ignore network errors during sign out.
-        }
-
-        localStorage.removeItem('kamarAuthUser');
-        sessionStorage.removeItem('currentStaffUser');
-        sessionStorage.removeItem('navbar_user_role');
-        window.dispatchEvent(new Event('kamar-auth-changed'));
-        window.location.href = '/';
-      });
-    }
   }
 
-  applyNav();
-  window.addEventListener('kamar-auth-changed', applyNav);
+  fetch('/api/auth/session', { cache: 'no-store' })
+    .then(async (response) => {
+      if (response.status === 401) {
+        window.location.href = `/auth/google?next=${encodeURIComponent(window.location.pathname)}`;
+        return;
+      }
+      const payload = await response.json();
+      if (!response.ok || !payload.success || !payload.user || !payload.user.email) {
+        throw new Error(payload.error || 'Could not confirm Kamar access.');
+      }
+      applyNav(payload.user);
+    })
+    .catch((error) => {
+      console.error('[Kamar navigation] Could not confirm school session:', error);
+      host.textContent = 'Kamar navigation could not be loaded. Reload to retry; account controls are in Global Control.';
+      host.setAttribute('role', 'alert');
+    });
 })();

@@ -187,111 +187,34 @@ async function loadDashboardStats() {
   }
 }
 
-function persistSessionUser(user) {
-  localStorage.setItem('kamarAuthUser', JSON.stringify(user || null));
-  if (user && user.email) {
-    sessionStorage.setItem('currentStaffUser', JSON.stringify({ email_school: user.email }));
-  } else {
-    sessionStorage.removeItem('currentStaffUser');
-  }
-  sessionStorage.setItem('navbar_user_role', String((user && user.role) || 'guest'));
-  window.dispatchEvent(new Event('kamar-auth-changed'));
-}
-
-function renderUserPanel(user, hintMessage) {
-  const panel = document.getElementById('currentUserPanel');
-  const hint = document.getElementById('authHint');
-  const signOutBtn = document.getElementById('signOutBtn');
-  const googleTarget = document.getElementById('googleSignInTarget');
-
-  if (!panel || !hint || !signOutBtn || !googleTarget) return;
-
-  if (user && user.email) {
-    panel.innerHTML = `
-      <div class="current-user-row"><strong>${safeText(user.name || user.email)}</strong></div>
-      <div class="current-user-row">${safeText(user.email)}</div>
-      <div class="current-user-row">Role: ${safeText(String(user.role || 'guest').toUpperCase())}</div>
-      <div class="current-user-row">Staff record: ${user.in_staff_upload ? 'Yes' : 'No'}</div>
-      <div class="current-user-row">Student record: ${user.in_student_upload ? 'Yes' : 'No'}</div>
-    `;
-    hint.textContent = hintMessage || 'Signed in with Google.';
-    signOutBtn.style.display = 'inline-flex';
-    googleTarget.style.display = 'none';
-    return;
-  }
-
-  panel.textContent = 'Not signed in.';
-  hint.textContent = hintMessage || 'Use your school Google account to continue.';
-  signOutBtn.style.display = 'none';
-  googleTarget.style.display = 'block';
-}
-
 async function bootstrapExistingSession() {
   try {
-    const res = await fetch('/api/auth/session');
+    const res = await fetch('/api/auth/session', { cache: 'no-store' });
     if (!res.ok) {
-      localStorage.removeItem('kamarAuthUser');
-      renderUserPanel(null);
-      currentAuthUser = null;
-      applyProjectLinkEditorVisibility();
-      return null;
+      throw new Error('Could not confirm school session. Use Global Control to sign in, then reload.');
     }
 
     const payload = await res.json();
-    if (!payload.success || !payload.user) {
-      localStorage.removeItem('kamarAuthUser');
-      renderUserPanel(null);
-      currentAuthUser = null;
-      applyProjectLinkEditorVisibility();
-      return null;
+    if (!payload.success || !payload.user || !payload.user.email) {
+      throw new Error(payload.error || 'Could not confirm school session.');
     }
 
-    persistSessionUser(payload.user);
-    renderUserPanel(payload.user);
     currentAuthUser = payload.user;
     applyProjectLinkEditorVisibility();
     return payload.user;
-  } catch (_err) {
-    renderUserPanel(null, 'Could not confirm session.');
+  } catch (error) {
+    console.error('[Kamar dashboard] Could not confirm school session:', error);
+    showProjectLinkStatus(error.message, true);
     currentAuthUser = null;
     applyProjectLinkEditorVisibility();
     return null;
   }
 }
 
-async function initGoogleSignIn() {
-  const target = document.getElementById('googleSignInTarget');
-  if (!target) return;
-
-  // Sign-in is handled by the app's Google login, so link to it instead of loading Google Identity Services.
-  target.innerHTML = currentAuthUser ? '' : '<a class="subtle-btn" href="/auth/google">Sign in with Google</a>';
-}
-
 window.addEventListener('DOMContentLoaded', async () => {
   initProjectLinksForm();
   applyProjectLinkEditorVisibility();
+  await bootstrapExistingSession();
   await loadProjectLinks();
   await loadDashboardStats();
-  await bootstrapExistingSession();
-  await initGoogleSignIn();
-
-  const signOutBtn = document.getElementById('signOutBtn');
-  if (signOutBtn) {
-    signOutBtn.addEventListener('click', async () => {
-      try {
-        await fetch('/api/auth/logout', { method: 'POST' });
-      } catch (_err) {
-        // Ignore network errors.
-      }
-
-      localStorage.removeItem('kamarAuthUser');
-      sessionStorage.removeItem('currentStaffUser');
-      sessionStorage.removeItem('navbar_user_role');
-      window.dispatchEvent(new Event('kamar-auth-changed'));
-      renderUserPanel(null, 'Signed out.');
-      currentAuthUser = null;
-      applyProjectLinkEditorVisibility();
-      window.location.href = '/';
-    });
-  }
 });

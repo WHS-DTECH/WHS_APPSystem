@@ -479,6 +479,12 @@ The Sewing Hub is the legacy Sewing Room site (`public/sewing-hub`, legacy API i
 
 ## Kamar Uploader module
 
+Sign-in, profile and sign-out use Global Control's shared Google avatar/header
+and `/profile` page. The uploader has no duplicate account cards or navbar
+sign-out controls. Its navigation reads the current school session on every
+page, including direct upload-page visits, rather than trusting a cached local
+account. Upload pages, ADMIN access and legacy data APIs are unchanged.
+
 The original Kamar Uploader pages (Home, Staff Upload, Student Upload, Student Timetable, Staff Timetable) are served at `/admin/kamar-uploader/` to ADMIN users, with the legacy API (`/api/staff_upload`, `/api/student_details_upload`, `/api/student_upload`, `/api/upload_timetable`, `/api/timetable/all`, `/api/feed/*`, `/api/projects/links`) ported from the legacy server. Roles come from the app's Google login; the legacy cookie login, permission tables and role pages are replaced by `/admin/users`. Feed APIs need a Teacher, Staff or ADMIN user.
 
 Data lives in the unified `DATABASE_URL` database using the legacy tables (`staff_upload`, `student_details_upload`, `student_upload`, `timetable_upload`, `app_project_links`). If `INTEGRATION_KAMAR_DATABASE_URL` is set (or, failing that, `INTEGRATION_LEARNING_SITES_DATABASE_URL`, since both legacy sites share `whs_tech_main`), the legacy Term 1-3 data is copied once into the unified database on first use; all new uploads are written to the unified database only. Staff and Student roles are derived from the current `staff_upload` and `student_details_upload` emails. The copied legacy source and sample data under `LegacySites/` are excluded from Git.

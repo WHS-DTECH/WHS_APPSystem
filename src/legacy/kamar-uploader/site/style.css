@@ -189,7 +189,7 @@ a {
 
 .hero-panel {
   display: grid;
-  grid-template-columns: 1.4fr 1fr;
+  grid-template-columns: 1fr;
   gap: 1rem;
   margin-bottom: 1rem;
 }
@@ -313,7 +313,7 @@ a {
 
 .dashboard-panels {
   display: grid;
-  grid-template-columns: 1.2fr 1fr;
+  grid-template-columns: 1fr;
   gap: 0.8rem;
 }
 
