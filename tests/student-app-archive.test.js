@@ -56,6 +56,11 @@ function fixture(options = {}) {
       data = { default_branch: 'main', private: true };
     } else if (path === `/repos/${DESTINATION}`) {
       data = { default_branch: 'main', private: options.publicArchive ? false : true };
+    } else if (path === `/repos/${DESTINATION}/commits/main`) {
+      data = { sha: PARENT, commit: { tree: { sha: ROOT } } };
+    } else if (path.startsWith(`/repos/${DESTINATION}/git/blobs/`)) {
+      const bytes = blobs.get(path.split('/').at(-1));
+      data = { encoding: 'base64', content: options.corrupt ? 'YWJj' : bytes.toString('base64') };
     } else if (path.startsWith('/repos/student/project/commits/')) {
       data = { sha: SOURCE_COMMIT, commit: { tree: { sha: SOURCE_TREE } } };
     } else if (path === `/repos/student/project/git/trees/${SOURCE_TREE}?recursive=1`) {
@@ -68,7 +73,7 @@ function fixture(options = {}) {
     } else if (path.endsWith(`/git/commits/${PARENT}`)) {
       data = { tree: { sha: ROOT } };
     } else if (path.endsWith(`/git/trees/${ROOT}?recursive=1`)) {
-      data = { tree: options.existing || [], truncated: false };
+      data = { tree: options.teachingFiles ? entries : options.existing || [], truncated: Boolean(options.archiveTruncated) };
     } else if (path.endsWith('/git/blobs')) {
       const bytes = Buffer.from(body.content, 'base64');
       data = { sha: crypto.createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex') };
@@ -90,6 +95,35 @@ test('repository parser accepts only GitHub repository identifiers, not arbitrar
   assert.deepEqual(repository('https://github.com/student/project.git'), { owner: 'student', name: 'project', fullName: 'student/project' });
   for (const invalid of ['http://localhost/x', 'https://evil.invalid/a/b', 'student/..', 'https://github.com/a/b?token=x', 'https://x@github.com/a/b', 'a/b/tree/main']) {
     assert.throws(() => repository(invalid));
+  }
+});
+
+test('DTECH restore reads only verified private TeacherFiles using the archive App, including large image files', async () => {
+  const folder = 'LegacySites/TECH-HUB/DTECH-HUB/TeacherFiles/';
+  const bytes = Buffer.alloc(7 * 1024 * 1024, 97);
+  const { service, calls } = fixture({ teachingFiles: true, files: [[`${folder}Images/large.jpg`, bytes, '100644']] });
+  const restored = [];
+  for await (const file of service.teachingFiles()) restored.push(file);
+  assert.equal(restored.length, 1);
+  assert.equal(restored[0].path, 'Images/large.jpg');
+  assert.deepEqual(restored[0].bytes, bytes);
+  assert.equal(restored[0].commit, PARENT);
+  assert.equal(calls.some((call) => call.path.includes('/student/project')), false);
+  assert.equal(calls.some((call) => call.method !== 'GET' && !call.path.includes('access_tokens')), false);
+});
+
+test('DTECH restore fails explicitly for public, missing, corrupt, unsafe or incomplete archives', async () => {
+  const folder = 'LegacySites/TECH-HUB/DTECH-HUB/TeacherFiles/';
+  const consume = async (service) => { for await (const file of service.teachingFiles()) void file; };
+  await assert.rejects(consume(fixture({ publicArchive: true }).service), /private/);
+  await assert.rejects(consume(fixture().service), /missing/);
+  for (const options of [
+    { archiveTruncated: true }, { corrupt: true },
+    { files: [[`${folder}../escape.pdf`, 'data', '100644']] },
+    { files: [[`${folder}linked`, 'data', '120000']] }
+  ]) {
+    const service = fixture({ teachingFiles: true, files: [[`${folder}file.pdf`, 'data', '100644']], ...options }).service;
+    await assert.rejects(consume(service));
   }
 });
 

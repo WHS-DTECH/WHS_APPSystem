@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Unit Plan | Computer Lab</title>
+    <meta name="description" content="Import a unit plan from a DOCX file and generate lesson activities for the DTECH HUB.">
+    <meta name="theme-color" content="#4a1b6f">
+    <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+    <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+    <link rel="icon" type="image/x-icon" href="images/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="upload-forms.css?v=20260518">
+</head>
+<body>
+    <div class="page-shell">
+        <header class="hero">
+            <nav class="topbar" aria-label="Primary">
+                <a class="brand" href="index.html">Computer Lab</a>
+                <div class="topbar-right">
+                    <div class="topbar-links">
+                        <a href="index.html#current-week">This Week</a>
+                        <a href="index.html#project-library">Activity Library</a>
+                        <a href="browse-practicals.html">Browse Practicals</a>
+                        <a href="https://sites.google.com/westlandhigh.school.nz/dtec/home" target="_blank" rel="noreferrer">Learning Site</a>
+                        <a href="index.html#global-footer">Lab Notes</a>
+                    </div>
+                    <div class="utility-actions" aria-label="Utility actions">
+                        <a id="hub-staff-link" href="teacher-view.html" hidden>Teacher View</a>
+                        <a id="hub-admin-link" href="admin-menu.html" hidden>Admin Menu</a>
+                        <span id="hub-access-badge" class="hub-access-badge" hidden aria-live="polite"></span>
+                        <button id="hub-google-signin" class="google-signin-button" type="button">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="google-logo">
+                                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                            </svg>
+                            <span>Sign in with Google</span>
+                        </button>
+                        <button id="hub-google-signout" type="button" hidden>Sign out</button>
+                        <button id="hub-user-badge" class="user-badge" type="button" hidden aria-label="Open profile" aria-haspopup="true" aria-expanded="false"></button>
+                    </div>
+                </div>
+            </nav>
+        </header>
+
+        <main class="upload-page">
+            <h1>Upload Unit Plan</h1>
+            <p class="intro-text">Plan the unit first, then turn each lesson into an activity card and a calendar event when required.</p>
+            <p id="unit-auth-status" class="project-auth-status" aria-live="polite"></p>
+            <div class="upload-page-tools">
+                <a class="button button-secondary" href="upload-menu.html">Back to Upload Menu</a>
+            </div>
+
+            <section class="upload-panel" aria-label="Upload unit plan from document">
+                <form id="upload-unit-form" class="upload-form">
+                    <fieldset class="form-section">
+                        <legend>Unit Plan Document</legend>
+                        <div class="form-grid">
+                            <div class="field field-wide">
+                                <label for="unit-plan-file">DOCX Unit Plan File</label>
+                                <input id="unit-plan-file" name="unitPlanFile" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
+                                <p class="help-text">The import reads the Word document, saves the unit plan, and creates lesson activity cards from the lesson sequence it finds.</p>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <div class="form-actions">
+                        <button id="preview-file-button" class="button-save" type="button">Preview Selected File</button>
+                        <button id="upload-unit-button" class="button-save" type="submit">Save Unit Plan</button>
+                        <button class="button-cancel" type="button" id="clear-unit-file">Clear File</button>
+                        <p id="upload-status" class="upload-status" aria-live="polite" hidden></p>
+                    </div>
+                </form>
+            </section>
+
+            <section class="upload-panel" aria-label="Manual unit planner entry">
+                <form id="manual-unit-form" class="upload-form">
+                    <fieldset class="form-section">
+                        <legend>Manual Unit Planner</legend>
+                        <p class="help-text">Use this original manual planner to create a unit plan without uploading a DOCX file.</p>
+                        <div class="form-grid">
+                            <div class="field">
+                                <label for="manual-title">Unit Title</label>
+                                <input id="manual-title" name="unitTitle" type="text" required>
+                            </div>
+
+                            <div class="field">
+                                <label for="manual-topic">Topic Type</label>
+                                <select id="manual-topic" name="topic" required>
+                                    <option value="">Select topic type</option>
+                                    <option>Office Suite</option>
+                                    <option>Programming</option>
+                                    <option>Electronics</option>
+                                    <option>Digital Media</option>
+                                    <option>Project Management</option>
+                                </select>
+                            </div>
+
+                            <div class="field">
+                                <label for="manual-strand">Strand</label>
+                                <input id="manual-strand" name="strand" type="text" placeholder="Programming, systems, communication...">
+                            </div>
+
+                            <div class="field">
+                                <label for="manual-year-level">Year Level</label>
+                                <select id="manual-year-level" name="yearLevel" multiple size="10" required>
+                                    <option>Junior</option>
+                                    <option>Year 7</option>
+                                    <option>Year 8</option>
+                                    <option>Middle</option>
+                                    <option>Year 9</option>
+                                    <option>Year 10</option>
+                                    <option>Senior</option>
+                                    <option>Year 11</option>
+                                    <option>Year 12</option>
+                                    <option>Year 13</option>
+                                </select>
+                                <p class="help-text">Hold Ctrl on Windows or Command on Mac to select multiple classes.</p>
+                            </div>
+
+                            <div class="field">
+                                <label for="manual-subject-stream">Subject Stream</label>
+                                <select id="manual-subject-stream" name="subjectStream">
+                                    <option value="">Select stream</option>
+                                    <option value="DTECH">DTECH</option>
+                                    <option value="COMP">COMP</option>
+                                    <option value="TEXT">TEXT</option>
+                                    <option value="DTONLINE">DTONLINE</option>
+                                </select>
+                            </div>
+
+                            <div class="field field-wide">
+                                <label for="manual-overview">Unit Overview</label>
+                                <textarea id="manual-overview" name="unitOverview" rows="3" placeholder="What is the unit about and where is it heading?"></textarea>
+                            </div>
+
+                            <div class="field field-wide">
+                                <label for="manual-aims">Aims</label>
+                                <textarea id="manual-aims" name="unitAims" rows="10" placeholder="One aim per line"></textarea>
+                            </div>
+
+                            <div class="field field-wide school-values-field">
+                                <label>School Values</label>
+                                <div class="school-values-grid">
+                                    <article class="school-value-card">
+                                        <h4>Whanaungatanga</h4>
+                                        <ul>
+                                            <li>Actively building and contributing to positive connections with others.</li>
+                                            <li>Encourages sharing learning with peers to deepen understanding.</li>
+                                        </ul>
+                                        <textarea id="manual-value-whanaungatanga" rows="3" placeholder="How will this unit meet Whanaungatanga?"></textarea>
+                                    </article>
+                                    <article class="school-value-card">
+                                        <h4>Rangatiratanga</h4>
+                                        <ul>
+                                            <li>Develop leadership with confidence, respect, self-determination, and teamwork.</li>
+                                            <li>Supports students to persist through challenge and frustration.</li>
+                                        </ul>
+                                        <textarea id="manual-value-rangatiratanga" rows="3" placeholder="How will this unit meet Rangatiratanga?"></textarea>
+                                    </article>
+                                    <article class="school-value-card">
+                                        <h4>Manaakitanga</h4>
+                                        <ul>
+                                            <li>Uplifting and empowering ourselves and others.</li>
+                                            <li>Promoting care and respect for people and relationships.</li>
+                                        </ul>
+                                        <textarea id="manual-value-manaakitanga" rows="3" placeholder="How will this unit meet Manaakitanga?"></textarea>
+                                    </article>
+                                    <article class="school-value-card">
+                                        <h4>Kaitiakitanga</h4>
+                                        <ul>
+                                            <li>Promoting guardianship and care for school values and the environment.</li>
+                                            <li>Building responsibility for sustainable and respectful practice.</li>
+                                        </ul>
+                                        <textarea id="manual-value-kaitiakitanga" rows="3" placeholder="How will this unit meet Kaitiakitanga?"></textarea>
+                                    </article>
+                                </div>
+                            </div>
+
+                            <div class="field field-wide context-field">
+                                <label>Contexts of Learning</label>
+                                <div class="contexts-table-shell">
+                                    <a class="contexts-symbol-link" href="https://theelearningcoach.com/elearning_design/context-in-learning-design/" target="_blank" rel="noreferrer" aria-label="Open pedagogical explanation for contexts of learning">
+                                        <span class="contexts-symbol-title">Contexts of Learning</span>
+                                        <svg class="contexts-symbol" viewBox="0 0 120 120" role="img" aria-label="Contexts symbol">
+                                            <circle cx="60" cy="60" r="56" fill="#ffffff" stroke="#90b5dd" stroke-width="4"></circle>
+                                            <path d="M60 60 L60 8 A52 52 0 0 1 105 37 Z" fill="#9fd0ff"></path>
+                                            <path d="M60 60 L105 37 A52 52 0 0 1 96 92 Z" fill="#ffd38d"></path>
+                                            <path d="M60 60 L96 92 A52 52 0 0 1 38 108 Z" fill="#a8ddb5"></path>
+                                            <path d="M60 60 L38 108 A52 52 0 0 1 14 55 Z" fill="#f3b0b0"></path>
+                                            <path d="M60 60 L14 55 A52 52 0 0 1 60 8 Z" fill="#cab8ff"></path>
+                                            <circle cx="60" cy="60" r="10" fill="#17395d"></circle>
+                                        </svg>
+                                        <span class="contexts-link-copy">Read pedagogy guide</span>
+                                    </a>
+                                    <div class="contexts-table">
+                                        <div class="contexts-row">
+                                            <div class="contexts-heading">Environment</div>
+                                            <textarea id="manual-context-environment" rows="3" placeholder="How does this unit meet the environment context?"></textarea>
+                                        </div>
+                                        <div class="contexts-row">
+                                            <div class="contexts-heading">Mental-Emotional</div>
+                                            <textarea id="manual-context-mental-emotional" rows="3" placeholder="How does this unit support mental-emotional context?"></textarea>
+                                        </div>
+                                        <div class="contexts-row">
+                                            <div class="contexts-heading">Culture</div>
+                                            <textarea id="manual-context-culture" rows="3" placeholder="How does this unit meet the culture context?"></textarea>
+                                        </div>
+                                        <div class="contexts-row">
+                                            <div class="contexts-heading">Social</div>
+                                            <textarea id="manual-context-social" rows="3" placeholder="How does this unit meet the social context?"></textarea>
+                                        </div>
+                                        <div class="contexts-row">
+                                            <div class="contexts-heading">Technology</div>
+                                            <textarea id="manual-context-technology" rows="3" placeholder="How does this unit meet the technology context?"></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="field field-wide local-curriculum-field">
+                                <label>Local Curriculum and Matauranga Maori</label>
+                                <div class="local-curriculum-shell">
+                                    <div class="local-curriculum-table">
+                                        <div class="local-curriculum-header">Local Curriculum Links</div>
+                                        <div class="local-curriculum-header">Matauranga Maori</div>
+                                        <textarea id="manual-local-curriculum-links" name="manualLocalCurriculumLinks" rows="4" placeholder="How does this unit connect to local context, place, or community?"></textarea>
+                                        <textarea id="manual-matauranga-maori" name="manualMataurangaMaori" rows="4" placeholder="How does this unit include Matauranga Maori concepts, knowledge, or perspectives?"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="field field-wide skills-field">
+                                <label>Skills</label>
+                                <div class="skills-table-shell">
+                                    <div class="skills-table-title">Skills</div>
+                                    <div class="skills-table">
+                                        <div class="skills-row">
+                                            <div class="skills-heading">Skills</div>
+                                            <textarea id="manual-skill-general" name="manualSkillGeneral" rows="4" placeholder="Core skills developed in this unit"></textarea>
+                                        </div>
+                                        <div class="skills-row">
+                                            <div class="skills-heading">Career &amp; Future-Focused Skills</div>
+                                            <textarea id="manual-skill-career-future" name="manualSkillCareerFuture" rows="4" placeholder="Career and future-focused skills developed in this unit"></textarea>
+                                        </div>
+                                        <div class="skills-row">
+                                            <div class="skills-heading">Considerations within Electronics</div>
+                                            <textarea id="manual-skill-electronics-considerations" name="manualSkillElectronicsConsiderations" rows="4" placeholder="Electronics-specific considerations and safe practice"></textarea>
+                                        </div>
+                                        <div class="skills-row">
+                                            <div class="skills-heading">Literacy</div>
+                                            <textarea id="manual-skill-literacy" name="manualSkillLiteracy" rows="4" placeholder="Literacy skills developed in this unit"></textarea>
+                                        </div>
+                                        <div class="skills-row">
+                                            <div class="skills-heading">Numeracy</div>
+                                            <textarea id="manual-skill-numeracy" name="manualSkillNumeracy" rows="3" placeholder="Numeracy skills developed in this unit"></textarea>
+                                        </div>
+                                        <div class="skills-row">
+                                            <div class="skills-heading">Digital Tech</div>
+                                            <textarea id="manual-skill-digital-tech" name="manualSkillDigitalTech" rows="4" placeholder="Digital technology skills developed in this unit"></textarea>
+                                        </div>
+                                        <div class="skills-row">
+                                            <div class="skills-heading">Practical</div>
+                                            <textarea id="manual-skill-practical" name="manualSkillPractical" rows="4" placeholder="Practical skills developed in this unit"></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="field field-wide health-safety-field">
+                                <label for="manual-health-safety-link">Health &amp; Safety</label>
+                                <div class="health-safety-shell" data-health-safety-editor="manual">
+                                    <div class="health-safety-title-row">
+                                        <span>Health &amp; Safety</span>
+                                        <input id="manual-health-safety-link" type="text" placeholder="Link or document reference">
+                                    </div>
+                                    <div class="health-safety-room-row">
+                                        <label for="manual-health-safety-room">Room / Space</label>
+                                        <input id="manual-health-safety-room" type="text" placeholder="Computing Room, Maker Lab, Workshop...">
+                                    </div>
+                                    <div class="health-safety-grid" aria-label="Health and safety issues and considerations table">
+                                        <div class="health-safety-column-header">Safety Issue</div>
+                                        <div class="health-safety-column-header">Health &amp; Safety Considerations</div>
+
+                                        <input data-health-safety-group="manual" data-health-safety-role="issue" type="text" placeholder="Soldering Equipment">
+                                        <textarea data-health-safety-group="manual" data-health-safety-role="consideration" rows="3" placeholder="Risk controls and expected safe practice"></textarea>
+
+                                        <input data-health-safety-group="manual" data-health-safety-role="issue" type="text" placeholder="Electrical Safety">
+                                        <textarea data-health-safety-group="manual" data-health-safety-role="consideration" rows="3" placeholder="Risk controls and expected safe practice"></textarea>
+
+                                        <input data-health-safety-group="manual" data-health-safety-role="issue" type="text" placeholder="Sharp Components &amp; Tools">
+                                        <textarea data-health-safety-group="manual" data-health-safety-role="consideration" rows="3" placeholder="Risk controls and expected safe practice"></textarea>
+
+                                        <input data-health-safety-group="manual" data-health-safety-role="issue" type="text" placeholder="Heat &amp; Fire Hazards">
+                                        <textarea data-health-safety-group="manual" data-health-safety-role="consideration" rows="3" placeholder="Risk controls and expected safe practice"></textarea>
+
+                                        <input data-health-safety-group="manual" data-health-safety-role="issue" type="text" placeholder="Fumes &amp; Ventilation">
+                                        <textarea data-health-safety-group="manual" data-health-safety-role="consideration" rows="3" placeholder="Risk controls and expected safe practice"></textarea>
+
+                                        <input data-health-safety-group="manual" data-health-safety-role="issue" type="text" placeholder="Trip &amp; Workspace Hazards">
+                                        <textarea data-health-safety-group="manual" data-health-safety-role="consideration" rows="3" placeholder="Risk controls and expected safe practice"></textarea>
+
+                                        <input data-health-safety-group="manual" data-health-safety-role="issue" type="text" placeholder="Tool Misuse">
+                                        <textarea data-health-safety-group="manual" data-health-safety-role="consideration" rows="3" placeholder="Risk controls and expected safe practice"></textarea>
+
+                                        <input data-health-safety-group="manual" data-health-safety-role="issue" type="text" placeholder="Other Hazard">
+                                        <textarea data-health-safety-group="manual" data-health-safety-role="consideration" rows="3" placeholder="Risk controls and expected safe practice"></textarea>
+                                    </div>
+                                    <textarea id="manual-health-safety" name="manualHealthSafety" hidden></textarea>
+                                </div>
+                            </div>
+
+                            <div class="field field-wide achievement-objectives-field">
+                                <label>Achievement Objectives (NZ Curriculum - Technology)</label>
+                                <div class="achievement-slider-container">
+                                    <div class="slider-header">
+                                        <span class="slider-label">Student Working Level:</span>
+                                        <span id="manual-achievement-level-display" class="level-display">Level 4</span>
+                                    </div>
+                                    <input type="range" id="manual-achievement-slider" class="achievement-slider" min="4" max="8" value="4" step="1" aria-label="Achievement objectives level">
+                                    <div class="slider-levels">
+                                        <span>Level 4</span>
+                                        <span>Level 5</span>
+                                        <span>Level 6</span>
+                                        <span>Level 7</span>
+                                        <span>Level 8</span>
+                                    </div>
+                                    <div id="manual-achievement-objectives" class="achievement-objectives-display"></div>
+                                    <input type="hidden" id="manual-selected-achievement-level" name="achievementLevel" value="4">
+                                </div>
+                            </div>
+
+                            <div class="field field-wide">
+                                <label for="manual-assessment-link">Assessment / End Point</label>
+                                <textarea id="manual-assessment-link" name="assessmentLink" rows="3" placeholder="How will this unit lead into an assessment or final outcome?"></textarea>
+                            </div>
+
+                            <div class="field field-wide">
+                                <label for="manual-notes">Planning Notes</label>
+                                <textarea id="manual-notes" name="unitNotes" rows="3" placeholder="General unit notes, resourcing, differentiation, or reminders"></textarea>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="form-section unit-topics-section">
+                        <legend>Unit Topics and Lesson Allocation</legend>
+                        <p class="help-text unit-topics-help">Add your Unit Topics here, then choose one for each lesson in the Lesson Planner below.</p>
+                        <div class="unit-topics-manager">
+                            <div class="unit-topics-add-row">
+                                <input id="manual-unit-topic-input" type="text" placeholder="Type a Unit Topic, then click Add Topic">
+                                <button id="manual-add-unit-topic" class="button button-secondary unit-topics-add-button" type="button">Add Topic</button>
+                            </div>
+                            <div id="manual-unit-topics-list" class="unit-topics-list" aria-live="polite"></div>
+                            <div id="manual-unit-topics-table" class="unit-topics-pill-table" hidden></div>
+                            <textarea id="manual-unit-topics" name="unitTopics" hidden></textarea>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="form-section">
+                        <legend>Lesson Planner</legend>
+                        <p class="help-text">Add one row per lesson. Mark each lesson to publish it to the Activity Library or place it on the shared calendar.</p>
+                        <div class="unit-plan-toolbar">
+                            <button id="add-lesson" class="button button-secondary" type="button">Add Lesson</button>
+                        </div>
+                        <div id="lesson-list" class="lesson-list"></div>
+                    </fieldset>
+
+                    <div class="form-actions">
+                        <button id="save-manual-unit-button" class="button-save" type="submit">Save Unit Plan</button>
+                        <p id="manual-save-status" class="upload-status manual-save-status" aria-live="polite" hidden></p>
+                        <button id="cancel-manual-upload" class="button-cancel" type="button">Cancel</button>
+                        <button id="clear-manual-form" class="button button-secondary" type="button">Clear Form</button>
+                    </div>
+                </form>
+            </section>
+
+            <section id="unit-preview-panel" class="upload-panel" aria-label="Preview imported unit plan" hidden>
+                <form id="unit-preview-form" class="upload-form">
+                    <fieldset class="form-section">
+                        <legend>Preview Parsed Unit Plan</legend>
+                        <p id="preview-source" class="help-text"></p>
+                        <div class="form-grid">
+                            <div class="field">
+                                <label for="preview-title">Unit Title</label>
+                                <input id="preview-title" name="title" type="text">
+                            </div>
+                            <div class="field">
+                                <label for="preview-topic">Topic Type</label>
+                                <select id="preview-topic" name="topic" disabled>
+                                    <option value="">Select topic type</option>
+                                    <option>Office Suite</option>
+                                    <option>Programming</option>
+                                    <option>Electronics</option>
+                                    <option>Digital Media</option>
+                                    <option>Project Management</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="preview-year-level">Year Level</label>
+                                <select id="preview-year-level" name="year_level" multiple size="10">
+                                    <option>Junior</option>
+                                    <option>Year 7</option>
+                                    <option>Year 8</option>
+                                    <option>Middle</option>
+                                    <option>Year 9</option>
+                                    <option>Year 10</option>
+                                    <option>Senior</option>
+                                    <option>Year 11</option>
+                                    <option>Year 12</option>
+                                    <option>Year 13</option>
+                                </select>
+                                <p class="help-text">Hold Ctrl on Windows or Command on Mac to select multiple classes.</p>
+                            </div>
+                            <div class="field">
+                                <label for="preview-subject-stream">Subject Stream</label>
+                                <input id="preview-subject-stream" name="subject_stream" type="text">
+                            </div>
+                            <div class="field field-wide">
+                                <label for="preview-overview">Unit Overview</label>
+                                <textarea id="preview-overview" name="overview" rows="3"></textarea>
+                            </div>
+                            <div class="field field-wide">
+                                <label for="preview-aims">Aims (one per line)</label>
+                                <textarea id="preview-aims" name="unit_aims" rows="10"></textarea>
+                            </div>
+                            <div class="field field-wide school-values-field">
+                                <label>School Values</label>
+                                <div class="school-values-grid">
+                                    <article class="school-value-card">
+                                        <h4>Whanaungatanga</h4>
+                                        <ul>
+                                            <li>Actively building and contributing to positive connections with others.</li>
+                                            <li>Encourages sharing learning with peers to deepen understanding.</li>
+                                        </ul>
+                                        <textarea id="preview-value-whanaungatanga" rows="3" placeholder="How will this unit meet Whanaungatanga?"></textarea>
+                                    </article>
+                                    <article class="school-value-card">
+                                        <h4>Rangatiratanga</h4>
+                                        <ul>
+                                            <li>Develop leadership with confidence, respect, self-determination, and teamwork.</li>
+                                            <li>Supports students to persist through challenge and frustration.</li>
+                                        </ul>
+                                        <textarea id="preview-value-rangatiratanga" rows="3" placeholder="How will this unit meet Rangatiratanga?"></textarea>
+                                    </article>
+                                    <article class="school-value-card">
+                                        <h4>Manaakitanga</h4>
+                                        <ul>
+                                            <li>Uplifting and empowering ourselves and others.</li>
+                                            <li>Promoting care and respect for people and relationships.</li>
+                                        </ul>
+                                        <textarea id="preview-value-manaakitanga" rows="3" placeholder="How will this unit meet Manaakitanga?"></textarea>
+                                    </article>
+                                    <article class="school-value-card">
+                                        <h4>Kaitiakitanga</h4>
+                                        <ul>
+                                            <li>Promoting guardianship and care for school values and the environment.</li>
+                                            <li>Building responsibility for sustainable and respectful practice.</li>
+                                        </ul>
+                                        <textarea id="preview-value-kaitiakitanga" rows="3" placeholder="How will this unit meet Kaitiakitanga?"></textarea>
+                                    </article>
+                                </div>
+                            </div>
+                            <div class="field field-wide context-field">
+                                <label>Contexts of Learning</label>
+                                <div class="contexts-table-shell">
+                                    <a class="contexts-symbol-link" href="https://theelearningcoach.com/elearning_design/context-in-learning-design/" target="_blank" rel="noreferrer" aria-label="Open pedagogical explanation for contexts of learning">
+                                        <span class="contexts-symbol-title">Contexts of Learning</span>
+                                        <svg class="contexts-symbol" viewBox="0 0 120 120" role="img" aria-label="Contexts symbol">
+                                            <circle cx="60" cy="60" r="56" fill="#ffffff" stroke="#90b5dd" stroke-width="4"></circle>
+                                            <path d="M60 60 L60 8 A52 52 0 0 1 105 37 Z" fill="#9fd0ff"></path>
+                                            <path d="M60 60 L105 37 A52 52 0 0 1 96 92 Z" fill="#ffd38d"></path>
+                                            <path d="M60 60 L96 92 A52 52 0 0 1 38 108 Z" fill="#a8ddb5"></path>
+                                            <path d="M60 60 L38 108 A52 52 0 0 1 14 55 Z" fill="#f3b0b0"></path>
+                                            <path d="M60 60 L14 55 A52 52 0 0 1 60 8 Z" fill="#cab8ff"></path>
+                                            <circle cx="60" cy="60" r="10" fill="#17395d"></circle>
+                                        </svg>
+                                        <span class="contexts-link-copy">Read pedagogy guide</span>
+                                    </a>
+                                    <div class="contexts-table">
+                                        <div class="contexts-row">
+                                            <div class="contexts-heading">Environment</div>
+                                            <textarea id="preview-context-environment" rows="3" placeholder="How does this unit meet the environment context?"></textarea>
+                                        </div>
+                                        <div class="contexts-row">
+                                            <div class="contexts-heading">Mental-Emotional</div>
+                                            <textarea id="preview-context-mental-emotional" rows="3" placeholder="How does this unit support mental-emotional context?"></textarea>
+                                        </div>
+                                        <div class="contexts-row">
+                                            <div class="contexts-heading">Culture</div>
+                                            <textarea id="preview-context-culture" rows="3" placeholder="How does this unit meet the culture context?"></textarea>
+                                        </div>
+                                        <div class="contexts-row">
+                                            <div class="contexts-heading">Social</div>
+                                            <textarea id="preview-context-social" rows="3" placeholder="How does this unit meet the social context?"></textarea>
+                                        </div>
+                                        <div class="contexts-row">
+                                            <div class="contexts-heading">Technology</div>
+                                            <textarea id="preview-context-technology" rows="3" placeholder="How does this unit meet the technology context?"></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="field field-wide local-curriculum-field">
+                                <label>Local Curriculum and Matauranga Maori</label>
+                                <div class="local-curriculum-shell">
+                                    <div class="local-curriculum-table">
+                                        <div class="local-curriculum-header">Local Curriculum Links</div>
+                                        <div class="local-curriculum-header">Matauranga Maori</div>
+                                        <textarea id="preview-local-curriculum-links" name="previewLocalCurriculumLinks" rows="4" placeholder="How does this unit connect to local context, place, or community?"></textarea>
+                                        <textarea id="preview-matauranga-maori" name="previewMataurangaMaori" rows="4" placeholder="How does this unit include Matauranga Maori concepts, knowledge, or perspectives?"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="field field-wide skills-field">
+                                <label>Skills</label>
+                                <div class="skills-table-shell">
+                                    <div class="skills-table-title">Skills</div>
+                                    <div class="skills-table">
+                                        <div class="skills-row">
+                                            <div class="skills-heading">Skills</div>
+                                            <textarea id="preview-skill-general" name="previewSkillGeneral" rows="4" placeholder="Core skills developed in this unit"></textarea>
+                                        </div>
+                                        <div class="skills-row">
+                                            <div class="skills-heading">Career &amp; Future-Focused Skills</div>
+                                            <textarea id="preview-skill-career-future" name="previewSkillCareerFuture" rows="4" placeholder="Career and future-focused skills developed in this unit"></textarea>
+                                        </div>
+                                        <div class="skills-row">
+                                            <div class="skills-heading">Considerations within Electronics</div>
+                                            <textarea id="preview-skill-electronics-considerations" name="previewSkillElectronicsConsiderations" rows="4" placeholder="Electronics-specific considerations and safe practice"></textarea>
+                                        </div>
+                                        <div class="skills-row">
+                                            <div class="skills-heading">Literacy</div>
+                                            <textarea id="preview-skill-literacy" name="previewSkillLiteracy" rows="4" placeholder="Literacy skills developed in this unit"></textarea>
+                                        </div>
+                                        <div class="skills-row">
+                                            <div class="skills-heading">Numeracy</div>
+                                            <textarea id="preview-skill-numeracy" name="previewSkillNumeracy" rows="3" placeholder="Numeracy skills developed in this unit"></textarea>
+                                        </div>
+                                        <div class="skills-row">
+                                            <div class="skills-heading">Digital Tech</div>
+                                            <textarea id="preview-skill-digital-tech" name="previewSkillDigitalTech" rows="4" placeholder="Digital technology skills developed in this unit"></textarea>
+                                        </div>
+                                        <div class="skills-row">
+                                            <div class="skills-heading">Practical</div>
+                                            <textarea id="preview-skill-practical" name="previewSkillPractical" rows="4" placeholder="Practical skills developed in this unit"></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="field field-wide health-safety-field">
+                                <label for="preview-health-safety-link">Health &amp; Safety</label>
+                                <div class="health-safety-shell" data-health-safety-editor="preview">
+                                    <div class="health-safety-title-row">
+                                        <span>Health &amp; Safety</span>
+                                        <input id="preview-health-safety-link" type="text" placeholder="Link or document reference">
+                                    </div>
+                                    <div class="health-safety-room-row">
+                                        <label for="preview-health-safety-room">Room / Space</label>
+                                        <input id="preview-health-safety-room" type="text" placeholder="Computing Room, Maker Lab, Workshop...">
+                                    </div>
+                                    <div class="health-safety-grid" aria-label="Health and safety issues and considerations table">
+                                        <div class="health-safety-column-header">Safety Issue</div>
+                                        <div class="health-safety-column-header">Health &amp; Safety Considerations</div>
+
+                                        <input data-health-safety-group="preview" data-health-safety-role="issue" type="text" placeholder="Soldering Equipment">
+                                        <textarea data-health-safety-group="preview" data-health-safety-role="consideration" rows="3" placeholder="Risk controls and expected safe practice"></textarea>
+
+                                        <input data-health-safety-group="preview" data-health-safety-role="issue" type="text" placeholder="Electrical Safety">
+                                        <textarea data-health-safety-group="preview" data-health-safety-role="consideration" rows="3" placeholder="Risk controls and expected safe practice"></textarea>
+
+                                        <input data-health-safety-group="preview" data-health-safety-role="issue" type="text" placeholder="Sharp Components &amp; Tools">
+                                        <textarea data-health-safety-group="preview" data-health-safety-role="consideration" rows="3" placeholder="Risk controls and expected safe practice"></textarea>
+
+                                        <input data-health-safety-group="preview" data-health-safety-role="issue" type="text" placeholder="Heat &amp; Fire Hazards">
+                                        <textarea data-health-safety-group="preview" data-health-safety-role="consideration" rows="3" placeholder="Risk controls and expected safe practice"></textarea>
+
+                                        <input data-health-safety-group="preview" data-health-safety-role="issue" type="text" placeholder="Fumes &amp; Ventilation">
+                                        <textarea data-health-safety-group="preview" data-health-safety-role="consideration" rows="3" placeholder="Risk controls and expected safe practice"></textarea>
+
+                                        <input data-health-safety-group="preview" data-health-safety-role="issue" type="text" placeholder="Trip &amp; Workspace Hazards">
+                                        <textarea data-health-safety-group="preview" data-health-safety-role="consideration" rows="3" placeholder="Risk controls and expected safe practice"></textarea>
+
+                                        <input data-health-safety-group="preview" data-health-safety-role="issue" type="text" placeholder="Tool Misuse">
+                                        <textarea data-health-safety-group="preview" data-health-safety-role="consideration" rows="3" placeholder="Risk controls and expected safe practice"></textarea>
+
+                                        <input data-health-safety-group="preview" data-health-safety-role="issue" type="text" placeholder="Other Hazard">
+                                        <textarea data-health-safety-group="preview" data-health-safety-role="consideration" rows="3" placeholder="Risk controls and expected safe practice"></textarea>
+                                    </div>
+                                    <textarea id="preview-health-safety" name="previewHealthSafety" hidden></textarea>
+                                </div>
+                            </div>
+                            <div class="field field-wide achievement-objectives-field">
+                                <label>Achievement Objectives (NZ Curriculum - Technology)</label>
+                                <div class="achievement-slider-container">
+                                    <div class="slider-header">
+                                        <span class="slider-label">Student Working Level:</span>
+                                        <span id="preview-achievement-level-display" class="level-display">Level 4</span>
+                                    </div>
+                                    <input type="range" id="preview-achievement-slider" class="achievement-slider" min="4" max="8" value="4" step="1" aria-label="Achievement objectives level">
+                                    <div class="slider-levels">
+                                        <span>Level 4</span>
+                                        <span>Level 5</span>
+                                        <span>Level 6</span>
+                                        <span>Level 7</span>\n                                        <span>Level 8</span>
+                                    </div>
+                                    <div id="preview-achievement-objectives" class="achievement-objectives-display"></div>
+                                    <input type="hidden" id="preview-selected-achievement-level" name="achievementLevel" value="4">
+                                </div>
+                            </div>
+                            <div class="field field-wide">
+                                <label for="preview-assessment-link">Assessment / End Point</label>
+                                <textarea id="preview-assessment-link" name="assessment_link" rows="3"></textarea>
+                            </div>
+                            <div class="field field-wide">
+                                <label for="preview-notes">Planning Notes</label>
+                                <textarea id="preview-notes" name="notes" rows="3"></textarea>
+                            </div>
+                            <div class="field field-wide">
+                                <label for="preview-lessons-json">Lessons JSON</label>
+                                <textarea id="preview-lessons-json" name="lessons" rows="10"></textarea>
+                                <p class="help-text">Advanced: keep valid JSON array format for lessons.</p>
+                            </div>
+                        </div>
+                    </fieldset>
+                    <div class="form-actions">
+                        <button id="save-preview-button" class="button-save" type="submit">Save Unit Plan</button>
+                    </div>
+                </form>
+            </section>
+
+            <footer id="global-footer" class="global-hub-footer" aria-label="Hub suggestions and links">
+                <a class="button button-primary global-suggest-button" href="/suggest-activity.html">Suggest a Project or Activity</a>
+                <p class="global-footer-copy">&copy; 2026 Westland High School — Computer Lab &amp; DTECH HUB</p>
+            </footer>
+        </main>
+    </div>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="script.js"></script>
+    <script src="upload-unit.js"></script>
+</body>
+</html>

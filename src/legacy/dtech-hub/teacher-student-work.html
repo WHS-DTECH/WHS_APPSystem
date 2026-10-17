@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Work Tracker | Computer Lab</title>
+  <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+  <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+  <link rel="icon" type="image/x-icon" href="images/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .work-page {
+      width: min(1500px, calc(100% - 28px));
+      margin: 20px auto 40px;
+    }
+
+    .work-page .panel-section {
+      width: 100%;
+      max-width: none;
+    }
+
+    .work-header h1 {
+      margin: 0 0 6px;
+      font-family: "Fraunces", serif;
+      color: #173f63;
+      font-size: clamp(1.5rem, 3.5vw, 2.2rem);
+    }
+
+    .work-header p {
+      margin: 0 0 12px;
+      color: #4a6077;
+      font-size: 0.9rem;
+    }
+
+    .work-status {
+      min-height: 1.2em;
+      margin: 6px 0 0;
+      font-size: 0.8rem;
+      color: #355879;
+    }
+
+    .work-status.is-error {
+      color: #b23939;
+    }
+
+    .task-link-grid {
+      display: grid;
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+
+    .task-link-group {
+      border: 1px solid #c6d6ea;
+      border-radius: 10px;
+      background: #f8fbff;
+      padding: 10px;
+    }
+
+    .task-link-group h3 {
+      margin: 0 0 8px;
+      color: #163f66;
+      font-size: 0.95rem;
+      font-family: "Fraunces", serif;
+    }
+
+    .task-link-grid-group {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 10px;
+    }
+
+    .task-link-card {
+      border: 1px solid #c6d6ea;
+      border-radius: 10px;
+      background: #f7fbff;
+      padding: 10px 12px;
+    }
+
+    .task-link-card h3 {
+      margin: 0;
+      font-size: 0.95rem;
+      color: #173f63;
+      line-height: 1.25;
+    }
+
+    .task-link-meta {
+      margin-top: 6px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      font-size: 0.74rem;
+      color: #3e5f81;
+    }
+
+    .task-link-meta span {
+      border: 1px solid #c4d5e8;
+      border-radius: 999px;
+      background: #edf4fc;
+      padding: 2px 8px;
+      font-weight: 700;
+    }
+
+    .task-link-card a {
+      display: inline-block;
+      margin-top: 8px;
+      text-decoration: none;
+      color: #2f74b9;
+      font-weight: 700;
+      font-size: 0.8rem;
+    }
+
+    .task-link-card a:hover {
+      text-decoration: underline;
+    }
+
+    .tracker-summary {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .tracker-summary span {
+      border: 1px solid #c3d4e8;
+      background: #edf4fc;
+      border-radius: 999px;
+      padding: 3px 10px;
+      font-size: 0.75rem;
+      color: #21496f;
+      font-weight: 700;
+    }
+
+    .student-summary-toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      margin: 10px 0 8px;
+    }
+
+    .student-tracker-comments-toolbar {
+      align-items: center;
+    }
+
+    .student-tracker-comments-toolbar .student-summary-actions {
+      width: auto;
+      margin-left: auto;
+    }
+
+    .student-tracker-comments-toolbar .student-summary-search {
+      width: min(260px, 100%);
+      margin-left: 8px;
+    }
+
+    body.process-tracker-embed .hero,
+    body.process-tracker-embed .work-header,
+    body.process-tracker-embed #digital-media-summary-heading,
+    body.process-tracker-embed #digital-media-summary-toolbar,
+    body.process-tracker-embed #digital-media-summary-grid,
+    body.process-tracker-embed #external-assessment-section,
+    body.process-tracker-embed #criteria-library-section,
+    body.process-tracker-embed .hub-global-sidebar-toggle,
+    body.process-tracker-embed .hub-global-sidebar-backdrop,
+    body.process-tracker-embed .hub-global-sidebar {
+      display: none !important;
+    }
+
+    body.digital-media-tracker-embed .hero,
+    body.digital-media-tracker-embed .work-header,
+    body.digital-media-tracker-embed #process-summary-toolbar,
+    body.digital-media-tracker-embed #process-summary-heading,
+    body.digital-media-tracker-embed #student-summary-grid,
+    body.digital-media-tracker-embed #criteria-library-section,
+    body.digital-media-tracker-embed .hub-global-sidebar-toggle,
+    body.digital-media-tracker-embed .hub-global-sidebar-backdrop,
+    body.digital-media-tracker-embed .hub-global-sidebar {
+      display: none !important;
+    }
+
+    body.external-tracker-embed .hero,
+    body.external-tracker-embed .work-header,
+    body.external-tracker-embed #process-summary-toolbar,
+    body.external-tracker-embed #process-summary-heading,
+    body.external-tracker-embed #student-summary-grid,
+    body.external-tracker-embed #digital-media-summary-heading,
+    body.external-tracker-embed #digital-media-summary-toolbar,
+    body.external-tracker-embed #digital-media-summary-grid,
+    body.external-tracker-embed #criteria-library-section,
+    body.external-tracker-embed .hub-global-sidebar-toggle,
+    body.external-tracker-embed .hub-global-sidebar-backdrop,
+    body.external-tracker-embed .hub-global-sidebar {
+      display: none !important;
+    }
+
+    body.process-tracker-embed .page-shell,
+    body.digital-media-tracker-embed .page-shell,
+    body.external-tracker-embed .page-shell {
+      min-height: 0;
+    }
+
+    body.process-tracker-embed .work-page,
+    body.digital-media-tracker-embed .work-page,
+    body.external-tracker-embed .work-page {
+      width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    body.process-tracker-embed .work-page > .panel-section,
+    body.digital-media-tracker-embed .work-page > .panel-section,
+    body.external-tracker-embed .work-page > .panel-section {
+      width: 100%;
+      margin: 0;
+      border: 0;
+      box-shadow: none;
+    }
+
+    .external-assessment-select {
+      width: 100%;
+      min-width: 150px;
+      min-height: 32px;
+      padding: 5px 8px;
+      border: 1px solid #b9cde3;
+      border-radius: 7px;
+      background: #ffffff;
+      color: #173f68;
+      font: inherit;
+      font-size: 0.76rem;
+      font-weight: 700;
+    }
+
+    .external-assessment-select:focus {
+      outline: 2px solid #5c91c2;
+      outline-offset: 1px;
+    }
+
+    .external-assessment-select:disabled {
+      opacity: 0.65;
+      cursor: wait;
+    }
+
+    .external-assessment-status {
+      min-height: 18px;
+      margin: 4px 0 8px;
+      color: #2c658d;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    .external-assessment-status.is-error {
+      color: #9f2f2f;
+    }
+
+    .external-assessment-filter {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin: 4px 0 8px;
+      color: #244f73;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .external-assessment-filter input {
+      width: 16px;
+      height: 16px;
+      accent-color: #235f91;
+    }
+
+    .student-summary-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      width: 100%;
+    }
+
+    .student-summary-action {
+      border: 1px solid #4a81b2;
+      border-radius: 7px;
+      background: #edf5fc;
+      color: #1f5688;
+      cursor: pointer;
+      font: inherit;
+      font-size: 0.78rem;
+      font-weight: 800;
+      padding: 7px 10px;
+    }
+
+    .student-summary-action:hover {
+      background: #dcecf9;
+    }
+
+    .student-summary-search {
+      width: min(360px, 100%);
+      border: 1px solid #b9cce3;
+      border-radius: 8px;
+      background: #f8fbff;
+      color: #173f63;
+      font: inherit;
+      font-size: 0.86rem;
+      font-weight: 700;
+      padding: 8px 10px;
+      outline: none;
+    }
+
+    .student-summary-search:focus {
+      border-color: #3b82c4;
+      box-shadow: 0 0 0 3px rgba(59, 130, 196, 0.16);
+    }
+
+    .student-summary-heading {
+      margin: 12px 0 8px;
+      color: #173f63;
+      font-family: "Fraunces", serif;
+      font-size: 1.08rem;
+    }
+
+    .student-standard-chip {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid #c7d6e9;
+      border-radius: 999px;
+      background: #edf4fc;
+      color: #1f5688;
+      font-size: 0.76rem;
+      font-weight: 800;
+      padding: 2px 9px;
+      text-decoration: none;
+    }
+
+    .student-standard-chip:hover {
+      text-decoration: underline;
+    }
+
+    .student-standard-chip.is-empty {
+      color: #6b7e92;
+      background: #f5f8fc;
+    }
+
+    .student-media-type-chip {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid #d7c9a6;
+      border-radius: 999px;
+      background: #fff8e7;
+      color: #6e5730;
+      font-size: 0.76rem;
+      font-weight: 800;
+      padding: 2px 9px;
+      white-space: nowrap;
+    }
+
+    .student-media-type-chip.is-empty {
+      border-color: #c7d6e9;
+      background: #f5f8fc;
+      color: #6b7e92;
+    }
+
+    .student-drive-chip {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid #b9d9c3;
+      border-radius: 999px;
+      background: #eaf8ef;
+      color: #1f663d;
+      font-size: 0.76rem;
+      font-weight: 800;
+      padding: 2px 9px;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .student-drive-chip:hover {
+      text-decoration: underline;
+    }
+
+    .student-drive-chip.is-empty {
+      border-color: #c7d6e9;
+      background: #f5f8fc;
+      color: #6b7e92;
+    }
+
+    .work-table-wrap {
+      overflow-x: auto;
+      border: 1px solid #ccd8e8;
+      border-radius: 10px;
+      background: #f6f9fd;
+      padding: 10px;
+    }
+
+    .work-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+      min-width: 980px;
+    }
+
+    .work-table th {
+      text-align: left;
+      padding: 7px 10px;
+      background: #e6eef8;
+      color: #153e64;
+      border-bottom: 2px solid #c5d6ea;
+    }
+
+    .work-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #dbe5f1;
+      vertical-align: middle;
+    }
+
+    .work-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .slides-pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      border: 1px solid;
+    }
+
+    .slides-pill.is-linked {
+      background: #dff4e7;
+      color: #1f663d;
+      border-color: #add7bc;
+    }
+
+    .slides-pill.is-missing {
+      background: #fff2f2;
+      color: #8b2f2f;
+      border-color: #e4bbbb;
+    }
+
+    .submitted-pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      border: 1px solid;
+      background: #edf3fc;
+      color: #2a4f76;
+      border-color: #c3d2e7;
+    }
+
+    .work-empty {
+      border: 1px dashed #c5d3e6;
+      border-radius: 10px;
+      background: #f8fbff;
+      padding: 24px;
+      text-align: center;
+      color: #607792;
+    }
+
+    .work-link-list {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .work-link-list a {
+      font-size: 0.74rem;
+      text-decoration: none;
+      color: #2f74b9;
+      border: 1px solid #c7d7ea;
+      border-radius: 999px;
+      background: #edf4fc;
+      padding: 2px 8px;
+      font-weight: 700;
+    }
+
+    .student-summary-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      min-width: 1120px;
+    }
+
+    .student-summary-table th {
+      text-align: left;
+      padding: 7px 10px;
+      background: #e6eef8;
+      color: #153e64;
+      border-bottom: 2px solid #c5d6ea;
+    }
+
+    .student-summary-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #dbe5f1;
+      vertical-align: top;
+    }
+
+    .student-comments-table {
+      min-width: 680px;
+    }
+
+    .student-comments-table th:last-child,
+    .student-comments-table td:last-child {
+      width: 60%;
+    }
+
+    .student-tracker-comment-input {
+      display: block;
+      width: 100%;
+      min-width: 280px;
+      border: 1px solid #b9cce3;
+      border-radius: 7px;
+      background: #ffffff;
+      color: #173f63;
+      font: inherit;
+      font-size: 0.82rem;
+      line-height: 1.35;
+      padding: 7px 8px;
+      resize: vertical;
+    }
+
+    .student-tracker-comment-scope {
+      display: block;
+      width: 100%;
+      margin-bottom: 6px;
+      border: 1px solid #b9cce3;
+      border-radius: 7px;
+      background: #f8fbff;
+      color: #173f63;
+      font: inherit;
+      font-size: 0.76rem;
+      font-weight: 700;
+      padding: 5px 7px;
+    }
+
+    .student-tracker-comment-input:focus {
+      border-color: #3b82c4;
+      box-shadow: 0 0 0 3px rgba(59, 130, 196, 0.16);
+      outline: none;
+    }
+
+    .student-tracker-comment-input:disabled {
+      opacity: 0.65;
+      cursor: wait;
+    }
+
+    .student-tracker-email-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 6px;
+      flex-wrap: wrap;
+    }
+
+    .student-tracker-email-scope {
+      min-width: 180px;
+      flex: 1 1 180px;
+      border: 1px solid #b9cce3;
+      border-radius: 7px;
+      background: #f8fbff;
+      color: #173f63;
+      font: inherit;
+      font-size: 0.76rem;
+      font-weight: 700;
+      padding: 5px 7px;
+    }
+
+    .student-tracker-email-button {
+      padding: 5px 8px;
+      white-space: nowrap;
+    }
+
+    .student-tracker-email-button:disabled {
+      opacity: 0.65;
+      cursor: wait;
+    }
+
+    .student-tracker-email-status {
+      flex-basis: 100%;
+      color: #1f663d;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+
+    .student-tracker-email-status.is-error {
+      color: #9f2f2f;
+    }
+
+    .student-summary-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-decoration: none;
+      border: 1px solid;
+      cursor: pointer;
+      font-family: inherit;
+      line-height: 1.2;
+    }
+
+    .student-summary-chip::after {
+      content: "+";
+      color: #315a82;
+      font-size: 0.72rem;
+      font-weight: 900;
+      margin-left: 2px;
+    }
+
+    .student-summary-chip.is-expanded::after {
+      content: "-";
+    }
+
+    .student-summary-chip:focus-visible {
+      outline: 3px solid rgba(59, 130, 196, 0.24);
+      outline-offset: 2px;
+    }
+
+    .student-summary-chip.is-none {
+      background: #f3f7fc;
+      color: #4b6784;
+      border-color: #c7d6e9;
+    }
+
+    .student-summary-chip.is-partial {
+      background: #fff8e7;
+      color: #6e5730;
+      border-color: #d7c9a6;
+    }
+
+    .student-summary-chip.is-all {
+      background: #dff4e7;
+      color: #1f663d;
+      border-color: #add7bc;
+    }
+
+    .student-summary-expanded-row td {
+      background: #f8fbff;
+      padding: 0 10px 12px;
+    }
+
+    .student-summary-detail-panel {
+      width: 100%;
+      margin-top: 4px;
+      border: 1px solid #bfd3eb;
+      border-radius: 8px;
+      background: #f8fbff;
+      box-shadow: inset 3px 0 0 #2f74b9;
+      padding: 10px;
+    }
+
+    .student-summary-detail-heading {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+      color: #173f63;
+      font-size: 0.82rem;
+    }
+
+    .student-summary-detail-heading span {
+      color: #3f5d79;
+      font-weight: 800;
+    }
+
+    .student-summary-grade-category {
+      margin-top: 10px;
+    }
+
+    .student-summary-grade-category h3 {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 0;
+      padding: 6px 8px;
+      border: 1px solid #b9cfe4;
+      border-left: 3px solid #2f74b9;
+      background: #eaf3fa;
+      color: #173f63;
+      font-size: 0.76rem;
+      font-weight: 900;
+      letter-spacing: 0.03em;
+    }
+
+    .student-summary-grade-category h3 span {
+      font-size: 0.72rem;
+      letter-spacing: 0;
+    }
+
+    .student-summary-detail-group + .student-summary-detail-group {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #d8e4f2;
+    }
+
+    .student-summary-detail-group h4 {
+      margin: 0 0 6px;
+      color: #173f63;
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+
+    .student-summary-detail-group ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 4px;
+    }
+
+    .student-summary-detail-group li {
+      display: grid;
+      grid-template-columns: 18px minmax(0, 1fr) auto;
+      gap: 6px;
+      align-items: center;
+      border: 1px solid #d6e3f1;
+      border-radius: 6px;
+      background: #fff;
+      padding: 5px 6px;
+    }
+
+    .student-summary-detail-group li.is-complete {
+      background: #eef8f1;
+      border-color: #b7dbc3;
+    }
+
+    .student-summary-detail-group li.is-partial {
+      background: #fff9ea;
+      border-color: #ddcca5;
+    }
+
+    .student-summary-detail-status {
+      font-weight: 900;
+      color: #245b86;
+      text-align: center;
+    }
+
+    .student-summary-detail-group a {
+      color: #1f5688;
+      font-weight: 700;
+      text-decoration: none;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .student-summary-detail-group a:hover {
+      text-decoration: underline;
+    }
+
+    .student-summary-detail-group li span:last-child {
+      color: #516b86;
+      font-size: 0.72rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 720px) {
+      .student-summary-detail-group li {
+        grid-template-columns: 18px minmax(0, 1fr);
+      }
+
+      .student-summary-detail-group li span:last-child {
+        grid-column: 2;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-shell">
+    <header class="hero">
+      <nav class="topbar" aria-label="Primary">
+        <a class="brand" href="index.html">Computer Lab</a>
+        <div class="topbar-right">
+          <div class="topbar-links">
+            <a href="teacher-view.html">Teacher View</a>
+            <a href="class-management.html">Class Management</a>
+            <a href="teacher-student-work.html" aria-current="page">Student Work Tracker</a>
+            <a href="teacher-project-allocation.html">Project Allocations</a>
+            <a href="teacher-assessment-allocation.html">Assessment Allocations</a>
+            <a href="upload-menu.html">Upload Menu</a>
+          </div>
+          <div class="utility-actions" aria-label="Utility actions">
+            <a id="hub-staff-link" href="teacher-view.html" hidden>Teacher View</a>
+            <a id="hub-admin-link" href="admin-menu.html" hidden>Admin Menu</a>
+            <span id="hub-access-badge" class="hub-access-badge" hidden aria-live="polite"></span>
+            <button id="hub-google-signin" class="google-signin-button" type="button">Sign in with Google</button>
+            <button id="hub-google-signout" type="button" hidden>Sign out</button>
+            <button id="hub-user-badge" class="user-badge" type="button" hidden aria-label="Open profile" aria-haspopup="true" aria-expanded="false"></button>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="work-page">
+      <section class="panel-section work-header">
+        <h1>Student Work Tracker By Task Item</h1>
+        <p>Open a task item page to see all students across assessment tasks and who has connected required evidence (for example Google Slides).</p>
+        <p id="work-status" class="work-status" aria-live="polite"></p>
+      </section>
+
+      <section class="panel-section">
+        <h2>My Students</h2>
+        <p class="section-copy">Each row is one student; each column summarises acknowledged/total criteria for that group. Expand a count to see what is complete and what still needs evidence.</p>
+        <div class="student-tracker-comments" id="student-tracker-comments">
+          <div class="student-summary-toolbar student-tracker-comments-toolbar">
+            <strong>Student comments</strong>
+            <input id="comment-student-search-input" class="student-summary-search" type="search" placeholder="Filter comments by student name" autocomplete="off" aria-label="Filter comments by student name">
+            <div class="student-summary-actions" aria-label="Student comments actions">
+              <button id="print-student-comments-button" class="student-summary-action" type="button">Print ALL Comments</button>
+              <button id="export-student-comments-button" class="student-summary-action" type="button">Export Comments CSV</button>
+            </div>
+          </div>
+          <div id="student-tracker-comments-grid" aria-live="polite"></div>
+        </div>
+        <div class="student-summary-toolbar" id="process-summary-toolbar">
+          <input id="student-search-input" class="student-summary-search" type="search" placeholder="Filter by student name" autocomplete="off" aria-label="Filter students by name">
+          <input id="standard-search-input" class="student-summary-search" type="search" placeholder="Filter by process standard" autocomplete="off" aria-label="Filter students by process standard number">
+          <div class="student-summary-actions" aria-label="Progress summary actions">
+            <button id="generate-individual-summary-button" class="student-summary-action" type="button">Generate Individual PDF</button>
+            <button id="generate-standard-summaries-button" class="student-summary-action" type="button">Generate All for Standard</button>
+          </div>
+        </div>
+        <h3 class="student-summary-heading" id="process-summary-heading">Process Assessment</h3>
+        <div id="student-summary-grid" aria-live="polite"></div>
+        <h3 class="student-summary-heading" id="digital-media-summary-heading">Digital Media Assessment</h3>
+        <div class="student-summary-toolbar" id="digital-media-summary-toolbar">
+          <input id="digital-media-student-search-input" class="student-summary-search" type="search" placeholder="Filter by student name" autocomplete="off" aria-label="Filter Digital Media students by name">
+          <input id="digital-media-standard-search-input" class="student-summary-search" type="search" placeholder="Filter by Digital Media standard" autocomplete="off" aria-label="Filter Digital Media students by standard number">
+          <div class="student-summary-actions" aria-label="Digital Media progress summary actions">
+            <button id="generate-digital-media-individual-button" class="student-summary-action" type="button">Generate Individual PDF</button>
+            <button id="generate-digital-media-standard-button" class="student-summary-action" type="button">Generate All for Standard</button>
+          </div>
+        </div>
+        <div id="digital-media-summary-grid" aria-live="polite"></div>
+        <section id="external-assessment-section" aria-labelledby="external-assessment-heading">
+          <h3 class="student-summary-heading" id="external-assessment-heading">External Assessment</h3>
+          <p class="section-copy">Allocate each student's Project Exam and Computer Science Exam standards.</p>
+          <label class="external-assessment-filter" for="external-standard-filter">
+            <span>External standard</span>
+            <select id="external-standard-filter" class="external-assessment-select">
+              <option value="">All external standards</option>
+              <option value="92007">92007 - Project Exam</option>
+              <option value="91899">91899 - Project Exam</option>
+              <option value="91909">91909 - Project Exam</option>
+              <option value="92006">92006 - Computer Science Exam</option>
+              <option value="91898">91898 - Computer Science Exam</option>
+              <option value="91908">91908 - Computer Science Exam</option>
+            </select>
+          </label>
+          <label class="external-assessment-filter">
+            <input id="external-assigned-only-filter" type="checkbox" checked>
+            <span>Show only students assigned to an exam</span>
+          </label>
+          <p class="external-assessment-status" id="external-assessment-status" aria-live="polite"></p>
+          <div id="external-assessment-grid" aria-live="polite"></div>
+        </section>
+      </section>
+
+      <section class="panel-section" id="criteria-library-section">
+        <h2>Assessment Criteria Library</h2>
+        <p class="section-copy">Each card opens a dedicated page for that single task item.</p>
+        <div id="task-link-grid" class="task-link-grid" aria-live="polite"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="script.js"></script>
+  <script src="teacher-student-work.js"></script>
+</body>
+</html>

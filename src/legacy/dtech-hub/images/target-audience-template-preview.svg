@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="800" viewBox="0 0 1400 800" role="img" aria-label="Target Audience template preview">
+  <rect width="1400" height="800" fill="#f0f1f3"/>
+  <text x="64" y="112" font-family="'Segoe UI', Tahoma, sans-serif" font-size="62" font-weight="700" fill="#111">Target Audience</text>
+
+  <rect x="48" y="160" width="640" height="600" fill="#efe4c0"/>
+  <text x="70" y="198" font-family="'Segoe UI', Tahoma, sans-serif" font-size="24" font-weight="700" fill="#1f2b1f">What the slide needs to cover:</text>
+
+  <text x="70" y="236" font-family="'Segoe UI', Tahoma, sans-serif" font-size="18" font-weight="700" fill="#1f2b1f">Demographics</text>
+  <text x="94" y="264" font-family="'Segoe UI', Tahoma, sans-serif" font-size="17" fill="#1f2b1f">• Age range, role, and context of your users.</text>
+
+  <text x="70" y="308" font-family="'Segoe UI', Tahoma, sans-serif" font-size="18" font-weight="700" fill="#1f2b1f">Psychographics</text>
+  <text x="94" y="336" font-family="'Segoe UI', Tahoma, sans-serif" font-size="17" fill="#1f2b1f">• Values, beliefs, and lifestyle traits.</text>
+
+  <text x="70" y="380" font-family="'Segoe UI', Tahoma, sans-serif" font-size="18" font-weight="700" fill="#1f2b1f">Pain Points</text>
+  <text x="94" y="408" font-family="'Segoe UI', Tahoma, sans-serif" font-size="17" fill="#1f2b1f">• Problems or frustrations your outcome should solve.</text>
+
+  <text x="70" y="452" font-family="'Segoe UI', Tahoma, sans-serif" font-size="18" font-weight="700" fill="#1f2b1f">Technical Literacy</text>
+  <text x="94" y="480" font-family="'Segoe UI', Tahoma, sans-serif" font-size="17" fill="#1f2b1f">• Skill level and platform preferences.</text>
+
+  <rect x="770" y="160" width="580" height="600" fill="#cfe0f0"/>
+  <text x="792" y="210" font-family="'Segoe UI', Tahoma, sans-serif" font-size="44" font-weight="700" fill="#2a3744">Starters:</text>
+  <text x="804" y="280" font-family="'Segoe UI', Tahoma, sans-serif" font-size="52" fill="#2a3744">•</text>
+  <text x="860" y="290" font-family="'Segoe UI', Tahoma, sans-serif" font-size="48" fill="#2a3744">Demographics</text>
+  <text x="804" y="356" font-family="'Segoe UI', Tahoma, sans-serif" font-size="52" fill="#2a3744">•</text>
+  <text x="860" y="366" font-family="'Segoe UI', Tahoma, sans-serif" font-size="48" fill="#2a3744">Psychographics</text>
+  <text x="804" y="432" font-family="'Segoe UI', Tahoma, sans-serif" font-size="52" fill="#2a3744">•</text>
+  <text x="860" y="442" font-family="'Segoe UI', Tahoma, sans-serif" font-size="48" fill="#2a3744">Pain Points</text>
+  <text x="804" y="508" font-family="'Segoe UI', Tahoma, sans-serif" font-size="52" fill="#2a3744">•</text>
+  <text x="860" y="518" font-family="'Segoe UI', Tahoma, sans-serif" font-size="48" fill="#2a3744">Technical Literacy</text>
+</svg>

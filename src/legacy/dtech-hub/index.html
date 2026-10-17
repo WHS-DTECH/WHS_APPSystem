@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Computer Lab</title>
+    <meta name="description" content="Computer Lab connects current digital technology activities and the full activity library for students and staff at Westland High School.">
+    <meta name="theme-color" content="#4a1b6f">
+    <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+    <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+    <link rel="icon" type="image/x-icon" href="images/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="page-shell">
+        <header class="hero">
+            <nav class="topbar" aria-label="Primary">
+                <a class="brand" href="index.html">Computer Lab</a>
+                <div class="topbar-right">
+                    <div class="topbar-links">
+                        <a href="#current-week">This Week</a>
+                        <a href="#project-library">Activity Library</a>
+                        <a href="hapara-submission.html">Hapara Submission</a>
+                        <a href="#project-library">Projects</a>
+                        <a href="browse-practicals.html">Browse Practicals</a>
+                        <a href="https://sites.google.com/westlandhigh.school.nz/dtec/home" target="_blank" rel="noreferrer">Learning Site</a>
+                        <a href="#global-footer">Lab Notes</a>
+                    </div>
+                    <div class="utility-actions" aria-label="Utility actions">
+                        <a id="hub-staff-link" href="teacher-view.html" hidden>Teacher View</a>
+                        <a id="hub-admin-link" href="admin-menu.html" hidden>Admin Menu</a>
+                        <span id="hub-access-badge" class="hub-access-badge" hidden aria-live="polite"></span>
+                        <button id="hub-google-signin" class="google-signin-button" type="button">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="google-logo">
+                                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                            </svg>
+                            <span>Sign in with Google</span>
+                        </button>
+                        <button id="hub-google-signout" type="button" hidden>Sign out</button>
+                        <button id="hub-user-badge" class="user-badge" type="button" hidden aria-label="Open profile" aria-haspopup="true" aria-expanded="false"></button>
+                    </div>
+                </div>
+            </nav>
+
+            <div id="hub-startup-signin-banner" class="hub-startup-signin-banner" hidden role="status" aria-live="polite">
+                <p>Click once to finish sign-in</p>
+                <button id="hub-startup-signin-cta" type="button" class="hub-startup-signin-cta">Sign in now</button>
+            </div>
+
+            <div class="hero-panel">
+                <div class="hero-copy">
+                    <p class="eyebrow">WESTLAND HIGH SCHOOL | DIGITAL TECHNOLOGIES</p>
+                    <div class="hero-title-row">
+                        <img class="hero-title-logo" src="images/whs logo circular reo .png" alt="Westland High School logo">
+                        <h1>Computer Lab</h1>
+                    </div>
+                    <p class="hero-text">
+                        Explore practical coding and design activities students are completing this term, then browse the full activity library by strand, level, and focus.
+                    </p>
+                </div>
+
+                <aside class="hero-stats" aria-label="New this week summary">
+                    <div class="stat-card new-week-panel">
+                        <div class="new-week-header">
+                            <span class="stat-label">New This Week</span>
+                            <a class="new-week-settings" href="settings.html">Settings</a>
+                        </div>
+                        <div class="new-week-summary-row">
+                            <strong id="new-week-count">0</strong>
+                            <span id="new-week-window" class="new-week-window">14-day window</span>
+                        </div>
+                        <p id="new-this-week-empty" class="new-week-empty" hidden>No new assessment tasks or projects yet.</p>
+                        <ul id="new-this-week-list" class="new-week-list" aria-live="polite"></ul>
+                    </div>
+                </aside>
+            </div>
+        </header>
+
+        <section id="hub-user-profile" class="panel-section hub-profile" hidden>
+            <div class="hub-profile-header">
+                <div class="hub-profile-avatar" id="hub-profile-avatar">--</div>
+                <div>
+                    <p class="section-kicker">Google Profile</p>
+                    <h2 id="hub-profile-name">Staff User</h2>
+                </div>
+            </div>
+            <div class="hub-profile-grid">
+                <div class="hub-profile-item">
+                    <span>Display Name</span>
+                    <strong id="hub-profile-display-name">-</strong>
+                </div>
+                <div class="hub-profile-item">
+                    <span>Email</span>
+                    <strong id="hub-profile-display-email">-</strong>
+                </div>
+                <div class="hub-profile-item">
+                    <span>Approved Domain</span>
+                    <strong id="hub-profile-domain">-</strong>
+                </div>
+                <div class="hub-profile-item">
+                    <span>Auth Provider</span>
+                    <strong>Google Workspace</strong>
+                </div>
+            </div>
+            <div class="hub-profile-actions">
+                <button id="hub-profile-close" type="button" class="button button-secondary">Close</button>
+            </div>
+        </section>
+
+        <main class="home-grid single-column">
+            <div class="hub-column activities-column">
+                <section id="current-week" class="panel-section current-work">
+                    <div class="section-heading">
+                        <div>
+                            <p class="section-kicker">This Week In The Computer Lab</p>
+                            <h2>Current activities, standards and lab projects</h2>
+                        </div>
+                        <p class="section-copy">
+                            This live board combines pinned activities and projects with active assessment standards so students can see everything in one place.
+                        </p>
+                    </div>
+
+                    <div id="current-week-grid" class="project-grid" aria-live="polite"></div>
+                </section>
+
+                <section id="project-library" class="panel-section library-section">
+                    <div class="section-heading library-heading">
+                        <div>
+                            <p class="section-kicker">Activity And Project Library Students Can Choose</p>
+                            <h2>Browse every computer lab activity and project</h2>
+                        </div>
+                        <p id="library-results-meta" class="results-meta" aria-live="polite"></p>
+                        <p class="section-copy">
+                            Search by title, year level, or keywords, then sort to quickly find the right task.
+                        </p>
+                    </div>
+
+                    <div class="controls-panel" role="search">
+                        <div class="search-field-large">
+                            <label for="project-search" class="search-label">Search by title or keyword</label>
+                            <input id="project-search" type="search" placeholder="e.g., Python, robotics, web design, AI...">
+                        </div>
+
+                        <div class="filters-section">
+                            <div class="filter-group">
+                                <span class="filter-group-label">Show</span>
+                                <div id="content-filter-pills" class="filter-pills" role="group" aria-label="Filter by content type"></div>
+                            </div>
+
+                            <div class="filter-group">
+                                <span class="filter-group-label">Year Level</span>
+                                <div id="year-filter-pills" class="filter-pills" role="group" aria-label="Filter by year level"></div>
+                            </div>
+
+                            <div class="filter-group">
+                                <span class="filter-group-label">Type</span>
+                                <div id="type-filter-pills" class="filter-pills" role="group" aria-label="Filter by type"></div>
+                            </div>
+
+                            <div class="filter-group">
+                                <span class="filter-group-label">Category</span>
+                                <div id="category-filter-pills" class="filter-pills" role="group" aria-label="Filter by category"></div>
+                            </div>
+
+                            <div class="filter-group sort-group">
+                                <span class="filter-group-label">Sort by</span>
+                                <select id="sort-order" aria-label="Sort results">
+                                    <option value="name-asc">Name (A-Z)</option>
+                                    <option value="name-desc">Name (Z-A)</option>
+                                    <option value="status">Session Status</option>
+                                    <option value="recent">Most recent</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="project-library-grid" class="project-grid" aria-live="polite"></div>
+                </section>
+            </div>
+        </main>
+
+        <footer id="global-footer" class="global-hub-footer" aria-label="Hub suggestions and links">
+            <a class="button button-primary global-suggest-button" href="/suggest-activity.html">Suggest a Project or Activity</a>
+            <p class="global-footer-copy">&copy; 2026 Westland High School — Computer Lab &amp; DTECH HUB</p>
+        </footer>
+
+        <noscript>
+            <p class="noscript-note">JavaScript is disabled. Activity cards and filters need JavaScript to display.</p>
+        </noscript>
+    </div>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="script.js"></script>
+</body>
+</html>

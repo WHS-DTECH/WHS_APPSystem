@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Lesson | Computer Lab</title>
+    <meta name="description" content="Create a new lesson for the DTECH-HUB lesson library.">
+    <meta name="theme-color" content="#4a1b6f">
+    <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+    <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+    <link rel="icon" type="image/x-icon" href="images/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="upload-forms.css?v=20260519">
+</head>
+<body>
+    <div class="page-shell">
+        <header class="hero">
+            <nav class="topbar" aria-label="Primary">
+                <a class="brand" href="index.html">Computer Lab</a>
+                <div class="topbar-right">
+                    <div class="topbar-links">
+                        <a href="index.html#current-week">This Week</a>
+                        <a href="index.html#project-library">Activity Library</a>
+                        <a href="index.html#browse-lab-projects">Lab Projects</a>
+                        <a href="https://sites.google.com/westlandhigh.school.nz/dtec/home" target="_blank" rel="noreferrer">Learning Site</a>
+                        <a href="index.html#global-footer">Lab Notes</a>
+                    </div>
+                    <div class="utility-actions" aria-label="Utility actions">
+                        <a id="hub-staff-link" href="teacher-view.html" hidden>Teacher View</a>
+                        <a id="hub-admin-link" href="admin-menu.html" hidden>Admin Menu</a>
+                        <span id="hub-access-badge" class="hub-access-badge" hidden aria-live="polite"></span>
+                        <button id="hub-google-signin" class="google-signin-button" type="button">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="google-logo">
+                                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                            </svg>
+                            <span>Sign in with Google</span>
+                        </button>
+                        <button id="hub-google-signout" type="button" hidden>Sign out</button>
+                        <button id="hub-user-badge" class="user-badge" type="button" hidden aria-label="Open profile" aria-haspopup="true" aria-expanded="false"></button>
+                    </div>
+                </div>
+            </nav>
+        </header>
+
+        <main class="upload-form-page">
+            <div class="upload-form-header">
+                <div>
+                    <h1>Upload a Lesson</h1>
+                    <p class="intro-text">Create a new lesson in the Library. Lessons can have multiple activities allocated to them.</p>
+                </div>
+                <a class="button button-secondary" href="upload-menu.html">Back to Upload Menu</a>
+            </div>
+
+            <section class="upload-form-wrapper">
+                <form id="lesson-form" class="lesson-upload-form" enctype="multipart/form-data">
+                    <fieldset class="relief-quick-uploader">
+                        <legend>Quick Relief Lesson Uploader</legend>
+                        <p class="help-text">Choose an existing Relief Plan event and class, upload the lesson-plan DOCX plus resources, then preview the populated fields below before saving.</p>
+                        <div class="form-grid">
+                            <div class="field">
+                                <label for="relief-event-select">Relief Plan Event</label>
+                                <select id="relief-event-select" name="reliefEvent" required>
+                                    <option value="">Loading Relief Plan events...</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="relief-class-select">Class</label>
+                                <select id="relief-class-select" name="reliefClass" required>
+                                    <option value="">Select a class</option>
+                                    <option value="JDTECH">JDTECH</option>
+                                    <option value="MDTECH-S1">MDTECH - Semester 1</option>
+                                    <option value="MDTECH-S2">MDTECH - Semester 2</option>
+                                    <option value="SeniorDTECH">Senior DTECH</option>
+                                </select>
+                            </div>
+                            <div class="field field-wide">
+                                <label for="quick-relief-files">Lesson Plan and Resource Files</label>
+                                <input id="quick-relief-files" name="quickReliefFiles" type="file" multiple accept=".docx,.pdf,.pptx,.ppt,.xlsx,.jpg,.jpeg,.png,.webp" required>
+                            </div>
+                            <div class="field field-wide">
+                                <label for="quick-exemplar-file">Exemplar File</label>
+                                <input id="quick-exemplar-file" name="exemplarFile" type="file" accept=".pdf,.pptx,.ppt">
+                                <div id="quick-exemplar-preview" class="quick-exemplar-preview" hidden></div>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button id="preview-relief-lesson" class="button button-primary" type="button">Populate Lesson Fields</button>
+                            <span id="quick-relief-status" class="upload-status" role="status"></span>
+                        </div>
+                    </fieldset>
+                    <fieldset>
+                        <legend>Lesson Details</legend>
+                        <p class="help-text">Add the lesson information. All fields except the optional link are required.</p>
+
+                        <div class="form-grid">
+                            <div class="field">
+                                <label for="lesson-title">Lesson Title</label>
+                                <input id="lesson-title" name="lessonTitle" type="text" placeholder="e.g. Binary Numbers" required>
+                            </div>
+                            <div class="field">
+                                <label for="lesson-week">Week / Session</label>
+                                <input id="lesson-week" name="lessonWeek" type="text" placeholder="e.g. Week 1, Session 2">
+                            </div>
+                            <div class="field">
+                                <label for="lesson-date">Calendar Date</label>
+                                <input id="lesson-date" name="lessonDate" type="date">
+                            </div>
+                            <div class="field">
+                                <label for="lesson-duration">Duration Minutes</label>
+                                <input id="lesson-duration" name="lessonDurationMinutes" type="number" min="1" step="1" value="60" required>
+                            </div>
+                            <div class="field">
+                                <label for="lesson-type">Topic Type</label>
+                                <select id="lesson-type" name="lessonType" required>
+                                    <option value="">Select topic type</option>
+                                    <option>Office Suite</option>
+                                    <option>Programming</option>
+                                    <option>Electronics</option>
+                                    <option>Digital Media</option>
+                                    <option>Project Management</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="lesson-card-color">Card Colour</label>
+                                <select id="lesson-card-color" name="lessonCardColor" required>
+                                    <option value="">— Select a colour —</option>
+                                    <option value="Rose">Rose - Lesson (default)</option>
+                                    <option value="Violet">Violet - Project (default)</option>
+                                    <option value="Azure">Azure - Task Topic (default)</option>
+                                    <option value="Amber">Amber - Activity (default)</option>
+                                    <option value="Teal">Teal - Standard</option>
+                                    <option value="Slate">Slate - Assessment Task (default)</option>
+                                </select>
+                            </div>
+                            <div class="field field-wide">
+                                <label for="lesson-activity-name">Activity Name</label>
+                                <input id="lesson-activity-name" name="activityName" type="text" placeholder="Card title for the Activity Library" required>
+                            </div>
+                            <div class="field">
+                                <label for="lesson-year-level">Lesson Year Level</label>
+                                <input id="lesson-year-level" name="lessonYearLevel" type="text" placeholder="e.g. Year 9, Year 10, Junior" required>
+                            </div>
+                            <div class="field">
+                                <label for="lesson-link">Lesson Link</label>
+                                <input id="lesson-link" name="lessonLinkUrl" type="url" placeholder="https://... (optional)">
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset>
+                        <legend>Relief Lesson Plan</legend>
+                        <div class="form-grid">
+                            <div class="field"><label for="relief-course-code">DTECH Class Code</label><input id="relief-course-code" name="reliefCourseCode" type="text" placeholder="e.g. JDTECH, 11DTECH"></div>
+                            <div class="field"><label for="plan-unit">Unit</label><input id="plan-unit" name="planUnit" type="text"></div>
+                            <div class="field"><label for="plan-component">Component</label><input id="plan-component" name="planComponent" type="text" value="Technology"></div>
+                            <div class="field"><label for="plan-theme">Theme</label><input id="plan-theme" name="planTheme" type="text"></div>
+                            <div class="field field-wide"><label for="plan-aim">Aim(s) of Lesson</label><textarea id="plan-aim" name="planAim"></textarea></div>
+                            <div class="field"><label for="plan-resources">Resources Required</label><textarea id="plan-resources" name="planResources"></textarea></div>
+                            <div class="field"><label for="plan-preparation">Preparation</label><textarea id="plan-preparation" name="planPreparation"></textarea></div>
+                            <div class="field field-wide"><label for="plan-safety">Health &amp; Safety</label><textarea id="plan-safety" name="planHealthSafety"></textarea></div>
+                            <div class="field"><label for="plan-starter">Starter</label><textarea id="plan-starter" name="planStarter"></textarea></div>
+                            <div class="field"><label for="plan-demonstration">Demonstration</label><textarea id="plan-demonstration" name="planDemonstration"></textarea></div>
+                            <div class="field"><label for="plan-practice">Practice</label><textarea id="plan-practice" name="planPractice"></textarea></div>
+                            <div class="field"><label for="plan-plenary">Plenary</label><textarea id="plan-plenary" name="planPlenary"></textarea></div>
+                            <div class="field"><label for="plan-homework">Homework</label><textarea id="plan-homework" name="planHomework"></textarea></div>
+                            <div class="field"><label for="plan-evaluation">Lesson Evaluation</label><textarea id="plan-evaluation" name="planEvaluation"></textarea></div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset>
+                        <legend>Lesson Focus & Notes</legend>
+
+                        <div class="field field-wide">
+                            <label for="lesson-focus">Lesson Focus</label>
+                            <p class="help-text">What are students learning or doing?</p>
+                            <textarea id="lesson-focus" name="lessonFocus" placeholder="Learning outcomes, key concepts..." required></textarea>
+                        </div>
+
+                        <div class="field field-wide">
+                            <label for="lesson-notes">Lesson Notes</label>
+                            <p class="help-text">Teacher notes, resources, or setup reminders</p>
+                            <textarea id="lesson-notes" name="lessonNotes" placeholder="Resources needed, room setup, safety notes..."></textarea>
+                        </div>
+                    </fieldset>
+
+                    <fieldset>
+                        <legend>Attached Resources</legend>
+                        <div class="field field-wide">
+                            <label for="lesson-resource-files">Upload resources for this lesson</label>
+                            <p class="help-text">Add slides, task sheets, exemplars, PDFs, or images. Up to 12 files, 25 MB each.</p>
+                            <input id="lesson-resource-files" name="resourceFiles" type="file" multiple accept=".pdf,.docx,.pptx,.ppt,.xlsx,.jpg,.jpeg,.png,.webp">
+                        </div>
+                    </fieldset>
+
+                    <div class="form-actions">
+                        <button id="save-lesson" class="button button-primary" type="submit">Save Lesson</button>
+                        <button id="clear-lesson" class="button button-secondary" type="button">Clear Form</button>
+                        <a href="browse-lessons.html" class="button button-secondary">View Library</a>
+                        <div id="status-message" class="upload-status" aria-live="polite" hidden></div>
+                    </div>
+                </form>
+            </section>
+        </main>
+
+        <footer id="global-footer" class="global-hub-footer" aria-label="Hub suggestions and links">
+            <a class="button button-primary global-suggest-button" href="/suggest-activity.html">Suggest a Project or Activity</a>
+            <p class="global-footer-copy">&copy; 2026 Westland High School — Computer Lab &amp; DTECH HUB</p>
+        </footer>
+    </div>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="script.js"></script>
+    <script src="upload-lesson.js"></script>
+</body>
+</html>

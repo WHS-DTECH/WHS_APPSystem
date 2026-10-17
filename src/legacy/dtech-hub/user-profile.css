@@ -1,0 +1,288 @@
+.profile-page {
+    width: min(1100px, calc(100% - 24px));
+    margin: 16px auto 28px;
+    display: grid;
+    gap: 12px;
+}
+
+.profile-hero-card {
+    background: #dfe8f1;
+    border: 1px solid #bcc9d8;
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+}
+
+.profile-hero-main {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+}
+
+.profile-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #2a6f97, #16707a);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.7rem;
+    font-weight: 700;
+}
+
+.profile-hero-card h1 {
+    margin: 0;
+    color: #122f4f;
+    font-size: clamp(1.8rem, 3vw, 2.2rem);
+}
+
+.profile-hero-card p {
+    margin: 2px 0 8px;
+    color: #3e556e;
+}
+
+.profile-tags {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.profile-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid #8eb7de;
+    background: #ecf5ff;
+    color: #114b84;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.profile-pill-soft {
+    background: #eef7ed;
+    border-color: #9bc9a3;
+    color: #285d32;
+}
+
+.profile-top-status {
+    background: #d4deeb;
+    border: 1px solid #b6c6d8;
+    color: #4b6681;
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-weight: 700;
+    min-width: 220px;
+    text-align: center;
+}
+
+.profile-grid {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 12px;
+}
+
+.profile-column-main,
+.profile-column-side {
+    display: grid;
+    gap: 12px;
+    align-content: start;
+}
+
+.profile-card {
+    background: #edf2f6;
+    border: 1px solid #c8d4e2;
+    border-radius: 12px;
+    padding: 14px;
+}
+
+.profile-card h2 {
+    margin: 0 0 6px;
+    color: #143556;
+    font-size: 1.5rem;
+}
+
+.card-subtext {
+    margin: 0 0 10px;
+    color: #4a6178;
+}
+
+.key-grid,
+.metric-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.key-item,
+.metric-item {
+    border: 1px solid #c9d6e4;
+    border-radius: 10px;
+    padding: 9px 10px;
+    background: #f4f8fb;
+}
+
+.key-item span,
+.metric-item span {
+    display: block;
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #45607a;
+    margin-bottom: 4px;
+    font-weight: 700;
+}
+
+.key-item strong,
+.metric-item strong {
+    color: #0f2f4f;
+    font-size: 1rem;
+}
+
+.connection-box {
+    border: 1px solid #d1d8df;
+    background: #f6f7f8;
+    border-radius: 10px;
+    padding: 10px;
+}
+
+.connection-box.is-warn {
+    border-color: #e2c58d;
+    background: #fff6e3;
+}
+
+.connection-box.is-error {
+    border-color: #e0a8a8;
+    background: #fdecec;
+}
+
+.connection-box strong {
+    color: #143556;
+}
+
+.connection-box p {
+    margin: 4px 0 0;
+    color: #445f74;
+}
+
+.trello-actions-row {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.trello-actions-row .detail-action,
+.trello-actions-row .detail-action-secondary {
+    font-size: 0.78rem;
+    padding: 7px 11px;
+}
+
+.trello-manual-box {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed #c8d6e5;
+    display: grid;
+    gap: 7px;
+}
+
+.trello-manual-token {
+    border: 1px solid #b8cbe0;
+    border-radius: 8px;
+    padding: 7px 10px;
+    font-size: 0.8rem;
+    color: #1a3651;
+    background: #fff;
+}
+
+.info-stack {
+    display: grid;
+    gap: 8px;
+}
+
+.info-line {
+    padding: 8px 10px;
+    border: 1px solid #cfd8e2;
+    border-radius: 8px;
+    background: #f7fafc;
+    color: #274764;
+}
+
+.info-line.is-warn {
+    border-color: #e2c58d;
+    background: #fff6e3;
+    color: #74541c;
+}
+
+.info-line.is-error {
+    border-color: #e0a8a8;
+    background: #fdecec;
+    color: #7a2323;
+}
+
+.timetable-grid-wrapper {
+    overflow-x: auto;
+    border: 1px solid #cfd8e2;
+    border-radius: 10px;
+    background: #f7fafc;
+}
+
+.timetable-grid {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 560px;
+}
+
+.timetable-grid th,
+.timetable-grid td {
+    border: 1px solid #d3dde7;
+    padding: 8px;
+    text-align: left;
+    vertical-align: top;
+    color: #1f3f5b;
+    font-size: 0.92rem;
+}
+
+.timetable-grid thead th {
+    background: #e6eef6;
+    color: #143556;
+    font-weight: 700;
+}
+
+.timetable-grid th[scope="row"] {
+    background: #eef4fa;
+    color: #2d4a66;
+    font-weight: 700;
+    width: 68px;
+}
+
+.timetable-cell-empty {
+    color: #6e8091;
+}
+
+@media (max-width: 980px) {
+    .profile-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-hero-card {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .profile-top-status {
+        width: 100%;
+    }
+}
+
+@media (max-width: 640px) {
+    .key-grid,
+    .metric-grid {
+        grid-template-columns: 1fr;
+    }
+}

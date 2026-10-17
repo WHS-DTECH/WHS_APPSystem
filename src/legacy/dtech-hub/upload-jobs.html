@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Jobs | Computer Lab</title>
+    <meta name="description" content="Add a MiddleDTECH Jobs card to the Learning Pathways Library.">
+    <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+    <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+    <link rel="icon" type="image/x-icon" href="images/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="upload-forms.css?v=20260513">
+</head>
+<body>
+    <div class="page-shell">
+        <header class="hero">
+            <nav class="topbar" aria-label="Primary">
+                <a class="brand" href="index.html">Computer Lab</a>
+                <div class="topbar-right">
+                    <div class="utility-actions" aria-label="Utility actions">
+                        <a id="hub-staff-link" href="teacher-view.html" hidden>Teacher View</a>
+                        <a id="hub-admin-link" href="admin-menu.html" hidden>Admin Menu</a>
+                        <span id="hub-access-badge" class="hub-access-badge" hidden aria-live="polite"></span>
+                        <button id="hub-google-signin" class="google-signin-button" type="button"><span>Sign in with Google</span></button>
+                        <button id="hub-google-signout" type="button" hidden>Sign out</button>
+                        <button id="hub-user-badge" class="user-badge" type="button" hidden aria-label="Open profile" aria-haspopup="true" aria-expanded="false"></button>
+                    </div>
+                </div>
+            </nav>
+        </header>
+
+        <main class="upload-page">
+            <h1>Upload Jobs</h1>
+            <p class="intro-text">Create a Jobs card for the MiddleDTECH Learning Pathways Library.</p>
+            <p id="jobs-auth-status" class="project-auth-status" aria-live="polite"></p>
+            <div class="upload-page-tools">
+                <button class="button-cancel" type="button" id="clear-job-draft">Clear Draft</button>
+            </div>
+
+            <section class="upload-panel" aria-label="Upload MiddleDTECH job card">
+                <form id="upload-job-form" class="upload-form">
+                    <fieldset class="form-section">
+                        <legend>Job Card</legend>
+                        <div class="form-grid">
+                            <div class="field">
+                                <label for="job-title">Project Name</label>
+                                <input id="job-title" name="title" type="text" maxlength="120" required>
+                            </div>
+                            <div class="field">
+                                <label for="job-status">Status</label>
+                                <select id="job-status" name="status" required>
+                                    <option value="active">Active</option>
+                                    <option value="planning">Planning</option>
+                                    <option value="archive">Archive</option>
+                                </select>
+                            </div>
+                            <div class="field field-wide">
+                                <label for="job-summary">Summary</label>
+                                <textarea id="job-summary" name="summary" maxlength="600" rows="4" required></textarea>
+                            </div>
+                            <div class="field field-wide">
+                                <label class="checkbox-field" for="job-client-enabled">
+                                    <input id="job-client-enabled" name="clientEnabled" type="checkbox">
+                                    Client - Yes/No
+                                </label>
+                                <p class="upload-helper-text">Unchecked means No.</p>
+                            </div>
+                            <fieldset id="job-client-details" class="form-section field-wide" hidden disabled>
+                                <legend>Client Details</legend>
+                                <div class="form-grid">
+                                    <div class="field">
+                                        <label for="job-client-name">Client Name</label>
+                                        <input id="job-client-name" name="clientName" type="text" maxlength="120">
+                                    </div>
+                                    <div class="field">
+                                        <label for="job-client-email">Email Address</label>
+                                        <input id="job-client-email" name="clientEmail" type="email" maxlength="254">
+                                    </div>
+                                    <div class="field field-wide">
+                                        <label class="checkbox-field" for="job-client-onsite">
+                                            <input id="job-client-onsite" name="onsiteClient" type="checkbox" checked>
+                                            Onsite Client (Yes/No)
+                                        </label>
+                                        <p class="upload-helper-text">Checked by default.</p>
+                                    </div>
+                                </div>
+                            </fieldset>
+                            <div class="field field-wide">
+                                <label for="job-link">Project Link (optional)</label>
+                                <input id="job-link" name="href" type="text" maxlength="300" placeholder="https://... or /learning-pathways/...">
+                            </div>
+                            <div class="field field-wide">
+                                <label for="job-image">Card Image URL (optional)</label>
+                                <input id="job-image" name="imageUrl" type="text" maxlength="300" placeholder="https://... or /images/...">
+                            </div>
+                        </div>
+                        <p class="upload-helper-text">MiddleDTECH | Jobs</p>
+                    </fieldset>
+
+                    <div class="form-actions">
+                        <button class="button-save" type="submit">Save Jobs Card</button>
+                        <a class="button-cancel" href="/learning-pathways/?type=job&amp;year=MiddleDTECH&amp;category=Jobs">Open Jobs in Learning Pathways</a>
+                        <p id="job-upload-status" class="upload-status" aria-live="polite" hidden></p>
+                    </div>
+                </form>
+            </section>
+
+            <footer id="global-footer" class="global-hub-footer" aria-label="Hub suggestions and links">
+                <a class="button button-primary global-suggest-button" href="/suggest-activity.html">Suggest a Project or Activity</a>
+                <p class="global-footer-copy">&copy; 2026 Westland High School - Computer Lab &amp; DTECH HUB</p>
+            </footer>
+        </main>
+    </div>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="script.js"></script>
+    <script src="upload-jobs.js"></script>
+</body>
+</html>

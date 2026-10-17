@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trello Connection | DTECH-HUB</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Arial, sans-serif;
+            display: grid;
+            place-items: center;
+            min-height: 100vh;
+            background: #f3f7fb;
+            color: #163a5d;
+        }
+
+        .status {
+            border: 1px solid #bfd2e6;
+            background: #ffffff;
+            border-radius: 10px;
+            padding: 16px 18px;
+            width: min(460px, calc(100% - 24px));
+            box-shadow: 0 8px 20px rgba(12, 35, 58, 0.12);
+        }
+    </style>
+</head>
+<body>
+    <div class="status" id="status">Finalizing Trello connection...</div>
+
+    <script>
+        (function () {
+            var status = document.getElementById("status");
+            var hash = String(window.location.hash || "");
+            var params = new URLSearchParams(hash.replace(/^#/, ""));
+            var token = String(params.get("token") || "").trim();
+
+            if (!token) {
+                if (status) {
+                    status.textContent = "No Trello token was returned. You can close this window.";
+                }
+                return;
+            }
+
+            if (window.opener && !window.opener.closed) {
+                window.opener.postMessage({
+                    source: "dtech-hub-trello",
+                    token: token
+                }, window.location.origin);
+            }
+
+            if (status) {
+                status.textContent = "Trello connected. You can close this window.";
+            }
+
+            setTimeout(function () {
+                window.close();
+            }, 350);
+        })();
+    </script>
+</body>
+</html>

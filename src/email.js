@@ -52,7 +52,7 @@ function buildMessage({ to, subject, text, html, from, bcc, replyTo }) {
   return headers.concat(['', body]).join('\r\n');
 }
 
-async function deliverEmail({ to, subject, text, html, from, bcc, replyTo } = {}) {
+async function deliverEmail({ to, subject, text, html, from, bcc, cc, replyTo, attachments } = {}) {
   const recipients = (Array.isArray(to) ? to : [to]).filter(Boolean);
   const defaultRecipients = config.email.gmail.defaultRecipients;
   const targetRecipients = recipients.length ? recipients : defaultRecipients;
@@ -75,15 +75,23 @@ async function deliverEmail({ to, subject, text, html, from, bcc, replyTo } = {}
   }
 
   try {
-    const message = buildMessage({
+    const options = {
       to: targetRecipients,
       subject,
       text,
       html,
       bcc,
+      cc,
       replyTo,
       from: from || gmailClient.senderEmail
-    });
+    };
+    let message;
+    if (attachments?.length || cc) {
+      const MailComposer = require('nodemailer/lib/mail-composer');
+      message = await new MailComposer({ ...options, attachments, disableFileAccess: true, disableUrlAccess: true }).compile().build();
+    } else {
+      message = buildMessage(options);
+    }
 
     const response = await gmailClient.gmail.users.messages.send({
       userId: 'me',
@@ -119,7 +127,7 @@ async function recordEmail(input, result) {
   try {
     const { query } = require('./db');
     const list = (value) => (Array.isArray(value) ? value : [value]).filter(Boolean).join(', ');
-    const to = list(input.to) || list(config.email.gmail.defaultRecipients);
+    const to = list([].concat(input.to || [], input.cc || [])) || list(config.email.gmail.defaultRecipients);
     const status = result.ok ? 'sent' : result.skipped ? 'skipped' : 'failed';
     await query(
       `INSERT INTO email_log (source, status, to_addresses, bcc_addresses, subject, body_text, body_html, message_id, error)

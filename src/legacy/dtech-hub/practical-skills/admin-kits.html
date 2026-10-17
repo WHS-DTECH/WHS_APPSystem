@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kit Content Builder | Practical Skills Admin</title>
+  <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+  <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+  <link rel="icon" type="image/x-icon" href="../images/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&family=Baloo+2:wght@600;700;800&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="./kit-worksheet.css">
+  <style>
+    .kit-builder-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 24px;
+      align-items: start;
+    }
+
+    .kit-builder-layout > div {
+      min-width: 0;
+    }
+
+    .kit-builder-layout > div:first-child > h2 {
+      margin: 28px 0 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #d7e1ee;
+      font-size: 1.2rem;
+    }
+
+    .kit-builder-layout > div:first-child > h2:first-child {
+      margin-top: 0;
+    }
+
+    .kit-builder-field {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+
+    .kit-builder-field label {
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: #173858;
+    }
+
+    .kit-builder-field input[type="text"],
+    .kit-builder-field textarea,
+    .kit-builder-field select {
+      border: 1px solid #c9d4e2;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font: inherit;
+    }
+
+    .kit-builder-color-row {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      align-items: start;
+    }
+
+    .kit-builder-color-row > .kit-builder-field {
+      min-width: 0;
+    }
+
+    .kit-question-card,
+    .kit-image-card {
+      border: 1px solid #d7e1ee;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+      background: #f8fbff;
+      display: grid;
+      gap: 8px;
+    }
+
+    .kit-question-card-head,
+    .kit-image-card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .kit-question-card-head span,
+    .kit-image-card-head span {
+      font-weight: 700;
+      color: #173858;
+      font-size: 0.82rem;
+    }
+
+    .kit-builder-preview-frame {
+      background: #fef9f0;
+      border-radius: 18px;
+      padding: 18px;
+      font-family: 'Quicksand', sans-serif;
+      min-height: 300px;
+    }
+
+    .kit-builder-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    #kit-add-worksheet {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      margin-top: 10px;
+      padding: 10px 16px;
+      border: 1px solid #173858;
+      border-radius: 8px;
+      background: #173858;
+      color: #ffffff;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      opacity: 1;
+      cursor: pointer;
+    }
+
+    #kit-add-worksheet:hover {
+      background: #24547e;
+    }
+
+    #kit-add-worksheet:focus-visible {
+      outline: 3px solid #ad6200;
+      outline-offset: 3px;
+    }
+
+    .kit-worksheet-suggestion {
+      margin: 0 0 12px;
+      padding: 10px 12px;
+      border-left: 4px solid #2867bd;
+      border-radius: 4px;
+      background: #eaf3ff;
+      color: #173858;
+      line-height: 1.5;
+    }
+
+    .kit-worksheet-table-wrap {
+      overflow-x: auto;
+      margin-bottom: 10px;
+      border: 1px solid #d7e1ee;
+      border-radius: 8px;
+    }
+
+    .kit-worksheet-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    .kit-worksheet-table th,
+    .kit-worksheet-table td {
+      padding: 8px;
+      border-bottom: 1px solid #e4ebf3;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .kit-worksheet-table th {
+      background: #f3f7fb;
+      color: #173858;
+      font-size: 0.75rem;
+    }
+
+    .kit-worksheet-table tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .kit-worksheet-table input {
+      width: 100%;
+      min-width: 0;
+      border: 1px solid #c9d4e2;
+      border-radius: 5px;
+      padding: 7px 8px;
+      font: inherit;
+    }
+
+    .kit-worksheet-table .kit-worksheet-number {
+      width: 54px;
+    }
+
+    .kit-worksheet-table th:nth-child(1) {
+      width: 7%;
+    }
+
+    .kit-worksheet-table th:nth-child(2) {
+      width: 20%;
+    }
+
+    .kit-worksheet-table th:nth-child(3) {
+      width: 27%;
+    }
+
+    .kit-worksheet-table th:nth-child(4) {
+      width: 20%;
+    }
+
+    .kit-worksheet-table th:nth-child(5) {
+      width: 16%;
+    }
+
+    .kit-worksheet-table th:nth-child(6) {
+      width: 10%;
+    }
+
+    .kit-worksheet-table .kit-remove-worksheet {
+      min-height: 36px;
+      padding: 7px 10px;
+      color: #8f1d1d;
+      background: #fff1f0;
+      border: 1px solid #d99892;
+      cursor: pointer;
+    }
+
+    .kit-worksheet-table .kit-remove-worksheet:hover {
+      background: #ffe0dd;
+    }
+
+    .kit-worksheet-table .kit-remove-worksheet:focus-visible,
+    .kit-hidden-worksheets .kit-restore-worksheet:focus-visible {
+      outline: 3px solid #ad6200;
+      outline-offset: 2px;
+    }
+
+    .kit-hidden-worksheets {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border: 1px solid #c9d4e2;
+      border-radius: 8px;
+      color: #173858;
+      background: #f3f7fb;
+    }
+
+    .kit-hidden-worksheets summary {
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .kit-hidden-worksheets ul {
+      display: grid;
+      gap: 8px;
+      margin: 10px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .kit-hidden-worksheets li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .kit-hidden-worksheets .kit-restore-worksheet {
+      min-height: 34px;
+      padding: 6px 10px;
+      color: #173858;
+      background: #ffffff;
+      border: 1px solid #8ca5bd;
+      cursor: pointer;
+    }
+
+    @media (max-width: 700px) {
+      .kit-worksheet-table-wrap {
+        overflow: visible;
+        border: 0;
+      }
+
+      .kit-worksheet-table,
+      .kit-worksheet-table tbody {
+        display: block;
+      }
+
+      .kit-worksheet-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      .kit-worksheet-table tr {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        padding: 12px;
+        margin-bottom: 10px;
+        border: 1px solid #d7e1ee;
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .kit-worksheet-table td {
+        display: grid;
+        align-content: start;
+        gap: 4px;
+        min-width: 0;
+        padding: 0;
+        border: 0;
+      }
+
+      .kit-worksheet-table td::before {
+        content: attr(data-label);
+        color: #173858;
+        font-size: 0.72rem;
+        font-weight: 700;
+      }
+
+      .kit-worksheet-table td:nth-child(3) {
+        grid-column: 1 / -1;
+      }
+
+      .kit-worksheet-table td:nth-child(4),
+      .kit-worksheet-table td:nth-child(5) {
+        align-self: end;
+      }
+
+      .kit-worksheet-table td:nth-child(4) .button,
+      .kit-worksheet-table td:nth-child(5) .button {
+        width: 100%;
+        text-align: center;
+      }
+    }
+
+    .kit-activity-details-pending {
+      color: #5b6472;
+      font-size: 0.9rem;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-shell">
+    <nav class="topbar" aria-label="Primary">
+      <a class="brand" href="/index.html">Computer Lab</a>
+      <div class="topbar-right">
+        <div class="topbar-links"></div>
+        <div class="utility-actions" aria-label="Utility actions">
+          <a id="hub-staff-link" href="/teacher-view.html" hidden>Teacher View</a>
+          <a id="hub-admin-link" href="/admin-menu.html" hidden>Admin Menu</a>
+          <span id="hub-access-badge" class="hub-access-badge" hidden aria-live="polite"></span>
+          <button id="hub-google-signin" class="google-signin-button" type="button">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="google-logo">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+            <span>Sign in with Google</span>
+          </button>
+          <button id="hub-google-signout" type="button" hidden>Sign out</button>
+          <button id="hub-user-badge" class="user-badge" type="button" hidden aria-label="Open profile" aria-haspopup="true" aria-expanded="false"></button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="admin-page-wrap">
+      <header class="admin-page-header">
+        <h1>Kit Content Builder</h1>
+        <p>Admin-only editor for what appears on each kit's worksheet page. Choose a kit, fill in the theme details, questions and images, then save.</p>
+        <a class="button button-secondary" href="./admin.html">Back to Practical Skills Admin</a>
+      </header>
+
+      <section class="admin-panel">
+        <div class="kit-builder-field">
+          <label for="kit-select">Kit</label>
+          <select id="kit-select"></select>
+        </div>
+        <p id="kit-builder-status" class="upload-status" aria-live="polite" hidden></p>
+      </section>
+
+      <section class="admin-panel">
+        <div class="kit-builder-layout">
+          <div>
+            <h2>Kit Identity</h2>
+            <div class="kit-builder-field">
+              <label for="kit-name">Kit Name</label>
+              <input id="kit-name" type="text" placeholder="e.g. Login Kit">
+              <small>This name appears on the kit page and in the Kit dropdown.</small>
+            </div>
+            <div class="kit-builder-field">
+              <label for="kit-status">Status</label>
+              <select id="kit-status">
+                <option value="active">Active</option>
+                <option value="planning">Planning</option>
+                <option value="archive">Archive</option>
+              </select>
+            </div>
+            <div class="kit-builder-field">
+              <label for="kit-year-level">Year Level</label>
+              <select id="kit-year-level">
+                <option value="All Years">All Years</option>
+                <option value="Junior DTECH">Junior DTECH</option>
+                <option value="Year 7 DTECH">Year 7 DTECH</option>
+                <option value="Year 8 DTECH">Year 8 DTECH</option>
+                <option value="Middle DTECH">Middle DTECH</option>
+                <option value="Year 9 DTECH">Year 9 DTECH</option>
+                <option value="Year 10 DTECH">Year 10 DTECH</option>
+                <option value="Senior DTECH">Senior DTECH</option>
+                <option value="Year 11 DTECH">Year 11 DTECH</option>
+                <option value="Year 12 DTECH">Year 12 DTECH</option>
+                <option value="Year 13 DTECH">Year 13 DTECH</option>
+                <option value="Staff">Staff</option>
+              </select>
+            </div>
+
+            <h2>Kit Theme</h2>
+            <div class="kit-builder-field">
+              <label for="kit-banner-subtitle">Banner Subtitle</label>
+              <input id="kit-banner-subtitle" type="text" placeholder="One friendly sentence about the kit">
+            </div>
+            <div class="kit-builder-field">
+              <label for="kit-icon">Banner Icon (emoji or short text)</label>
+              <input id="kit-icon" type="text" placeholder="\ud83d\udd10">
+            </div>
+            <div class="kit-builder-color-row">
+              <div class="kit-builder-field">
+                <label for="kit-skill-area">Skill Area</label>
+                <select id="kit-skill-area">
+                  <option value="Skill Kits">Skill Kits</option>
+                  <option value="Application Kits">Application Kits</option>
+                </select>
+              </div>
+              <div class="kit-builder-field">
+                <label for="kit-theme-color">Theme Colour</label>
+                <input id="kit-theme-color" type="color" value="#2f8f61">
+              </div>
+              <div class="kit-builder-field">
+                <label for="kit-accent-color">Accent Colour</label>
+                <input id="kit-accent-color" type="color" value="#ffd166">
+              </div>
+            </div>
+            <div class="kit-builder-field">
+              <label for="kit-instructions">Instructions</label>
+              <textarea id="kit-instructions" rows="3" placeholder="What should students do on this page?"></textarea>
+            </div>
+            <div class="kit-builder-field">
+              <label for="kit-teacher-notes">Teacher Notes - not visible to students</label>
+              <textarea id="kit-teacher-notes" rows="5" placeholder="Add teacher-only delivery notes, support guidance, or evidence expectations."></textarea>
+            </div>
+
+            <h2>Learning</h2>
+            <div class="kit-builder-field">
+              <label for="kit-what-students-learn">What students will learn</label>
+              <textarea id="kit-what-students-learn" rows="3"></textarea>
+            </div>
+            <div class="kit-builder-field">
+              <label for="kit-why-this-matters">Why this matters</label>
+              <textarea id="kit-why-this-matters" rows="3"></textarea>
+            </div>
+            <div class="kit-builder-field">
+              <label for="kit-key-vocabulary">Key vocabulary</label>
+              <input id="kit-key-vocabulary" type="text" placeholder="Separate terms with commas">
+            </div>
+
+            <h2>Kit Worksheets</h2>
+            <p class="kit-worksheet-suggestion"><strong>Teacher suggestion:</strong> Use the first activities as foundational skills, the middle activities as applied skills, and the final activities as integrated challenges.</p>
+            <p class="kit-worksheet-suggestion">Remove hides an activity from students without deleting its details or saved progress. Save Kit Content to apply your changes.</p>
+            <div class="kit-worksheet-table-wrap">
+              <table class="kit-worksheet-table">
+                <thead>
+                  <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Activity</th>
+                    <th scope="col">What it establishes</th>
+                    <th scope="col">Interactive element</th>
+                    <th scope="col">Details</th>
+                    <th scope="col"><span class="visually-hidden">Remove</span></th>
+                  </tr>
+                </thead>
+                <tbody id="kit-worksheet-list"></tbody>
+              </table>
+            </div>
+            <button type="button" id="kit-add-worksheet" class="button button-secondary">Add Worksheet</button>
+            <details id="kit-hidden-worksheets" class="kit-hidden-worksheets" hidden>
+              <summary>Removed worksheets (<span id="kit-hidden-worksheets-count">0</span>)</summary>
+              <ul id="kit-hidden-worksheets-list"></ul>
+            </details>
+
+            <h2>Completion</h2>
+            <div class="kit-builder-field">
+              <label for="kit-evidence-required">Evidence required</label>
+              <textarea id="kit-evidence-required" rows="3"></textarea>
+            </div>
+            <div class="kit-builder-field">
+              <label for="kit-success-criteria">Success criteria</label>
+              <textarea id="kit-success-criteria" rows="3"></textarea>
+            </div>
+            <div class="kit-builder-field">
+              <label for="kit-extension-challenge">Extension or challenge</label>
+              <textarea id="kit-extension-challenge" rows="3"></textarea>
+            </div>
+
+            <div class="kit-builder-actions">
+              <button type="button" id="kit-save-content" class="button button-primary">Save Kit Content</button>
+              <button type="button" id="kit-reload-content" class="button button-secondary">Discard Changes</button>
+            </div>
+          </div>
+
+          <div>
+            <h2>Live Preview</h2>
+            <div class="kit-builder-preview-frame">
+              <div id="kit-preview-host"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="../script.js"></script>
+  <script src="./kit-worksheet-render.js"></script>
+  <script src="./admin-kits.js"></script>
+</body>
+</html>

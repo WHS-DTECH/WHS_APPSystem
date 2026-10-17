@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unit Progression | Teacher View | DTECH-HUB</title>
+    <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+    <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+    <link rel="icon" href="../images/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="unit-progression.css">
+</head>
+<body>
+    <div class="page-shell">
+        <header class="hero"><nav class="topbar" aria-label="Primary"><a class="brand" href="/index.html">Computer Lab</a></nav></header>
+        <main class="unit-progression-page">
+            <section class="panel-section">
+                <p class="section-kicker">YEAR 7-10 | TEACHER VIEW | STUDENT WORK</p>
+                <h1>Unit Progression</h1>
+                <p>See which tracked activities each student has completed in a unit. Filter by homeroom, year level or name to show a whole class or one student.</p>
+                <p id="unit-progress-status" role="status">Checking Teacher View access...</p>
+                <button id="unit-progress-retry" class="button button-secondary" type="button" hidden>Retry</button>
+                <fieldset id="unit-progress-controls" class="unit-progress-filters" disabled>
+                    <legend>Filters</legend>
+                    <label>Unit<select id="unit-progress-unit"></select></label>
+                    <label>Homeroom<select id="unit-progress-homeroom"><option value="">All homerooms</option></select></label>
+                    <label>Year<select id="unit-progress-year"><option value="">All years</option><option value="7">Year 7</option><option value="8">Year 8</option><option value="9">Year 9</option><option value="10">Year 10</option><option value="staff">Staff</option></select></label>
+                    <label>Name<input id="unit-progress-search" type="search" placeholder="Start typing a name..." autocomplete="off"></label>
+                </fieldset>
+            </section>
+
+            <section id="unit-progress-card" class="unit-progress-card" aria-labelledby="unit-progress-title" hidden>
+                <div class="unit-progress-head">
+                    <div>
+                        <p id="unit-progress-kicker" class="unit-progress-kicker"></p>
+                        <h2 id="unit-progress-title"></h2>
+                        <p id="unit-progress-meta" class="unit-progress-meta"></p>
+                    </div>
+                    <span class="unit-progress-badge">Teacher view</span>
+                </div>
+                <p class="unit-progress-chips">
+                    <span id="unit-progress-shown" class="unit-progress-chip"></span>
+                    <span id="unit-progress-done" class="unit-progress-chip is-good"></span>
+                </p>
+                <div class="unit-progress-table-wrap" tabindex="0" role="region" aria-label="Unit progression by student">
+                    <table class="unit-progress-table">
+                        <thead><tr id="unit-progress-head-row"></tr></thead>
+                        <tbody id="unit-progress-rows"></tbody>
+                    </table>
+                </div>
+                <p id="unit-progress-empty" class="unit-progress-note" hidden>No students match these filters.</p>
+                <p class="unit-progress-note">Columns show the tracked activities built so far for this unit. More activities will appear here as they are added.</p>
+                <ul class="unit-progress-legend" aria-label="Key">
+                    <li><span class="unit-status is-completed" aria-hidden="true"></span>Completed</li>
+                    <li><span class="unit-status is-in-progress" aria-hidden="true"></span>In progress</li>
+                    <li><span class="unit-status is-not-started" aria-hidden="true"></span>Not started</li>
+                </ul>
+            </section>
+
+            <dialog id="unit-progress-dialog" class="unit-progress-dialog" aria-labelledby="unit-progress-dialog-title">
+                <div class="unit-progress-dialog-head">
+                    <div>
+                        <p class="unit-progress-kicker">UNIT EVIDENCE</p>
+                        <h2 id="unit-progress-dialog-title">Student work</h2>
+                        <p id="unit-progress-dialog-meta" class="unit-progress-meta"></p>
+                    </div>
+                    <button id="unit-progress-dialog-close" class="button button-secondary" type="button">Close</button>
+                </div>
+                <ul id="unit-progress-dialog-list" class="unit-progress-evidence"></ul>
+            </dialog>
+        </main>
+    </div>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="../script.js"></script>
+    <script src="unit-progression.js"></script>
+</body>
+</html>

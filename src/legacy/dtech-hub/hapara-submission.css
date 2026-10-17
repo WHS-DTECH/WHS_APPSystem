@@ -1,0 +1,204 @@
+.hapara-page {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 18px 40px;
+}
+
+.hapara-hero {
+    margin-bottom: 18px;
+}
+
+.hapara-hero h1 {
+    margin: 0 0 8px;
+}
+
+.hapara-hero-copy {
+    margin: 0;
+    color: var(--ink-mid);
+}
+
+.hapara-hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.hapara-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.hapara-summary-item {
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    background: #ffffff;
+    padding: 10px 12px;
+}
+
+.hapara-summary-label {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+}
+
+.hapara-summary-value {
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.hapara-page-status {
+    margin: 10px 0 0;
+    min-height: 1.25rem;
+    color: var(--ink-mid);
+    font-size: 0.9rem;
+}
+
+.hapara-page-status.is-error {
+    color: #b1293e;
+    font-weight: 600;
+}
+
+.hapara-checklist {
+    display: grid;
+    gap: 14px;
+}
+
+.hapara-assessment-card {
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    background: #ffffff;
+    overflow: hidden;
+}
+
+.hapara-assessment-head {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--panel-border);
+    background: linear-gradient(135deg, #f6eefb 0%, #f3f6fb 100%);
+}
+
+.hapara-assessment-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.hapara-assessment-subtitle {
+    margin: 4px 0 0;
+    color: var(--ink-soft);
+    font-size: 0.84rem;
+}
+
+.hapara-item-list {
+    display: grid;
+}
+
+.hapara-item {
+    padding: 12px 14px;
+    border-top: 1px solid #e5ebf5;
+}
+
+.hapara-item:first-child {
+    border-top: none;
+}
+
+.hapara-item-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.hapara-item-title {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.hapara-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.hapara-pill.is-ready {
+    background: #e7f7ed;
+    color: #1e7439;
+    border: 1px solid #abdcb8;
+}
+
+.hapara-pill.is-missing {
+    background: #fff0ef;
+    color: #9f2e22;
+    border: 1px solid #e8b9b2;
+}
+
+.hapara-pill.is-submitted {
+    background: #e7eefc;
+    color: #2450a7;
+    border: 1px solid #b8caef;
+}
+
+.hapara-links {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.hapara-link-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 9px;
+    border-radius: 8px;
+    border: 1px solid #d2dbeb;
+    background: #f7f9fd;
+    color: var(--ink-mid);
+    font-size: 0.78rem;
+}
+
+.hapara-item-meta {
+    margin-top: 8px;
+    color: var(--ink-soft);
+    font-size: 0.8rem;
+}
+
+.hapara-item-actions {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.hapara-empty {
+    border: 1px dashed #bcc8de;
+    border-radius: 10px;
+    padding: 18px;
+    text-align: center;
+    color: var(--ink-soft);
+    background: #f9fbff;
+}
+
+@media (max-width: 760px) {
+    .hapara-page {
+        padding: 0 12px 30px;
+    }
+
+    .hapara-item-actions .detail-action,
+    .hapara-hero-actions .detail-action {
+        width: 100%;
+        justify-content: center;
+    }
+}

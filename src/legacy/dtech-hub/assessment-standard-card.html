@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assessment Standard Card | Computer Lab</title>
+    <meta name="description" content="View a saved Assessment Standard Card.">
+    <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+    <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+    <link rel="icon" type="image/x-icon" href="images/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .standard-card-page {
+            max-width: 1100px;
+            margin: 24px auto 40px;
+            padding: 0 16px;
+        }
+
+        .standard-card-shell {
+            background: #eef8f4;
+            border: 1px solid #b7ddcf;
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .standard-card-title {
+            margin: 0 0 8px;
+            color: #165f44;
+            font-size: 1.35rem;
+        }
+
+        .standard-card-subtitle {
+            margin: 0 0 16px;
+            color: #2e6d56;
+            font-size: 0.92rem;
+        }
+
+        .standard-card-status {
+            margin: 0 0 14px;
+            font-size: 0.92rem;
+            color: #2a6577;
+        }
+
+        .standard-card-status.is-error {
+            color: #9f2f2f;
+        }
+
+        .standard-card-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(140px, 1fr));
+            gap: 10px;
+        }
+
+        .standard-card-field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .standard-card-field.full {
+            grid-column: 1 / -1;
+        }
+
+        .standard-card-label {
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #1f557f;
+        }
+
+        .standard-card-value {
+            min-height: 42px;
+            border: 1px solid #9ec8b8;
+            border-radius: 8px;
+            background: #fff;
+            color: #1a4f3b;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            padding: 10px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .standard-card-value.list {
+            padding-left: 20px;
+        }
+
+        .standard-card-actions {
+            margin-top: 16px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .standard-card-actions a {
+            text-decoration: none;
+        }
+
+        .student-standard-guide {
+            display: grid;
+            gap: 16px;
+        }
+
+        .student-standard-hero {
+            border: 1px solid #abd6c5;
+            background: #eaf7f1;
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .student-standard-eyebrow {
+            margin: 0 0 6px;
+            color: #176245;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .student-standard-hero h1 {
+            margin: 0;
+            color: #154d3b;
+            font-family: "Fraunces", Georgia, serif;
+            font-size: 1.9rem;
+            line-height: 1.1;
+        }
+
+        .student-standard-purpose {
+            max-width: 760px;
+            margin: 10px 0 0;
+            color: #245d4b;
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+
+        .student-standard-meta,
+        .student-standard-resources {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .student-standard-meta {
+            margin-top: 14px;
+        }
+
+        .student-standard-meta span {
+            border: 1px solid #9fcab9;
+            border-radius: 999px;
+            background: #fff;
+            color: #176245;
+            font-size: 0.8rem;
+            font-weight: 700;
+            padding: 5px 10px;
+        }
+
+        .student-standard-resources {
+            padding: 14px;
+            border: 1px solid #c9d9ec;
+            border-radius: 10px;
+            background: #f4f8fe;
+        }
+
+        .student-standard-resource {
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
+            min-height: 42px;
+            border: 1px solid #78a6d1;
+            border-radius: 8px;
+            background: #fff;
+            color: #164e7c;
+            font-weight: 700;
+            padding: 8px 12px;
+            text-decoration: none;
+        }
+
+        .student-standard-resource:hover {
+            background: #eaf4ff;
+        }
+
+        .student-standard-resource img {
+            width: 22px;
+            height: 22px;
+            object-fit: contain;
+        }
+
+        .student-standard-resource.hapara {
+            border-color: #9661ba;
+            color: #5d267f;
+        }
+
+        .student-standard-resource.hapara:hover {
+            background: #f6edfc;
+        }
+
+        .student-standard-criteria {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .student-standard-level {
+            border: 1px solid #d6dee9;
+            border-radius: 10px;
+            background: #fff;
+            overflow: hidden;
+        }
+
+        .student-standard-level h2 {
+            margin: 0;
+            padding: 11px 14px;
+            color: #fff;
+            font-size: 1rem;
+        }
+
+        .student-standard-level.achieved h2 { background: #237b55; }
+        .student-standard-level.merit h2 { background: #236b9b; }
+        .student-standard-level.excellence h2 { background: #76519a; }
+
+        .student-standard-level-copy {
+            min-height: 76px;
+            margin: 0;
+            padding: 14px;
+            color: #25465e;
+            font-weight: 700;
+            line-height: 1.45;
+        }
+
+        .student-standard-checklist {
+            margin: 0;
+            padding: 0 14px 16px 32px;
+            color: #29475c;
+            line-height: 1.45;
+        }
+
+        .student-standard-checklist li + li { margin-top: 8px; }
+
+        .standard-tracker-shell {
+            margin-top: 20px;
+            padding: 16px;
+            border: 1px solid #b7ddcf;
+            border-radius: 12px;
+            background: #f5faf8;
+        }
+
+        .standard-tracker-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .standard-tracker-header h2 {
+            margin: 0;
+            color: #165f44;
+            font-size: 1.05rem;
+        }
+
+        .standard-tracker-header a {
+            color: #165f44;
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+
+        .standard-tracker-frame {
+            display: block;
+            width: 100%;
+            min-height: 760px;
+            border: 1px solid #c9d9d3;
+            border-radius: 8px;
+            background: #ffffff;
+        }
+
+        @media (max-width: 920px) {
+            .standard-card-grid {
+                grid-template-columns: repeat(2, minmax(140px, 1fr));
+            }
+        }
+
+        @media (max-width: 620px) {
+            .standard-card-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .student-standard-criteria {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-shell">
+        <header class="hero">
+            <nav class="topbar" aria-label="Primary">
+                <a class="brand" href="index.html">Computer Lab</a>
+            </nav>
+        </header>
+
+        <main class="standard-card-page">
+            <section class="standard-card-shell" aria-label="Assessment Standard Card details">
+                <h1 class="standard-card-title">Assessment Standard Card (Teal)</h1>
+                <p class="standard-card-subtitle">Saved criteria template for course outlines and task allocation.</p>
+                <p id="sc-status" class="standard-card-status" aria-live="polite">Loading standard card...</p>
+
+                <div class="standard-card-grid" id="sc-content" hidden>
+                    <div class="standard-card-field">
+                        <span class="standard-card-label">Standard Number</span>
+                        <div class="standard-card-value" id="sc-standard-number">-</div>
+                    </div>
+                    <div class="standard-card-field">
+                        <span class="standard-card-label">Standard Level</span>
+                        <div class="standard-card-value" id="sc-standard-level">-</div>
+                    </div>
+                    <div class="standard-card-field">
+                        <span class="standard-card-label">Standard Version</span>
+                        <div class="standard-card-value" id="sc-standard-version">-</div>
+                    </div>
+                    <div class="standard-card-field">
+                        <span class="standard-card-label">Credits</span>
+                        <div class="standard-card-value" id="sc-credits">-</div>
+                    </div>
+
+                    <div class="standard-card-field full">
+                        <span class="standard-card-label">Standard Name</span>
+                        <div class="standard-card-value" id="sc-standard-name">-</div>
+                    </div>
+
+                    <div class="standard-card-field full">
+                        <span class="standard-card-label">Achieved Text</span>
+                        <div class="standard-card-value" id="sc-achieved-text">-</div>
+                    </div>
+                    <div class="standard-card-field full">
+                        <span class="standard-card-label">Achieved Checklist</span>
+                        <ul class="standard-card-value list" id="sc-achieved-checklist"></ul>
+                    </div>
+
+                    <div class="standard-card-field full">
+                        <span class="standard-card-label">Merit Text</span>
+                        <div class="standard-card-value" id="sc-merit-text">-</div>
+                    </div>
+                    <div class="standard-card-field full">
+                        <span class="standard-card-label">Merit Checklist</span>
+                        <ul class="standard-card-value list" id="sc-merit-checklist"></ul>
+                    </div>
+
+                    <div class="standard-card-field full">
+                        <span class="standard-card-label">Excellence Text</span>
+                        <div class="standard-card-value" id="sc-excellence-text">-</div>
+                    </div>
+                    <div class="standard-card-field full">
+                        <span class="standard-card-label">Excellence Checklist</span>
+                        <ul class="standard-card-value list" id="sc-excellence-checklist"></ul>
+                    </div>
+                </div>
+
+                <div class="standard-card-actions">
+                    <a class="button button-primary" href="index.html#project-library">Back To Library</a>
+                    <a class="button" id="sc-action-link" href="admin-assessment-information.html">Open Standards Manager</a>
+                </div>
+            </section>
+
+            <section class="student-standard-guide" id="sc-student-guide" aria-label="Student assessment standard guide" hidden>
+                <div class="student-standard-hero">
+                    <p class="student-standard-eyebrow">Your Assessment Standard</p>
+                    <h1 id="ssg-title">Assessment Standard</h1>
+                    <p class="student-standard-purpose" id="ssg-purpose"></p>
+                    <div class="student-standard-meta" id="ssg-meta"></div>
+                </div>
+                <section class="student-standard-resources" aria-label="Student resources">
+                    <a class="student-standard-resource" id="ssg-learning-link" href="#" target="_blank" rel="noopener noreferrer">Open Learning Site</a>
+                    <a class="student-standard-resource hapara" id="ssg-hapara-link" href="https://bit.ly/4uO74lI" target="_blank" rel="noopener noreferrer"><img src="https://app.hapara.com/favicon.ico" alt=""> Hapara Student Dashboard</a>
+                </section>
+                <div class="student-standard-criteria" id="ssg-criteria"></div>
+                <div class="standard-card-actions">
+                    <a class="button button-primary" href="index.html#project-library">Back To Library</a>
+                </div>
+            </section>
+
+            <section class="standard-tracker-shell" id="sc-process-tracker" aria-label="Assessment student tracker" hidden>
+                <div class="standard-tracker-header">
+                    <h2 id="sc-process-tracker-title">Process Assessment Student Tracker</h2>
+                    <a id="sc-process-tracker-link" href="teacher-student-work.html">Open Full Tracker</a>
+                </div>
+                <iframe id="sc-process-tracker-frame" class="standard-tracker-frame" title="Assessment student tracker"></iframe>
+            </section>
+        </main>
+    </div>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="script.js"></script>
+    <script src="assessment-standard-card.js"></script>
+</body>
+</html>

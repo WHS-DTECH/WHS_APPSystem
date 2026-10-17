@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kit Activity | DTECH-HUB Licence</title>
+    <meta name="description" content="Worksheet-style practical skills kit activity.">
+    <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+    <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+    <link rel="icon" type="image/x-icon" href="../images/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./kit-worksheet.css">
+</head>
+<body class="kit-worksheet-page">
+    <nav class="kit-worksheet-topbar" aria-label="Primary">
+        <a id="worksheet-back-link" class="brand" href="/practical-skills/checklist.html">&larr; Back to My Licence</a>
+        <div class="kit-worksheet-topbar-links" aria-label="Utility actions">
+            <span id="hub-access-badge" hidden aria-live="polite"></span>
+            <a id="hub-teacher-dashboard-link" class="kit-worksheet-dashboard-link" href="/practical-skills/admin-kits.html" hidden>Kit Content Builder</a>
+            <a id="worksheet-sites-settings" class="kit-worksheet-dashboard-link" href="./teacher-login-sites.html" hidden>Website Settings</a>
+            <button id="hub-google-signin" class="google-signin-button" type="button">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="google-logo">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                </svg>
+                <span>Sign in with Google</span>
+            </button>
+            <button id="hub-google-signout" type="button" hidden>Sign out</button>
+            <button id="hub-user-badge" class="user-badge" type="button" hidden aria-label="Open profile" aria-haspopup="true" aria-expanded="false"></button>
+        </div>
+    </nav>
+
+    <main class="worksheet-shell">
+        <div id="worksheet-host"></div>
+
+        <section id="worksheet-google-verification" class="worksheet-question worksheet-identity-guide" hidden aria-labelledby="worksheet-google-verification-title">
+            <span class="worksheet-question-number" aria-hidden="true">5</span>
+            <div class="worksheet-question-body">
+            <h2 id="worksheet-google-verification-title">Verify your school email with Google</h2>
+            <p>Choose the same school Google account you used for your answers above. Once you have verified it, click <strong>Check your answers</strong> below. Your typed answers will stay in place.</p>
+            <div id="hub-google-verify-button"></div>
+            <p id="hub-google-verify-status" role="status">Loading the Google sign-in button...</p>
+            </div>
+        </section>
+
+        <div id="worksheet-activity-complete-bar" class="worksheet-complete-bar" hidden>
+            <a id="worksheet-activity-status-pill" class="worksheet-status-pill">Not Completed</a>
+            <button type="button" id="worksheet-activity-complete-btn" class="worksheet-btn worksheet-btn-primary">Mark Activity Complete</button>
+        </div>
+
+        <div id="worksheet-complete-bar" class="worksheet-complete-bar" hidden>
+            <span id="worksheet-status-pill" class="worksheet-status-pill">Not Started</span>
+            <div class="worksheet-actions">
+                <button type="button" id="worksheet-complete-btn" class="worksheet-btn worksheet-btn-primary">Mark Complete</button>
+                <button type="button" id="worksheet-reset-btn" class="worksheet-btn worksheet-btn-secondary">Reset</button>
+            </div>
+        </div>
+
+        <section id="worksheet-certificate" class="worksheet-certificate" hidden aria-labelledby="certificate-heading">
+            <div class="certificate-sheet">
+                <img class="certificate-logo" src="../images/whs%20logo%20circular%20reo%20.png" alt="Westland High School logo">
+                <p class="certificate-school">Westland High School</p>
+                <p class="certificate-programme">DTECH-HUB Licence</p>
+                <h2 id="certificate-heading">Certificate of Completion</h2>
+                <p>This certificate is proudly presented to</p>
+                <h3 id="certificate-student-name"></h3>
+                <p>for successfully completing all activities in</p>
+                <h3 id="certificate-kit-title"></h3>
+                <p id="certificate-completion-details"></p>
+                <p class="certificate-congratulations">Ka pai! Ready for the next step in your learning.</p>
+                <p id="certificate-issuer"></p>
+            </div>
+            <div class="certificate-actions">
+                <button id="certificate-print" type="button" class="worksheet-btn worksheet-btn-primary">Print / Save as PDF (landscape)</button>
+                <button id="certificate-download" type="button" class="worksheet-btn worksheet-btn-secondary">Download PDF</button>
+                <button id="certificate-email" type="button" class="worksheet-btn worksheet-btn-primary">Email me a copy</button>
+            </div>
+            <p class="certificate-help">A copy is emailed to your signed-in school account and the DTECH Lead Teacher automatically when you finish the kit. Use Email me a copy to send it again. For printing, choose A4 landscape and turn off browser headers and footers.</p>
+            <p id="certificate-status" role="status" aria-live="polite"></p>
+        </section>
+
+        <p id="worksheet-status-message" class="worksheet-status-message" aria-live="polite" hidden></p>
+    </main>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="../script.js"></script>
+    <script src="./kit-worksheet-render.js"></script>
+    <script src="./kit-worksheet.js"></script>
+</body>
+</html>

@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asset Manager | Computer Lab</title>
+    <meta name="description" content="Check Digital Media file health for a GitHub-linked project: file counts, size, oversized/unused images, and broken references.">
+    <meta name="theme-color" content="#4a1b6f">
+    <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+    <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+    <link rel="icon" type="image/x-icon" href="images/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .asset-manager-page {
+            display: grid;
+            gap: 18px;
+        }
+
+        .asset-manager-hero-wrap {
+            padding: 0 0 8px;
+        }
+
+        .asset-manager-hero {
+            border-radius: 18px;
+            padding: 20px;
+            background: linear-gradient(135deg, #5d2a82 0%, #7b43a1 44%, #9e6bc2 100%);
+            color: #fff;
+            box-shadow: 0 18px 40px rgba(59, 21, 87, 0.16);
+        }
+
+        .asset-manager-hero h1 {
+            margin: 0;
+            font-size: clamp(2rem, 4.6vw, 3rem);
+            line-height: 1;
+            font-family: "Fraunces", serif;
+        }
+
+        .asset-manager-hero p {
+            margin: 8px 0 0;
+            max-width: 60ch;
+        }
+
+        .asset-manager-repo-note {
+            margin: 10px 0 0;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .asset-manager-counts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+            margin: 14px 0;
+        }
+
+        .asset-manager-student-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 16px;
+            margin: 6px 0 12px;
+            font-size: 0.84rem;
+            color: #345778;
+        }
+
+        .asset-manager-student-details span {
+            padding: 4px 8px;
+            border: 1px solid #d9e3f5;
+            border-radius: 6px;
+            background: #f5f8ff;
+        }
+
+        .asset-manager-student-details strong {
+            color: #1a3651;
+        }
+
+        .asset-manager-count-card {
+            border: 1px solid #d9e3f5;
+            border-radius: 12px;
+            padding: 12px 14px;
+            background: #f5f8ff;
+        }
+
+        .asset-manager-count-card-button {
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+            font: inherit;
+        }
+
+        .asset-manager-count-card-button:hover,
+        .asset-manager-count-card-button:focus-visible {
+            border-color: #3f89cf;
+            background: #eaf4ff;
+        }
+
+        .asset-manager-count-card-button:focus-visible {
+            outline: 2px solid #1a5fa8;
+            outline-offset: 2px;
+        }
+
+        .asset-manager-count-label {
+            display: block;
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: #345778;
+        }
+
+        .asset-manager-count-value {
+            display: block;
+            margin-top: 4px;
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: #1a1f36;
+        }
+
+        .asset-manager-checks {
+            display: grid;
+            gap: 8px;
+        }
+
+        .asset-manager-check-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            font-weight: 700;
+        }
+
+        .asset-manager-check-row.is-warning {
+            background: #fff9ec;
+            color: #6b5218;
+            border: 1px solid #f0d9a8;
+        }
+
+        .asset-manager-check-row.is-ok {
+            background: #f2fbf4;
+            color: #1f5b34;
+            border: 1px solid #bfe6cb;
+        }
+
+        .asset-manager-check-list {
+            margin: 6px 0 0;
+            padding-left: 18px;
+            font-weight: 500;
+            font-size: 0.85rem;
+        }
+
+        .asset-manager-empty-note {
+            font-size: 0.9rem;
+            color: #345778;
+        }
+
+        .asset-manager-detail-panel {
+            border: 1px solid #d9e3f5;
+            padding: 14px;
+            background: #f5f8ff;
+        }
+
+        .asset-manager-detail-panel h3 {
+            margin: 0 0 10px;
+            color: #1a1f36;
+        }
+
+        .asset-manager-detail-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 8px;
+            margin: 0;
+        }
+
+        .asset-manager-detail-list div {
+            padding: 8px 10px;
+            border-radius: 8px;
+            background: #fff;
+            border: 1px solid #d9e3f5;
+        }
+
+        .asset-manager-detail-list dt {
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #345778;
+        }
+
+        .asset-manager-detail-list dd {
+            margin: 3px 0 0;
+            font-weight: 800;
+            color: #1a1f36;
+        }
+
+        .asset-manager-result-section {
+            border: 1px solid #d9e3f5;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        .asset-manager-result-section + .asset-manager-result-section {
+            margin-top: 10px;
+        }
+
+        .asset-manager-web-details {
+            border: 1px solid #c8d8ec;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #edf4fd;
+        }
+
+        .asset-manager-web-details-summary {
+            padding: 11px 13px;
+            cursor: pointer;
+            list-style: none;
+            color: #1a3651;
+            font-size: 0.9rem;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .asset-manager-web-details-summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .asset-manager-web-details-summary::before {
+            content: "+";
+            margin-right: 9px;
+            color: #1a5fa8;
+            font-size: 1.1rem;
+        }
+
+        .asset-manager-web-details[open] > .asset-manager-web-details-summary::before {
+            content: "-";
+        }
+
+        .asset-manager-web-details-body {
+            padding: 0 10px 10px;
+        }
+
+        .asset-manager-result-summary {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 12px;
+            cursor: pointer;
+            font-weight: 800;
+            color: #1a1f36;
+            list-style: none;
+        }
+
+        .asset-manager-result-summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .asset-manager-result-summary::before {
+            content: "+";
+            color: #1a5fa8;
+            font-size: 1.1rem;
+        }
+
+        .asset-manager-result-section[open] > .asset-manager-result-summary::before {
+            content: "-";
+        }
+
+        .asset-manager-result-section.is-warning > .asset-manager-result-summary {
+            background: #fff9ec;
+            color: #6b5218;
+        }
+
+        .asset-manager-result-section.is-ok > .asset-manager-result-summary {
+            background: #f2fbf4;
+            color: #1f5b34;
+        }
+
+        .asset-manager-result-body {
+            padding: 0 12px 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-shell">
+        <header class="hero">
+            <nav class="topbar" aria-label="Primary"></nav>
+            <div class="asset-manager-hero-wrap">
+                <div class="asset-manager-hero">
+                    <h1>Asset Manager</h1>
+                    <p>Live file health for a GitHub-linked Digital Media project: file counts, total size, oversized/unused images, and broken references.</p>
+                    <p class="asset-manager-repo-note" id="asset-manager-repo-note"></p>
+                </div>
+            </div>
+        </header>
+
+        <main class="home-grid single-column">
+            <div class="hub-column activities-column">
+                <section class="asset-manager-page">
+                    <section class="task-list-card">
+                        <div class="section-heading">
+                            <div>
+                                <p class="section-kicker">ASSET HEALTH</p>
+                                <h2 id="asset-manager-title">Asset Health</h2>
+                            </div>
+                            <div class="task-list-sync-actions">
+                                <button type="button" class="task-list-sync-drive-btn" id="asset-manager-sync-btn">&#x21bb; Sync from GitHub</button>
+                            </div>
+                        </div>
+                        <p id="asset-manager-status" class="task-list-status" aria-live="polite"></p>
+                        <div id="asset-manager-content"></div>
+                    </section>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="script.js"></script>
+    <script src="asset-manager.js"></script>
+</body>
+</html>

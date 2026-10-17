@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher View | Computer Lab</title>
+    <meta name="description" content="Teacher view for managing computer lab activities.">
+    <meta name="theme-color" content="#4a1b6f">
+    <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+    <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+    <link rel="icon" type="image/x-icon" href="images/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .standards-link-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .standards-link-card {
+            border: 1px solid #c9d7e8;
+            background: #f8fbff;
+            border-radius: 10px;
+            padding: 10px 12px;
+        }
+
+        .standards-link-card h3 {
+            margin: 0 0 4px;
+            font-size: 0.95rem;
+            color: #173f63;
+        }
+
+        .standards-link-card a {
+            display: inline-block;
+            margin-right: 8px;
+            margin-top: 4px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #2f74b9;
+            text-decoration: none;
+        }
+
+        .standards-link-card a:hover {
+            text-decoration: underline;
+        }
+
+        .standards-group {
+            border: 1px solid #d7e3f1;
+            border-radius: 10px;
+            background: #f8fbff;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+
+        .standards-group h3 {
+            margin: 0 0 8px;
+            color: #173f63;
+            font-size: 1rem;
+            font-family: "Fraunces", serif;
+        }
+
+        .standards-list {
+            margin: 0;
+            padding-left: 18px;
+            color: #2f4e73;
+            font-size: 0.84rem;
+            line-height: 1.45;
+        }
+
+        .standards-subject-chip {
+            display: inline-block;
+            margin-left: 8px;
+            padding: 2px 8px;
+            border: 1px solid #b8d1ea;
+            border-radius: 999px;
+            background: #e9f2fb;
+            color: #17466e;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+
+        .standards-task-link {
+            color: #2f74b9;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .standards-task-link:hover {
+            text-decoration: underline;
+        }
+
+        .template-sync-panel {
+            border: 1px solid #d7e3f1;
+            border-radius: 12px;
+            background: #f8fbff;
+            padding: 12px;
+            margin-bottom: 14px;
+        }
+
+        .template-sync-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .template-sync-field {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: #173f63;
+            font-weight: 700;
+        }
+
+        .template-sync-field input {
+            border: 1px solid #b8d1ea;
+            border-radius: 8px;
+            padding: 8px 10px;
+            min-width: 240px;
+            font-size: 0.84rem;
+        }
+
+        .template-sync-status {
+            margin: 8px 0 0;
+            font-size: 0.82rem;
+            color: #2f4e73;
+        }
+
+        .teacher-view-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 14px;
+            border-bottom: 1px solid #d7e3f1;
+        }
+
+        .teacher-view-tab-btn {
+            font: inherit;
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: #3e5f81;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            padding: 8px 4px 10px;
+            cursor: pointer;
+        }
+
+        .teacher-view-tab-btn:hover {
+            color: #173f63;
+        }
+
+        .teacher-view-tab-btn.is-active {
+            color: #173f63;
+            border-bottom-color: #2f74b9;
+        }
+
+        .teacher-view-tab-panel[hidden] {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-shell">
+        <header class="hero">
+            <nav class="topbar" aria-label="Primary">
+                <a class="brand" href="index.html">Computer Lab</a>
+                <div class="topbar-right">
+                    <div class="topbar-links">
+                        <a href="teacher-view.html" aria-current="page">Teacher View</a>
+                        <a href="class-management.html">Class Management</a>
+                        <a href="teacher-student-work.html">Student Work Tracker</a>
+                        <a href="teacher-project-allocation.html">Project Allocations</a>
+                        <a href="teacher-assessment-allocation.html">Assessment Allocations</a>
+                        <a href="upload-menu.html">Upload Menu</a>
+                    </div>
+                    <div class="utility-actions" aria-label="Utility actions">
+                        <a id="hub-staff-link" href="teacher-view.html" hidden>Teacher View</a>
+                        <a id="hub-admin-link" href="admin-menu.html" hidden>Admin Menu</a>
+                        <span id="hub-access-badge" class="hub-access-badge" hidden aria-live="polite"></span>
+                        <button id="hub-google-signin" class="google-signin-button" type="button">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="google-logo">
+                                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                            </svg>
+                            <span>Sign in with Google</span>
+                        </button>
+                        <button id="hub-google-signout" type="button" hidden>Sign out</button>
+                        <button id="hub-user-badge" class="user-badge" type="button" hidden aria-label="Open profile" aria-haspopup="true" aria-expanded="false"></button>
+                    </div>
+                </div>
+            </nav>
+
+            <div class="hero-panel">
+                <div class="hero-copy">
+                    <p class="eyebrow">WESTLAND HIGH SCHOOL | DIGITAL TECHNOLOGIES</p>
+                    <div class="hero-title-row">
+                        <img class="hero-title-logo" src="images/whs logo circular reo .png" alt="Westland High School logo">
+                        <h1>Computer Lab</h1>
+                    </div>
+                    <p class="hero-text">
+                        Teacher view mirrors the student hub while adding management controls, draft visibility, and upload workflows.
+                    </p>
+                </div>
+
+                <aside class="hero-stats" aria-label="Hub summary">
+                    <div class="stat-card">
+                        <span class="stat-label">Activities currently running</span>
+                        <strong id="stat-total-count">0</strong>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Projects currently running</span>
+                        <strong id="stat-category-count">0</strong>
+                    </div>
+                </aside>
+            </div>
+        </header>
+
+        <main>
+            <div class="home-grid single-column">
+                <div class="hub-column activities-column">
+                    <div class="teacher-view-tabs" role="tablist" aria-label="Teacher view sections">
+                        <button type="button" class="teacher-view-tab-btn is-active" id="teacher-view-tab-btn-overview" role="tab" aria-selected="true" aria-controls="teacher-view-panel-overview" data-teacher-view-tab="overview">Overview</button>
+                        <button type="button" class="teacher-view-tab-btn" id="teacher-view-tab-btn-library" role="tab" aria-selected="false" aria-controls="teacher-view-panel-library" data-teacher-view-tab="library">Activity &amp; Project Library</button>
+                    </div>
+
+                    <div id="teacher-view-panel-overview" class="teacher-view-tab-panel" role="tabpanel" aria-labelledby="teacher-view-tab-btn-overview">
+                    <section class="template-sync-panel" aria-label="Template library sync">
+                        <div class="template-sync-row">
+                            <label class="template-sync-field" for="teacher-template-folder-name">
+                                Google Drive Folder
+                                <input id="teacher-template-folder-name" type="text" value="Process Slide Templates" autocomplete="off">
+                            </label>
+                            <button id="teacher-sync-template-library" class="button button-secondary" type="button">Sync Slideshows To Library</button>
+                            <a class="button button-secondary" href="ProjectPages/slideshow-template-library.html">Open Template Library</a>
+                        </div>
+                        <p id="teacher-sync-status" class="template-sync-status" aria-live="polite"></p>
+                    </section>
+
+                    <section id="nzqa-standards" class="panel-section library-section">
+                        <div class="section-heading library-heading">
+                            <div>
+                                <p class="section-kicker">NZQA Tracking</p>
+                                <h2>Student standards snapshot</h2>
+                            </div>
+                            <p id="standards-results-meta" class="results-meta" aria-live="polite"></p>
+                            <p class="section-copy">
+                                Track which standards each student is currently working on, including subject stream and year group.
+                            </p>
+                        </div>
+
+                        <div id="standards-links" class="controls-panel" aria-label="NZQA standards quick links"></div>
+                        <div id="standards-summary" class="project-grid" aria-live="polite"></div>
+                    </section>
+
+                    <section id="current-week" class="panel-section current-work">
+                        <div class="section-heading">
+                            <div>
+                                <p class="section-kicker">Happening This Week</p>
+                                <h2>Current activities and lab projects</h2>
+                            </div>
+                            <p class="section-copy">
+                                This live board combines all pinned activities and projects in one place.
+                            </p>
+                        </div>
+
+                        <div id="current-week-grid" class="project-grid" aria-live="polite"></div>
+                    </section>
+                    </div>
+
+                    <div id="teacher-view-panel-library" class="teacher-view-tab-panel" role="tabpanel" aria-labelledby="teacher-view-tab-btn-library" hidden>
+                    <section id="project-library" class="panel-section library-section">
+                        <div class="section-heading library-heading">
+                            <div>
+                                <p class="section-kicker">Activity And Project Library Students Can Choose</p>
+                                <h2>Browse every computer lab activity and project</h2>
+                            </div>
+                            <p id="library-results-meta" class="results-meta" aria-live="polite"></p>
+                            <p class="section-copy">
+                                Search by title, year level, or keywords, then sort to quickly find the right task.
+                            </p>
+                        </div>
+
+                        <div class="controls-panel" role="search">
+                            <label class="control-field search-field" for="project-search">
+                                <span>Search</span>
+                                <input id="project-search" type="search" placeholder="Search activities or projects (e.g., zip, app, robotics)">
+                            </label>
+
+                            <label class="control-field" for="year-filter">
+                                <span>Year Level</span>
+                                <select id="year-filter">
+                                    <option value="All">All levels</option>
+                                </select>
+                            </label>
+
+                            <label class="control-field" for="type-filter">
+                                <span>Type</span>
+                                <select id="type-filter">
+                                    <option value="All">All types</option>
+                                </select>
+                            </label>
+
+                            <label class="control-field" for="category-filter">
+                                <span>Activity Category</span>
+                                <select id="category-filter">
+                                    <option value="All">All items</option>
+                                </select>
+                            </label>
+
+                            <label class="control-field sort-field" for="sort-order">
+                                <span>Sort</span>
+                                <select id="sort-order">
+                                    <option value="name-asc">Name (A-Z)</option>
+                                    <option value="name-desc">Name (Z-A)</option>
+                                    <option value="status">Session Status</option>
+                                    <option value="recent">Most recent</option>
+                                </select>
+                            </label>
+                        </div>
+                        <div id="project-library-grid" class="project-grid" aria-live="polite"></div>
+                    </section>
+                    </div>
+                </div>
+            </div>
+
+            <footer id="global-footer" class="global-hub-footer" aria-label="Hub suggestions and links">
+                <a class="button button-primary global-suggest-button" href="/suggest-activity.html">Suggest a Project or Activity</a>
+                <p class="global-footer-copy">&copy; 2026 Westland High School — Computer Lab &amp; DTECH HUB</p>
+            </footer>
+        </main>
+    </div>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="script.js"></script>
+    <script src="teacher-view.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile | Computer Lab</title>
+    <meta name="description" content="User profile overview for Computer Lab sign-in status, role access, and linked timetable data.">
+    <meta name="theme-color" content="#4a1b6f">
+    <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+    <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+    <link rel="icon" type="image/x-icon" href="images/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="user-profile.css?v=20260513">
+</head>
+<body>
+    <div class="page-shell">
+        <header class="hero">
+            <nav class="topbar" aria-label="Primary">
+                <a class="brand" href="index.html">Computer Lab</a>
+                <div class="topbar-right">
+                    <div class="topbar-links">
+                        <a href="index.html#current-week">This Week</a>
+                        <a href="index.html#project-library">Activity Library</a>
+                        <a href="browse-practicals.html">Browse Practicals</a>
+                    </div>
+                    <div class="utility-actions" aria-label="Utility actions">
+                        <a id="hub-staff-link" href="teacher-view.html" hidden>Teacher View</a>
+                        <a id="hub-admin-link" href="admin-menu.html" hidden>Admin Menu</a>
+                        <span id="hub-access-badge" class="hub-access-badge" hidden aria-live="polite"></span>
+                        <button id="hub-google-signin" class="google-signin-button" type="button">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="google-logo">
+                                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                            </svg>
+                            <span>Sign in with Google</span>
+                        </button>
+                        <button id="hub-google-signout" type="button" hidden>Sign out</button>
+                        <button id="hub-user-badge" class="user-badge" type="button" hidden aria-label="Open profile" aria-haspopup="true" aria-expanded="false"></button>
+                    </div>
+                </div>
+            </nav>
+        </header>
+
+        <main class="profile-page">
+            <section class="profile-hero-card">
+                <div class="profile-hero-main">
+                    <div class="profile-avatar" id="profile-avatar">UP</div>
+                    <div>
+                        <h1>User Profile</h1>
+                        <p>Account details and sign-in readiness for future Google Login.</p>
+                        <div class="profile-tags">
+                            <span id="profile-ready-pill" class="profile-pill">Profile loading</span>
+                            <span id="profile-login-pill" class="profile-pill profile-pill-soft">Google Login checking</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="profile-top-status" class="profile-top-status">Loading account status...</div>
+            </section>
+
+            <section class="profile-grid" aria-label="User profile details">
+                <div class="profile-column-main">
+                    <article class="profile-card">
+                        <h2>Account Overview</h2>
+                        <p id="profile-overview-subtext" class="card-subtext">Profile details are linked from Google session identity and uploaded Staff/Department CSV data.</p>
+                        <div class="key-grid">
+                            <div class="key-item"><span>Name</span><strong id="profile-name">Checking...</strong></div>
+                            <div class="key-item"><span>Email</span><strong id="profile-email">Checking...</strong></div>
+                            <div class="key-item"><span>Approved Domain</span><strong id="profile-domain">Checking...</strong></div>
+                            <div class="key-item"><span>Additional Role</span><strong id="profile-role">Checking...</strong></div>
+                        </div>
+                    </article>
+
+                    <article class="profile-card">
+                        <h2>Course Standards Guidance</h2>
+                        <p class="card-subtext">Based on the linked timetable year and course. This is guidance from the Learning Site, not official enrolment.</p>
+                        <div id="profile-course-standards" class="info-stack">
+                            <div class="info-line">Checking course and available standards...</div>
+                        </div>
+                    </article>
+
+                    <article class="profile-card">
+                        <h2>Weekly Timetable</h2>
+                        <p id="profile-timetable-subtext" class="card-subtext">Pulled from timetable CSV upload for your teacher code/profile.</p>
+                        <div id="profile-timetable" class="info-stack">
+                            <div class="info-line">Checking timetable links...</div>
+                        </div>
+                    </article>
+                </div>
+
+                <div class="profile-column-side">
+                    <article class="profile-card">
+                        <h2>Sign-In Settings</h2>
+                        <p class="card-subtext">Live authentication and role details for this account.</p>
+                        <div class="metric-grid">
+                            <div class="metric-item"><span>Auth Provider</span><strong>Google Workspace</strong></div>
+                            <div class="metric-item"><span>Status</span><strong id="profile-auth-status">Checking...</strong></div>
+                            <div class="metric-item"><span>Teacher View</span><strong id="profile-teacher-view">Checking...</strong></div>
+                            <div class="metric-item"><span>Session Source</span><strong>Google session</strong></div>
+                        </div>
+                    </article>
+
+                    <article class="profile-card profile-card-connection">
+                        <h2>Google Sign-In Connection</h2>
+                        <div id="profile-connection" class="connection-box">
+                            <strong>Checking Google account status...</strong>
+                            <p>Reading active session and profile link information.</p>
+                        </div>
+                    </article>
+
+                    <article id="trello-integration-card" class="profile-card profile-card-connection">
+                        <h2>Trello Integration</h2>
+                        <p class="card-subtext">Connect once, then send work logs from DTECH-HUB into your Trello card.</p>
+                        <div id="profile-trello-connection" class="connection-box">
+                            <strong>Checking Trello connection...</strong>
+                            <p>Loading integration status.</p>
+                        </div>
+                        <div class="trello-actions-row">
+                            <button type="button" id="trello-connect-btn" class="detail-action">Connect Trello</button>
+                            <button type="button" id="trello-disconnect-btn" class="detail-action detail-action-secondary" hidden>Disconnect</button>
+                            <button type="button" id="trello-refresh-boards-btn" class="detail-action detail-action-secondary" hidden>Refresh Boards</button>
+                        </div>
+                        <div id="trello-manual-box" class="trello-manual-box">
+                            <p class="card-subtext">If popup auth fails, generate a token using the DTECH key, then paste it below:</p>
+                            <button type="button" id="trello-manual-generate-btn" class="detail-action detail-action-secondary">Generate DTECH Token</button>
+                            <input type="password" id="trello-manual-token" class="trello-manual-token" placeholder="Paste Trello token" autocomplete="new-password" name="trello_manual_token">
+                            <button type="button" id="trello-manual-connect-btn" class="detail-action detail-action-secondary">Connect with Token</button>
+                        </div>
+                        <div id="trello-boards" class="info-stack" hidden></div>
+                    </article>
+
+                    <article class="profile-card">
+                        <h2>CSV Data Links</h2>
+                        <div id="profile-csv-links" class="info-stack">
+                            <div class="info-line">Checking staff upload links...</div>
+                        </div>
+                    </article>
+
+                    <article class="profile-card">
+                        <h2>Staff Upload History</h2>
+                        <p class="card-subtext">Shows which upload terms/years this staff profile appears in.</p>
+                        <div id="profile-upload-history" class="info-stack">
+                            <div class="info-line">Checking upload history...</div>
+                        </div>
+                    </article>
+
+                    <article class="profile-card">
+                        <h2>Classes and Students</h2>
+                        <p class="card-subtext">Current classes linked to this staff code and students currently in those class codes.</p>
+                        <div id="profile-classes" class="info-stack">
+                            <div class="info-line">Checking class links...</div>
+                        </div>
+                    </article>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="script.js"></script>
+    <script src="user-profile.js"></script>
+</body>
+</html>

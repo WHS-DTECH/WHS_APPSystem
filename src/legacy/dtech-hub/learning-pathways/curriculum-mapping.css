@@ -1,0 +1,23 @@
+.mapping-page .mapping-rules { margin: 0; padding-left: 1.2rem; line-height: 1.5; }
+.mapping-toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
+.mapping-toolbar label { display: grid; gap: 4px; font-weight: 700; }
+.mapping-toolbar .mapping-verified { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+.mapping-warning { padding: 8px 12px; border-radius: 8px; background: #fdecc8; color: #5c3b00; font-weight: 600; }
+.mapping-warning[hidden] { display: none; }
+.mapping-fields { border: 0; margin: 0; padding: 0; min-width: 0; }
+.mapping-fields:disabled { opacity: 0.6; }
+.mapping-table-wrap { overflow-x: auto; }
+.mapping-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+.mapping-table th, .mapping-table td { padding: 8px; border-bottom: 1px solid #d9e1ea; text-align: left; vertical-align: top; }
+.mapping-table thead th { background: #1d4f80; color: #fff; position: sticky; top: 0; }
+.mapping-table .mapping-group th { background: #e3edf8; color: #1d4f80; }
+.mapping-table .mapping-code { font-weight: 700; white-space: nowrap; }
+.mapping-table .mapping-heading { display: block; color: #5a6878; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+.mapping-table select, .mapping-table input { width: 100%; min-width: 110px; }
+.mapping-table select.role-primary { background: #e3edf8; border: 2px solid #1d4f80; font-weight: 700; }
+.mapping-table select.role-supporting { background: #fff; border: 2px solid #1d4f80; }
+.mapping-table select.role-context { background: #fff; border: 2px dashed #6b7a8c; }
+.mapping-table select.auto-yes { background: #d4f0dc; border: 2px solid #2f8a4f; }
+.mapping-table select.auto-review { background: #fdecc8; border: 2px solid #c9922a; }
+.mapping-table select.auto-no { background: #eceff3; border: 2px solid #9aa6b4; }
+#mapping-add-activity { margin-top: 12px; }

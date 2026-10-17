@@ -1,0 +1,58 @@
+[
+  {
+    "id": "practical-skills-checklist",
+    "title": "Practical Skills Checklist",
+    "summary": "Track practical tasks, evidence, and completion checkpoints for class workshop activities.",
+    "yearLevel": "All Years",
+    "area": "Practical Skills",
+    "status": "active",
+    "href": "/practical-skills/checklist.html",
+    "imageUrl": "",
+    "visual": {
+      "icon": "PS",
+      "palette": "linear-gradient(135deg, #2f8f61 0%, #3ca873 54%, #65c494 100%)"
+    }
+  },
+  {
+    "id": "kit-login",
+    "title": "Login Kit",
+    "summary": "Show what you know about signing in and getting ready to work in a worksheet-style activity.",
+    "yearLevel": "All Years",
+    "area": "Practical Skills",
+    "status": "active",
+    "href": "/practical-skills/kit-worksheet.html?kit=kit-login",
+    "imageUrl": "",
+    "visual": {
+      "icon": "🔐",
+      "palette": "linear-gradient(135deg, #2f8f61 0%, #3ca873 54%, #65c494 100%)"
+    }
+  },
+  {
+    "id": "kit-google-search",
+    "title": "Search Kit",
+    "summary": "Become a Search Detective! Discover clever ways to find information, solve search challenges and spot what you can trust online.",
+    "yearLevel": "Junior DTECH",
+    "area": "Search Skills",
+    "status": "active",
+    "href": "/practical-skills/kit-worksheet.html?kit=kit-google-search",
+    "imageUrl": "",
+    "visual": {
+      "icon": "🔎",
+      "palette": "linear-gradient(135deg, #2f8f61 0%, #3ca873 54%, #65c494 100%)"
+    }
+  },
+  {
+    "id": "kit-minecraft",
+    "title": "Minecraft Builder Kit",
+    "summary": "Explore Minecraft Education, develop your building skills, capture your creations and take on the Famous Building Challenge!",
+    "yearLevel": "Junior DTECH",
+    "area": "Application Kits",
+    "status": "active",
+    "href": "/practical-skills/kit-worksheet.html?kit=kit-minecraft",
+    "imageUrl": "",
+    "visual": {
+      "icon": "🧱",
+      "palette": "linear-gradient(135deg, #2f8f61 0%, #3ca873 54%, #65c494 100%)"
+    }
+  }
+]

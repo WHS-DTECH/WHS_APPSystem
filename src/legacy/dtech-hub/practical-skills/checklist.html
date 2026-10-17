@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My DTECH-HUB Licence</title>
+    <meta name="description" content="Your personalised DTECH-HUB Licence: collect kit stamps, celebrate achievements and choose your next challenge.">
+    <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+    <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+    <link rel="icon" type="image/x-icon" href="../images/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="./checklist.css">
+</head>
+<body class="licence-dashboard">
+    <div class="page-shell">
+        <header class="hero practical-skills-hero">
+            <nav class="topbar" aria-label="Primary">
+                <a class="brand" href="/practical-skills/checklist.html">Licence</a>
+                <div class="topbar-right">
+                    <div class="topbar-links standalone-links">
+                        <a href="/practical-skills/">Licence Library</a>
+                        <a href="/practical-skills/checklist.html">My Licence</a>
+                    </div>
+                    <div class="utility-actions" aria-label="Utility actions">
+                        <button id="hub-google-signin" class="google-signin-button" type="button">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="google-logo">
+                                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                            </svg>
+                            <span>Sign in with Google</span>
+                        </button>
+                        <button id="hub-google-signout" type="button" hidden>Sign out</button>
+                        <button id="hub-user-badge" class="user-badge" type="button" hidden aria-label="Open profile" aria-haspopup="true" aria-expanded="false"></button>
+                    </div>
+                </div>
+            </nav>
+
+            <div class="hero-panel practical-skills-panel">
+                <div class="hero-copy">
+                    <p class="eyebrow">Learn it. Show it. Stamp it.</p>
+                    <h1>My DTECH-HUB Licence</h1>
+                    <p class="hero-text">Your skills. Your achievements. Your next adventure. Complete a kit and collect a stamp for your licence!</p>
+                </div>
+            </div>
+        </header>
+
+        <main class="home-grid single-column">
+            <p id="ps-status" class="upload-status" role="status" aria-live="polite" hidden></p>
+            <section class="student-licence" aria-labelledby="licence-card-title">
+                <div class="licence-card-heading">
+                    <img src="../images/whs%20logo%20circular%20reo%20.png" alt="Westland High School logo" width="80" height="80">
+                    <div><p class="section-kicker">Westland High School</p><h2 id="licence-card-title">DTECH-HUB Licence</h2></div>
+                    <span class="licence-card-seal" aria-hidden="true">&#9733;</span>
+                </div>
+                <p class="licence-name-label">Licence holder</p>
+                <h3 id="ps-student-name">Your name belongs here</h3>
+                <p id="ps-student-email">Sign in with your school account to start collecting stamps.</p>
+                <div class="licence-progress-heading"><strong id="ps-licence-progress-label">Your stamp collection</strong><span id="ps-licence-progress-count">Sign in to view</span></div>
+                <progress id="ps-licence-progress" max="3" value="0" aria-label="Completed licence kits"></progress>
+                <div id="ps-stamp-list" class="licence-stamps" aria-label="Kit stamps"></div>
+                <p class="licence-card-footnote">Each completed kit earns a stamp and its own certificate. Keep building your digital confidence!</p>
+            </section>
+            <section id="ps-next-step" class="licence-next-step" aria-labelledby="ps-next-title" hidden>
+                <div><p class="section-kicker">Your next move</p><h2 id="ps-next-title"></h2><p id="ps-next-description"></p></div>
+                <a id="ps-next-link" class="button button-primary" href="./kit-worksheet.html?kit=kit-login">Open kit &rarr;</a>
+            </section>
+            <section class="panel-section checklist-scoreboard">
+                <div class="section-heading">
+                    <div>
+                        <p class="section-kicker">Look how far you've come</p>
+                        <h2>Your Licence Stats</h2>
+                    </div>
+                </div>
+                <div class="scoreboard-grid">
+                    <article class="scoreboard-tile">
+                        <span>Total Points</span>
+                        <strong id="ps-total-points">0</strong>
+                    </article>
+                    <article class="scoreboard-tile">
+                        <span>Stamps Collected</span>
+                        <strong id="ps-completed-kits">0 / 0</strong>
+                    </article>
+                    <article class="scoreboard-tile">
+                        <span>Current Tier</span>
+                        <strong id="ps-current-tier">Starter</strong>
+                    </article>
+                </div>
+            </section>
+
+            <section class="panel-section checklist-badges">
+                <div class="section-heading">
+                    <div>
+                        <p class="section-kicker">Achievements</p>
+                        <h2>Your Achievement Collection</h2>
+                    </div>
+                </div>
+                <div id="ps-badge-list" class="ps-badge-list" aria-live="polite"></div>
+            </section>
+
+            <section class="panel-section checklist-kits">
+                <div class="section-heading">
+                    <div>
+                        <p class="section-kicker">Build your licence</p>
+                        <h2>Your Kit Collection</h2>
+                    </div>
+                </div>
+                <div id="ps-kit-list" class="ps-kit-list" aria-live="polite"></div>
+            </section>
+        </main>
+    </div>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="../script.js"></script>
+    <script src="./checklist.js"></script>
+</body>
+</html>

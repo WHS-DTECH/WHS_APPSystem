@@ -52,6 +52,25 @@ const moduleDocs = {
     legacyDatabase: { used: false, how: 'No legacy database. It uses the unified database only.' },
     env: []
   },
+  'dtech-hub': {
+    summary: 'Original DTECH-HUB pages, activities, practical licences, learning pathways, uploads and integrations; shared Google sessions and Core Administration roles.',
+    legacyDatabase: {
+      used: true,
+      how: 'Live connection to the existing DTECH-DB: existing and new DTECH application data stay there. TeacherFiles are restored from the private WHS-TECHArchive repository; new lesson resource uploads are stored in DTECH-DB and restored into a disposable working cache after redeployment. The private CSV is never served as a web asset. No persistent Render disk is needed. Database backups are separate from GitHub.'
+    },
+    env: [
+      { name: 'DTECH_DATABASE_URL', note: 'Existing DTECH-DB internal Render connection string. Must differ from DATABASE_URL.', legacy: true },
+      { name: 'DTECH_DATABASE_SSL', note: 'Defaults to true; false only for a local database without TLS.', optional: true },
+      { name: 'GITHUB_ARCHIVE_REPOSITORY', note: 'Private WHS-DTECH/WHS-TECHArchive repository.' },
+      { name: 'GITHUB_WRITER_APP_ID', note: 'Existing archive Writer App ID.' },
+      { name: 'GITHUB_WRITER_PRIVATE_KEY_FILE', note: 'Existing Writer PEM secret-file path.' },
+      { name: 'DTECH_ARCHIVE_COMMIT', note: 'Optional immutable commit of the TeacherFiles archive. Defaults to the archive default branch at initialization.', optional: true },
+      ...GMAIL,
+      { name: 'GITHUB_TOKEN', note: 'Existing DTECH GitHub analysis token, if private student repositories need it. Separate from the archive Writer App.', optional: true },
+      { name: 'TRELLO_API_KEY', note: 'Existing DTECH Trello integration key.', optional: true },
+      { name: 'EXTERNAL_EXAM_FORM_WEBHOOK_SECRET', note: 'Existing external exam form webhook secret.', optional: true }
+    ]
+  },
   'sewing-hub': {
     summary: 'Legacy Sewing and Textiles Hub with the activity library and activity suggestions.',
     legacyDatabase: {

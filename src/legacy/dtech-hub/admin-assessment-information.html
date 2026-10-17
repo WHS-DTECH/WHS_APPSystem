@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Assessment Standards Manager | Computer Lab</title>
+  <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+  <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+  <link rel="icon" type="image/x-icon" href="images/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .standards-page {
+      width: min(1440px, calc(100% - 32px));
+      margin: 24px auto 48px;
+    }
+
+    .standards-header {
+      margin-bottom: 18px;
+    }
+
+    .standards-header h1 {
+      margin: 0 0 8px;
+      font-family: "Fraunces", serif;
+      font-size: clamp(1.7rem, 3vw, 2.4rem);
+      color: #183f67;
+    }
+
+    .standards-header p {
+      margin: 0;
+      color: #4c6681;
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+
+    .standards-controls {
+      background: #eef3fa;
+      border: 1px solid #c9d7e8;
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 12px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(160px, 1fr));
+      gap: 10px;
+      align-items: end;
+    }
+
+    .standards-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .standards-field label {
+      color: #163f66;
+      font-size: 0.73rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .standards-field input,
+    .standards-field select {
+      border: 1px solid #b8cce3;
+      border-radius: 8px;
+      background: #fff;
+      color: #14395f;
+      font-size: 0.84rem;
+      padding: 9px 10px;
+      font-family: "Manrope", sans-serif;
+    }
+
+    .standards-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .standards-refresh {
+      border: 1px solid #356a9d;
+      background: #2b5f90;
+      color: #fff;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 9px 14px;
+      cursor: pointer;
+    }
+
+    .standards-refresh:hover {
+      background: #244f78;
+    }
+
+    .standards-status {
+      min-height: 1.2em;
+      font-size: 0.8rem;
+      color: #274b6f;
+      margin: 4px 0 10px;
+    }
+
+    .standards-status.is-error {
+      color: #a12d2d;
+    }
+
+    .standards-results-meta {
+      font-size: 0.78rem;
+      color: #4c6681;
+      margin-bottom: 8px;
+    }
+
+    .standards-table-wrap {
+      overflow-x: auto;
+      background: #f4f7fb;
+      border: 1px solid #cdd9e7;
+      border-radius: 12px;
+    }
+
+    .standards-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 980px;
+      font-size: 0.82rem;
+      color: #163f66;
+    }
+
+    .standards-table th {
+      background: #dbe7f4;
+      text-align: left;
+      padding: 8px 10px;
+      border-bottom: 2px solid #c2d3e8;
+      font-weight: 700;
+    }
+
+    .standards-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #dde6f0;
+      vertical-align: top;
+    }
+
+    .standards-table tr:hover td {
+      background: #f0f5fc;
+    }
+
+    .standards-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .standards-link {
+      color: #2f74b9;
+      text-decoration: none;
+      font-weight: 700;
+    }
+
+    .standards-link:hover {
+      text-decoration: underline;
+    }
+
+    .standards-pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      background: #dcebf9;
+      color: #1b4d78;
+      border: 1px solid #bad3ec;
+      white-space: nowrap;
+    }
+
+    .standards-empty {
+      color: #607790;
+      font-style: italic;
+    }
+
+    .standards-select-button {
+      border: none;
+      background: transparent;
+      color: #2f74b9;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 0;
+      text-align: left;
+      font-family: inherit;
+      font-size: inherit;
+    }
+
+    .standards-select-button:hover {
+      text-decoration: underline;
+    }
+
+    .standard-detail-section {
+      margin-top: 14px;
+      border: 1px solid #cdd9e7;
+      border-radius: 12px;
+      background: #f8fbff;
+      padding: 12px;
+    }
+
+    .standard-detail-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .standard-detail-header h3 {
+      margin: 0;
+      color: #163f66;
+      font-size: 1.02rem;
+      font-family: "Fraunces", serif;
+    }
+
+    .standard-detail-refresh {
+      border: 1px solid #356a9d;
+      background: #2b5f90;
+      color: #fff;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 6px 10px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .standard-detail-refresh:hover {
+      background: #244f78;
+    }
+
+    .standard-detail-refresh:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    .standard-detail-meta {
+      margin: 0 0 8px;
+      font-size: 0.8rem;
+      color: #4c6681;
+    }
+
+    .standard-detail-match {
+      margin: 0 0 8px;
+      font-size: 0.8rem;
+      color: #1f5b8f;
+      font-weight: 600;
+    }
+
+    .standard-detail-links {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+      font-size: 0.8rem;
+    }
+
+    .standard-detail-text {
+      border: 1px solid #d7e3f0;
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 10px;
+      max-height: none;
+      overflow: visible;
+      white-space: pre-wrap;
+      color: #203e5b;
+      font-size: 0.82rem;
+      line-height: 1.4;
+    }
+
+    .template-section {
+      margin-top: 18px;
+      background: #eef8f4;
+      border: 1px solid #b7ddcf;
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    .template-section h2 {
+      margin: 0 0 8px;
+      font-family: "Fraunces", serif;
+      font-size: 1.25rem;
+      color: #124f39;
+    }
+
+    .template-section p {
+      margin: 0 0 10px;
+      color: #3a6654;
+      font-size: 0.84rem;
+    }
+
+    .template-form {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .template-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(140px, 1fr));
+      gap: 10px;
+    }
+
+    .template-grid .standards-field textarea,
+    .template-grid .standards-field input,
+    .template-grid .standards-field select {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #9ec8b8;
+      border-radius: 8px;
+      background: #fff;
+      color: #1a4f3b;
+      font-size: 0.84rem;
+      padding: 9px 10px;
+      font-family: "Manrope", sans-serif;
+    }
+
+    .template-grid .standards-field textarea {
+      min-height: 84px;
+      resize: none;
+      overflow-y: hidden;
+    }
+
+    .template-grid .full {
+      grid-column: 1 / -1;
+    }
+
+    .template-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .template-save,
+    .template-reset,
+    .template-delete {
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 8px 12px;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+
+    .template-save {
+      border-color: #2f7a5a;
+      background: #2a6f53;
+      color: #fff;
+    }
+
+    .template-reset {
+      border-color: #7ea997;
+      background: #eff8f3;
+      color: #255743;
+    }
+
+    .template-delete {
+      border-color: #c78e8e;
+      background: #fff2f2;
+      color: #8d3333;
+    }
+
+    .template-status {
+      min-height: 1.2em;
+      margin: 0;
+      font-size: 0.8rem;
+      color: #255743;
+    }
+
+    .template-status.is-error {
+      color: #9d2f2f;
+    }
+
+    .template-card-color-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid #6fb493;
+      background: #dff4e9;
+      color: #1f6f4f;
+      border-radius: 999px;
+      padding: 3px 10px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .template-cards-table-wrap {
+      overflow-x: auto;
+      border: 1px solid #b7ddcf;
+      border-radius: 12px;
+      background: #f5fbf8;
+    }
+
+    .template-cards-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 960px;
+      font-size: 0.81rem;
+      color: #164d39;
+    }
+
+    .template-cards-table th {
+      background: #d8f0e5;
+      text-align: left;
+      padding: 8px 10px;
+      border-bottom: 2px solid #b5ddcc;
+      font-weight: 700;
+    }
+
+    .template-cards-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #d8ece3;
+      vertical-align: top;
+    }
+
+    .template-cards-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .template-row-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .template-row-button {
+      border: 1px solid #7ea997;
+      border-radius: 6px;
+      background: #ffffff;
+      color: #255743;
+      padding: 4px 8px;
+      font-size: 0.73rem;
+      cursor: pointer;
+    }
+
+    @media (max-width: 980px) {
+      .standards-controls {
+        grid-template-columns: 1fr;
+      }
+
+      .template-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .standards-table {
+        min-width: 720px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-shell">
+    <nav class="topbar" aria-label="Primary">
+      <a class="brand" href="index.html">Computer Lab</a>
+      <div class="topbar-right">
+        <div class="topbar-links">
+          <a href="teacher-view.html">Teacher View</a>
+          <a href="admin-menu.html">Admin Menu</a>
+        </div>
+        <div class="utility-actions" aria-label="Utility actions">
+          <a id="hub-staff-link" href="teacher-view.html" hidden>Teacher View</a>
+          <a id="hub-admin-link" href="admin-menu.html" hidden>Admin Menu</a>
+          <span id="hub-access-badge" class="hub-access-badge" hidden aria-live="polite"></span>
+          <button id="hub-google-signin" class="google-signin-button" type="button">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="google-logo">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+            <span>Sign in with Google</span>
+          </button>
+          <button id="hub-google-signout" type="button" hidden>Sign out</button>
+          <button id="hub-user-badge" class="user-badge" type="button" hidden aria-label="Open profile" aria-haspopup="true" aria-expanded="false"></button>
+        </div>
+      </div>
+    </nav>
+
+    <main class="standards-page">
+      <header class="standards-header">
+        <h1>Assessment Standards Manager</h1>
+        <p>Browse NZQA standards for Digital Technologies and Generic Computing. Filter by level and search by standard number.</p>
+      </header>
+
+      <section class="standards-controls" aria-label="NZQA standards filters">
+        <div class="standards-field">
+          <label for="nzqa-stream">Subject Set</label>
+          <select id="nzqa-stream" name="stream">
+            <option value="digital" selected>Digital Technologies</option>
+            <option value="computing">Generic Computing</option>
+            <option value="both">Digital + Generic</option>
+          </select>
+        </div>
+        <div class="standards-field">
+          <label for="nzqa-level">Level</label>
+          <select id="nzqa-level" name="level">
+            <option value="all" selected>All Levels (1, 2, 3)</option>
+            <option value="1">Level 1</option>
+            <option value="2">Level 2</option>
+            <option value="3">Level 3</option>
+          </select>
+        </div>
+        <div class="standards-field">
+          <label for="nzqa-standard-search">Standard Number</label>
+          <input id="nzqa-standard-search" name="standardSearch" type="search" placeholder="e.g. 91903" autocomplete="off">
+        </div>
+        <div class="standards-actions">
+          <button type="button" class="standards-refresh" id="nzqa-refresh">Refresh NZQA Data</button>
+        </div>
+      </section>
+
+      <p class="standards-status" id="standards-status" aria-live="polite"></p>
+      <p class="standards-results-meta" id="standards-results-meta"></p>
+
+      <section class="standards-table-wrap" aria-label="NZQA standards list">
+        <table class="standards-table">
+          <thead>
+            <tr>
+              <th>Standard #</th>
+              <th>Standard Name</th>
+              <th>Version</th>
+              <th>Level</th>
+              <th>Credits</th>
+              <th>PDF</th>
+              <th>DOCX</th>
+              <th>NZQA</th>
+            </tr>
+          </thead>
+          <tbody id="standards-table-body">
+            <tr>
+              <td colspan="8" class="standards-empty">Loading standards data...</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="standard-detail-section" aria-label="Selected standard details">
+        <div class="standard-detail-header">
+          <h3 id="standard-detail-title">Standard details</h3>
+          <button type="button" id="standard-detail-force-refresh" class="standard-detail-refresh" disabled>Force Refresh Standard</button>
+        </div>
+        <p id="standard-detail-meta" class="standard-detail-meta">Click any standard number to load details from NZQA PDF/DOCX where available.</p>
+        <p id="standard-detail-match" class="standard-detail-match"></p>
+        <div class="standard-detail-links" id="standard-detail-links"></div>
+        <div id="standard-detail-text" class="standard-detail-text">No standard selected yet.</div>
+      </section>
+
+      <section class="template-section" aria-label="Assessment Standard Cards">
+        <h2>Assessment Standard Cards (Teal)</h2>
+        <p>Create reusable course/year templates. When teachers assign a matching standard, criteria can auto-populate and still be edited locally.</p>
+
+        <form id="standard-card-form" class="template-form" novalidate>
+          <input id="standard-card-id" name="id" type="hidden">
+          <div class="template-grid">
+            <div class="standards-field">
+              <label for="standard-card-course-name">Standard Number</label>
+              <input id="standard-card-course-name" name="courseName" type="text" placeholder="e.g. 91897" required>
+            </div>
+            <div class="standards-field">
+              <label for="standard-card-year-level">Standard Level</label>
+              <input id="standard-card-year-level" name="yearLevel" type="text" placeholder="e.g. Level 2" required>
+            </div>
+            <div class="standards-field">
+              <label for="standard-card-year-version">Standard Version</label>
+              <input id="standard-card-year-version" name="yearVersion" type="number" min="1" max="9999" required>
+            </div>
+            <div class="standards-field">
+              <label for="standard-card-credits">Credits</label>
+              <input id="standard-card-credits" name="credits" type="number" min="0" step="1" placeholder="e.g. 6">
+            </div>
+            <div class="standards-field">
+              <label>Card Colour</label>
+              <span class="template-card-color-pill">Teal</span>
+            </div>
+
+            <div class="standards-field full">
+              <label for="standard-card-codes">Standard Name</label>
+              <input id="standard-card-codes" name="standardCodes" type="text" placeholder="e.g. 91897, 91907" required>
+            </div>
+
+            <div class="standards-field full">
+              <label for="standard-card-achieved-text">Achieved Text</label>
+              <textarea id="standard-card-achieved-text" name="achievedText" placeholder="Achieved criteria text..."></textarea>
+            </div>
+            <div class="standards-field full">
+              <label for="standard-card-achieved-checklist">Achieved Checklist (optional, one per line)</label>
+              <textarea id="standard-card-achieved-checklist" name="achievedChecklist" placeholder="Checklist bullet 1"></textarea>
+            </div>
+
+            <div class="standards-field full">
+              <label for="standard-card-merit-text">Merit Text</label>
+              <textarea id="standard-card-merit-text" name="meritText" placeholder="Merit criteria text..."></textarea>
+            </div>
+            <div class="standards-field full">
+              <label for="standard-card-merit-checklist">Merit Checklist (optional, one per line)</label>
+              <textarea id="standard-card-merit-checklist" name="meritChecklist" placeholder="Checklist bullet 1"></textarea>
+            </div>
+
+            <div class="standards-field full">
+              <label for="standard-card-excellence-text">Excellence Text</label>
+              <textarea id="standard-card-excellence-text" name="excellenceText" placeholder="Excellence criteria text..."></textarea>
+            </div>
+            <div class="standards-field full">
+              <label for="standard-card-excellence-checklist">Excellence Checklist (optional, one per line)</label>
+              <textarea id="standard-card-excellence-checklist" name="excellenceChecklist" placeholder="Checklist bullet 1"></textarea>
+            </div>
+          </div>
+
+          <div class="template-actions">
+            <button type="submit" class="template-save">Save Assessment Standard Card</button>
+            <button type="button" class="template-reset" id="standard-card-reset">Clear Form</button>
+          </div>
+          <p id="standard-card-status" class="template-status" aria-live="polite"></p>
+        </form>
+
+        <div class="template-cards-table-wrap" aria-label="Assessment Standard Card library">
+          <table class="template-cards-table">
+            <thead>
+              <tr>
+                <th>Standard Number</th>
+                <th>Standard Level</th>
+                <th>Standard Version</th>
+                <th>Credits</th>
+                <th>Standard Code(s)</th>
+                <th>Colour</th>
+                <th>Updated</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="standard-card-table-body">
+              <tr>
+                <td colspan="8" class="standards-empty">Loading Assessment Standard Cards...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <footer id="global-footer" class="global-hub-footer" aria-label="Hub suggestions and links">
+      <a class="button button-primary global-suggest-button" href="/suggest-activity.html">Suggest a Project or Activity</a>
+      <p class="global-footer-copy">&copy; 2026 Westland High School - Computer Lab &amp; DTECH HUB</p>
+    </footer>
+  </div>
+
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="script.js"></script>
+  <script src="admin-assessment-information.js"></script>
+</body>
+</html>

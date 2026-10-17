@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Progression Pathway | Teacher View | DTECH-HUB</title>
+    <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+    <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+    <link rel="icon" href="../images/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="progression-pathway.css">
+</head>
+<body>
+    <div class="page-shell">
+        <header class="hero"><nav class="topbar" aria-label="Primary"><a class="brand" href="/index.html">Computer Lab</a></nav></header>
+        <main class="progression-page">
+            <section class="panel-section">
+                <p class="section-kicker">YEAR 7-10 | TEACHER VIEW | TIMETABLE CLASS</p>
+                <h1>Progression Pathway</h1>
+                <p>Curriculum progress tracker. Teacher-selected descriptors against the student's year-specific expectations.</p>
+                <p id="progression-status" role="status">Checking Teacher View access...</p>
+                <button id="progression-retry" class="button button-secondary" type="button" hidden>Reload saved results</button>
+                <fieldset id="progression-controls" disabled>
+                    <legend>Student and Timetable Class</legend>
+                    <div class="progression-fields">
+                        <label>Timetable Class<select id="progression-homeroom-filter"><option value="">All timetable classes</option></select></label>
+                        <label>Year level filter<select id="progression-year-filter"><option value="">All years</option><option value="7">Year 7</option><option value="8">Year 8</option><option value="9">Year 9</option><option value="10">Year 10</option><option value="staff">Staff</option></select></label>
+                        <label>Find a student<input id="progression-search" type="search" placeholder="Start typing a name..."></label>
+                        <label>Student<select id="progression-student"><option value="">Select a student</option></select></label>
+                    </div>
+                    <p id="progression-filter-count" role="status"></p>
+                    <p id="progression-email-warning" class="is-error" hidden></p>
+                    <ul id="progression-roster" class="progression-roster" aria-label="Matching students"></ul>
+                </fieldset>
+                <dialog id="progression-dialog" class="progression-dialog" aria-labelledby="progression-dialog-title">
+                <div class="progression-dialog-header">
+                    <div>
+                        <p class="section-kicker">STUDENT PROGRESSION DETAILS</p>
+                        <h2 id="progression-dialog-title">Student results</h2>
+                        <p id="progression-dialog-meta"></p>
+                    </div>
+                    <button id="progression-dialog-close" class="button button-secondary" type="button">Close</button>
+                </div>
+                <section id="progression-dialog-summary" class="progression-dialog-summary" aria-label="Progression summary"></section>
+                <p id="progression-dialog-status" role="status"></p>
+                <form id="progression-form">
+                    <fieldset id="progression-editor" disabled hidden>
+                        <legend class="visually-hidden">Student results</legend>
+                        <div class="progression-fields">
+                            <label>School year<input id="progression-year" type="number" min="2000" max="2100" required></label>
+                            <label>Term<select id="progression-term"><option value="1">Term 1</option><option value="2">Term 2</option><option value="3">Term 3</option><option value="4">Term 4</option></select></label>
+                            <label>Student year level<select id="progression-level"><option value="7">Year 7</option><option value="8">Year 8</option><option value="9">Year 9</option><option value="10">Year 10</option></select></label>
+                            <label>Class<input id="progression-class" maxlength="100"></label>
+                            <label>Homeroom<input id="progression-homeroom" maxlength="100"></label>
+                            <label>Timetable Class<input id="progression-timetable-class" maxlength="100"></label>
+                        </div>
+                        <div class="progression-heading-row"><h2>Learning Pathways Coverage</h2><button type="button" class="progression-hint-toggle" data-hint-toggle="progression-hint-pathways" aria-expanded="false" aria-controls="progression-hint-pathways">HINT</button></div>
+                        <p id="progression-hint-pathways" class="progression-hint" hidden>Coverage for each DTECH pathway is calculated from its linked curriculum statements below: No Evidence until a linked statement is covered, Some Evidence once at least one is, and Full Evidence when every Primary and Supporting statement has Full Evidence. Progress is recorded per Statement Set in Curriculum Progression Results below.</p>
+                        <div class="curriculum-table-wrap" tabindex="0" role="region" aria-label="Pathway results">
+                            <table class="curriculum-table"><thead><tr><th scope="col">Learning pathway <span class="progression-th-note">(linked curriculum statements)</span></th><th scope="col">Coverage</th></tr></thead><tbody id="progression-rows"></tbody></table>
+                        </div>
+                        <div class="progression-heading-row"><h2>Curriculum Progression Results</h2><button type="button" class="progression-hint-toggle" data-hint-toggle="progression-hint-curriculum" aria-expanded="false" aria-controls="progression-hint-curriculum">HINT</button></div>
+                        <p id="progression-hint-curriculum" class="progression-hint" hidden>Statements are quoted from the Technology Years 0-10 teaching sequence (September 2026), following its Knowledge and Practices layout for the student's year level. Tags show the DTECH pathways each statement supports (<a href="curriculum-mapping.html">Admin &gt; Curriculum Mapping</a>): DS Digital Systems, D&amp;I Data and Information, DC Digital Citizenship, P&amp;A Programming and Algorithms, S&amp;C Systems and Control. <span class="progression-chip role-primary">Primary</span> <span class="progression-chip role-supporting">Supporting</span> <span class="progression-chip role-context">Context dependent</span> When a student completes a tracked activity, its approved statements are set to Some Evidence automatically; only the teacher can set Full Evidence. Discipline defaults to DTECH; change it if the student met the statement in Textiles, Food, Wood or DVC. Each Knowledge or Practices table is a Statement Set with a Set Progress indicator, set automatically: 1 Emerging when any statement has evidence, 2 Developing when at least 3 have Some or Full Evidence, and 3 Consolidating when every statement has Full Evidence. Once a set is Consolidating the teacher may raise it to 4 Proficient or 5 Exceeding; if evidence later drops, it returns to the automatic level.</p>
+                        <div id="progression-curriculum" class="progression-curriculum" aria-live="polite"></div>
+                        <h2>Teacher Summary</h2>
+                        <details id="progression-comment-builder" class="progression-comment-builder" data-comment-builder open>
+                            <summary>Build the narrative from the Comment Bank</summary>
+                            <p class="progression-cb-help">Choose one comment per category (or skip it), check the preview, then copy it into the report and edit it to suit the student. Learning Context, Strengths and Behaviours go into the Learning narrative; Next Learning Steps goes into the Next learning steps box. Comments come from <a href="comment-bank.html">Admin &gt; Reporting Comment Bank</a>.</p>
+                            <div class="progression-cb-options">
+                                <label>Name used<input id="progression-cb-name" maxlength="40" autocomplete="off"></label>
+                                <label>Later sentences<select id="progression-cb-pronoun"></select></label>
+                                <label>Discipline<select id="progression-cb-discipline"></select></label>
+                            </div>
+                            <div id="progression-cb-rows" class="progression-cb-rows"></div>
+                            <p class="progression-cb-preview-label">Learning narrative preview</p>
+                            <p id="progression-cb-preview" class="progression-cb-preview" aria-live="polite"></p>
+                            <p class="progression-cb-preview-label">Next learning steps preview</p>
+                            <p id="progression-cb-next-preview" class="progression-cb-preview" aria-live="polite"></p>
+                            <div class="progression-cb-actions">
+                                <button type="button" class="button button-primary" id="progression-cb-use">Use in report</button>
+                                <button type="button" class="button button-secondary" id="progression-cb-append">Add to end of report text</button>
+                                <button type="button" class="button button-secondary" id="progression-cb-clear">Clear selections</button>
+                            </div>
+                        </details>
+                        <label>Learning narrative<textarea id="progression-narrative" rows="6" maxlength="5000" placeholder="Describe the student's learning journey this term: what they explored, created and achieved."></textarea></label>
+                        <label>Next learning steps<textarea id="progression-next" rows="3" maxlength="5000"></textarea></label>
+                        <p class="progression-autosave-note">Changes save automatically.</p>
+                        <p id="progression-saved" role="status" aria-live="polite"></p>
+                        <button class="button button-primary" id="progression-save" type="submit" hidden>Retry save</button>
+                    </fieldset>
+                </form>
+                </dialog>
+                <section aria-labelledby="descriptor-heading">
+                    <h2 id="descriptor-heading">The five Progress Descriptors</h2>
+                    <ol class="progression-legend">
+                        <li><span class="descriptor-chip emerging">1</span><div><strong>Emerging</strong><p>Requires significant support to meet year-level curriculum expectations.</p></div></li>
+                        <li><span class="descriptor-chip developing">2</span><div><strong>Developing</strong><p>Making progress towards year-level curriculum expectations.</p></div></li>
+                        <li><span class="descriptor-chip consolidating">3</span><div><strong>Consolidating</strong><p>Meeting many expectations and strengthening understanding.</p></div></li>
+                        <li><span class="descriptor-chip proficient">4</span><div><strong>Proficient</strong><p>Meeting curriculum expectations for the year level.</p></div></li>
+                        <li><span class="descriptor-chip exceeding">5</span><div><strong>Exceeding</strong><p>Exceeding expectations through deeper understanding and application.</p></div></li>
+                    </ol>
+                </section>
+            </section>
+        </main>
+    </div>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="../script.js"></script>
+    <script src="progression-curriculum.js"></script>
+    <script src="progression-mapping.js"></script>
+    <script src="comment-bank.js"></script>
+    <script src="progression-pathway.js"></script>
+</body>
+</html>

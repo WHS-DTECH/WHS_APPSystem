@@ -1,5 +1,6 @@
 .git
 node_modules
+**/node_modules
 .env
 .env.*
 **/*.pem
@@ -7,6 +8,7 @@ node_modules
 **/*.p12
 **/*.pfx
 LegacySites
+src/legacy/dtech-hub/TeacherFiles
 tmp
 coverage
 dist

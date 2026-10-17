@@ -17,6 +17,8 @@ RUN python3 -m venv /opt/pyenv \
 
 COPY . .
 
+RUN npm ci --omit=dev --prefix src/legacy/dtech-hub
+
 ENV NODE_ENV=production
 ENV PYTHON_BIN=/opt/pyenv/bin/python
 EXPOSE 3000

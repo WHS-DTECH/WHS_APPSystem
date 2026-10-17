@@ -112,6 +112,10 @@ function navData(query, canManageHubRoles, datasetManagerUrl) {
         }
         if (app) datasetUrl = await datasetManagerUrl(user, appPath[1]);
       }
+      if (user && (/^\/dtech-hub(?:\/|$)/.test(currentPath) || currentPath === '/hubs/dtech-hub/roles')
+        && await canManageHubRoles(user, 'dtech-hub')) {
+        assignRolesUrl = '/hubs/dtech-hub/roles';
+      }
       res.set('Cache-Control', 'no-store');
       res.json({
         signedIn: Boolean(user),

@@ -18,6 +18,7 @@ const { adminRouter: technologyHubAdmin, publicRouter: technologyHubPublic } = r
 const sewingHub = require('./modules/sewingHub');
 const workshop = require('./modules/workshop');
 const foodRoom = require('./modules/foodRoom');
+const { createDtechRouter } = require('./modules/dtechHub');
 const { importLegacyFoodRoom } = require('./legacyFoodRoomImport');
 const hubRoles = require('./hubRoles');
 const assessmentStandards = require('./assessmentStandards');
@@ -36,7 +37,7 @@ app.get('/favicon.ico', (req, res) => res.sendFile(path.join(__dirname, '..', 'p
 
 app.use(helmet({ contentSecurityPolicy: false }));
 // The Food Room pages make many small API calls, so they are not counted against the shared limit.
-app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, skip: (req) => req.path.startsWith('/food-room/') || req.path === '/nav-data' }));
+app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, skip: (req) => req.path.startsWith('/food-room/') || req.path.startsWith('/dtech-hub/') || req.path === '/nav-data' }));
 // Hosted apps receive their request bodies untouched, so the parsers skip /apps/.
 const parseBodies = [express.urlencoded({ extended: false }), express.json({ limit: '25mb' })];
 app.use((req, res, next) => (req.path.startsWith('/apps/')
@@ -181,6 +182,8 @@ app.use('/sewing-hub', sewingHub);
 app.use('/api', sewingHub.apiRouter);
 app.use('/workshop', workshop);
 app.use('/food-room', foodRoom);
+app.get(/^\/dtech-hub$/, (req, res) => res.redirect(`/dtech-hub/${req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''}`));
+app.use('/dtech-hub', createDtechRouter());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.get('/', async (req, res, next) => {

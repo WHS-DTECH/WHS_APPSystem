@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tools & Techniques Keyword Index | Computer Lab</title>
+  <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+  <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+  <link rel="icon" type="image/x-icon" href="images/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .ttk-page {
+      width: min(1100px, calc(100% - 32px));
+      margin: 22px auto 48px;
+    }
+
+    .ttk-header {
+      margin-bottom: 14px;
+    }
+
+    .ttk-header h1 {
+      margin: 0 0 6px;
+      color: #173f66;
+      font-family: "Fraunces", serif;
+      font-size: clamp(1.6rem, 2.8vw, 2.3rem);
+    }
+
+    .ttk-header p {
+      margin: 0;
+      color: #4a647d;
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+
+    .ttk-panel {
+      background: #f4f7fb;
+      border: 1px solid #c8d6e7;
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+
+    .ttk-panel h2 {
+      margin: 0 0 8px;
+      color: #163f66;
+      font-size: 1.02rem;
+    }
+
+    .ttk-panel p {
+      margin: 0 0 10px;
+      color: #425f79;
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+
+    .ttk-add-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .ttk-add-row input {
+      flex: 1 1 260px;
+      min-height: 34px;
+      border: 1px solid #b7cce2;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-family: "Manrope", sans-serif;
+      font-size: 0.85rem;
+      color: #193d62;
+    }
+
+    .ttk-status {
+      min-height: 1.2em;
+      margin-top: 8px;
+      font-size: 0.8rem;
+      color: #214f79;
+    }
+
+    .ttk-status.is-error {
+      color: #9d2c2c;
+    }
+
+    .ttk-status.is-success {
+      color: #2f6d37;
+    }
+
+    .ttk-table-wrap {
+      overflow: auto;
+      border: 1px solid #ccdae8;
+      border-radius: 10px;
+      background: #ffffff;
+    }
+
+    .ttk-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 640px;
+      font-size: 0.82rem;
+      color: #163f66;
+    }
+
+    .ttk-table th {
+      background: #dbe7f4;
+      text-align: left;
+      padding: 8px 10px;
+      border-bottom: 2px solid #c2d2e5;
+      font-weight: 700;
+    }
+
+    .ttk-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #dde6f0;
+      vertical-align: top;
+    }
+
+    .ttk-table tr:hover td {
+      background: #f2f7fc;
+    }
+
+    .ttk-empty {
+      color: #5c748c;
+      font-style: italic;
+    }
+
+    .ttk-source-pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .ttk-source-pill.auto {
+      background: #e5f0ff;
+      color: #1b4f8f;
+    }
+
+    .ttk-source-pill.manual {
+      background: #e8f5e9;
+      color: #276a35;
+    }
+
+    .ttk-delete {
+      color: #9d2c2c;
+      background: none;
+      border: 1px solid #e3b8b8;
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+
+    .ttk-delete:hover {
+      background: #fdeaea;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-shell">
+    <header class="hero">
+      <nav class="topbar" aria-label="Primary">
+        <a class="brand" href="index.html">Computer Lab</a>
+        <div class="topbar-right">
+          <div class="topbar-links">
+            <a href="index.html#current-week">This Week</a>
+            <a href="index.html#project-library">Activity Library</a>
+            <a href="index.html#browse-lab-projects">Lab Projects</a>
+            <a href="https://sites.google.com/westlandhigh.school.nz/dtec/home" target="_blank" rel="noreferrer">Learning Site</a>
+            <a href="index.html#global-footer">Lab Notes</a>
+          </div>
+          <div class="utility-actions" aria-label="Utility actions">
+            <a id="hub-staff-link" href="teacher-view.html" hidden>Teacher View</a>
+            <a id="hub-admin-link" href="admin-menu.html" hidden>Admin Menu</a>
+            <span id="hub-access-badge" class="hub-access-badge" hidden aria-live="polite"></span>
+            <button id="hub-google-signin" class="google-signin-button" type="button">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="google-logo">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+              </svg>
+              <span>Sign in with Google</span>
+            </button>
+            <button id="hub-google-signout" type="button" hidden>Sign out</button>
+            <button id="hub-user-badge" class="user-badge" type="button" hidden aria-label="Open profile" aria-haspopup="true" aria-expanded="false"></button>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="ttk-page">
+      <header class="ttk-header">
+        <h1>Tools &amp; Techniques Keyword Index</h1>
+        <p>A growing, student-worded index of Tools &amp; Techniques terms. It grows automatically whenever a student pushes tool rows to Trello, and helps the Decomposition sync recognise the same terms if they're later typed directly into Trello. Remove anything incorrect, duplicated, or inappropriate below.</p>
+        <a class="button button-secondary" href="admin-menu.html">Back to Admin Menu</a>
+      </header>
+
+      <section class="ttk-panel" aria-label="Add a keyword manually">
+        <h2>Add a Keyword Manually</h2>
+        <p>Use this to seed the index with terms students haven't pushed yet.</p>
+        <div class="ttk-add-row">
+          <input id="ttk-add-input" type="text" placeholder="e.g., Figma, Blender, Notion">
+          <button id="ttk-add-button" class="button button-primary" type="button">Add Keyword</button>
+        </div>
+        <p id="ttk-add-status" class="ttk-status" aria-live="polite"></p>
+      </section>
+
+      <section class="ttk-panel" aria-label="Keyword index">
+        <h2>Keyword Index <span id="ttk-count"></span></h2>
+        <p id="ttk-list-status" class="ttk-status" aria-live="polite">Loading keyword index...</p>
+        <div class="ttk-table-wrap">
+          <table class="ttk-table">
+            <thead>
+              <tr>
+                <th>Keyword</th>
+                <th>Source</th>
+                <th>Added By</th>
+                <th>Uses</th>
+                <th>First Added</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="ttk-table-body">
+              <tr><td class="ttk-empty" colspan="6">No keywords loaded yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <footer id="global-footer" class="global-hub-footer" aria-label="Hub suggestions and links">
+      <a class="button button-primary global-suggest-button" href="/suggest-activity.html">Suggest a Project or Activity</a>
+      <p class="global-footer-copy">&copy; 2026 Westland High School - Computer Lab &amp; DTECH HUB</p>
+    </footer>
+  </div>
+
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="script.js"></script>
+  <script src="admin-tools-techniques-keywords.js"></script>
+</body>
+</html>

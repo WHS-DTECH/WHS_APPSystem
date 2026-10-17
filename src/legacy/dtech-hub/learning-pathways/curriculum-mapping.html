@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Curriculum Mapping Admin | DTECH-HUB</title>
+    <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+    <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+    <link rel="icon" href="../images/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="curriculum-mapping.css">
+</head>
+<body>
+    <div class="page-shell">
+        <nav class="topbar" aria-label="Primary"><a class="brand" href="/index.html">Computer Lab</a></nav>
+        <main class="admin-page-wrap mapping-page">
+            <header class="admin-page-header">
+                <h1>Curriculum Mapping</h1>
+                <p>Admin-only mapping of curriculum statements to the DTECH learning pathways, and of tracked activities to the statements they evidence. The Progression Pathway report uses this mapping to calculate pathway Coverage and to auto-set statements when students complete tracked activities.</p>
+                <a class="button button-secondary" href="/admin-menu.html">Back to Admin Menu</a>
+                <a class="button button-secondary" href="progression-pathway.html">Open Progression Pathway</a>
+            </header>
+            <section class="admin-panel">
+                <h2>Mapping rules</h2>
+                <ul class="mapping-rules">
+                    <li>Each curriculum statement has one coverage record per student; pathway Coverage is calculated from its linked statements.</li>
+                    <li>A pathway has <strong>No Evidence</strong> until a linked statement is covered, <strong>Some Evidence</strong> once at least one is, and <strong>Full Evidence</strong> only when every Primary and Supporting statement has Full Evidence. Context dependent links count only once that statement is covered.</li>
+                    <li>Only tracked activities with Auto-set <strong>Yes</strong> change coverage, and only from No Evidence to <strong>Some Evidence</strong>. Full Evidence always needs teacher confirmation, and pathway Progress descriptors are never auto-set.</li>
+                    <li>Discipline defaults to DTECH. Mappings are year specific; Year 7 links are never applied to Year 8.</li>
+                </ul>
+            </section>
+            <section class="admin-panel">
+                <div class="mapping-toolbar">
+                    <label>Year level
+                        <select id="mapping-year">
+                            <option value="7">Year 7</option>
+                            <option value="8">Year 8</option>
+                            <option value="9">Year 9</option>
+                            <option value="10">Year 10</option>
+                        </select>
+                    </label>
+                    <label class="mapping-verified"><input id="mapping-verified" type="checkbox"> Mapping verified for this year</label>
+                    <button id="mapping-publish" class="button button-primary" type="button" disabled>Publish Mapping</button>
+                    <button id="mapping-reload" class="button button-secondary" type="button">Reload</button>
+                    <button id="mapping-reset" class="button button-secondary" type="button" disabled>Reset year to workbook defaults</button>
+                </div>
+                <p id="mapping-message" class="upload-status" aria-live="polite">Loading mapping and checking admin access...</p>
+                <p id="mapping-unverified" class="mapping-warning" hidden>This year was seeded from the curriculum tags and has not been verified yet. Review the links, then tick "Mapping verified for this year".</p>
+            </section>
+            <fieldset id="mapping-fields" class="mapping-fields" disabled>
+                <section class="admin-panel">
+                    <h2>Pathway Links</h2>
+                    <p>Choose how each statement supports each pathway. Leave a pathway blank when the statement does not apply to it.</p>
+                    <div class="mapping-table-wrap"><table class="mapping-table">
+                        <thead><tr><th scope="col">ID</th><th scope="col">Statement</th><th scope="col" title="Digital Systems">DS</th><th scope="col" title="Data and Information">D&amp;I</th><th scope="col" title="Digital Citizenship">DC</th><th scope="col" title="Programming and Algorithms">P&amp;A</th><th scope="col" title="Systems and Control">S&amp;C</th></tr></thead>
+                        <tbody id="mapping-links"></tbody>
+                    </table></div>
+                </section>
+                <section class="admin-panel">
+                    <h2>Activity Links</h2>
+                    <p>Link tracked activities to the statements they provide evidence for. Use <strong>Review</strong> when the link depends on what the student actually did; the teacher sees a prompt but coverage is not changed. Untracked activities (for example Binary Piano) cannot update coverage.</p>
+                    <div class="mapping-table-wrap"><table class="mapping-table">
+                        <thead><tr><th scope="col">Activity</th><th scope="col">Statement</th><th scope="col">Auto-set Some Evidence?</th><th scope="col">Evidence / mapping caution</th><th scope="col"><span class="visually-hidden">Remove</span></th></tr></thead>
+                        <tbody id="mapping-activities"></tbody>
+                    </table></div>
+                    <button id="mapping-add-activity" class="button button-secondary" type="button">Add activity link</button>
+                </section>
+            </fieldset>
+        </main>
+        <footer id="global-footer" class="global-hub-footer">
+            <a class="button button-primary global-suggest-button" href="/suggest-activity.html">Suggest a Project or Activity</a>
+            <p class="global-footer-copy">&copy; 2026 Westland High School - Computer Lab &amp; DTECH HUB</p>
+        </footer>
+    </div>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="../script.js"></script>
+    <script src="progression-curriculum.js"></script>
+    <script src="progression-mapping.js"></script>
+    <script src="curriculum-mapping.js"></script>
+</body>
+</html>

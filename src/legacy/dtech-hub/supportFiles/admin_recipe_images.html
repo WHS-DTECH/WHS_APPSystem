@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Recipe Images</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .admin-image-shell {
+      max-width: 1200px;
+      margin: 1.25rem auto;
+      background: #fff;
+      border: 1px solid #d9e2ec;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+      padding: 1rem;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 1rem;
+    }
+
+    .admin-image-list {
+      border: 1px solid #dce4ee;
+      border-radius: 10px;
+      overflow: hidden;
+      min-height: 480px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .admin-image-search {
+      padding: 0.7rem;
+      border-bottom: 1px solid #dce4ee;
+      background: #f8fbff;
+    }
+
+    .admin-image-search input {
+      width: 100%;
+      padding: 0.55rem 0.65rem;
+      border: 1px solid #c7d4e3;
+      border-radius: 7px;
+      font-size: 0.95rem;
+      box-sizing: border-box;
+    }
+
+    .admin-image-items {
+      overflow-y: auto;
+      flex: 1;
+      background: #fff;
+    }
+
+    .admin-image-item {
+      width: 100%;
+      text-align: left;
+      border: 0;
+      border-bottom: 1px solid #eef2f7;
+      background: #fff;
+      padding: 0.65rem 0.75rem;
+      cursor: pointer;
+    }
+
+    .admin-image-item:hover,
+    .admin-image-item.is-active {
+      background: #eef6ff;
+    }
+
+    .admin-image-item-title {
+      font-weight: 700;
+      color: #17324a;
+      font-size: 0.95rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .admin-image-item-meta {
+      font-size: 0.83rem;
+      color: #516375;
+    }
+
+    .admin-image-editor {
+      border: 1px solid #dce4ee;
+      border-radius: 10px;
+      padding: 1rem;
+      min-height: 480px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+
+    .admin-image-status {
+      min-height: 1.3rem;
+      font-size: 0.95rem;
+      color: #1d4f79;
+      font-weight: 600;
+    }
+
+    .admin-image-preview-wrap {
+      width: 100%;
+      max-width: 520px;
+      aspect-ratio: 16 / 10;
+      border-radius: 10px;
+      border: 1px solid #d9e2ec;
+      overflow: hidden;
+      background: #f0f4f8;
+    }
+
+    .admin-image-preview-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .admin-image-controls {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.65rem;
+      max-width: 520px;
+    }
+
+    .admin-image-controls input[type="text"],
+    .admin-image-controls input[type="file"] {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 0.55rem 0.65rem;
+      border: 1px solid #c7d4e3;
+      border-radius: 7px;
+      font-size: 0.95rem;
+    }
+
+    .admin-image-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+    }
+
+    .admin-image-actions button {
+      border: none;
+      border-radius: 7px;
+      padding: 0.55rem 0.9rem;
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+      background: #1976d2;
+    }
+
+    .admin-image-actions .danger {
+      background: #b71c1c;
+    }
+
+    .admin-image-note {
+      font-size: 0.88rem;
+      color: #516375;
+      max-width: 650px;
+    }
+
+    @media (max-width: 960px) {
+      .admin-image-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .admin-image-list,
+      .admin-image-editor {
+        min-height: 320px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+
+  <div class="container">
+    <h1>Admin Recipe Images</h1>
+    <div class="admin-image-shell">
+      <section class="admin-image-list">
+        <div class="admin-image-search">
+          <input id="recipeImageSearch" type="text" placeholder="Search by recipe name or ID">
+        </div>
+        <div id="recipeImageItems" class="admin-image-items"></div>
+      </section>
+
+      <section class="admin-image-editor">
+        <div id="recipeImageTitle" style="font-size:1.25rem;font-weight:700;color:#17324a;">Select a recipe</div>
+        <div id="recipeImageMeta" style="font-size:0.9rem;color:#516375;"></div>
+        <div class="admin-image-status" id="recipeImageStatus"></div>
+
+        <div class="admin-image-preview-wrap">
+          <img id="recipeImagePreview" alt="Recipe image preview" src="images/whs%20logo%20circular%20reo%20.png">
+        </div>
+
+        <div class="admin-image-controls">
+          <input id="recipeImageFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
+          <input id="recipeImageUrlInput" type="text" placeholder="Or paste image URL (https://...)">
+          <div class="admin-image-actions">
+            <button id="uploadRecipeImageBtn" type="button">Upload Selected File</button>
+            <button id="saveRecipeImageUrlBtn" type="button">Save Image URL</button>
+            <button id="clearRecipeImageBtn" type="button" class="danger">Clear Custom Image</button>
+          </div>
+        </div>
+
+        <div class="admin-image-note">
+          Uploaded files are stored in public images and shown in Recipe Book + Recipe Details. If no custom image is set, the site uses the current stock image fallback.
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script src="admin_recipe_images.js"></script>
+</body>
+</html>

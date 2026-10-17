@@ -1,6 +1,6 @@
 # WHS APPSystem
 
-Unified Westland High School app shell for one Render Web Service, one Postgres database, and one Google Login configuration.
+Unified Westland High School app shell for one Render Web Service and one Google Login configuration. Core data uses the shared Postgres database; DTECH keeps its existing separate legacy database.
 
 ## What is included
 
@@ -15,9 +15,73 @@ Unified Westland High School app shell for one Render Web Service, one Postgres 
 - Direct teacher-to-module assignments managed by administrators.
 - Initial Learning Sites integration with public entry point and Google-authenticated Relief Planning and ADMIN routes.
 - Technology Hub public homepage with individually assigned Student and Teacher discipline access.
+- Original DTECH-HUB pages at `/dtech-hub/`, using the existing DTECH database and private teaching-file archive.
 - Sewing Hub public homepage with assigned Student and Teacher activity access.
 - Initial Kamar Uploader module under the ADMIN dashboard, with term-aware PostgreSQL uploads and history.
 - Docker and Render Blueprint configuration.
+
+## DTECH Hub: original site, separate database and private files
+
+The deployable copy in `src/legacy/dtech-hub` comes directly from
+`LegacySites/TECH-HUB/DTECH-HUB`. Its HTML pages, styles, student activities,
+assessment logic, learning pathways and teaching tools are retained, not rebuilt.
+The hosting adapter adds `/dtech-hub` to local URLs at delivery time. The smaller
+existing Technology Hub is a separate module and is not replaced.
+
+### Render setup
+
+1. On the main WHS APPSystem service, set **`DTECH_DATABASE_URL`** to the
+   **Internal Database URL of the existing DTECH database**. Do not change
+   `DATABASE_URL`, create a replacement database, or remove the existing service.
+   DTECH reads and writes its existing database; it is not imported into Core.
+2. Keep the existing private archive configuration connected:
+   `GITHUB_ARCHIVE_REPOSITORY=WHS-DTECH/WHS-TECHArchive`,
+   `GITHUB_WRITER_APP_ID`, and
+   `GITHUB_WRITER_PRIVATE_KEY_FILE=/etc/secrets/github-writer.pem`.
+   The Writer App must remain installed only on the private archive.
+3. Optionally pin `DTECH_ARCHIVE_COMMIT` to
+   `891697093a18cead43ead9bc5539635e56521c75` (the initial verified teaching-file
+   archive). Without a pin, initialization restores the default branch at a
+   single resolved commit. All 54 original TeacherFiles were archived privately;
+   none are committed to this public application repository.
+4. Retain any DTECH-specific optional integration settings from its old service:
+   `GITHUB_TOKEN` for existing repository analysis, `TRELLO_API_KEY`,
+   `EXTERNAL_EXAM_FORM_WEBHOOK_SECRET`, `RELIEF_PLAN_ACCESS_KEY`,
+   `SEARCH_KIT_REPORT_TEMPLATE_ID`, `STAFF_DIRECTORY_API_URL` and
+   `STAFF_DIRECTORY_API_KEY`, where used. The archive App does not replace the
+   existing student-repository analysis token. Do not copy the old `DATABASE_URL`,
+   `PORT`, `AUTH_MODE` or developer-admin bypass settings into the shared service.
+5. Add the shared service's origin to the Google OAuth client's **Authorized
+   JavaScript origins** for the existing Drive tools. DTECH uses the shared
+   `GOOGLE_CLIENT_ID`; Drive permissions still require explicit consent by the
+   same school account. Shared sign-in alone does not grant Drive scopes.
+6. Deploy, sign in, and open `/dtech-hub/`. Under Core Administration, assign the
+   DTECH Lead Teacher, Teacher and Technician roles as appropriate. Global ADMIN
+   retains access. Legacy local role assignments are not imported or used as a
+   second authority. **Student Admin is treated as ordinary Student and has no
+   elevated access.** Original role-editor links now open the shared controls.
+   Hub permission grants are editable through the existing Core role-permission page.
+
+Existing documents restore from
+`LegacySites/TECH-HUB/DTECH-HUB/TeacherFiles/` in the **private** archive into a
+disposable local cache. The private student-folder CSV is not downloadable as a
+website asset. New lesson resource/exemplar uploads are persisted as bytes in
+`whs_teaching_files` in **DTECH's database before success**, then cached locally.
+On redeploy, archived originals restore first and database uploads restore
+afterward. DTECH's existing libraries, assessments and other uploads continue to
+use their original database persistence. No persistent Render disk is required.
+Restore limits are 200 archived files, 10 MiB each, 120 MiB total; new teaching
+uploads retain the legacy limit of 25 MiB each.
+
+The archive is a backup of the original documents, **not a backup of live DTECH
+data or subsequent uploads**. Keep database backups/PITR enabled on the existing
+Render database. Ordinary GitHub student-project imports still exclude private
+data and remain separate. A missing database/archive connection gives an explicit
+setup error; DTECH never falls back to a production in-memory database.
+The original legacy schema initialization and existing seed/backfill operations
+still run against DTECH-DB only on first use after each deployment. Take a Render
+database backup before first activation. The rest of WHS APPSystem remains
+available if DTECH initialization fails.
 
 ## Local setup
 
@@ -27,6 +91,12 @@ Unified Westland High School app shell for one Render Web Service, one Postgres 
 
 ```bash
 npm install
+```
+
+For DTECH, also install its isolated original runtime dependencies (the Docker build does this automatically):
+
+```bash
+npm ci --omit=dev --prefix src/legacy/dtech-hub
 ```
 
 4. Run database migrations:

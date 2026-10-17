@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Practical Skills Library Admin | Computer Lab</title>
+  <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+  <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+  <link rel="icon" type="image/x-icon" href="../images/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <div class="page-shell">
+    <nav class="topbar" aria-label="Primary">
+      <a class="brand" href="/index.html">Computer Lab</a>
+      <div class="topbar-right">
+        <div class="topbar-links"></div>
+        <div class="utility-actions" aria-label="Utility actions">
+          <a id="hub-staff-link" href="/teacher-view.html" hidden>Teacher View</a>
+          <a id="hub-admin-link" href="/admin-menu.html" hidden>Admin Menu</a>
+          <span id="hub-access-badge" class="hub-access-badge" hidden aria-live="polite"></span>
+          <button id="hub-google-signin" class="google-signin-button" type="button">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="google-logo">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+            <span>Sign in with Google</span>
+          </button>
+          <button id="hub-google-signout" type="button" hidden>Sign out</button>
+          <button id="hub-user-badge" class="user-badge" type="button" hidden aria-label="Open profile" aria-haspopup="true" aria-expanded="false"></button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="admin-page-wrap">
+      <header class="admin-page-header">
+        <h1>Practical Skills Library</h1>
+        <p>Admin-only manager for cards shown on the Practical Skills homepage.</p>
+        <a class="button button-secondary" href="/admin-menu.html">Back to Admin Menu</a>
+        <a class="button button-secondary" href="./admin-kits.html">Kit Content Builder</a>
+      </header>
+
+      <section class="admin-panel practical-user-preview" aria-labelledby="library-preview-heading">
+        <h2 id="library-preview-heading">User and Course Preview</h2>
+        <p>Try a course for a named student or staff member. Changing the dropdown only previews their kits. Select your own staff account and click "Save as my actual course" to update your sidebar and future course-folder requests. This does not change anyone else's course or move existing folders. The Card Editor and Current Cards below always show the full library.</p>
+        <div class="practical-skills-form">
+          <label for="practical-preview-type">User type</label>
+          <select id="practical-preview-type" disabled>
+            <option value="Student">Students</option>
+            <option value="Staff">Staff</option>
+          </select>
+          <label for="practical-preview-search">Find a person</label>
+          <input id="practical-preview-search" type="search" list="practical-preview-person-suggestions" autocomplete="off" placeholder="Start typing a name, then choose a suggestion" disabled>
+          <datalist id="practical-preview-person-suggestions"></datalist>
+          <label for="practical-preview-user">Student / Staff member</label>
+          <select id="practical-preview-user" disabled>
+            <option value="">Loading directory...</option>
+          </select>
+          <label for="practical-preview-course">Preview course</label>
+          <select id="practical-preview-course" disabled>
+            <option value="All">All courses</option>
+            <option value="JuniorDTECH">JuniorDTECH</option>
+            <option value="MiddleDTECH">MiddleDTECH</option>
+            <option value="SeniorDTECH">SeniorDTECH</option>
+          </select>
+        </div>
+        <button id="practical-save-my-course" class="button button-primary" type="button" hidden>Save as my actual course</button>
+        <p id="practical-save-course-status" aria-live="polite"></p>
+        <p id="practical-preview-status" aria-live="polite">Loading students and staff...</p>
+        <button id="practical-preview-retry" class="button button-secondary" type="button" hidden>Retry loading directory</button>
+        <p id="practical-preview-details"></p>
+        <div class="practical-skills-form">
+          <label for="practical-preview-kit-search">Find a kit</label>
+          <input id="practical-preview-kit-search" type="search" placeholder="Search kit names in this preview" disabled>
+        </div>
+        <ul id="practical-preview-cards" class="practical-preview-kit-list" aria-label="Matching kit names" tabindex="0"></ul>
+      </section>
+
+      <section class="admin-panel">
+        <h2>Card Editor</h2>
+        <form id="practical-skills-form" class="practical-skills-form">
+          <input id="practical-id" type="hidden">
+
+          <label for="practical-title">Title</label>
+          <input id="practical-title" name="title" type="text" required maxlength="120" placeholder="Card title">
+
+          <label for="practical-summary">Summary</label>
+          <textarea id="practical-summary" name="summary" rows="3" required placeholder="Short card summary"></textarea>
+
+          <label for="practical-year-level">Year Level</label>
+          <input id="practical-year-level" name="yearLevel" type="text" maxlength="60" placeholder="e.g. All Years, Year 10">
+
+          <label for="practical-area">Area</label>
+          <input id="practical-area" name="area" type="text" maxlength="60" placeholder="e.g. Practical Skills">
+
+          <label for="practical-href">Card Link</label>
+          <input id="practical-href" name="href" type="text" maxlength="220" placeholder="/practical-skills/checklist.html">
+
+          <label for="practical-image-url">Image URL (optional)</label>
+          <input id="practical-image-url" name="imageUrl" type="text" maxlength="300" placeholder="https://...">
+
+          <label for="practical-status">Status</label>
+          <select id="practical-status" name="status">
+            <option value="active">Active</option>
+            <option value="planning">Planning</option>
+            <option value="archive">Archive</option>
+          </select>
+
+          <label for="practical-icon">Icon</label>
+          <input id="practical-icon" name="icon" type="text" maxlength="6" placeholder="PS">
+
+          <label for="practical-palette">Gradient Palette</label>
+          <input id="practical-palette" name="palette" type="text" maxlength="260" placeholder="linear-gradient(135deg, #2f8f61 0%, #3ca873 54%, #65c494 100%)">
+
+          <div class="practical-form-actions">
+            <button id="practical-save-card" class="button button-primary" type="submit">Save Card</button>
+            <button id="practical-reset-form" class="button button-secondary" type="button">Clear Form</button>
+            <button id="practical-publish" class="button button-primary" type="button">Publish Library</button>
+          </div>
+        </form>
+
+        <p id="practical-status-message" class="upload-status" aria-live="polite" hidden></p>
+      </section>
+
+      <section class="admin-panel">
+        <h2>Current Cards</h2>
+        <div class="admin-table-wrap">
+          <table class="admin-table" id="practical-cards-table">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Year Level</th>
+                <th>Area</th>
+                <th>Status</th>
+                <th>Link</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="practical-cards-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <footer id="global-footer" class="global-hub-footer" aria-label="Hub suggestions and links">
+      <a class="button button-primary global-suggest-button" href="/suggest-activity.html">Suggest a Project or Activity</a>
+      <p class="global-footer-copy">&copy; 2026 Westland High School - Computer Lab &amp; DTECH HUB</p>
+    </footer>
+  </div>
+
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="../script.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

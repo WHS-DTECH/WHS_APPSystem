@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Course Outline | Computer Lab</title>
+    <meta name="description" content="Define a course outline with assessment standards, Achieved, Merit, and Excellence criteria.">
+    <meta name="theme-color" content="#4a1b6f">
+    <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+    <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+    <link rel="icon" type="image/x-icon" href="images/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="upload-forms.css?v=20260513">
+    <style>
+        .course-outline-standards-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .course-outline-standard-entry {
+            background: #f0fafa;
+            border: 1.5px solid #4db8b8;
+            border-radius: 10px;
+            padding: 16px 18px;
+            position: relative;
+        }
+        .course-outline-standard-entry-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .course-outline-standard-entry-label {
+            font-weight: 600;
+            font-size: 0.92rem;
+            color: #166e6e;
+            word-break: break-word;
+        }
+        .course-outline-standard-remove {
+            background: none;
+            border: 1.5px solid #e05a5a;
+            color: #c0392b;
+            border-radius: 6px;
+            padding: 3px 10px;
+            font-size: 0.82rem;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: background 0.15s;
+        }
+        .course-outline-standard-remove:hover {
+            background: #fdeaea;
+        }
+        .course-outline-ame-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+        }
+        @media (max-width: 760px) {
+            .course-outline-ame-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .course-outline-ame-label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .course-outline-ame-label.achieved { color: #2d7a2d; }
+        .course-outline-ame-label.merit { color: #1a5ca8; }
+        .course-outline-ame-label.excellence { color: #7c2db8; }
+        .course-outline-ame-text {
+            font-size: 0.88rem;
+            color: #333;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .course-outline-add-area {
+            background: #fafcff;
+            border: 1.5px dashed #7acece;
+            border-radius: 10px;
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .course-outline-add-area-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .course-outline-add-picker {
+            flex: 1 1 280px;
+            min-width: 200px;
+        }
+        .course-outline-ame-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+        }
+        @media (max-width: 760px) {
+            .course-outline-ame-inputs {
+                grid-template-columns: 1fr;
+            }
+        }
+        .course-outline-ame-inputs label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 4px;
+        }
+        .course-outline-ame-inputs label.achieved { color: #2d7a2d; }
+        .course-outline-ame-inputs label.merit { color: #1a5ca8; }
+        .course-outline-ame-inputs label.excellence { color: #7c2db8; }
+        .course-outline-ame-inputs textarea {
+            width: 100%;
+            min-height: 80px;
+            box-sizing: border-box;
+            resize: vertical;
+            font-size: 0.88rem;
+            border: 1px solid #b0c8d0;
+            border-radius: 6px;
+            padding: 6px 8px;
+        }
+        .course-outline-autofill-note {
+            font-size: 0.8rem;
+            color: #1a7070;
+            margin: 0;
+        }
+        .course-outline-empty-note {
+            color: #888;
+            font-size: 0.9rem;
+            font-style: italic;
+        }
+        .course-outline-import-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            margin: 8px 0 2px;
+        }
+        .course-outline-import-status {
+            font-size: 0.86rem;
+            margin: 0;
+            color: #1a7070;
+        }
+        .course-outline-import-status.is-error {
+            color: #b03838;
+        }
+        .course-outline-teal-badge {
+            display: inline-block;
+            background: #4db8b8;
+            color: #fff;
+            border-radius: 20px;
+            padding: 2px 14px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-shell">
+        <header class="hero">
+            <nav class="topbar" aria-label="Primary">
+                <a class="brand" href="index.html">Computer Lab</a>
+                <div class="topbar-right">
+                    <div class="topbar-links">
+                        <a href="index.html#current-week">This Week</a>
+                        <a href="index.html#project-library">Activity Library</a>
+                        <a href="index.html#browse-lab-projects">Lab Projects</a>
+                        <a href="https://sites.google.com/westlandhigh.school.nz/dtec/home" target="_blank" rel="noreferrer">Learning Site</a>
+                        <a href="index.html#global-footer">Lab Notes</a>
+                    </div>
+                    <div class="utility-actions" aria-label="Utility actions">
+                        <a id="hub-staff-link" href="teacher-view.html" hidden>Teacher View</a>
+                        <a id="hub-admin-link" href="admin-menu.html" hidden>Admin Menu</a>
+                        <span id="hub-access-badge" class="hub-access-badge" hidden aria-live="polite"></span>
+                        <button id="hub-google-signin" class="google-signin-button" type="button">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="google-logo">
+                                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                            </svg>
+                            <span>Sign in with Google</span>
+                        </button>
+                        <button id="hub-google-signout" type="button" hidden>Sign out</button>
+                        <button id="hub-user-badge" class="user-badge" type="button" hidden aria-label="Open profile" aria-haspopup="true" aria-expanded="false"></button>
+                    </div>
+                </div>
+            </nav>
+        </header>
+
+        <main class="upload-page">
+            <h1>Upload Course Outline</h1>
+            <p class="intro-text">Define a course outline with each assessment standard and its Achieved, Merit, and Excellence criteria. Saving this outline also keeps the Assessment Standard Card library up to date for auto-populate.</p>
+            <p id="course-outline-auth-status" class="project-auth-status" aria-live="polite"></p>
+            <div class="upload-page-tools">
+                <button class="button-cancel" type="button" id="clear-course-outline-draft">Clear Draft</button>
+            </div>
+            <div class="upload-page-tools course-outline-import-row">
+                <input id="co-pdf-file" type="file" accept="application/pdf,.pdf" aria-label="Select course outline PDF">
+                <button class="button-save" type="button" id="co-import-pdf">Import From Course Outline PDF</button>
+                <p id="co-import-status" class="course-outline-import-status" aria-live="polite"></p>
+            </div>
+
+            <section class="upload-panel" aria-label="Upload course outline form">
+                <form id="upload-course-outline-form" class="upload-form">
+
+                    <!-- Course Details -->
+                    <fieldset class="form-section">
+                        <legend>Course Details</legend>
+                        <div class="form-grid">
+                            <div class="field">
+                                <label for="co-course-name">Course Name</label>
+                                <input id="co-course-name" name="courseName" type="text" required placeholder="e.g. Level 2 Digital Technology">
+                            </div>
+                            <div class="field">
+                                <label for="co-year-level">Year Level</label>
+                                <select id="co-year-level" name="yearLevel" required>
+                                    <option value="">Select year</option>
+                                    <option>Junior</option>
+                                    <option>Middle</option>
+                                    <option>Senior</option>
+                                    <option>Year 9</option>
+                                    <option>Year 10</option>
+                                    <option>Year 11</option>
+                                    <option>Year 12</option>
+                                    <option>Year 13</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="co-year-version">Year (Version)</label>
+                                <input id="co-year-version" name="yearVersion" type="number" min="2020" max="2040" required placeholder="e.g. 2026">
+                            </div>
+                            <div class="field">
+                                <label for="co-subject-stream">Subject Stream</label>
+                                <select id="co-subject-stream" name="subjectStream">
+                                    <option value="">Select subject</option>
+                                    <option value="DTECH">DTECH</option>
+                                    <option value="COMP">COMP</option>
+                                    <option value="TEXT">TEXT</option>
+                                    <option value="DTONLINE">DTONLINE</option>
+                                </select>
+                            </div>
+                            <div class="field field-wide">
+                                <label for="co-summary">Course Summary</label>
+                                <textarea id="co-summary" name="summary" placeholder="Brief overview of this course and its focus areas..."></textarea>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <!-- Card Color (locked to Teal) -->
+                    <fieldset class="form-section">
+                        <legend>Card Color</legend>
+                        <p style="margin: 0 0 8px; font-size: 0.9rem;">Course Outline cards always use <span class="course-outline-teal-badge">Teal</span> — the Assessment Standard Card color.</p>
+                        <input type="hidden" name="cardColor" value="Teal">
+                    </fieldset>
+
+                    <!-- Assessment Standards -->
+                    <fieldset class="form-section">
+                        <legend>Assessment Standards</legend>
+                        <p style="margin: 0 0 16px; font-size: 0.9rem; color: #555;">Add each assessment standard for this course and define what Achieved, Merit, and Excellence looks like. If an Assessment Standard Card template exists for the standard, the criteria will be pre-filled automatically.</p>
+
+                        <div id="co-standards-list" class="course-outline-standards-list" aria-live="polite">
+                            <p class="course-outline-empty-note" id="co-standards-empty">No standards added yet. Use the area below to add standards.</p>
+                        </div>
+
+                        <div class="course-outline-add-area" id="co-add-area">
+                            <div class="course-outline-add-area-row">
+                                <select id="co-standard-picker" class="course-outline-add-picker" aria-label="Select a standard to add">
+                                    <option value="">Loading standards...</option>
+                                </select>
+                                <p class="course-outline-autofill-note" id="co-autofill-note" hidden>Criteria pre-filled from Assessment Standard Card template.</p>
+                            </div>
+                            <div class="course-outline-ame-inputs" id="co-ame-inputs">
+                                <div>
+                                    <label class="achieved" for="co-add-achieved">Achieved</label>
+                                    <textarea id="co-add-achieved" placeholder="What does achieving this standard look like? (one requirement per line)"></textarea>
+                                </div>
+                                <div>
+                                    <label class="merit" for="co-add-merit">Merit</label>
+                                    <textarea id="co-add-merit" placeholder="What does Merit level look like?"></textarea>
+                                </div>
+                                <div>
+                                    <label class="excellence" for="co-add-excellence">Excellence</label>
+                                    <textarea id="co-add-excellence" placeholder="What does Excellence look like?"></textarea>
+                                </div>
+                            </div>
+                            <div>
+                                <button type="button" class="button-save" id="co-add-standard-btn">Add Standard to Outline</button>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <div class="form-actions">
+                        <button class="button-save" type="submit">Save Course Outline</button>
+                        <button class="button-cancel" type="button" id="co-cancel">Cancel</button>
+                        <p id="co-upload-status" class="upload-status" aria-live="polite" hidden></p>
+                    </div>
+                </form>
+            </section>
+
+            <footer id="global-footer" class="global-hub-footer" aria-label="Hub suggestions and links">
+                <a class="button button-primary global-suggest-button" href="/suggest-activity.html">Suggest a Project or Activity</a>
+                <p class="global-footer-copy">&copy; 2026 Westland High School — Computer Lab &amp; DTECH HUB</p>
+            </footer>
+        </main>
+    </div>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="script.js"></script>
+    <script src="upload-course-outline.js"></script>
+</body>
+</html>

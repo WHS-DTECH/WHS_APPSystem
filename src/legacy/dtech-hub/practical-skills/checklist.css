@@ -1,0 +1,85 @@
+.licence-dashboard { background: #f4f8fa; color: #173858; }
+.licence-dashboard .page-shell { max-width: 1400px; margin: auto; }
+.licence-dashboard .practical-skills-hero { min-height: 0; background: linear-gradient(120deg, #143c51, #1f6452); }
+.licence-dashboard .practical-skills-panel { display: block; min-height: 0; background: linear-gradient(120deg, #143c51, #1f6452); padding: 38px clamp(20px, 5vw, 64px) 46px; }
+.licence-dashboard .hero-copy { max-width: 780px; }
+.licence-dashboard .hero-copy h1 { font-family: Manrope, sans-serif; font-size: clamp(2rem, 5vw, 3.6rem); max-width: none; line-height: 1.15; }
+.licence-dashboard .hero-text { max-width: 620px; font-size: 1.05rem; }
+.licence-dashboard .home-grid { width: min(1120px, calc(100% - 32px)); margin: 28px auto 60px; padding: 0; display: grid; gap: 24px; }
+.licence-dashboard .panel-section { width: 100%; max-width: none; margin: 0; background: #fff; border: 1px solid #d6e1e8; border-radius: 20px; padding: 24px; box-shadow: 0 5px 0 #e1e9ee; }
+.licence-dashboard h2, .licence-dashboard h3 { font-family: Manrope, sans-serif; }
+.licence-dashboard .section-kicker { color: #286552; }
+.licence-dashboard .button { font-size: .9rem; text-transform: none; letter-spacing: 0; min-height: 44px; border-radius: 12px; padding: 10px 18px; }
+.licence-dashboard .button-primary { background: #173858; color: #fff; border: 2px solid #173858; }
+.licence-dashboard .button-primary:hover { background: #0d253c; }
+.licence-dashboard a:focus-visible, .licence-dashboard button:focus-visible { outline: 3px solid #ad6200; outline-offset: 4px; }
+.student-licence { background: linear-gradient(135deg, #fffdf4, #fff); border: 3px solid #173858; border-radius: 24px; padding: clamp(22px, 4vw, 40px); box-shadow: 0 8px 0 #d6e3e8; }
+.licence-card-heading { display: flex; gap: 18px; align-items: center; border-bottom: 2px solid #d9e5dd; padding-bottom: 20px; }
+.licence-card-heading img { width: 80px; height: 80px; object-fit: contain; border-radius: 50%; }
+.licence-card-heading h2 { margin: 4px 0; font-size: clamp(1.35rem, 3vw, 2rem); }
+.licence-card-heading .section-kicker { margin: 0; }
+.licence-card-seal { margin-left: auto; font-size: 3rem; color: #ad6200; }
+.licence-name-label { margin: 24px 0 4px; text-transform: uppercase; letter-spacing: .12em; font-size: .75rem; font-weight: 800; }
+#ps-student-name { margin: 0; font-size: clamp(1.7rem, 4vw, 2.6rem); overflow-wrap: anywhere; }
+#ps-student-email { margin: 8px 0 24px; color: #496071; overflow-wrap: anywhere; }
+.licence-progress-heading { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+#ps-licence-progress { display: block; width: 100%; height: 16px; border: none; border-radius: 20px; overflow: hidden; background: #dbe6e8; accent-color: #248355; }
+#ps-licence-progress::-webkit-progress-bar { background: #dbe6e8; }
+#ps-licence-progress::-webkit-progress-value { background: #248355; border-radius: 20px; }
+#ps-licence-progress::-moz-progress-bar { background: #248355; border-radius: 20px; }
+.licence-stamps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 24px; }
+.licence-stamp { display: flex; flex-direction: column; gap: 8px; align-items: center; justify-content: center; text-align: center; padding: 20px 12px; border: 2px dashed #a4b7c0; border-radius: 18px; background: #f1f5f7; color: #425b6b; min-height: 175px; text-decoration: none; }
+.licence-stamp > span:not(.licence-stamp-icon) { font-size: .8rem; }
+.licence-stamp.is-earned { background: #e7f7eb; color: #185b37; border: 3px double #248355; box-shadow: 0 4px 0 #cbe5d2; }
+.licence-stamp.is-earned:hover { background: #d8f0e0; }
+.licence-stamp-icon { font-size: 2.4rem; line-height: 1.2; }
+.stamp-certificate { font-weight: 800; text-decoration: underline; }
+.licence-card-footnote { margin-bottom: 0; color: #496071; font-size: .9rem; }
+.licence-next-step { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 24px; border-radius: 20px; background: #fff1cd; border: 2px solid #d9ae54; }
+.licence-next-step h2 { font-size: 1.4rem; margin: 4px 0 8px; }
+.licence-next-step p { margin: 0; }
+.licence-next-step .button { flex-shrink: 0; }
+.scoreboard-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.scoreboard-tile { padding: 18px; border-radius: 14px; background: #edf8f1; border: 1px solid #c7dfcf; }
+.scoreboard-tile:nth-child(2) { background: #eaf3ff; border-color: #c8daef; }
+.scoreboard-tile:nth-child(3) { background: #fff4dd; border-color: #e7d5ab; }
+.scoreboard-tile span { display: block; font-size: .8rem; font-weight: 800; color: #425b6b; }
+.scoreboard-tile strong { display: block; margin-top: 8px; font-size: 1.8rem; color: #173858; }
+.ps-badge-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.ps-badge { display: flex; align-items: center; gap: 16px; background: #fff8de; border: 1px solid #e7d5ab; border-radius: 14px; padding: 18px; }
+.ps-badge-icon { font-size: 2rem; }
+.ps-badge-title { font-size: 1rem; font-weight: 800; }
+.ps-badge p { margin: 5px 0 0; font-size: .85rem; color: #496071; }
+.ps-badge-empty, .ps-signin-note { padding: 18px; background: #edf4fa; border-radius: 12px; color: #425b6b; }
+.ps-kit-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.ps-kit-item { display: flex; flex-direction: column; gap: 14px; padding: 20px; border: 2px solid #ccdce2; border-top: 7px solid #248355; border-radius: 16px; background: #fff; }
+.ps-kit-item.kit-blue { border-top-color: #2767a3; }
+.ps-kit-item.kit-orange { border-top-color: #ad6200; }
+.ps-kit-item.is-complete { background: #f1fbf3; }
+.ps-kit-heading { display: flex; align-items: center; gap: 12px; }
+.ps-kit-icon { font-size: 2rem; }
+.ps-kit-item h3 { font-size: 1.2rem; margin: 0; }
+.kit-step-label { font-size: .75rem; font-weight: 800; color: #425b6b; margin: 0 0 5px; }
+.ps-kit-item > p { margin: 0; color: #496071; font-size: .9rem; }
+.ps-kit-meta { display: flex; gap: 6px; flex-wrap: wrap; }
+.ps-kit-pill { border-radius: 8px; background: #edf4fa; color: #173858; padding: 5px 8px; font-size: .75rem; font-weight: 700; }
+.ps-kit-actions { margin-top: auto; }
+.ps-kit-actions .button { width: 100%; }
+.ps-kit-manage { margin-top: 14px; color: #425b6b; font-size: .85rem; }
+.ps-kit-manage summary { cursor: pointer; padding: 8px 0; }
+.ps-kit-manage .button-secondary { background: #edf4fa; color: #173858; border: 1px solid #a4b7c0; margin-top: 8px; }
+.ps-kit-list > .ps-signin-note { grid-column: 1 / -1; }
+#ps-status { margin: 0; }
+.student-licence[hidden], .licence-next-step[hidden] { display: none; }
+@media (max-width: 800px) {
+    .ps-kit-list { grid-template-columns: minmax(0, 1fr); }
+    .licence-next-step { flex-direction: column; align-items: stretch; }
+}
+@media (max-width: 560px) {
+    .licence-stamps { grid-template-columns: minmax(0, 1fr); }
+    .scoreboard-grid { grid-template-columns: minmax(0, 1fr); }
+    .licence-card-heading { gap: 12px; }
+    .licence-card-heading img { width: 58px; height: 58px; }
+    .licence-card-seal { display: none; }
+    .licence-dashboard .panel-section { padding: 18px; }
+}

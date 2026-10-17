@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hub Settings | Computer Lab</title>
+    <meta name="description" content="Configure Computer Lab homepage display settings.">
+    <meta name="theme-color" content="#4a1b6f">
+    <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+    <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+    <link rel="icon" type="image/x-icon" href="images/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="upload-forms.css">
+</head>
+<body>
+    <div class="page-shell">
+        <header class="hero">
+            <nav class="topbar" aria-label="Primary"></nav>
+            <div class="hero-panel">
+                <div class="hero-copy">
+                    <p class="eyebrow">COMPUTER LAB SETTINGS</p>
+                    <h1>Homepage Event Settings</h1>
+                    <p class="hero-text">Choose how many days count as NEW EVENT badges and the New This Week indicator list on the homepage.</p>
+                </div>
+                <aside class="hero-stats" aria-label="Settings summary">
+                    <div class="stat-card">
+                        <span class="stat-label">Current NEW EVENT window</span>
+                        <strong id="settings-current-window">14</strong>
+                        <span class="stat-subline">days</span>
+                    </div>
+                </aside>
+            </div>
+        </header>
+
+        <main class="home-grid single-column">
+            <div class="hub-column activities-column">
+                <section class="panel-section">
+                    <div class="section-heading">
+                        <div>
+                            <p class="section-kicker">Display Settings</p>
+                            <h2>New Event Time Window</h2>
+                        </div>
+                    </div>
+
+                    <form id="new-event-window-form" class="upload-form" novalidate>
+                        <fieldset class="form-section">
+                            <legend>Choose the window</legend>
+                            <div class="form-grid">
+                                <label class="checkbox-field" for="window-7">
+                                    <input id="window-7" type="radio" name="newEventWindow" value="7">
+                                    7 days
+                                </label>
+                                <label class="checkbox-field" for="window-14">
+                                    <input id="window-14" type="radio" name="newEventWindow" value="14">
+                                    14 days
+                                </label>
+                                <label class="checkbox-field" for="window-30">
+                                    <input id="window-30" type="radio" name="newEventWindow" value="30">
+                                    30 days
+                                </label>
+                            </div>
+                        </fieldset>
+
+                        <div class="form-actions">
+                            <button class="button-save" type="submit">Save Settings</button>
+                            <a class="button-cancel" href="index.html">Back to Homepage</a>
+                            <p id="settings-status" class="upload-status" aria-live="polite" hidden></p>
+                        </div>
+                    </form>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="script.js"></script>
+    <script src="settings.js"></script>
+</body>
+</html>

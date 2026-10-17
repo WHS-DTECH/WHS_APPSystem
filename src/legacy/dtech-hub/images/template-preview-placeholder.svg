@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="540" height="760" viewBox="0 0 540 760" role="img" aria-label="Template preview unavailable">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#dfeaf5"/>
+      <stop offset="100%" stop-color="#c3d4e7"/>
+    </linearGradient>
+  </defs>
+  <rect width="540" height="760" fill="url(#bg)"/>
+  <rect x="36" y="40" width="468" height="680" rx="16" fill="#eef4fb" stroke="#9fb6cf" stroke-width="4"/>
+  <text x="270" y="320" text-anchor="middle" font-family="Manrope, Arial, sans-serif" font-size="34" font-weight="700" fill="#365577">Template Preview</text>
+  <text x="270" y="366" text-anchor="middle" font-family="Manrope, Arial, sans-serif" font-size="26" font-weight="600" fill="#4a6889">Not Available</text>
+  <text x="270" y="418" text-anchor="middle" font-family="Manrope, Arial, sans-serif" font-size="20" fill="#5a7491">Use Template to open your copy</text>
+</svg>

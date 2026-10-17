@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learning Pathways | DTECH-HUB</title>
+    <meta name="description" content="Explore learning pathways, find your next steps and discover learning resources.">
+    <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+    <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+    <link rel="icon" href="../images/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="page-shell">
+        <header class="hero practical-skills-hero">
+            <nav class="topbar" aria-label="Primary"><a class="brand" href="/index.html">Computer Lab</a></nav>
+            <div class="hero-panel practical-skills-panel">
+                <div class="hero-copy">
+                    <p class="eyebrow">WESTLAND HIGH SCHOOL | DTECH-HUB</p>
+                    <h1>Learning Pathways</h1>
+                    <p class="hero-text">Explore your learning options, discover resources and choose your next steps.</p>
+                </div>
+                <aside class="hero-stats" aria-label="Library actions">
+                    <div class="stat-card">
+                        <span class="stat-label">Keep building your skills</span>
+                        <a class="new-week-link-process-assessment" href="/practical-skills/">Open Licence Library</a>
+                    </div>
+                </aside>
+            </div>
+        </header>
+        <main class="home-grid single-column">
+            <section class="panel-section practical-skills-section" data-library-path="/learning-pathways/library.json"
+                data-library-name="Learning Pathways" data-library-card-label="Curriculum Strands"
+                data-library-unit-label="Units" data-library-unit-palette="linear-gradient(135deg, #9f1d3a 0%, #c8364f 52%, #ec6f63 100%)"
+                data-library-lesson-label="Lessons" data-library-lesson-palette="linear-gradient(135deg, #a35200 0%, #d97706 52%, #f4b740 100%)"
+                data-library-activity-label="Lesson Activities" data-library-activity-palette="linear-gradient(135deg, #1f6b3a 0%, #2f9e55 52%, #7ccf7a 100%)"
+                data-library-job-label="Jobs" data-library-job-palette="linear-gradient(135deg, #0f5b75 0%, #0e7490 52%, #55c3c8 100%)"
+                data-library-icon="LP" data-library-palette="linear-gradient(135deg, #2b87b6 0%, #347ca8 54%, #5bbbc6 100%)">
+                <div class="section-heading practical-skills-heading">
+                    <div><p class="section-kicker">Learning Pathways</p><h2>Pathway cards</h2></div>
+                    <p id="practical-skills-results-meta" class="results-meta" aria-live="polite"></p>
+                    <p class="section-copy">Search by title, year level or keyword to find a learning pathway.</p>
+                </div>
+                <div class="controls-panel" role="search">
+                    <div class="search-field-large">
+                        <label for="practical-skills-search" class="search-label">Search by title or keyword</label>
+                        <input id="practical-skills-search" type="search" placeholder="Search learning pathways...">
+                    </div>
+                    <div class="filters-section">
+                        <div class="filter-group">
+                            <span class="filter-group-label">Year Level</span>
+                            <div id="practical-skills-year-pills" class="filter-pills" role="group" aria-label="Filter by year level"></div>
+                        </div>
+                        <div class="filter-group">
+                            <span class="filter-group-label">Status</span>
+                            <div id="practical-skills-status-pills" class="filter-pills" role="group" aria-label="Filter by status"></div>
+                        </div>
+                        <div class="filter-group">
+                            <span class="filter-group-label">Card Type</span>
+                            <div id="practical-skills-type-pills" class="filter-pills" role="group" aria-label="Filter by card type"></div>
+                        </div>
+                        <div class="filter-group">
+                            <span class="filter-group-label">Category</span>
+                            <div id="practical-skills-category-pills" class="filter-pills" role="group" aria-label="Filter by category"></div>
+                        </div>
+                        <div class="filter-group sort-group">
+                            <label for="practical-skills-sort" class="filter-group-label">Sort by</label>
+                            <select id="practical-skills-sort">
+                                <option value="name-asc">Name (A-Z)</option>
+                                <option value="name-desc">Name (Z-A)</option>
+                                <option value="status">Status</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div id="practical-skills-grid" class="project-grid" aria-live="polite"></div>
+            </section>
+        </main>
+        <footer id="global-footer" class="global-hub-footer">
+            <a class="button button-primary global-suggest-button" href="/suggest-activity.html">Suggest a Project or Activity</a>
+            <p class="global-footer-copy">&copy; 2026 Westland High School - Computer Lab &amp; DTECH HUB</p>
+        </footer>
+    </div>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="../script.js"></script>
+    <script src="../practical-skills/app.js"></script>
+</body>
+</html>

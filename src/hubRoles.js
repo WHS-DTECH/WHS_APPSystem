@@ -5,6 +5,7 @@ const { ensureAuthenticated } = require('./middleware');
 const HUBS = {
   'sewing-hub': { label: 'Sewing Hub', home: '/sewing-hub/' },
   'technology-hub': { label: 'Technology Hub', home: '/technology-hub/' },
+  'dtech-hub': { label: 'DTECH Hub', home: '/dtech-hub/' },
   workshop: { label: 'Workshop', home: '/workshop/' },
   'food-room': { label: 'Food Room Hub', home: '/food-room/' }
 };

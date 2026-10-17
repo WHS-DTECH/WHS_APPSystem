@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Class Management | Computer Lab</title>
+    <meta name="description" content="Teacher overview of DTECH students and timetable links.">
+    <meta name="theme-color" content="#4a1b6f">
+    <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+    <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+    <link rel="icon" type="image/x-icon" href="images/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .class-page {
+            width: min(1240px, calc(100% - 32px));
+            margin: 24px auto 48px;
+        }
+
+        .class-header {
+            margin-bottom: 18px;
+        }
+
+        .class-header h1 {
+            margin: 0 0 8px;
+            font-family: "Fraunces", serif;
+            font-size: clamp(1.8rem, 4vw, 2.7rem);
+            color: #173858;
+        }
+
+        .class-header p {
+            margin: 0;
+            color: #50657d;
+            font-size: 0.95rem;
+            max-width: 78ch;
+        }
+
+        .class-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .class-summary-card,
+        .class-panel {
+            background: #f5f8fc;
+            border: 1px solid #cedaea;
+            border-radius: 14px;
+            box-shadow: 0 10px 24px rgba(27, 60, 92, 0.08);
+        }
+
+        .class-summary-card {
+            padding: 14px 16px;
+        }
+
+        .class-summary-card span {
+            display: block;
+            font-size: 0.74rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: #54728d;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .class-summary-card strong {
+            display: block;
+            font-size: 1.7rem;
+            color: #173858;
+            line-height: 1;
+            margin-bottom: 6px;
+        }
+
+        .class-summary-card p {
+            margin: 0;
+            font-size: 0.8rem;
+            color: #647a91;
+        }
+
+        .class-panel {
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .class-filter-grid {
+            display: grid;
+            grid-template-columns: 2fr repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            align-items: end;
+        }
+
+        .class-field {
+            display: grid;
+            gap: 6px;
+        }
+
+        .class-field span {
+            font-size: 0.72rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: #54728d;
+            font-weight: 800;
+        }
+
+        .class-field input,
+        .class-field select {
+            width: 100%;
+            border: 1px solid #bfd0e5;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font: inherit;
+            background: #fff;
+            color: #1f2f45;
+        }
+
+        .class-field select[multiple] {
+            min-height: 118px;
+            padding: 8px 10px;
+        }
+
+        .class-filter-hint {
+            margin: 10px 0 0;
+            color: #647a91;
+            font-size: 0.78rem;
+        }
+
+        .class-checkbox-row {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+
+        .class-checkbox {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.84rem;
+            font-weight: 700;
+            color: #244b73;
+        }
+
+        .class-status {
+            min-height: 1.2em;
+            margin: 10px 0 0;
+            font-size: 0.82rem;
+            color: #496884;
+        }
+
+        .class-data-freshness {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .freshness-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 8px;
+            border-radius: 999px;
+            font-size: 0.68rem;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            border: 1px solid transparent;
+            line-height: 1.2;
+        }
+
+        .class-data-freshness.is-fresh {
+            color: #1f7042;
+        }
+
+        .class-data-freshness.is-fresh .freshness-pill {
+            background: #dff4e7;
+            color: #1f7042;
+            border-color: #afd8bf;
+        }
+
+        .class-data-freshness.is-aging {
+            color: #8b5a00;
+        }
+
+        .class-data-freshness.is-aging .freshness-pill {
+            background: #fff4dc;
+            color: #8b5a00;
+            border-color: #e8c987;
+        }
+
+        .class-data-freshness.is-stale,
+        .class-data-freshness.is-unknown {
+            color: #b23a3a;
+        }
+
+        .class-data-freshness.is-stale .freshness-pill,
+        .class-data-freshness.is-unknown .freshness-pill {
+            background: #f7e4e4;
+            color: #8d3535;
+            border-color: #e4bbbb;
+        }
+
+        .class-status.is-error {
+            color: #b23a3a;
+        }
+
+        .class-results-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .class-results-head h2 {
+            margin: 0;
+            color: #173858;
+            font-size: 1.15rem;
+        }
+
+        .class-results-meta {
+            font-size: 0.84rem;
+            color: #647a91;
+        }
+
+        .class-table-wrap {
+            overflow: auto;
+            border-radius: 12px;
+            border: 1px solid #d7e1ee;
+            background: #fff;
+        }
+
+        .class-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1120px;
+        }
+
+        .class-table th,
+        .class-table td {
+            padding: 12px 14px;
+            text-align: left;
+            vertical-align: top;
+            border-bottom: 1px solid #e3eaf3;
+            font-size: 0.84rem;
+        }
+
+        .class-table th {
+            position: sticky;
+            top: 0;
+            background: #ebf2fa;
+            color: #173858;
+            font-size: 0.72rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            font-weight: 800;
+            z-index: 1;
+        }
+
+        .class-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .student-name {
+            font-weight: 800;
+            color: #173858;
+            margin-bottom: 4px;
+        }
+
+        .student-subline {
+            color: #6a7f95;
+            font-size: 0.78rem;
+        }
+
+        .badge-row,
+        .email-list,
+        .slot-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .pill,
+        .slot-pill,
+        .email-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .pill-current {
+            background: #dff4e7;
+            color: #1f7042;
+            border: 1px solid #afd8bf;
+        }
+
+        .pill-not-current {
+            background: #f7e4e4;
+            color: #8d3535;
+            border: 1px solid #e4bbbb;
+        }
+
+        .pill-dtech {
+            background: #dfeaf9;
+            color: #2a5f95;
+            border: 1px solid #bdd2ec;
+        }
+
+        .pill-non-dtech {
+            background: #eef3f9;
+            color: #647a91;
+            border: 1px solid #d3deeb;
+        }
+
+        .email-pill {
+            background: #f3f7fb;
+            color: #315d84;
+            border: 1px solid #d0deec;
+        }
+
+        .slot-pill {
+            background: #f9f3e8;
+            color: #825a1d;
+            border: 1px solid #ead4a7;
+        }
+
+        .empty-note {
+            color: #7c90a5;
+            font-style: italic;
+        }
+
+        @media (max-width: 980px) {
+            .class-summary-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .class-filter-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .class-summary-grid,
+            .class-filter-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .students-subtab-strip {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin: 0 0 16px;
+        }
+
+        .students-subtab-link {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 999px;
+            border: 1px solid #c3d2e6;
+            background: #edf4fc;
+            color: #173f63;
+            font-weight: 700;
+            font-size: 0.82rem;
+            text-decoration: none;
+        }
+
+        .students-subtab-link:hover {
+            background: #d9e9fa;
+        }
+
+        .students-subtab-link[aria-current="page"] {
+            background: #173f63;
+            border-color: #173f63;
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-shell">
+        <header class="hero">
+            <nav class="topbar" aria-label="Primary">
+                <a class="brand" href="index.html">Computer Lab</a>
+                <div class="topbar-right">
+                    <div class="topbar-links">
+                        <a href="teacher-view.html">Teacher View</a>
+                        <a href="class-management.html" aria-current="page">Class Management</a>
+                        <a href="teacher-student-work.html">Student Work Tracker</a>
+                        <a href="teacher-project-allocation.html">Project Allocations</a>
+                        <a href="teacher-assessment-allocation.html">Assessment Allocations</a>
+                        <a href="upload-menu.html">Upload Menu</a>
+                    </div>
+                    <div class="utility-actions" aria-label="Utility actions">
+                        <a id="hub-staff-link" href="teacher-view.html" hidden>Teacher View</a>
+                        <a id="hub-admin-link" href="admin-menu.html" hidden>Admin Menu</a>
+                        <span id="hub-access-badge" class="hub-access-badge" hidden aria-live="polite"></span>
+                        <button id="hub-google-signin" class="google-signin-button" type="button">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="google-logo">
+                                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                            </svg>
+                            <span>Sign in with Google</span>
+                        </button>
+                        <button id="hub-google-signout" type="button" hidden>Sign out</button>
+                        <button id="hub-user-badge" class="user-badge" type="button" hidden aria-label="Open profile" aria-haspopup="true" aria-expanded="false"></button>
+                    </div>
+                </div>
+            </nav>
+        </header>
+
+        <main class="class-page">
+            <div class="students-subtab-strip" role="tablist" aria-label="Students section">
+                <a class="students-subtab-link" href="class-management.html" aria-current="page">Class Management</a>
+                <a class="students-subtab-link" href="teacher-project-allocation.html">Project Allocations</a>
+                <a class="students-subtab-link" href="teacher-assessment-allocation.html">Assessment Allocations</a>
+            </div>
+            <section class="class-header">
+                <h1>Class Management</h1>
+                <p>Review student timetable data from the uploaded student timetable list, filter down to DTECH learners, and check which student profiles can be linked to timetable records.</p>
+                <p id="class-data-freshness" class="class-status" aria-live="polite">Checking student timetable freshness...</p>
+            </section>
+
+            <section class="class-summary-grid" aria-label="Class management summary">
+                <article class="class-summary-card">
+                    <span>Total Students</span>
+                    <strong id="summary-total">0</strong>
+                    <p>Current rows returned from the student timetable dataset.</p>
+                </article>
+                <article class="class-summary-card">
+                    <span>DTECH Students</span>
+                    <strong id="summary-dtech">0</strong>
+                    <p>Students with timetable slots matching DTECH subjects.</p>
+                </article>
+                <article class="class-summary-card">
+                    <span>Visible Rows</span>
+                    <strong id="summary-visible">0</strong>
+                    <p>Rows currently shown after filters are applied.</p>
+                </article>
+                <article class="class-summary-card">
+                    <span>Linked Emails</span>
+                    <strong id="summary-linked">0</strong>
+                    <p>Students whose timetable row already exposes a school email/username link.</p>
+                </article>
+            </section>
+
+            <section class="class-panel" aria-label="Class filters">
+                <div class="class-filter-grid">
+                    <label class="class-field">
+                        <span>Search</span>
+                        <input id="class-search" type="search" placeholder="Search by student, ID, class, timetable slot, or email">
+                    </label>
+                    <label class="class-field">
+                        <span>Year Level</span>
+                        <select id="class-year-filter" multiple size="4">
+                            <option value="all">All years</option>
+                        </select>
+                    </label>
+                    <label class="class-field">
+                        <span>School Group</span>
+                        <select id="class-school-filter" multiple size="4">
+                            <option value="all">All school groups</option>
+                        </select>
+                    </label>
+                    <label class="class-field">
+                        <span>Form Class</span>
+                        <select id="class-form-filter" multiple size="4">
+                            <option value="all">All form classes</option>
+                        </select>
+                    </label>
+                </div>
+                <p class="class-filter-hint">Hold Ctrl on Windows to select multiple values in a list.</p>
+                <div class="class-checkbox-row">
+                    <label class="class-field">
+                        <span>Program</span>
+                        <select id="class-program-filter" multiple size="6">
+                            <option value="all">All Programs</option>
+                            <option value="DTECH">DTECH</option>
+                            <option value="DTONLINE">DTONLINE</option>
+                            <option value="COMP">COMP</option>
+                            <option value="TEXT">TEXT</option>
+                            <option value="MPROG">MPROG</option>
+                            <option value="MDTECH">MDTECH</option>
+                        </select>
+                    </label>
+                    <label class="class-checkbox">
+                        <input id="class-linked-only" type="checkbox">
+                        <span>Show only rows already linked to an email/user account</span>
+                    </label>
+                </div>
+                <p id="class-status" class="class-status" aria-live="polite"></p>
+            </section>
+
+            <section class="class-panel" aria-label="Class results">
+                <div class="class-results-head">
+                    <h2>Student Timetable Links</h2>
+                    <div id="class-results-meta" class="class-results-meta">Loading student timetable rows…</div>
+                </div>
+                <div class="class-table-wrap">
+                    <table class="class-table">
+                        <thead>
+                            <tr>
+                                <th>Student</th>
+                                <th>Year / Form</th>
+                                <th>Status</th>
+                                <th>Linked Account Keys</th>
+                                <th>DTECH Slots</th>
+                                <th>Weekly Timetable</th>
+                            </tr>
+                        </thead>
+                        <tbody id="class-table-body">
+                            <tr>
+                                <td colspan="6" class="empty-note">Loading student timetable rows…</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="script.js"></script>
+    <script src="class-management.js"></script>
+</body>
+</html>

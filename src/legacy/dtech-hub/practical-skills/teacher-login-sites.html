@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+  <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+  <title>Login Websites | Teacher Settings</title>
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="./teacher-login-sites.css">
+</head>
+<body>
+  <main class="sites-editor">
+    <h1>Login websites: teacher settings</h1>
+    <nav class="sites-actions" aria-label="Staff sign-in">
+      <button id="hub-google-signin" class="google-signin-button" type="button"><span>Sign in with Google</span></button>
+      <button id="hub-google-signout" class="button button-secondary" type="button" hidden>Sign out</button>
+      <button id="hub-user-badge" class="user-badge" type="button" hidden aria-label="Open profile" aria-haspopup="true" aria-expanded="false"></button>
+    </nav>
+    <p>Edit the websites in Using your login details. Changes apply to all students after they reload the activity. Hidden sites and their saved evidence are retained.</p>
+    <a class="button button-secondary" href="./admin-kits.html?kit=kit-login">Back to Kit Content Builder</a>
+    <a class="button button-secondary" href="./kit-worksheet.html?kit=kit-login">Open student activity list</a>
+    <p id="sites-status" role="status" aria-live="polite">Loading staff settings...</p>
+    <form id="sites-form" hidden>
+      <p>Exact answer: any listed answer is accepted. All required terms: every listed term must appear. Enter one accepted answer or required term per line. Tool pictures keep their own answer keys. Students complete the activity automatically when all questions on their visible websites are correct. Hidden websites and websites without questions do not count. If no visible websites have questions, students can mark the activity complete manually.</p>
+      <div id="sites-list"></div>
+      <div class="sites-actions">
+        <button id="sites-add" type="button" class="button button-secondary">Add website</button>
+        <button type="submit" class="button button-primary">Save all website settings</button>
+      </div>
+    </form>
+  </main>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="../script.js"></script>
+  <script src="./teacher-login-sites.js"></script>
+</body>
+</html>

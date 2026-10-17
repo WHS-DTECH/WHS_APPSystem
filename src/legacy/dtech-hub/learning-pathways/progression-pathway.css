@@ -1,0 +1,123 @@
+.progression-page { width: min(1400px, calc(100% - 28px)); margin: 24px auto; }
+.progression-page fieldset { border: 0; padding: 0; margin: 18px 0; min-width: 0; }
+.progression-page legend { font-weight: 700; margin-bottom: 12px; }
+.progression-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+.progression-page label { display: grid; gap: 6px; margin-bottom: 14px; font-weight: 600; }
+.progression-page input, .progression-page select, .progression-page textarea { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #b9cbde; border-radius: 7px; color: #24344a; background: #fff; font: inherit; }
+.progression-page textarea { resize: vertical; }
+.progression-autosave-note { margin: 4px 0 0; font-size: 0.85rem; color: #5a6b80; }
+#progression-saved.is-error { color: #a12d1f; font-weight: 700; }
+.progression-page [hidden] { display: none !important; }
+.progression-page .is-error { color: #a12626; }
+.progression-roster { list-style: none; padding: 0; display: grid; gap: 8px; }
+.progression-roster li { display: grid; gap: 10px; padding: 12px; border: 1px solid #cfdded; border-radius: 8px; }
+.progression-roster-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; font-weight: 600; }
+/* Progression summary: strand cards with a numbered level badge and segmented bar per Statement Set. */
+.progression-summary { display: grid; gap: 10px; padding-top: 10px; border-top: 1px solid #e3ecf6; }
+.progression-summary-caption { margin: 0; font-size: 0.85rem; font-weight: 700; color: #4b5d74; }
+.progression-summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.progression-summary-group { display: grid; gap: 10px; padding: 12px 14px; border-radius: 12px; background: #fff; border: 1px solid #d5e2f0; border-top: 5px solid #2f6db3; box-shadow: 0 4px 14px rgba(20, 50, 90, 0.08); }
+.progression-summary-group.strand-systems-and-control { border-top-color: #1f8a70; }
+.progression-summary-strand { font-size: 0.82rem; letter-spacing: 0.08em; text-transform: uppercase; color: #2f6db3; }
+.strand-systems-and-control .progression-summary-strand { color: #1f8a70; }
+.progression-summary-row { display: grid; grid-template-columns: 42px 1fr auto; grid-template-areas: "badge name label" "badge bar bar"; column-gap: 12px; row-gap: 6px; align-items: center; }
+.progression-summary-badge { grid-area: badge; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; font-size: 1.25rem; font-weight: 800; color: #fff; background: #e2e9f1; box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.15); }
+.progression-summary-row.is-empty .progression-summary-badge { color: #8796a8; box-shadow: none; border: 2px dashed #c3cfdc; background: #f5f8fc !important; }
+.progression-summary-name { grid-area: name; font-weight: 700; color: #24344a; }
+.progression-bar-label { grid-area: label; justify-self: end; padding: 2px 10px; border-radius: 999px; font-size: 0.8rem; font-weight: 800; color: #24344a; background: #eef3f9; }
+.progression-summary-row.is-emerging .progression-bar-label { background: #f6e1db; color: #7a3423; }
+.progression-summary-row.is-developing .progression-bar-label { background: #f7e9cf; color: #6b4a0e; }
+.progression-summary-row.is-consolidating .progression-bar-label { background: #ecedd2; color: #4f5313; }
+.progression-summary-row.is-proficient .progression-bar-label { background: #d4efe9; color: #10503f; }
+.progression-summary-row.is-exceeding .progression-bar-label { background: #dce8f6; color: #1c4475; }
+.progression-bar-label.is-empty { font-weight: 600; color: #66768a; background: transparent; }
+.progression-bar { grid-area: bar; display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; height: 12px; }
+.progression-bar-segment { border-radius: 999px; background: #e2e9f1; }
+/* Dialog version: a bold navy banner at the top of the student record. */
+.progression-dialog-summary { margin: 14px 22px 18px; padding: 14px 16px 16px; border: 0; border-radius: 14px; background: linear-gradient(135deg, #12324f 0%, #1f4f80 100%); box-shadow: 0 10px 26px rgba(18, 50, 79, 0.28); }
+.progression-dialog-summary .progression-summary { padding-top: 0; border-top: 0; }
+.progression-dialog-summary .progression-summary-caption { font-size: 0.95rem; color: #fff; letter-spacing: 0.02em; }
+.progression-dialog-summary .progression-summary-group { border-color: transparent; }
+@media (max-width: 700px) {
+    .progression-summary-cards { grid-template-columns: 1fr; }
+}
+.progression-page .curriculum-table { table-layout: auto; }
+.progression-page .curriculum-table td { vertical-align: middle; }
+.progression-page .curriculum-table th[scope="row"] { min-width: 320px; }
+.progression-statement { margin: 6px 0 0; font-weight: 400; font-size: 0.88rem; line-height: 1.4; color: #34465c; }
+.progression-th-note { font-weight: 400; font-size: 0.8rem; }
+.progression-curriculum h3 { margin: 22px 0 6px; color: #12324f; }
+.progression-curriculum h4 { margin: 12px 0 6px; font-size: 1rem; color: #34465c; }
+.progression-strand-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin: 14px 0 6px; }
+.progression-strand-header h4 { margin: 0; }
+.progression-strand-header .progression-strand-progress { display: flex; flex-direction: row; align-items: center; margin: 0; gap: 8px; font-weight: 700; color: #34465c; font-size: 0.9rem; }
+.progression-strand-header .progression-strand-progress select { min-width: 190px; width: auto; margin: 0; }
+.progression-statement-table td:first-child { min-width: 360px; line-height: 1.45; }
+.progression-statement-table td:not(:first-child) { width: 1%; white-space: nowrap; }
+.progression-statement-table select { width: auto; min-width: 9.5rem; }
+.progression-statement-group th { background: #eef4fa; color: #12324f; font-size: 0.9rem; text-align: left; }
+.progression-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.progression-chip { display: inline-block; padding: 1px 7px; border-radius: 999px; background: #e3edf8; color: #1d4f80; font-size: 0.72rem; font-weight: 700; cursor: help; }
+.progression-dialog { width: min(980px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 1px solid #b9cbde; border-radius: 14px; color: #24344a; background: #f5f8fc; box-shadow: 0 24px 60px rgba(20, 35, 60, 0.35); }
+.progression-dialog::backdrop { background: rgba(20, 35, 60, 0.55); }
+.progression-dialog-header { position: sticky; top: 0; z-index: 1; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 16px 22px; border-bottom: 1px solid #cfdded; background: #fff; }
+.progression-dialog-header h2 { margin: 2px 0 4px; }
+.progression-dialog-header p { margin: 0; }
+.progression-dialog-header .section-kicker { font-size: 0.75rem; }
+#progression-dialog-status { margin: 12px 22px 0; }
+#progression-dialog-status:empty { display: none; }
+.progression-dialog form { padding: 0 22px 22px; }
+.progression-dialog fieldset { margin-top: 14px; }
+.progression-legend { list-style: none; padding: 0; display: grid; gap: 14px; }
+.progression-legend li { display: flex; align-items: center; gap: 14px; }
+.progression-legend p { margin: 4px 0; }
+.descriptor-chip { display: inline-block; border-radius: 8px; padding: 10px 14px; font-weight: 700; color: #000; }
+.emerging { background: #b86753 !important; }
+.developing { background: #c08b2e !important; }
+.consolidating { background: #969b32 !important; }
+.proficient { background: #278c78 !important; }
+.exceeding { background: #427bbb !important; }
+.progression-page select.descriptor-chip { color: #000; border: 2px solid #24344a; }
+.progression-page select.coverage-chip { font-weight: 700; border-width: 2px; }
+.progression-page select.coverage-not-taught { background: #eceff3; border-color: #9aa6b4; color: #3c4756; }
+.progression-page select.coverage-partly-taught { background: #fdecc8; border-color: #c9922a; color: #5c3b00; }
+.progression-page select.coverage-taught { background: #d4f0dc; border-color: #2f8a4f; color: #10421f; }
+.progression-page span.coverage-chip { display: inline-block; padding: 6px 12px; border: 2px solid; border-radius: 8px; font-weight: 700; white-space: nowrap; cursor: help; }
+.progression-page span.coverage-not-taught { background: #eceff3; border-color: #9aa6b4; color: #3c4756; }
+.progression-page span.coverage-partly-taught { background: #fdecc8; border-color: #c9922a; color: #5c3b00; }
+.progression-page span.coverage-taught { background: #d4f0dc; border-color: #2f8a4f; color: #10421f; }
+.progression-page select:disabled { opacity: 0.6; cursor: not-allowed; }
+.progression-chip.role-supporting { background: #fff; border: 1.5px solid #1d4f80; padding: 0 6px; }
+.progression-chip.role-context { background: #fff; border: 1.5px dashed #6b7a8c; color: #4a5868; padding: 0 6px; }
+.progression-activity-note { display: block; margin-top: 6px; padding: 3px 8px; border-radius: 6px; background: #eef6ff; color: #1d4f80; font-size: 0.8rem; font-weight: 600; }
+.progression-activity-note[hidden] { display: none; }
+@media (max-width: 700px) { .progression-page .curriculum-table { min-width: 900px; } .progression-page .progression-statement-table { min-width: 720px; } }
+.progression-heading-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.progression-heading-row h2 { margin-right: 0; }
+.progression-hint-toggle { display: inline-flex; align-items: center; padding: 6px 12px; border: 1px solid #d8c8a0; border-radius: 999px; background: #fff8e1; color: #6b5017; font: inherit; font-size: 0.82rem; font-weight: 800; cursor: pointer; }
+.progression-hint-toggle:hover, .progression-hint-toggle:focus-visible { border-color: #b77a0c; outline: 2px solid #b77a0c; outline-offset: 2px; }
+.progression-hint-toggle[aria-expanded="true"] { background: #f6e3a6; }
+.progression-hint { margin: 0 0 14px; padding: 9px 12px; border-left: 4px solid #d8a52e; border-radius: 6px; background: #fff8e1; color: #6b5017; line-height: 1.5; font-weight: 700; }
+.progression-hint[hidden] { display: none; }
+
+/* Comment Bank narrative builder */
+.progression-comment-builder { margin: 8px 0 16px; border: 2px solid #1d4f80; border-radius: 12px; background: #f5f9fd; padding: 0 14px 14px; }
+.progression-comment-builder > summary { cursor: pointer; padding: 12px 0; font-weight: 800; color: #1d4f80; }
+.progression-cb-help { margin: 0 0 10px; color: #42505f; font-size: 0.92rem; }
+.progression-cb-options { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 10px; }
+.progression-cb-options label, .progression-cb-controls label { display: grid; gap: 4px; font-weight: 700; font-size: 0.88rem; }
+.progression-cb-rows { display: grid; gap: 8px; }
+.progression-cb-row { background: #fff; border: 1px solid #d9e1ea; border-left: 5px solid #1d4f80; border-radius: 8px; padding: 8px 10px; }
+.progression-cb-row.cb-strengths { border-left-color: #2f6f4f; }
+.progression-cb-row.cb-behaviours { border-left-color: #7a4c9a; }
+.progression-cb-row.cb-next { border-left-color: #b0602a; }
+.progression-cb-title { margin: 0 0 6px; display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+.progression-cb-title span { color: #5a6878; font-size: 0.85rem; }
+.progression-cb-controls { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(110px, 0.6fr) minmax(260px, 3fr); gap: 8px; align-items: end; }
+.progression-cb-controls label:has(.progression-cb-comment) { grid-column: -2 / -1; }
+.progression-cb-controls select { width: 100%; min-width: 0; }
+.progression-cb-preview-label { margin: 12px 0 4px; font-weight: 800; color: #1d4f80; }
+.progression-cb-preview { margin: 0; padding: 10px 12px; background: #fff; border: 1px dashed #1d4f80; border-radius: 8px; line-height: 1.5; }
+.progression-cb-preview.is-empty { color: #6b7a8c; font-style: italic; }
+.progression-cb-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+@media (max-width: 760px) { .progression-cb-controls { grid-template-columns: 1fr; } .progression-cb-controls label:has(.progression-cb-comment) { grid-column: auto; } }

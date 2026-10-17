@@ -83,7 +83,7 @@ function createArchiveService({ env = process.env, fetchImpl = fetch, readFile =
     }
   }
 
-  async function api(token, path, method = 'GET', body) {
+  async function api(token, path, method = 'GET', body, maxBytes = 8 * 1024 * 1024) {
     try {
       const response = await fetchImpl(`https://api.github.com${path}`, {
         method, redirect: 'error', signal: AbortSignal.timeout(30000),
@@ -110,7 +110,7 @@ function createArchiveService({ env = process.env, fetchImpl = fetch, readFile =
         const { done, value } = await reader.read();
         if (done) break;
         size += value.length;
-        if (size > 8 * 1024 * 1024) {
+        if (size > maxBytes) {
           await reader.cancel();
           throw new ArchiveError('GitHub response exceeds the importer size limit. Arrange a manual handover.');
         }
@@ -239,7 +239,36 @@ function createArchiveService({ env = process.env, fetchImpl = fetch, readFile =
       url: `https://github.com/${repo.fullName}/tree/${commit.sha}/${folder}` };
   }
 
-  return { configuration, preview, archive };
+  async function* teachingFiles() {
+    const { repo, token, info } = await destination();
+    const base = `/repos/${repo.fullName}`;
+    const revision = env.DTECH_ARCHIVE_COMMIT || info.default_branch;
+    const commit = await api(token, `${base}/commits/${encodeURIComponent(revision)}`);
+    const listing = await api(token, `${base}/git/trees/${commit.commit.tree.sha}?recursive=1`);
+    if (listing.truncated) throw new ArchiveError('DTECH archive listing is truncated.', 502);
+    const prefix = 'LegacySites/TECH-HUB/DTECH-HUB/TeacherFiles/';
+    const files = listing.tree.filter((entry) => entry.type === 'blob' && entry.path.startsWith(prefix));
+    if (!files.length || files.length > 200 || files.reduce((sum, entry) => sum + entry.size, 0) > 120 * 1024 * 1024) {
+      throw new ArchiveError('DTECH TeacherFiles are missing or exceed the archive restore limits.', 502);
+    }
+    const seen = new Set();
+    for (const file of files) {
+      const relative = file.path.slice(prefix.length);
+      if (file.mode !== '100644' || relative.split('/').some((part) => !part || part === '.' || part === '..')
+        || /[\\:\x00-\x1f]/.test(relative) || file.size > 10 * 1024 * 1024 || seen.has(relative.toLowerCase())) {
+        throw new ArchiveError('DTECH archive contains an unsafe, duplicate or oversized teaching file.', 502);
+      }
+      seen.add(relative.toLowerCase());
+      const blob = await api(token, `${base}/git/blobs/${file.sha}`, 'GET', undefined, 16 * 1024 * 1024);
+      if (blob.encoding !== 'base64') throw new ArchiveError('DTECH archive returned an unsupported file encoding.', 502);
+      const bytes = Buffer.from(blob.content, 'base64');
+      const sha = crypto.createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
+      if (bytes.length !== file.size || sha !== file.sha) throw new ArchiveError('DTECH teaching file verification failed.', 502);
+      yield { path: relative, bytes, commit: commit.sha };
+    }
+  }
+
+  return { configuration, preview, archive, teachingFiles };
 }
 
 module.exports = { createArchiveService, ArchiveError, repository, pathReason, contentReason };

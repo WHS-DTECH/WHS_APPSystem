@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Assessment Task | Computer Lab</title>
+    <meta name="description" content="Upload a new assessment task for the DTECH-HUB library.">
+    <meta name="theme-color" content="#4a1b6f">
+    <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+    <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+    <link rel="icon" type="image/x-icon" href="images/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="upload-forms.css?v=20260513">
+</head>
+<body>
+    <div class="page-shell">
+        <header class="hero">
+            <nav class="topbar" aria-label="Primary">
+                <a class="brand" href="index.html">Computer Lab</a>
+                <div class="topbar-right">
+                    <div class="topbar-links">
+                        <a href="index.html#current-week">This Week</a>
+                        <a href="index.html#project-library">Activity Library</a>
+                        <a href="index.html#browse-lab-projects">Lab Projects</a>
+                        <a href="https://sites.google.com/westlandhigh.school.nz/dtec/home" target="_blank" rel="noreferrer">Learning Site</a>
+                        <a href="index.html#global-footer">Lab Notes</a>
+                    </div>
+                    <div class="utility-actions" aria-label="Utility actions">
+                        <a id="hub-staff-link" href="teacher-view.html" hidden>Teacher View</a>
+                        <a id="hub-admin-link" href="admin-menu.html" hidden>Admin Menu</a>
+                        <span id="hub-access-badge" class="hub-access-badge" hidden aria-live="polite"></span>
+                        <button id="hub-google-signin" class="google-signin-button" type="button">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="google-logo">
+                                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                            </svg>
+                            <span>Sign in with Google</span>
+                        </button>
+                        <button id="hub-google-signout" type="button" hidden>Sign out</button>
+                        <button id="hub-user-badge" class="user-badge" type="button" hidden aria-label="Open profile" aria-haspopup="true" aria-expanded="false"></button>
+                    </div>
+                </div>
+            </nav>
+        </header>
+
+        <main class="upload-page">
+            <h1>Upload Assessment Task</h1>
+            <p class="intro-text">Create a new assessment task with standards, requirements, and evaluation criteria.</p>
+            <p id="assessment-auth-status" class="project-auth-status" aria-live="polite"></p>
+            <div class="upload-page-tools">
+                <button class="button-cancel" type="button" id="clear-assessment-draft-top" data-clear-assessment-draft>Clear Draft</button>
+            </div>
+
+            <section class="upload-panel" aria-label="Upload assessment form">
+
+                <form id="upload-activity-form" class="upload-form">
+                    
+                    <!-- Card Basics -->
+                    <fieldset class="form-section">
+                        <legend>Card Basics</legend>
+                        <div class="form-grid">
+                            <div class="field">
+                                <label for="activity-name">Card Name</label>
+                                <input id="activity-name" name="activityName" type="text" required>
+                            </div>
+                            <div class="field">
+                                <label for="year-level">Year Level</label>
+                                <select id="year-level" name="yearLevel" required>
+                                    <option value="">Select year</option>
+                                    <option>Junior</option>
+                                    <option>Middle</option>
+                                    <option>Senior</option>
+                                    <option>Year 7</option>
+                                    <option>Year 8</option>
+                                    <option>Year 9</option>
+                                    <option>Year 10</option>
+                                    <option>Year 11</option>
+                                    <option>Year 12</option>
+                                    <option>Year 13</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="activity-category">Card Category</label>
+                                <select id="activity-category" name="activityCategory" required>
+                                    <option>Activity</option>
+                                    <option>Project</option>
+                                    <option selected>Assessment Task</option>
+                                    <option>Lesson</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="subject-stream">Subject Stream</label>
+                                <select id="subject-stream" name="subjectStream" required>
+                                    <option value="">Select subject</option>
+                                    <option value="DTECH">DTECH</option>
+                                    <option value="COMP">COMP</option>
+                                    <option value="TEXT">TEXT</option>
+                                    <option value="DTONLINE">DTONLINE</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="type">Topic Type</label>
+                                <select id="type" name="type" required>
+                                    <option value="">Select topic type</option>
+                                    <option>Office Suite</option>
+                                    <option>Programming</option>
+                                    <option>Electronics</option>
+                                    <option>Digital Media</option>
+                                    <option>Project Management</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="difficulty">Difficulty</label>
+                                <select id="difficulty" name="difficulty" required>
+                                    <option value="">Select difficulty</option>
+                                    <option>Beginner</option>
+                                    <option>Intermediate</option>
+                                    <option>Advanced</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="card-url">Card URL</label>
+                                <input id="card-url" name="cardUrl" type="url" placeholder="What URL should this card open?">
+                            </div>
+                            <div class="field field-wide">
+                                <label for="outcome-image-url">Card Image</label>
+                                <input id="outcome-image-url" name="outcomeImageUrl" type="text" placeholder="https://... or /images/...">
+                            </div>
+                            <div class="field field-wide">
+                                <label for="short-description">Short Description</label>
+                                <textarea id="short-description" name="shortDescription" placeholder="Brief overview of the assessment task..."></textarea>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="form-section">
+                        <legend>Display Options</legend>
+                        <div class="form-grid">
+                            <div class="field">
+                                <label for="card-color">Card Color</label>
+                                <select id="card-color" name="cardColor" required>
+                                    <option value="Green">Green - Custom</option>
+                                    <option value="Violet">Violet - Project (default)</option>
+                                    <option value="Rose">Rose - Lesson (default)</option>
+                                    <option value="Azure">Azure - Task Topic (default)</option>
+                                    <option value="Amber">Amber - Activity (default)</option>
+                                    <option value="Teal">Teal - Standard</option>
+                                    <option value="Slate" selected>Slate - Assessment Task (default)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <label class="checkbox-field" for="show-this-week">
+                            <input id="show-this-week" name="showThisWeek" type="checkbox">
+                            Show in This Week section
+                        </label>
+                    </fieldset>
+
+                    <fieldset class="form-section">
+                        <legend>Teacher Notes</legend>
+                        <div class="form-grid">
+                            <div class="field field-wide">
+                                <label for="class-preparation">Teacher Card: Class Preparation</label>
+                                <textarea id="class-preparation" name="classPreparation" placeholder="What preparation should be done before class?"></textarea>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <!-- Tasks List -->
+                    <fieldset class="form-section">
+                        <legend>Tasks</legend>
+                        <div class="form-grid">
+                            <div class="field field-wide">
+                                <label for="tasks-list">Tasks (one per line)</label>
+                                <textarea id="tasks-list" name="tasksList" placeholder="List each task on a new line..."></textarea>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <!-- Standard Details -->
+                    <fieldset class="form-section">
+                        <legend>Standards</legend>
+                        <div class="form-grid">
+                            <div class="field field-wide">
+                                <label for="standard-details">Standard Details</label>
+                                <div class="upload-page-tools" style="margin: 0 0 8px;">
+                                    <select id="standard-library-select" aria-label="Assessment standards picker" style="min-width: 300px;">
+                                        <option value="">Loading standards from Assessment Standards Manager...</option>
+                                    </select>
+                                    <button id="standard-library-add" class="button-save" type="button" style="min-height: 34px; padding: 6px 12px;">Add Standard</button>
+                                    <a class="button-cancel" href="admin-assessment-information.html" target="_blank" rel="noreferrer">Open Standards Manager</a>
+                                </div>
+                                <div id="standard-chip-list" class="standard-chip-list" aria-live="polite"></div>
+                                <textarea id="standard-details" name="standardDetails" class="standard-details-storage" aria-hidden="true" tabindex="-1" placeholder="Describe the standard or learning outcome..."></textarea>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <!-- Assessment Requirements -->
+                    <fieldset class="form-section">
+                        <legend>Requirements</legend>
+                        <div class="form-grid">
+                            <div class="field field-wide">
+                                <label for="achieved">Achieved</label>
+                                <textarea id="achieved" name="achieved" placeholder="What does achieving this look like?"></textarea>
+                                <div id="achieved-checklist-preview" class="requirement-checklist-preview" hidden>
+                                    <p class="requirement-checklist-preview-title">Achieved checklist preview (saved format)</p>
+                                    <ul id="achieved-checklist-preview-list" class="requirement-checklist-preview-list"></ul>
+                                </div>
+                            </div>
+                            <div class="field field-wide">
+                                <label for="merit">Merit</label>
+                                <textarea id="merit" name="merit" placeholder="What does merit level look like?"></textarea>
+                                <div id="merit-checklist-preview" class="requirement-checklist-preview" hidden>
+                                    <p class="requirement-checklist-preview-title">Merit checklist preview (saved format)</p>
+                                    <ul id="merit-checklist-preview-list" class="requirement-checklist-preview-list"></ul>
+                                </div>
+                            </div>
+                            <div class="field field-wide">
+                                <label for="excellence">Excellence</label>
+                                <textarea id="excellence" name="excellence" placeholder="What does excellence level look like?"></textarea>
+                                <div id="excellence-checklist-preview" class="requirement-checklist-preview" hidden>
+                                    <p class="requirement-checklist-preview-title">Excellence checklist preview (saved format)</p>
+                                    <ul id="excellence-checklist-preview-list" class="requirement-checklist-preview-list"></ul>
+                                </div>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <!-- What you need to Submit -->
+                    <fieldset class="form-section">
+                        <legend>Submission</legend>
+                        <div class="form-grid">
+                            <div class="field field-wide">
+                                <label for="submission-requirements">Submission Requirements</label>
+                                <textarea id="submission-requirements" name="submissionRequirements" placeholder="Describe what students need to submit..."></textarea>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <!-- Relevant Implications -->
+                    <fieldset class="form-section">
+                        <legend>Implications</legend>
+                        <div class="form-grid">
+                            <div class="field field-wide">
+                                <label for="relevant-implications">Relevant Implications</label>
+                                <textarea id="relevant-implications" name="relevantImplications" placeholder="What are the relevant implications?"></textarea>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <!-- Record and Log Your Progress -->
+                    <fieldset class="form-section">
+                        <legend>Progress Log</legend>
+                        <div class="form-grid">
+                            <div class="field field-wide">
+                                <label for="progress-logging">Progress Logging</label>
+                                <textarea id="progress-logging" name="progressLogging" placeholder="How should students record their progress?"></textarea>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <!-- Image Uploads (5 images) -->
+                    <fieldset class="form-section">
+                        <legend>Supporting Images</legend>
+                        <div class="form-grid">
+                            <div class="field field-wide">
+                                <label for="image-1">Image 1</label>
+                                <input id="image-1" name="image1" type="file" accept="image/png,image/jpeg,image/jpg">
+                            </div>
+                            <div class="field field-wide">
+                                <label for="image-2">Image 2</label>
+                                <input id="image-2" name="image2" type="file" accept="image/png,image/jpeg,image/jpg">
+                            </div>
+                            <div class="field field-wide">
+                                <label for="image-3">Image 3</label>
+                                <input id="image-3" name="image3" type="file" accept="image/png,image/jpeg,image/jpg">
+                            </div>
+                            <div class="field field-wide">
+                                <label for="image-4">Image 4</label>
+                                <input id="image-4" name="image4" type="file" accept="image/png,image/jpeg,image/jpg">
+                            </div>
+                            <div class="field field-wide">
+                                <label for="image-5">Image 5</label>
+                                <input id="image-5" name="image5" type="file" accept="image/png,image/jpeg,image/jpg">
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <!-- Feedback and Trialling -->
+                    <fieldset class="form-section">
+                        <legend>Feedback</legend>
+                        <div class="form-grid">
+                            <div class="field field-wide">
+                                <label for="feedback-trialling">Feedback and Trialling</label>
+                                <textarea id="feedback-trialling" name="feedbackTrialling" placeholder="What feedback or trialling information should be included?"></textarea>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <div class="form-actions">
+                        <button class="button-save" type="submit">Save Assessment Task</button>
+                        <button class="button-cancel" type="button" id="cancel-upload">Cancel</button>
+                        <p id="upload-status" class="upload-status" aria-live="polite" hidden></p>
+                    </div>
+                    <pre id="export-preview" class="export-preview" hidden></pre>
+                </form>
+            </section>
+
+            <footer id="global-footer" class="global-hub-footer" aria-label="Hub suggestions and links">
+                <a class="button button-primary global-suggest-button" href="/suggest-activity.html">Suggest a Project or Activity</a>
+                <p class="global-footer-copy">&copy; 2026 Westland High School — Computer Lab &amp; DTECH HUB</p>
+            </footer>
+        </main>
+    </div>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="script.js"></script>
+    <script src="upload-assessment.js"></script>
+</body>
+</html>

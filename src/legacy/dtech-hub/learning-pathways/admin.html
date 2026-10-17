@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learning Pathways Admin | DTECH-HUB</title>
+    <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+    <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+    <link rel="icon" href="../images/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="page-shell">
+        <nav class="topbar" aria-label="Primary"><a class="brand" href="/index.html">Computer Lab</a></nav>
+        <main class="admin-page-wrap">
+            <header class="admin-page-header">
+                <h1>Learning Pathways</h1>
+                <p>Admin-only card editor for the Learning Pathways library. Licence Library cards are managed separately.</p>
+                <a class="button button-secondary" href="/admin-menu.html">Back to Admin Menu</a>
+                <a class="button button-secondary" href="./">Open Learning Pathways</a>
+            </header>
+            <section class="admin-panel">
+                <h2>Card Editor</h2>
+                <p>Add or edit cards below, then click Publish Library to save your changes.</p>
+                <form id="pathways-form">
+                    <fieldset id="pathways-fields" class="pathways-editor-fields practical-skills-form" disabled>
+                        <input id="pathways-id" type="hidden">
+                        <label for="pathways-title">Title</label>
+                        <input id="pathways-title" required maxlength="120">
+                        <label for="pathways-summary">Summary</label>
+                        <textarea id="pathways-summary" required maxlength="600" rows="3"></textarea>
+                        <label for="pathways-type">Card Type</label>
+                        <select id="pathways-type">
+                            <option value="strand">Curriculum Strand</option>
+                            <option value="unit">Unit</option>
+                            <option value="lesson">Lesson</option>
+                            <option value="activity">Lesson Activity</option>
+                            <option value="job">Jobs</option>
+                        </select>
+                        <label for="pathways-year">Year Level / Course</label>
+                        <input id="pathways-year" maxlength="60" placeholder="All Years, Junior DTECH, Middle DTECH, Senior DTECH">
+                        <label for="pathways-area">Category</label>
+                        <input id="pathways-area" maxlength="60" placeholder="Learning Pathways">
+                        <label for="pathways-href">Card Link (optional)</label>
+                        <input id="pathways-href" maxlength="300" placeholder="Leave blank for a display-only card">
+                        <label for="pathways-image">Image URL (optional)</label>
+                        <input id="pathways-image" maxlength="300" placeholder="/learning-pathways/images/... or https://...">
+                        <label for="pathways-status">Status</label>
+                        <select id="pathways-status">
+                            <option value="active">Active</option>
+                            <option value="planning">Planning</option>
+                            <option value="archive">Archive</option>
+                        </select>
+                        <label for="pathways-icon">Icon / Initials</label>
+                        <input id="pathways-icon" maxlength="12" placeholder="LP">
+                        <div class="practical-form-actions">
+                            <button class="button button-primary" type="submit">Save Card to Draft</button>
+                            <button id="pathways-clear" class="button button-secondary" type="button">Clear Form</button>
+                            <button id="pathways-publish" class="button button-primary" type="button">Publish Library</button>
+                        </div>
+                    </fieldset>
+                </form>
+                <p id="pathways-message" class="upload-status" aria-live="polite">Loading library and checking admin access...</p>
+                <button id="pathways-retry" class="button button-secondary" type="button">Reload Library</button>
+            </section>
+            <section class="admin-panel">
+                <h2>Current Cards</h2>
+                <label for="pathways-search">Find a card</label>
+                <input id="pathways-search" type="search" placeholder="Search pathway cards...">
+                <ul id="pathways-cards" class="pathways-card-list"></ul>
+            </section>
+        </main>
+        <footer id="global-footer" class="global-hub-footer">
+            <a class="button button-primary global-suggest-button" href="/suggest-activity.html">Suggest a Project or Activity</a>
+            <p class="global-footer-copy">&copy; 2026 Westland High School - Computer Lab &amp; DTECH HUB</p>
+        </footer>
+    </div>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="../script.js"></script>
+    <script src="admin.js"></script>
+</body>
+</html>

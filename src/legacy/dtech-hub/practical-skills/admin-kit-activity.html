@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Activity Details | Practical Skills Admin</title>
+  <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+  <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+  <link rel="stylesheet" href="../styles.css">
+  <style>
+    .activity-editor { width: min(920px, calc(100% - 28px)); margin: 24px auto 60px; }
+    .activity-editor-field { display: grid; gap: 6px; margin-bottom: 14px; }
+    .activity-editor-field label { font-weight: 700; font-size: .85rem; color: #173858; }
+    .activity-editor-field input, .activity-editor-field textarea, .activity-editor-field select { border: 1px solid #c9d4e2; border-radius: 8px; padding: 8px 10px; font: inherit; }
+    .activity-question-card, .activity-image-card { border: 1px solid #d7e1ee; border-radius: 8px; padding: 12px; margin-bottom: 12px; background: #f8fbff; }
+    .activity-card-head, .activity-editor-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .activity-card-head { margin-bottom: 10px; font-weight: 700; color: #173858; }
+    .activity-editor-actions { margin-top: 18px; justify-content: flex-start; }
+  </style>
+</head>
+<body>
+  <div class="page-shell">
+    <main class="activity-editor">
+      <section class="admin-page-header">
+        <p class="section-kicker">Kit Activity</p>
+        <h1 id="activity-page-title">Activity Details</h1>
+        <p id="activity-page-summary">Configure the student tasks and supporting images for this worksheet.</p>
+        <a id="activity-back-link" class="button button-secondary" href="./admin-kits.html">Back to Kit Details</a>
+      </section>
+      <section class="admin-panel">
+        <p id="activity-status" class="upload-status" aria-live="polite" hidden></p>
+        <div class="activity-editor-field">
+          <label for="activity-title">Activity</label>
+          <input id="activity-title" type="text">
+        </div>
+        <div class="activity-editor-field">
+          <label for="activity-establishes">What it establishes</label>
+          <textarea id="activity-establishes" rows="3"></textarea>
+        </div>
+        <p id="activity-assessment-note" hidden>This activity includes the built-in Year 7/8 Password Detective matching task and quiz. Students earn their tick when all ten answers are correct. Saving this page keeps the self-marking task; questions added below are extra practice, not part of its score.</p>
+        <p id="activity-apps-note" hidden>This activity includes the Google/Microsoft apps word search and WHS-DTECH-only Drive setup. Students earn a tick by finding all eight apps, completing Google Drive setup and confirming their school Microsoft OneDrive sign-in. Microsoft sign-in is student-confirmed, not automatically verified. Saving preserves the built-in activity; extra questions are not scored. The homepage senior Drive Ready setup is unchanged.</p>
+        <p id="activity-hunt-note" hidden>This activity includes the Learning Sites pirate treasure hunt: Science, Mrs O'Malley's English, Food &amp; Hospitality, PE and DTECH. Course selection is checked against the student's latest linked timetable profile, then two course-specific clues are marked. All eight answers earn a saved tick. Missing or ambiguous profiles require teacher help. Clues were reviewed on 9 October 2026 and should be reviewed when linked pages change; extra questions below are not scored.</p>
+        <p id="activity-merged-note" hidden>This worksheet is combined into the sign-in/Drive activity in the student menu. It is retained here so existing saved answers and other activity indexes are not lost.</p>
+        <p id="activity-identity-note" hidden>This activity checks the four answers in order against the student's verified Google first name, family name, username and email. Keep these four short-answer questions in that order. All four correct answers earn the completion tick automatically.</p>
+        <p id="activity-sites-note" hidden>Website questions and visibility are managed on the <a href="./teacher-login-sites.html">Login websites teacher settings page</a>. Questions below are retained legacy content and are not displayed in this activity.</p>
+        <section id="activity-information" hidden>
+          <h2 id="activity-information-title"></h2>
+          <div id="activity-information-paragraphs"></div>
+        </section>
+        <section id="activity-research-report" hidden>
+          <h2>Research Report Template</h2>
+          <p>Students get their own copy of this Google Doc in WHS-DTECH &gt; JuniorDTECH or MiddleDTECH &gt; KITS. Share the template so students at school can view it. Changes to the template only affect copies made afterwards.</p>
+          <div class="activity-editor-field">
+            <label for="activity-research-template">Template Google Doc link</label>
+            <input id="activity-research-template" type="url" placeholder="https://docs.google.com/document/d/...">
+          </div>
+          <div class="activity-editor-field">
+            <label for="activity-research-minimum">Words students must add before Check My Report gives the tick</label>
+            <input id="activity-research-minimum" type="number" min="1" max="1000" step="1">
+          </div>
+        </section>
+        <h2>Questions</h2>
+        <div id="activity-question-list"></div>
+        <button id="activity-add-question" class="button button-secondary" type="button">Add Question</button>
+        <h2>Images</h2>
+        <div id="activity-image-list"></div>
+        <button id="activity-add-image" class="button button-secondary" type="button">Add Image</button>
+        <div class="activity-editor-actions">
+          <button id="activity-save" class="button button-primary" type="button">Save Activity Details</button>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="../script.js"></script>
+  <script src="./admin-kit-activity.js"></script>
+</body>
+</html>

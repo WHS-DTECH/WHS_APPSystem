@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporting Comment Bank Admin | DTECH-HUB</title>
+    <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+    <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+    <link rel="icon" href="../images/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="comment-bank.css">
+</head>
+<body>
+    <div class="page-shell">
+        <nav class="topbar" aria-label="Primary"><a class="brand" href="/index.html">Computer Lab</a></nav>
+        <main class="admin-page-wrap bank-page">
+            <header class="admin-page-header">
+                <h1>Reporting Comment Bank</h1>
+                <p>Admin-only bank of report comments. Teachers pick one comment per category in the Progression Pathway report to build each student's Learning narrative, then edit it before it saves.</p>
+                <a class="button button-secondary" href="/admin-menu.html">Back to Admin Menu</a>
+                <a class="button button-secondary" href="progression-pathway.html">Open Progression Pathway</a>
+            </header>
+            <section class="admin-panel">
+                <div class="bank-heading-row"><h2>How the bank works</h2><button type="button" class="bank-hint-toggle" id="bank-hint-toggle" aria-expanded="false" aria-controls="bank-hint">HINT</button></div>
+                <ul id="bank-hint" class="bank-rules" hidden>
+                    <li>Comments are organised as <strong>Discipline &rarr; Category &rarr; Subcategory &rarr; Development Level &rarr; Comment</strong>. The narrative is built in category order: Learning Context, Learning Strengths, Learning Behaviours. The Next Learning Steps comment goes into the separate Next learning steps box.</li>
+                    <li>Write <code>{name}</code> where the student's name goes and <code>{name}'s</code> for the possessive, for example <em>{name} applies practical skills accurately.</em> or <em>{name}'s next step is to...</em>. The first mention uses the student's first name; teachers can choose a pronoun for later sentences.</li>
+                    <li>Use <strong>All levels</strong> for comments that suit any student (such as Learning Context). Teachers filter by subcategory and level, so keep each level's comments similar in meaning but varied in wording.</li>
+                    <li>Inactive comments stay in the bank but are hidden from teachers. Editing or deleting a comment never changes narratives already saved for students.</li>
+                    <li>Comments are never chosen automatically from progression results; the teacher always selects them.</li>
+                </ul>
+            </section>
+            <section class="admin-panel">
+                <div class="bank-toolbar">
+                    <button id="bank-publish" class="button button-primary" type="button" disabled>Publish Comment Bank</button>
+                    <button id="bank-reload" class="button button-secondary" type="button">Reload</button>
+                    <button id="bank-export" class="button button-secondary" type="button" disabled>Export CSV</button>
+                    <button id="bank-import" class="button button-secondary" type="button" disabled>Import CSV</button>
+                    <input id="bank-import-file" type="file" accept=".csv,text/csv" hidden>
+                    <button id="bank-reset" class="button button-secondary" type="button" disabled>Restore starter bank</button>
+                </div>
+                <p id="bank-message" class="upload-status" aria-live="polite">Loading comment bank and checking admin access...</p>
+                <p class="bank-note">Import replaces the whole bank with the CSV contents (columns: id, discipline, category, subcategory, level, order, active, text). Export first to keep a backup.</p>
+            </section>
+            <fieldset id="bank-fields" class="bank-fields" disabled>
+                <section class="admin-panel">
+                    <h2>Add a comment</h2>
+                    <div class="bank-add">
+                        <label>Discipline<select id="bank-add-discipline"></select></label>
+                        <label>Category<select id="bank-add-category"></select></label>
+                        <label>Subcategory<select id="bank-add-subcategory"></select></label>
+                        <label>Development level<select id="bank-add-level"></select></label>
+                        <label class="bank-add-text">Comment text<textarea id="bank-add-text" rows="2" maxlength="500" placeholder="{name} applies practical skills accurately and with increasing independence."></textarea></label>
+                        <button id="bank-add" class="button button-primary" type="button">Add comment</button>
+                    </div>
+                </section>
+                <section class="admin-panel">
+                    <h2>Subcategories</h2>
+                    <p>Subcategories group similar comments within a category. Their order here is the order teachers see.</p>
+                    <div class="bank-toolbar">
+                        <label>Category<select id="bank-sub-category"></select></label>
+                        <label>New subcategory<input id="bank-sub-name" maxlength="80"></label>
+                        <button id="bank-sub-add" class="button button-secondary" type="button">Add subcategory</button>
+                    </div>
+                    <ol id="bank-sub-list" class="bank-sub-list"></ol>
+                </section>
+                <section class="admin-panel">
+                    <h2>Comments</h2>
+                    <div class="bank-toolbar bank-filters">
+                        <label>Discipline<select id="bank-filter-discipline"></select></label>
+                        <label>Category<select id="bank-filter-category"></select></label>
+                        <label>Subcategory<select id="bank-filter-subcategory"></select></label>
+                        <label>Development level<select id="bank-filter-level"></select></label>
+                        <label>Search<input id="bank-filter-search" type="search" placeholder="Find text..."></label>
+                        <label class="bank-check"><input id="bank-filter-inactive" type="checkbox" checked> Show inactive</label>
+                    </div>
+                    <div class="bank-toolbar">
+                        <p id="bank-count" class="bank-count"></p>
+                        <label>Copy shown comments to<select id="bank-copy-discipline"></select></label>
+                        <button id="bank-copy" class="button button-secondary" type="button">Copy</button>
+                    </div>
+                    <div id="bank-list" class="bank-list"></div>
+                </section>
+            </fieldset>
+        </main>
+        <footer id="global-footer" class="global-hub-footer">
+            <a class="button button-primary global-suggest-button" href="/suggest-activity.html">Suggest a Project or Activity</a>
+            <p class="global-footer-copy">&copy; 2026 Westland High School - Computer Lab &amp; DTECH HUB</p>
+        </footer>
+    </div>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="../script.js"></script>
+    <script src="comment-bank.js"></script>
+    <script src="comment-bank-admin.js"></script>
+</body>
+</html>

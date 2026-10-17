@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suggest An Activity Or Project | Computer Lab</title>
+    <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+    <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+    <link rel="icon" type="image/x-icon" href="images/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="page-shell">
+        <nav class="topbar" aria-label="Primary">
+            <a class="brand" href="index.html">Computer Lab</a>
+            <div class="topbar-right">
+                <div class="topbar-links">
+                    <a href="index.html#current-week">This Week</a>
+                    <a href="index.html#project-library">Activity Library</a>
+                    <a href="index.html#browse-lab-projects">Lab Projects</a>
+                    <a href="https://sites.google.com/westlandhigh.school.nz/dtec/home" target="_blank" rel="noreferrer">Learning Site</a>
+                    <a href="#global-footer">Lab Notes</a>
+                </div>
+                <div class="utility-actions" aria-label="Utility actions">
+                    <a id="hub-staff-link" href="teacher-view.html" hidden>Teacher View</a>
+                    <a id="hub-admin-link" href="admin-menu.html" hidden>Admin Menu</a>
+                    <span id="hub-access-badge" class="hub-access-badge" hidden aria-live="polite"></span>
+                    <button id="hub-google-signin" class="google-signin-button" type="button">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="google-logo">
+                            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                        </svg>
+                        <span>Sign in with Google</span>
+                    </button>
+                    <button id="hub-google-signout" type="button" hidden>Sign out</button>
+                    <button id="hub-user-badge" class="user-badge" type="button" hidden aria-label="Open profile" aria-haspopup="true" aria-expanded="false"></button>
+                </div>
+            </div>
+        </nav>
+
+        <main class="suggest-page">
+            <section class="suggest-card">
+                <p class="section-kicker">Community Input</p>
+                <h1>Suggest An Activity Or Project</h1>
+                <p class="section-copy">Share ideas for activities or projects you want added to the Hub. Suggestions are sent to Admin, Lead Teacher, and Teacher roles for review.</p>
+
+                <form id="suggestion-form" class="suggest-form" enctype="multipart/form-data">
+                    <label class="control-field" for="submitted-by-name">
+                        <span>Your Name</span>
+                        <input id="submitted-by-name" name="submitted_by_name" type="text" placeholder="e.g., Vanessa Pringle" required>
+                    </label>
+
+                    <label class="control-field" for="submitted-by-email">
+                        <span>Your Email</span>
+                        <input id="submitted-by-email" name="submitted_by_email" type="email" placeholder="yourname@westlandhigh.school.nz" required>
+                    </label>
+
+                    <label class="control-field" for="suggestion-type">
+                        <span>Suggestion Type</span>
+                        <select id="suggestion-type" name="suggestion_type" required>
+                            <option>Activity</option>
+                            <option>Project</option>
+                        </select>
+                    </label>
+
+                    <label class="control-field" for="suggestion-title">
+                        <span>Activity / Project Name</span>
+                        <input id="suggestion-title" name="suggestion_title" type="text" placeholder="e.g., Robotics Maze Challenge" required>
+                    </label>
+
+                    <label class="control-field" for="reference-url">
+                        <span>Activity URL / Reference (optional)</span>
+                        <input id="reference-url" name="reference_url" type="url" placeholder="https://...">
+                    </label>
+
+                    <label class="control-field" for="suggestion-reason">
+                        <span>Why should we add this?</span>
+                        <textarea id="suggestion-reason" name="reason" rows="6" placeholder="Tell us why this would be great for students..." required></textarea>
+                    </label>
+
+                    <label class="control-field" for="suggestion-attachment">
+                        <span>Attach PDF (optional, max 10 MB)</span>
+                        <input id="suggestion-attachment" name="attachment" type="file" accept="application/pdf,.pdf">
+                    </label>
+
+                    <div class="teacher-actions">
+                        <button type="submit" class="button button-primary">Send Suggestion</button>
+                    </div>
+                    <p id="suggestion-status" class="upload-status" aria-live="polite">Status: Ready to submit your suggestion.</p>
+                </form>
+            </section>
+        </main>
+
+        <footer id="global-footer" class="global-hub-footer" aria-label="Hub suggestions and links">
+            <a class="button button-primary global-suggest-button" href="/suggest-activity.html">Suggest a Project or Activity</a>
+            <p class="global-footer-copy">&copy; 2026 Westland High School — Computer Lab &amp; DTECH HUB</p>
+        </footer>
+    </div>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="script.js"></script>
+    <script src="suggestion-form.js"></script>
+</body>
+</html>

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activity: Encoding Binary | Binary &amp; Data | DTECH-HUB</title>
+    <meta name="description" content="JuniorDTECH Binary &amp; Data Lesson 2 interactive activity: use your Binary Piano to encode numbers and the word TECHNOLOGY into binary.">
+    <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+    <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+    <link rel="icon" href="../images/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="page-shell">
+        <header class="hero practical-skills-hero activity-hero">
+            <nav class="topbar" aria-label="Primary"><a class="brand" href="/index.html">Computer Lab</a></nav>
+            <div class="hero-panel practical-skills-panel">
+                <div class="hero-copy">
+                    <p class="eyebrow">BINARY &amp; DATA | LESSON 2 | ACTIVITY</p>
+                    <h1>Encoding Binary</h1>
+                    <p class="hero-text">Use your Binary Piano to encode numbers and the word TECHNOLOGY into binary.</p>
+                </div>
+                <aside class="hero-stats" aria-label="Page actions">
+                    <div class="stat-card">
+                        <span class="stat-label">Learning Pathways Library</span>
+                        <a class="button button-secondary" href="/learning-pathways/?type=activity#card-activity-encoding-binary">Back to Activities</a>
+                        <a class="button button-secondary" href="/learning-pathways/lesson-encoding-binary.html">Lesson 2: Encoding Binary</a>
+                    </div>
+                </aside>
+            </div>
+        </header>
+        <main class="home-grid single-column curriculum-strand-page activity-page encoding-activity" data-activity-id="activity-encoding-binary">
+            <section class="panel-section activity-mission" aria-labelledby="overview">
+                <p class="section-kicker">Binary &amp; Data &bull; Lesson 2 &bull; Interactive Activity</p>
+                <h2 id="overview">Your Mission</h2>
+                <p>Use your Binary Piano to encode numbers and the word <strong>TECHNOLOGY</strong> into binary.</p>
+                <p id="encoding-save-status" class="encoding-save-status" role="status">Sign in with your school account to save your answers.</p>
+            </section>
+
+            <section class="panel-section" aria-labelledby="you-will-need">
+                <h2 id="you-will-need">You Will Need</h2>
+                <ul class="activity-needs">
+                    <li>Your Binary Piano from Lesson 1</li>
+                    <li>Chromebook</li>
+                    <li>Scratch paper (optional)</li>
+                </ul>
+            </section>
+
+            <section class="panel-section encoding-part" aria-labelledby="how-it-works">
+                <p class="encoding-part-label">Part A</p>
+                <h2 id="how-it-works">How It Works</h2>
+                <p>In this activity, every letter has a number. <strong>A = 1, B = 2</strong> &hellip; all the way to <strong>Z = 26</strong>.</p>
+                <ol class="encoding-alphabet" aria-label="Letter code A equals 1 to Z equals 26">
+                    <li><b>A</b>1</li><li><b>B</b>2</li><li><b>C</b>3</li><li><b>D</b>4</li><li><b>E</b>5</li><li><b>F</b>6</li><li><b>G</b>7</li><li><b>H</b>8</li><li><b>I</b>9</li><li><b>J</b>10</li><li><b>K</b>11</li><li><b>L</b>12</li><li><b>M</b>13</li>
+                    <li><b>N</b>14</li><li><b>O</b>15</li><li><b>P</b>16</li><li><b>Q</b>17</li><li><b>R</b>18</li><li><b>S</b>19</li><li><b>T</b>20</li><li><b>U</b>21</li><li><b>V</b>22</li><li><b>W</b>23</li><li><b>X</b>24</li><li><b>Y</b>25</li><li><b>Z</b>26</li>
+                </ol>
+                <p>Your Binary Piano has five place values. Always use them in this order:</p>
+                <ul class="activity-place-values encoding-place-values" aria-label="Binary place values in order">
+                    <li>16</li><li>8</li><li>4</li><li>2</li><li>1</li>
+                </ul>
+                <div class="encoding-rules">
+                    <p class="encoding-rule"><span class="encoding-bit encoding-bit-on" aria-hidden="true">1</span><span><strong>ON = 1</strong> &mdash; use this place value.</span></p>
+                    <p class="encoding-rule"><span class="encoding-bit" aria-hidden="true">0</span><span><strong>OFF = 0</strong> &mdash; do not use this place value.</span></p>
+                </div>
+                <ol class="encoding-steps">
+                    <li>Start with the <strong>largest</strong> place value that fits into the number that is left.</li>
+                    <li>Subtract it and turn that place value <strong>ON (1)</strong>.</li>
+                    <li>Keep going until nothing is left.</li>
+                    <li>Every place value you did not use is <strong>OFF (0)</strong>.</li>
+                    <li>Never subtract a place value that is bigger than the number that is left.</li>
+                </ol>
+            </section>
+
+            <section class="panel-section encoding-part encoding-example" aria-labelledby="worked-example">
+                <p class="encoding-part-label">Part B</p>
+                <h2 id="worked-example">Worked Example: T = 20</h2>
+                <ol class="encoding-working">
+                    <li><span class="encoding-working-key" aria-label="Place value 16">16</span><span class="encoding-working-box"><span>20 &minus; 16 = 4</span><span class="encoding-working-note">16 fits, so 16 is ON</span></span></li>
+                    <li><span class="encoding-working-key" aria-label="Place value 8">8</span><span class="encoding-working-box"><span>8 is bigger than 4</span><span class="encoding-working-note">8 is OFF</span></span></li>
+                    <li><span class="encoding-working-key" aria-label="Place value 4">4</span><span class="encoding-working-box"><span>4 &minus; 4 = 0</span><span class="encoding-working-note">4 fits, so 4 is ON</span></span></li>
+                    <li><span class="encoding-working-key" aria-label="Place value 2">2</span><span class="encoding-working-box"><span>Nothing left</span><span class="encoding-working-note">2 is OFF</span></span></li>
+                    <li><span class="encoding-working-key" aria-label="Place value 1">1</span><span class="encoding-working-box"><span>Nothing left</span><span class="encoding-working-note">1 is OFF</span></span></li>
+                </ol>
+                <div class="encoding-answer-row" aria-label="T equals 20 equals 1 0 1 0 0">
+                    <span class="encoding-answer-cell"><small>16</small>1</span><span class="encoding-answer-cell is-off"><small>8</small>0</span><span class="encoding-answer-cell"><small>4</small>1</span><span class="encoding-answer-cell is-off"><small>2</small>0</span><span class="encoding-answer-cell is-off"><small>1</small>0</span>
+                </div>
+                <p class="encoding-example-result"><strong>T = 20 = 10100</strong> (16 + 4 = 20)</p>
+            </section>
+
+            <section class="panel-section encoding-part" aria-labelledby="guided-practice">
+                <p class="encoding-part-label">Part C</p>
+                <h2 id="guided-practice">Guided Practice: E = 5</h2>
+                <p>Click each place value to turn it <strong>ON</strong> or <strong>OFF</strong> until the total is 5. Use your Binary Piano to help.</p>
+                <div id="encoding-practice" class="encoding-practice" data-letter="E" data-value="5"></div>
+                <div class="encoding-check">
+                    <button type="button" class="button button-primary" id="encoding-practice-check">Check answer</button>
+                    <p id="encoding-practice-feedback" class="encoding-feedback" role="status"></p>
+                </div>
+            </section>
+
+            <section class="panel-section encoding-part" aria-labelledby="encode-technology">
+                <p class="encoding-part-label">Part D</p>
+                <h2 id="encode-technology">Encode TECHNOLOGY</h2>
+                <p>T is done for you. Encode the other nine letters. Each letter shows its number &mdash; turn on the place values that add up to it.</p>
+                <div id="encoding-letters" class="encoding-letters"></div>
+                <div class="encoding-message">
+                    <p class="encoding-message-label">Your encoded message</p>
+                    <p id="encoding-message" class="encoding-message-bits" aria-live="polite"></p>
+                </div>
+            </section>
+
+            <section class="panel-section encoding-part encoding-optional" aria-labelledby="optional-challenge">
+                <p class="encoding-part-label">Part E &bull; Optional</p>
+                <h2 id="optional-challenge">Optional Challenge: Your Own Word</h2>
+                <p>Finished early? Encode a short word of your own (letters A&ndash;Z only). This part is optional &mdash; you do not need it to finish the activity.</p>
+                <label class="encoding-word-label" for="encoding-challenge-word">Your word</label>
+                <input id="encoding-challenge-word" class="encoding-word-input" type="text" maxlength="10" autocomplete="off" spellcheck="false" placeholder="e.g. CODE">
+                <div id="encoding-challenge" class="encoding-letters"></div>
+                <div id="encoding-challenge-message" class="encoding-message" hidden>
+                    <p class="encoding-message-label">Your encoded word</p>
+                    <p id="encoding-challenge-bits" class="encoding-message-bits" aria-live="polite"></p>
+                    <p id="encoding-challenge-done" class="encoding-message-done" role="status"></p>
+                </div>
+            </section>
+
+            <section class="panel-section activity-finished" aria-labelledby="finished">
+                <h2 id="finished">Finished?</h2>
+                <p>When you have completed all the letters in Part D, your work will be saved automatically.</p>
+                <p id="encoding-finish-feedback" class="encoding-feedback" role="status"></p>
+                <div id="encoding-complete" class="activity-handin encoding-complete" hidden>
+                    <span class="encoding-complete-icon" aria-hidden="true">&#127881;</span>
+                    <div class="activity-handin-message">
+                        <p class="activity-handin-praise">Well done! You encoded TECHNOLOGY in binary!</p>
+                        <p class="activity-handin-reminder">This activity is ticked off in your <a href="/learning-pathways/task-list.html">Task List</a>.</p>
+                    </div>
+                </div>
+            </section>
+            <noscript><p class="panel-section">This activity needs JavaScript turned on.</p></noscript>
+        </main>
+        <footer id="global-footer" class="global-hub-footer">
+            <a class="button button-primary global-suggest-button" href="/suggest-activity.html">Suggest a Project or Activity</a>
+            <p class="global-footer-copy">&copy; 2026 Westland High School - Computer Lab &amp; DTECH HUB</p>
+        </footer>
+    </div>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="../script.js"></script>
+    <script src="activity-encoding-binary.js"></script>
+</body>
+</html>

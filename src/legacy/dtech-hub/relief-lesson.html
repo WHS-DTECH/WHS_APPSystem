@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relief Lesson | Computer Lab</title>
+    <meta name="description" content="Database-backed DTECH relief lesson plan.">
+    <meta name="hub-google-client-id" content="239433605438-ur2omagmkluhhn7i319g0i82l4l5l1j8.apps.googleusercontent.com">
+    <meta name="hub-google-allowed-domain" content="westlandhigh.school.nz">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="relief-lesson.css">
+    <link rel="stylesheet" href="relief-lesson-overrides.css">
+</head>
+<body>
+    <div class="page-shell">
+        <header class="hero">
+            <nav class="topbar" aria-label="Primary">
+                <a class="brand" href="index.html">Computer Lab</a>
+                <div class="topbar-right"><div class="topbar-links"></div><div class="utility-actions">
+                    <a id="hub-staff-link" href="teacher-view.html" hidden>Teacher View</a>
+                    <a id="hub-admin-link" href="admin-menu.html" hidden>Admin Menu</a>
+                    <button id="hub-google-signin" class="google-signin-button" type="button"><span>Sign in with Google</span></button>
+                    <button id="hub-google-signout" type="button" hidden>Sign out</button>
+                    <button id="hub-user-badge" class="user-badge" type="button" hidden aria-label="Open profile"></button>
+                </div></div>
+            </nav>
+        </header>
+
+        <main class="relief-lesson-page">
+            <div class="relief-lesson-actions">
+                <a class="button button-secondary" href="browse-lessons.html">Back to Relief Lessons</a>
+                <button class="button button-primary" id="relief-lesson-print" type="button">Save to PDF</button>
+            </div>
+            <p id="relief-lesson-status" class="relief-lesson-status" role="status">Loading lesson plan...</p>
+            <aside id="relief-lesson-attached-resources" class="relief-lesson-attached-resource-box" aria-labelledby="relief-lesson-attached-resources-title" hidden>
+                <h2 id="relief-lesson-attached-resources-title">Attached Resources</h2>
+                <ul id="relief-lesson-attached-resources-list"></ul>
+            </aside>
+            <aside id="relief-lesson-exemplar" class="relief-lesson-exemplar-box" aria-labelledby="relief-lesson-exemplar-title" hidden>
+                <h2 id="relief-lesson-exemplar-title">Exemplar Preview</h2>
+                <p id="relief-lesson-exemplar-description"></p>
+                <iframe id="relief-lesson-exemplar-frame" title="First slide of the lesson exemplar" loading="lazy"></iframe>
+                <a id="relief-lesson-exemplar-link" class="button button-secondary" target="_blank" rel="noopener noreferrer">Open exemplar in new tab</a>
+            </aside>
+            <article id="relief-lesson-content" class="relief-lesson-document" hidden>
+                <header class="relief-lesson-title-block">
+                    <p class="section-kicker">STEAM - Lesson Plan - DT</p>
+                    <h1 id="relief-lesson-title">Relief Lesson</h1>
+                    <p id="relief-lesson-course" class="relief-lesson-course"></p>
+                </header>
+                <section class="relief-lesson-overview">
+                    <div><strong>Unit</strong><span id="relief-lesson-unit"></span></div>
+                    <div><strong>Component</strong><span id="relief-lesson-component"></span></div>
+                    <div><strong>Theme</strong><span id="relief-lesson-theme"></span></div>
+                    <div><strong>Date</strong><span id="relief-lesson-date"></span></div>
+                </section>
+                <section class="relief-lesson-section"><h2>Aim(s) of Lesson</h2><p id="relief-lesson-aim"></p></section>
+                <section class="relief-lesson-resource-grid">
+                    <div class="relief-lesson-section"><h2>Resources Required</h2><p id="relief-lesson-resources"></p></div>
+                    <div class="relief-lesson-section"><h2>Preparation</h2><p id="relief-lesson-preparation"></p></div>
+                </section>
+                <section class="relief-lesson-section"><h2>Health &amp; Safety</h2><p id="relief-lesson-safety"></p></section>
+                <section class="relief-lesson-sequence">
+                    <div><h2>Starter</h2><p id="relief-lesson-starter"></p></div>
+                    <div><h2>Demonstration</h2><p id="relief-lesson-demonstration"></p></div>
+                    <div><h2>Practice</h2><p id="relief-lesson-practice"></p></div>
+                    <div><h2>Plenary</h2><p id="relief-lesson-plenary"></p></div>
+                </section>
+                <section class="relief-lesson-two-column">
+                    <div class="relief-lesson-section"><h2>Homework</h2><p id="relief-lesson-homework"></p></div>
+                    <div class="relief-lesson-section"><h2>Lesson Evaluation</h2><p id="relief-lesson-evaluation"></p></div>
+                </section>
+            </article>
+        </main>
+        <footer id="global-footer" class="global-hub-footer"><a class="button button-primary global-suggest-button" href="/suggest-activity.html">Suggest a Project or Activity</a><p class="global-footer-copy">&copy; 2026 Westland High School - Computer Lab &amp; DTECH HUB</p></footer>
+    </div>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="script.js"></script>
+    <script src="relief-lesson.js"></script>
+</body>
+</html>

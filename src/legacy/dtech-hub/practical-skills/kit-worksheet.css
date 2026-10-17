@@ -1,0 +1,1600 @@
+/* Deliberately independent from styles.css: kit worksheet pages use a distinct, worksheet-style visual
+   language (rounded display font, pastel panels, dashed borders) so they read as printable activity
+   sheets rather than as part of the main hub chrome. */
+
+:root {
+    --worksheet-theme-color: #2f8f61;
+    --worksheet-accent-color: #ffd166;
+}
+
+.worksheet-certificate { margin-top: 28px; }
+.certificate-sheet { position: relative; border: 5px solid #1f5b3a; outline: 1px solid #c49a36; outline-offset: -14px; background: #fffaf0; color: #173858; padding: 42px 32px; text-align: center; border-radius: 8px; }
+.certificate-logo { position: absolute; top: 28px; left: 28px; width: 80px; height: 80px; object-fit: contain; border-radius: 50%; }
+.certificate-school, .certificate-programme { padding-inline: 90px; }
+@media screen and (max-width: 600px) {
+    .certificate-logo { position: static; display: block; margin: 0 auto 18px; }
+    .certificate-school, .certificate-programme { padding-inline: 0; }
+}
+.certificate-sheet p { margin: 14px 0; overflow-wrap: anywhere; }
+.certificate-school { font-size: 1.2rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+.certificate-programme { font-size: .9rem; }
+.certificate-sheet h2 { font-family: 'Baloo 2', sans-serif; font-size: clamp(1.6rem, 4vw, 2.8rem); margin: 28px 0; }
+.certificate-sheet h3 { font-size: clamp(1.3rem, 3.5vw, 2.3rem); margin: 22px 0; overflow-wrap: anywhere; }
+.certificate-congratulations { font-weight: 800; color: #1f5b3a; }
+.certificate-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+.certificate-help { font-size: .9rem; }
+#certificate-status.is-error { color: #a4342f; font-weight: 700; }
+
+@page kit-certificate { size: A4 landscape; margin: 10mm; }
+@media print {
+    body.kit-worksheet-page.printing-certificate { background: #fff; min-height: 0; }
+    body.printing-certificate > :not(.worksheet-shell), body.printing-certificate .worksheet-shell > :not(#worksheet-certificate) { display: none !important; }
+    body.printing-certificate .worksheet-shell { width: 100%; max-width: none; margin: 0; padding: 0; }
+    body.printing-certificate .worksheet-certificate { margin: 0; break-inside: avoid; page: kit-certificate; }
+    body.printing-certificate .certificate-sheet { padding: 12mm 10mm; height: 185mm; border-radius: 0; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    body.printing-certificate .certificate-sheet p { margin: 2mm 0; font-size: 12pt; }
+    body.printing-certificate .certificate-sheet h2 { font-size: 30pt; margin: 6mm 0; }
+    body.printing-certificate .certificate-sheet h3 { font-size: 24pt; margin: 5mm 0; }
+    body.printing-certificate .certificate-actions, body.printing-certificate .certificate-help, body.printing-certificate #certificate-status { display: none !important; }
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body.kit-worksheet-page {
+    margin: 0;
+    background: #fef9f0;
+    min-height: 100vh;
+    font-family: 'Quicksand', sans-serif;
+    color: #3a3226;
+}
+
+.kit-worksheet-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 14px 20px;
+    background: #ffffff;
+    border-bottom: 4px solid var(--worksheet-theme-color);
+}
+
+.kit-worksheet-topbar .brand {
+    font-family: 'Baloo 2', cursive;
+    font-weight: 800;
+    font-size: 1.05rem;
+    color: var(--worksheet-theme-color);
+    text-decoration: none;
+}
+
+.kit-worksheet-topbar-links {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#hub-access-badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: #eef2ea;
+    color: #3a3226;
+}
+
+#hub-google-signin,
+#hub-google-signout,
+#hub-user-badge,
+.kit-worksheet-dashboard-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid #d8c8a0;
+    background: #ffffff;
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 700;
+    font-size: 0.82rem;
+    cursor: pointer;
+    color: #3a3226;
+}
+
+.kit-worksheet-dashboard-link {
+    text-decoration: none;
+}
+
+#hub-google-signin .google-logo {
+    flex: 0 0 auto;
+}
+
+#hub-user-badge {
+    background: #fff8e1;
+}
+
+/* Un-hiding these via ID selectors above overrides the browser's default [hidden] behaviour, so
+   restore it explicitly \u2014 otherwise script.js toggling .hidden has no visual effect. */
+#hub-google-signin[hidden],
+#hub-google-signout[hidden],
+#hub-user-badge[hidden],
+.kit-worksheet-dashboard-link[hidden] {
+    display: none;
+}
+
+.worksheet-shell {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 24px 20px 60px;
+}
+
+.worksheet-banner {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--worksheet-theme-color);
+    color: #ffffff;
+    border-radius: 28px;
+    padding: 20px 26px;
+    box-shadow: 0 8px 0 rgba(0, 0, 0, 0.08);
+    margin-bottom: 20px;
+}
+
+.worksheet-banner-icon {
+    font-size: 2.2rem;
+    background: rgba(255, 255, 255, 0.22);
+    border-radius: 50%;
+    width: 62px;
+    height: 62px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+}
+
+.worksheet-banner-copy h1 {
+    margin: 0 0 4px;
+    font-family: 'Baloo 2', cursive;
+    font-size: 1.7rem;
+}
+
+.worksheet-banner-copy p {
+    margin: 0;
+    font-size: 0.94rem;
+    opacity: 0.95;
+}
+
+.worksheet-banner-eyebrow {
+    display: block;
+    margin-bottom: 2px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    opacity: 0.85;
+}
+
+.worksheet-activity-back {
+    display: inline-block;
+    margin-bottom: 14px;
+    color: var(--worksheet-theme-color);
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.worksheet-activity-back:hover,
+.worksheet-activity-back:focus-visible {
+    text-decoration: underline;
+}
+
+.worksheet-activities {
+    display: grid;
+    gap: 14px;
+}
+
+.worksheet-activities h2 {
+    margin: 0;
+    color: #3a3226;
+    font-family: 'Baloo 2', cursive;
+    font-size: 1.45rem;
+}
+
+.worksheet-activity-list {
+    display: grid;
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.worksheet-activity-card {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+    background: #ffffff;
+    border: 3px solid #f1e4c8;
+    border-radius: 18px;
+    box-shadow: 0 3px 0 #f1e4c8;
+}
+
+.worksheet-activity-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    color: #4a3a1a;
+    font-family: 'Baloo 2', cursive;
+    font-weight: 800;
+    border: 2px solid #d8c8a0;
+    background: #fffaf0;
+}
+
+.worksheet-activity-number.is-complete {
+    background: var(--worksheet-theme-color);
+    border-color: var(--worksheet-theme-color);
+    color: #ffffff;
+    font-size: 1.4rem;
+}
+
+.worksheet-activity-card.is-complete {
+    border-color: var(--worksheet-theme-color);
+}
+
+.worksheet-activity-progress {
+    margin: 0;
+    font-weight: 700;
+}
+
+.worksheet-activity-copy {
+    min-width: 0;
+}
+
+.worksheet-activity-copy h3,
+.worksheet-activity-copy p {
+    margin: 0;
+}
+
+.worksheet-activity-copy h3 {
+    font-size: 1rem;
+}
+
+.worksheet-activity-copy p {
+    margin-top: 4px;
+    color: #6b5c3f;
+    font-size: 0.88rem;
+}
+
+.worksheet-activity-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 9px 14px;
+    border-radius: 999px;
+    background: var(--worksheet-theme-color);
+    color: #ffffff;
+    font-weight: 800;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.worksheet-activity-link:hover,
+.worksheet-activity-link:focus-visible {
+    filter: brightness(0.92);
+}
+
+.worksheet-instructions {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    background: #fff8e1;
+    border: 2px dashed var(--worksheet-accent-color);
+    border-radius: 18px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+}
+
+.worksheet-instructions-icon {
+    font-size: 1.2rem;
+}
+
+.worksheet-instructions-copy {
+    min-width: 0;
+}
+
+.worksheet-instructions-copy p {
+    margin: 0;
+    font-weight: 600;
+}
+
+.worksheet-instructions-copy p + .worksheet-instructions-list,
+.worksheet-instructions-list + p {
+    margin-top: 8px;
+}
+
+.worksheet-instructions-list {
+    display: grid;
+    gap: 5px;
+    margin: 8px 0 0;
+    padding-left: 24px;
+    font-weight: 600;
+}
+
+.worksheet-instructions-list li {
+    padding-left: 3px;
+}
+
+.worksheet-image-panel {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.worksheet-image-information-layout {
+    display: grid;
+    grid-template-columns: minmax(140px, 220px) minmax(0, 1fr);
+    align-items: start;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.worksheet-image-information-layout .worksheet-image-panel,
+.worksheet-image-information-layout .worksheet-assessment-intro {
+    margin: 0;
+}
+
+.worksheet-image-information-layout .worksheet-image-panel {
+    display: block;
+}
+
+.worksheet-image-information-layout .worksheet-image {
+    width: 100%;
+}
+
+.worksheet-image {
+    margin: 0;
+    background: #ffffff;
+    border-radius: 16px;
+    border: 3px solid #ffffff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    max-width: 220px;
+}
+
+.worksheet-image img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.worksheet-image figcaption {
+    padding: 6px 10px;
+    font-size: 0.78rem;
+    color: #6b5c3f;
+}
+
+.worksheet-image .worksheet-image-credit {
+    border-top: 1px solid #eee5d2;
+    font-size: 0.72rem;
+}
+
+.worksheet-image-credit a {
+    color: #173858;
+    text-decoration: underline;
+}
+
+.worksheet-question-list {
+    display: grid;
+    gap: 16px;
+}
+
+.worksheet-question {
+    display: flex;
+    gap: 14px;
+    background: #ffffff;
+    border-radius: 20px;
+    border: 3px solid #f1e4c8;
+    padding: 16px 18px;
+    box-shadow: 0 3px 0 #f1e4c8;
+}
+
+.worksheet-question-number {
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--worksheet-accent-color);
+    color: #4a3a1a;
+    font-weight: 800;
+    font-family: 'Baloo 2', cursive;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.worksheet-question-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.worksheet-question-prompt {
+    margin: 0 0 10px;
+    font-weight: 700;
+    font-size: 1.02rem;
+}
+
+.worksheet-question-images {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin: 12px 0;
+    max-width: 780px;
+}
+
+.worksheet-question-images.has-single-image {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 420px;
+}
+
+.worksheet-question-images.has-two-images {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: 720px;
+}
+
+.worksheet-question-images.has-timeline {
+    grid-template-columns: repeat(var(--timeline-count, 3), minmax(0, 1fr));
+    margin-bottom: 6px;
+}
+
+.worksheet-image-timeline {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(var(--timeline-count, 3), minmax(0, 1fr));
+    gap: 12px;
+    max-width: 780px;
+    margin: 0 0 14px;
+    padding: 0;
+    list-style: none;
+    text-align: center;
+    color: #4b5563;
+    font-size: 0.78rem;
+    line-height: 1.25;
+}
+
+.worksheet-image-timeline::before {
+    content: "";
+    position: absolute;
+    top: 5px;
+    left: calc(50% / var(--timeline-count, 3));
+    right: calc(50% / var(--timeline-count, 3));
+    height: 2px;
+    background: linear-gradient(90deg, #7cb7d9, #c2410c);
+    border-radius: 2px;
+}
+
+.worksheet-image-timeline li {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    min-width: 0;
+}
+
+.worksheet-image-timeline-dot {
+    width: 12px;
+    height: 12px;
+    margin-bottom: 2px;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    background: #1f6f9f;
+    box-shadow: 0 0 0 1px #1f6f9f;
+}
+
+.worksheet-image-timeline strong {
+    color: #1f2937;
+    font-size: 0.86rem;
+}
+
+.worksheet-question-image {
+    margin: 0;
+    min-width: 0;
+    background: #ffffff;
+    border: 2px solid #f1e4c8;
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.worksheet-question-image img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+}
+
+.worksheet-search-results {
+    margin: 14px 0;
+    padding: 14px;
+    border: 1px solid #d8e2ed;
+    border-radius: 12px;
+    background: linear-gradient(145deg, #f5f8fc, #edf4fb);
+}
+
+.worksheet-search-results-heading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 10px;
+    color: #173858;
+    font-size: 1rem;
+}
+
+.worksheet-search-result-list {
+    display: grid;
+    gap: 8px;
+    counter-reset: search-result;
+}
+
+.worksheet-search-result {
+    display: grid;
+    grid-template-columns: 26px minmax(0, 1fr);
+    gap: 4px;
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #d8e2ed;
+    border-left: 4px solid #80a9cf;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #25364a;
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
+    counter-increment: search-result;
+    transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.worksheet-search-result::before {
+    content: counter(search-result);
+    grid-row: 1 / span 3;
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #e8f1fb;
+    color: #214f7b;
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.worksheet-search-result:hover,
+.worksheet-search-result:focus-visible {
+    border-color: #2870a8;
+    box-shadow: 0 4px 12px rgb(30 74 115 / 12%);
+    transform: translateY(-1px);
+}
+
+.worksheet-search-result.is-selected {
+    border-color: #2870a8;
+    border-left-color: #2870a8;
+    background: #eaf4fc;
+    box-shadow: 0 0 0 2px rgb(40 112 168 / 16%);
+}
+
+.worksheet-search-result-domain {
+    justify-self: start;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: #f0f4f8;
+    color: #536b83;
+    font-size: 0.76rem;
+}
+
+.worksheet-search-results-note {
+    margin: 10px 0 0;
+    padding-top: 9px;
+    border-top: 1px dashed #c4d2e0;
+    color: #536b83;
+    font-size: 0.88rem;
+}
+
+.worksheet-question-context {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 6px;
+    padding: 4px 9px;
+    border: 1px solid #bbd9ca;
+    border-radius: 999px;
+    background: #eff8f2;
+    color: #286347;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.worksheet-question--real-search {
+    border-color: #cfe3d6;
+    box-shadow: 0 3px 0 #dcecdf;
+}
+
+.worksheet-question--real-search .worksheet-question-number {
+    background: #bde7ca;
+    color: #1d5136;
+}
+
+.worksheet-question--real-search .worksheet-choice-bubble {
+    border-color: #b8d6c2;
+    background: linear-gradient(180deg, #ffffff, #f3faf5);
+    transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+.worksheet-question--real-search .worksheet-choice-bubble:hover,
+.worksheet-question--real-search .worksheet-choice-bubble:focus-visible {
+    border-color: #55956c;
+    box-shadow: 0 3px 9px rgb(38 99 66 / 12%);
+    transform: translateY(-1px);
+}
+
+.worksheet-question--real-search .worksheet-choice-bubble.is-selected {
+    border-color: #32764d;
+    background: #32764d;
+    color: #ffffff;
+}
+
+.worksheet-question-heading {
+    margin: 0 0 6px;
+    color: #173858;
+    font-family: 'Baloo 2', cursive;
+    font-size: 1.1rem;
+}
+
+.worksheet-answer-input {
+    width: 100%;
+    border: none;
+    border-radius: 10px;
+    background-image: repeating-linear-gradient(to bottom, transparent, transparent 27px, #cfd8e3 28px);
+    background-color: #fbfbfc;
+    line-height: 28px;
+    padding: 4px 8px;
+    font-family: 'Quicksand', sans-serif;
+    font-size: 0.95rem;
+    resize: vertical;
+}
+
+.worksheet-hint-toggle {
+    display: inline-flex;
+    align-items: center;
+    margin-top: 8px;
+    padding: 6px 12px;
+    border: 1px solid #d8c8a0;
+    border-radius: 999px;
+    background: #fff8e1;
+    color: #6b5017;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.worksheet-hint-toggle:hover,
+.worksheet-hint-toggle:focus-visible {
+    border-color: #b77a0c;
+    outline: 2px solid #b77a0c;
+    outline-offset: 2px;
+}
+
+.worksheet-hint-toggle:disabled {
+    cursor: default;
+    opacity: 0.7;
+}
+
+.worksheet-question-hint {
+    margin: 8px 0 0;
+    padding: 9px 12px;
+    border-left: 4px solid #d8a52e;
+    border-radius: 6px;
+    background: #fff8e1;
+    color: #6b5017;
+    line-height: 1.5;
+    font-weight: 700;
+}
+
+.worksheet-choice-feedback {
+    margin: 10px 0 0;
+    padding: 9px 12px;
+    border-radius: 10px;
+    background: #fff8e1;
+    color: #6b5017;
+    line-height: 1.5;
+    font-weight: 700;
+}
+
+.worksheet-choice-feedback.is-correct {
+    background: #edf8ef;
+    color: #175c38;
+}
+
+.worksheet-choice-feedback.is-retry {
+    background: #fff8e1;
+    color: #6b5017;
+}
+
+.worksheet-choice-feedback.is-pending {
+    background: #f1f6fb;
+    color: #345777;
+}
+
+.worksheet-choice-feedback.is-error {
+    background: #fff0eb;
+    color: #92351d;
+}
+
+.worksheet-checklist {
+    display: grid;
+    gap: 8px;
+}
+
+.worksheet-checklist-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+}
+
+.worksheet-checklist-item input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--worksheet-theme-color);
+}
+
+.worksheet-choices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.worksheet-choice-bubble {
+    border: 2px solid #d8c8a0;
+    background: #fffaf0;
+    border-radius: 999px;
+    padding: 8px 16px;
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 700;
+    cursor: pointer;
+    color: #3a3226;
+}
+
+.worksheet-choice-bubble.is-selected {
+    background: var(--worksheet-theme-color);
+    border-color: var(--worksheet-theme-color);
+    color: #ffffff;
+}
+
+.worksheet-choice-bubble:disabled {
+    cursor: default;
+    opacity: 0.85;
+}
+
+.worksheet-empty-note {
+    text-align: center;
+    color: #8a7a55;
+    font-style: italic;
+}
+
+.worksheet-complete-bar {
+    margin-top: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    background: #ffffff;
+    border-radius: 20px;
+    border: 3px solid #f1e4c8;
+    padding: 14px 18px;
+}
+
+.worksheet-complete-bar[hidden] {
+    display: none;
+}
+
+.worksheet-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-weight: 800;
+    font-family: 'Baloo 2', cursive;
+    background: #eef2ea;
+}
+
+.worksheet-status-pill.is-complete {
+    background: var(--worksheet-theme-color);
+    color: #ffffff;
+}
+
+.worksheet-status-pill[href] {
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.worksheet-status-pill[href]:hover {
+    text-decoration: underline;
+}
+
+.worksheet-status-pill[href]:focus-visible {
+    outline: 3px solid #1d4e89;
+    outline-offset: 3px;
+}
+
+.worksheet-wordsearch {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 3px;
+    width: 100%;
+    max-width: 480px;
+}
+
+.worksheet-wordsearch button {
+    min-width: 0;
+    aspect-ratio: 1;
+    padding: 0;
+    border: 1px solid #dac9a4;
+    border-radius: 4px;
+    background: #fff;
+    color: #1e3025;
+    font: bold clamp(0.75rem, 3vw, 1rem) monospace;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.worksheet-wordsearch button.is-found {
+    background: #d9f2e2;
+}
+
+.worksheet-wordsearch button[aria-pressed="true"],
+.worksheet-wordsearch button:focus-visible {
+    outline: 2px solid #1d4e89;
+    outline-offset: -2px;
+}
+
+.worksheet-app-word-list .is-found {
+    color: #216e40;
+    text-decoration: line-through;
+}
+
+.worksheet-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.worksheet-btn {
+    border: none;
+    border-radius: 999px;
+    padding: 10px 20px;
+    font-family: 'Baloo 2', cursive;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 0.95rem;
+}
+
+.worksheet-btn-primary {
+    background: var(--worksheet-theme-color);
+    color: #ffffff;
+}
+
+.worksheet-btn-secondary {
+    background: #f1e4c8;
+    color: #4a3a1a;
+}
+
+.worksheet-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.worksheet-status-message {
+    margin: 14px 0 0;
+    font-weight: 700;
+    color: #6b5c3f;
+    text-align: center;
+}
+
+.worksheet-status-message.is-error {
+    color: #a4342f;
+}
+
+.worksheet-btn[hidden] {
+    display: none;
+}
+
+.worksheet-assessment {
+    display: grid;
+    gap: 20px;
+    margin-bottom: 20px;
+    color: #3a3226;
+}
+
+.worksheet-assessment-intro,
+.worksheet-assessment-question {
+    min-width: 0;
+    margin: 0;
+    padding: 16px 18px;
+    border: 2px solid #f1e4c8;
+    border-radius: 16px;
+    background: #ffffff;
+}
+
+.worksheet-assessment-intro h2,
+.worksheet-assessment-heading {
+    font-family: 'Baloo 2', cursive;
+    font-size: 1.3rem;
+    margin: 0;
+}
+
+.worksheet-identity-guide {
+    margin-bottom: 20px;
+    color: #3a3226;
+}
+
+#worksheet-google-verification[hidden] {
+    display: none;
+}
+
+#worksheet-google-verification {
+    margin-top: 16px;
+}
+
+#worksheet-google-verification h2 {
+    margin: 0;
+    font-size: 1.05rem;
+}
+
+.worksheet-assessment-intro p,
+.worksheet-assessment-intro li {
+    line-height: 1.6;
+}
+
+.worksheet-safety-note {
+    padding: 12px;
+    border-left: 4px solid #b77a0c;
+    background: #fff8e1;
+    font-weight: 700;
+}
+
+.worksheet-password-reminder {
+    margin: 20px 0;
+    padding: clamp(16px, 4vw, 26px);
+    border: 3px solid #ffd166;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #172c52, #344075);
+    color: #fff;
+    box-shadow: 0 6px 0 #d3a43d, 0 12px 24px #172c5226;
+}
+
+.password-reminder-tag {
+    display: inline-block;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: #ffd166;
+    color: #172c52;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+}
+
+.worksheet-password-reminder h3 {
+    margin: 14px 0;
+    font-size: clamp(1.25rem, 4vw, 1.6rem);
+    color: #fff;
+}
+
+.password-reminder-groups {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+    gap: 14px;
+}
+
+.password-reminder-group {
+    min-width: 0;
+    padding: 16px;
+    border-radius: 14px;
+    border-top: 5px solid #65d9b0;
+    background: #fff;
+    color: #172c52;
+}
+
+.password-reminder-group:nth-child(2) {
+    border-top-color: #7dbbff;
+}
+
+.password-reminder-group h4 {
+    margin: 14px 0 8px;
+    font-size: 1.1rem;
+}
+
+.password-reminder-brands {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.password-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-weight: 800;
+}
+
+.password-brand svg {
+    flex-shrink: 0;
+}
+
+.password-brand-kamar {
+    padding: 4px 9px;
+    background: #123e67;
+    color: #fff;
+    border-radius: 5px;
+    letter-spacing: 0.1em;
+}
+
+.password-reminder-warning {
+    padding: 14px;
+    border-radius: 12px;
+    background: #fff0c2;
+    color: #352600;
+    border-left: 5px solid #ffd166;
+}
+
+.password-reminder-help {
+    margin-bottom: 0;
+}
+
+.worksheet-treasure-map {
+    padding: clamp(14px, 4vw, 28px);
+    border: 3px solid #896535;
+    border-radius: 20px 10px 24px 12px;
+    background: #f8e5b7 url("../images/learning-sites-treasure-map.svg") center top / 100% auto repeat-y;
+    color: #352710;
+    box-shadow: inset 0 0 30px #b3853e40, 0 5px 0 #896535;
+}
+
+.treasure-map-heading {
+    text-align: center;
+}
+
+.treasure-map-heading h2 {
+    font-size: clamp(1.5rem, 5vw, 2.2rem);
+    margin: 8px 0;
+}
+
+.treasure-map-compass {
+    font-size: 2.5rem;
+}
+
+.treasure-map-start {
+    padding: 16px;
+    border: 2px dashed #896535;
+    border-radius: 12px;
+    background: #fff8e8e8;
+    margin: 18px 0;
+}
+
+.treasure-map-pathway {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 24px;
+    margin: 16px 0;
+    padding: 18px;
+    list-style: none;
+    border: 2px solid #e5bc58;
+    border-radius: 12px;
+    background: #20374a;
+    color: #fff8e8;
+    box-shadow: 0 4px 0 #896535;
+    font-size: clamp(1rem, 2vw, 1.15rem);
+    font-weight: 800;
+}
+
+.treasure-map-pathway li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.treasure-map-pathway li:not(:last-child)::after {
+    content: "\2192";
+    margin-left: 4px;
+    color: #ffe094;
+}
+
+.treasure-map-step {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #ffe094;
+    color: #20374a;
+}
+
+.worksheet-treasure-map .treasure-map-pathway a,
+.worksheet-treasure-map .treasure-map-pathway a:visited {
+    color: #fff8e8;
+    text-underline-offset: 4px;
+}
+
+.worksheet-treasure-map .treasure-map-pathway a:hover {
+    color: #ffe094;
+}
+
+.worksheet-treasure-map .treasure-map-pathway a:focus-visible {
+    outline: 3px solid #ffe094;
+    outline-offset: 4px;
+}
+
+@media (max-width: 560px) {
+    .treasure-map-pathway {
+        flex-direction: column;
+    }
+
+    .treasure-map-pathway li:not(:last-child)::after {
+        content: "\2193";
+        margin-left: auto;
+    }
+}
+
+.worksheet-login-staircase {
+    margin: 24px 0;
+}
+
+.login-staircase-list {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    gap: 18px;
+}
+
+.login-staircase-step {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 18px;
+    padding: 20px;
+    border: 2px solid #2f8f61;
+    border-bottom-width: 8px;
+    border-radius: 14px 14px 4px 4px;
+    background: #fff;
+    box-shadow: 0 5px 0 #e4d4b0;
+}
+
+.login-staircase-description h3 {
+    margin: 0 0 8px;
+    font-weight: 800;
+}
+
+.login-staircase-description p {
+    margin: 0;
+    line-height: 1.5;
+}
+
+.login-staircase-years {
+    display: grid;
+    gap: 6px;
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+
+.login-site-check {
+    grid-column: 1 / -1;
+    display: grid;
+    gap: 12px;
+    padding-top: 16px;
+    border-top: 2px dashed #e4d4b0;
+}
+
+.login-site-check label {
+    font-weight: 700;
+}
+
+.login-site-check p {
+    margin: 0;
+}
+
+.login-site-check input {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding: 12px;
+    border: 2px solid #b5955c;
+    border-radius: 8px;
+    font: inherit;
+}
+
+.login-site-check button {
+    justify-self: start;
+}
+
+.login-site-check h4 {
+    margin: 0;
+}
+
+.login-site-tool {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr);
+    gap: 14px;
+    align-items: center;
+}
+
+.login-site-tool img {
+    width: 44px;
+    height: 44px;
+    object-fit: contain;
+}
+
+.login-site-tool > div {
+    display: grid;
+    gap: 6px;
+}
+
+.login-site-tool .is-correct {
+    color: #216c47;
+}
+
+.login-site-tool .is-error {
+    color: #a4342f;
+}
+
+.login-staircase-logo {
+    display: grid;
+    gap: 8px;
+    justify-items: center;
+    padding: 10px;
+    border: 2px solid #e4d4b0;
+    border-radius: 12px;
+    color: #174968;
+    text-align: center;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.login-staircase-logo img {
+    width: 100%;
+    max-width: 110px;
+    height: 72px;
+    object-fit: contain;
+}
+
+.login-staircase-logo:hover {
+    background: #fff3d3;
+    border-color: #2f8f61;
+}
+
+.login-staircase-logo:focus-visible {
+    outline: 3px solid #174968;
+    outline-offset: 4px;
+}
+
+@media (max-width: 560px) {
+    .login-staircase-step {
+        grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr);
+        gap: 8px;
+        padding: 12px 8px;
+        font-size: 0.85rem;
+    }
+
+    .login-staircase-logo {
+        padding: 6px;
+    }
+
+    .login-staircase-years {
+        font-size: 0.75rem;
+    }
+}
+
+.treasure-map-search {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+    padding: 18px;
+    border: 2px solid #20374a;
+    border-left-width: 8px;
+    border-radius: 12px;
+    background: #ffe7a3;
+    color: #20374a;
+    box-shadow: 0 3px 0 #896535;
+}
+
+.treasure-map-search h4 {
+    margin: 0;
+    font-size: 1.15rem;
+}
+
+.treasure-map-search .treasure-map-search-keywords {
+    display: inline-block;
+    padding: 10px 16px;
+    border-radius: 8px;
+    background: #20374a;
+    color: #fff8e8;
+    font-size: clamp(1.2rem, 3vw, 1.5rem);
+    font-weight: 800;
+    justify-self: start;
+}
+
+.treasure-map-search .worksheet-btn {
+    display: inline-block;
+    justify-self: start;
+    box-sizing: border-box;
+    max-width: 100%;
+}
+
+.worksheet-hunt-form,
+.treasure-map-island-body,
+[data-hunt-course-clues] {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+}
+
+.treasure-map-legend {
+    font-weight: 800;
+    padding-bottom: 16px;
+}
+
+.treasure-map-checkin,
+.treasure-map-folder {
+    margin: 0;
+    padding: 12px 14px;
+    border: 2px solid #2f8f5b;
+    border-radius: 12px;
+    background: #e8f6ee;
+    color: #173858;
+}
+
+.treasure-map-checkin {
+    border-color: #c98a1a;
+    background: #fff4d6;
+}
+
+.treasure-map-island {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: clamp(12px, 3vw, 20px);
+    border: 2px solid #9a733b;
+    border-radius: 28px 12px 32px 16px;
+    background: #fffaf0f2;
+    margin-bottom: 14px;
+}
+
+.treasure-map-island:nth-of-type(even) {
+    border-radius: 12px 28px 16px 32px;
+}
+
+.treasure-map-x {
+    color: #9a2525;
+    font: 900 1.8rem Georgia, serif;
+    flex-shrink: 0;
+}
+
+.treasure-map-island.is-complete {
+    border-color: #23764a;
+    background: #effbf0;
+}
+
+.treasure-map-island.is-complete .treasure-map-x {
+    color: #23764a;
+}
+
+.treasure-map-island h3,
+.treasure-map-island p {
+    margin: 0;
+}
+
+.worksheet-treasure-map a {
+    color: #174968;
+    overflow-wrap: anywhere;
+}
+
+.worksheet-treasure-map .worksheet-btn-primary {
+    color: #fff;
+}
+
+.treasure-map-island label {
+    font-weight: 700;
+}
+
+.treasure-map-island input,
+.treasure-map-island select {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding: 10px;
+    border: 2px solid #b5955c;
+    border-radius: 8px;
+    background: #fff;
+    color: #352710;
+    font: inherit;
+}
+
+.worksheet-treasure-map a:focus-visible,
+.worksheet-treasure-map input:focus-visible,
+.worksheet-treasure-map select:focus-visible {
+    outline: 3px solid #174968;
+    outline-offset: 2px;
+}
+
+.treasure-map-rescue,
+.treasure-map-update {
+    font-size: 0.9rem;
+}
+
+.worksheet-assessment-form,
+.worksheet-assessment-inputs,
+.worksheet-assessment-question {
+    display: grid;
+    gap: 12px;
+}
+
+.worksheet-assessment-inputs {
+    min-width: 0;
+    padding: 0;
+    margin: 0;
+    border: 0;
+}
+
+.worksheet-assessment-inputs > legend {
+    padding: 0 0 8px;
+}
+
+.worksheet-assessment-question > legend,
+.worksheet-assessment-question > label:first-child {
+    font-weight: 700;
+    line-height: 1.5;
+}
+
+.worksheet-assessment-question select {
+    width: 100%;
+    min-width: 0;
+    padding: 10px;
+    border: 2px solid #d8c8a0;
+    border-radius: 10px;
+    background: #fffaf0;
+    color: #3a3226;
+    font: inherit;
+}
+
+.worksheet-assessment-choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid #d8c8a0;
+    border-radius: 10px;
+    line-height: 1.5;
+    cursor: pointer;
+}
+
+.worksheet-assessment-choice input {
+    flex: 0 0 auto;
+    width: 20px;
+    height: 20px;
+    accent-color: var(--worksheet-theme-color);
+}
+
+.worksheet-assessment-choice:has(input:checked) {
+    background: #edf8ef;
+    border-color: var(--worksheet-theme-color);
+}
+
+.worksheet-assessment-feedback,
+.worksheet-assessment-result {
+    margin: 0;
+    padding: 10px;
+    border-radius: 8px;
+    background: #fff8e1;
+    line-height: 1.6;
+    font-weight: 700;
+}
+
+.worksheet-assessment .is-correct,
+.worksheet-assessment-feedback.is-correct,
+.worksheet-assessment-result.is-correct {
+    background: #edf8ef;
+    color: #175c38;
+}
+
+.worksheet-assessment .is-error,
+.worksheet-assessment-feedback.is-error,
+.worksheet-assessment-result.is-error {
+    background: #fff0eb;
+    color: #92351d;
+}
+
+.worksheet-assessment-form > button {
+    justify-self: start;
+}
+
+.worksheet-research-report {
+    display: grid;
+    gap: 12px;
+}
+
+.worksheet-research-report-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.worksheet-minecraft-exports {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 20px;
+    border-color: var(--worksheet-theme-color);
+}
+
+.worksheet-minecraft-exports ol {
+    margin: 0;
+    padding-left: 22px;
+}
+
+@media print {
+    .kit-worksheet-topbar,
+    .worksheet-complete-bar,
+    .worksheet-status-message {
+        display: none !important;
+    }
+
+    body.kit-worksheet-page {
+        background: #ffffff;
+    }
+
+    .worksheet-question {
+        box-shadow: none;
+        border-color: #ccc;
+        break-inside: avoid;
+    }
+}
+
+@media (max-width: 560px) {
+    .worksheet-question-images {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        max-width: 360px;
+    }
+
+    .worksheet-question-images.has-timeline,
+    .worksheet-image-timeline {
+        grid-template-columns: repeat(var(--timeline-count, 3), minmax(0, 1fr));
+        gap: 6px;
+        max-width: none;
+    }
+
+    .worksheet-image-timeline {
+        font-size: 0.7rem;
+    }
+
+    .worksheet-image-information-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .worksheet-image-information-layout .worksheet-image {
+        max-width: 220px;
+    }
+
+    .worksheet-activity-card {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .worksheet-activity-link {
+        grid-column: 2;
+        justify-self: start;
+    }
+}
