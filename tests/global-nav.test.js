@@ -115,7 +115,7 @@ test('nav-data returns the module links for a signed in user and none for anonym
       if (req.query.in) req.user = { display_name: 'Vanessa', email: 'v@x.nz', avatar_url: 'https://example.invalid/avatar.png' };
       next();
     });
-    app.get('/nav-data', navData(query));
+    app.get('/nav-data', navData(query, async () => false));
   }, async (base) => {
     const anon = await (await fetch(`${base}/nav-data`)).json();
     assert.equal(anon.signedIn, false);
@@ -141,6 +141,38 @@ test('public pages load the shared account-control assets', async () => {
     assert.match(html, /<link rel="stylesheet" href="\/account-controls.css">/);
     assert.match(html, /<script src="\/global-nav.js" defer><\/script>/);
     assert.equal((html.match(/account-controls.css/g) || []).length, 1);
+  });
+});
+
+test('account role link uses the current app and the global role-management permission', async () => {
+  const checks = [];
+  const query = async (sql, params) => {
+    if (sql.includes('FROM modules')) return { rows: [] };
+    assert.match(sql, /SELECT hub_key FROM student_apps WHERE slug = \$1/);
+    return { rows: params[0] === 'guidance-counsellor-app' ? [{ hub_key: 'app-guidance-counsellor-app' }] : [] };
+  };
+  await withServer((app) => {
+    app.use((req, res, next) => {
+      if (req.query.user) req.user = { id: req.query.user, email: 'test@example.invalid' };
+      next();
+    });
+    app.get('/nav-data', navData(query, async (user, hubKey) => {
+      checks.push([user.id, hubKey]);
+      return ['admin', 'lead-teacher'].includes(user.id);
+    }));
+  }, async (base) => {
+    for (const user of ['admin', 'lead-teacher', 'builder', 'counsellor', 'student', '']) {
+      for (const appPath of ['/apps/guidance-counsellor-app/dashboard', '/student-apps/guidance-counsellor-app']) {
+        const data = await (await fetch(`${base}/nav-data?user=${user}&path=${encodeURIComponent(appPath)}`)).json();
+        assert.equal(data.assignRolesUrl, ['admin', 'lead-teacher'].includes(user) ? '/hubs/app-guidance-counsellor-app/roles' : null);
+      }
+    }
+    for (const appPath of ['/apps/unknown/dashboard', '/profile', '//evil.invalid/apps/guidance-counsellor-app']) {
+      const data = await (await fetch(`${base}/nav-data?user=admin&path=${encodeURIComponent(appPath)}`)).json();
+      assert.equal(data.assignRolesUrl, null);
+    }
+    assert.equal(checks.length, 10);
+    assert.ok(checks.every(([, hubKey]) => hubKey === 'app-guidance-counsellor-app'));
   });
 });
 

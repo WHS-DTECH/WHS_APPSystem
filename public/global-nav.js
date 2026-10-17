@@ -241,6 +241,7 @@
     account.menu.appendChild(el('strong', {}, data.name || 'School account'));
     account.menu.appendChild(el('p', {}, data.email || ''));
     link(account.menu, 'Profile', '/profile');
+    if (data.assignRolesUrl) link(account.menu, 'Assign User Roles', data.assignRolesUrl);
     var status = el('p', { role: 'status' });
     var signOut = el('button', { type: 'button' }, 'Sign out');
     signOut.addEventListener('click', function () { signOutAccount(signOut, status); });
@@ -298,7 +299,7 @@
     buildAccount(null);
     reserveAccountHeader();
     setTimeout(reserveAccountHeader, 1200);
-    fetch('/nav-data', { credentials: 'same-origin', cache: 'no-store' })
+    fetch('/nav-data?path=' + encodeURIComponent(location.pathname), { credentials: 'same-origin', cache: 'no-store' })
       .then(function (response) {
         if (!response.ok) throw new Error('School account request failed.');
         return response.json();

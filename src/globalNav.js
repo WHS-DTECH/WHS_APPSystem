@@ -86,19 +86,28 @@ function injectGlobalNav(req, res, next) {
   return next();
 }
 
-function navData(query) {
+function navData(query, canManageHubRoles) {
   return async (req, res, next) => {
     try {
       const user = req.user;
       const modules = user
         ? (await query('SELECT display_name, path FROM modules WHERE is_active = true ORDER BY display_name')).rows
         : [];
+      let assignRolesUrl = null;
+      const appPath = String(req.query.path || '').match(/^\/(?:apps|student-apps)\/([a-z0-9-]+)(?:\/|$)/);
+      if (user && appPath) {
+        const app = (await query('SELECT hub_key FROM student_apps WHERE slug = $1', [appPath[1]])).rows[0];
+        if (app && await canManageHubRoles(user, app.hub_key)) {
+          assignRolesUrl = `/hubs/${app.hub_key}/roles`;
+        }
+      }
       res.set('Cache-Control', 'no-store');
       res.json({
         signedIn: Boolean(user),
         name: user ? user.display_name || user.email : null,
         email: user ? user.email : null,
         avatarUrl: user ? user.avatar_url || null : null,
+        assignRolesUrl,
         role: res.locals.activeRole,
         isAdmin: res.locals.isAdmin,
         modules: modules.map((module) => ({ name: module.display_name, path: module.path }))

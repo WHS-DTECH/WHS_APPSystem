@@ -92,12 +92,11 @@ class GlobalRoleTests(unittest.TestCase):
             self.assertEqual(self.client.get(path, headers=self.headers("AppBuilder")).status_code, 403)
         self.assertEqual(self.client.post("/login", headers=self.headers("AppBuilder")).status_code, 403)
 
-    def test_navigation_removes_user_roles_and_opens_real_global_management_url(self):
+    def test_navigation_removes_legacy_role_management_links(self):
         html = self.client.get("/dashboard", headers=self.headers("ADMIN")).get_data(as_text=True)
         self.assertNotIn(">User Roles</a>", html)
         self.assertNotIn('href="/apps/guidance-counsellor-app/hubs/', html)
-        self.assertIn('href="/hubs/app-guidance-counsellor-app/roles"', html)
-        self.assertIn("Open Admin Items", html)
+        self.assertNotIn("Open Admin Items", html)
         builder_html = self.client.get("/dashboard", headers=self.headers("AppBuilder")).get_data(as_text=True)
         self.assertNotIn("Open Admin Items", builder_html)
         students_html = self.client.get("/students", headers=self.headers("ADMIN")).get_data(as_text=True)

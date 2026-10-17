@@ -98,6 +98,9 @@ and forms scroll within the main content area rather than moving the sidebar
 buttons off screen. The dashboard cards adapt to the available space.
 The hosted dashboard omits the legacy welcome, role summary and Logout link;
 account details and sign-out are provided by the shared Google avatar menu.
+On hosted Student App and setup pages, the avatar menu also offers Assign User
+Roles to users with the app's global `admin.manage` permission. Guidance no longer
+duplicates that link as an Open Admin Items toolbar button.
 
 Run the isolated Python regressions with
 `python tests\guidance_global_roles_test.py -v` (Flask and the app requirements

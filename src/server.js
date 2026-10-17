@@ -77,7 +77,7 @@ app.get('/healthz', (req, res) => {
   res.status(200).json({ ok: true });
 });
 
-app.get('/nav-data', navData(query));
+app.get('/nav-data', navData(query, hubRoles.canManageHubRoles));
 
 app.get('/email-status', (req, res) => {
   res.json({
