@@ -56,6 +56,23 @@ test('cached pages without the script are refetched in full', async () => {
   });
 });
 
+test('script is still injected when a signed-in session refreshes on the response', async () => {
+  const session = require('express-session');
+  await withServer((app) => {
+    app.use(session({ secret: 's', resave: false, saveUninitialized: false, cookie: { maxAge: 60000 } }));
+    app.use(injectGlobalNav);
+    app.get('/login', (req, res) => { req.session.user = 1; res.send('ok'); });
+    app.get('/page', (req, res) => res.send('<html><body>Hi</body></html>'));
+  }, async (base) => {
+    const login = await fetch(`${base}/login`);
+    const cookie = login.headers.get('set-cookie').split(';')[0];
+    const page = await fetch(`${base}/page`, { headers: { cookie, Accept: 'text/html' } });
+    const text = await page.text();
+    assert.match(text, /global-nav\.js/);
+    assert.equal(Number(page.headers.get('content-length')), Buffer.byteLength(text));
+  });
+});
+
 test('nav-data returns the module links for a signed in user and none for anonymous visitors', async () => {
   const query = async () => ({ rows: [{ display_name: 'Food Room Hub', path: '/food-room' }] });
   await withServer((app) => {

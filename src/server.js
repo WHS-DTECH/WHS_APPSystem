@@ -29,7 +29,6 @@ app.set('views', path.join(__dirname, '..', 'views'));
 app.set('trust proxy', 1);
 
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(injectGlobalNav);
 // The Food Room pages make many small API calls, so they are not counted against the shared limit.
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, skip: (req) => req.path.startsWith('/food-room/') || req.path === '/nav-data' }));
 app.use(express.urlencoded({ extended: false }));
@@ -53,6 +52,8 @@ app.use(session({
 }));
 app.use(passport.initialize());
 app.use(passport.session());
+// Must come after the session middleware so it sees the response before the session writes the headers.
+app.use(injectGlobalNav);
 
 app.use((req, res, next) => {
   res.locals.currentUser = req.user;
