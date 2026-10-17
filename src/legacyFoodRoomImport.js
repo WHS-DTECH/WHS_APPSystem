@@ -23,11 +23,12 @@ const columnTypes = {
 
 async function connectSource(url) {
   for (const ssl of [{ rejectUnauthorized: false }, false]) {
-    const source = new Pool({ connectionString: url, ssl, max: 1, connectionTimeoutMillis: 15000 });
+    const source = new Pool({ connectionString: url, ssl, max: 1,     connectionTimeoutMillis: 15000, query_timeout: 30000 });
     try {
       await source.query('SELECT 1');
       return source;
     } catch (error) {
+          console.warn(`Legacy Food Room import: connection attempt (ssl=${Boolean(ssl)}) failed: ${error.message}`);
       await source.end().catch(() => {});
       if (ssl === false) throw error;
     }
@@ -88,7 +89,10 @@ async function importLegacyFoodRoom() {
     const summary = typeof row.summary === 'string' ? JSON.parse(row.summary) : row.summary || {};
     return Object.values(summary).some((count) => Number(count) > 0);
   });
-  if (imported) return;
+  if (imported) {
+    console.log('Legacy Food Room import: already imported earlier, nothing to do.');
+    return;
+  }
   if (done.rowCount) await pool.query('DELETE FROM food_room.food_room_legacy_import');
 
   if (!config.legacyFoodRoomDatabaseUrl) {
@@ -96,7 +100,9 @@ async function importLegacyFoodRoom() {
     return;
   }
 
+  console.log('Legacy Food Room import: connecting to legacy database...');
   const source = await connectSource(config.legacyFoodRoomDatabaseUrl);
+  console.log('Legacy Food Room import: connected, copying tables...');
   const client = await pool.connect();
 
   try {
@@ -110,6 +116,7 @@ async function importLegacyFoodRoom() {
         return { rows: [] };
       });
       summary[table] = 0;
+      console.log(`Legacy Food Room import: ${table} has ${rows.rows.length} rows`);
       if (!rows.rows.length) continue;
 
       const types = await targetColumns(client, table);
