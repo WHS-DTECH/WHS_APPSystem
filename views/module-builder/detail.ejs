@@ -99,6 +99,26 @@
   <p>Only variable names are retained from provider checks. Presence is not proof that a value is valid.
     Configure secret values directly in Render. No production credentials are inherited.</p>
 </details>
+<% if (kind === 'development') { %>
+<section class="panel mb-framework-services" aria-labelledby="mb-framework-services-title">
+  <h2 id="mb-framework-services-title">Basic framework services</h2>
+  <p>Shared Global Control services included in the latest new-module framework.</p>
+  <dl>
+    <dt>Google sign-in and avatar</dt>
+    <dd>School Google sign-in through Global Control, with avatar, Profile and sign-out controls.</dd>
+    <dt>Roles and permissions</dt>
+    <dd>Current Global Control roles are checked on each module request. Development access is global ADMIN only; assigned tester access is not yet implemented.</dd>
+    <dt>Site search</dt>
+    <dd>Shared header search uses Global Control search until module-specific search is implemented. Results open in Global Control in the same tab.</dd>
+    <dt>Integrated Google email</dt>
+    <dd>The footer's Contact Web Master link opens Global Control's signed-in contact form. Messages are sent to <a href="mailto:tech@westlandhigh.school.nz">tech@westlandhigh.school.nz</a> through its Gmail service and recorded in its email log. Module-specific email workflows are not included.</dd>
+    <dt>Shared branding and footer</dt>
+    <dd>WHS logo on a white homepage, copyright month/year, actual framework-update date and Contact Web Master link.</dd>
+  </dl>
+  <p><strong>Framework reference, not a live service check.</strong> Older modules need a framework update and manual deployment to receive these features. Verify sign-in, search and email after deployment; a recorded framework commit does not prove they are working.</p>
+  <p>Google and Gmail credentials stay in Global Control. Each standalone module retains its own database and session secret.</p>
+</section>
+<% } %>
 <% }) %>
 <section class="panel">
   <h2>Provisioning history and recovery</h2>

@@ -193,6 +193,12 @@ cannot be changed in the form. CSRF checks and a five-attempt/15-minute limit
 protect submissions. Disabled/failed Gmail delivery is reported as not sent.
 No Gmail credentials or additional email environment variables belong on modules.
 
+The Module Builder detail page lists the latest basic framework services between
+the Development and Staging cards: identity/avatar, current-role checks, Core
+search, the Gmail-backed Web Master contact form, and shared branding/footer.
+This is a framework reference, not a live readiness check for the recorded module;
+older frameworks need updating/deploying and functional verification.
+
 ## Module-sensitive role views
 
 Role View controls now describe the current module instead of always linking to

@@ -17,6 +17,8 @@
 .mb-provider-status strong { font-weight: 700; }
 .mb-warning { padding: 12px; background: #fff4d9; color: #6b3b00; border-left: 4px solid #b16b00; }
 .mb-environment summary { cursor: pointer; padding: 6px 0; }
+.mb-framework-services { border-left: 4px solid #12715d; }
+.mb-framework-services h2 { margin-top: 0; }
 .mb-operation { border-top: 1px solid #ccd9d4; padding: 18px 0; }
 .mb-operation pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 .mb-table-scroll { overflow-x: auto; margin-top: 18px; }
@@ -27,3 +29,4 @@
 .mb-project dt, .panel dt { font-weight: 600; }
 .mb-project dd, .panel dd { margin: 0; overflow-wrap: anywhere; }
 @media (max-width: 650px) { .mb-form { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 650px) { .mb-framework-services dl { grid-template-columns: minmax(0, 1fr); } }

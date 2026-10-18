@@ -4,8 +4,32 @@ const fs = require('fs/promises');
 const path = require('path');
 const vm = require('vm');
 const express = require('express');
+const ejs = require('ejs');
 const { createBuilderProviders, BuilderError } = require('../src/moduleBuilderProviders');
 const { environmentInput, appUrl, repositoryName } = require('../src/moduleBuilder');
+
+test('wizard shows one framework-services card between Development and Staging without claiming live verification', async () => {
+  const kinds = ['development', 'staging', 'production'];
+  const html = await ejs.renderFile(path.join(__dirname, '..', 'views', 'module-builder', 'detail.ejs'), {
+    title: 'Example Module', activeRole: 'ADMIN', csrf: 'fixture',
+    project: { ...project, id: 'fixture', name: 'Example Module', stage: 'development', description: '' },
+    configuration: {}, actions: {}, history: [], kinds, stages: [], regions: [], servicePlans: [], databasePlans: [],
+    environments: kinds.map((kind) => ({kind, config: {}}))
+  });
+  const development = html.indexOf('<strong>DEVELOPMENT</strong>');
+  const services = html.indexOf('id="mb-framework-services-title"');
+  const staging = html.indexOf('<strong>STAGING</strong>');
+  assert.ok(development >= 0 && development < services && services < staging);
+  assert.equal((html.match(/id="mb-framework-services-title"/g) || []).length, 1);
+  for (const label of ['Google sign-in and avatar', 'Roles and permissions', 'Site search', 'Integrated Google email', 'Shared branding and footer']) {
+    assert.ok(html.includes(`<dt>${label}</dt>`));
+  }
+  assert.match(html, /Development access is global ADMIN only/);
+  assert.match(html, /until module-specific search is implemented/);
+  assert.match(html, /tech@westlandhigh.school.nz/);
+  assert.match(html, /Framework reference, not a live service check/);
+  assert.match(html, /Older modules need a framework update and manual deployment/);
+});
 
 const env = {
   MODULE_BUILDER_GITHUB_TOKEN: 'fixture-github-secret',
