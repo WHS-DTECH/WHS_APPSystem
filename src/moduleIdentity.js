@@ -6,6 +6,7 @@ const { loadSchoolCalendar } = require('./schoolCalendar');
 
 const hash = (value) => crypto.createHash('sha256').update(value).digest('base64url');
 const opaque = (value) => typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value);
+const GRANT_SECONDS = 8 * 60 * 60;
 
 function createModuleIdentityRouter({ dbQuery = query, schoolCalendar = loadSchoolCalendar } = {}) {
   const router = express.Router();
@@ -60,9 +61,10 @@ function createModuleIdentityRouter({ dbQuery = query, schoolCalendar = loadScho
     if (!grant) return deny(res, 'Module code expired, invalid or already used.', 401);
     const token = crypto.randomBytes(32).toString('base64url');
     await dbQuery('DELETE FROM module_identity_grants WHERE expires_at < NOW()');
-    await dbQuery(`INSERT INTO module_identity_grants(token_hash,project_id,kind,user_id,callback_url)
-      VALUES ($1,$2,$3,$4,$5)`, [hash(token), registered.id, registered.kind, grant.user_id, registered.callback]);
-    res.json({ access_token: token, token_type: 'Bearer', expires_in: 300 });
+    await dbQuery(`INSERT INTO module_identity_grants(token_hash,project_id,kind,user_id,callback_url,expires_at)
+      VALUES ($1,$2,$3,$4,$5,NOW()+make_interval(secs => $6))`,
+    [hash(token), registered.id, registered.kind, grant.user_id, registered.callback, GRANT_SECONDS]);
+    res.json({ access_token: token, token_type: 'Bearer', expires_in: GRANT_SECONDS });
   }));
   async function identity(req, res) {
     const registered = await client(req.body.client_id);

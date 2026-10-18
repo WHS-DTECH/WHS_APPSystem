@@ -21,6 +21,12 @@ test('Global Control identity binds codes to clients, PKCE, current ADMIN roles 
     for (const migration of ['001_init.sql', '002_roles_and_module_assignments.sql', '026_module_builder.sql', '027_module_identity.sql', '027_module_identity.sql']) {
       await pool.query(await fs.readFile(path.join(__dirname, '..', 'migrations', migration), 'utf8'));
     }
+    const durationMigration = await fs.readFile(path.join(__dirname, '..', 'migrations', '028_module_identity_session_duration.sql'), 'utf8');
+    await pool.query(durationMigration);
+    await pool.query(durationMigration);
+    const defaultExpiry = (await pool.query(`SELECT column_default FROM information_schema.columns
+      WHERE table_schema=$1 AND table_name='module_identity_grants' AND column_name='expires_at'`, [schema])).rows[0].column_default;
+    assert.match(defaultExpiry, /08:00:00/);
     const user = (await pool.query("INSERT INTO users(email,display_name,avatar_url) VALUES ('admin@example.test','Admin','https://lh3.googleusercontent.com/fixture') RETURNING *")).rows[0];
     await pool.query("INSERT INTO user_roles(user_id,role_id) SELECT $1,id FROM roles WHERE name='ADMIN'", [user.id]);
     const project = (await pool.query("SELECT * FROM module_builder_projects WHERE slug='teacher-planner'")).rows[0];
@@ -75,7 +81,13 @@ test('Global Control identity binds codes to clients, PKCE, current ADMIN roles 
     assert.equal((await post('token', { ...body, client_id: 'teacher-planner:staging' })).status, 400);
     const exchanges = await Promise.all([post('token', body), post('token', body)]);
     assert.deepEqual(exchanges.map((item) => item.status).sort(), [200, 401]);
-    const token = (await exchanges.find((item) => item.status === 200).json()).access_token;
+    const issued = await exchanges.find((item) => item.status === 200).json();
+    assert.equal(issued.expires_in, 8 * 60 * 60);
+    const token = issued.access_token;
+    const remaining = (await pool.query('SELECT EXTRACT(EPOCH FROM expires_at-NOW())::float AS seconds FROM module_identity_grants')).rows[0].seconds;
+    assert.ok(remaining > 8 * 60 * 60 - 30 && remaining <= 8 * 60 * 60, remaining);
+    await pool.query(durationMigration);
+    assert.equal((await pool.query('SELECT EXTRACT(EPOCH FROM expires_at-NOW())::float AS seconds FROM module_identity_grants')).rows[0].seconds <= remaining, true);
     const identity = await post('identity', { client_id: parameters.client_id }, token);
     assert.equal(identity.status, 200);
     assert.equal((await identity.json()).avatar_url, user.avatar_url);
@@ -94,11 +106,14 @@ test('Global Control identity binds codes to clients, PKCE, current ADMIN roles 
     assert.equal((await post('identity', { client_id: 'teacher-planner:staging' }, token)).status, 401);
     const stored = (await pool.query('SELECT * FROM module_identity_grants')).rows[0];
     assert.notEqual(stored.token_hash, token);
+    await pool.query("UPDATE module_identity_grants SET expires_at=NOW()+INTERVAL '7 hours 54 minutes'");
+    assert.equal((await post('identity', { client_id: parameters.client_id }, token)).status, 200);
     await pool.query('DELETE FROM user_roles WHERE user_id=$1', [user.id]);
     assert.equal((await post('school-calendar', {client_id:parameters.client_id,year:2026},token)).status,401);
     assert.equal((await post('identity', { client_id: parameters.client_id }, token)).status, 401);
     await pool.query("INSERT INTO user_roles(user_id,role_id) SELECT $1,id FROM roles WHERE name='ADMIN'", [user.id]);
     await pool.query("UPDATE module_identity_grants SET expires_at=NOW()-INTERVAL '1 second'");
+    await pool.query(durationMigration);
     assert.equal((await post('identity', { client_id: parameters.client_id }, token)).status, 401);
     assert.equal((await post('revoke', {},token)).status,200);
     assert.equal((await pool.query('SELECT * FROM module_identity_grants')).rows.length,0);

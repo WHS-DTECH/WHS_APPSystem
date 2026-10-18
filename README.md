@@ -176,11 +176,20 @@ support HTTPS `*.onrender.com` addresses only; custom domains and Python templat
 are future extensions, not silently assumed supported.
 
 Global Control identity uses state and PKCE, exact registered callbacks, single-use
-60-second codes and five-minute opaque grants. Only hashes are stored centrally.
+60-second codes and eight-hour opaque grants, matching the Core and module session
+cookie lifetimes. Grant expiry is fixed from sign-in, not a sliding idle timer;
+typing alone does not renew it. Only hashes are stored centrally.
 No Google client or session secret is copied to modules. Every application request
-checks the current global ADMIN role; outages fail closed. Core sign-out takes
-effect on renewed sign-in within five minutes; role removal and module archiving
+checks the current global ADMIN role; outages fail closed. Core and module
+sessions are independent: use the module sign-out to revoke its grant immediately.
+Core sign-out alone does not revoke an already issued module grant; renewed
+module sign-in requires Core authentication. Role removal and module archiving
 take effect on the next request. This is a module identity bridge, not a general OIDC provider.
+Migration 028 updates the database default without extending any existing grant
+or reviving expired grants. Sign in to the module again after deployment to
+receive the eight-hour duration. Paid Render compute prevents free-service idle
+sleep, but does not change these application authentication lifetimes. The module
+also requires Core to respond to its identity check within 15 seconds.
 
 Existing untouched wizard repositories can use **Update untouched module
 framework**. The branch must still point to the recorded framework
