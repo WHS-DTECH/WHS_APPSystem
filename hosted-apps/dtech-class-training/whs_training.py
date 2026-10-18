@@ -50,6 +50,20 @@ def school_identity():
 
 CSRFProtect(app)
 
+@app.get("/capsules/programming-documentation")
+def programming_documentation_capsule():
+    courses = Course.query.filter(func.lower(func.trim(Course.title)).in_(
+        ["programming documentations", "programming documentation"]
+    )).all()
+    if len(courses) != 1:
+        current_app.logger.error("Programming Documentation capsule resolved to %s courses.", len(courses))
+        abort(409 if courses else 404, description=(
+            "The Programming Documentation course needs administrator review."
+            if courses else "The Programming Documentation course is not available. Please contact your teacher."
+        ))
+    return redirect(url_for("courses.view_course", course_id=courses[0].id))
+
+
 @app.get("/api/school-search")
 def school_search():
     query = request.args.get("q", "").strip()

@@ -93,6 +93,41 @@ class TrainingRuntimeTests(unittest.TestCase):
             self.assertIn("/dtech-hub/class-training/courses/", navbar)
             self.assertEqual(self.get("/dashboard").status_code, 200)
 
+    def test_programming_documentation_capsule_resolves_course_without_bypassing_enrolment(self):
+        self.assertEqual(self.get("/capsules/programming-documentation").status_code, 404)
+        with app.app_context():
+            course = Course(title="Programming Documentations", description="Original documentation course", teacher_id=self.user_id)
+            db.session.add(course)
+            db.session.commit()
+            course_id = course.id
+        try:
+            response = self.get("/capsules/programming-documentation")
+            self.assertEqual(response.location, f"/dtech-hub/class-training/courses/{course_id}")
+            denied = self.get(f"/courses/{course_id}")
+            self.assertEqual(denied.status_code, 302)
+            self.assertTrue(denied.location.endswith("/courses/"))
+            with app.app_context():
+                db.session.add(Enrollment(student_id=self.user_id, course_id=course_id))
+                db.session.commit()
+            self.assertEqual(self.get(f"/courses/{course_id}").status_code, 200)
+            self.headers["X-WHS-Role"] = "teacher"
+            self.assertEqual(self.get(f"/courses/{course_id}").status_code, 200)
+            with app.app_context():
+                duplicate = Course(title="Programming Documentation", teacher_id=self.user_id)
+                db.session.add(duplicate)
+                db.session.commit()
+                duplicate_id = duplicate.id
+            try:
+                self.assertEqual(self.get("/capsules/programming-documentation").status_code, 409)
+            finally:
+                with app.app_context():
+                    db.session.delete(db.session.get(Course, duplicate_id))
+                    db.session.commit()
+        finally:
+            with app.app_context():
+                db.session.delete(db.session.get(Course, course_id))
+                db.session.commit()
+
     def test_shared_search_enforces_enrolment_ownership_and_current_roles(self):
         with app.app_context():
             other = User(email="search-owner@westlandhigh.school.nz", username="search-owner", role="teacher")

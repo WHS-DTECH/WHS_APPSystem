@@ -740,7 +740,7 @@ if (typeof window !== "undefined") {
 
 function inferSourceTypeFromRecord(record) {
     const explicitType = String(record?.sourceType || "").toLowerCase();
-    if (explicitType === "project" || explicitType === "activity" || explicitType === "assessment" || explicitType === "standard" || explicitType === "lesson" || explicitType === "relief-lesson" || explicitType === "task-topic") {
+    if (explicitType === "capsule" || explicitType === "project" || explicitType === "activity" || explicitType === "assessment" || explicitType === "standard" || explicitType === "lesson" || explicitType === "relief-lesson" || explicitType === "task-topic") {
         return explicitType;
     }
 
@@ -868,6 +868,7 @@ async function loadSharedProjects() {
         return parsed
             .map((item) => {
                 const rawTitle = String(item.name || "").trim();
+                const isTrainingCapsule = rawTitle === "Commenting and Debugging Training";
                 const isClientProjectsAssessment = String(item.id || "").trim() === "49"
                     || /^client\s+projects$/i.test(rawTitle);
                 const title = isClientProjectsAssessment ? "Process Assessment" : rawTitle;
@@ -876,14 +877,14 @@ async function loadSharedProjects() {
                 const id = String(item.id || slugify(title) || `activity-${Date.now()}`);
                 const yearLevel = String(item.year_level || "Year 9").trim();
                 const type = String(item.type || "Digital Learning").trim();
-                const category = String(item.activity_category || item.category || "Activity").trim();
+                const category = isTrainingCapsule ? "Capsule" : String(item.activity_category || item.category || "Activity").trim();
                 const summary = String(item.description || "").trim();
                 const created = String(item.created_at || new Date().toISOString()).slice(0, 10);
                 const rawImageUrl = String(item.outcome_image_url || item.image_url || "").trim();
                 const imageUrl = isGeneratedUploadedActivityImageUrl(rawImageUrl) ? "" : rawImageUrl;
                 const showInThisWeek = isClientProjectsAssessment
                     || Boolean(item.show_in_this_week ?? item.show_this_week ?? item.is_pinned ?? item.is_this_week);
-                const sourceType = inferSourceTypeFromRecord(item);
+                const sourceType = isTrainingCapsule ? "capsule" : inferSourceTypeFromRecord(item);
                 const defaultCardColor = getDefaultCardColorForCategory(category, sourceType);
                 const resolvedCardColor = sourceType === "project"
                     ? "Violet"
@@ -901,20 +902,23 @@ async function loadSharedProjects() {
                     status: showInThisWeek ? "active" : "planning",
                     term: String(item.term || "Term 2"),
                     updated: created,
-                    href: String(item.card_url || "").startsWith("/dtech-hub/class-training/")
+                    href: isTrainingCapsule ? "/dtech-hub/class-training/capsules/programming-documentation"
+                        : String(item.card_url || "").startsWith("/dtech-hub/class-training/")
                         ? item.card_url
                         : `ProjectPages/custom-activity.html?id=${encodeURIComponent(id)}`,
                     external: false,
                     summary,
                     keywords: [type, category, String(item.difficulty || ""), "teacher upload"].filter(Boolean),
                     sourceType,
-                    imageUrl: imageUrl || null,
+                    imageUrl: isTrainingCapsule ? null : imageUrl || null,
                     taskTopics,
                     standardDetails,
                     visual: {
                         icon: textToIcon(type),
                         label: "Teacher Upload",
-                        palette: colorToPalette(resolvedCardColor)
+                        palette: isTrainingCapsule
+                            ? "linear-gradient(135deg, #5c0e2a 0%, #862346 55%, #b44a70 100%)"
+                            : colorToPalette(resolvedCardColor)
                     }
                 };
             })
@@ -3616,7 +3620,7 @@ function getTypes() {
 }
 
 function getContentTypes() {
-    return ["All", "Activities", "Projects", "Assessments", "Standards", "Lessons", "Relief Lessons", "Task Topics"];
+    return ["All", "Activities", "Capsules", "Projects", "Assessments", "Standards", "Lessons", "Relief Lessons", "Task Topics"];
 }
 
 function hasStandardReference(project) {
@@ -3684,6 +3688,7 @@ function filterProjects(items) {
         const matchesContent =
             state.content === "All" ||
             (state.content === "Activities" && project.sourceType === "activity") ||
+            (state.content === "Capsules" && project.sourceType === "capsule") ||
             (state.content === "Projects" && project.sourceType === "project") ||
             (state.content === "Assessments" && project.sourceType === "assessment") ||
             (state.content === "Standards" && (project.sourceType === "standard" || project.activityCategory === "Standard")) ||
@@ -3938,7 +3943,9 @@ function createProjectCard(project, options = {}) {
         && isTaskTopicMergeModeEnabled()
         && String(project?.parentAssessmentId || "").trim()
         && String(project?.taskTopicText || "").trim();
-    const contentTypeLabel = sourceType === "project"
+    const contentTypeLabel = sourceType === "capsule"
+        ? "CAPSULE"
+        : sourceType === "project"
         ? "PROJECT"
         : sourceType === "standard"
             ? "STANDARD"
@@ -4243,6 +4250,7 @@ function renderCurrentWeek() {
     // Group cards by sourceType
     const grouped = {
         activity: [],
+        capsule: [],
         "relief-lesson": [],
         assessment: [],
         standard: [],
@@ -4251,7 +4259,9 @@ function renderCurrentWeek() {
 
     allCards.forEach((card) => {
         const sourceType = inferSourceTypeFromRecord(card.record);
-        if (sourceType === "assessment") {
+        if (sourceType === "capsule") {
+            grouped.capsule.push(card);
+        } else if (sourceType === "assessment") {
             grouped.assessment.push(card);
         } else if (sourceType === "standard") {
             grouped.standard.push(card);
@@ -4267,6 +4277,7 @@ function renderCurrentWeek() {
     // Render each group with heading and count
     const sectionOrder = [
         { key: "activity", label: "Activities" },
+        { key: "capsule", label: "Capsules" },
         { key: "relief-lesson", label: "Relief Lessons" },
         { key: "assessment", label: "Assessment Tasks" },
         { key: "standard", label: "Standards" },

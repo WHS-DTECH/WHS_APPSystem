@@ -97,6 +97,13 @@ Class Training is the first capsule with integrated Teacher View / Student View:
 
 ## DTECH Hub: original site, separate database and private files
 
+Only the **Commenting and Debugging Training** homepage card is presented as a
+burgundy **Capsule**, grouped/filterable under Capsules. Other Activity cards
+and stored legacy categories are unchanged. Its link resolves the existing
+**Programming Documentations** course (also accepting the singular title) and
+uses the original course view with normal enrolment checks. Missing/ambiguous
+course matches produce an explicit error, never a different course.
+
 Homepage content requests share a single in-flight load, and repeated sign-in
 UI updates do not reload the same account's activity, lesson and standard feeds.
 The shared school profile is loaded before those requests. Assessment-card
