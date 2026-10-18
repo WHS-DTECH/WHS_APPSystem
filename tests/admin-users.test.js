@@ -71,7 +71,7 @@ test('Global Control role directory and individual changes preserve primary and 
     assert.match(html, /Teacher Planner/);
     assert.match(html, /Core Administration/);
     assert.match(html, /Module Builder/);
-    assert.match(html, /No additional roles or teacher module assignments are recorded/);
+    assert.match(html, /No additional roles or Teacher dashboard links are recorded/);
     assert.match(html, /<option value="[^"]+">Lead Teacher<\/option>/);
     assert.doesNotMatch(html, /name="roleIds"/);
     const csrf = /name="csrf" value="([^"]+)"/.exec(html)[1];
@@ -220,7 +220,8 @@ test('Global Control role directory and individual changes preserve primary and 
     assert.match(summaryBefore, /Summary App &lt;script&gt;:<\/strong> App Teacher &lt;script&gt;/);
     assert.doesNotMatch(summaryBefore, /<script>|primary-only@school.test|<form|<button/);
     assert.equal((summaryBefore.match(/staff@school.test/g) || []).length, 1);
-    assert.match(summaryBefore, /Teacher module assignments/);
+    assert.match(summaryBefore, /<th scope="col">Teacher dashboard links<\/th>/);
+    assert.match(summaryBefore, /do not grant access/);
     assert.match(summaryBefore, /<div class="user-role-assignment">DTECH Hub<\/div>/);
     assert.equal((await db.query('SELECT * FROM user_roles WHERE user_id=$1', [staff.id])).rows.length, 2);
     assert.equal((await hubRemove('dtech-hub', sewingTeacher)).status, 409);

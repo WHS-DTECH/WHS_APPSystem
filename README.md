@@ -744,7 +744,9 @@ by this change.
 The read-only **All Additional Roles Summary** on the same page is independent
 of the module selector. It groups each user's explicitly stored global additional
 roles, hub/module roles (including registered student apps and area-specific
-grants), and teacher module allocations in separate columns. Global primary
+grants), and teacher module allocations in separate columns. The allocations are
+labelled **Teacher dashboard links**: they control dashboard links, not access.
+Global primary
 Staff/Student roles are excluded; inherited Teacher access and ADMIN's hub
 override are not presented as explicit assignments. System-managed roles and
 inactive accounts are labelled. Change roles through the existing scoped forms;

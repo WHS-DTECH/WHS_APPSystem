@@ -35,7 +35,7 @@
       <a class="button" href="/module-builder/<%= selectedModule.project_id %>">View project and environment access settings</a>
     <% } else { %>
       <p>Core Administration, KAMAR Uploader and Module Builder remain Global-ADMIN-only. This module has no assignable teaching roles here. A teacher module assignment controls its appearance on the Teacher dashboard; it does not override sign-in or administrator-only routes.</p>
-      <a class="button" href="/admin/teachers">Manage existing teacher module assignments</a>
+      <a class="button" href="/admin/teachers">Manage Teacher dashboard links</a>
       <a class="button" href="/admin/roles">View existing role permissions</a>
       <% if (selectedModule.kind === 'app') { %><a class="button" href="/student-apps">Manage registered app access and role mapping</a><% } %>
     <% } %>
@@ -155,15 +155,15 @@
   <h2>All Additional Roles Summary</h2>
   <p>Read-only overview across all modules, regardless of the module selected above. KAMAR primary Staff/Student roles are not additional roles.
     Only explicitly assigned roles are listed; Global ADMIN access across hubs and inherited Teacher access are not repeated as module roles.</p>
-  <p>Teacher module assignments are listed separately: these are dashboard/module allocations, not hub roles. Area-specific roles show their area key.
+  <p>Teacher dashboard links are listed separately: they control which module links appear on the Teacher dashboard and do not grant access. Area-specific roles show their area key.
     Inactive accounts retain their recorded assignments but are marked inactive.</p>
   <% if (!summaryUsers.length) { %>
-    <p>No additional roles or teacher module assignments are recorded.</p>
+    <p>No additional roles or Teacher dashboard links are recorded.</p>
   <% } else { %>
     <div class="user-role-table-wrap">
       <table class="user-role-table">
-        <caption>All users with additional roles or teacher module assignments</caption>
-        <thead><tr><th scope="col">Type</th><th scope="col">User</th><th scope="col">Global Control roles</th><th scope="col">Module roles</th><th scope="col">Teacher module assignments</th></tr></thead>
+        <caption>All users with additional roles or Teacher dashboard links</caption>
+        <thead><tr><th scope="col">Type</th><th scope="col">User</th><th scope="col">Global Control roles</th><th scope="col">Module roles</th><th scope="col">Teacher dashboard links</th></tr></thead>
         <tbody>
           <% summaryUsers.forEach((user) => { %>
             <tr>
