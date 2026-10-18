@@ -738,8 +738,33 @@ Core Administration, KAMAR Uploader and Module Builder are excluded and remain
 Global-ADMIN-only. Technology area grants remain independently managed in their
 existing pages. The main Assign User Roles page and directory API are
 global-ADMIN-only, and role mutations require the session's form token. Existing
-user-role records are not migrated or replaced. Email invitations are not enabled
-by this change.
+user-role records are not migrated or replaced.
+
+### Module welcome emails
+
+On Assign User Roles, choose a teaching module and click **Send Module Invite**
+beside an assigned user. Role assignment itself never sends email. The preview
+includes the module name in the subject, a module description, current roles,
+a working module link, school Google sign-in instructions and feedback to
+tech@westlandhigh.school.nz. Teacher Planner uses the approved planner wording.
+
+1. **Send Test Email to Tech** sends only to tech@westlandhigh.school.nz; the
+   intended user and CC address are shown in that test but do not receive it.
+2. After Gmail reports a successful test, review it in the Tech mailbox, tick the
+   confirmation and choose **Confirm and Send Module Invite**. This sends the
+   invitation to that user and CCs the administrator's signed-in Google address.
+   No form-supplied recipient/CC is trusted.
+
+Only Global ADMIN can use this workflow. Each preview belongs to the preparing
+administrator and expires after 24 hours. Current roles, active account/module,
+recipients and content are rechecked before either send. Changed details require
+a new preview and test. Migration `032_module_invitations.sql` records durable
+delivery states; atomic one-use claims prevent double-click/replayed sends.
+Failures or interrupted/uncertain deliveries do not retry automatically: check
+the existing Email Service log before preparing another invitation.
+All delivery uses the existing Gmail API and email log. Other system emails
+are unchanged. External apps must have active registration and a mapped role;
+independent projects must have a valid deployed environment URL.
 
 The read-only **All Additional Roles Summary** on the same page is independent
 of the module selector. It groups each user's explicitly stored global additional

@@ -13,7 +13,7 @@ const directorySql = type => type === 'staff'
        TRIM(CONCAT_WS(' ', first_name, last_name)) AS display_name, id_number::text AS reference
      FROM student_details_upload WHERE status='Current'`;
 
-function createAdminUsersRouter({ dbQuery = query, initDirectory = () => require('./legacy/kamar-uploader/store').init() } = {}) {
+function createAdminUsersRouter({ dbQuery = query, initDirectory = () => require('./legacy/kamar-uploader/store').init(), mail, baseUrl } = {}) {
   const router = express.Router();
   router.use(ensureAuthenticated, ensureRole('ADMIN'));
   router.use((req, res, next) => {
@@ -29,6 +29,7 @@ function createAdminUsersRouter({ dbQuery = query, initDirectory = () => require
     }
     next();
   });
+  router.use('/invites', require('./moduleInvites').createModuleInvitesRouter({ dbQuery, mail, baseUrl }));
   const invalid = (res, message, status = 400) => {
     console.warn('User role change rejected:', message);
     return res.status(status).render('error', { title: 'Role change not saved', message });

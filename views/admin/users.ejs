@@ -128,7 +128,16 @@
                         <button class="button" type="submit" aria-label="Remove <%= role.name %> from <%= user.email %>">Remove <%= role.name %></button>
                       </form>
                     <% } %>
-                  <% }) %></td>
+                  <% }) %>
+                    <% if (module !== 'global') { %>
+                      <form action="/admin/users/invites" method="post" class="user-role-invite">
+                        <input type="hidden" name="csrf" value="<%= csrf %>">
+                        <input type="hidden" name="module" value="<%= module %>">
+                        <input type="hidden" name="userId" value="<%= user.id %>">
+                        <button class="button" type="submit" aria-label="Send Module Invite to <%= user.email %>">Send Module Invite</button>
+                      </form>
+                    <% } %>
+                  </td>
                 </tr>
               <% }) %>
             </tbody>
@@ -146,6 +155,7 @@
         <li><strong>Combined access:</strong> Permissions from assigned roles work together. ADMIN grants system-wide administration, not just DTECH-HUB access. Hub role changes do not change global roles, other hubs or area-specific grants.</li>
         <li><strong>Protected roles:</strong> KAMAR and system-managed assignments cannot be removed here. Only manually assigned additional roles have Remove buttons.</li>
         <li><strong>Directory:</strong> Searches use current uploaded KAMAR staff and students. Missing people or email addresses must be corrected in KAMAR Uploader.</li>
+        <li><strong>Module invitations:</strong> Use Send Module Invite beside an assigned user. Review the preview and send a test only to tech@westlandhigh.school.nz, then confirm separately to email the user and CC your signed-in Google address. Assigning a role does not send an email automatically.</li>
       </ul>
     </section>
   </div>

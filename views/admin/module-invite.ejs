@@ -1,0 +1,44 @@
+<%- include('../partials/header') %>
+<section class="page-title">
+  <p class="eyebrow"><%= content.name %></p>
+  <h1>Send Module Invite</h1>
+  <p>Review the welcome email, send a test, then confirm separately to invite this user.</p>
+</section>
+<section class="panel">
+  <h2>Email preview</h2>
+  <p><strong>To:</strong> <%= content.to %><br><strong>CC:</strong> <%= content.cc %> (your signed-in Google address)</p>
+  <p><strong>Subject:</strong> <%= content.subject %></p>
+  <% content.text.split('\n\n').forEach(paragraph => { %>
+    <p><% paragraph.split('\n').forEach((line,index) => { %><% if (index) { %><br><% } %><%= line %><% }) %></p>
+  <% }) %>
+  <p><a href="<%= content.url %>" target="_blank" rel="noopener noreferrer">Check module link</a></p>
+</section>
+<section class="panel" aria-label="Invitation delivery">
+  <% if (draft.status === 'sent') { %>
+    <p role="status"><strong>Invitation sent</strong> to <%= content.to %>, with <%= content.cc %> copied. This invitation cannot be sent again.</p>
+  <% } else if (!draft.valid) { %>
+    <p role="alert">This preview has expired. Prepare a new invitation and send a fresh test.</p>
+  <% } else if (draft.status === 'prepared') { %>
+    <h2>1. Send test email</h2>
+    <p>The test goes only to <strong><%= testAddress %></strong>. The user and CC address will not receive it.</p>
+    <form action="/admin/users/invites/<%= draft.id %>/test" method="post">
+      <input type="hidden" name="csrf" value="<%= csrf %>">
+      <button class="button button-primary" type="submit">Send Test Email to Tech</button>
+    </form>
+    <p>Confirmation becomes available after the test is sent successfully.</p>
+  <% } else if (draft.status === 'test_sent') { %>
+    <p role="status">Test email sent successfully to <%= testAddress %>. No invitation has been sent to the user yet.</p>
+    <h2>2. Confirm and send invitation</h2>
+    <p>Review the test in the Tech mailbox before continuing. This sends the same invitation to <strong><%= content.to %></strong> and CCs <strong><%= content.cc %></strong>.</p>
+    <form action="/admin/users/invites/<%= draft.id %>/confirm" method="post">
+      <input type="hidden" name="csrf" value="<%= csrf %>">
+      <label><input type="checkbox" name="confirm" value="send" required> I have reviewed the test email and confirm these recipients and wording.</label>
+      <button class="button button-primary" type="submit">Confirm and Send Module Invite</button>
+    </form>
+  <% } else { %>
+    <p role="alert">This delivery was attempted or is still processing. Refresh to check its status. If it remains here, check the Email Service log before preparing another invitation; delivery may already have occurred. No automatic retry will be made.</p>
+    <a class="button" href="/admin/emails">Check Email Service log</a>
+  <% } %>
+  <p><a class="button" href="/admin/users?module=<%= encodeURIComponent(draft.module_key) %>">Back to module roles</a></p>
+</section>
+<%- include('../partials/footer') %>
