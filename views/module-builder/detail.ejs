@@ -1,0 +1,121 @@
+<%- include('../partials/header') %>
+<link rel="stylesheet" href="/module-builder.css">
+<section class="page-title">
+  <p class="eyebrow"><a href="/module-builder">Module Builder</a> · <%= project.stage %></p>
+  <h1><%= project.name %></h1>
+  <p>Intended mount: <code><%= project.mount_path %></code> · <%= project.deployment_type %> · Node/Express</p>
+  <p>Framework commit: <code><%= project.framework_commit || 'Not installed by wizard; existing work is preserved' %></code></p>
+  <% if (project.repository) { %><a class="button" href="https://github.com/<%= project.repository %>" target="_blank" rel="noopener noreferrer">GitHub repository ↗</a><% } %>
+</section>
+<% if (project.active_operation) { %>
+  <section class="panel mb-warning" role="status"><strong>Project locked by a running or unconfirmed provider operation.</strong>
+    <p>Inspect the operation history and provider dashboards before reconciliation. Do not recreate resources blindly.</p></section>
+<% } %>
+<section class="panel">
+  <h2>Project record</h2>
+  <form action="/module-builder/<%= project.id %>/project" method="post" class="mb-form">
+    <input type="hidden" name="csrf" value="<%= csrf %>">
+    <label>Name<input name="name" value="<%= project.name %>" maxlength="100" required></label>
+    <label>Repository<input name="repository" value="<%= project.repository %>" <%= project.repository_managed ? 'readonly' : '' %> placeholder="owner/repository"></label>
+    <label>Branch<input name="branch" value="<%= project.branch %>" required></label>
+    <label>Intended hosting<select name="deploymentType"><% ['embedded','independent'].forEach((value) => { %><option value="<%= value %>" <%= project.deployment_type === value ? 'selected' : '' %>><%= value %></option><% }) %></select></label>
+    <label>Stage (record only)<select name="stage"><% stages.forEach((value) => { %><option value="<%= value %>" <%= project.stage === value ? 'selected' : '' %>><%= value %></option><% }) %></select></label>
+    <label class="mb-wide">Purpose / owner notes (no secrets)<textarea name="description" maxlength="1500" rows="3"><%= project.description %></textarea></label>
+    <p class="mb-wide">Changing stage does not deploy or integrate an app. Archiving hides its launch link but never deletes resources.</p>
+    <button class="button button-primary" type="submit" <%= project.active_operation ? 'disabled' : '' %>>Save project record</button>
+  </form>
+</section>
+<section class="panel">
+  <h2>Development setup wizard</h2>
+  <p>Follow these steps in order. Each button opens a review screen, not immediate provisioning.</p>
+  <ol>
+    <li>Register an existing repository, or create a new private repository.</li>
+    <li>For a new wizard-created repository, install the integration-ready framework.</li>
+    <li>Record a surviving database first if applicable, or create a separate development database.</li>
+    <li>Create the Docker web service. Its first deployment may start immediately; automatic subsequent deployments are off.</li>
+    <li>Configure module-specific Google sign-in in Render. Verify configuration and tester access before using real data.</li>
+  </ol>
+  <div class="mb-actions">
+  <% Object.entries(actions).forEach(([action, label]) => { %>
+    <form action="/module-builder/<%= project.id %>/review" method="post">
+      <input type="hidden" name="csrf" value="<%= csrf %>"><input type="hidden" name="action" value="<%= action %>">
+      <button class="button" type="submit" <%= project.active_operation || project.stage === 'archived' || project.stage === 'released' ? 'disabled' : '' %>><%= label %></button>
+    </form>
+  <% }) %>
+  </div>
+  <p>GitHub credentials: <%= configuration.githubConfigured ? 'Configured; not automatically verified' : 'Missing' %>.
+    Render credentials/workspace: <%= configuration.renderConfigured ? 'Configured; not automatically verified' : 'Missing' %>.</p>
+  <p>Automatic provisioning supports development only. Existing databases may be recorded, but automatic database wiring uses only a database created by this wizard.</p>
+</section>
+<% kinds.forEach((kind) => { const record = environments.find((item) => item.kind === kind); const config = record.config;
+   const verified = record.verification || {}; const names = verified.environmentVariableNames || []; %>
+<details class="panel mb-environment" <%= kind === 'development' ? 'open' : '' %>>
+  <summary><strong><%= kind.toUpperCase() %></strong> — <%= config.serviceId || 'No web service recorded' %></summary>
+  <p>Recorded configuration is not proof that a service is healthy or its permissions work.</p>
+  <div class="mb-actions">
+    <% if (config.appUrl) { %><a class="button" href="<%= config.appUrl %>" target="_blank" rel="noopener noreferrer">Open app ↗</a><% } %>
+    <% if (config.serviceId) { %><a class="button" href="https://dashboard.render.com/web/<%= config.serviceId %>" target="_blank" rel="noopener noreferrer">Render web service ↗</a><% } %>
+    <% if (config.databaseId) { %><a class="button" href="https://dashboard.render.com/d/<%= config.databaseId %>" target="_blank" rel="noopener noreferrer">Render database ↗</a><% } %>
+    <form action="/module-builder/<%= project.id %>/verify/<%= kind %>" method="post">
+      <input type="hidden" name="csrf" value="<%= csrf %>"><button class="button" type="submit">Verify provider records</button>
+    </form>
+  </div>
+  <p>Last checked: <%= record.checked_at ? new Date(record.checked_at).toLocaleString('en-NZ') : 'Never' %></p>
+  <% if (verified.error) { %><p class="mb-warning" role="alert"><%= verified.error %></p><% } %>
+  <% if (verified.service) { %><p>Observed service: <%= verified.service.name %> · suspension: <%= verified.service.suspended %> · branch: <%= verified.service.branch %></p><% } %>
+  <% if (verified.deploy) { %><p>Latest deployment: <%= verified.deploy.status %> · commit: <code><%= verified.deploy.commit || 'Unknown' %></code></p><% } %>
+  <% if (verified.database) { %><p>Observed database: <%= verified.database.name %> · SQL database: <%= verified.database.databaseName %> · status: <%= verified.database.status %> · region: <%= verified.database.region %> · plan: <%= verified.database.plan %></p><% } %>
+  <form action="/module-builder/<%= project.id %>/environment/<%= kind %>" method="post" class="mb-form">
+    <input type="hidden" name="csrf" value="<%= csrf %>">
+    <label>Web service name<input name="serviceName" maxlength="63" value="<%= config.serviceName || '' %>" required></label>
+    <label>Render web service ID<input name="serviceId" value="<%= config.serviceId || '' %>" placeholder="srv-..."></label>
+    <label>Database resource name<input name="databaseName" maxlength="63" value="<%= config.databaseName || '' %>" required></label>
+    <label>Render database ID<input name="databaseId" value="<%= config.databaseId || '' %>" placeholder="dpg-..."></label>
+    <label>App URL (Render HTTPS)<input name="appUrl" value="<%= config.appUrl || '' %>" placeholder="https://example.onrender.com/"></label>
+    <label>Region<select name="region"><% regions.forEach((value) => { %><option value="<%= value %>" <%= config.region === value ? 'selected' : '' %>><%= value %></option><% }) %></select></label>
+    <label>Web service plan<select name="servicePlan"><% servicePlans.forEach((value) => { %><option value="<%= value %>" <%= config.servicePlan === value ? 'selected' : '' %>><%= value %></option><% }) %></select></label>
+    <label>Database plan<select name="databasePlan"><% databasePlans.forEach((value) => { %><option value="<%= value %>" <%= config.databasePlan === value ? 'selected' : '' %>><%= value %></option><% }) %></select></label>
+    <label>Health path<input name="healthPath" value="<%= config.healthPath || '/health' %>" required></label>
+    <p>Runtime: Docker · Dockerfile: <code>./Dockerfile</code> · branch: <%= project.branch %>.
+      Free-tier eligibility/expiry and current prices must be checked in Render. No fixed price is promised.</p>
+    <label class="mb-wide">Environment checklist — names and purpose only, never values
+      <textarea name="environmentVariables" rows="9" maxlength="5000"><%= (config.environmentVariables || []).map((item) => `${item.name} | ${item.required ? 'required' : 'optional'} | ${item.purpose}`).join('\n') %></textarea>
+    </label>
+    <button class="button button-primary" type="submit" <%= project.active_operation ? 'disabled' : '' %>>Save <%= kind %> record</button>
+  </form>
+  <div class="mb-table-scroll">
+  <table><thead><tr><th>Variable</th><th>Needed</th><th>Provider observation</th><th>Purpose</th></tr></thead><tbody>
+  <% (config.environmentVariables || []).forEach((item) => { %>
+    <tr><td><code><%= item.name %></code></td><td><%= item.required ? 'Required' : 'Optional' %></td>
+      <td><%= verified.environmentVariableNames ? (names.includes(item.name) ? 'Present (value not tested)' : 'Not returned — check service/groups') : 'Unknown / not verified' %></td><td><%= item.purpose %></td></tr>
+  <% }) %>
+  </tbody></table>
+  </div>
+  <p>Only variable names are retained from provider checks. Presence is not proof that a value is valid.
+    Configure secret values directly in Render. No production credentials are inherited.</p>
+</details>
+<% }) %>
+<section class="panel">
+  <h2>Provisioning history and recovery</h2>
+  <p>Partial outcomes are retained. Never delete a resource merely to dismiss an error.
+    After inspecting an uncertain operation, reconcile it here, then record any resource IDs before considering a retry.</p>
+  <% if (!history.length) { %><p>No external provisioning attempted.</p><% } %>
+  <% history.forEach((operation) => { %>
+  <article class="mb-operation">
+    <strong><%= actions[operation.kind] || operation.kind %> — <%= operation.status %></strong>
+    <p><%= operation.actor_name %> · <%= new Date(operation.created_at).toLocaleString('en-NZ') %></p>
+    <p><%= operation.message || 'Awaiting provider outcome. Do not submit again.' %></p>
+    <% if (Object.keys(operation.result_summary || {}).length) { %><pre><%= JSON.stringify(operation.result_summary, null, 2) %></pre><% } %>
+    <% if (['running','uncertain'].includes(operation.status)) { %>
+    <form action="/module-builder/<%= project.id %>/reconcile/<%= operation.id %>" method="post" class="mb-form">
+      <input type="hidden" name="csrf" value="<%= csrf %>">
+      <label class="mb-wide"><input type="checkbox" name="inspected" value="yes" required> I checked GitHub/Render for this operation. I will record any created resources before retrying.</label>
+      <label>Type project key<input name="confirm" placeholder="<%= project.slug %>" required></label>
+      <label>Outcome / resource identifiers (no secrets)<input name="note" maxlength="1000" required></label>
+      <button class="button" type="submit">Resolve after inspection (running operations: wait 5 minutes)</button>
+    </form>
+    <% } %>
+  </article>
+  <% }) %>
+</section>
+<%- include('../partials/footer') %>

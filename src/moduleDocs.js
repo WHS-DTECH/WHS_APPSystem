@@ -8,6 +8,16 @@ const GMAIL = [
 const GMAIL_TO = { name: 'GOOGLE_GMAIL_TO', note: 'Default recipients for notification emails (comma separated).', optional: true };
 
 const moduleDocs = {
+  'module-builder': {
+    summary: 'Global ADMIN-only development registry, infrastructure records and individually confirmed GitHub/Render provisioning. Development applications never execute in Core.',
+    legacyDatabase: { used: false, how: 'Registry metadata and operation history use Core. Each automatically provisioned development module gets its own Render PostgreSQL database.' },
+    env: [
+      { name: 'MODULE_BUILDER_GITHUB_OWNER', note: 'GitHub organisation for new private repositories; defaults to WHS-DTECH.', optional: true },
+      { name: 'MODULE_BUILDER_GITHUB_TOKEN', note: 'Dedicated server-side token with organisation repository creation and Contents/Workflows write permission.', optional: true },
+      { name: 'MODULE_BUILDER_RENDER_API_KEY', note: 'Dedicated Render API credential; never passed to development services.', optional: true },
+      { name: 'MODULE_BUILDER_RENDER_OWNER_ID', note: 'Render workspace ID for development resources.', optional: true }
+    ]
+  },
   core: {
     summary: 'Google login, users, roles, permissions, modules and the shared Gmail sender. This is the framework itself, not a legacy site.',
     legacyDatabase: { used: false, how: 'No legacy database.' },

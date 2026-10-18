@@ -103,6 +103,11 @@ function navData(query, canManageHubRoles, datasetManagerUrl, canManageCourses =
       const modules = user
         ? (await query('SELECT display_name, path FROM modules WHERE is_active = true ORDER BY display_name')).rows
         : [];
+      const developmentProjects = user?.roles?.includes('ADMIN')
+        ? (await query(`SELECT p.id, p.name, e.config->>'appUrl' AS app_url
+          FROM module_builder_projects p JOIN module_builder_environments e ON e.project_id=p.id AND e.kind='development'
+          WHERE p.stage IN ('draft','development','staging') ORDER BY p.name`)).rows
+        : [];
       let assignRolesUrl = null;
       let datasetUrl = null;
       let courseManagementUrl = null;
@@ -174,7 +179,12 @@ function navData(query, canManageHubRoles, datasetManagerUrl, canManageCourses =
         searchModule: user ? moduleForPath(currentPath) : null,
         role: res.locals.activeRole,
         isAdmin: res.locals.isAdmin,
-        modules: modules.map((module) => ({ name: module.display_name, path: module.path }))
+        developmentProjects: developmentProjects.map((project) => ({
+          name: project.name, url: project.app_url || `/module-builder/${project.id}`,
+          deployed: Boolean(project.app_url)
+        })),
+        modules: modules.filter((module) => module.path !== '/module-builder' || user?.roles?.includes('ADMIN'))
+          .map((module) => ({ name: module.display_name, path: module.path }))
       });
     } catch (error) {
       next(error);

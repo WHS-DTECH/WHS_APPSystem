@@ -1,0 +1,49 @@
+# __MODULE_SLUG__
+
+DEVELOPMENT - TEST DATA ONLY. This is a framework, not a completed application.
+
+## Standalone
+
+1. Install Node 22+, run `npm install`, and commit the generated package-lock.json.
+   Switch CI/Docker installs to `npm ci` once that lockfile is committed.
+2. Configure the names in `.env.example` in your environment; never commit values.
+   For local development load them with your shell or Node's `--env-file` option.
+3. Use a separate development PostgreSQL database, never the Global Control one.
+4. Configure a dedicated Google OAuth client and register
+   `https://YOUR-SERVICE/auth/google/callback` as an authorised redirect URI.
+5. Set `MODULE_ALLOWED_EMAILS` to the explicit school tester allowlist. School
+   domain membership alone never grants access. No local bypass is provided.
+6. Run `npm test`, then `npm start` (runs versioned migrations before starting).
+   `npm run db:migrate` can also be run separately. `/health` checks the database, not user access.
+   The service deliberately returns 503 for application pages until Google
+   configuration is present. An empty tester allowlist denies all sign-ins.
+
+The standalone service uses database-backed Google sessions. No Global Control
+cookies, secrets, production database credentials or trusted identity headers are
+used. Development credentials and emails must be separate from production.
+
+## Embedded integration contract
+
+The intended mount is `__MOUNT_PATH__`. Exported `createModuleRouter` must be
+mounted behind Global Control authentication; it reads server-supplied `req.user`.
+Use `req.baseUrl` and relative links for nested routes. The standalone Google
+adapter is not mounted when embedded. The host owns Google identity, avatar,
+Settings, sign-out and primary navigation.
+
+Add numbered SQL files under `db/migrations`; successful migration names are
+recorded in `module_migrations`. Migrations run transactionally on one connection
+with a transaction-level advisory lock. The initial migration is a no-data baseline.
+
+Before business data is added, define owner/sharing rules, reviewed migrations,
+backups, CSRF protection for mutations, safe external effects, audit logging and
+an integration test. Do not treat a Teacher role as authority over all records.
+Supply a narrowly scoped module database dependency when adding data access.
+
+## Release checklist
+
+- Development/staging/production have separate credentials and data.
+- No real emails, calendar writes or confidential records in development.
+- User access, tenant/record ownership and denied access are tested.
+- Migrations, restore, rollback, mobile, accessibility and any export/print
+  requirements are tested in Global Control staging before release.
+- Nothing automatically promotes or embeds this repository into production.

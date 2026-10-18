@@ -1,0 +1,22 @@
+const express = require('express');
+
+// Embedded hosting supplies req.user from Global Control; never trust identity headers.
+function createModuleRouter() {
+  const router = express.Router();
+  router.use((req, res, next) => {
+    res.set('Cache-Control', 'no-store');
+    if (!req.user) return res.status(401).json({ error: 'School sign-in required.' });
+    if (!req.user.roles?.some((role) => ['ADMIN', 'Teacher'].includes(role))) {
+      return res.status(403).json({ error: 'Teacher access required.' });
+    }
+    next();
+  });
+  router.get('/', (req, res) => res.json({
+    module: '__MODULE_SLUG__',
+    status: 'Framework ready; application features are not implemented.',
+    environment: process.env.MODULE_ENVIRONMENT || 'development'
+  }));
+  return router;
+}
+
+module.exports = { createModuleRouter };

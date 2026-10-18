@@ -1,0 +1,30 @@
+<%- include('../partials/header') %>
+<link rel="stylesheet" href="/module-builder.css">
+<section class="page-title"><p class="eyebrow">Module Builder · Review before proceeding</p><h1><%= actionLabel %></h1></section>
+<section class="panel">
+  <p><strong>Project:</strong> <%= project.name %> · <strong>Environment:</strong> Development only</p>
+  <dl>
+    <dt>GitHub organisation</dt><dd><%= plan.configuration.githubOwner %></dd>
+    <dt>Repository</dt><dd><%= project.repository || plan.configuration.githubOwner + '/' + project.slug %></dd>
+    <dt>Branch</dt><dd><%= project.branch %></dd>
+    <dt>Render workspace</dt><dd><%= plan.configuration.renderOwnerId || 'Not configured' %></dd>
+    <dt>Web service</dt><dd><%= plan.settings.serviceName %> · <%= plan.settings.servicePlan %></dd>
+    <dt>Database</dt><dd><%= plan.settings.databaseName %> · <%= plan.settings.databasePlan %> · PostgreSQL 17</dd>
+    <dt>Region</dt><dd><%= plan.settings.region %></dd>
+    <dt>Health path</dt><dd><%= plan.settings.healthPath %></dd>
+  </dl>
+  <p class="mb-warning">Render resources may be billable, and free tiers may expire or be unavailable.
+    Check current pricing and workspace eligibility in Render before confirming. The wizard cannot guarantee a price.</p>
+  <p>Repository creation is private. Framework installation only targets an otherwise unmodified wizard-created repository.
+    Web service creation sends only its separate database URL and a new session secret directly to Render;
+    no Core database or Google credentials are copied. A first deployment may start immediately.
+    Subsequent automatic deployments are off.</p>
+  <p>Teacher Planner's existing repository is not overwritten. Check for a surviving database before creating a new one.</p>
+  <form action="/module-builder/<%= project.id %>/provision" method="post" class="mb-form">
+    <input type="hidden" name="csrf" value="<%= csrf %>"><input type="hidden" name="action" value="<%= plan.action %>"><input type="hidden" name="digest" value="<%= digest %>">
+    <label class="mb-wide"><input name="consent" value="yes" type="checkbox" required> I am authorised to create/change this resource, have checked existing resources and costs, and approve this development-only action.</label>
+    <label>Type <code><%= project.slug %></code> to confirm<input name="confirm" autocomplete="off" required></label>
+    <div class="mb-actions"><button class="button button-primary" type="submit">Confirm: <%= actionLabel %></button><a class="button" href="/module-builder/<%= project.id %>">Cancel</a></div>
+  </form>
+</section>
+<%- include('../partials/footer') %>

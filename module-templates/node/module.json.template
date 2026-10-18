@@ -1,0 +1,11 @@
+{
+  "key": "__MODULE_SLUG__",
+  "mountPath": "__MOUNT_PATH__",
+  "framework": "node-express-v1",
+  "entry": "app.js",
+  "factory": "createModuleRouter",
+  "identity": "req.user supplied by authenticated host; no identity headers",
+  "roles": ["ADMIN", "Teacher"],
+  "healthPath": "/health",
+  "data": "Separate module database; define ownership and migrations before application features."
+}

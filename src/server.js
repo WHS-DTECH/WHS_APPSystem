@@ -28,6 +28,7 @@ const emailPreferences = require('./emailPreferences');
 const studentApps = require('./studentApps');
 const { injectGlobalNav, navData, safeNext, readCookie, NEXT_COOKIE } = require('./globalNav');
 const { describeModules } = require('./moduleDocs');
+const { createModuleBuilderRouter } = require('./moduleBuilder');
 
 const app = express();
 
@@ -190,6 +191,7 @@ app.get(/^\/dtech-hub\/class-training$/, (req, res) => res.redirect('/dtech-hub/
 app.use('/dtech-hub/class-training', createClassTrainingRouter());
 app.get(/^\/dtech-hub$/, (req, res) => res.redirect(`/dtech-hub/${req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''}`));
 app.use('/dtech-hub', createDtechRouter());
+app.use('/module-builder', createModuleBuilderRouter());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.get('/', async (req, res, next) => {

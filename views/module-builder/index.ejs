@@ -1,0 +1,59 @@
+<%- include('../partials/header') %>
+<link rel="stylesheet" href="/module-builder.css">
+<section class="page-title">
+  <p class="eyebrow">Global Control · Administrator tools</p>
+  <h1>Module Builder</h1>
+  <p>Develop independently. Track infrastructure. Integrate only after staging and approval.</p>
+</section>
+<section class="panel mb-notice">
+  <strong>Development resources only</strong>
+  <p>The registry lives in Global Control; application code and data do not.
+    Provisioning requires a separate confirmation for each resource. No resources are deleted or promoted automatically.</p>
+  <p>GitHub: <strong><%= configuration.githubConfigured ? 'Credential configured (not verified)' : 'Not configured' %></strong>
+    · Organisation: <%= configuration.githubOwner %><br>
+    Render: <strong><%= configuration.renderConfigured ? 'Credential/workspace configured (not verified)' : 'Not configured' %></strong></p>
+  <details><summary>Provisioning setup</summary>
+    <p>Set <code>MODULE_BUILDER_GITHUB_TOKEN</code>, <code>MODULE_BUILDER_GITHUB_OWNER</code>,
+      <code>MODULE_BUILDER_RENDER_API_KEY</code> and <code>MODULE_BUILDER_RENDER_OWNER_ID</code>
+      on the Global Control service. Never enter tokens or database URLs in project records.</p>
+    <p>GitHub organisation repository creation and Contents/Workflows write permission are required.
+      Render must have GitHub access to each private repository. Credentials are not shared with new modules.</p>
+  </details>
+</section>
+<section class="mb-grid" aria-label="Development projects">
+  <% projects.forEach((project) => { const config = project.config || {}; const verified = project.verification || {}; %>
+  <article class="panel mb-project">
+    <span class="status"><%= project.stage %></span>
+    <h2><a href="/module-builder/<%= project.id %>"><%= project.name %></a></h2>
+    <p><%= project.description %></p>
+    <dl>
+      <dt>Repository</dt><dd><%= project.repository || 'Not configured' %></dd>
+      <dt>Web service</dt><dd><%= config.serviceId ? config.serviceName + ' (' + config.serviceId + ')' : 'Not recorded / not deployed' %></dd>
+      <dt>Database</dt><dd><%= config.databaseId ? config.databaseName + ' (' + config.databaseId + ')' : 'Not recorded' %></dd>
+      <dt>Provider check</dt><dd><%= project.checked_at ? new Date(project.checked_at).toLocaleString('en-NZ') : 'Never verified' %><%= verified.error ? ' — Unavailable' : '' %></dd>
+      <dt>Deployment</dt><dd><%= verified.deploy?.status || 'Unknown' %></dd>
+    </dl>
+    <div class="mb-actions">
+      <a class="button button-primary" href="/module-builder/<%= project.id %>">Technical details</a>
+      <% if (config.appUrl && project.stage !== 'archived') { %>
+        <a class="button" href="<%= config.appUrl %>" target="_blank" rel="noopener noreferrer">Open development app ↗</a>
+      <% } %>
+    </div>
+  </article>
+  <% }) %>
+  <% if (!projects.length) { %><p>No development projects registered yet.</p><% } %>
+</section>
+<section class="panel">
+  <h2>Register a project</h2>
+  <p>Node/Express is the first approved framework. Existing repositories are recorded, never overwritten.</p>
+  <form action="/module-builder/projects" method="post" class="mb-form">
+    <input type="hidden" name="csrf" value="<%= csrf %>">
+    <label>Project name<input name="name" maxlength="100" required></label>
+    <label>Project key<input name="slug" pattern="[a-z][a-z0-9-]{2,59}" maxlength="60" placeholder="teacher-planner" required></label>
+    <label>Existing GitHub repository (optional)<input name="repository" placeholder="WHS-DTECH/existing-project"></label>
+    <label>Intended hosting<select name="deploymentType"><option value="embedded">Embed after staging</option><option value="independent">Independent connected app</option></select></label>
+    <label class="mb-wide">Purpose<textarea name="description" maxlength="1500" rows="3"></textarea></label>
+    <button class="button button-primary" type="submit">Register project (no external resources created)</button>
+  </form>
+</section>
+<%- include('../partials/footer') %>

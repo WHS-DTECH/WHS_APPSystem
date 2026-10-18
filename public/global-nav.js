@@ -133,7 +133,19 @@
         });
         return found;
       }
-      section('Modules', ['Core Administration', 'Kamar Uploader', 'WHS Learning Sites'], function (module, name) { return module.name === name; });
+      section('Modules', ['Core Administration', 'Kamar Uploader', 'WHS Learning Sites', 'Module Builder'], function (module, name) { return module.name === name; });
+      if (data.isAdmin) {
+        nav.appendChild(el('div', { 'class': 'gn-head' }, 'In Development'));
+        (data.developmentProjects || []).forEach(function (project) {
+          var attrs = { href: project.url };
+          if (project.deployed) {
+            attrs.target = '_blank';
+            attrs.rel = 'noopener noreferrer';
+          }
+          nav.appendChild(el('a', attrs, project.name + (project.deployed ? ' \u2197' : ' (not deployed)')));
+        });
+        if (!(data.developmentProjects || []).length) nav.appendChild(el('div', { 'class': 'gn-empty' }, 'None yet'));
+      }
       nav.appendChild(el('div', { 'class': 'gn-gap' }));
       var hubPaths = ['/technology-hub', '/dtech-hub', '/food-room', '/sewing-hub', '/workshop'];
       section('Hubs', hubPaths, function (module, prefix) { return module.path.indexOf(prefix) === 0; },

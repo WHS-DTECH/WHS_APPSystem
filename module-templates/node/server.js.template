@@ -1,0 +1,64 @@
+const express = require('express');
+const helmet = require('helmet');
+const session = require('express-session');
+const PgSession = require('connect-pg-simple')(session);
+const { Passport } = require('passport');
+const { Strategy } = require('passport-google-oauth20');
+const { Pool } = require('pg');
+const { createModuleRouter } = require('./app');
+
+const env = process.env;
+if (!env.DATABASE_URL) throw new Error('Set a separate module DATABASE_URL.');
+const pool = new Pool({ connectionString: env.DATABASE_URL, ssl: env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false } });
+const app = express();
+app.set('trust proxy', 1);
+app.use(helmet());
+app.get('/health', async (req, res) => {
+  try { await pool.query('SELECT 1'); res.json({ status: 'ok', database: 'connected' }); }
+  catch { console.error('Module database health check failed.'); res.status(503).json({ status: 'error' }); }
+});
+const required = ['SESSION_SECRET', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'APP_BASE_URL', 'GOOGLE_HOSTED_DOMAIN'];
+const missing = required.filter((key) => !env[key]);
+if (missing.length) {
+  console.warn('Sign-in setup required:', missing.join(', '));
+  app.use((req, res) => res.status(503).type('text').send('DEVELOPMENT - TEST DATA ONLY\nFramework deployed. Configure standalone school Google sign-in in Render before use.'));
+} else {
+  const passport = new Passport();
+  app.use(session({
+    name: '__MODULE_SLUG__.sid', secret: env.SESSION_SECRET, resave: false, saveUninitialized: false,
+    store: new PgSession({ pool, createTableIfMissing: true }),
+    cookie: { httpOnly: true, secure: env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 8 * 60 * 60 * 1000 }
+  }));
+  passport.use(new Strategy({
+    clientID: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET,
+    callbackURL: new URL('/auth/google/callback', env.APP_BASE_URL).href, state: true
+  }, (accessToken, refreshToken, profile, done) => {
+    const email = profile.emails?.find((entry) => entry.verified)?.value?.toLowerCase();
+    const allowed = String(env.MODULE_ALLOWED_EMAILS || '').split(',').map((entry) => entry.trim().toLowerCase());
+    if (!email || email.split('@')[1] !== env.GOOGLE_HOSTED_DOMAIN.toLowerCase() || !allowed.includes(email)) {
+      return done(null, false);
+    }
+    return done(null, { email, roles: ['Teacher'] });
+  }));
+  passport.serializeUser((user, done) => done(null, user.email));
+  passport.deserializeUser((email, done) => {
+    const allowed = String(env.MODULE_ALLOWED_EMAILS || '').split(',').map((entry) => entry.trim().toLowerCase());
+    done(null, allowed.includes(email) ? { email, roles: ['Teacher'] } : false);
+  });
+  app.use(passport.initialize());
+  app.use(passport.session());
+  app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+  app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: '/access-denied' }), (req, res) => {
+    res.redirect('/');
+  });
+  app.get('/access-denied', (req, res) => res.status(403).type('text').send('This account is not on the module tester allowlist.'));
+  app.get('/', (req, res, next) => req.user ? next() : res.redirect('/auth/google'));
+  app.use('/', createModuleRouter());
+}
+app.use((error, req, res, next) => {
+  console.error('Module request failed.');
+  if (res.headersSent) return next(error);
+  res.status(500).json({ error: 'Module request failed. Contact the project owner.' });
+});
+const server = app.listen(Number(env.PORT || 3000), '0.0.0.0', () => console.log(`Module listening on port ${server.address().port}`));
+process.on('SIGTERM', () => server.close(() => pool.end().then(() => process.exit(0))));

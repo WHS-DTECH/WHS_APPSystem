@@ -68,6 +68,78 @@ search: they need an explicit permission-aware provider before displaying the
 shared search bar. No additional environment keys or replacement databases are
 required.
 
+## Module Builder / Module Wizard
+
+Global ADMIN can open **Modules > Module Builder** (`/module-builder`). The
+dashboard registers development projects and records separate development,
+staging and production infrastructure without executing their code in Core.
+**In Development** appears below Modules, before Hubs. Deployed development links
+open in a new tab; undeployed entries open their technical record instead.
+Teacher Planner is seeded once with its existing GitHub repository and an explicit
+warning to check for a surviving database. Its source and data are not changed.
+
+The first approved framework is Node/Express. Its standalone Google sign-in
+adapter uses module-specific credentials, an explicit school tester allowlist and
+database-backed sessions. Its exported router can later accept Global Control's
+server-authenticated identity; it does not trust identity headers. It deliberately
+blocks application access until standalone sign-in is configured. A healthy
+deployment does not mean a finished or approved application.
+
+Provisioning is optional. Configure these on the Global Control Render service:
+
+| Variable | Purpose |
+|---|---|
+| `MODULE_BUILDER_GITHUB_OWNER` | Organisation for new private repositories; defaults to `WHS-DTECH` |
+| `MODULE_BUILDER_GITHUB_TOKEN` | Dedicated token authorised for organisation repository creation and Contents/Workflows write; never reuse the archive Writer credential |
+| `MODULE_BUILDER_RENDER_OWNER_ID` | Workspace in which development resources are created |
+| `MODULE_BUILDER_RENDER_API_KEY` | Dedicated Render API credential; treat as sensitive and restrict account/workspace access |
+
+GitHub organisation policy and Render's GitHub connection must permit access to
+new private repositories. The wizard does not create that connection or Google
+OAuth clients. Without credentials, records/navigation work but provider actions
+show an explicit setup error. Do not paste credentials into project forms.
+
+### Confirmed development provisioning
+
+1. Register a project with a unique key and intended embedded/independent hosting.
+2. Record an existing repository **or** review/confirm creation of a private one.
+3. For an otherwise unmodified wizard-created repository, review/confirm
+   installation of the bundled Node framework, Dockerfile, manifest and CI.
+   Existing repositories, including Teacher Planner, are never scaffolded over.
+4. Inspect surviving Render resources. Record existing IDs or review/confirm
+   creation of a separate development PostgreSQL 17 database.
+5. Review/confirm web service creation. Automatic database wiring is restricted to
+   databases created by this wizard, in the selected workspace/region, never Core.
+   Existing databases can be configured manually in Render.
+6. Set app-specific Google settings and `MODULE_ALLOWED_EMAILS` in Render.
+   No production Google identity/session credentials are copied.
+7. Verify provider records, then test authentication, ownership, saving, migrations,
+   backups and any print/export flows before staging/production approval.
+
+Every external mutation needs a CSRF-protected review, typed project-key
+confirmation and cost/access acknowledgement. Render may start a first deployment
+on service creation; subsequent auto-deploys are off. Free plans may be unavailable
+or expire. Check Render pricing: the wizard does not promise costs or create paid
+resources without the explicit confirmation.
+
+Operation claims are durable and serialize mutations per project. Resource IDs
+are recorded before dashboard updates. An ambiguous provider/network outcome
+blocks edits and further provisioning. Inspect GitHub/Render, reconcile the
+operation (stale running operations require five minutes), then record discovered
+IDs before any retry. Resources are never automatically deleted on failure.
+Archiving only removes development navigation; changing stage is metadata, not
+production deployment/promotion.
+
+The technical dashboard separates recorded configuration from last-checked
+provider observations. It shows resource names/IDs, region, plan, branch, latest
+deployment/commit, health path and environment-variable **names/purposes only**.
+No database URLs, tokens or secret values are persisted/displayed; provider error
+bodies are not logged because they can echo secrets. Environment-name presence
+is not value validation; environment groups may require checking in Render.
+Checks are explicit, never run during sidebar loading. App launch URLs currently
+support HTTPS `*.onrender.com` addresses only; custom domains and Python templates
+are future extensions, not silently assumed supported.
+
 ## Module-sensitive role views
 
 Role View controls now describe the current module instead of always linking to
