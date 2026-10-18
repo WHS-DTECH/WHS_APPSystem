@@ -2,12 +2,12 @@ const express = require('express');
 const helmet = require('helmet');
 const session = require('express-session');
 const PgSession = require('connect-pg-simple')(session);
-const { Passport } = require('passport');
-const { Strategy } = require('passport-google-oauth20');
+const crypto = require('crypto');
 const { Pool } = require('pg');
 const { createModuleRouter } = require('./app');
 
 const env = process.env;
+const appBaseUrl = env.APP_BASE_URL || env.RENDER_EXTERNAL_URL;
 if (!env.DATABASE_URL) throw new Error('Set a separate module DATABASE_URL.');
 const pool = new Pool({ connectionString: env.DATABASE_URL, ssl: env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false } });
 const app = express();
@@ -17,42 +17,90 @@ app.get('/health', async (req, res) => {
   try { await pool.query('SELECT 1'); res.json({ status: 'ok', database: 'connected' }); }
   catch { console.error('Module database health check failed.'); res.status(503).json({ status: 'error' }); }
 });
-const required = ['SESSION_SECRET', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'APP_BASE_URL', 'GOOGLE_HOSTED_DOMAIN'];
+const required = ['SESSION_SECRET', 'GLOBAL_CONTROL_URL', 'MODULE_CLIENT_ID'];
 const missing = required.filter((key) => !env[key]);
+if (!appBaseUrl) missing.push('APP_BASE_URL or RENDER_EXTERNAL_URL');
 if (missing.length) {
   console.warn('Sign-in setup required:', missing.join(', '));
-  app.use((req, res) => res.status(503).type('text').send('DEVELOPMENT - TEST DATA ONLY\nFramework deployed. Configure standalone school Google sign-in in Render before use.'));
+  app.use((req, res) => res.status(503).type('text').send('DEVELOPMENT - TEST DATA ONLY\nFramework deployed. Configure Global Control sign-in in Render before use.'));
 } else {
-  const passport = new Passport();
+  const core = new URL(env.GLOBAL_CONTROL_URL);
+  const base = new URL(appBaseUrl);
+  if (core.protocol !== 'https:' || base.protocol !== 'https:' || core.username || core.password
+    || core.pathname !== '/' || core.search || core.hash || base.username || base.password || base.pathname !== '/' || base.search || base.hash) {
+    throw new Error('Global Control and app URLs must be HTTPS origins.');
+  }
+  const callback = new URL('/auth/global-control/callback', base).href;
+  const save = (req) => new Promise((resolve, reject) => req.session.save((error) => error ? reject(error) : resolve()));
+  const regenerate = (req) => new Promise((resolve, reject) => req.session.regenerate((error) => error ? reject(error) : resolve()));
+  const wrap = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
+  async function coreRequest(route, body, token) {
+    return fetch(new URL('/module-auth/' + route, core), {
+      method: 'POST', redirect: 'error', signal: AbortSignal.timeout(15000),
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ client_id: env.MODULE_CLIENT_ID, ...body })
+    });
+  }
+  app.use((req, res, next) => { res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' }); next(); });
   app.use(session({
     name: '__MODULE_SLUG__.sid', secret: env.SESSION_SECRET, resave: false, saveUninitialized: false,
     store: new PgSession({ pool, createTableIfMissing: true }),
     cookie: { httpOnly: true, secure: env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 8 * 60 * 60 * 1000 }
   }));
-  passport.use(new Strategy({
-    clientID: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET,
-    callbackURL: new URL('/auth/google/callback', env.APP_BASE_URL).href, state: true
-  }, (accessToken, refreshToken, profile, done) => {
-    const email = profile.emails?.find((entry) => entry.verified)?.value?.toLowerCase();
-    const allowed = String(env.MODULE_ALLOWED_EMAILS || '').split(',').map((entry) => entry.trim().toLowerCase());
-    if (!email || email.split('@')[1] !== env.GOOGLE_HOSTED_DOMAIN.toLowerCase() || !allowed.includes(email)) {
-      return done(null, false);
-    }
-    return done(null, { email, roles: ['Teacher'] });
+  app.get('/auth/global-control', wrap(async (req, res) => {
+    const state = crypto.randomBytes(32).toString('base64url');
+    const verifier = crypto.randomBytes(32).toString('base64url');
+    req.session.handoff = { state, verifier, started: Date.now() };
+    await save(req);
+    const target = new URL('/module-auth/authorize', core);
+    for (const [key, value] of Object.entries({
+      client_id: env.MODULE_CLIENT_ID, redirect_uri: callback, state,
+      code_challenge: crypto.createHash('sha256').update(verifier).digest('base64url'), code_challenge_method: 'S256'
+    })) target.searchParams.set(key, value);
+    res.redirect(target.href);
   }));
-  passport.serializeUser((user, done) => done(null, user.email));
-  passport.deserializeUser((email, done) => {
-    const allowed = String(env.MODULE_ALLOWED_EMAILS || '').split(',').map((entry) => entry.trim().toLowerCase());
-    done(null, allowed.includes(email) ? { email, roles: ['Teacher'] } : false);
-  });
-  app.use(passport.initialize());
-  app.use(passport.session());
-  app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-  app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: '/access-denied' }), (req, res) => {
+  app.get('/auth/global-control/callback', wrap(async (req, res) => {
+    const pending = req.session.handoff;
+    delete req.session.handoff;
+    await save(req);
+    if (!pending || Date.now() - pending.started > 10 * 60 * 1000
+      || typeof req.query.state !== 'string' || req.query.state !== pending.state
+      || typeof req.query.code !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(req.query.code)) {
+      console.warn('Global Control handoff state was invalid or expired.');
+      return res.status(403).type('text').send('Sign-in expired or invalid. Start again at /auth/global-control.');
+    }
+    const response = await coreRequest('token', { code: req.query.code, code_verifier: pending.verifier, redirect_uri: callback });
+    if (!response.ok) {
+      console.warn('Global Control code exchange was rejected.');
+      return res.status(403).type('text').send('Global Control sign-in was rejected. Start again at /auth/global-control.');
+    }
+    const result = await response.json();
+    if (typeof result.access_token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(result.access_token)) throw new Error('Invalid Global Control response.');
+    await regenerate(req);
+    req.session.moduleToken = result.access_token;
+    await save(req);
     res.redirect('/');
-  });
-  app.get('/access-denied', (req, res) => res.status(403).type('text').send('This account is not on the module tester allowlist.'));
-  app.get('/', (req, res, next) => req.user ? next() : res.redirect('/auth/google'));
+  }));
+  app.use(wrap(async (req, res, next) => {
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && req.get('origin') !== base.origin) {
+      console.warn('Cross-origin module mutation was rejected.');
+      return res.status(403).json({ error: 'Use the module site to submit changes.' });
+    }
+    if (!req.session.moduleToken) return res.redirect('/auth/global-control');
+    const response = await coreRequest('identity', {}, req.session.moduleToken);
+    if (response.status === 401 || response.status === 403) {
+      delete req.session.moduleToken;
+      await save(req);
+      return res.redirect('/auth/global-control');
+    }
+    if (!response.ok) throw new Error('Global Control identity check failed.');
+    const user = await response.json();
+    if (typeof user.id !== 'string' || typeof user.email !== 'string' || !Array.isArray(user.roles) || !user.roles.includes('ADMIN')) {
+      throw new Error('Global Control returned an invalid identity.');
+    }
+    req.user = user;
+    next();
+  }));
   app.use('/', createModuleRouter());
 }
 app.use((error, req, res, next) => {

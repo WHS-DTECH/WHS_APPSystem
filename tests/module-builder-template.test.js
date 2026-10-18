@@ -47,14 +47,14 @@ test('generated migrations are repeatable and failed changes roll back', {
   }
 });
 
-test('generated standalone server checks its separate DB and fails closed until Google is configured', {
+test('generated server checks its separate DB and redirects only to Global Control with state and PKCE', {
   skip: !process.env.MODULE_BUILDER_TEST_DATABASE_URL
 }, async () => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'whs-wizard-template-'));
   const template = path.join(__dirname, '..', 'module-templates', 'node');
   const children = [];
-  async function start(extra = {}) {
-    const child = spawn(process.execPath, [path.join(directory, 'server.js')], {
+  async function start(extra = {}, preload) {
+    const child = spawn(process.execPath, [...(preload ? ['--require', preload] : []), path.join(directory, 'server.js')], {
       cwd: directory,
       env: {
         PATH: process.env.PATH, SystemRoot: process.env.SystemRoot,
@@ -66,9 +66,11 @@ test('generated standalone server checks its separate DB and fails closed until 
     children.push(child);
     return new Promise((resolve, reject) => {
       let output = '';
+      let errors = '';
+      child.stderr.on('data', (data) => { errors += data.toString(); });
       const timer = setTimeout(() => reject(new Error('Generated server startup timed out.')), 15000);
       child.on('error', (error) => { clearTimeout(timer); reject(error); });
-      child.on('exit', (code) => { if (code) { clearTimeout(timer); reject(new Error(`Generated server exited ${code}.`)); } });
+      child.on('exit', (code) => { if (code) { clearTimeout(timer); reject(new Error(`Generated server exited ${code}: ${errors}`)); } });
       child.stdout.on('data', (data) => {
         output += data.toString();
         const match = output.match(/Module listening on port (\d+)/);
@@ -87,18 +89,69 @@ test('generated standalone server checks its separate DB and fails closed until 
     assert.match(await response.text(), /TEST DATA ONLY/);
     base = await start({
       SESSION_SECRET: 'isolated-template-session-secret',
-      GOOGLE_CLIENT_ID: 'fixture-google-client', GOOGLE_CLIENT_SECRET: 'fixture-google-secret',
-      APP_BASE_URL: 'https://fixture.onrender.com', GOOGLE_HOSTED_DOMAIN: 'westlandhigh.school.nz'
+      GLOBAL_CONTROL_URL: 'https://core.example.test', MODULE_CLIENT_ID: 'test-module:development',
+      RENDER_EXTERNAL_URL: 'https://fixture.onrender.com'
     });
     assert.equal((await fetch(base + '/health')).status, 200);
     response = await fetch(base, { redirect: 'manual' });
     assert.equal(response.status, 302);
-    assert.equal(response.headers.get('location'), '/auth/google');
-    response = await fetch(base + '/auth/google', { redirect: 'manual' });
+    assert.equal(response.headers.get('location'), '/auth/global-control');
+    response = await fetch(base + '/auth/global-control', { redirect: 'manual' });
     const destination = new URL(response.headers.get('location'));
-    assert.equal(destination.hostname, 'accounts.google.com');
-    assert.equal(destination.searchParams.get('redirect_uri'), 'https://fixture.onrender.com/auth/google/callback');
+    assert.equal(destination.hostname, 'core.example.test');
+    assert.equal(destination.pathname, '/module-auth/authorize');
+    assert.equal(destination.searchParams.get('redirect_uri'), 'https://fixture.onrender.com/auth/global-control/callback');
+    assert.equal(destination.searchParams.get('client_id'), 'test-module:development');
+    assert.equal(destination.searchParams.get('code_challenge_method'), 'S256');
+    assert.equal(destination.searchParams.get('code_challenge').length, 43);
     assert.ok(destination.searchParams.get('state'));
+    response = await fetch(base + '/auth/global-control/callback?code=bad&state=bad', { redirect: 'manual' });
+    assert.equal(response.status, 403);
+    const preload = path.join(directory, 'core-fixture.js');
+    await fs.writeFile(preload, `
+      let identityChecks = 0;
+      global.fetch = async (url, options) => {
+        const body = JSON.parse(options.body);
+        if (body.client_id !== 'test-module:development') throw new Error('Wrong client.');
+        if (String(url).endsWith('/token')) {
+          if (!/^[A-Za-z0-9_-]{43}$/.test(body.code_verifier) || body.redirect_uri !== 'https://fixture.onrender.com/auth/global-control/callback') throw new Error('Invalid exchange.');
+          return Response.json({access_token:'A'.repeat(43)});
+        }
+        if (options.headers.Authorization !== 'Bearer ' + 'A'.repeat(43)) throw new Error('Missing token.');
+        identityChecks++;
+        if (identityChecks === 2) return new Response('', {status:503});
+        if (identityChecks > 2) return new Response('', {status:401});
+        return Response.json({id:'fixture-admin',email:'admin@example.test',roles:['ADMIN']});
+      };`);
+    base = await start({
+      SESSION_SECRET: 'isolated-template-session-secret', GLOBAL_CONTROL_URL: 'https://core.example.test',
+      MODULE_CLIENT_ID: 'test-module:development', RENDER_EXTERNAL_URL: 'https://fixture.onrender.com'
+    }, preload);
+    response = await fetch(base + '/auth/global-control', { redirect: 'manual' });
+    const pendingCookie = response.headers.get('set-cookie').split(';')[0];
+    const authState = new URL(response.headers.get('location')).searchParams.get('state');
+    response = await fetch(base + '/auth/global-control/callback?' + new URLSearchParams({code:'C'.repeat(43),state:authState}), {
+      redirect:'manual', headers:{cookie:pendingCookie}
+    });
+    assert.equal(response.status, 302);
+    assert.equal(response.headers.get('location'), '/');
+    const signedInCookie = response.headers.get('set-cookie').split(';')[0];
+    assert.notEqual(signedInCookie, pendingCookie);
+    response = await fetch(base, {redirect:'manual',headers:{cookie:signedInCookie}});
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      module: 'test-module', status: 'Framework ready; application features are not implemented.', environment: 'development'
+    });
+    response = await fetch(base, {redirect:'manual',headers:{'x-user-email':'admin@example.test','x-user-role':'ADMIN'}});
+    assert.equal(response.status, 302);
+    response = await fetch(base + '/api/example', {method:'POST',redirect:'manual',headers:{cookie:signedInCookie,origin:'https://evil.example'}});
+    assert.equal(response.status, 403);
+    response = await fetch(base, {redirect:'manual',headers:{cookie:signedInCookie}});
+    assert.equal(response.status, 500);
+    assert.deepEqual(await response.json(), {error:'Module request failed. Contact the project owner.'});
+    response = await fetch(base, {redirect:'manual',headers:{cookie:signedInCookie}});
+    assert.equal(response.status, 302);
+    assert.equal(response.headers.get('location'), '/auth/global-control');
   } finally {
     for (const child of children) {
       if (child.exitCode !== null) continue;

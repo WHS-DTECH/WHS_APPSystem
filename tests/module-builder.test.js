@@ -123,6 +123,29 @@ test('Render database requests disable public IP access and autoscaling', async 
   assert.ok(!JSON.stringify(body).includes('core-production'));
 });
 
+test('framework upgrades refuse repositories with application commits and fast-forward untouched frameworks', async () => {
+  const projectWithFramework = { ...project, framework_commit: 'parent' };
+  let calls = [];
+  const responses = [
+    { object: { sha: 'parent' } }, { tree: { sha: 'base-tree' } },
+    { tree: [{ path: 'server.js' }, { path: 'app.js' }] }, { sha: 'new-tree' }, { sha: 'updated' }, {}
+  ];
+  const providers = createBuilderProviders({ env, fetchImpl: async (url, init) => {
+    calls.push({ url, method: init.method, body: init.body && JSON.parse(init.body) });
+    return reply(responses.shift());
+  } });
+  assert.equal((await providers.upgrade(projectWithFramework)).commit, 'updated');
+  assert.equal(calls[5].body.force, false);
+  assert.ok(calls[3].body.tree.find((file) => file.path === 'server.js').content.includes('GLOBAL_CONTROL_URL'));
+  calls = [];
+  const changed = createBuilderProviders({ env, fetchImpl: async (url, init) => {
+    calls.push(init.method);
+    return reply({ object: { sha: 'application-work' } });
+  } });
+  await assert.rejects(changed.upgrade(projectWithFramework), /has changed/);
+  assert.deepEqual(calls, ['GET']);
+});
+
 test('Render web service only receives the separate DB and a fresh secret; later auto-deploys are off', async () => {
   const calls = [];
   const providers = createBuilderProviders({ env, fetchImpl: async (url, init) => {

@@ -29,6 +29,7 @@ const studentApps = require('./studentApps');
 const { injectGlobalNav, navData, safeNext, readCookie, NEXT_COOKIE } = require('./globalNav');
 const { describeModules } = require('./moduleDocs');
 const { createModuleBuilderRouter } = require('./moduleBuilder');
+const { createModuleIdentityRouter } = require('./moduleIdentity');
 
 const app = express();
 
@@ -192,6 +193,7 @@ app.use('/dtech-hub/class-training', createClassTrainingRouter());
 app.get(/^\/dtech-hub$/, (req, res) => res.redirect(`/dtech-hub/${req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''}`));
 app.use('/dtech-hub', createDtechRouter());
 app.use('/module-builder', createModuleBuilderRouter());
+app.use('/module-auth', createModuleIdentityRouter());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.get('/', async (req, res, next) => {

@@ -12,6 +12,7 @@ const DATABASE_PLANS = ['free', 'basic_256mb', '0.1c-256mb'];
 const ACTIONS = {
   repository: 'Create private GitHub repository',
   scaffold: 'Install Node/Express framework',
+  upgrade: 'Update untouched framework to Global Control sign-in',
   database: 'Create separate Render development database',
   service: 'Create Render development web service'
 };
@@ -114,11 +115,12 @@ function createModuleBuilderRouter({ dbQuery = query, providers = createBuilderP
     const settings = environment.config;
     if (action === 'repository' && project.repository) throw new BuilderError('A repository is already registered. It will not be replaced.', 409);
     if (action === 'scaffold' && (!project.repository_managed || project.framework_commit)) throw new BuilderError('Framework installation is only for new wizard-created repositories.');
+    if (action === 'upgrade' && (!project.repository_managed || !project.framework_commit)) throw new BuilderError('Framework updates require an untouched wizard-created framework.');
     if (action === 'database' && settings.databaseId) throw new BuilderError('A database is already recorded. No duplicate will be created.', 409);
     if (action === 'service' && settings.serviceId) throw new BuilderError('A web service is already recorded. No duplicate will be created.', 409);
     if (action === 'service' && !settings.databaseManaged) throw new BuilderError('Automatic connection is limited to a database created by this wizard. Existing databases can be recorded and configured manually in Render.');
     const configuration = providers.configuration();
-    if (['repository', 'scaffold'].includes(action) && !configuration.githubConfigured) throw new BuilderError('Configure Module Builder GitHub credentials on the Global Control service first.', 503);
+    if (['repository', 'scaffold', 'upgrade'].includes(action) && !configuration.githubConfigured) throw new BuilderError('Configure Module Builder GitHub credentials on the Global Control service first.', 503);
     if (['database', 'service'].includes(action) && !configuration.renderConfigured) throw new BuilderError('Configure Module Builder Render credentials and workspace ID first.', 503);
     return { action, project: { id: project.id, slug: project.slug, revision: project.revision, repository: project.repository, branch: project.branch,
       mountPath: project.mount_path, frameworkCommit: project.framework_commit }, settings, configuration };
@@ -220,7 +222,7 @@ function createModuleBuilderRouter({ dbQuery = query, providers = createBuilderP
       if (plan.action === 'repository') {
         await dbQuery(`UPDATE module_builder_projects SET repository=$2, branch=$3, repository_managed=true WHERE id=$1`,
           [project.id, result.repository, result.branch]);
-      } else if (plan.action === 'scaffold') {
+      } else if (['scaffold', 'upgrade'].includes(plan.action)) {
         await dbQuery('UPDATE module_builder_projects SET framework_commit=$2 WHERE id=$1', [project.id, result.commit]);
       } else {
         const settings = { ...environment.config, ...result, ...(plan.action === 'database' ? { databaseManaged: true } : {}) };

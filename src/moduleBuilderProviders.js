@@ -76,14 +76,15 @@ function createBuilderProviders({ env = process.env, fetchImpl = fetch } = {}) {
     return { repository: repo.full_name, branch: repo.default_branch, repositoryManaged: true };
   }
 
-  async function scaffold(project) {
-    if (!project.repository_managed || project.framework_commit) throw new BuilderError('Framework installation is only for new, wizard-created repositories.');
+  async function scaffold(project, settings, upgrade = false) {
+    if (!project.repository_managed || (upgrade ? !project.framework_commit : project.framework_commit)) throw new BuilderError('Framework installation is only for new, wizard-created repositories.');
     const base = `/repos/${project.repository}`;
     const ref = await api('GitHub', `${base}/git/ref/heads/${encodeURIComponent(project.branch)}`);
     const parent = ref.object?.sha;
+    if (upgrade && parent !== project.framework_commit) throw new BuilderError('Repository has changed since framework installation. Update it through a reviewed code change instead.', 409);
     const commit = await api('GitHub', `${base}/git/commits/${parent}`);
     const existing = await api('GitHub', `${base}/git/trees/${commit.tree?.sha}`);
-    if (existing.truncated || existing.tree?.some((entry) => entry.path !== 'README.md')) {
+    if (existing.truncated || (!upgrade && existing.tree?.some((entry) => entry.path !== 'README.md'))) {
       throw new BuilderError('Repository contains other work. Framework installation will not overwrite it.', 409);
     }
     const directory = path.join(__dirname, '..', 'module-templates', 'node');
@@ -100,7 +101,7 @@ function createBuilderProviders({ env = process.env, fetchImpl = fetch } = {}) {
       })))
     });
     const created = await api('GitHub', `${base}/git/commits`, 'POST', {
-      message: 'Initial WHS integration-ready development framework', tree: tree.sha, parents: [parent]
+      message: upgrade ? 'Use Global Control identity for module development' : 'Initial WHS integration-ready development framework', tree: tree.sha, parents: [parent]
     });
     await api('GitHub', `${base}/git/refs/heads/${encodeURIComponent(project.branch)}`, 'PATCH', { sha: created.sha, force: false });
     return { commit: created.sha };
@@ -133,6 +134,7 @@ function createBuilderProviders({ env = process.env, fetchImpl = fetch } = {}) {
       envVars: [
         { key: 'NODE_ENV', value: 'production' },
         { key: 'MODULE_ENVIRONMENT', value: 'development' },
+        { key: 'MODULE_CLIENT_ID', value: `${project.slug}:development` },
         { key: 'DATABASE_URL', value: databaseUrl },
         { key: 'SESSION_SECRET', value: crypto.randomBytes(48).toString('hex') }
       ],
@@ -185,7 +187,7 @@ function createBuilderProviders({ env = process.env, fetchImpl = fetch } = {}) {
     return result;
   }
 
-  return { configuration, repository, scaffold, database, service, verify };
+  return { configuration, repository, scaffold, upgrade: (project, settings) => scaffold(project, settings, true), database, service, verify };
 }
 
 module.exports = { BuilderError, createBuilderProviders };

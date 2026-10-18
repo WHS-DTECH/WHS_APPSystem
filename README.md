@@ -78,11 +78,13 @@ open in a new tab; undeployed entries open their technical record instead.
 Teacher Planner is seeded once with its existing GitHub repository and an explicit
 warning to check for a surviving database. Its source and data are not changed.
 
-The first approved framework is Node/Express. Its standalone Google sign-in
-adapter uses module-specific credentials, an explicit school tester allowlist and
-database-backed sessions. Its exported router can later accept Global Control's
+The first approved framework is Node/Express. Global Control is the sign-in
+authority for every new module, including separately hosted development services.
+Initial development access is global ADMIN only, checked server-to-server on
+every application request; assigned testers are not yet supported.
+Its exported router can later accept Global Control's
 server-authenticated identity; it does not trust identity headers. It deliberately
-blocks application access until standalone sign-in is configured. A healthy
+blocks application access until Global Control sign-in is configured. A healthy
 deployment does not mean a finished or approved application.
 
 Provisioning is optional. Configure these on the Global Control Render service:
@@ -114,8 +116,13 @@ show an explicit setup error. Do not paste credentials into project forms.
 5. Review/confirm web service creation. Automatic database wiring is restricted to
    databases created by this wizard, in the selected workspace/region, never Core.
    Existing databases can be configured manually in Render.
-6. Set app-specific Google settings and `MODULE_ALLOWED_EMAILS` in Render.
-   No production Google identity/session credentials are copied.
+6. Link a module-safe Render Environment Group containing the shared, non-secret
+   `GLOBAL_CONTROL_URL` (the HTTPS Global Control origin). Set per-site
+   `MODULE_CLIENT_ID` to `project-key:development` (new services get this automatically).
+   `APP_BASE_URL` defaults to Render's `RENDER_EXTERNAL_URL`. Register the exact
+   app URL in the corresponding Module Builder environment.
+   Keep each site's `DATABASE_URL` and `SESSION_SECRET` separate. Never link a
+   development module to a group containing Core credentials or provisioning tokens.
 7. Verify provider records, then test authentication, ownership, saving, migrations,
    backups and any print/export flows before staging/production approval.
 
@@ -142,6 +149,20 @@ is not value validation; environment groups may require checking in Render.
 Checks are explicit, never run during sidebar loading. App launch URLs currently
 support HTTPS `*.onrender.com` addresses only; custom domains and Python templates
 are future extensions, not silently assumed supported.
+
+Global Control identity uses state and PKCE, exact registered callbacks, single-use
+60-second codes and five-minute opaque grants. Only hashes are stored centrally.
+No Google client or session secret is copied to modules. Every application request
+checks the current global ADMIN role; outages fail closed. Core sign-out takes
+effect on renewed sign-in within five minutes; role removal and module archiving
+take effect on the next request. This is a module identity bridge, not a general OIDC provider.
+
+Existing untouched wizard repositories can use **Update untouched framework to
+Global Control sign-in**. The branch must still point to the recorded framework
+commit; otherwise update through a reviewed code change. This does not migrate or
+replace module business data. Existing services require manual redeployment
+because automatic deploys are off. Separate standalone Google configuration is
+no longer part of the generated framework.
 
 ## Module-sensitive role views
 

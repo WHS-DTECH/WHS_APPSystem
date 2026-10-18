@@ -1,10 +1,11 @@
 {
   "key": "__MODULE_SLUG__",
   "mountPath": "__MOUNT_PATH__",
-  "framework": "node-express-v1",
+  "framework": "node-express-v2",
   "entry": "app.js",
   "factory": "createModuleRouter",
-  "identity": "req.user supplied by authenticated host; no identity headers",
+  "identity": "Global Control single-use code with PKCE when standalone; req.user from authenticated host when embedded",
+  "developmentAccess": "Global ADMIN only; checked server-to-server on every application request",
   "roles": ["ADMIN", "Teacher"],
   "healthPath": "/health",
   "data": "Separate module database; define ownership and migrations before application features."

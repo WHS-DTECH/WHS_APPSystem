@@ -9,24 +9,31 @@ DEVELOPMENT - TEST DATA ONLY. This is a framework, not a completed application.
 2. Configure the names in `.env.example` in your environment; never commit values.
    For local development load them with your shell or Node's `--env-file` option.
 3. Use a separate development PostgreSQL database, never the Global Control one.
-4. Configure a dedicated Google OAuth client and register
-   `https://YOUR-SERVICE/auth/google/callback` as an authorised redirect URI.
-5. Set `MODULE_ALLOWED_EMAILS` to the explicit school tester allowlist. School
-   domain membership alone never grants access. No local bypass is provided.
+4. Link a module-safe Render Environment Group containing `GLOBAL_CONTROL_URL`.
+   Do not link groups containing Core database credentials, provider tokens,
+   Google client secrets or Core's session secret.
+5. Set site-specific `MODULE_CLIENT_ID=__MODULE_SLUG__:development`. Register the
+   exact HTTPS Render app URL in Global Control's Module Builder environment record.
+   `APP_BASE_URL` defaults to Render's `RENDER_EXTERNAL_URL`.
 6. Run `npm test`, then `npm start` (runs versioned migrations before starting).
    `npm run db:migrate` can also be run separately. `/health` checks the database, not user access.
-   The service deliberately returns 503 for application pages until Google
-   configuration is present. An empty tester allowlist denies all sign-ins.
+   The service deliberately returns 503 until Global Control configuration is present.
 
-The standalone service uses database-backed Google sessions. No Global Control
-cookies, secrets, production database credentials or trusted identity headers are
-used. Development credentials and emails must be separate from production.
+Global Control is the only sign-in authority. Initial development access is
+global ADMIN only. A state-bound, single-use 60-second code with PKCE is exchanged
+server-to-server for a five-minute opaque grant; only hashes are stored in Core.
+Every application request checks the current role and module registration with
+Core. Outages fail closed. Expired grants restart Global Control sign-in.
+Core sign-out is effective at the next sign-in, within five minutes; ADMIN
+removal or module archiving takes effect at the next application request.
+Local sessions use the module database and its own secret. Core cookies, Google
+credentials and provider tokens are never shared. Identity headers are not trusted.
 
 ## Embedded integration contract
 
 The intended mount is `__MOUNT_PATH__`. Exported `createModuleRouter` must be
 mounted behind Global Control authentication; it reads server-supplied `req.user`.
-Use `req.baseUrl` and relative links for nested routes. The standalone Google
+Use `req.baseUrl` and relative links for nested routes. The standalone identity
 adapter is not mounted when embedded. The host owns Google identity, avatar,
 Settings, sign-out and primary navigation.
 
