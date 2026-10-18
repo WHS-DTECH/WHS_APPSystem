@@ -135,7 +135,11 @@ show an explicit setup error. Do not paste credentials into project forms.
 
 Every external mutation needs a CSRF-protected review, typed project-key
 confirmation and cost/access acknowledgement. Render may start a first deployment
-on service creation; subsequent auto-deploys are off. Free plans may be unavailable
+on service creation; new development services auto-deploy each push to their
+recorded GitHub branch (`autoDeployTrigger: commit`), without waiting for CI checks.
+This default does not modify existing services or configure staging/production.
+For an existing service such as Teacher Planner, enable Auto-Deploy in that
+service's Render Settings to use the same behaviour. Free plans may be unavailable
 or expire. Check Render pricing: the wizard does not promise costs or create paid
 resources without the explicit confirmation.
 
@@ -164,11 +168,12 @@ checks the current global ADMIN role; outages fail closed. Core sign-out takes
 effect on renewed sign-in within five minutes; role removal and module archiving
 take effect on the next request. This is a module identity bridge, not a general OIDC provider.
 
-Existing untouched wizard repositories can use **Update untouched framework to
-Global Control sign-in**. The branch must still point to the recorded framework
+Existing untouched wizard repositories can use **Update untouched module
+framework**. The branch must still point to the recorded framework
 commit; otherwise update through a reviewed code change. This does not migrate or
-replace module business data. Existing services require manual redeployment
-because automatic deploys are off. Separate standalone Google configuration is
+replace module business data. Existing services with Auto-Deploy off require
+manual redeployment; newly created services deploy branch pushes automatically.
+Separate standalone Google configuration is
 no longer part of the generated framework.
 
 New Node frameworks include a branded HTML homepage instead of a JSON response:
@@ -181,7 +186,7 @@ then signs out of Core. Embedded pages use Core's existing header injection.
 Copyright month/year uses Pacific/Auckland; Last Updated is stamped during
 framework installation/update. Future application releases should update
 `UPDATED_AT` in their generated `shell.js`. Existing untouched frameworks can use
-the guarded framework-update action, followed by a manual Render deployment.
+the guarded framework-update action, followed by deployment (manual if Auto-Deploy is off).
 
 Development app links in the shared navigation and Module Builder open in the
 current tab (GitHub/Render management links still open separately). The module

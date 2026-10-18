@@ -151,7 +151,7 @@ function createBuilderProviders({ env = process.env, fetchImpl = fetch } = {}) {
     const result = await api('Render', '/services', 'POST', {
       type: 'web_service', name: settings.serviceName, ownerId,
       repo: `https://github.com/${project.repository}`, branch: project.branch,
-      autoDeployTrigger: 'off',
+      autoDeployTrigger: 'commit',
       envVars: [
         { key: 'NODE_ENV', value: 'production' },
         { key: 'MODULE_ENVIRONMENT', value: 'development' },

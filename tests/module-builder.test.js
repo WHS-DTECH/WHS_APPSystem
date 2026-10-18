@@ -28,7 +28,8 @@ test('wizard shows one framework-services card between Development and Staging w
   assert.match(html, /until module-specific search is implemented/);
   assert.match(html, /tech@westlandhigh.school.nz/);
   assert.match(html, /Framework reference, not a live service check/);
-  assert.match(html, /Older modules need a framework update and manual deployment/);
+  assert.match(html, /Older modules need a framework update and deployment/);
+  assert.match(html, /Auto-Deploy is enabled for every push/);
 });
 
 const env = {
@@ -178,7 +179,7 @@ test('framework upgrades refuse repositories with application commits and fast-f
   assert.deepEqual(calls, ['GET']);
 });
 
-test('Render web service only receives the separate DB and a fresh secret; later auto-deploys are off', async () => {
+test('Render web service receives its separate DB and fresh secret and auto-deploys branch commits', async () => {
   const calls = [];
   let checkpointed = false;
   const providers = createBuilderProviders({ env, fetchImpl: async (url, init) => {
@@ -202,7 +203,7 @@ test('Render web service only receives the separate DB and a fresh secret; later
   assert.equal(result.sharedEnvGroupId, 'evg-fixture');
   assert.equal(calls[4].url, 'https://api.render.com/v1/env-groups/evg-fixture/services/srv-fixture');
   const body = calls[3].body;
-  assert.equal(body.autoDeployTrigger, 'off');
+  assert.equal(body.autoDeployTrigger, 'commit');
   assert.equal(body.serviceDetails.runtime, 'docker');
   assert.equal(body.serviceDetails.healthCheckPath, '/health');
   assert.equal(body.envVars.find((item) => item.key === 'DATABASE_URL').value, 'postgresql://module-development');

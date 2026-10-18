@@ -7,6 +7,7 @@
     <dt>GitHub owner</dt><dd><%= plan.configuration.githubOwner %></dd>
     <dt>Repository</dt><dd><%= project.repository || plan.configuration.githubOwner + '/' + project.slug %></dd>
     <dt>Branch</dt><dd><%= project.branch %></dd>
+    <% if (plan.action === 'service') { %><dt>Auto-Deploy</dt><dd>Enabled: every push to <%= project.branch %> deploys this development service, without waiting for CI checks.</dd><% } %>
     <dt>Render workspace</dt><dd><%= plan.configuration.renderOwnerId || 'Not configured' %></dd>
     <% if (plan.action === 'service') { %><dt>Shared Global Control group</dt><dd><%= plan.configuration.renderEnvGroupId %> (linked automatically; GLOBAL_CONTROL_URL only)</dd><% } %>
     <dt>Web service</dt><dd><%= plan.settings.serviceName %> · <%= plan.settings.servicePlan %></dd>
@@ -19,7 +20,7 @@
   <p>Repository creation is private. Framework installation/update only targets an otherwise unmodified wizard-created repository.
     Web service creation sends only its separate database URL and a new session secret directly to Render;
     no Core database or Google credentials are copied. A first deployment may start immediately.
-    Subsequent automatic deployments are off.</p>
+    New development services automatically deploy each push to the recorded GitHub branch. Existing services are not changed.</p>
   <% if (plan.action === 'service') { %><p>The shared group is linked after service creation. The first deployment may already be running:
     check the group link and manually deploy the latest commit once creation completes if the app reports missing Global Control configuration.</p><% } %>
   <p>Teacher Planner's existing repository is not overwritten. Check for a surviving database before creating a new one.</p>

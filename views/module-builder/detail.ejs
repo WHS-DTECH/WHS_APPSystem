@@ -32,7 +32,7 @@
     <li>Register an existing repository, or create a new private repository.</li>
     <li>For a new wizard-created repository, install the integration-ready framework.</li>
     <li>Record a surviving database first if applicable, or create a separate development database.</li>
-    <li>Create the Docker web service. Its first deployment may start immediately; automatic subsequent deployments are off.</li>
+    <li>Create the Docker web service. Its first deployment may start immediately; Auto-Deploy is enabled for every push to the recorded GitHub branch.</li>
     <li>The configured shared Environment Group is linked automatically when a web service is created. Verify the link and Global Control ADMIN access before using real data. Do not share Core secrets.</li>
   </ol>
   <div class="mb-actions">
@@ -50,7 +50,7 @@
     New services link this group automatically; existing services are not modified. The group must contain only GLOBAL_CONTROL_URL and no secret files.</p>
   <p><strong>Global Control sign-in:</strong> client ID <code><%= project.slug %>:development</code>.
     Initial access is global ADMIN only. The update button only replaces an untouched wizard framework;
-    if application work has started, use a reviewed code update instead. Existing services need a manual deployment after updating.</p>
+    if application work has started, use a reviewed code update instead. Existing services with Auto-Deploy off need a manual deployment after updating; new services deploy on each push.</p>
 </section>
 <% kinds.forEach((kind) => { const record = environments.find((item) => item.kind === kind); const config = record.config;
    const verified = record.verification || {}; const names = verified.environmentVariableNames || []; %>
@@ -115,7 +115,7 @@
     <dt>Shared branding and footer</dt>
     <dd>WHS logo on a white homepage, copyright month/year, actual framework-update date and Contact Web Master link.</dd>
   </dl>
-  <p><strong>Framework reference, not a live service check.</strong> Older modules need a framework update and manual deployment to receive these features. Verify sign-in, search and email after deployment; a recorded framework commit does not prove they are working.</p>
+  <p><strong>Framework reference, not a live service check.</strong> Older modules need a framework update and deployment to receive these features (manual if Auto-Deploy is off). Verify sign-in, search and email after deployment; a recorded framework commit does not prove they are working.</p>
   <p>Google and Gmail credentials stay in Global Control. Each standalone module retains its own database and session secret.</p>
 </section>
 <% } %>
