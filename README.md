@@ -95,6 +95,7 @@ Provisioning is optional. Configure these on the Global Control Render service:
 | `MODULE_BUILDER_GITHUB_TOKEN` | Dedicated token authorised for repository creation and Contents/Workflows write; for a personal owner it must belong to that account; never reuse the archive Writer credential |
 | `MODULE_BUILDER_RENDER_OWNER_ID` | Workspace in which development resources are created |
 | `MODULE_BUILDER_RENDER_API_KEY` | Dedicated Render API credential; treat as sensitive and restrict account/workspace access |
+| `MODULE_BUILDER_RENDER_ENV_GROUP_ID` | ID (`evg-...`) of the shared `WIZARD-Global-CONTROL` group automatically linked to new module services; must contain only `GLOBAL_CONTROL_URL`, with no secret files |
 
 The wizard checks the GitHub owner type before creating a repository. Personal
 accounts use the authenticated user's repository endpoint, after verifying the
@@ -116,13 +117,19 @@ show an explicit setup error. Do not paste credentials into project forms.
 5. Review/confirm web service creation. Automatic database wiring is restricted to
    databases created by this wizard, in the selected workspace/region, never Core.
    Existing databases can be configured manually in Render.
-6. Link a module-safe Render Environment Group containing the shared, non-secret
+6. The wizard automatically links the configured module-safe Render Environment Group containing the shared, non-secret
    `GLOBAL_CONTROL_URL` (the HTTPS Global Control origin). Set per-site
    `MODULE_CLIENT_ID` to `project-key:development` (new services get this automatically).
    `APP_BASE_URL` defaults to Render's `RENDER_EXTERNAL_URL`. Register the exact
    app URL in the corresponding Module Builder environment.
    Keep each site's `DATABASE_URL` and `SESSION_SECRET` separate. Never link a
    development module to a group containing Core credentials or provisioning tokens.
+   The group workspace and contents are checked before any service is created.
+   Service IDs are persisted before linking; a failed/unconfirmed link locks the
+   operation for inspection/reconciliation instead of creating a duplicate.
+   Linking happens after service creation: if the first deployment began before
+   linking, manually deploy the latest commit after checking the link. Existing
+   services are not retroactively linked.
 7. Verify provider records, then test authentication, ownership, saving, migrations,
    backups and any print/export flows before staging/production approval.
 

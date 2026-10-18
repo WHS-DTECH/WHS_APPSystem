@@ -12,6 +12,7 @@ const env = {
   MODULE_BUILDER_GITHUB_OWNER: 'WHS-DTECH',
   MODULE_BUILDER_RENDER_API_KEY: 'fixture-render-secret',
   MODULE_BUILDER_RENDER_OWNER_ID: 'tea-fixture',
+  MODULE_BUILDER_RENDER_ENV_GROUP_ID: 'evg-fixture',
   DATABASE_URL: 'postgresql://core-production'
 };
 const project = { slug: 'example-module', repository: 'WHS-DTECH/example-module', branch: 'main', mount_path: '/example-module/', repository_managed: true };
@@ -148,15 +149,28 @@ test('framework upgrades refuse repositories with application commits and fast-f
 
 test('Render web service only receives the separate DB and a fresh secret; later auto-deploys are off', async () => {
   const calls = [];
+  let checkpointed = false;
   const providers = createBuilderProviders({ env, fetchImpl: async (url, init) => {
     calls.push({ url, method: init.method, body: init.body && JSON.parse(init.body) });
+    if (url.endsWith('/services/srv-fixture')) {
+      assert.equal(checkpointed, true);
+      return reply({ serviceLinks: [{ id: 'srv-fixture' }] });
+    }
+    if (url.endsWith('/env-groups/evg-fixture')) return reply({
+      ownerId: 'tea-fixture', envVars: [{ key: 'GLOBAL_CONTROL_URL', value: 'https://core.example.test' }], secretFiles: []
+    });
     if (url.endsWith('/connection-info')) return reply({ internalConnectionString: 'postgresql://module-development' });
     if (url.includes('/postgres/')) return reply({ owner: { id: 'tea-fixture' }, region: 'singapore' });
     return reply({ service: { id: 'srv-fixture', serviceDetails: { url: 'https://example.onrender.com' } }, deployId: 'dep-fixture' }, 201);
   } });
-  const result = await providers.service({ ...project, framework_commit: 'framework' }, settings);
+  const result = await providers.service({ ...project, framework_commit: 'framework' }, settings, async (created) => {
+    assert.equal(created.serviceId, 'srv-fixture');
+    checkpointed = true;
+  });
   assert.equal(result.serviceId, 'srv-fixture');
-  const body = calls[2].body;
+  assert.equal(result.sharedEnvGroupId, 'evg-fixture');
+  assert.equal(calls[4].url, 'https://api.render.com/v1/env-groups/evg-fixture/services/srv-fixture');
+  const body = calls[3].body;
   assert.equal(body.autoDeployTrigger, 'off');
   assert.equal(body.serviceDetails.runtime, 'docker');
   assert.equal(body.serviceDetails.healthCheckPath, '/health');
@@ -165,6 +179,36 @@ test('Render web service only receives the separate DB and a fresh secret; later
   for (const secret of Object.values(env)) {
     if (secret.startsWith('fixture-') || secret.startsWith('postgresql://core')) assert.ok(!JSON.stringify(body).includes(secret));
   }
+});
+
+test('unsafe or missing shared group blocks service creation before any write', async () => {
+  const valid = { ownerId: 'tea-fixture', envVars: [{key:'GLOBAL_CONTROL_URL',value:'https://core.example.test'}], secretFiles: [] };
+  for (const group of [
+    {...valid, ownerId:'tea-other'}, {...valid, secretFiles:[{name:'secret'}]},
+    {...valid, envVars:[...valid.envVars,{key:'SESSION_SECRET',value:'never-copy'}]},
+    {...valid, envVars:[{key:'GLOBAL_CONTROL_URL',value:'http://core.example.test'}]}
+  ]) {
+    const methods = [];
+    const providers = createBuilderProviders({env, fetchImpl:async (url,init)=>{methods.push(init.method);return reply(group);}});
+    await assert.rejects(providers.service({...project,framework_commit:'framework'},settings),BuilderError);
+    assert.deepEqual(methods,['GET']);
+  }
+  const providers = createBuilderProviders({env:{...env,MODULE_BUILDER_RENDER_ENV_GROUP_ID:''}});
+  await assert.rejects(providers.service({...project,framework_commit:'framework'},settings),/MODULE_BUILDER_RENDER_ENV_GROUP_ID/);
+});
+
+test('failed group linking preserves the created service checkpoint and reports uncertain outcome', async () => {
+  let recorded;
+  const providers = createBuilderProviders({env,fetchImpl:async(url)=>{
+    if(url.endsWith('/env-groups/evg-fixture'))return reply({ownerId:'tea-fixture',envVars:[{key:'GLOBAL_CONTROL_URL',value:'https://core.example.test'}],secretFiles:[]});
+    if(url.endsWith('/connection-info'))return reply({internalConnectionString:'postgresql://separate'});
+    if(url.includes('/postgres/'))return reply({owner:{id:'tea-fixture'},region:'singapore'});
+    if(url.endsWith('/services'))return reply({service:{id:'srv-created',serviceDetails:{url:'https://created.onrender.com'}}});
+    return reply({},500);
+  }});
+  await assert.rejects(providers.service({...project,framework_commit:'framework'},settings,async(created)=>{recorded=created;}),
+    (error)=>error.uncertain && /Do not create another service/.test(error.message));
+  assert.equal(recorded.serviceId,'srv-created');
 });
 
 test('provider verification retains only allowlisted metadata, never environment values or passwords', async () => {

@@ -34,7 +34,7 @@ test('wizard database, admin forms, confirmations, durable operations and sideba
     let ambiguous = false;
     let changeDuringVerify = false;
     const providers = {
-      configuration: () => ({ githubOwner: 'WHS-DTECH', githubConfigured: true, renderConfigured: true, renderOwnerId: 'tea-fixture' }),
+      configuration: () => ({ githubOwner: 'WHS-DTECH', githubConfigured: true, renderConfigured: true, renderOwnerId: 'tea-fixture', renderEnvGroupId: 'evg-fixture' }),
       repository: async (project) => { calls.push('repository'); return { repository: `WHS-DTECH/${project.slug}`, branch: 'main' }; },
       scaffold: async () => { calls.push('scaffold'); return { commit: 'framework' }; },
       database: async () => {
@@ -42,7 +42,12 @@ test('wizard database, admin forms, confirmations, durable operations and sideba
         if (ambiguous) throw new BuilderError('Provider timed out; inspect first.', 502, true);
         return { databaseId: 'dpg-created-a' };
       },
-      service: async () => { calls.push('service'); return { serviceId: 'srv-created', appUrl: 'https://created.onrender.com/' }; },
+      service: async (project, settings, checkpoint) => {
+        calls.push('service');
+        const created = { serviceId: 'srv-created', appUrl: 'https://created.onrender.com/' };
+        await checkpoint(created);
+        throw new BuilderError('Service created; group linking needs inspection.', 502, true);
+      },
       verify: async (project) => {
         if (changeDuringVerify) {
           await query("UPDATE module_builder_projects SET revision=revision+1 WHERE id=$1", [project.id]);
@@ -122,7 +127,14 @@ test('wizard database, admin forms, confirmations, durable operations and sideba
     assert.equal((await post(`${detail}/reconcile/${uncertain.id}`, { csrf, confirm: 'test-module', inspected: 'yes', note: 'Verified no database was created in test provider.' })).status, 302);
     ambiguous = false;
     assert.equal((await confirm('database')).status, 302);
-    assert.equal((await confirm('service')).status, 302);
+    assert.equal((await confirm('service')).status, 502);
+    const partial = (await query("SELECT * FROM module_builder_operations WHERE project_id=$1 AND kind='service'", [id])).rows[0];
+    assert.equal(partial.status, 'uncertain');
+    assert.equal(partial.result_summary.serviceId, 'srv-created');
+    assert.equal((await query("SELECT config FROM module_builder_environments WHERE project_id=$1 AND kind='development'", [id])).rows[0].config.serviceId, 'srv-created');
+    assert.equal((await post(`${detail}/reconcile/${partial.id}`, {
+      csrf, confirm: 'test-module', inspected: 'yes', note: 'Inspected service and manually confirmed shared group link in fixture.'
+    })).status, 302);
     assert.equal((await confirm('service')).status, 409);
     assert.equal((await post(`${detail}/verify/development`, { csrf })).status, 302);
     const checked = (await query("SELECT * FROM module_builder_environments WHERE project_id=$1 AND kind='development'", [id])).rows[0];

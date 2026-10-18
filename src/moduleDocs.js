@@ -15,7 +15,8 @@ const moduleDocs = {
       { name: 'MODULE_BUILDER_GITHUB_OWNER', note: 'GitHub personal account or organisation for new private repositories; defaults to WHS-DTECH.', optional: true },
       { name: 'MODULE_BUILDER_GITHUB_TOKEN', note: 'Dedicated server-side token with repository creation and Contents/Workflows write permission. For personal repositories it must belong to the configured owner.', optional: true },
       { name: 'MODULE_BUILDER_RENDER_API_KEY', note: 'Dedicated Render API credential; never passed to development services.', optional: true },
-      { name: 'MODULE_BUILDER_RENDER_OWNER_ID', note: 'Render workspace ID for development resources.', optional: true }
+      { name: 'MODULE_BUILDER_RENDER_OWNER_ID', note: 'Render workspace ID for development resources.', optional: true },
+      { name: 'MODULE_BUILDER_RENDER_ENV_GROUP_ID', note: 'Shared module-safe Render group (evg-...) automatically linked to new services; must contain only GLOBAL_CONTROL_URL and no secret files.', optional: true }
     ]
   },
   core: {

@@ -122,6 +122,7 @@ function createModuleBuilderRouter({ dbQuery = query, providers = createBuilderP
     const configuration = providers.configuration();
     if (['repository', 'scaffold', 'upgrade'].includes(action) && !configuration.githubConfigured) throw new BuilderError('Configure Module Builder GitHub credentials on the Global Control service first.', 503);
     if (['database', 'service'].includes(action) && !configuration.renderConfigured) throw new BuilderError('Configure Module Builder Render credentials and workspace ID first.', 503);
+    if (action === 'service' && !/^evg-[a-z0-9]+$/.test(configuration.renderEnvGroupId || '')) throw new BuilderError('Configure MODULE_BUILDER_RENDER_ENV_GROUP_ID for automatic shared Global Control group linking first.', 503);
     return { action, project: { id: project.id, slug: project.slug, revision: project.revision, repository: project.repository, branch: project.branch,
       mountPath: project.mount_path, frameworkCommit: project.framework_commit }, settings, configuration };
   }
@@ -215,7 +216,12 @@ function createModuleBuilderRouter({ dbQuery = query, providers = createBuilderP
     let result;
     let externalCompleted = false;
     try {
-      result = await providers[plan.action](project, environment.config);
+      result = await providers[plan.action](project, environment.config, async (created) => {
+        externalCompleted = true;
+        await dbQuery(`UPDATE module_builder_operations SET result_summary=$2::jsonb WHERE id=$1`, [operation.id, JSON.stringify(created)]);
+        await dbQuery(`UPDATE module_builder_environments SET config=config || $2::jsonb, verification='{}', checked_at=NULL
+          WHERE project_id=$1 AND kind='development'`, [project.id, JSON.stringify(created)]);
+      });
       externalCompleted = true;
       // Persist resource identifiers before updating the dashboard; never roll back/delete provider resources.
       await dbQuery(`UPDATE module_builder_operations SET result_summary=$2::jsonb WHERE id=$1`, [operation.id, JSON.stringify(result)]);

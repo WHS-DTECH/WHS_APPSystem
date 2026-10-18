@@ -33,7 +33,7 @@
     <li>For a new wizard-created repository, install the integration-ready framework.</li>
     <li>Record a surviving database first if applicable, or create a separate development database.</li>
     <li>Create the Docker web service. Its first deployment may start immediately; automatic subsequent deployments are off.</li>
-    <li>Link a module-safe Environment Group with GLOBAL_CONTROL_URL. Set the site's MODULE_CLIENT_ID and verify Global Control ADMIN access before using real data. Do not share Core secrets.</li>
+    <li>The configured shared Environment Group is linked automatically when a web service is created. Verify the link and Global Control ADMIN access before using real data. Do not share Core secrets.</li>
   </ol>
   <div class="mb-actions">
   <% Object.entries(actions).forEach(([action, label]) => { %>
@@ -46,6 +46,8 @@
   <p class="mb-provider-status"><span><strong>GitHub credentials:</strong> <%= configuration.githubConfigured ? 'Configured; not automatically verified' : 'Missing' %>.</span>
     <span><strong>Render credentials/workspace:</strong> <%= configuration.renderConfigured ? 'Configured; not automatically verified' : 'Missing' %>.</span></p>
   <p>Automatic provisioning supports development only. Existing databases may be recorded, but automatic database wiring uses only a database created by this wizard.</p>
+  <p><strong>Shared Global Control Environment Group:</strong> <code><%= configuration.renderEnvGroupId || 'Not configured: set MODULE_BUILDER_RENDER_ENV_GROUP_ID on Global Control' %></code>.
+    New services link this group automatically; existing services are not modified. The group must contain only GLOBAL_CONTROL_URL and no secret files.</p>
   <p><strong>Global Control sign-in:</strong> client ID <code><%= project.slug %>:development</code>.
     Initial access is global ADMIN only. The update button only replaces an untouched wizard framework;
     if application work has started, use a reviewed code update instead. Existing services need a manual deployment after updating.</p>

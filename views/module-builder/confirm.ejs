@@ -8,6 +8,7 @@
     <dt>Repository</dt><dd><%= project.repository || plan.configuration.githubOwner + '/' + project.slug %></dd>
     <dt>Branch</dt><dd><%= project.branch %></dd>
     <dt>Render workspace</dt><dd><%= plan.configuration.renderOwnerId || 'Not configured' %></dd>
+    <% if (plan.action === 'service') { %><dt>Shared Global Control group</dt><dd><%= plan.configuration.renderEnvGroupId %> (linked automatically; GLOBAL_CONTROL_URL only)</dd><% } %>
     <dt>Web service</dt><dd><%= plan.settings.serviceName %> · <%= plan.settings.servicePlan %></dd>
     <dt>Database</dt><dd><%= plan.settings.databaseName %> · <%= plan.settings.databasePlan %> · PostgreSQL 17</dd>
     <dt>Region</dt><dd><%= plan.settings.region %></dd>
@@ -19,6 +20,8 @@
     Web service creation sends only its separate database URL and a new session secret directly to Render;
     no Core database or Google credentials are copied. A first deployment may start immediately.
     Subsequent automatic deployments are off.</p>
+  <% if (plan.action === 'service') { %><p>The shared group is linked after service creation. The first deployment may already be running:
+    check the group link and manually deploy the latest commit once creation completes if the app reports missing Global Control configuration.</p><% } %>
   <p>Teacher Planner's existing repository is not overwritten. Check for a surviving database before creating a new one.</p>
   <form action="/module-builder/<%= project.id %>/provision" method="post" class="mb-form">
     <input type="hidden" name="csrf" value="<%= csrf %>"><input type="hidden" name="action" value="<%= plan.action %>"><input type="hidden" name="digest" value="<%= digest %>">

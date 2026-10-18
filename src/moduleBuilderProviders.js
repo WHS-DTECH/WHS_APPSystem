@@ -13,11 +13,13 @@ class BuilderError extends Error {
 function createBuilderProviders({ env = process.env, fetchImpl = fetch } = {}) {
   const githubOwner = env.MODULE_BUILDER_GITHUB_OWNER || 'WHS-DTECH';
   const ownerId = env.MODULE_BUILDER_RENDER_OWNER_ID || '';
+  const sharedGroupId = env.MODULE_BUILDER_RENDER_ENV_GROUP_ID || '';
   const configuration = () => ({
     githubOwner,
     githubConfigured: Boolean(env.MODULE_BUILDER_GITHUB_TOKEN),
     renderConfigured: Boolean(env.MODULE_BUILDER_RENDER_API_KEY && ownerId),
-    renderOwnerId: ownerId
+    renderOwnerId: ownerId,
+    renderEnvGroupId: sharedGroupId
   });
 
   async function api(provider, endpoint, method = 'GET', body) {
@@ -118,10 +120,21 @@ function createBuilderProviders({ env = process.env, fetchImpl = fetch } = {}) {
     return { databaseId: result.id, databaseStatus: result.status || 'unknown' };
   }
 
-  async function service(project, settings) {
+  async function service(project, settings, checkpoint = async () => {}) {
     if (!settings.databaseId) throw new BuilderError('Create or record a separate development database first.');
     if (!project.repository) throw new BuilderError('Register a GitHub repository first.');
     if (project.repository_managed && !project.framework_commit) throw new BuilderError('Install the framework before creating its web service.');
+    if (!/^evg-[a-z0-9]+$/.test(sharedGroupId)) throw new BuilderError('Configure MODULE_BUILDER_RENDER_ENV_GROUP_ID with the module-safe shared Render group ID before creating a service.', 503);
+    const group = await api('Render', `/env-groups/${sharedGroupId}`);
+    if (group.ownerId !== ownerId || !Array.isArray(group.envVars) || !Array.isArray(group.secretFiles)
+      || group.secretFiles.length || group.envVars.length !== 1 || group.envVars[0].key !== 'GLOBAL_CONTROL_URL') {
+      throw new BuilderError('Shared module group must belong to this workspace and contain only GLOBAL_CONTROL_URL, with no secret files.', 409);
+    }
+    let coreUrl;
+    try { coreUrl = new URL(group.envVars[0].value); } catch { throw new BuilderError('Shared GLOBAL_CONTROL_URL must be a valid HTTPS origin.', 409); }
+    if (coreUrl.protocol !== 'https:' || coreUrl.username || coreUrl.password || coreUrl.pathname !== '/' || coreUrl.search || coreUrl.hash) {
+      throw new BuilderError('Shared GLOBAL_CONTROL_URL must be an HTTPS origin without credentials, path, query or fragment.', 409);
+    }
     const db = await api('Render', `/postgres/${settings.databaseId}`);
     if (db.owner?.id !== ownerId || db.region !== settings.region) throw new BuilderError('Database must belong to the configured Render workspace and selected region.');
     const connection = await api('Render', `/postgres/${settings.databaseId}/connection-info`);
@@ -146,10 +159,21 @@ function createBuilderProviders({ env = process.env, fetchImpl = fetch } = {}) {
     });
     const created = result.service;
     if (!/^srv-[a-z0-9]+$/.test(created?.id || '')) throw new BuilderError('Service creation needs reconciliation in Render.', 502, true);
-    return {
+    const recorded = {
       serviceId: created.id, deployId: result.deployId || '',
       appUrl: created.serviceDetails?.url || ''
     };
+    // Save the created service before the second external mutation.
+    await checkpoint(recorded);
+    try {
+      const linked = await api('Render', `/env-groups/${sharedGroupId}/services/${created.id}`, 'POST');
+      if (!linked.serviceLinks?.some((item) => item.id === created.id)) {
+        throw new BuilderError('Render did not confirm the shared group link.', 502, true);
+      }
+    } catch {
+      throw new BuilderError('Service was created and recorded, but its shared group link was not confirmed. Inspect Render, link the configured group if needed, then reconcile. Do not create another service.', 502, true);
+    }
+    return { ...recorded, sharedEnvGroupId: sharedGroupId };
   }
 
   async function verify(project, settings) {
@@ -187,7 +211,7 @@ function createBuilderProviders({ env = process.env, fetchImpl = fetch } = {}) {
     return result;
   }
 
-  return { configuration, repository, scaffold, upgrade: (project, settings) => scaffold(project, settings, true), database, service, verify };
+  return { configuration, repository, scaffold: (project, settings) => scaffold(project, settings), upgrade: (project, settings) => scaffold(project, settings, true), database, service, verify };
 }
 
 module.exports = { BuilderError, createBuilderProviders };
