@@ -47,8 +47,10 @@ function createAdminUsersRouter({ dbQuery = query, initDirectory = () => require
       SELECT DISTINCT r.hub_key,r.hub_key,r.hub_key,true,'hub',NULL::uuid,true
       FROM hub_roles r WHERE NOT EXISTS (SELECT 1 FROM modules m WHERE m.module_key=r.hub_key)
         AND NOT EXISTS (SELECT 1 FROM student_apps a WHERE a.hub_key=r.hub_key)
+        AND NOT EXISTS (SELECT 1 FROM module_builder_projects p WHERE p.slug=r.hub_key)
       UNION ALL
-      SELECT 'project:'||p.id,p.name,NULL,p.stage<>'archived','project',p.id,false
+      SELECT 'project:'||p.id,p.name,p.slug,p.stage<>'archived','project',p.id,
+        EXISTS (SELECT 1 FROM hub_roles r WHERE r.hub_key=p.slug)
       FROM module_builder_projects p
       WHERE NOT EXISTS (SELECT 1 FROM modules m WHERE m.module_key=p.slug)
       ORDER BY label,key`)).rows.map(row => ({
@@ -65,6 +67,9 @@ function createAdminUsersRouter({ dbQuery = query, initDirectory = () => require
     try {
       await initDirectory();
       const modules = await moduleCatalogue();
+      const canonical = modules.find(item => item.key !== module &&
+        (module === 'module:' + item.hub_key || (item.project_id && module === 'project:' + item.project_id)));
+      if (canonical) return res.redirect(scopeUrl(canonical.key));
       if (!validScope(module, modules)) return invalid(res, 'Choose Global Control or a registered module.');
       const selectedModule = modules.find(item => item.key === module);
       const editable = global || Boolean(selectedModule.has_roles);
@@ -82,11 +87,12 @@ function createAdminUsersRouter({ dbQuery = query, initDirectory = () => require
             r.name AS role_name,ur.assignment_source,NULL::text AS area_key
           FROM user_roles ur JOIN roles r ON r.id=ur.role_id WHERE r.name NOT IN ('Staff','Student')
           UNION ALL
-          SELECT ur.user_id,'hub',COALESCE(m.display_name,a.name,r.hub_key),
+          SELECT ur.user_id,'hub',COALESCE(m.display_name,a.name,p.name,r.hub_key),
             r.display_name,NULL,ur.area_key
           FROM user_hub_roles ur JOIN hub_roles r ON r.id=ur.hub_role_id
           LEFT JOIN modules m ON m.module_key=r.hub_key
           LEFT JOIN student_apps a ON a.hub_key=r.hub_key
+          LEFT JOIN module_builder_projects p ON p.slug=r.hub_key
           UNION ALL
           SELECT t.user_id,'teacher-module',m.display_name,NULL,NULL,NULL
           FROM teacher_module_assignments t JOIN modules m ON m.id=t.module_id

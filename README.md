@@ -703,7 +703,8 @@ Choices without independent roles show links to the existing teacher module
 assignment/role-permission pages or project environment settings instead of
 non-functional role forms. Teacher module allocations control dashboard
 visibility, not route authorization. The current module identity bridge remains
-Global-ADMIN-only (including Teacher Planner); this selector does not loosen it.
+Global-ADMIN-only for other projects. Teacher Planner also accepts its explicitly
+assigned module Teacher role.
 
 Directory searches require at least two characters and match current KAMAR names,
 school emails, staff codes or student IDs. Results are limited to 20; refine the
@@ -738,6 +739,16 @@ Staff/Student roles are excluded; inherited Teacher access and ADMIN's hub
 override are not presented as explicit assignments. System-managed roles and
 inactive accounts are labelled. Change roles through the existing scoped forms;
 the summary does not modify permissions or assignments.
+
+For **Teacher Planner**, select the module and assign **Teacher** using the normal
+directory form. This hub-wide assignment enables its registered environments'
+sign-in independently of the global Teacher role or teacher dashboard allocations.
+Migration `030_teacher_planner_roles.sql` adds only this role, not user grants.
+Global ADMIN retains access; active assigned teachers receive only a Teacher
+identity. Authorization is checked at handoff, code exchange and every identity
+request, so removing the assignment revokes existing access. Other projects stay
+ADMIN-only. Private planner entries remain owner-only, and school-wide settings
+remain ADMIN-only. Deploy both Core and Teacher Planner for this workflow.
 
 ## Kamar Uploader module
 

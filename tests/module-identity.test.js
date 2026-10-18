@@ -21,6 +21,11 @@ test('Global Control identity binds codes to clients, PKCE, current ADMIN roles 
     for (const migration of ['001_init.sql', '002_roles_and_module_assignments.sql', '026_module_builder.sql', '027_module_identity.sql', '027_module_identity.sql']) {
       await pool.query(await fs.readFile(path.join(__dirname, '..', 'migrations', migration), 'utf8'));
     }
+    await pool.query(`CREATE TABLE sewing_hub_access(user_id uuid,access_level text,granted_by uuid);
+      CREATE TABLE technology_hub_access(user_id uuid,area_key text);`);
+    for (const migration of ['007_hub_roles_and_permissions.sql', '016_hub_roles_base.sql', '030_teacher_planner_roles.sql']) {
+      await pool.query(await fs.readFile(path.join(__dirname, '..', 'migrations', migration), 'utf8'));
+    }
     const durationMigration = await fs.readFile(path.join(__dirname, '..', 'migrations', '028_module_identity_session_duration.sql'), 'utf8');
     await pool.query(durationMigration);
     await pool.query(durationMigration);
@@ -67,7 +72,9 @@ test('Global Control identity binds codes to clients, PKCE, current ADMIN roles 
     let response = await authorize();
     assert.equal(response.status, 302);
     assert.match(response.headers.get('location'), /^\/auth\/google\?next=/);
+    await pool.query('DELETE FROM user_roles WHERE user_id=$1', [user.id]);
     assert.equal((await authorize('Teacher')).status, 403);
+    await pool.query("INSERT INTO user_roles(user_id,role_id) SELECT $1,id FROM roles WHERE name='ADMIN'", [user.id]);
     assert.equal((await authorize('ADMIN', { redirect_uri: 'https://evil.onrender.com/auth/global-control/callback' })).status, 400);
     assert.equal((await authorize('ADMIN', { code_challenge_method: 'plain' })).status, 400);
     response = await authorize('ADMIN');
@@ -128,6 +135,36 @@ test('Global Control identity binds codes to clients, PKCE, current ADMIN roles 
     assert.equal((await post('revoke', {}, 'bad')).status,401);
     assert.equal((await post('revoke', {}, activeToken)).status,200);
     assert.equal((await post('identity', {client_id:parameters.client_id},activeToken)).status,401);
+    await pool.query('DELETE FROM user_roles WHERE user_id=$1', [user.id]);
+    await pool.query("INSERT INTO user_roles(user_id,role_id) SELECT $1,id FROM roles WHERE name='Teacher'", [user.id]);
+    assert.equal((await authorize('Teacher')).status, 403);
+    await pool.query(`INSERT INTO user_hub_roles(user_id,hub_role_id)
+      SELECT $1,id FROM hub_roles WHERE hub_key='teacher-planner' AND role_key='teacher'`, [user.id]);
+    response = await authorize('Teacher');
+    assert.equal(response.status, 302);
+    const teacherCode = new URL(response.headers.get('location')).searchParams.get('code');
+    const teacherIssued = await post('token', { ...body, code: teacherCode });
+    assert.equal(teacherIssued.status, 200);
+    const teacherToken = (await teacherIssued.json()).access_token;
+    const teacherIdentity = await post('identity', { client_id: parameters.client_id }, teacherToken);
+    assert.deepEqual((await teacherIdentity.json()).roles, ['Teacher']);
+    assert.equal((await post('school-calendar', { client_id: parameters.client_id, year: 2026 }, teacherToken)).status, 200);
+    const otherProject = (await pool.query(`INSERT INTO module_builder_projects(slug,name,mount_path)
+      VALUES ('other-module','Other Module','/other/') RETURNING id`)).rows[0];
+    await pool.query(`UPDATE module_builder_environments SET config=config || '{"appUrl":"https://other-fixture.onrender.com/"}'
+      WHERE project_id=$1 AND kind='development'`, [otherProject.id]);
+    assert.equal((await authorize('Teacher', { client_id: 'other-module:development',
+      redirect_uri: 'https://other-fixture.onrender.com/auth/global-control/callback' })).status, 403);
+    await pool.query('UPDATE users SET is_active=false WHERE id=$1', [user.id]);
+    assert.equal((await authorize('Teacher')).status, 403);
+    assert.equal((await post('identity', { client_id: parameters.client_id }, teacherToken)).status, 401);
+    await pool.query('UPDATE users SET is_active=true WHERE id=$1', [user.id]);
+    response = await authorize('Teacher');
+    const revokedCode = new URL(response.headers.get('location')).searchParams.get('code');
+    await pool.query('DELETE FROM user_hub_roles WHERE user_id=$1', [user.id]);
+    assert.equal((await post('identity', { client_id: parameters.client_id }, teacherToken)).status, 401);
+    assert.equal((await post('token', { ...body, code: revokedCode })).status, 401);
+    assert.equal((await authorize('Teacher')).status, 403);
     await pool.query("UPDATE module_builder_projects SET stage='archived' WHERE id=$1", [project.id]);
     assert.equal((await authorize('ADMIN')).status, 400);
   } finally {

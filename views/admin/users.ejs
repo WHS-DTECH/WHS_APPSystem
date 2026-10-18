@@ -21,6 +21,11 @@
   <p><strong>Global ADMIN has administration across all hubs.</strong> A lower hub role does not restrict a Global ADMIN.
     Within a hub, Lead Teacher is its administrator role. Global Control Lead Teacher has Teacher access only.</p>
   <p>All registered modules, registered apps and Module Builder projects are included. Area-specific grants remain in their existing management pages.</p>
+  <% if (module === 'teacher-planner') { %>
+    <p>Assign <strong>Teacher</strong> below to enable Teacher Planner sign-in. This is separate from Global Control Teacher.
+      Each teacher can access only their own planner entries. School-wide settings remain Global-ADMIN-only.
+      Removing the assignment revokes access on the next identity check. This assignment applies to the registered Teacher Planner environments.</p>
+  <% } %>
   <% if (!editable) { %>
     <h2>Existing access controls — <%= moduleLabel %></h2>
     <% if (selectedModule.project_id) { %>

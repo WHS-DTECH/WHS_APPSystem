@@ -25,7 +25,7 @@ function createModuleIdentityRouter({ dbQuery = query, schoolCalendar = loadScho
   async function client(id) {
     if (typeof id !== 'string' || !/^[a-z][a-z0-9-]{2,59}:(development|staging|production)$/.test(id)) return null;
     const [slug, kind] = id.split(':');
-    const row = (await dbQuery(`SELECT p.id, e.kind, e.config->>'appUrl' AS app_url
+    const row = (await dbQuery(`SELECT p.id,p.slug, e.kind, e.config->>'appUrl' AS app_url
       FROM module_builder_projects p JOIN module_builder_environments e ON e.project_id=p.id
       WHERE p.slug=$1 AND e.kind=$2 AND p.stage<>'archived'`, [slug, kind])).rows[0];
     if (!row?.app_url) return null;
@@ -34,6 +34,20 @@ function createModuleIdentityRouter({ dbQuery = query, schoolCalendar = loadScho
       || url.username || url.password || url.port || url.search || url.hash) return null;
     return { ...row, callback: new URL('/auth/global-control/callback', url.origin).href };
   }
+  async function authorisedUser(registered, userId) {
+    return (await dbQuery(`SELECT u.id,u.email,u.display_name,u.avatar_url,
+      CASE WHEN EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id=ur.role_id
+        WHERE ur.user_id=u.id AND r.name='ADMIN') THEN ARRAY['ADMIN']::text[]
+        ELSE ARRAY['Teacher']::text[] END AS roles
+      FROM users u WHERE u.id=$1 AND u.is_active=true AND (
+        EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id=ur.role_id
+          WHERE ur.user_id=u.id AND r.name='ADMIN')
+        OR ($2='teacher-planner' AND EXISTS (
+          SELECT 1 FROM user_hub_roles ur JOIN hub_roles r ON r.id=ur.hub_role_id
+          WHERE ur.user_id=u.id AND ur.area_key IS NULL
+            AND r.hub_key='teacher-planner' AND r.role_key='teacher'
+        )))`, [userId, registered.slug])).rows[0];
+  }
   router.get('/authorize', wrap(async (req, res) => {
     const registered = await client(req.query.client_id);
     if (!registered || req.query.redirect_uri !== registered.callback || !opaque(req.query.state)
@@ -41,7 +55,11 @@ function createModuleIdentityRouter({ dbQuery = query, schoolCalendar = loadScho
       return deny(res, 'Invalid module sign-in request.', 400);
     }
     if (!req.user) return res.redirect('/auth/google?next=' + encodeURIComponent(req.originalUrl));
-    if (!req.user.roles?.includes('ADMIN')) return deny(res, 'Development modules are available only to global administrators.');
+    if (!await authorisedUser(registered, req.user.id)) {
+      return deny(res, registered.slug === 'teacher-planner'
+        ? 'Ask an administrator to assign you the Teacher role in Teacher Planner.'
+        : 'Development modules are available only to global administrators.');
+    }
     const code = crypto.randomBytes(32).toString('base64url');
     await dbQuery("DELETE FROM module_identity_codes WHERE expires_at < NOW()");
     await dbQuery(`INSERT INTO module_identity_codes(code_hash,project_id,kind,user_id,challenge,callback_url)
@@ -59,6 +77,7 @@ function createModuleIdentityRouter({ dbQuery = query, schoolCalendar = loadScho
       WHERE code_hash=$1 AND project_id=$2 AND kind=$3 AND challenge=$4 AND callback_url=$5 AND expires_at>NOW()
       RETURNING user_id`, [hash(req.body.code), registered.id, registered.kind, hash(req.body.code_verifier), registered.callback])).rows[0];
     if (!grant) return deny(res, 'Module code expired, invalid or already used.', 401);
+    if (!await authorisedUser(registered, grant.user_id)) return deny(res, 'Module access is no longer authorised.', 401);
     const token = crypto.randomBytes(32).toString('base64url');
     await dbQuery('DELETE FROM module_identity_grants WHERE expires_at < NOW()');
     await dbQuery(`INSERT INTO module_identity_grants(token_hash,project_id,kind,user_id,callback_url,expires_at)
@@ -70,13 +89,12 @@ function createModuleIdentityRouter({ dbQuery = query, schoolCalendar = loadScho
     const registered = await client(req.body.client_id);
     const token = req.get('authorization')?.replace(/^Bearer /, '');
     if (!registered || !opaque(token)) { deny(res, 'Invalid module identity request.', 401); return null; }
-    const user = (await dbQuery(`SELECT u.id,u.email,u.display_name,u.avatar_url FROM module_identity_grants g
-      JOIN users u ON u.id=g.user_id
-      WHERE g.token_hash=$1 AND g.project_id=$2 AND g.kind=$3 AND g.callback_url=$4 AND g.expires_at>NOW()
-      AND EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id=ur.role_id WHERE ur.user_id=u.id AND r.name='ADMIN')`,
+    const grant = (await dbQuery(`SELECT g.user_id FROM module_identity_grants g
+      WHERE g.token_hash=$1 AND g.project_id=$2 AND g.kind=$3 AND g.callback_url=$4 AND g.expires_at>NOW()`,
     [hash(token), registered.id, registered.kind, registered.callback])).rows[0];
+    const user = grant ? await authorisedUser(registered, grant.user_id) : null;
     if (!user) { deny(res, 'Module access expired or no longer authorised.', 401); return null; }
-    return { ...user, roles: ['ADMIN'] };
+    return user;
   }
   router.post('/identity', wrap(async (req, res) => {
     const user = await identity(req, res);
