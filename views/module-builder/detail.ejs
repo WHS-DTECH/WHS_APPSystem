@@ -43,8 +43,8 @@
     </form>
   <% }) %>
   </div>
-  <p>GitHub credentials: <%= configuration.githubConfigured ? 'Configured; not automatically verified' : 'Missing' %>.
-    Render credentials/workspace: <%= configuration.renderConfigured ? 'Configured; not automatically verified' : 'Missing' %>.</p>
+  <p class="mb-provider-status"><span><strong>GitHub credentials:</strong> <%= configuration.githubConfigured ? 'Configured; not automatically verified' : 'Missing' %>.</span>
+    <span><strong>Render credentials/workspace:</strong> <%= configuration.renderConfigured ? 'Configured; not automatically verified' : 'Missing' %>.</span></p>
   <p>Automatic provisioning supports development only. Existing databases may be recorded, but automatic database wiring uses only a database created by this wizard.</p>
 </section>
 <% kinds.forEach((kind) => { const record = environments.find((item) => item.kind === kind); const config = record.config;
