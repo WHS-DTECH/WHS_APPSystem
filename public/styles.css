@@ -9,6 +9,43 @@
   --gold: #c08a2c;
 }
 
+.page:has(.user-roles-layout) { max-width: 1600px; }
+.user-roles-layout { display: grid; grid-template-columns: 150px minmax(210px, 260px) minmax(0, 1fr); gap: 18px; align-items: start; }
+.user-roles-sections, .user-roles-main { display: grid; gap: 14px; min-width: 0; }
+.user-roles-sections .button { text-align: left; }
+.user-role-directory { min-width: 0; }
+.user-role-directory h2, .user-roles-main h2 { font-size: 1.15rem; margin-top: 0; }
+.user-role-directory section + section { border-top: 1px solid var(--line); margin-top: 20px; padding-top: 20px; }
+.user-role-directory input { width: 100%; min-width: 0; }
+.user-role-directory p { font-size: .85rem; }
+.user-role-results { list-style: none; padding: 0; margin: 0; }
+.user-role-results li + li { margin-top: 6px; }
+.user-role-results button { width: 100%; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+.user-role-add { display: grid; grid-template-columns: minmax(100px, .7fr) minmax(150px, 1.5fr) minmax(110px, 1fr) auto; gap: 10px; align-items: end; }
+.user-role-add label { display: block; margin-bottom: 5px; }
+.user-role-add input, .user-role-add select { width: 100%; min-width: 0; }
+.user-role-table-wrap { overflow-x: auto; }
+.user-role-table { border-collapse: collapse; width: 100%; text-align: left; }
+.user-role-table th, .user-role-table td { border: 1px solid var(--line); padding: 10px; vertical-align: top; }
+.user-role-table th { background: var(--accent); color: white; }
+.user-role-table td { overflow-wrap: anywhere; }
+.user-role-assignment, .user-role-remove { margin: 0 0 8px; }
+.user-role-assignment small { display: block; margin-top: 4px; }
+@media (max-width: 1500px) {
+  .user-role-add { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 1250px) {
+  .user-roles-layout { grid-template-columns: minmax(200px, 240px) minmax(0, 1fr); }
+  .user-roles-sections { grid-column: 1 / -1; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .user-role-add { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 700px) {
+  .user-roles-layout, .user-role-add { grid-template-columns: minmax(0, 1fr); }
+  .user-roles-sections { grid-template-columns: minmax(0, 1fr); }
+  .user-role-table { font-size: .85rem; }
+  .user-role-table th, .user-role-table td { padding: 6px; }
+}
+
 body.theme-admin {
   --accent: #0d5c4a;
   --accent-strong: #093f34;

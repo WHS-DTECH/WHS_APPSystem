@@ -3,32 +3,107 @@
 <section class="page-title">
   <p class="eyebrow">Administration</p>
   <h1>Assign User Roles</h1>
-  <p>Staff and Student access comes from the current Kamar Staff and Student lists. Use the controls below for additional roles, such as giving a Student Teacher access.</p>
+  <p>Search the current KAMAR lists and assign additional Global Control roles. DTECH-HUB roles are managed separately.</p>
 </section>
 
-<section class="panel table-panel">
-  <% users.forEach((user) => { %>
-    <form class="row-form" action="/admin/users/<%= user.id %>/roles" method="post">
-      <div>
-        <strong><%= user.display_name %></strong>
-        <span><%= user.email %></span>
-        <div class="access-source-list">
-          <% if (user.is_kamar_staff) { %><span class="access-source">Kamar Staff</span><% } %>
-          <% if (user.is_kamar_student) { %><span class="access-source">Kamar Student</span><% } %>
-          <% if (!user.is_kamar_staff && !user.is_kamar_student) { %><span class="access-source access-source-public">Public</span><% } %>
+<% if (saved) { %>
+  <p class="panel" role="status">Role <%= saved %>. Other role assignments are unchanged.</p>
+<% } %>
+<div class="user-roles-layout">
+  <nav class="user-roles-sections" aria-label="Role management sections">
+    <a class="button" href="#add-user-role">Add Role to User</a>
+    <a class="button" href="#users-with-roles">Users with Roles</a>
+    <a class="button" href="#roles-help">How It Works</a>
+  </nav>
+
+  <aside class="panel user-role-directory" aria-label="KAMAR user directory">
+    <% for (const [type, label, hint] of [['staff', 'Staff', 'name, email or staff code'], ['student', 'Student', 'name, email or student ID']]) { %>
+      <section>
+        <h2><%= label %> List</h2>
+        <p>Select a <%= type %> member to load their details into the role form.</p>
+        <label for="role-search-<%= type %>">Search <%= type %></label>
+        <input id="role-search-<%= type %>" type="search" maxlength="80" placeholder="Search <%= hint %>" autocomplete="off">
+        <p id="role-search-status-<%= type %>" role="status">Type at least two characters to search.</p>
+        <ul id="role-search-results-<%= type %>" class="user-role-results"></ul>
+      </section>
+    <% } %>
+  </aside>
+
+  <div class="user-roles-main">
+    <section class="panel" id="add-user-role">
+      <h2>Add Role to User</h2>
+      <p>Signed in as <%= currentUser.email %>. Select someone from either list or enter their current KAMAR email.</p>
+      <form action="/admin/users/add" method="post" class="user-role-add">
+        <input type="hidden" name="csrf" value="<%= csrf %>">
+        <div>
+          <label for="role-user-type">User type</label>
+          <select id="role-user-type" name="type" required>
+            <option value="">Select type</option>
+            <option value="staff">Staff</option>
+            <option value="student">Student</option>
+          </select>
         </div>
-      </div>
-      <fieldset class="checks">
-        <% roles.forEach((role) => { %>
-          <label>
-            <input type="checkbox" name="roleIds" value="<%= role.id %>" <%= user.roles.includes(role.name) ? 'checked' : '' %>>
-            <%= role.name %>
-          </label>
-        <% }) %>
-      </fieldset>
-      <button class="button" type="submit">Save roles</button>
-    </form>
-  <% }) %>
-</section>
+        <div>
+          <label for="role-user-email">User email</label>
+          <input id="role-user-email" name="email" type="email" maxlength="254" required autocomplete="off">
+        </div>
+        <div>
+          <label for="role-to-add">Role to add</label>
+          <select id="role-to-add" name="roleId" required>
+            <option value="">Select role</option>
+            <% roles.forEach((role) => { %><option value="<%= role.id %>"><%= role.name %></option><% }) %>
+          </select>
+        </div>
+        <button class="button button-primary" type="submit">Add role</button>
+      </form>
+      <p id="role-selected-person" role="status">No directory user selected.</p>
+    </section>
 
+    <section class="panel" id="users-with-roles">
+      <h2>Users with Additional Roles</h2>
+      <% if (!users.length) { %><p>No additional Global Control roles are assigned.</p><% } else { %>
+        <div class="user-role-table-wrap">
+          <table class="user-role-table">
+            <thead><tr><th scope="col">Type</th><th scope="col">User</th><th scope="col">Additional roles</th><th scope="col">Actions</th></tr></thead>
+            <tbody>
+              <% users.forEach((user) => { %>
+                <tr>
+                  <td><%= user.is_staff ? 'Staff' : user.is_student ? 'Student' : 'Other' %></td>
+                  <td><strong><%= user.display_name %></strong><br><%= user.email %></td>
+                  <td><% user.assignments.forEach((role) => { %>
+                    <div class="user-role-assignment"><span class="access-source"><%= role.name %></span>
+                      <% if (role.source !== 'manual') { %><small><%= role.source %>-managed</small><% } %>
+                    </div>
+                  <% }) %></td>
+                  <td><% user.assignments.forEach((role) => { %>
+                    <% if (role.source === 'manual') { %>
+                      <form action="/admin/users/remove" method="post" class="user-role-remove">
+                        <input type="hidden" name="csrf" value="<%= csrf %>">
+                        <input type="hidden" name="userId" value="<%= user.id %>">
+                        <input type="hidden" name="roleId" value="<%= role.id %>">
+                        <button class="button" type="submit" aria-label="Remove <%= role.name %> from <%= user.email %>">Remove <%= role.name %></button>
+                      </form>
+                    <% } %>
+                  <% }) %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+
+    <section class="panel" id="roles-help">
+      <h2>How It Works</h2>
+      <ul>
+        <li><strong>Primary access:</strong> Staff and Student access comes from the current KAMAR lists and is refreshed at Google sign-in.</li>
+        <li><strong>Additional roles:</strong> Add ADMIN or Teacher access without replacing other roles. Assigning a role before a person's first sign-in prepares their account; it does not sign them in.</li>
+        <li><strong>Combined access:</strong> Permissions from assigned roles work together. ADMIN grants system-wide administration, not just DTECH-HUB access.</li>
+        <li><strong>Protected roles:</strong> KAMAR and system-managed assignments cannot be removed here. Only manually assigned additional roles have Remove buttons.</li>
+        <li><strong>Directory:</strong> Searches use current uploaded KAMAR staff and students. Missing people or email addresses must be corrected in KAMAR Uploader.</li>
+      </ul>
+    </section>
+  </div>
+</div>
+<script src="/admin-user-roles.js" defer></script>
 <%- include('../partials/footer') %>

@@ -686,6 +686,26 @@ The Technology Hub homepage is public at `/technology-hub`. Its four discipline 
 
 The Sewing Hub is the legacy Sewing Room site (`public/sewing-hub`, legacy API in `src/legacy/sewing-hub`) under `/sewing-hub`, using the Google login. Browsing is open as in the legacy site; ADMINs (and Teachers granted "teacher" access at `/sewing-hub/admin`) can upload, edit and delete activities, URL ideas and images. Existing activities and suggestions are copied once from `INTEGRATION_SEWING_HUB_DATABASE_URL` (guarded by `sewing_legacy_import`); all new data is stored in `DATABASE_URL`. Image uploads use the legacy `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `CLOUDINARY_UPLOAD_FOLDER` or `OBJECT_STORAGE_ENDPOINT`, `OBJECT_STORAGE_BUCKET`, `OBJECT_STORAGE_ACCESS_KEY_ID`, `OBJECT_STORAGE_SECRET_ACCESS_KEY`, `OBJECT_STORAGE_PUBLIC_BASE_URL` variables, which must be set on this web service.
 
+## Global Control user-role assignment
+
+**Administration > Assign User Roles** (`/admin/users`) uses the DTECH-HUB-style
+section links, searchable Staff and Student lists, Add Role form, additional-role
+table and How It Works guidance. This is a layout adaptation only: options remain
+Global Control roles such as ADMIN and Teacher, not DTECH-HUB roles.
+
+Directory searches require at least two characters and match current KAMAR names,
+school emails, staff codes or student IDs. Results are limited to 20; refine the
+search when more matches exist. Selecting a result fills the user type and email.
+Adding a role requires a matching current directory entry with a school email.
+It can prepare an account before its first Google sign-in; the existing Google
+login attaches to that email and refreshes KAMAR-derived primary access.
+
+Each addition preserves all other assignments. Remove buttons delete only the
+selected manually assigned additional role; KAMAR Staff/Student and system-managed
+roles are protected and labelled separately. The page and directory API are
+global-ADMIN-only, and role mutations require the session's form token. Existing
+user-role records are not migrated or replaced. Other hub-role pages are unchanged.
+
 ## Kamar Uploader module
 
 Sign-in, profile and sign-out use Global Control's shared Google avatar/header

@@ -12,7 +12,6 @@ const { importLegacyWorkshop } = require('./legacyWorkshopImport');
 const { ensureAuthenticated, ensureRole } = require('./middleware');
 const kamarUploader = require('./modules/kamarUploader');
 const kamarUploaderApi = require('./legacy/kamar-uploader/routes');
-const kamarStore = require('./legacy/kamar-uploader/store');
 const learningSites = require('./modules/learningSites');
 const { adminRouter: technologyHubAdmin, publicRouter: technologyHubPublic } = require('./modules/technologyHub');
 const sewingHub = require('./modules/sewingHub');
@@ -31,6 +30,7 @@ const { describeModules } = require('./moduleDocs');
 const { createModuleBuilderRouter } = require('./moduleBuilder');
 const { createModuleIdentityRouter } = require('./moduleIdentity');
 const { createContactRouter } = require('./contact');
+const { createAdminUsersRouter } = require('./adminUsers');
 
 const app = express();
 
@@ -332,27 +332,7 @@ app.get('/admin', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, nex
   }
 });
 
-app.get('/admin/users', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
-  try {
-    await kamarStore.init();
-    const users = (await query(
-      `SELECT users.*,
-              COALESCE(array_agg(DISTINCT roles.name) FILTER (WHERE roles.name IS NOT NULL), '{}') AS roles,
-              EXISTS (SELECT 1 FROM staff_upload WHERE LOWER(staff_upload.email_school) = LOWER(users.email) AND staff_upload.status = 'Current') AS is_kamar_staff,
-              EXISTS (SELECT 1 FROM student_details_upload WHERE LOWER(student_details_upload.email_school) = LOWER(users.email) AND student_details_upload.status = 'Current') AS is_kamar_student
-       FROM users
-       LEFT JOIN user_roles ON user_roles.user_id = users.id
-       LEFT JOIN roles ON roles.id = user_roles.role_id
-       GROUP BY users.id
-       ORDER BY users.email`
-    )).rows;
-     const roles = (await query("SELECT * FROM roles WHERE name NOT IN ('Staff', 'Student') ORDER BY name")).rows;
-
-     res.render('admin/users', { roles, title: 'Assign User Roles', users });
-  } catch (error) {
-    next(error);
-  }
-});
+app.use('/admin/users', createAdminUsersRouter());
 
 app.get('/admin/teachers', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
   try {
@@ -392,35 +372,6 @@ app.post('/admin/teachers/:userId/modules', ensureAuthenticated, ensureRole('ADM
     }
 
     res.redirect('/admin/teachers');
-  } catch (error) {
-    next(error);
-  }
-});
-
-app.post('/admin/users/:userId/roles', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
-  try {
-    const roleIds = Array.isArray(req.body.roleIds)
-      ? req.body.roleIds
-      : req.body.roleIds
-        ? [req.body.roleIds]
-        : [];
-
-    const allowedRoleIds = (await query("SELECT id FROM roles WHERE name NOT IN ('Staff', 'Student')")).rows.map((role) => role.id);
-    const selectedRoleIds = roleIds.filter((roleId) => allowedRoleIds.includes(roleId));
-
-    await query("DELETE FROM user_roles WHERE user_id = $1 AND assignment_source = 'manual'", [req.params.userId]);
-
-    for (const roleId of selectedRoleIds) {
-      await query(
-        `INSERT INTO user_roles (user_id, role_id, assignment_source)
-         VALUES ($1, $2, 'manual')
-         ON CONFLICT (user_id, role_id)
-         DO UPDATE SET assignment_source = EXCLUDED.assignment_source`,
-        [req.params.userId, roleId]
-      );
-    }
-
-    res.redirect('/admin/users');
   } catch (error) {
     next(error);
   }
