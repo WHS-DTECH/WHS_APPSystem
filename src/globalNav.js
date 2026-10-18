@@ -107,6 +107,7 @@ function navData(query, canManageHubRoles, datasetManagerUrl, canManageCourses =
       let datasetUrl = null;
       let courseManagementUrl = null;
       let homepageEventSettingsUrl = null;
+      let hubManagementUrl = null;
       let roleViews = [];
       let roleViewModule = null;
       let activeView = null;
@@ -122,7 +123,10 @@ function navData(query, canManageHubRoles, datasetManagerUrl, canManageCourses =
           ? '/dtech-hub/class-training/view/teacher?page=management' : '/dtech-hub/class-training/admin/';
       } else if (user && moduleForPath(currentPath)?.key === 'dtech') {
         const access = await accessForEmail(user.email, query);
-        if (access.active && access.admin) homepageEventSettingsUrl = '/dtech-hub/settings.html';
+        if (access.active && access.admin) {
+          homepageEventSettingsUrl = '/dtech-hub/settings.html';
+          hubManagementUrl = '/dtech-hub/admin-menu.html';
+        }
         if (access.active && access.teacher) {
           roleViewModule = 'DTECH Hub';
           activeView = effectiveDtechView(access, req.session, currentPath);
@@ -161,6 +165,7 @@ function navData(query, canManageHubRoles, datasetManagerUrl, canManageCourses =
         datasetManagerUrl: datasetUrl,
         courseManagementUrl,
         homepageEventSettingsUrl,
+        hubManagementUrl,
         userRoleManagementUrl: user?.roles?.includes('ADMIN') && /^\/admin\/kamar-uploader(?:\/|$)/.test(currentPath)
           ? '/admin/users' : null,
         roleViews,

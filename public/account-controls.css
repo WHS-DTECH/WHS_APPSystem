@@ -153,6 +153,8 @@ body:has(#whs-account-header) #whs-student-app-viewport {
 /* DTECH mode and account controls are supplied by Global Control. */
 .whs-dtech-integrated #hub-staff-link,
 .whs-dtech-integrated #hub-user-badge,
+.whs-dtech-integrated #hub-admin-link,
+.whs-dtech-integrated #hub-global-sidebar-admin-link,
 .whs-dtech-integrated #hub-global-sidebar-teacher-link {
   display: none !important;
 }

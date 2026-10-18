@@ -112,6 +112,11 @@ DTECH Hub for current DTECH administrators (including global ADMIN). It opens th
 original settings page with its existing 7/14/30-day browser-stored event window;
 the original page access restrictions and local shortcuts are unchanged.
 
+**Hub Management** in the same avatar Settings menu opens the original DTECH
+Admin Menu for current DTECH administrators. The duplicate Admin Menu controls in
+the DTECH top bar and local sidebar are hidden; the original management pages,
+back links and administrator checks are retained.
+
 Only the **Commenting and Debugging Training** homepage card is presented as a
 burgundy **Capsule**, grouped/filterable under Capsules. Other Activity cards
 and stored legacy categories are unchanged. Its link resolves the existing

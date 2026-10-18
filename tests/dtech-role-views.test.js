@@ -28,9 +28,11 @@ test('Homepage Event Settings uses the original page and requires current DTECH 
       (error) => { throw error; }
     );
     assert.equal(data.homepageEventSettingsUrl, expected ? '/dtech-hub/settings.html' : null, page);
+    assert.equal(data.hubManagementUrl, expected ? '/dtech-hub/admin-menu.html' : null, page);
   }
   const source = await fs.readFile(path.join(__dirname, '..', 'public', 'global-nav.js'), 'utf8');
   assert.match(source, /if \(data\.homepageEventSettingsUrl\) link\(settings, 'Homepage Event Settings', data\.homepageEventSettingsUrl\)/);
+  assert.match(source, /if \(data\.hubManagementUrl\) link\(settings, 'Hub Management', data\.hubManagementUrl\)/);
 });
 
 test('Global Control offers only current DTECH teachers its independent module views', async () => {
@@ -132,5 +134,7 @@ test('original homepage and activity detail use the session mode even with stale
   const css = await fs.readFile(path.join(__dirname, '..', 'public', 'account-controls.css'), 'utf8');
   assert.match(css, /\.whs-dtech-integrated #hub-staff-link,/);
   assert.match(css, /\.whs-dtech-integrated #hub-user-badge,/);
+  assert.match(css, /\.whs-dtech-integrated #hub-admin-link,/);
+  assert.match(css, /\.whs-dtech-integrated #hub-global-sidebar-admin-link,/);
   assert.match(css, /\.whs-dtech-integrated #hub-global-sidebar-teacher-link\s*\{\s*display: none !important;/);
 });
