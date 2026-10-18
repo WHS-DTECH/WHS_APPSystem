@@ -93,14 +93,16 @@ test('shared session adds CSRF to legacy fetch and XHR uploads, never external r
     send() { return this.headers; }
   }
   const window = {
-    whsDtech: { profile: { email: 'student@westlandhigh.school.nz' }, csrf: 'fixture-csrf', expiresAt: Date.now() + 10000 },
+    whsDtech: { profile: { email: 'student@westlandhigh.school.nz' }, csrf: 'fixture-csrf', viewMode: 'student', expiresAt: Date.now() + 10000 },
     fetch: async (...args) => { calls.push(args); }
   };
   const cache = { getItem: (key) => storage.get(key), setItem: (key, value) => storage.set(key, value) };
   vm.runInNewContext(await fs.readFile(path.join(__dirname, '..', 'public', 'dtech-session.js'), 'utf8'), {
     window, localStorage: cache, sessionStorage: cache, console, Headers, Request, URL, XMLHttpRequest: XHR,
+    document: { documentElement: { classList: { add(value) { assert.equal(value, 'whs-dtech-integrated'); } } } },
     location: { href: 'https://school.example/dtech-hub/', origin: 'https://school.example' }
   });
+  assert.equal(window.getEffectiveHubViewMode(), 'student');
   await window.fetch('/dtech-hub/api/student/drive-setup/confirm', { method: 'POST' });
   assert.equal(calls[0][1].headers.get('x-dtech-csrf'), 'fixture-csrf');
   await window.fetch('https://www.googleapis.com/drive/v3/files', { method: 'POST' });

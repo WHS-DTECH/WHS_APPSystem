@@ -1677,6 +1677,7 @@ function writeStoredHubViewMode(mode) {
 }
 
 function getEffectiveHubViewMode() {
+    if (window.whsDtech) return window.whsDtech.viewMode;
     if (isTeacherWorkspacePath()) {
         return "teacher";
     }

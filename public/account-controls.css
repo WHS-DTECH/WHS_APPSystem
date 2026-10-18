@@ -150,3 +150,9 @@ body:has(#whs-account-header) #whs-student-app-viewport {
   #whs-account-header, #whs-account-spacer { display: none; }
   body:has(#whs-account-header) #whs-student-app-viewport { height: auto; }
 }
+/* DTECH mode and account controls are supplied by Global Control. */
+.whs-dtech-integrated #hub-staff-link,
+.whs-dtech-integrated #hub-user-badge,
+.whs-dtech-integrated #hub-global-sidebar-teacher-link {
+  display: none !important;
+}

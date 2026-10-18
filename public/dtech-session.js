@@ -1,6 +1,8 @@
 (() => {
   const context = window.whsDtech;
   if (!context) return;
+  document.documentElement.classList.add('whs-dtech-integrated');
+  window.getEffectiveHubViewMode = () => context.viewMode;
   const key = 'whs_dtech_auth_v1';
   // Profile hints support the original UI; the server accepts only the signed school session.
   try {

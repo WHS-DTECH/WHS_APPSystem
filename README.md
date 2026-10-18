@@ -97,6 +97,16 @@ Class Training is the first capsule with integrated Teacher View / Student View:
 
 ## DTECH Hub: original site, separate database and private files
 
+DTECH Hub's Teacher View / Student View now uses the module-sensitive Global
+Control toggle (sidebar for administrators, shared header for other authorised
+teachers). Teacher View opens the original Teacher workspace; Student View opens
+the original homepage. The session choice drives the original homepage, activity
+details, standards and template-library modes, independently of Class Training.
+The duplicate DTECH mode switch and initials/role badge are hidden; identity and
+account actions remain in the shared Google avatar. Switching rechecks current
+DTECH teacher permission and never grants roles or changes legacy data. As in the
+original site, this is a content-view choice, not a reduction of server permissions.
+
 Only the **Commenting and Debugging Training** homepage card is presented as a
 burgundy **Capsule**, grouped/filterable under Capsules. Other Activity cards
 and stored legacy categories are unchanged. Its link resolves the existing

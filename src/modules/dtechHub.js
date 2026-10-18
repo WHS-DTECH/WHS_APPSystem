@@ -13,6 +13,7 @@ const PREFIX = '/dtech-hub';
 const SOURCE = path.join(__dirname, '..', 'legacy', 'dtech-hub');
 const ROLE_NAMES = { 'lead-teacher': 'Lead Teacher', teacher: 'Teacher', technician: 'Technician', staff: 'Staff', student: 'Student' };
 const TEACHER_PAGE = /^(?:teacher-|upload-|browse-(?:lessons|unit-plans|course-outlines)|class-management)/i;
+const TEACHER_WORKSPACE = /\/(?:teacher-view|upload-activity|upload-project|upload-menu|teacher-project-allocation|teacher-assessment-allocation|teacher-student-work|teacher-student-work-task|class-management)\.html$/i;
 const ADMIN_PAGE = /^(?:admin-|settings\.|supportFiles\/|practical-skills\/(?:admin|teacher-login)|learning-pathways\/(?:admin|comment-bank\.html|curriculum-mapping))/i;
 const PUBLIC_EXTENSIONS = new Set(['.html', '.js', '.css', '.json', '.png', '.jpg', '.jpeg', '.svg', '.ico']);
 const PUBLIC_DIRECTORIES = new Set(['images', 'ProjectPages', 'learning-pathways', 'practical-skills', 'supportFiles']);
@@ -81,6 +82,12 @@ function canWrite(access, url) {
   if (access.permissions.includes('planning.manage') && /^\/api\/(?:practicals|teacher|student-tracker|external-assessment-allocations|client-projects|template-library)/.test(url)) return true;
   // These routes already check ownership against the authenticated school email.
   return /^\/api\/(?:student\/|practical-skills\/(?:progress\/|research-report\/|minecraft-exports-folder)|integrations\/trello\/|suggestions$|tools-techniques-keywords$|activities\/[^/]+\/(?:interest$|my-|reset-template-use$|interests\/(?:me|[^/]+)\/(?:evidence|trello-link)$)|students\/(?:decomposition-coverage|digimed-efficient-tools)$|learning-pathways\/activity-progress\/)/.test(url);
+}
+
+function effectiveDtechView(access, session, currentPath = '') {
+  if (!access.teacher) return 'student';
+  if (TEACHER_WORKSPACE.test(currentPath)) return 'teacher';
+  return session?.dtechView === 'student' ? 'student' : 'teacher';
 }
 
 function createDtechRouter({ env = process.env, dbQuery = query, createLegacy, archive = createArchiveService({ env }) } = {}) {
@@ -169,6 +176,17 @@ function createDtechRouter({ env = process.env, dbQuery = query, createLegacy, a
       }
       req.dtechAccess = await access(req.user.email);
       if (!req.dtechAccess.active) return res.status(403).json({ error: 'This school account is inactive or unavailable.' });
+      if (req.dtechAccess.teacher && TEACHER_WORKSPACE.test(req.path)) req.session.dtechView = 'teacher';
+      if (req.method === 'GET' && /^\/view\/[^/]+$/.test(req.path)) {
+        if (!req.dtechAccess.teacher) return res.status(403).json({ error: 'DTECH teacher access is required to switch views.' });
+        const mode = req.path.slice('/view/'.length);
+        if (!['teacher', 'student'].includes(mode)) return res.status(400).json({ error: 'Choose Teacher View or Student View.' });
+        req.session.dtechView = mode;
+        return req.session.save((error) => {
+          if (error) return next(error);
+          return res.redirect(`${PREFIX}/${mode === 'teacher' ? 'teacher-view.html' : 'index.html'}`);
+        });
+      }
       if (!req.session.dtechCsrf) req.session.dtechCsrf = crypto.randomBytes(32).toString('hex');
       if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
         if (req.get('x-dtech-csrf') !== req.session.dtechCsrf) return res.status(403).json({ error: 'DTECH form session expired. Reload the page and retry.' });
@@ -231,6 +249,7 @@ function createDtechRouter({ env = process.env, dbQuery = query, createLegacy, a
         const context = JSON.stringify({
           profile: { email: req.user.email, name: req.user.display_name, picture: req.user.avatar_url, email_verified: true },
           csrf: req.session.dtechCsrf,
+          viewMode: effectiveDtechView(req.dtechAccess, req.session, req.path),
           expiresAt: new Date(req.session.cookie.expires).getTime()
         }).replace(/</g, '\\u003c');
         text = text.replace(/(<meta\s+name="hub-google-client-id"\s+content=")[^"]*(")/gi, `$1${env.GOOGLE_CLIENT_ID || ''}$2`);
@@ -248,4 +267,4 @@ function createDtechRouter({ env = process.env, dbQuery = query, createLegacy, a
   return router;
 }
 
-module.exports = { createDtechRouter, accessForEmail, prefixText, prefixData, canWrite };
+module.exports = { createDtechRouter, accessForEmail, effectiveDtechView, prefixText, prefixData, canWrite };

@@ -2,6 +2,7 @@ const SCRIPT_TAG = '<script src="/global-nav.js" defer></script>';
 const FAVICON_TAG = '<link rel="icon" type="image/x-icon" href="/images/favicon.ico">';
 const { moduleForPath } = require('./moduleSearch');
 const { effectiveTrainingRole } = require('./modules/classTraining');
+const { accessForEmail, effectiveDtechView } = require('./modules/dtechHub');
 
 // Adds the global left navigation script to every full HTML page, including the static legacy pages.
 function injectGlobalNav(req, res, next) {
@@ -118,6 +119,16 @@ function navData(query, canManageHubRoles, datasetManagerUrl, canManageCourses =
         }));
         courseManagementUrl = activeView === 'student'
           ? '/dtech-hub/class-training/view/teacher?page=management' : '/dtech-hub/class-training/admin/';
+      } else if (user && moduleForPath(currentPath)?.key === 'dtech') {
+        const access = await accessForEmail(user.email, query);
+        if (access.active && access.teacher) {
+          roleViewModule = 'DTECH Hub';
+          activeView = effectiveDtechView(access, req.session, currentPath);
+          roleViews = ['teacher', 'student'].map((key) => ({
+            key, label: key === 'teacher' ? 'Teacher View' : 'Student View',
+            url: `/dtech-hub/view/${key}`
+          }));
+        }
       } else if (user?.roles?.includes('ADMIN') && moduleForPath(currentPath)?.key === 'core') {
         roleViewModule = 'Core Administration';
         roleViews = ['admin', 'teacher', 'student'].map((key) => ({

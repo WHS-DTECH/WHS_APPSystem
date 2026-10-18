@@ -8528,6 +8528,7 @@ function isTeacherWorkspacePathForDetail() {
 }
 
 function readStoredHubViewModeForDetail() {
+    if (window.whsDtech) return window.whsDtech.viewMode;
     try {
         const value = localStorage.getItem(DETAIL_HUB_VIEW_MODE_KEY);
         return value === "teacher" || value === "student" ? value : "";
