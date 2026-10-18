@@ -83,6 +83,73 @@ test('prefix adapter preserves delimiters, external links and nested API/static 
     { url: '/dtech-hub/TeacherFiles/file.pdf', remote: '//example.test/file' });
 });
 
+test('adapted original Trello URLs preserve template expressions and encoded query values', async () => {
+  const source = prefixText(await fs.readFile(path.join(__dirname, '..', 'src', 'legacy', 'dtech-hub', 'ProjectPages', 'activity-detail.js'), 'utf8'));
+  const expressions = source.match(/`[^`\r\n]*\/api\/integrations\/trello\/(?:connections|list-progress)\?[^`\r\n]*`/g);
+  assert.equal(expressions.length, 4);
+  const email = 'student@westlandhigh.school.nz';
+  const emails = [email, 'second@westlandhigh.school.nz'];
+  const board = 'https://trello.com/b/fixture/board?filter=a&b=c';
+  for (const expression of expressions) {
+    const value = vm.runInNewContext(expression, {
+      email, emails, studentEmail: email, trelloUrl: board,
+      currentDecompositionTrelloUrl: board, encodeURIComponent
+    });
+    const url = new URL(value, 'https://school.example');
+    assert.ok(url.pathname.startsWith('/dtech-hub/api/integrations/trello/'));
+    if (url.pathname.endsWith('/connections')) assert.equal(url.searchParams.get('emails'), emails.join(','));
+    else {
+      assert.equal(url.searchParams.get('student_email'), email);
+      assert.equal(url.searchParams.get('board_url'), board);
+    }
+  }
+  assert.equal(prefixText('fetch(`/api/activities/${items.join("/")}`)'), 'fetch(`/dtech-hub/api/activities/${items.join("/")}`)');
+  assert.equal(prefixText('"/dtech-hub/api/activities"'), '"/dtech-hub/api/activities"');
+});
+
+test('Trello progress reports missing connection explicitly and retains the original link', async () => {
+  const source = await fs.readFile(path.join(__dirname, '..', 'src', 'legacy', 'dtech-hub', 'ProjectPages', 'activity-detail.js'), 'utf8');
+  const start = source.indexOf('await Promise.all(trelloStatusCells.map(async (cell) => {');
+  const end = source.indexOf('section.querySelectorAll(".interest-progress-btn")', start);
+  const messages = [];
+  const cell = {
+    innerHTML: '<a>Open Trello</a>',
+    getAttribute: (name) => name === 'data-student-email' ? 'student@westlandhigh.school.nz' : 'https://trello.com/b/fixture',
+    insertAdjacentHTML(position, html) { this.innerHTML += html; }
+  };
+  await vm.runInNewContext(`(async () => { ${prefixText(source.slice(start, end))} })()`, {
+    trelloStatusCells: [cell], buildWriteHeaders: () => ({}),
+    fetch: async () => ({ ok: false, status: 404, json: async () => ({ error: 'Student has not connected Trello' }) }),
+    encodeURIComponent, escapeHtml: (value) => value,
+    console: { error(...args) { messages.push(args); } }
+  });
+  assert.match(cell.innerHTML, /<a>Open Trello<\/a>/);
+  assert.match(cell.innerHTML, /Student has not connected Trello/);
+  assert.equal(messages.length, 1);
+});
+
+test('Trello list progress 404 is the original explicit missing-connection response', async () => {
+  const source = await fs.readFile(path.join(__dirname, '..', 'src', 'legacy', 'dtech-hub', 'server.js'), 'utf8');
+  const start = source.indexOf('app.get("/api/integrations/trello/list-progress",');
+  const end = source.indexOf('app.post("/api/integrations/trello/connect",', start);
+  let handler;
+  vm.runInNewContext(source.slice(start, end), {
+    app: { get(route, guard, callback) { handler = callback; } },
+    requireTrelloBoardReadAccess() {},
+    normalizeEmail: (value) => value.toLowerCase(),
+    isSchoolEmail: () => true,
+    getStoredTrelloConnection: async () => null
+  });
+  let status;
+  let body;
+  await handler({ query: { student_email: 'student@westlandhigh.school.nz', board_url: 'https://trello.com/b/fixture' } }, {
+    status(value) { status = value; return this; },
+    json(value) { body = value; }
+  });
+  assert.equal(status, 404);
+  assert.equal(body.error, 'Student has not connected Trello');
+});
+
 test('shared session adds CSRF to legacy fetch and XHR uploads, never external requests', async () => {
   const storage = new Map();
   const calls = [];

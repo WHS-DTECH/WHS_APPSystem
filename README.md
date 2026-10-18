@@ -97,6 +97,11 @@ Class Training is the first capsule with integrated Teacher View / Student View:
 
 ## DTECH Hub: original site, separate database and private files
 
+The legacy URL adapter prefixes API paths without rewriting template expressions
+or encoded query values (including comma-separated Trello connection lookups).
+If Trello progress cannot load, the student table retains its Trello link and
+shows the returned reason, including a missing student Trello connection.
+
 DTECH Hub's Teacher View / Student View now uses the module-sensitive Global
 Control toggle (sidebar for administrators, shared header for other authorised
 teachers). Teacher View opens the original Teacher workspace; Student View opens

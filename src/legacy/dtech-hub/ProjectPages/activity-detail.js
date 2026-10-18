@@ -12439,7 +12439,8 @@ async function loadAndRenderInterestSection(host, projectId, isTeacher, detailDa
                     { headers: buildWriteHeaders() }
                 );
                 if (!progressResponse.ok) {
-                    return;
+                    const failure = await progressResponse.json();
+                    throw new Error(failure?.error || `Could not load Trello progress (${progressResponse.status}).`);
                 }
 
                 const progress = await progressResponse.json().catch(() => ({}));
@@ -12456,8 +12457,9 @@ async function loadAndRenderInterestSection(host, projectId, isTeacher, detailDa
                     : 0;
                 const syncText = `To Do ${toDoCount} | Doing ${doingCount} | Done ${doneCount} | ${safeCompletionPercent}% complete`;
                 cell.innerHTML = `${cell.innerHTML}<span class="interest-status" style="margin-left:8px;">${escapeHtml(syncText)}</span>`;
-            } catch (_error) {
-                // Keep baseline Trello status if list-progress sync fails.
+            } catch (error) {
+                console.error("Could not load student Trello progress:", error);
+                cell.insertAdjacentHTML("beforeend", `<span class="interest-status interest-pending" style="margin-left:8px;">${escapeHtml(error?.message || "Could not load Trello progress. Reload to retry.")}</span>`);
             }
         }));
 

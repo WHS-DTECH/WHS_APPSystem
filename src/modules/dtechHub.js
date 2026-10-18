@@ -25,8 +25,8 @@ const BACKEND_FILES = new Set(['server.js', 'package.json', 'package-lock.json',
 function prefixText(text) {
   return text.replaceAll('hub_google_auth_v1', 'whs_dtech_auth_v1')
     .replaceAll('${window.location.origin}/', '${window.location.origin}/dtech-hub/')
-    .replace(/(["'`])\/((?:api\/|images\/|TeacherFiles\/|ProjectPages\/|learning-pathways\/|practical-skills\/|supportFiles\/|[A-Za-z0-9_-]+\.(?:html|js|css|ico)(?:[?#]|(?=["'`])))[^"'`\r\n]*?)\1/g,
-    (match, quote, value) => `${quote}${PREFIX}/${value}${quote}`)
+    .replace(/(["'`])\/(?=api\/|images\/|TeacherFiles\/|ProjectPages\/|learning-pathways\/|practical-skills\/|supportFiles\/|[A-Za-z0-9_-]+\.(?:html|js|css|ico)(?:[?#]|(?=["'`])))/g,
+    (match, quote) => `${quote}${PREFIX}/`)
     .replace(/url\(\s*\/(?!\/|dtech-hub\/)/g, `url(${PREFIX}/`);
 }
 
