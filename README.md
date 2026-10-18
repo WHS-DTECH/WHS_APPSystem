@@ -722,6 +722,15 @@ global-ADMIN-only, and role mutations require the session's form token. Existing
 user-role records are not migrated or replaced. Email invitations are not enabled
 by this change.
 
+The read-only **All Additional Roles Summary** on the same page is independent
+of the module selector. It groups each user's explicitly stored global additional
+roles, hub/module roles (including registered student apps and area-specific
+grants), and teacher module allocations in separate columns. Global primary
+Staff/Student roles are excluded; inherited Teacher access and ADMIN's hub
+override are not presented as explicit assignments. System-managed roles and
+inactive accounts are labelled. Change roles through the existing scoped forms;
+the summary does not modify permissions or assignments.
+
 ## Kamar Uploader module
 
 Sign-in, profile and sign-out use Global Control's shared Google avatar/header

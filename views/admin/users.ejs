@@ -29,6 +29,7 @@
   <nav class="user-roles-sections" aria-label="Role management sections">
     <a class="button" href="#add-user-role">Add Role to User</a>
     <a class="button" href="#users-with-roles">Users with Roles</a>
+    <a class="button" href="#all-additional-roles">All Additional Roles Summary</a>
     <a class="button" href="#roles-help">How It Works</a>
   </nav>
 
@@ -127,5 +128,46 @@
     </section>
   </div>
 </div>
+<section class="panel" id="all-additional-roles">
+  <h2>All Additional Roles Summary</h2>
+  <p>Read-only overview across all modules, regardless of the module selected above. KAMAR primary Staff/Student roles are not additional roles.
+    Only explicitly assigned roles are listed; Global ADMIN access across hubs and inherited Teacher access are not repeated as module roles.</p>
+  <p>Teacher module assignments are listed separately: these are dashboard/module allocations, not hub roles. Area-specific roles show their area key.
+    Inactive accounts retain their recorded assignments but are marked inactive.</p>
+  <% if (!summaryUsers.length) { %>
+    <p>No additional roles or teacher module assignments are recorded.</p>
+  <% } else { %>
+    <div class="user-role-table-wrap">
+      <table class="user-role-table">
+        <caption>All users with additional roles or teacher module assignments</caption>
+        <thead><tr><th scope="col">Type</th><th scope="col">User</th><th scope="col">Global Control roles</th><th scope="col">Module roles</th><th scope="col">Teacher module assignments</th></tr></thead>
+        <tbody>
+          <% summaryUsers.forEach((user) => { %>
+            <tr>
+              <td><%= user.is_staff ? 'Staff' : user.is_student ? 'Student' : 'Other' %></td>
+              <td><strong><%= user.display_name %></strong><br><%= user.email %><% if (!user.is_active) { %><br><strong>Inactive account</strong><% } %></td>
+              <td>
+                <% if (!user.globalRoles.length) { %>None assigned<% } %>
+                <% user.globalRoles.forEach((role) => { %>
+                  <div class="user-role-assignment"><%= role.name %><% if (role.source !== 'manual') { %> (<%= role.source %>-managed)<% } %></div>
+                <% }) %>
+              </td>
+              <td>
+                <% if (!user.moduleRoles.length) { %>None assigned<% } %>
+                <% user.moduleRoles.forEach((role) => { %>
+                  <div class="user-role-assignment"><strong><%= role.module %>:</strong> <%= role.role %><% if (role.area !== null) { %> (area: <%= role.area %>)<% } %></div>
+                <% }) %>
+              </td>
+              <td>
+                <% if (!user.teacherModules.length) { %>None assigned<% } %>
+                <% user.teacherModules.forEach((label) => { %><div class="user-role-assignment"><%= label %></div><% }) %>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</section>
 <script src="/admin-user-roles.js" defer></script>
 <%- include('../partials/footer') %>

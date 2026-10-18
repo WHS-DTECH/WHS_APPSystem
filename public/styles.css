@@ -36,7 +36,7 @@
 }
 @media (max-width: 1250px) {
   .user-roles-layout { grid-template-columns: minmax(200px, 240px) minmax(0, 1fr); }
-  .user-roles-sections { grid-column: 1 / -1; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .user-roles-sections { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .user-role-add { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 700px) {

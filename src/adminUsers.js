@@ -42,7 +42,7 @@ function createAdminUsersRouter({ dbQuery = query, initDirectory = () => require
     const global = module === 'global';
     try {
       await initDirectory();
-      const [modules, roles, assignments] = await Promise.all([
+      const [modules, roles, assignments, summary] = await Promise.all([
         dbQuery('SELECT DISTINCT hub_key FROM hub_roles WHERE hub_key = ANY($1::text[]) ORDER BY hub_key', [Object.keys(HUBS)]),
         global ? dbQuery("SELECT id,name,description FROM roles WHERE name NOT IN ('Staff','Student') ORDER BY name") :
           dbQuery('SELECT id,display_name AS name,description FROM hub_roles WHERE hub_key=$1 ORDER BY display_name', [module]),
@@ -51,14 +51,42 @@ function createAdminUsersRouter({ dbQuery = query, initDirectory = () => require
           EXISTS (SELECT 1 FROM student_details_upload s WHERE LOWER(TRIM(s.email_school))=LOWER(u.email) AND s.status='Current') AS is_student
           FROM users u JOIN ${global ? 'user_roles' : "(SELECT user_id,hub_role_id AS role_id,'manual'::text AS assignment_source FROM user_hub_roles WHERE area_key IS NULL)"} ur ON ur.user_id=u.id
           JOIN ${global ? 'roles' : '(SELECT id,display_name AS name,hub_key FROM hub_roles)'} r ON r.id=ur.role_id
-          WHERE ${global ? "r.name NOT IN ('Staff','Student')" : 'r.hub_key=$1'} ORDER BY LOWER(u.email),r.name`, global ? [] : [module])
+          WHERE ${global ? "r.name NOT IN ('Staff','Student')" : 'r.hub_key=$1'} ORDER BY LOWER(u.email),r.name`, global ? [] : [module]),
+        dbQuery(`WITH assignments AS (
+          SELECT ur.user_id,'global'::text AS kind,'Global Control'::text AS module_label,
+            r.name AS role_name,ur.assignment_source,NULL::text AS area_key
+          FROM user_roles ur JOIN roles r ON r.id=ur.role_id WHERE r.name NOT IN ('Staff','Student')
+          UNION ALL
+          SELECT ur.user_id,'hub',COALESCE(m.display_name,a.name,r.hub_key),
+            r.display_name,NULL,ur.area_key
+          FROM user_hub_roles ur JOIN hub_roles r ON r.id=ur.hub_role_id
+          LEFT JOIN modules m ON m.module_key=r.hub_key
+          LEFT JOIN student_apps a ON a.hub_key=r.hub_key
+          UNION ALL
+          SELECT t.user_id,'teacher-module',m.display_name,NULL,NULL,NULL
+          FROM teacher_module_assignments t JOIN modules m ON m.id=t.module_id
+        )
+        SELECT u.id,u.display_name,u.email,u.is_active,assignments.*,
+          EXISTS (SELECT 1 FROM staff_upload s WHERE LOWER(TRIM(s.email_school))=LOWER(u.email) AND s.status='Current') AS is_staff,
+          EXISTS (SELECT 1 FROM student_details_upload s WHERE LOWER(TRIM(s.email_school))=LOWER(u.email) AND s.status='Current') AS is_student
+        FROM assignments JOIN users u ON u.id=assignments.user_id
+        ORDER BY LOWER(u.email),u.id,kind,module_label,role_name,area_key`)
       ]);
       const grouped = new Map();
       for (const row of assignments.rows) {
         if (!grouped.has(row.id)) grouped.set(row.id, { ...row, assignments: [] });
         grouped.get(row.id).assignments.push({ id: row.role_id, name: row.role_name, source: row.assignment_source });
       }
+      const summaryUsers = new Map();
+      for (const row of summary.rows) {
+        if (!summaryUsers.has(row.id)) summaryUsers.set(row.id, { ...row, globalRoles: [], moduleRoles: [], teacherModules: [] });
+        const user = summaryUsers.get(row.id);
+        if (row.kind === 'global') user.globalRoles.push({ name: row.role_name, source: row.assignment_source });
+        else if (row.kind === 'hub') user.moduleRoles.push({ module: row.module_label, role: row.role_name, area: row.area_key });
+        else user.teacherModules.push(row.module_label);
+      }
       res.render('admin/users', { title: 'Assign User Roles', roles: roles.rows, users: [...grouped.values()],
+        summaryUsers: [...summaryUsers.values()],
         module, moduleLabel: global ? 'Global Control' : HUBS[module].label,
         modules: modules.rows.map(row => ({ key: row.hub_key, label: HUBS[row.hub_key].label })),
         csrf: req.session.adminUsersCsrf, saved: ['added', 'removed'].includes(req.query.saved) ? req.query.saved : '' });
