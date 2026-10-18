@@ -137,8 +137,10 @@
       </table>
       <% if (canEditRoles) { %>
         <details>
-          <summary>Optional access &mdash; Teacher, Technician and Student</summary>
-          <p>Leave a role blank for no access. Enabling a mapping does not assign anyone that role; use Assign user roles below.</p>
+          <summary>Teaching roles and optional Student access</summary>
+          <p>Guidance initially maps Teacher to Counsellor. Leave Teacher blank for no teaching access.
+            Technician always uses Teacher's mapping. Student access remains optional.
+            A mapping does not assign anyone that role; use Assign user roles below.</p>
           <table class="sa-role-table">
             <thead><tr><th>School role</th><th>Role inside this app</th></tr></thead>
             <tbody>
@@ -146,7 +148,11 @@
                 <tr>
                   <td><%= role.label %></td>
                   <td>
-                    <input name="map_<%= role.key %>" list="roles-<%= app.id %>" value="<%= mapping[role.key] || '' %>" placeholder="No access">
+                    <% if (role.key === 'technician') { %>
+                      Same as Teacher (automatic)
+                    <% } else { %>
+                      <input name="map_<%= role.key %>" list="roles-<%= app.id %>" value="<%= mapping[role.key] || '' %>" placeholder="No access">
+                    <% } %>
                   </td>
                 </tr>
               <% }) %>

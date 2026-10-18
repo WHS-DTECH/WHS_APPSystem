@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const express = require('express');
 const path = require('path');
+test.mock.method(require('../src/db'), 'query', async () => ({ rows: [], rowCount: 0 }));
 const sewingHub = require('../src/modules/sewingHub');
 const sewingApi = require('../src/legacy/sewing-hub/routes');
 
@@ -83,8 +84,8 @@ test('suggestions validate input before touching the database', async () => {
   }
 });
 
-test('route module exports the permission helpers', () => {
+test('route module exports the permission helpers', async () => {
   assert.strictEqual(typeof sewingApi.userCanUploadActivity, 'function');
-  assert.strictEqual(sewingApi.userCanViewTeacherCard({ roles: ['Teacher'] }), true);
-  assert.strictEqual(sewingApi.userCanViewTeacherCard({ roles: ['Student'] }), false);
+  assert.strictEqual(await sewingApi.userCanViewTeacherCard({ roles: ['Teacher'] }), true);
+  assert.strictEqual(await sewingApi.userCanViewTeacherCard({ roles: ['Student'] }), false);
 });

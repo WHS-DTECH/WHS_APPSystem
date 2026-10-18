@@ -39,13 +39,16 @@ function createModuleIdentityRouter({ dbQuery = query, schoolCalendar = loadScho
       CASE WHEN EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id=ur.role_id
         WHERE ur.user_id=u.id AND r.name='ADMIN') THEN ARRAY['ADMIN']::text[]
         ELSE ARRAY['Teacher']::text[] END AS roles
+      ,ARRAY(SELECT r.role_key FROM user_hub_roles ur JOIN hub_roles r ON r.id=ur.hub_role_id
+        WHERE ur.user_id=u.id AND ur.area_key IS NULL AND r.hub_key=$2
+          AND r.role_key IN ('lead-teacher','teacher','technician')) AS module_roles
       FROM users u WHERE u.id=$1 AND u.is_active=true AND (
         EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id=ur.role_id
           WHERE ur.user_id=u.id AND r.name='ADMIN')
-        OR ($2='teacher-planner' AND EXISTS (
+        OR ($2 NOT IN ('core','kamar-uploader','module-builder') AND EXISTS (
           SELECT 1 FROM user_hub_roles ur JOIN hub_roles r ON r.id=ur.hub_role_id
           WHERE ur.user_id=u.id AND ur.area_key IS NULL
-            AND r.hub_key='teacher-planner' AND r.role_key='teacher'
+            AND r.hub_key=$2 AND r.role_key IN ('lead-teacher','teacher','technician')
         )))`, [userId, registered.slug])).rows[0];
   }
   router.get('/authorize', wrap(async (req, res) => {
@@ -56,9 +59,7 @@ function createModuleIdentityRouter({ dbQuery = query, schoolCalendar = loadScho
     }
     if (!req.user) return res.redirect('/auth/google?next=' + encodeURIComponent(req.originalUrl));
     if (!await authorisedUser(registered, req.user.id)) {
-      return deny(res, registered.slug === 'teacher-planner'
-        ? 'Ask an administrator to assign you the Teacher role in Teacher Planner.'
-        : 'Development modules are available only to global administrators.');
+      return deny(res, 'Ask an administrator to assign you a role in this module. System administration modules require Global ADMIN.');
     }
     const code = crypto.randomBytes(32).toString('base64url');
     await dbQuery("DELETE FROM module_identity_codes WHERE expires_at < NOW()");

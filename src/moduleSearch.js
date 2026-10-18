@@ -1,5 +1,6 @@
 const config = require('./config');
 const { query } = require('./db');
+const { userHasHubPermission } = require('./hubRoles');
 
 const LIMIT = 50;
 const scopes = [
@@ -11,7 +12,7 @@ const scopes = [
   { key: 'workshop', label: 'Workshop Hub', pattern: /^\/(?:workshop|hubs\/workshop\/roles)(?:\/|$)/ },
   { key: 'technology', label: 'HUB Dashboard', pattern: /^\/(?:technology-hub|admin\/technology-hub|hubs\/technology-hub\/roles)(?:\/|$)/ },
   { key: 'kamar', label: 'Kamar Uploader', pattern: /^\/admin\/kamar-uploader(?:\/|$)/ },
-  { key: 'learning', label: 'WHS Learning Sites', pattern: /^\/(?:learning-sites(?:\/|$)|learning-sites-public\.html$|ADMIN(?:\/|$)|ReleverPlan(?:\/|$)|(?:DTECH|COMP|Food|Textiles|WOOD|DVC)(?:\/|$))/ },
+  { key: 'learning', label: 'WHS Learning Sites', pattern: /^\/(?:learning-sites(?:\/|$)|learning-sites-public\.html$|hubs\/learning-sites\/roles(?:\/|$)|ADMIN(?:\/|$)|ReleverPlan(?:\/|$)|(?:DTECH|COMP|Food|Textiles|WOOD|DVC)(?:\/|$))/ },
   { key: 'apps', label: 'APPs Dashboard', pattern: /^\/student-apps(?:\/|$)/ },
   { key: 'core', label: 'Core Administration', pattern: /^\/(?:admin(?:\/|$)|hubs(?:\/|$)|dashboard$|profile(?:\/|$)|$)/ }
 ];
@@ -142,8 +143,12 @@ function createModuleSearch({ dbQuery = query, read = readSource,
             results.push(item(assessment, url, 'Assessment', course.courseName));
           }
         });
-        if (teacher) results.push(item('Relief Plan', '/ReleverPlan/', 'Page'));
-        if (admin) results.push(item('HOD Update Dashboard', '/ADMIN/', 'Page'));
+        if (teacher || await userHasHubPermission(req.user, 'learning-sites', 'teacher.view', dbQuery)) {
+          results.push(item('Relief Plan', '/ReleverPlan/', 'Page'));
+        }
+        if (admin || await userHasHubPermission(req.user, 'learning-sites', 'admin.manage', dbQuery)) {
+          results.push(item('HOD Update Dashboard', '/ADMIN/', 'Page'));
+        }
       } else if (scope.key === 'technology') {
         const areas = await require('./modules/technologyHub').searchableAreas(req.user, dbQuery);
         results.push(...areas.map((area) => item(area.label, `/technology-hub/${area.file}`, 'Learning space')));

@@ -6,6 +6,25 @@ const os = require('os');
 const path = require('path');
 const { injectGlobalNav, navData, safeNext } = require('../src/globalNav');
 
+test('module Leads get only contextual module role-management links without global ADMIN', async () => {
+  for (const [page, hub] of [
+    ['/ADMIN/', 'learning-sites'], ['/DTECH/10DTEC/', 'learning-sites'],
+    ['/sewing-hub/', 'sewing-hub'], ['/food-room/', 'food-room'], ['/workshop/', 'workshop'],
+    ['/technology-hub/', 'technology-hub'], ['/hubs/teacher-planner/roles', 'teacher-planner']
+  ]) {
+    for (const allowed of [true, false]) {
+      let body;
+      await navData(async () => ({ rows: [] }), async (_user, key) => allowed && key === hub, async () => null)(
+        { user: { id: 'fixture', roles: [] }, query: { path: page } },
+        { locals: { isAdmin: false }, set() {}, json(value) { body = value; } },
+        error => { throw error; }
+      );
+      assert.equal(body.assignRolesUrl, allowed ? `/hubs/${hub}/roles` : null);
+      assert.equal(body.isAdmin, false);
+    }
+  }
+});
+
 test('Kamar user role management appears in shared Settings only for current ADMIN users', async () => {
   for (const [page, roles, expected] of [
     ['/admin/kamar-uploader/', ['ADMIN'], '/admin/users'],

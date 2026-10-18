@@ -434,6 +434,11 @@ app.post('/admin/roles/:roleId/permissions', ensureAuthenticated, ensureRole('AD
 
 app.post('/admin/hub-roles/:hubRoleId/permissions', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
   try {
+    const role = (await query('SELECT role_key FROM hub_roles WHERE id=$1', [req.params.hubRoleId])).rows[0];
+    if (role?.role_key === 'technician') {
+      console.warn('Independent Technician permission change rejected.');
+      return res.status(409).render('error', { title: 'Permissions not changed', message: 'Technician mirrors Teacher. Edit the Teacher permissions instead.' });
+    }
     const permissionIds = Array.isArray(req.body.permissionIds)
       ? req.body.permissionIds
       : req.body.permissionIds

@@ -81,14 +81,11 @@ const isTeacher = (user) => Boolean(user?.roles?.includes('Teacher'));
 async function userCanUploadActivity(user) {
   if (!user) return false;
   if (isAdmin(user)) return true;
-  try {
-    return await userHasHubPermission(user, 'sewing-hub', 'activities.upload');
-  } catch (err) {
-    return false;
-  }
+  return userHasHubPermission(user, 'sewing-hub', 'activities.upload');
 }
 
-const userCanViewTeacherCard = (user) => isAdmin(user) || isTeacher(user);
+const userCanViewTeacherCard = async (user) => isAdmin(user) || isTeacher(user) ||
+  await userHasHubPermission(user, 'sewing-hub', 'teacher.view');
 
 function requireAuth(req, res, next) {
   if (req.user) return next();
@@ -98,9 +95,11 @@ function requireAuth(req, res, next) {
   return res.redirect('/');
 }
 
-function requireAdmin(req, res, next) {
-  if (isAdmin(req.user)) return next();
-  return res.status(403).json({ error: 'Admin access required' });
+async function requireAdmin(req, res, next) {
+  try {
+    if (await canManageHubRoles(req.user, 'sewing-hub')) return next();
+    return res.status(403).json({ error: 'Sewing Hub administration access required' });
+  } catch (error) { next(error); }
 }
 
 async function requireUploadPermission(req, res, next) {
@@ -296,10 +295,10 @@ router.get('/me', async (req, res, next) => {
         email: req.user.email,
         displayName: req.user.display_name,
         initials: req.user.display_name?.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'U',
-        isAdmin: isAdmin(req.user),
+        isAdmin: await canManageHubRoles(req.user, 'sewing-hub'),
         canBrowseActivities: true,
         canUploadActivity: await userCanUploadActivity(req.user),
-        canViewTeacherCard: userCanViewTeacherCard(req.user),
+        canViewTeacherCard: await userCanViewTeacherCard(req.user),
         canManageRoles: await canManageHubRoles(req.user, 'sewing-hub')
       }
     });

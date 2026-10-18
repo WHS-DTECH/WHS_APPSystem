@@ -37,7 +37,8 @@
         <strong><%= role.hub_key %> / <%= role.display_name %></strong>
         <span><%= role.description %></span>
       </div>
-      <fieldset class="checks permissions">
+      <% if (role.role_key === 'technician') { %><p>Technician automatically mirrors Teacher permissions. Edit Teacher to change both.</p><% } %>
+      <fieldset class="checks permissions" <%= role.role_key === 'technician' ? 'disabled' : '' %>>
         <% hubPermissions.filter((permission) => permission.hub_key === role.hub_key).forEach((permission) => { %>
           <label>
             <input type="checkbox" name="permissionIds" value="<%= permission.id %>" <%= role.permissions.includes(permission.permission_key) ? 'checked' : '' %>>
@@ -45,7 +46,7 @@
           </label>
         <% }) %>
       </fieldset>
-      <button class="button" type="submit">Save hub permissions</button>
+      <% if (role.role_key !== 'technician') { %><button class="button" type="submit">Save hub permissions</button><% } %>
     </form>
   <% }) %>
 </section>

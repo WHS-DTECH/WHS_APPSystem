@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const express = require('express');
 const { query } = require('./db');
 const { ensureAuthenticated, ensureRole } = require('./middleware');
-const { HUBS } = require('./hubRoles');
+const { HUBS, SYSTEM_MODULES } = require('./hubRoles');
 
 const uuid = value => typeof value === 'string' && /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(value);
 const directorySql = type => type === 'staff'
@@ -36,13 +36,16 @@ function createAdminUsersRouter({ dbQuery = query, initDirectory = () => require
   const scopeKey = value => value === undefined ? 'global' : value;
   async function moduleCatalogue() {
     return (await dbQuery(`SELECT 'module:'||m.module_key AS key,m.display_name AS label,
-        m.module_key AS hub_key,m.is_active AS active,'module'::text AS kind,p.id AS project_id,
-        EXISTS (SELECT 1 FROM hub_roles r WHERE r.hub_key=m.module_key) AS has_roles
+        COALESCE(a.hub_key,m.module_key) AS hub_key,m.is_active AS active,
+        CASE WHEN a.id IS NULL THEN 'module' ELSE 'app' END AS kind,p.id AS project_id,
+        EXISTS (SELECT 1 FROM hub_roles r WHERE r.hub_key=COALESCE(a.hub_key,m.module_key)) AS has_roles
       FROM modules m LEFT JOIN module_builder_projects p ON p.slug=m.module_key
+      LEFT JOIN student_apps a ON m.module_key=a.hub_key OR m.module_key='student-app-'||a.slug
       UNION ALL
       SELECT 'app:'||a.hub_key,a.name,a.hub_key,true,'app',NULL::uuid,
         EXISTS (SELECT 1 FROM hub_roles r WHERE r.hub_key=a.hub_key)
-      FROM student_apps a WHERE NOT EXISTS (SELECT 1 FROM modules m WHERE m.module_key=a.hub_key)
+      FROM student_apps a WHERE NOT EXISTS (SELECT 1 FROM modules m
+        WHERE m.module_key=a.hub_key OR m.module_key='student-app-'||a.slug)
       UNION ALL
       SELECT DISTINCT r.hub_key,r.hub_key,r.hub_key,true,'hub',NULL::uuid,true
       FROM hub_roles r WHERE NOT EXISTS (SELECT 1 FROM modules m WHERE m.module_key=r.hub_key)
@@ -54,7 +57,8 @@ function createAdminUsersRouter({ dbQuery = query, initDirectory = () => require
       FROM module_builder_projects p
       WHERE NOT EXISTS (SELECT 1 FROM modules m WHERE m.module_key=p.slug)
       ORDER BY label,key`)).rows.map(row => ({
-        ...row, key: row.has_roles ? row.hub_key : row.key,
+        ...row, original_key: row.key, has_roles: row.has_roles && !SYSTEM_MODULES.includes(row.hub_key),
+        key: row.has_roles && !SYSTEM_MODULES.includes(row.hub_key) ? row.hub_key : row.key,
         label: (HUBS[row.hub_key]?.label || row.label) + (!row.active ? ' (inactive/archived)' : '')
       }));
   }
@@ -68,7 +72,7 @@ function createAdminUsersRouter({ dbQuery = query, initDirectory = () => require
       await initDirectory();
       const modules = await moduleCatalogue();
       const canonical = modules.find(item => item.key !== module &&
-        (module === 'module:' + item.hub_key || (item.project_id && module === 'project:' + item.project_id)));
+        (module === item.original_key || module === 'module:' + item.hub_key || (item.project_id && module === 'project:' + item.project_id)));
       if (canonical) return res.redirect(scopeUrl(canonical.key));
       if (!validScope(module, modules)) return invalid(res, 'Choose Global Control or a registered module.');
       const selectedModule = modules.find(item => item.key === module);

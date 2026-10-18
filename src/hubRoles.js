@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const { query } = require('./db');
 const { ensureAuthenticated } = require('./middleware');
 
@@ -9,19 +10,22 @@ const HUBS = {
   workshop: { label: 'Workshop', home: '/workshop/' },
   'food-room': { label: 'Food Room Hub', home: '/food-room/' }
 };
+const SYSTEM_MODULES = ['core', 'kamar-uploader', 'module-builder'];
 
 const isAdmin = (user) => Boolean(user && user.roles && user.roles.includes('ADMIN'));
 
-async function userHasHubPermission(user, hubKey, permissionKey) {
-  if (!user) return false;
+async function userHasHubPermission(user, hubKey, permissionKey, dbQuery = query) {
+  if (!user || user.is_active === false) return false;
   if (isAdmin(user)) return true;
-  const result = await query(
+  if (!user.id || SYSTEM_MODULES.includes(hubKey)) return false;
+  const result = await dbQuery(
     `SELECT 1
      FROM user_hub_roles assignments
      JOIN hub_roles roles ON roles.id = assignments.hub_role_id
      JOIN hub_role_permissions rp ON rp.hub_role_id = roles.id
      JOIN hub_permissions permissions ON permissions.id = rp.hub_permission_id
      WHERE assignments.user_id = $1 AND roles.hub_key = $2 AND permissions.permission_key = $3
+       AND assignments.area_key IS NULL
      LIMIT 1`,
     [user.id, hubKey, permissionKey]
   );
@@ -36,11 +40,29 @@ const isAssignable = (user, roleKey) => isAdmin(user) || roleKey !== 'lead-teach
 const router = express.Router();
 
 router.use(ensureAuthenticated);
+router.use((req, res, next) => {
+  if (!req.session.hubRolesCsrf) req.session.hubRolesCsrf = crypto.randomBytes(32).toString('hex');
+  if (req.method !== 'GET') {
+    const actual = Buffer.from(typeof req.body.csrf === 'string' ? req.body.csrf : '');
+    const expected = Buffer.from(req.session.hubRolesCsrf);
+    if (actual.length !== expected.length || !crypto.timingSafeEqual(actual, expected)) {
+      console.warn('Hub role form token rejected.');
+      return res.status(403).render('error', { title: 'Form expired', message: 'Reload the module role page and try again. No roles were changed.' });
+    }
+  }
+  next();
+});
 
 router.get('/', async (req, res, next) => {
   try {
     const manageable = [];
-    for (const [key, hub] of Object.entries(HUBS)) {
+    const registered = (await query(`SELECT COALESCE(a.hub_key,m.module_key) AS key,m.display_name AS label,m.path AS home
+      FROM modules m LEFT JOIN student_apps a ON m.module_key=a.hub_key OR m.module_key='student-app-'||a.slug
+      UNION SELECT hub_key,name,'/student-apps/'||slug FROM student_apps
+      UNION SELECT slug,name,mount_path FROM module_builder_projects`)).rows;
+    const hubs = new Map(registered.filter(row => !SYSTEM_MODULES.includes(row.key)).map(row => [row.key, row]));
+    for (const [key, hub] of Object.entries(HUBS)) hubs.set(key, hub);
+    for (const [key, hub] of hubs) {
       if (await canManageHubRoles(req.user, key)) manageable.push({ key, ...hub });
     }
     res.render('hub-roles-index', { title: 'Assign User Roles', hubs: manageable });
@@ -52,9 +74,17 @@ router.get('/', async (req, res, next) => {
 router.param('hubKey', async (req, res, next, hubKey) => {
   try {
     let hub = HUBS[hubKey];
-    if (!hub && hubKey.startsWith('app-')) {
-      const found = (await query('SELECT name, slug FROM student_apps WHERE hub_key = $1', [hubKey])).rows[0];
-      if (found) hub = { label: found.name, home: `/student-apps/${found.slug}` };
+    if (!hub && !SYSTEM_MODULES.includes(hubKey)) {
+      const found = (await query("SELECT name, slug, hub_key FROM student_apps WHERE hub_key=$1 OR $1='student-app-'||slug", [hubKey])).rows[0];
+      if (found) {
+        hub = { label: found.name, home: `/student-apps/${found.slug}` };
+        hubKey = found.hub_key;
+      }
+    }
+    if (!hub && !SYSTEM_MODULES.includes(hubKey)) {
+      const found = (await query(`SELECT display_name AS label,path AS home FROM modules WHERE module_key=$1
+        UNION ALL SELECT name,mount_path FROM module_builder_projects WHERE slug=$1 LIMIT 1`, [hubKey])).rows[0];
+      if (found) hub = found;
     }
     if (!hub) return res.status(404).render('error', { title: 'Not found', message: 'Unknown hub.' });
     req.hub = { key: hubKey, ...hub };
@@ -111,6 +141,7 @@ router.get('/:hubKey/roles', async (req, res, next) => {
       hub: req.hub,
       roles: roles.map((role) => ({ ...role, assignable: isAssignable(req.user, role.role_key) })),
       users,
+      csrf: req.session.hubRolesCsrf,
       filter: { q, type },
       saved: req.query.saved === '1'
     });
@@ -147,4 +178,4 @@ router.post('/:hubKey/roles/:userId', async (req, res, next) => {
   }
 });
 
-module.exports = { router, HUBS, userHasHubPermission, canManageHubRoles, isAssignable };
+module.exports = { router, HUBS, SYSTEM_MODULES, userHasHubPermission, canManageHubRoles, isAssignable };

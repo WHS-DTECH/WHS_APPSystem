@@ -1,6 +1,13 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const express = require('express');
+test.mock.method(require('../src/db').pool, 'query', async () => ({ rows: [], rowCount: 0 }));
+const foodDb = require('../src/legacy/food-room/db');
+test.mock.method(foodDb, 'query', async () => ({ rows: [], rowCount: 0 }));
+test.mock.method(foodDb, 'connect', async () => ({
+  query: async () => ({ rows: [], rowCount: 0 }),
+  release() {}
+}));
 const foodRoom = require('../src/modules/foodRoom');
 
 function startApp(roles) {
@@ -45,7 +52,7 @@ test('anonymous visitors are told they are signed out and sent to the app login'
   }
 });
 
-test('only app ADMIN users pass the legacy admin guard', async () => {
+test('unassigned students cannot pass the legacy module admin guard', async () => {
   const student = await startApp(['Student']);
   try {
     assert.strictEqual((await fetch(`${student.base}/api/permissions/reset`, { method: 'POST' })).status, 403);

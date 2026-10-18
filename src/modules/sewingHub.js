@@ -1,7 +1,7 @@
 const express = require('express');
 const path = require('path');
 const { query } = require('../db');
-const { ensureAuthenticated, ensureRole } = require('../middleware');
+const { ensureAuthenticated } = require('../middleware');
 const legacyRoutes = require('../legacy/sewing-hub/routes');
 
 const router = express.Router();
@@ -59,7 +59,7 @@ function publicActivityColumns(teacher) {
 
 apiRouter.get('/activities', async (req, res, next) => {
   try {
-    const canViewTeacherCard = legacyRoutes.userCanViewTeacherCard(req.user);
+    const canViewTeacherCard = await legacyRoutes.userCanViewTeacherCard(req.user);
     const { conditions, params } = activityConditions(req.query);
     const orderBy = sortOptions[String(req.query.sort || '').toLowerCase()] || sortOptions.az;
     const result = await query(
@@ -83,7 +83,7 @@ apiRouter.get('/activities/:id', async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid activity id' });
     }
 
-    const canViewTeacherCard = legacyRoutes.userCanViewTeacherCard(req.user);
+    const canViewTeacherCard = await legacyRoutes.userCanViewTeacherCard(req.user);
     const result = await query(
       `SELECT ${publicActivityColumns(canViewTeacherCard)}, instructions, resources, equipment
        FROM activities
@@ -141,8 +141,13 @@ pageGuards.get('/admin_assessment_management.html', ensureAuthenticated, async (
   }
 });
 
-pageGuards.get('/admin_suggestions.html', ensureAuthenticated, ensureRole('ADMIN'), (req, res) => {
-  res.sendFile(path.join(legacySewingDir, path.basename(req.path)));
+pageGuards.get('/admin_suggestions.html', ensureAuthenticated, async (req, res, next) => {
+  try {
+    if (!await require('../hubRoles').canManageHubRoles(req.user, 'sewing-hub')) {
+      return res.status(403).render('error', { title: 'Access denied', message: 'Sewing Hub administration access required.' });
+    }
+    res.sendFile(path.join(legacySewingDir, path.basename(req.path)));
+  } catch (error) { next(error); }
 });
 
 router.use(express.static(legacySewingDir));

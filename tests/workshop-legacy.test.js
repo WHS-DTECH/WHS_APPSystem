@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const express = require('express');
 const path = require('path');
+test.mock.method(require('../src/db').pool, 'query', async () => ({ rows: [], rowCount: 0 }));
 const workshop = require('../src/modules/workshop');
 
 function startApp(roles) {

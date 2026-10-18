@@ -4,6 +4,7 @@
   <p class="eyebrow"><%= hub.label %></p>
   <h1>Assign User Roles</h1>
   <p>Set who is a Lead Teacher, Teacher, Technician or Student in <strong><%= hub.label %></strong>. What each role can do is set by the administrator under Role Permissions.
+    Technician has the same permissions as Teacher for now. Lead Teacher manages this module only; private user records remain private.
     People appear here after they have signed in once.
     <a href="<%= hub.home %>">Back to <%= hub.label %></a></p>
 </section>
@@ -27,6 +28,7 @@
   <% if (!users.length) { %><p>No matching people.</p><% } %>
   <% users.forEach((user) => { %>
     <form class="row-form stacked" action="/hubs/<%= hub.key %>/roles/<%= user.id %>" method="post">
+      <input type="hidden" name="csrf" value="<%= csrf %>">
       <input type="hidden" name="q" value="<%= filter.q %>">
       <input type="hidden" name="type" value="<%= filter.type %>">
       <div>

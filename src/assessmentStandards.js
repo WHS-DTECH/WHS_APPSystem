@@ -33,7 +33,7 @@ async function access(req, res, next) {
     if (!HUBS[hubKey]) return res.status(404).json({ error: 'Unknown hub.' });
     const manage = await userHasHubPermission(req.user, hubKey, 'admin.manage');
     const roles = req.user.roles || [];
-    const canView = manage || roles.includes('Teacher');
+    const canView = manage || roles.includes('Teacher') || await userHasHubPermission(req.user, hubKey, 'teacher.view');
     if (!canView) return res.status(403).json({ error: 'Only administrators, Lead Teachers and teachers can view assessment standards.' });
     req.hub = { key: hubKey, ...HUBS[hubKey] };
     req.canManage = manage;

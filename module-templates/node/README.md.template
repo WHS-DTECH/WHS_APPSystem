@@ -32,13 +32,19 @@ existing Gmail service and email log; no Gmail credentials are copied here.
    `npm run db:migrate` can also be run separately. `/health` checks the database, not user access.
    The service deliberately returns 503 until Global Control configuration is present.
 
-Global Control is the only sign-in authority. Initial development access is
-global ADMIN only. A state-bound, single-use 60-second code with PKCE is exchanged
-server-to-server for a five-minute opaque grant; only hashes are stored in Core.
+Global Control is the only sign-in authority. Access requires global ADMIN or
+an explicit Lead Teacher, Teacher or Technician assignment for this module.
+Teacher and Technician have equivalent access. Verified `module_roles` identify
+module-scoped roles; never treat Lead Teacher as a global ADMIN or as permission
+to read another user's private records. Business code must implement its own
+module settings guards using this verified identity.
+A state-bound, single-use 60-second code with PKCE is exchanged
+server-to-server for an eight-hour opaque grant; only hashes are stored in Core.
 Every application request checks the current role and module registration with
 Core. Outages fail closed. Expired grants restart Global Control sign-in.
-Core sign-out is effective at the next sign-in, within five minutes; ADMIN
-removal or module archiving takes effect at the next application request.
+Module sign-out revokes its grant and signs out of Core. Core sign-out alone does
+not revoke an existing module grant. Role removal, account deactivation or module
+archiving takes effect at the next application request.
 Local sessions use the module database and its own secret. Core cookies, Google
 credentials and provider tokens are never shared. Identity headers are not trusted.
 

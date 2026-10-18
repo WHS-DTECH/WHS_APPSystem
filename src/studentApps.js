@@ -22,7 +22,7 @@ const BASE_HUB_ROLES = [
   ['builder', 'Builder', 'The student who built the app.'],
   ['lead-teacher', 'Lead Teacher', 'Manages the app and who holds roles in it.'],
   ['teacher', 'Teacher', 'Uses the app as a teacher.'],
-  ['technician', 'Technician', 'Uses assigned technical features in the app.'],
+  ['technician', 'Technician', 'Same access as Teacher for now.'],
   ['student', 'Student', 'Uses the app as a student.']
 ];
 const CODE_LIFETIME_SECONDS = 120;
@@ -226,7 +226,7 @@ async function userPlatformRoles(user, app) {
 async function resolveAppRole(app, platformRoles) {
   const map = await query('SELECT platform_role, app_role FROM student_app_role_map WHERE app_id = $1', [app.id]);
   const byRole = new Map(map.rows.map((row) => [row.platform_role, row.app_role]));
-  const match = platformRoles.find((role) => byRole.has(role));
+  const match = platformRoles.map(role => role === 'technician' ? 'teacher' : role).find((role) => byRole.has(role));
   return match ? byRole.get(match) : null;
 }
 
@@ -456,13 +456,18 @@ router.post('/:slug/roles', async (req, res, next) => {
     const { defaults, roles: allowedRoles } = hostedApps.roleConfig(app.slug);
     const mappings = [];
     for (const role of PLATFORM_ROLES) {
-      const appRole = defaults[role.key] || String(req.body[`map_${role.key}`] || '').trim();
+      if (role.key === 'technician') continue;
+      const field = `map_${role.key}`;
+      const fixedDefault = ['admin', 'builder', 'lead-teacher'].includes(role.key) && defaults[role.key];
+      const appRole = fixedDefault || (Object.hasOwn(req.body, field) ? String(req.body[field] || '').trim() : defaults[role.key] || '');
       if (!appRole) continue;
       if (allowedRoles.length && !allowedRoles.includes(appRole)) {
         return res.status(400).render('error', { title: 'Invalid role', message: `Choose one of this app's roles: ${allowedRoles.join(', ')}.` });
       }
       mappings.push([role.key, appRole]);
     }
+    const teacherMapping = mappings.find(([key]) => key === 'teacher');
+    if (teacherMapping) mappings.push(['technician', teacherMapping[1]]);
     const connection = await pool.connect();
     try {
       await connection.query('BEGIN');

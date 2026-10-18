@@ -13,6 +13,7 @@ async function hasFoodRoomHubRole(userId, roleKey) {
      FROM user_hub_roles assignments
      INNER JOIN hub_roles roles ON roles.id = assignments.hub_role_id
      WHERE assignments.user_id = $1 AND roles.hub_key = 'food-room' AND roles.role_key = $2
+       AND assignments.area_key IS NULL
      LIMIT 1`,
     [userId, roleKey]
   );
@@ -23,8 +24,14 @@ async function hasFoodRoomHubRole(userId, roleKey) {
 async function legacyRolesFor(user) {
   const roles = new Set();
   if (isAdminUser(user)) roles.add('admin');
-  if (await hasFoodRoomHubRole(user.id, 'lead-teacher')) roles.add('lead_teacher');
-  if (await hasFoodRoomHubRole(user.id, 'technician')) roles.add('technician');
+  if (await hasFoodRoomHubRole(user.id, 'lead-teacher')) {
+    roles.add('lead_teacher');
+    roles.add('admin');
+  }
+  if (await hasFoodRoomHubRole(user.id, 'technician')) {
+    roles.add('technician');
+    roles.add('teacher');
+  }
   if (user.roles.includes('Teacher') || user.roles.includes('Staff') || await hasFoodRoomHubRole(user.id, 'teacher')) roles.add('teacher');
   if (user.roles.includes('Student') || await hasFoodRoomHubRole(user.id, 'student')) roles.add('student');
   return [...roles];
@@ -33,10 +40,10 @@ async function legacyRolesFor(user) {
 // The legacy pages and queries resolve roles from user_additional_roles, so the app's roles are
 // mirrored there (rows flagged app_synced). Roles carried over from the legacy database are untouched.
 async function syncRoles(user, email) {
-  const cached = lastSynced.get(email);
-  if (cached && Date.now() - cached < SYNC_TTL_MS) return;
-
   const roles = await legacyRolesFor(user);
+  const signature = JSON.stringify(roles);
+  const cached = lastSynced.get(email);
+  if (cached && cached.signature === signature && Date.now() - cached.time < SYNC_TTL_MS) return roles;
   const userType = user.roles.includes('Student') && !user.roles.includes('Teacher') && !user.roles.includes('Staff') && !isAdminUser(user)
     ? 'student'
     : 'staff';
@@ -54,7 +61,8 @@ async function syncRoles(user, email) {
       );
     }
     await client.query('COMMIT');
-    lastSynced.set(email, Date.now());
+    lastSynced.set(email, { time: Date.now(), signature });
+    return roles;
   } catch (error) {
     await client.query('ROLLBACK').catch(() => {});
     throw error;
@@ -109,21 +117,23 @@ async function attachAuthUser(req, res, next) {
   req.headers['x-user-email'] = email;
 
   try {
-    await syncRoles(req.user, email);
+    const roles = await syncRoles(req.user, email);
+    req.foodRoomAdmin = roles.includes('admin');
   } catch (error) {
     console.error('[FOOD-ROOM] Role sync failed:', error.message);
+    return next(error);
   }
   return next();
 }
 
-function requireAdmin(req, res, next) {
+async function requireAdmin(req, res, next) {
   if (!req.user) {
     return res.status(401).json({ success: false, error: 'Sign in required.' });
   }
-  if (isAdminUser(req.user)) {
-    return next();
-  }
-  return res.status(403).json({ success: false, error: 'Admin access required.' });
+  try {
+    if (isAdminUser(req.user) || await hasFoodRoomHubRole(req.user.id, 'lead-teacher')) return next();
+    return res.status(403).json({ success: false, error: 'Food Room administration access required.' });
+  } catch (error) { next(error); }
 }
 
 module.exports = { attachAuthUser, requireAdmin };

@@ -105,8 +105,11 @@ test('hub sources retain their original response shapes and stay inside the sele
 test('technology search exposes only assigned disciplines, with ADMIN bypass', async () => {
   const result = await search('/technology-hub/', 'wood', {
     dbQuery: async (sql, params) => {
+      if (sql.includes('hub_role_permissions')) {
+        if (!sql.includes('technology_hub_access')) return { rows: [], rowCount: 0 };
+      }
       assert.match(sql, /technology_hub_access/);
-      assert.deepEqual(params, [user.id]);
+      assert.deepEqual(params, [user.id, true]);
       return { rows: [{ area_key: 'textiles' }] };
     }
   });
@@ -118,6 +121,7 @@ test('technology search exposes only assigned disciplines, with ADMIN bypass', a
 test('Learning Sites uses public assessment strings and gates staff navigation', async () => {
   for (const admin of [false, true]) {
     const result = await search('/learning-sites/', 'fixture', {
+      dbQuery: async () => ({ rows: [], rowCount: 0 }),
       learningStore: () => ({
         initAdminSchema: async () => {},
         getCourseContentTargets: async () => [{ courseCode: '10DTEC', courseName: 'Fixture course', subjectCode: 'DTECH' }],
@@ -137,6 +141,25 @@ test('registry search delegates the same user to the existing dashboard visibili
     }
   });
   assert.equal(result.body.results[0].url, '/student-apps/fixture-app');
+});
+
+test('Learning Sites navigation follows module permissions, not global promotion', async () => {
+  for (const role of ['teacher', 'technician', 'lead-teacher']) {
+    const result = await search('/learning-sites/', 'plan', {
+      dbQuery: async (_sql, params) => {
+        assert.equal(params[1], 'learning-sites');
+        return { rows: [], rowCount: params[2] === 'teacher.view' || role === 'lead-teacher' ? 1 : 0 };
+      },
+      learningStore: () => ({ initAdminSchema: async () => {}, getCourseContentTargets: async () => [] })
+    });
+    assert.equal(result.statusCode, 200);
+    assert.ok(result.body.results.some(row => row.url === '/ReleverPlan/'));
+    const dashboard = await search('/learning-sites/', 'dashboard', {
+      dbQuery: async (_sql, params) => ({ rows: [], rowCount: role === 'lead-teacher' && params[2] === 'admin.manage' ? 1 : 0 }),
+      learningStore: () => ({ initAdminSchema: async () => {}, getCourseContentTargets: async () => [] })
+    });
+    assert.equal(dashboard.body.results.some(row => row.url === '/ADMIN/'), role === 'lead-teacher');
+  }
 });
 
 test('Core students never query account data or see administrator pages', async () => {

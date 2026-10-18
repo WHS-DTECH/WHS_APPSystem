@@ -109,7 +109,8 @@ if (missing.length) {
     }
     if (!response.ok) throw new Error('Global Control identity check failed.');
     const user = await response.json();
-    if (typeof user.id !== 'string' || typeof user.email !== 'string' || !Array.isArray(user.roles) || !user.roles.includes('ADMIN')) {
+    if (typeof user.id !== 'string' || typeof user.email !== 'string' || !Array.isArray(user.roles)
+      || !user.roles.some(role => ['ADMIN', 'Teacher'].includes(role))) {
       throw new Error('Global Control returned an invalid identity.');
     }
     req.user = user;
@@ -118,7 +119,9 @@ if (missing.length) {
   }));
   app.get('/nav-data', (req, res) => res.json({
     signedIn: true, name: req.user.display_name, email: req.user.email, avatarUrl: req.user.avatar_url,
-    isAdmin: true, searchModule: { key: 'core', label: 'Global Control' }
+    assignRolesUrl: req.user.roles.includes('ADMIN') || req.user.module_roles?.includes('lead-teacher')
+      ? new URL('/hubs/' + env.MODULE_CLIENT_ID.split(':')[0] + '/roles', core).href : null,
+    isAdmin: req.user.roles.includes('ADMIN'), searchModule: { key: 'core', label: 'Global Control' }
   }));
   app.get('/module-search', wrap(async (req, res) => {
     const response = await coreRequest('search', { q: req.query.q }, req.session.moduleToken);

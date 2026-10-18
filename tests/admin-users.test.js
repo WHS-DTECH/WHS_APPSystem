@@ -78,7 +78,7 @@ test('Global Control role directory and individual changes preserve primary and 
     const planner = (await db.query("SELECT id FROM module_builder_projects WHERE slug='teacher-planner'")).rows[0];
     const plannerScope = 'project:' + planner.id;
     html = await (await call('?module=' + plannerScope)).text();
-    assert.match(html, /requires Global ADMIN/);
+    assert.match(html, /require Global ADMIN/);
     assert.match(html, new RegExp('/module-builder/' + planner.id));
     assert.doesNotMatch(html, /class="user-role-add"|action="\/admin\/users\/remove"|id="role-to-add"|id="role-user-email"|>Add role<\/button>/);
     html = await (await call('?module=module:core')).text();
@@ -88,7 +88,7 @@ test('Global Control role directory and individual changes preserve primary and 
     await db.query(`INSERT INTO modules(module_key,display_name,is_active) VALUES ('inactive-fixture','Inactive Fixture',false);
       INSERT INTO modules(module_key,display_name) VALUES ('teacher-planner','Teacher Planner')`);
     html = await (await call('?module=module:teacher-planner')).text();
-    assert.match(html, /requires Global ADMIN/);
+    assert.match(html, /require Global ADMIN/);
     assert.equal((html.match(/>Teacher Planner<\/option>/g) || []).length, 1);
     assert.equal((await call('?module=' + plannerScope)).status, 302);
     html = await (await call('?module=module:inactive-fixture')).text();
@@ -113,6 +113,15 @@ test('Global Control role directory and individual changes preserve primary and 
     const plannerUser = (await db.query("SELECT id FROM users WHERE email='staff@school.test'")).rows[0].id;
     assert.equal((await db.query('SELECT * FROM user_roles WHERE user_id=$1', [plannerUser])).rows.length, 0);
     assert.equal((await call('/remove', { csrf, module: 'teacher-planner', userId: plannerUser, roleId: plannerRole })).status, 302);
+    const standardMigration = await fs.readFile(path.join(__dirname, '..', 'migrations', '031_standard_teaching_module_roles.sql'), 'utf8');
+    await db.query(standardMigration);
+    html = await (await call('?module=teacher-planner')).text();
+    for (const label of ['Lead Teacher', 'Teacher', 'Technician']) assert.match(html, new RegExp('>' + label + '</option>'));
+    await db.query("INSERT INTO modules(module_key,display_name) VALUES ('learning-sites','WHS Learning Sites')");
+    html = await (await call('?module=learning-sites')).text();
+    for (const label of ['Lead Teacher', 'Teacher', 'Technician']) assert.match(html, new RegExp('>' + label + '</option>'));
+    html = await (await call('?module=module:core')).text();
+    assert.doesNotMatch(html, /class="user-role-add"/);
     assert.equal((await call('/directory?type=staff&q=fi')).status, 200);
     let directory = await (await call('/directory?type=student&q=1234')).json();
     assert.equal(directory.people[0].email, 'student@school.test');
@@ -192,12 +201,13 @@ test('Global Control role directory and individual changes preserve primary and 
     await db.query("INSERT INTO user_hub_roles(user_id,hub_role_id,area_key) VALUES ($1,$2,'textiles')", [staff.id, sewingTeacher]);
     await db.query(`INSERT INTO student_apps(slug,hub_key,name,app_url,secret_hash)
       VALUES ('summary-fixture','app-summary-fixture','Summary App <script>','https://fixture.invalid','fixture');
-      INSERT INTO hub_roles(hub_key,role_key,display_name) VALUES ('app-summary-fixture','teacher','App Teacher <script>');
+      INSERT INTO hub_roles(hub_key,role_key,display_name) VALUES ('app-summary-fixture','teacher','App Teacher <script>')
+        ON CONFLICT(hub_key,role_key) DO UPDATE SET display_name=EXCLUDED.display_name;
       INSERT INTO users(email,display_name) VALUES ('primary-only@school.test','Primary Only');
       INSERT INTO user_roles(user_id,role_id,assignment_source)
         SELECT u.id,r.id,'kamar' FROM users u CROSS JOIN roles r WHERE u.email='primary-only@school.test' AND r.name='Staff';`);
     await db.query(`INSERT INTO user_hub_roles(user_id,hub_role_id,granted_by)
-      SELECT $1,id,$2 FROM hub_roles WHERE hub_key='app-summary-fixture'`, [staff.id, user.id]);
+      SELECT $1,id,$2 FROM hub_roles WHERE hub_key='app-summary-fixture' AND role_key='teacher'`, [staff.id, user.id]);
     await db.query(`INSERT INTO teacher_module_assignments(user_id,module_id)
       SELECT $1,id FROM modules WHERE module_key='dtech-hub'`, [staff.id]);
     const summarySection = html => /<section class="panel" id="all-additional-roles">([\s\S]*?)<\/section>/.exec(html)[1];
@@ -227,7 +237,12 @@ test('Global Control role directory and individual changes preserve primary and 
     html = await (await call('?module=app-summary-fixture')).text();
     assert.match(html, /Summary App &lt;script&gt;/);
     assert.match(html, /App Teacher &lt;script&gt;/);
-    const appRole = (await db.query("SELECT id FROM hub_roles WHERE hub_key='app-summary-fixture'")).rows[0].id;
+    const appRole = (await db.query("SELECT id FROM hub_roles WHERE hub_key='app-summary-fixture' AND role_key='teacher'")).rows[0].id;
+    await db.query("INSERT INTO modules(module_key,display_name,path) VALUES ('student-app-summary-fixture','Fixture Student App <script>','/student-apps/summary-fixture/open')");
+    assert.equal((await call('?module=module:student-app-summary-fixture')).headers.get('location'), '/admin/users?module=app-summary-fixture');
+    html = await (await call('?module=app-summary-fixture')).text();
+    assert.equal((html.match(/>Fixture Student App &lt;script&gt;<\/option>/g) || []).length, 1);
+    assert.equal((await db.query("SELECT * FROM hub_roles WHERE hub_key='student-app-summary-fixture'")).rowCount, 0);
     assert.equal((await hubAdd('app-summary-fixture', appRole, 'new@school.test')).status, 302);
     assert.equal((await call('/remove', { csrf, module: 'app-summary-fixture', userId: (await db.query("SELECT id FROM users WHERE email='new@school.test'")).rows[0].id, roleId: appRole })).status, 302);
     assert.equal((await db.query("SELECT google_id FROM users WHERE email='new@school.test'")).rows[0].google_id, null);

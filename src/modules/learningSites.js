@@ -2,7 +2,8 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const { formidable } = require('formidable');
-const { ensureAuthenticated, ensureRole } = require('../middleware');
+const { ensureAuthenticated } = require('../middleware');
+const { userHasHubPermission } = require('../hubRoles');
 const store = require('../legacy/learning-sites/adminStore');
 const drive = require('../legacy/learning-sites/driveSync');
 const { readReliefPlanEvents } = require('../legacy/learning-sites/reliefPlan');
@@ -14,8 +15,18 @@ const pagesRouter = express.Router({ caseSensitive: true });
 const apiRouter = express.Router();
 const router = express.Router();
 
-function hasRole(req, ...roles) {
-  return Boolean(req.user?.roles?.some((role) => role === 'ADMIN' || roles.includes(role)));
+async function hasRole(req, ...roles) {
+  return Boolean(req.user?.roles?.some((role) => role === 'ADMIN' || roles.includes(role))) ||
+    await userHasHubPermission(req.user, 'learning-sites', roles.includes('Teacher') ? 'teacher.view' : 'admin.manage');
+}
+
+function requireLearningRole(...roles) {
+  return async (req, res, next) => {
+    try {
+      if (await hasRole(req, ...roles)) return next();
+      return res.status(403).render('error', { title: 'Access denied', message: 'You do not have the required Learning Sites role.' });
+    } catch (error) { next(error); }
+  };
 }
 
 function actorName(req) {
@@ -28,12 +39,11 @@ function handler(fn) {
   });
 }
 
-function requireAdminApi(req, res, next) {
-  if (!hasRole(req)) {
-    return res.status(401).json({ ok: false, error: 'Unauthorized' });
-  }
-
-  return next();
+async function requireAdminApi(req, res, next) {
+  try {
+    if (!await hasRole(req)) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    return next();
+  } catch (error) { next(error); }
 }
 
 function readMultipartBody(req) {
@@ -47,8 +57,8 @@ function sendLegacyPage(fileName) {
   return (req, res) => res.sendFile(path.join(pagesDir, fileName));
 }
 
-pagesRouter.get('/ADMIN', ensureAuthenticated, ensureRole('ADMIN'), sendLegacyPage('ADMIN.html'));
-pagesRouter.get('/ReleverPlan', ensureAuthenticated, ensureRole('Teacher'), sendLegacyPage('ReleverPlan.html'));
+pagesRouter.get('/ADMIN', ensureAuthenticated, requireLearningRole(), sendLegacyPage('ADMIN.html'));
+pagesRouter.get('/ReleverPlan', ensureAuthenticated, requireLearningRole('Teacher'), sendLegacyPage('ReleverPlan.html'));
 
 router.get('/', (req, res) => res.redirect('/learning-sites-public.html'));
 router.get('/relief-planning', (req, res) => res.redirect('/ReleverPlan/'));
@@ -63,17 +73,17 @@ apiRouter.post('/admin/logout', (req, res, next) => {
   req.logout((error) => (error ? next(error) : res.json({ ok: true })));
 });
 
-apiRouter.get('/admin/session', (req, res) => {
-  res.json({ ok: true, authenticated: hasRole(req), user: hasRole(req) ? actorName(req) : null });
-});
+apiRouter.get('/admin/session', handler(async (req, res) => {
+  const authenticated = await hasRole(req);
+  res.json({ ok: true, authenticated, user: authenticated ? actorName(req) : null });
+}));
 
 // Record the signed-in Google user on every write instead of trusting the browser.
-apiRouter.post('/admin/*', (req, res, next) => {
-  if (hasRole(req)) {
-    req.body = { ...(req.body || {}), updatedBy: actorName(req) };
-  }
-
-  next();
+apiRouter.post('/admin/*', async (req, res, next) => {
+  try {
+    if (await hasRole(req)) req.body = { ...(req.body || {}), updatedBy: actorName(req) };
+    next();
+  } catch (error) { next(error); }
 });
 
 apiRouter.use('/admin', requireAdminApi);
@@ -213,13 +223,13 @@ apiRouter.post('/relief-plan/logout', (req, res, next) => {
   req.logout((error) => (error ? next(error) : res.json({ ok: true })));
 });
 
-apiRouter.get('/relief-plan/session', (req, res) => {
-  const role = req.user?.roles?.includes('ADMIN') ? 'ADMIN' : (hasRole(req, 'Teacher') ? 'Teacher' : null);
+apiRouter.get('/relief-plan/session', handler(async (req, res) => {
+  const role = req.user?.roles?.includes('ADMIN') ? 'ADMIN' : (await hasRole(req, 'Teacher') ? 'Teacher' : null);
   res.json({ ok: true, authenticated: Boolean(role), role });
-});
+}));
 
 apiRouter.get('/relief-plan/events', handler(async (req, res) => {
-  if (!hasRole(req, 'Teacher')) {
+  if (!await hasRole(req, 'Teacher')) {
     return res.status(401).json({ ok: false, error: 'Relief Plan access is restricted to ADMINs and Teachers' });
   }
 

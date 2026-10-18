@@ -280,6 +280,7 @@ function resolveShoppingRecipient(options = {}) {
 }
 
 function isAdminRequest(req) {
+  if (req.user) return req.foodRoomAdmin === true;
   const email = getRequestEmail(req);
   return Boolean(email && getBootstrapAdminEmails().has(email));
 }

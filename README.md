@@ -94,8 +94,10 @@ warning to check for a surviving database. Its source and data are not changed.
 
 The first approved framework is Node/Express. Global Control is the sign-in
 authority for every new module, including separately hosted development services.
-Initial development access is global ADMIN only, checked server-to-server on
-every application request; assigned testers are not yet supported.
+Teaching-module access is global ADMIN or a hub-wide Lead Teacher, Teacher or
+Technician assignment for that project, checked server-to-server on every
+application request. Core Administration, KAMAR Uploader and Module Builder
+remain Global-ADMIN-only.
 Its exported router can later accept Global Control's
 server-authenticated identity; it does not trust identity headers. It deliberately
 blocks application access until Global Control sign-in is configured. A healthy
@@ -180,7 +182,8 @@ Global Control identity uses state and PKCE, exact registered callbacks, single-
 cookie lifetimes. Grant expiry is fixed from sign-in, not a sliding idle timer;
 typing alone does not renew it. Only hashes are stored centrally.
 No Google client or session secret is copied to modules. Every application request
-checks the current global ADMIN role; outages fail closed. Core and module
+checks current account status and the global ADMIN or selected module role;
+outages fail closed. Core and module
 sessions are independent: use the module sign-out to revoke its grant immediately.
 Core sign-out alone does not revoke an already issued module grant; renewed
 module sign-in requires Core authentication. Role removal and module archiving
@@ -418,7 +421,7 @@ Before activation:
    Unmatched school accounts get a new student record. Duplicate email matches
    require administrator review rather than merging records.
 5. Manage access in **DTECH Hub > Assign User Roles**. Global ADMIN and DTECH
-   Lead Teacher/Teacher receive teacher tools; other active school users receive
+   Lead Teacher/Teacher/Technician receive teacher tools; other active school users receive
    student access. The current Core role is checked on every request, including
    for old training accounts previously stored as teachers. Local role editors
    redirect to Core and cannot change that authority.
@@ -498,8 +501,9 @@ check app access in step 3 and open the app. Guidance automatically connects the
 platform Administrator to `ADMIN`, the registering Builder to `AppBuilder`, and
 the selected client / Lead Teacher to `ADMIN` (full app settings access).
 Migration 022 fills these mappings for existing Guidance registrations too.
-Teacher, Technician and Student mappings are hidden under optional access and
-are disabled until an administrator or Lead Teacher enables them. Builders can
+Teacher and Technician map to Guidance's Counsellor role. Technician always uses
+Teacher's mapping; it cannot be configured independently. Student remains optional
+and disabled until an administrator or Lead Teacher enables it. Builders can
 view the assigned accounts and mappings but cannot change access or grant
 themselves app administration. Clients and assigned Lead Teachers can find the
 project on the Student Apps dashboard and manage access.
@@ -702,9 +706,8 @@ Hub and registered-app choices with independent roles reuse their existing recor
 Choices without independent roles show links to the existing teacher module
 assignment/role-permission pages or project environment settings instead of
 non-functional role forms. Teacher module allocations control dashboard
-visibility, not route authorization. The current module identity bridge remains
-Global-ADMIN-only for other projects. Teacher Planner also accepts its explicitly
-assigned module Teacher role.
+visibility, not route authorization. The module identity bridge accepts explicit
+teaching-project roles as described below; system administration modules are excluded.
 
 Directory searches require at least two characters and match current KAMAR names,
 school emails, staff codes or student IDs. Results are limited to 20; refine the
@@ -725,8 +728,15 @@ The Google session derives Teacher access from a current Lead Teacher assignment
 on each request without creating a separate stored Teacher role assignment.
 Removing Lead Teacher therefore removes that inherited access unless Teacher
 is independently assigned. Hub Lead Teacher roles remain separate.
-Modules without independent roles and area-specific access remain managed
-through the linked existing pages. The page and directory API are
+Migration `031_standard_teaching_module_roles.sql` adds Lead Teacher, Teacher and
+Technician to all teaching modules/apps/projects, and seeds these roles for future
+registrations. Existing extra roles and user assignments are retained. Lead Teacher
+administers only its module, never Core or other modules, and does not override
+owner-private records. Technician's permissions mirror Teacher's automatically,
+including later edits; edit Teacher under Role Permissions to change both.
+Core Administration, KAMAR Uploader and Module Builder are excluded and remain
+Global-ADMIN-only. Technology area grants remain independently managed in their
+existing pages. The main Assign User Roles page and directory API are
 global-ADMIN-only, and role mutations require the session's form token. Existing
 user-role records are not migrated or replaced. Email invitations are not enabled
 by this change.
@@ -740,15 +750,18 @@ override are not presented as explicit assignments. System-managed roles and
 inactive accounts are labelled. Change roles through the existing scoped forms;
 the summary does not modify permissions or assignments.
 
-For **Teacher Planner**, select the module and assign **Teacher** using the normal
+For **Teacher Planner**, select the module and assign **Lead Teacher**, **Teacher**
+or **Technician** using the normal
 directory form. This hub-wide assignment enables its registered environments'
 sign-in independently of the global Teacher role or teacher dashboard allocations.
-Migration `030_teacher_planner_roles.sql` adds only this role, not user grants.
-Global ADMIN retains access; active assigned teachers receive only a Teacher
-identity. Authorization is checked at handoff, code exchange and every identity
-request, so removing the assignment revokes existing access. Other projects stay
-ADMIN-only. Private planner entries remain owner-only, and school-wide settings
-remain ADMIN-only. Deploy both Core and Teacher Planner for this workflow.
+Global ADMIN retains access; module assignments receive a Teacher identity with
+separate verified `module_roles`, never a fabricated global ADMIN role.
+Authorization is checked at handoff, code exchange and every identity request,
+so removing the assignment revokes existing access. Private planner entries remain
+owner-only. Planner Lead Teachers and global administrators can edit shared school
+settings; Teacher and Technician cannot. Deploy both Core and Teacher Planner.
+New generated modules accept these verified identities; existing independent
+services must deploy the updated identity adapter before accepting non-ADMIN users.
 
 ## Kamar Uploader module
 
@@ -770,6 +783,11 @@ Data lives in the unified `DATABASE_URL` database using the legacy tables (`staf
 The Workshop is the legacy Workshop site (public/workshop, legacy API in src/legacy/workshop) under /workshop, using the Google login. Admins and users given the Workshop Lead Teacher hub role (assign at /admin/users) can upload worksheets, lesson notes and planners; signed-in users can upload activities. Existing data is copied once from INTEGRATION_WORKSHOP_DATABASE_URL (guarded by workshop_legacy_import); new data goes to DATABASE_URL. Suggestion notification emails are sent through the framework's Google Gmail API (GOOGLE_GMAIL_* variables) to Admins and Workshop Lead Teachers; SITE_URL is used in the email links.
 
 ## Food Room module
+
+Food Room Lead Teacher additionally receives the module-local legacy `admin` role,
+and Technician also receives the legacy `teacher` role so its controls match
+Teacher. Neither mapping grants any global or other-module role. Current module
+roles are checked before using the short legacy-role synchronization cache.
 
 The homepage recipe gallery reports failed requests with a Retry button instead
 of remaining on "Loading recipes". Weekly booking errors are shown separately

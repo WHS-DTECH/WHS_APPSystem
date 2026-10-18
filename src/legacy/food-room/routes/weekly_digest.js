@@ -440,6 +440,7 @@ async function sendWeeklyDigest({ recipients, isTest = false }) {
 // ─── Routes (admin-gated) ─────────────────────────────────────────────────────
 
 function isAdminRequest(req) {
+  if (req.user) return req.foodRoomAdmin === true;
   const email = String(
     (req.authUser && req.authUser.email) ||
     req.headers['x-user-email'] ||

@@ -5,7 +5,9 @@
   "defaultRoleMap": {
     "admin": "ADMIN",
     "builder": "AppBuilder",
-    "lead-teacher": "ADMIN"
+    "lead-teacher": "ADMIN",
+    "teacher": "Counsellor",
+    "technician": "Counsellor"
   },
   "roles": ["ADMIN", "AppBuilder", "Counsellor"]
 }

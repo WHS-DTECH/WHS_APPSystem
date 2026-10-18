@@ -309,6 +309,7 @@ async function hasWorkshopHubRole(user, roleKey) {
      FROM user_hub_roles assignments
      INNER JOIN hub_roles roles ON roles.id = assignments.hub_role_id
      WHERE assignments.user_id = $1 AND roles.hub_key = 'workshop' AND roles.role_key = $2
+       AND assignments.area_key IS NULL
      LIMIT 1`,
     [user.id, roleKey]
   );
@@ -319,9 +320,13 @@ async function hasWorkshopHubRole(user, roleKey) {
 async function legacyRolesFor(user) {
   const roles = [];
   if (isAdminUser(user)) roles.push('Admin');
-  if (await hasWorkshopHubRole(user, 'lead-teacher')) roles.push('Lead Teacher');
-  if (user.roles.includes('Teacher') || await hasWorkshopHubRole(user, 'teacher')) roles.push('Teacher');
-  if (await hasWorkshopHubRole(user, 'technician')) roles.push('Technician');
+  if (await hasWorkshopHubRole(user, 'lead-teacher')) {
+    roles.push('Lead Teacher');
+    if (!roles.includes('Admin')) roles.push('Admin');
+  }
+  const technician = await hasWorkshopHubRole(user, 'technician');
+  if (user.roles.includes('Teacher') || await hasWorkshopHubRole(user, 'teacher') || technician) roles.push('Teacher');
+  if (technician) roles.push('Technician');
   if (user.roles.includes('Staff')) roles.push('Staff');
   if (user.roles.includes('Student') || await hasWorkshopHubRole(user, 'student')) roles.push('Student');
   return roles;
@@ -332,10 +337,12 @@ function requireAuth(req, res, next) {
   return res.status(401).json({ error: 'Not authenticated' });
 }
 
-function requireAdmin(req, res, next) {
+async function requireAdmin(req, res, next) {
   if (!req.user) return res.status(401).json({ error: 'Not authenticated' });
-  if (isAdminUser(req.user)) return next();
-  return res.status(403).json({ error: 'Admin access required' });
+  try {
+    if (isAdminUser(req.user) || await hasWorkshopHubRole(req.user, 'lead-teacher')) return next();
+    return res.status(403).json({ error: 'Workshop administration access required' });
+  } catch (error) { next(error); }
 }
 
 async function requireAdminOrLead(req, res, next) {

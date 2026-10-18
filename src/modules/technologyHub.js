@@ -1,7 +1,8 @@
 const express = require('express');
 const path = require('path');
 const { query } = require('../db');
-const { ensureAuthenticated, ensureRole } = require('../middleware');
+const { ensureAuthenticated } = require('../middleware');
+const { userHasHubPermission } = require('../hubRoles');
 
 const publicDir = path.join(__dirname, '..', '..', 'public', 'technology-hub');
 const areas = [
@@ -16,12 +17,21 @@ function areaForFile(file) {
 }
 
 async function searchableAreas(user, dbQuery = query) {
+  if (!user || user.is_active === false) return [];
   if (user?.roles?.includes('ADMIN')) return areas;
-  if (!user?.roles?.some((role) => ['Student', 'Teacher'].includes(role))) return [];
+  if (!user.id) return [];
+  if (await userHasHubPermission(user, 'technology-hub', 'admin.manage', dbQuery)) return areas;
+  const teacher = await userHasHubPermission(user, 'technology-hub', 'teacher.view', dbQuery);
+  const hasGeneralAccess = teacher || user.roles?.some((role) => ['Student', 'Teacher'].includes(role)) || false;
 
   const result = await dbQuery(
-    'SELECT area_key FROM technology_hub_access WHERE user_id = $1',
-    [user.id]
+    `SELECT area_key FROM technology_hub_access WHERE user_id = $1 AND $2::boolean
+     UNION SELECT ur.area_key FROM user_hub_roles ur JOIN hub_roles r ON r.id=ur.hub_role_id
+     JOIN hub_role_permissions rp ON rp.hub_role_id=r.id
+     JOIN hub_permissions p ON p.id=rp.hub_permission_id AND p.hub_key=r.hub_key
+     WHERE ur.user_id=$1 AND r.hub_key='technology-hub'
+       AND p.permission_key IN ('home.view','teacher.view') AND ur.area_key IS NOT NULL`,
+    [user.id, hasGeneralAccess]
   );
   return areas.filter((area) => result.rows.some((row) => row.area_key === area.key));
 }
@@ -69,7 +79,14 @@ publicRouter.use(express.static(publicDir));
 
 const adminRouter = express.Router();
 
-adminRouter.get('/', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
+const requireTechnologyAdmin = async (req, res, next) => {
+  try {
+    if (await userHasHubPermission(req.user, 'technology-hub', 'admin.manage')) return next();
+    return res.status(403).render('error', { title: 'Access denied', message: 'Technology Hub administration access required.' });
+  } catch (error) { next(error); }
+};
+
+adminRouter.get('/', ensureAuthenticated, requireTechnologyAdmin, async (req, res, next) => {
   try {
     const [users, assignments] = await Promise.all([
       query(
@@ -97,7 +114,7 @@ adminRouter.get('/', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, 
   }
 });
 
-adminRouter.post('/:userId', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
+adminRouter.post('/:userId', ensureAuthenticated, requireTechnologyAdmin, async (req, res, next) => {
   try {
     const areaKeys = Array.isArray(req.body.areaKeys)
       ? req.body.areaKeys

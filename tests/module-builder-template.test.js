@@ -133,7 +133,9 @@ test('generated server checks its separate DB and redirects only to Global Contr
         identityChecks++;
         if (identityChecks === 7) return new Response('', {status:503});
         if (identityChecks === 8) return new Response('', {status:401});
-        return Response.json({id:'fixture-admin',email:'admin@example.test',display_name:'Fixture Admin',avatar_url:'https://lh3.googleusercontent.com/test',roles:['ADMIN']});
+        return Response.json({id:'fixture-admin',email:'admin@example.test',display_name:'Fixture Admin',avatar_url:'https://lh3.googleusercontent.com/test',
+          roles:process.env.FIXTURE_MODULE_ROLE ? ['Teacher'] : ['ADMIN'],
+          module_roles:process.env.FIXTURE_MODULE_ROLE ? [process.env.FIXTURE_MODULE_ROLE] : []});
       };`);
     base = await start({
       SESSION_SECRET: 'isolated-template-session-secret', GLOBAL_CONTROL_URL: 'https://core.example.test',
@@ -196,6 +198,27 @@ test('generated server checks its separate DB and redirects only to Global Contr
     assert.deepEqual(await response.json(),{signedOut:true});
     response = await fetch(base, {redirect:'manual',headers:{cookie:logoutCookie}});
     assert.equal(response.status,302);
+    for (const role of ['teacher','technician','lead-teacher']) {
+      base = await start({
+        SESSION_SECRET: 'isolated-module-role-session',
+        GLOBAL_CONTROL_URL: 'https://core.example.test', MODULE_CLIENT_ID: 'test-module:development',
+        APP_BASE_URL: 'https://fixture.onrender.com', FIXTURE_MODULE_ROLE: role
+      }, preload);
+      response = await fetch(base + '/auth/global-control', {redirect:'manual'});
+      const cookie = response.headers.get('set-cookie').split(';')[0];
+      const state = new URL(response.headers.get('location')).searchParams.get('state');
+      response = await fetch(base + '/auth/global-control/callback?' + new URLSearchParams({code:'C'.repeat(43),state}), {
+        redirect:'manual',headers:{cookie}
+      });
+      assert.equal(response.status,302);
+      const signedIn = response.headers.get('set-cookie').split(';')[0];
+      response = await fetch(base + '/nav-data',{headers:{cookie:signedIn}});
+      assert.equal(response.status,200);
+      const nav = await response.json();
+      assert.equal(nav.isAdmin,false);
+      assert.equal(nav.assignRolesUrl,role==='lead-teacher' ? 'https://core.example.test/hubs/test-module/roles' : null);
+      assert.equal((await fetch(base,{headers:{cookie:signedIn}})).status,200);
+    }
   } finally {
     for (const child of children) {
       if (child.exitCode !== null) continue;

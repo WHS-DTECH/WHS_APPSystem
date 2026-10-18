@@ -124,14 +124,14 @@ test('Class Training inherits current DTECH authority, not Student Apps or submi
     assert.equal((await fetch(base, { redirect: 'manual' })).status, 302);
     assert.equal((await fetch(base, { headers: { 'x-fixture-user': 'outside@example.test' } })).status, 403);
     assert.equal((await (await fetch(base, { headers })).json()).identity.role, 'student');
-    for (const role of ['Teacher', 'Lead Teacher']) {
+    for (const role of ['Teacher', 'Lead Teacher', 'Technician']) {
       access = { ...access, role };
       const body = await (await fetch(base, { headers })).json();
       assert.equal(body.identity.role, 'teacher');
       assert.equal(body.slug, 'dtech-class-training');
     }
     access = { ...access, role: 'Technician' };
-    assert.equal((await (await fetch(base, { headers })).json()).identity.role, 'student');
+    assert.equal((await (await fetch(base, { headers })).json()).identity.role, 'teacher');
     access = { ...access, admin: true };
     assert.equal((await (await fetch(base, { headers })).json()).identity.role, 'teacher');
     access = { ...access, active: false };

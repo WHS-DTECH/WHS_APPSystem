@@ -20,26 +20,28 @@
   <p>Managing: <strong><%= moduleLabel %></strong>. Role choices and the list below apply only to this selection.</p>
   <p><strong>Global ADMIN has administration across all hubs.</strong> A lower hub role does not restrict a Global ADMIN.
     Within a hub, Lead Teacher is its administrator role. Global Control Lead Teacher has Teacher access only.</p>
-  <p>All registered modules, registered apps and Module Builder projects are included. Area-specific grants remain in their existing management pages.</p>
+  <p>All teaching modules offer Lead Teacher, Teacher and Technician. Technician has the same permissions as Teacher for now.
+    Core Administration, KAMAR Uploader and Module Builder remain Global-ADMIN-only. Area-specific grants remain in their existing management pages.</p>
   <% if (module === 'teacher-planner') { %>
-    <p>Assign <strong>Teacher</strong> below to enable Teacher Planner sign-in. This is separate from Global Control Teacher.
-      Each teacher can access only their own planner entries. School-wide settings remain Global-ADMIN-only.
+    <p>Assign <strong>Lead Teacher</strong>, <strong>Teacher</strong> or <strong>Technician</strong> below to enable Teacher Planner sign-in. This is separate from Global Control Teacher.
+      Lead Teacher manages this module's settings; Teacher and Technician have identical teaching access.
+      Each user can access only their own planner entries.
       Removing the assignment revokes access on the next identity check. This assignment applies to the registered Teacher Planner environments.</p>
   <% } %>
   <% if (!editable) { %>
     <h2>Existing access controls — <%= moduleLabel %></h2>
     <% if (selectedModule.project_id) { %>
-      <p>This is a Module Builder project, not an independently assignable hub role. The current Global Control module sign-in bridge requires Global ADMIN and rechecks that role on every identity request. Assigning Teacher or a teacher module allocation will not bypass that restriction. Do not grant ADMIN just to provide module access.</p>
+      <p>This project does not have assignable teaching roles. System administration modules require Global ADMIN. Assigning a teacher dashboard allocation does not override sign-in restrictions.</p>
       <a class="button" href="/module-builder/<%= selectedModule.project_id %>">View project and environment access settings</a>
     <% } else { %>
-      <p>This module has no independent module roles registered. Its existing route permissions and Global Control roles still apply. A teacher module assignment controls its appearance on the Teacher dashboard; it does not override sign-in, administrator-only routes or other module restrictions.</p>
+      <p>Core Administration, KAMAR Uploader and Module Builder remain Global-ADMIN-only. This module has no assignable teaching roles here. A teacher module assignment controls its appearance on the Teacher dashboard; it does not override sign-in or administrator-only routes.</p>
       <a class="button" href="/admin/teachers">Manage existing teacher module assignments</a>
       <a class="button" href="/admin/roles">View existing role permissions</a>
       <% if (selectedModule.kind === 'app') { %><a class="button" href="/student-apps">Manage registered app access and role mapping</a><% } %>
     <% } %>
     <a class="button" href="/admin/users?module=global">Manage Global Control roles</a>
-    <% if (!selectedModule.active) { %><p><strong>This module is inactive or archived. Listing it here does not enable it.</strong></p><% } %>
   <% } %>
+  <% if (selectedModule && !selectedModule.active) { %><p><strong>This module is inactive or archived. Listing it here does not enable it.</strong></p><% } %>
 </section>
 <% if (saved) { %>
   <p class="panel" role="status"><%= moduleLabel %> role <%= saved %>. Other role assignments are unchanged.</p>
@@ -139,7 +141,7 @@
       <h2>How It Works</h2>
       <ul>
         <li><strong>Primary access:</strong> Staff and Student access comes from the current KAMAR lists and is refreshed at Google sign-in.</li>
-        <li><strong>Module roles:</strong> Select a hub to manage its existing roles, such as Lead Teacher, Teacher or Staff where available. Lead Teacher manages that hub, not the whole system. Role choices differ by hub.</li>
+        <li><strong>Module roles:</strong> Every teaching module has Lead Teacher, Teacher and Technician, alongside any existing extra roles. Lead Teacher manages that module, not the whole system. Technician has the same permissions as Teacher for now.</li>
         <li><strong>Global roles:</strong> Select Global Control to add ADMIN, Teacher or Lead Teacher. Global Lead Teacher has the same access as Teacher; it does not grant ADMIN or hub administration. Assigning a role before a person's first sign-in prepares their account; it does not sign them in.</li>
         <li><strong>Combined access:</strong> Permissions from assigned roles work together. ADMIN grants system-wide administration, not just DTECH-HUB access. Hub role changes do not change global roles, other hubs or area-specific grants.</li>
         <li><strong>Protected roles:</strong> KAMAR and system-managed assignments cannot be removed here. Only manually assigned additional roles have Remove buttons.</li>

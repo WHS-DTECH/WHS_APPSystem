@@ -85,7 +85,7 @@ async function saveAs(user, body) {
 }
 
 test('Guidance defaults distinguish system administrator, Builder and full-access client', () => {
-  assert.deepEqual(roleConfig(registered.slug).defaults, { admin: 'ADMIN', builder: 'AppBuilder', 'lead-teacher': 'ADMIN' });
+  assert.deepEqual(roleConfig(registered.slug).defaults, { admin: 'ADMIN', builder: 'AppBuilder', 'lead-teacher': 'ADMIN', teacher: 'Counsellor', technician: 'Counsellor' });
   assert.deepEqual(roleConfig('external-project').defaults, {});
 });
 
@@ -116,7 +116,7 @@ test('registration automatically assigns the Builder, chosen client and Guidance
   assert.deepEqual(assigned.map(({ params }) => [params[0], params[3]]), [['builder', 'builder'], ['client', 'lead-teacher']]);
   const mappings = statements.filter(({ sql }) => sql.startsWith('INSERT INTO student_app_role_map'));
   assert.deepEqual(mappings.map(({ params }) => params.slice(1)), [
-    ['admin', 'ADMIN'], ['builder', 'AppBuilder'], ['lead-teacher', 'ADMIN']
+    ['admin', 'ADMIN'], ['builder', 'AppBuilder'], ['lead-teacher', 'ADMIN'], ['teacher', 'Counsellor'], ['technician', 'Counsellor']
   ]);
 });
 
@@ -146,7 +146,7 @@ test('client, administrator and assigned Lead Teacher can configure optional acc
     assert.equal(response.status, 302);
     const inserts = statements.filter(({ sql }) => sql.startsWith('INSERT INTO student_app_role_map'));
     assert.deepEqual(inserts.map(({ params }) => params.slice(1)), [
-      ['admin', 'ADMIN'], ['builder', 'AppBuilder'], ['lead-teacher', 'ADMIN'], ['teacher', 'Counsellor']
+      ['admin', 'ADMIN'], ['builder', 'AppBuilder'], ['lead-teacher', 'ADMIN'], ['teacher', 'Counsellor'], ['technician', 'Counsellor']
     ]);
     assert.ok(statements.some(({ sql }) => sql === 'COMMIT'));
   }
@@ -158,10 +158,24 @@ test('unrecognised Guidance app roles are rejected before deleting saved mapping
   assert.equal(statements.some(({ sql }) => sql.startsWith('DELETE')), false);
 });
 
-test('saving with optional roles blank preserves core defaults and disables optional access', async () => {
+test('Teacher mapping remains configurable and Technician always follows it', async () => {
+  let response = await saveAs('lead', { map_teacher: 'AppBuilder', map_technician: 'ADMIN' });
+  assert.equal(response.status, 302);
+  let inserts = statements.filter(({ sql }) => sql.startsWith('INSERT INTO student_app_role_map'));
+  assert.deepEqual(inserts.slice(-2).map(({ params }) => params.slice(1)), [
+    ['teacher', 'AppBuilder'], ['technician', 'AppBuilder']
+  ]);
+  statements = [];
+  response = await saveAs('lead', { map_teacher: '', map_technician: 'ADMIN' });
+  assert.equal(response.status, 302);
+  inserts = statements.filter(({ sql }) => sql.startsWith('INSERT INTO student_app_role_map'));
+  assert.deepEqual(inserts.map(({ params }) => params[1]), ['admin', 'builder', 'lead-teacher']);
+});
+
+test('saving blank optional roles preserves standard staff defaults and leaves Student disabled', async () => {
   const response = await saveAs('client', {});
   assert.equal(response.status, 302);
-  assert.equal(statements.filter(({ sql }) => sql.startsWith('INSERT INTO student_app_role_map')).length, 3);
+  assert.equal(statements.filter(({ sql }) => sql.startsWith('INSERT INTO student_app_role_map')).length, 5);
 });
 
 test('a failed save rolls back and releases its database connection', async () => {
@@ -177,6 +191,8 @@ test('sign-in uses stored role mappings and denies unmapped optional roles', asy
   assert.equal(await resolveAppRole(registered, ['admin']), 'ADMIN');
   assert.equal(await resolveAppRole(registered, ['builder']), 'AppBuilder');
   assert.equal(await resolveAppRole(registered, ['lead-teacher']), 'ADMIN');
+  assert.equal(await resolveAppRole(registered, ['teacher']), 'Counsellor');
+  assert.equal(await resolveAppRole(registered, ['technician']), 'Counsellor');
   assert.equal(await resolveAppRole(registered, ['student']), null);
 });
 

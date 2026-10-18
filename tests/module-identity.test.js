@@ -23,7 +23,7 @@ test('Global Control identity binds codes to clients, PKCE, current ADMIN roles 
     }
     await pool.query(`CREATE TABLE sewing_hub_access(user_id uuid,access_level text,granted_by uuid);
       CREATE TABLE technology_hub_access(user_id uuid,area_key text);`);
-    for (const migration of ['007_hub_roles_and_permissions.sql', '016_hub_roles_base.sql', '030_teacher_planner_roles.sql']) {
+    for (const migration of ['007_hub_roles_and_permissions.sql', '016_hub_roles_base.sql', '018_student_apps.sql', '030_teacher_planner_roles.sql', '031_standard_teaching_module_roles.sql']) {
       await pool.query(await fs.readFile(path.join(__dirname, '..', 'migrations', migration), 'utf8'));
     }
     const durationMigration = await fs.readFile(path.join(__dirname, '..', 'migrations', '028_module_identity_session_duration.sql'), 'utf8');
@@ -155,6 +155,30 @@ test('Global Control identity binds codes to clients, PKCE, current ADMIN roles 
       WHERE project_id=$1 AND kind='development'`, [otherProject.id]);
     assert.equal((await authorize('Teacher', { client_id: 'other-module:development',
       redirect_uri: 'https://other-fixture.onrender.com/auth/global-control/callback' })).status, 403);
+    for (const role of ['technician','lead-teacher']) {
+      await pool.query('DELETE FROM user_hub_roles WHERE user_id=$1', [user.id]);
+      await pool.query(`INSERT INTO user_hub_roles(user_id,hub_role_id)
+        SELECT $1,id FROM hub_roles WHERE hub_key='teacher-planner' AND role_key=$2`, [user.id, role]);
+      const identity = await (await post('identity', { client_id: parameters.client_id }, teacherToken)).json();
+      assert.deepEqual(identity.roles, ['Teacher']);
+      assert.deepEqual(identity.module_roles, [role]);
+      assert.equal((await authorize('Teacher')).status, 302);
+      assert.equal((await authorize('Teacher', { client_id: 'other-module:development',
+        redirect_uri: 'https://other-fixture.onrender.com/auth/global-control/callback' })).status, 403);
+    }
+    await pool.query(`INSERT INTO user_hub_roles(user_id,hub_role_id)
+      SELECT $1,id FROM hub_roles WHERE hub_key='other-module' AND role_key='technician'`, [user.id]);
+    assert.equal((await authorize('Teacher', { client_id: 'other-module:development',
+      redirect_uri: 'https://other-fixture.onrender.com/auth/global-control/callback' })).status, 302);
+    const systemProject = (await pool.query(`INSERT INTO module_builder_projects(slug,name,mount_path)
+      VALUES ('module-builder','System Project','/system/') RETURNING id`)).rows[0];
+    await pool.query(`INSERT INTO hub_roles(hub_key,role_key,display_name) VALUES ('module-builder','lead-teacher','Stray system role');
+      INSERT INTO user_hub_roles(user_id,hub_role_id)
+      SELECT '${user.id}',id FROM hub_roles WHERE hub_key='module-builder'`);
+    await pool.query(`UPDATE module_builder_environments SET config=config || '{"appUrl":"https://system-fixture.onrender.com/"}'
+      WHERE project_id=$1 AND kind='development'`, [systemProject.id]);
+    assert.equal((await authorize('Teacher', { client_id: 'module-builder:development',
+      redirect_uri: 'https://system-fixture.onrender.com/auth/global-control/callback' })).status, 403);
     await pool.query('UPDATE users SET is_active=false WHERE id=$1', [user.id]);
     assert.equal((await authorize('Teacher')).status, 403);
     assert.equal((await post('identity', { client_id: parameters.client_id }, teacherToken)).status, 401);

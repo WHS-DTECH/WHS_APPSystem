@@ -4,7 +4,7 @@ const { accessForEmail } = require('./dtechHub');
 const email = require('../email');
 
 function hasTeacherAccess(access) {
-  return Boolean(access.active && (access.admin || ['Lead Teacher', 'Teacher'].includes(access.role)));
+  return Boolean(access.active && (access.admin || ['Lead Teacher', 'Teacher', 'Technician'].includes(access.role)));
 }
 
 async function canManageCourses(user) {

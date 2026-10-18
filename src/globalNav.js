@@ -160,6 +160,13 @@ function navData(query, canManageHubRoles, datasetManagerUrl, canManageCourses =
         && await canManageHubRoles(user, 'dtech-hub')) {
         assignRolesUrl = '/hubs/dtech-hub/roles';
       }
+      const teachingHub = {
+        sewing: 'sewing-hub', food: 'food-room', workshop: 'workshop',
+        technology: 'technology-hub', learning: 'learning-sites'
+      }[moduleForPath(currentPath)?.key];
+      const rolesPage = currentPath.match(/^\/hubs\/([a-z0-9-]+)\/roles(?:\/|$)/);
+      const hubKey = teachingHub || rolesPage?.[1];
+      if (user && !assignRolesUrl && hubKey && await canManageHubRoles(user, hubKey)) assignRolesUrl = `/hubs/${hubKey}/roles`;
       res.set('Cache-Control', 'no-store');
       res.json({
         signedIn: Boolean(user),
