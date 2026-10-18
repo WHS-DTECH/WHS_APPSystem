@@ -22,13 +22,19 @@ test('Global Control role directory and individual changes preserve primary and 
       await db.query(await fs.readFile(path.join(__dirname, '..', 'migrations', name), 'utf8'));
     }
     await db.query(`ALTER TABLE user_roles ADD COLUMN assignment_source text NOT NULL DEFAULT 'manual';
+      CREATE TABLE sewing_hub_access(user_id uuid,access_level text,granted_by uuid);
+      CREATE TABLE technology_hub_access(user_id uuid,area_key text);
       CREATE TABLE staff_upload(first_name text,last_name text,email_school text,status text,code text);
       CREATE TABLE student_details_upload(first_name text,last_name text,email_school text,status text,id_number text);
       INSERT INTO staff_upload VALUES ('Fixture','Staff','staff@school.test','Current','STA'),
         ('Former','Staff','former@school.test','Former','OLD'), ('Missing','Email',NULL,'Current','NONE');
       INSERT INTO student_details_upload VALUES ('Fixture','Student','student@school.test','Current','1234');`);
+    for (const name of ['007_hub_roles_and_permissions.sql', '016_hub_roles_base.sql', '025_dtech_hub.sql']) {
+      await db.query(await fs.readFile(path.join(__dirname, '..', 'migrations', name), 'utf8'));
+    }
     const roles = Object.fromEntries((await db.query('SELECT id,name FROM roles')).rows.map(row => [row.name, row.id]));
     let user = { id: crypto.randomUUID(), email: 'admin@school.test', roles: ['ADMIN'] };
+    await db.query('INSERT INTO users(id,email,display_name) VALUES ($1,$2,$3)', [user.id, user.email, 'Fixture Admin']);
     const app = express();
     app.set('view engine', 'ejs');
     app.set('views', path.join(__dirname, '..', 'views'));
@@ -59,7 +65,7 @@ test('Global Control role directory and individual changes preserve primary and 
     assert.match(html, /Staff List/);
     assert.match(html, /Student List/);
     assert.match(html, /Users with Additional Roles/);
-    assert.doesNotMatch(html, /Lead Teacher|name="roleIds"/);
+    assert.doesNotMatch(html, /<option value="[^"]+">Lead Teacher<\/option>|name="roleIds"/);
     const csrf = /name="csrf" value="([^"]+)"/.exec(html)[1];
     assert.equal((await call('/directory?type=staff&q=fi')).status, 200);
     let directory = await (await call('/directory?type=student&q=1234')).json();
@@ -98,12 +104,64 @@ test('Global Control role directory and individual changes preserve primary and 
     assert.equal((await db.query('SELECT * FROM user_roles WHERE user_id=$1', [staff.id])).rows.length, 2);
     assert.equal((await call('/remove', { csrf, userId: staff.id, roleId: roles.Teacher })).status, 409);
     assert.equal((await add('student@school.test', 'student')).status, 302);
+    const hubRoles = (await db.query('SELECT * FROM hub_roles')).rows;
+    const dtechLead = hubRoles.find(role => role.hub_key === 'dtech-hub' && role.role_key === 'lead-teacher').id;
+    const dtechStaff = hubRoles.find(role => role.hub_key === 'dtech-hub' && role.role_key === 'staff').id;
+    const sewingTeacher = hubRoles.find(role => role.hub_key === 'sewing-hub' && role.role_key === 'teacher').id;
+    const hubAdd = (module, roleId, email = staff.email) => call('/add', { csrf, module, type: 'staff', email, roleId });
+    const hubRemove = (module, roleId) => call('/remove', { csrf, module, userId: staff.id, roleId });
+    html = await (await call('?module=dtech-hub')).text();
+    assert.match(html, /Lead Teacher/);
+    assert.match(html, /DTECH Hub/);
+    assert.match(html, /name="module" value="dtech-hub"/);
+    assert.doesNotMatch(html, /<option value="[^"]+">ADMIN<\/option>/);
+    assert.equal((await call('?module=unknown')).status, 400);
+    assert.equal((await call('?module=dtech-hub&module=sewing-hub')).status, 400);
+    assert.equal((await hubAdd('unknown', dtechLead)).status, 400);
+    assert.equal((await hubAdd('dtech-hub', roles.ADMIN)).status, 400);
+    assert.equal((await hubAdd('dtech-hub', sewingTeacher)).status, 400);
+    assert.equal((await call('/add', { module: 'dtech-hub', type: 'staff', email: staff.email, roleId: dtechLead })).status, 403);
+    let response = await hubAdd('dtech-hub', dtechLead);
+    assert.equal(response.status, 302);
+    assert.equal(response.headers.get('location'), '/admin/users?module=dtech-hub&saved=added');
+    assert.equal((await hubAdd('dtech-hub', dtechLead)).status, 302);
+    assert.equal((await hubAdd('dtech-hub', dtechStaff)).status, 302);
+    assert.equal((await hubAdd('sewing-hub', sewingTeacher)).status, 302);
+    const globalBefore = (await db.query('SELECT * FROM user_roles WHERE user_id=$1 ORDER BY role_id', [staff.id])).rows;
+    assert.equal(globalBefore.length, 2);
+    assert.equal((await db.query('SELECT * FROM user_hub_roles WHERE user_id=$1', [staff.id])).rows.length, 3);
+    assert.equal((await db.query('SELECT granted_by FROM user_hub_roles WHERE user_id=$1 AND hub_role_id=$2', [staff.id, dtechLead])).rows[0].granted_by, user.id);
+    const permission = async hub => (await db.query(`SELECT p.permission_key FROM user_hub_roles ur
+      JOIN hub_roles r ON r.id=ur.hub_role_id JOIN hub_role_permissions rp ON rp.hub_role_id=r.id
+      JOIN hub_permissions p ON p.id=rp.hub_permission_id WHERE ur.user_id=$1 AND r.hub_key=$2`, [staff.id, hub])).rows.map(row => row.permission_key);
+    assert.ok((await permission('dtech-hub')).includes('admin.manage'));
+    assert.ok(!(await permission('sewing-hub')).includes('admin.manage'));
+    html = await (await call('?module=dtech-hub')).text();
+    assert.match(html, /Remove Lead Teacher/);
+    assert.match(html, /Remove Staff/);
+    assert.doesNotMatch(html, /Remove Teacher|<small>system-managed<\/small>/);
+    await db.query("INSERT INTO user_hub_roles(user_id,hub_role_id,area_key) VALUES ($1,$2,'textiles')", [staff.id, sewingTeacher]);
+    assert.equal((await hubRemove('dtech-hub', sewingTeacher)).status, 409);
+    assert.equal((await hubRemove('global', dtechLead)).status, 409);
+    assert.equal((await hubRemove('dtech-hub', dtechLead)).status, 302);
+    assert.ok(!(await permission('dtech-hub')).includes('admin.manage'));
+    assert.ok((await permission('dtech-hub')).includes('activities.browse'));
+    assert.equal((await hubRemove('sewing-hub', sewingTeacher)).status, 302);
+    assert.equal((await db.query('SELECT area_key FROM user_hub_roles WHERE user_id=$1 AND hub_role_id=$2', [staff.id, sewingTeacher])).rows[0].area_key, 'textiles');
+    assert.deepEqual((await db.query('SELECT * FROM user_roles WHERE user_id=$1 ORDER BY role_id', [staff.id])).rows, globalBefore);
+    // A hub grant can also prepare an account before its first Google sign-in.
+    await db.query("INSERT INTO staff_upload VALUES ('New','Teacher','new@school.test','Current','NEW')");
+    assert.equal((await hubAdd('dtech-hub', dtechStaff, 'new@school.test')).status, 302);
+    assert.equal((await db.query("SELECT google_id FROM users WHERE email='new@school.test'")).rows[0].google_id, null);
     await db.query('UPDATE users SET is_active=false WHERE id=$1', [staff.id]);
     assert.equal((await add()).status, 409);
+    assert.equal((await hubAdd('dtech-hub', dtechLead)).status, 409);
     user = { roles: ['Teacher'] };
     assert.equal((await call()).status, 403);
     assert.equal((await call('/directory?type=staff&q=fi')).status, 403);
     assert.equal((await add()).status, 403);
+    assert.equal((await hubAdd('dtech-hub', dtechLead)).status, 403);
+    assert.equal((await hubRemove('dtech-hub', dtechStaff)).status, 403);
     user = null;
     assert.equal((await call()).status, 302);
   } finally {

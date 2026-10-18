@@ -1,5 +1,6 @@
 (() => {
   'use strict';
+  document.getElementById('role-module').addEventListener('change', event => event.target.form.requestSubmit());
   for (const type of ['staff', 'student']) {
     const search = document.getElementById('role-search-' + type);
     const results = document.getElementById('role-search-results-' + type);

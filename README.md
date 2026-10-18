@@ -690,8 +690,12 @@ The Sewing Hub is the legacy Sewing Room site (`public/sewing-hub`, legacy API i
 
 **Administration > Assign User Roles** (`/admin/users`) uses the DTECH-HUB-style
 section links, searchable Staff and Student lists, Add Role form, additional-role
-table and How It Works guidance. This is a layout adaptation only: options remain
-Global Control roles such as ADMIN and Teacher, not DTECH-HUB roles.
+table and How It Works guidance. A module selector switches both the available
+roles and assigned-user list. Global Control remains a separate system-wide
+option. Sewing Hub, Technology Hub, Workshop, Food Room Hub and DTECH Hub use
+their existing `hub_roles` and `user_hub_roles` records and permissions; only hubs
+with registered roles appear. Lead Teacher is the administrator role within a
+hub. No new permission model or role records are introduced.
 
 Directory searches require at least two characters and match current KAMAR names,
 school emails, staff codes or student IDs. Results are limited to 20; refine the
@@ -701,10 +705,16 @@ It can prepare an account before its first Google sign-in; the existing Google
 login attaches to that email and refreshes KAMAR-derived primary access.
 
 Each addition preserves all other assignments. Remove buttons delete only the
-selected manually assigned additional role; KAMAR Staff/Student and system-managed
-roles are protected and labelled separately. The page and directory API are
+selected role in the selected scope; global KAMAR Staff/Student and system-managed
+roles are protected and labelled separately. Hub changes affect only hub-wide
+assignments, preserving area-specific grants, other hubs and global roles.
+Existing hub-role pages see the same assignments. Global ADMIN continues to
+override hub permissions: assigning a lower hub role does not restrict it.
+Modules without independent hub roles and area-specific access remain managed
+through their existing pages. The page and directory API are
 global-ADMIN-only, and role mutations require the session's form token. Existing
-user-role records are not migrated or replaced. Other hub-role pages are unchanged.
+user-role records are not migrated or replaced. Email invitations are not enabled
+by this change.
 
 ## Kamar Uploader module
 
