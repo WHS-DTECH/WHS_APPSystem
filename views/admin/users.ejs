@@ -3,7 +3,7 @@
 <section class="page-title">
   <p class="eyebrow">Administration</p>
   <h1>Assign User Roles</h1>
-  <p>Choose Global Control or a role-enabled hub, then assign roles using the current KAMAR lists.</p>
+  <p>Choose Global Control or any registered module to view its existing role and access controls.</p>
 </section>
 
 <section class="panel">
@@ -20,11 +20,26 @@
   <p>Managing: <strong><%= moduleLabel %></strong>. Role choices and the list below apply only to this selection.</p>
   <p><strong>Global ADMIN has administration across all hubs.</strong> A lower hub role does not restrict a Global ADMIN.
     Within a hub, Lead Teacher is its administrator role. Global Control Lead Teacher has Teacher access only.</p>
-  <p>Only hubs with existing independent roles are included. Other modules and area-specific grants remain in their existing management pages.</p>
+  <p>All registered modules, registered apps and Module Builder projects are included. Area-specific grants remain in their existing management pages.</p>
+  <% if (!editable) { %>
+    <h2>Existing access controls — <%= moduleLabel %></h2>
+    <% if (selectedModule.project_id) { %>
+      <p>This is a Module Builder project, not an independently assignable hub role. The current Global Control module sign-in bridge requires Global ADMIN and rechecks that role on every identity request. Assigning Teacher or a teacher module allocation will not bypass that restriction. Do not grant ADMIN just to provide module access.</p>
+      <a class="button" href="/module-builder/<%= selectedModule.project_id %>">View project and environment access settings</a>
+    <% } else { %>
+      <p>This module has no independent module roles registered. Its existing route permissions and Global Control roles still apply. A teacher module assignment controls its appearance on the Teacher dashboard; it does not override sign-in, administrator-only routes or other module restrictions.</p>
+      <a class="button" href="/admin/teachers">Manage existing teacher module assignments</a>
+      <a class="button" href="/admin/roles">View existing role permissions</a>
+      <% if (selectedModule.kind === 'app') { %><a class="button" href="/student-apps">Manage registered app access and role mapping</a><% } %>
+    <% } %>
+    <a class="button" href="/admin/users?module=global">Manage Global Control roles</a>
+    <% if (!selectedModule.active) { %><p><strong>This module is inactive or archived. Listing it here does not enable it.</strong></p><% } %>
+  <% } %>
 </section>
 <% if (saved) { %>
   <p class="panel" role="status"><%= moduleLabel %> role <%= saved %>. Other role assignments are unchanged.</p>
 <% } %>
+<% if (editable) { %>
 <div class="user-roles-layout">
   <nav class="user-roles-sections" aria-label="Role management sections">
     <a class="button" href="#add-user-role">Add Role to User</a>
@@ -128,6 +143,7 @@
     </section>
   </div>
 </div>
+<% } %>
 <section class="panel" id="all-additional-roles">
   <h2>All Additional Roles Summary</h2>
   <p>Read-only overview across all modules, regardless of the module selected above. KAMAR primary Staff/Student roles are not additional roles.

@@ -31,7 +31,7 @@ test('Global Control role directory and individual changes preserve primary and 
       INSERT INTO staff_upload VALUES ('Fixture','Staff','staff@school.test','Current','STA'),
         ('Former','Staff','former@school.test','Former','OLD'), ('Missing','Email',NULL,'Current','NONE');
       INSERT INTO student_details_upload VALUES ('Fixture','Student','student@school.test','Current','1234');`);
-    for (const name of ['007_hub_roles_and_permissions.sql', '016_hub_roles_base.sql', '018_student_apps.sql', '025_dtech_hub.sql']) {
+    for (const name of ['007_hub_roles_and_permissions.sql', '016_hub_roles_base.sql', '018_student_apps.sql', '025_dtech_hub.sql', '026_module_builder.sql']) {
       await db.query(await fs.readFile(path.join(__dirname, '..', 'migrations', name), 'utf8'));
     }
     const roles = Object.fromEntries((await db.query('SELECT id,name FROM roles')).rows.map(row => [row.name, row.id]));
@@ -68,10 +68,34 @@ test('Global Control role directory and individual changes preserve primary and 
     assert.match(html, /Student List/);
     assert.match(html, /Users with Additional Roles/);
     assert.match(html, /All Additional Roles Summary/);
+    assert.match(html, /Teacher Planner/);
+    assert.match(html, /Core Administration/);
+    assert.match(html, /Module Builder/);
     assert.match(html, /No additional roles or teacher module assignments are recorded/);
     assert.match(html, /<option value="[^"]+">Lead Teacher<\/option>/);
     assert.doesNotMatch(html, /name="roleIds"/);
     const csrf = /name="csrf" value="([^"]+)"/.exec(html)[1];
+    const planner = (await db.query("SELECT id FROM module_builder_projects WHERE slug='teacher-planner'")).rows[0];
+    const plannerScope = 'project:' + planner.id;
+    html = await (await call('?module=' + plannerScope)).text();
+    assert.match(html, /requires Global ADMIN/);
+    assert.match(html, new RegExp('/module-builder/' + planner.id));
+    assert.doesNotMatch(html, /class="user-role-add"|action="\/admin\/users\/remove"|id="role-to-add"|id="role-user-email"|>Add role<\/button>/);
+    html = await (await call('?module=module:core')).text();
+    assert.match(html, /href="\/admin\/teachers"/);
+    assert.match(html, /href="\/admin\/roles"/);
+    assert.doesNotMatch(html, /class="user-role-add"/);
+    await db.query(`INSERT INTO modules(module_key,display_name,is_active) VALUES ('inactive-fixture','Inactive Fixture',false);
+      INSERT INTO modules(module_key,display_name) VALUES ('teacher-planner','Teacher Planner')`);
+    html = await (await call('?module=module:teacher-planner')).text();
+    assert.match(html, /requires Global ADMIN/);
+    assert.equal((html.match(/>Teacher Planner<\/option>/g) || []).length, 1);
+    assert.equal((await call('?module=' + plannerScope)).status, 400);
+    html = await (await call('?module=module:inactive-fixture')).text();
+    assert.match(html, /Inactive Fixture \(inactive\/archived\)/);
+    assert.match(html, /Listing it here does not enable it/);
+    assert.equal((await call('/add', { csrf, module: 'module:teacher-planner', type: 'staff', email: 'staff@school.test', roleId: roles.Teacher })).status, 400);
+    assert.equal((await call('/remove', { csrf, module: 'module:core', userId: user.id, roleId: roles.ADMIN })).status, 400);
     assert.equal((await call('/directory?type=staff&q=fi')).status, 200);
     let directory = await (await call('/directory?type=student&q=1234')).json();
     assert.equal(directory.people[0].email, 'student@school.test');
@@ -183,6 +207,12 @@ test('Global Control role directory and individual changes preserve primary and 
     // A hub grant can also prepare an account before its first Google sign-in.
     await db.query("INSERT INTO staff_upload VALUES ('New','Teacher','new@school.test','Current','NEW')");
     assert.equal((await hubAdd('dtech-hub', dtechStaff, 'new@school.test')).status, 302);
+    html = await (await call('?module=app-summary-fixture')).text();
+    assert.match(html, /Summary App &lt;script&gt;/);
+    assert.match(html, /App Teacher &lt;script&gt;/);
+    const appRole = (await db.query("SELECT id FROM hub_roles WHERE hub_key='app-summary-fixture'")).rows[0].id;
+    assert.equal((await hubAdd('app-summary-fixture', appRole, 'new@school.test')).status, 302);
+    assert.equal((await call('/remove', { csrf, module: 'app-summary-fixture', userId: (await db.query("SELECT id FROM users WHERE email='new@school.test'")).rows[0].id, roleId: appRole })).status, 302);
     assert.equal((await db.query("SELECT google_id FROM users WHERE email='new@school.test'")).rows[0].google_id, null);
     await db.query('UPDATE users SET is_active=false WHERE id=$1', [staff.id]);
     const finalSummary = summarySection(await (await call('?module=workshop')).text());

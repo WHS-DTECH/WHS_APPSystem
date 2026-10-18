@@ -34,16 +34,41 @@ function createAdminUsersRouter({ dbQuery = query, initDirectory = () => require
     return res.status(status).render('error', { title: 'Role change not saved', message });
   };
   const scopeKey = value => value === undefined ? 'global' : value;
-  const validScope = value => typeof value === 'string' && (value === 'global' || Object.hasOwn(HUBS, value));
+  async function moduleCatalogue() {
+    return (await dbQuery(`SELECT 'module:'||m.module_key AS key,m.display_name AS label,
+        m.module_key AS hub_key,m.is_active AS active,'module'::text AS kind,p.id AS project_id,
+        EXISTS (SELECT 1 FROM hub_roles r WHERE r.hub_key=m.module_key) AS has_roles
+      FROM modules m LEFT JOIN module_builder_projects p ON p.slug=m.module_key
+      UNION ALL
+      SELECT 'app:'||a.hub_key,a.name,a.hub_key,true,'app',NULL::uuid,
+        EXISTS (SELECT 1 FROM hub_roles r WHERE r.hub_key=a.hub_key)
+      FROM student_apps a WHERE NOT EXISTS (SELECT 1 FROM modules m WHERE m.module_key=a.hub_key)
+      UNION ALL
+      SELECT DISTINCT r.hub_key,r.hub_key,r.hub_key,true,'hub',NULL::uuid,true
+      FROM hub_roles r WHERE NOT EXISTS (SELECT 1 FROM modules m WHERE m.module_key=r.hub_key)
+        AND NOT EXISTS (SELECT 1 FROM student_apps a WHERE a.hub_key=r.hub_key)
+      UNION ALL
+      SELECT 'project:'||p.id,p.name,NULL,p.stage<>'archived','project',p.id,false
+      FROM module_builder_projects p
+      WHERE NOT EXISTS (SELECT 1 FROM modules m WHERE m.module_key=p.slug)
+      ORDER BY label,key`)).rows.map(row => ({
+        ...row, key: row.has_roles ? row.hub_key : row.key,
+        label: (HUBS[row.hub_key]?.label || row.label) + (!row.active ? ' (inactive/archived)' : '')
+      }));
+  }
+  const validScope = (value, modules) => typeof value === 'string' &&
+    (value === 'global' || modules.some(item => item.key === value));
   const scopeUrl = module => '/admin/users?' + new URLSearchParams({ module });
   router.get('/', async (req, res, next) => {
     const module = scopeKey(req.query.module);
-    if (!validScope(module)) return invalid(res, 'Choose Global Control or an available role-enabled hub.');
     const global = module === 'global';
     try {
       await initDirectory();
-      const [modules, roles, assignments, summary] = await Promise.all([
-        dbQuery('SELECT DISTINCT hub_key FROM hub_roles WHERE hub_key = ANY($1::text[]) ORDER BY hub_key', [Object.keys(HUBS)]),
+      const modules = await moduleCatalogue();
+      if (!validScope(module, modules)) return invalid(res, 'Choose Global Control or a registered module.');
+      const selectedModule = modules.find(item => item.key === module);
+      const editable = global || Boolean(selectedModule.has_roles);
+      const [roles, assignments, summary] = await Promise.all([
         global ? dbQuery("SELECT id,name,description FROM roles WHERE name NOT IN ('Staff','Student') ORDER BY name") :
           dbQuery('SELECT id,display_name AS name,description FROM hub_roles WHERE hub_key=$1 ORDER BY display_name', [module]),
         dbQuery(`SELECT u.id,u.display_name,u.email,r.id AS role_id,r.name AS role_name,ur.assignment_source,
@@ -87,8 +112,8 @@ function createAdminUsersRouter({ dbQuery = query, initDirectory = () => require
       }
       res.render('admin/users', { title: 'Assign User Roles', roles: roles.rows, users: [...grouped.values()],
         summaryUsers: [...summaryUsers.values()],
-        module, moduleLabel: global ? 'Global Control' : HUBS[module].label,
-        modules: modules.rows.map(row => ({ key: row.hub_key, label: HUBS[row.hub_key].label })),
+        module, moduleLabel: global ? 'Global Control' : selectedModule.label,
+        modules, selectedModule, editable,
         csrf: req.session.adminUsersCsrf, saved: ['added', 'removed'].includes(req.query.saved) ? req.query.saved : '' });
     } catch (error) { next(error); }
   });
@@ -110,13 +135,16 @@ function createAdminUsersRouter({ dbQuery = query, initDirectory = () => require
   router.post('/add', async (req, res, next) => {
     const { type, roleId } = req.body;
     const module = scopeKey(req.body.module);
-    if (!validScope(module)) return invalid(res, 'Choose Global Control or an available role-enabled hub.');
     const global = module === 'global';
     const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
     if (!['staff', 'student'].includes(type) || !uuid(roleId) || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return invalid(res, 'Choose a staff/student type, valid school email and an additional role.');
     }
     try {
+      const modules = await moduleCatalogue();
+      if (!validScope(module, modules) || (!global && !modules.find(item => item.key === module).has_roles)) {
+        return invalid(res, 'This module does not support role changes here. Use its existing access controls.');
+      }
       await initDirectory();
       const person = (await dbQuery(`SELECT * FROM (${directorySql(type)}) directory WHERE email=$1 LIMIT 1`, [email])).rows[0];
       if (!person) return invalid(res, 'That email is not on the selected current KAMAR list. Check the type, email and uploaded directory.');
@@ -142,9 +170,12 @@ function createAdminUsersRouter({ dbQuery = query, initDirectory = () => require
   router.post('/remove', async (req, res, next) => {
     const { userId, roleId } = req.body;
     const module = scopeKey(req.body.module);
-    if (!validScope(module)) return invalid(res, 'Choose Global Control or an available role-enabled hub.');
     if (!uuid(userId) || !uuid(roleId)) return invalid(res, 'Choose a valid user and role to remove.');
     try {
+      const modules = await moduleCatalogue();
+      if (!validScope(module, modules) || (module !== 'global' && !modules.find(item => item.key === module).has_roles)) {
+        return invalid(res, 'This module does not support role changes here. Use its existing access controls.');
+      }
       const removed = module === 'global' ? await dbQuery(`DELETE FROM user_roles ur USING roles r
         WHERE ur.user_id=$1 AND ur.role_id=$2 AND r.id=ur.role_id
         AND r.name NOT IN ('Staff','Student') AND ur.assignment_source='manual' RETURNING ur.role_id`, [userId, roleId]) :

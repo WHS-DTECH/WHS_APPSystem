@@ -5,6 +5,7 @@
     const search = document.getElementById('role-search-' + type);
     const results = document.getElementById('role-search-results-' + type);
     const status = document.getElementById('role-search-status-' + type);
+    if (!search) continue;
     let timer, controller;
     search.addEventListener('input', () => {
       clearTimeout(timer);

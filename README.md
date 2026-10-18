@@ -693,9 +693,17 @@ section links, searchable Staff and Student lists, Add Role form, additional-rol
 table and How It Works guidance. A module selector switches both the available
 roles and assigned-user list. Global Control remains a separate system-wide
 option. Sewing Hub, Technology Hub, Workshop, Food Room Hub and DTECH Hub use
-their existing `hub_roles` and `user_hub_roles` records and permissions; only hubs
-with registered roles appear. Lead Teacher is the administrator role within a
-hub. Hub choices reuse existing role records and permissions.
+their existing `hub_roles` and `user_hub_roles` records and permissions.
+The selector includes all module registry entries, registered student apps,
+Module Builder projects and existing role-enabled hubs, including inactive or
+archived entries with explicit labels. Registry modules matching a project slug
+are listed once. Lead Teacher is the administrator role within a hub.
+Hub and registered-app choices with independent roles reuse their existing records.
+Choices without independent roles show links to the existing teacher module
+assignment/role-permission pages or project environment settings instead of
+non-functional role forms. Teacher module allocations control dashboard
+visibility, not route authorization. The current module identity bridge remains
+Global-ADMIN-only (including Teacher Planner); this selector does not loosen it.
 
 Directory searches require at least two characters and match current KAMAR names,
 school emails, staff codes or student IDs. Results are limited to 20; refine the
@@ -716,8 +724,8 @@ The Google session derives Teacher access from a current Lead Teacher assignment
 on each request without creating a separate stored Teacher role assignment.
 Removing Lead Teacher therefore removes that inherited access unless Teacher
 is independently assigned. Hub Lead Teacher roles remain separate.
-Modules without independent hub roles and area-specific access remain managed
-through their existing pages. The page and directory API are
+Modules without independent roles and area-specific access remain managed
+through the linked existing pages. The page and directory API are
 global-ADMIN-only, and role mutations require the session's form token. Existing
 user-role records are not migrated or replaced. Email invitations are not enabled
 by this change.
