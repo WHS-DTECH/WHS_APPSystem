@@ -10,6 +10,7 @@ coverage/
 dist/
 tmp/
 LegacySites/
+BuilderFiles (Dont push to GIT)/
 src/legacy/dtech-hub/TeacherFiles/
 hosted-apps/**/__pycache__/
 hosted-apps/**/*.pyc
