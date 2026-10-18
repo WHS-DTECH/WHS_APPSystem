@@ -154,6 +154,7 @@ body:has(#whs-account-header) #whs-student-app-viewport {
 .whs-dtech-integrated #hub-staff-link,
 .whs-dtech-integrated #hub-user-badge,
 .whs-dtech-integrated #hub-admin-link,
+.whs-dtech-integrated #hub-settings-link,
 .whs-dtech-integrated #hub-global-sidebar-admin-link,
 .whs-dtech-integrated #hub-global-sidebar-teacher-link {
   display: none !important;

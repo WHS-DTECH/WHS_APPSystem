@@ -110,7 +110,8 @@ original site, this is a content-view choice, not a reduction of server permissi
 The Google avatar's Settings menu includes **Homepage Event Settings** while in
 DTECH Hub for current DTECH administrators (including global ADMIN). It opens the
 original settings page with its existing 7/14/30-day browser-stored event window;
-the original page access restrictions and local shortcuts are unchanged.
+the original page access restrictions are unchanged. The duplicate Settings link
+in the DTECH top bar is hidden; the homepage event-panel shortcut remains.
 
 **Hub Management** in the same avatar Settings menu opens the original DTECH
 Admin Menu for current DTECH administrators. The duplicate Admin Menu controls in

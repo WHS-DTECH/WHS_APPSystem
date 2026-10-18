@@ -135,6 +135,7 @@ test('original homepage and activity detail use the session mode even with stale
   assert.match(css, /\.whs-dtech-integrated #hub-staff-link,/);
   assert.match(css, /\.whs-dtech-integrated #hub-user-badge,/);
   assert.match(css, /\.whs-dtech-integrated #hub-admin-link,/);
+  assert.match(css, /\.whs-dtech-integrated #hub-settings-link,/);
   assert.match(css, /\.whs-dtech-integrated #hub-global-sidebar-admin-link,/);
   assert.match(css, /\.whs-dtech-integrated #hub-global-sidebar-teacher-link\s*\{\s*display: none !important;/);
 });
