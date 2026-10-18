@@ -2540,7 +2540,20 @@ function pickBestAssessmentStandardCardMatch(cards, { standardCode, yearLevel, c
   return scored.length ? scored[0].row : null;
 }
 
+let assessmentStandardCardsSchemaPromise;
+
 async function ensureAssessmentStandardCardsSchema() {
+  if (!hasDatabase) return;
+  if (!assessmentStandardCardsSchemaPromise) {
+    assessmentStandardCardsSchemaPromise = prepareAssessmentStandardCardsSchema().catch((error) => {
+      assessmentStandardCardsSchemaPromise = null;
+      throw error;
+    });
+  }
+  return assessmentStandardCardsSchemaPromise;
+}
+
+async function prepareAssessmentStandardCardsSchema() {
   if (!hasDatabase) {
     return;
   }

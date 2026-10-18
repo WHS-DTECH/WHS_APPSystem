@@ -97,6 +97,13 @@ Class Training is the first capsule with integrated Teacher View / Student View:
 
 ## DTECH Hub: original site, separate database and private files
 
+Homepage content requests share a single in-flight load, and repeated sign-in
+UI updates do not reload the same account's activity, lesson and standard feeds.
+The shared school profile is loaded before those requests. Assessment-card
+schema preparation runs once per server instance (with retry after failure),
+instead of issuing 20 schema queries on every read. Content is still read fresh
+on page visits; role checks and the original legacy database remain unchanged.
+
 The deployable copy in `src/legacy/dtech-hub` comes directly from
 `LegacySites/TECH-HUB/DTECH-HUB`. Its HTML pages, styles, student activities,
 assessment logic, learning pathways and teaching tools are retained, not rebuilt.

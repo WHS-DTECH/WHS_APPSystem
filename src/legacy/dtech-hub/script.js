@@ -244,29 +244,45 @@ let projects = [...baseProjects];
 let labProjects = [...baseLabProjects];
 let lessons = [];
 let standardCards = [];
+let homepageLibraryLoad = null;
+let homepageLibraryEmail = null;
+let homepageLibraryLoadingEmail = null;
 
 // Dynamically load backend activities and refresh library
 async function refreshActivitiesLibrary() {
-    const [sharedProjects, sharedLessons, sharedStandardCards] = await Promise.all([
-        loadSharedProjects(),
-        loadSharedLessons(),
-        loadAssessmentStandardCardsForLibrary()
-    ]);
-    projects = mergeProjects(sharedProjects);
-    lessons = sharedLessons;
-    standardCards = sharedStandardCards;
-    renderCurrentWeek();
-    renderLibrary();
+    const email = getActiveHubEmail();
+    if (homepageLibraryLoad) {
+        return homepageLibraryLoadingEmail === email
+            ? homepageLibraryLoad
+            : homepageLibraryLoad.then(() => refreshActivitiesLibrary());
+    }
+    homepageLibraryLoadingEmail = email;
+    homepageLibraryLoad = (async () => {
+        const [sharedProjects, sharedLessons, sharedStandardCards] = await Promise.all([
+            loadSharedProjects(),
+            loadSharedLessons(),
+            loadAssessmentStandardCardsForLibrary()
+        ]);
+        if (getActiveHubEmail() !== email) return;
+        projects = mergeProjects(sharedProjects);
+        lessons = sharedLessons;
+        standardCards = sharedStandardCards;
+        homepageLibraryEmail = email;
+        renderCurrentWeek();
+        renderLibrary();
+    })().finally(() => { homepageLibraryLoad = null; });
+    return homepageLibraryLoad;
 }
 
 window.addEventListener("hub-auth-state-changed", (event) => {
     if (!isHomepagePath()) return;
 
     if (event.detail?.signedIn) {
-        void refreshActivitiesLibrary();
+        if (homepageLibraryEmail !== getActiveHubEmail()) void refreshActivitiesLibrary();
         return;
     }
 
+    homepageLibraryEmail = null;
     lessons = [];
     renderCurrentWeek();
     renderLibrary();
@@ -4765,14 +4781,8 @@ async function init() {
         return;
     }
 
-    const [sharedProjects, sharedLessons, sharedStandardCards] = await Promise.all([
-        loadSharedProjects(),
-        loadSharedLessons(),
-        loadAssessmentStandardCardsForLibrary()
-    ]);
-    projects = mergeProjects(sharedProjects);
-    lessons = sharedLessons;
-    standardCards = sharedStandardCards;
+    loadHubAuthState();
+    await refreshActivitiesLibrary();
     labProjects = [...baseLabProjects];
     renderStats();
     populateFilters();
