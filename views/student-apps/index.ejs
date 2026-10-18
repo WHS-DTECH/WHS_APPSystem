@@ -1,41 +1,70 @@
 <%- include('../partials/header') %>
-<style>
-  .sa-btn{margin:4px 8px 4px 0;display:inline-flex;align-items:center;justify-content:center;min-height:0;height:auto;padding:9px 22px;border-radius:999px;border:2px solid #0b5d4b;background:#0b5d4b;color:#fff!important;font:600 15px/1.2 inherit;font-family:inherit;text-decoration:none;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,.18);transition:background .15s,transform .05s}
-  .sa-btn:hover{background:#08463a;border-color:#08463a}
-  .sa-btn:active{transform:translateY(1px)}
-  .sa-btn.sa-alt{background:#fff;color:#0b5d4b!important}
-  .sa-btn.sa-alt:hover{background:#e6f2ee}
-  .sa-btn.sa-warn{background:#a85d0a;border-color:#a85d0a}
-  .sa-btn.sa-warn:hover{background:#8a4c08}
-</style>
+<link rel="stylesheet" href="/student-apps-dashboard.css">
+<div class="apps-dashboard">
+  <header class="apps-hero">
+    <div>
+      <p class="apps-eyebrow">Student Apps</p>
+      <h1>APPs Dashboard</h1>
+      <p>Discover student-built apps, open your projects, and manage their setup in one place.</p>
+    </div>
+    <div class="apps-actions">
+      <a class="apps-button" href="/student-apps/new">Register a project</a>
+      <% if (canImportGithub) { %>
+        <a class="apps-button apps-secondary" href="/student-apps/github-import">GitHub Import / Archive</a>
+      <% } %>
+    </div>
+  </header>
 
-<section class="page-title">
-  <p class="eyebrow">Student Apps</p>
-  <h1>Student Apps</h1>
-  <p>Apps built by students that sign in through the school's Google login. Each keeps its own database.</p>
-</section>
+  <section class="apps-stats" aria-label="Project overview">
+    <article><strong><%= apps.length %></strong><span>Visible projects</span></article>
+    <article><strong><%= apps.filter(app => app.status === 'active').length %></strong><span>Active apps</span></article>
+    <article><strong><%= apps.filter(app => app.status !== 'active').length %></strong><span>Awaiting registration</span></article>
+  </section>
 
-<section class="panel">
-  <p><a class="sa-btn" href="/student-apps/new">Register a project</a></p>
-  <% if (canImportGithub) { %><p><a class="sa-btn sa-alt" href="/student-apps/github-import">GitHub Import / Archive</a></p><% } %>
-  <% if (!apps.length) { %>
-    <p>No projects registered yet.</p>
-  <% } else { %>
-    <table>
-      <thead><tr><th>Project</th><th>Address</th><th>Sign-in</th><th>Roles</th><th></th></tr></thead>
-      <tbody>
-        <% apps.forEach(function (app) { %>
-          <tr>
-            <td><strong><%= app.name %></strong></td>
-            <td><%= app.app_url %></td>
-            <td><%= app.status !== 'active' ? 'Awaiting registration' : app.login_verified_at ? 'Verified' : 'Not tested' %></td>
-            <td><%= app.roles_mapped_at ? 'Mapped' : 'Not mapped' %></td>
-            <td><a class="sa-btn sa-alt" href="/student-apps/<%= app.slug %>">Set up</a></td>
-          </tr>
+  <section aria-labelledby="apps-heading">
+    <div class="apps-toolbar">
+      <div><h2 id="apps-heading">Your apps</h2><p>Open an app or view its setup details.</p></div>
+      <div class="apps-view-switch" role="group" aria-label="App display" hidden>
+        <button type="button" data-apps-view="grid" aria-pressed="true" aria-controls="apps-collection">Grid</button>
+        <button type="button" data-apps-view="list" aria-pressed="false" aria-controls="apps-collection">List</button>
+      </div>
+    </div>
+    <% if (!apps.length) { %>
+      <div class="apps-empty"><h3>No projects yet</h3><p>Register a project to get started. Only projects you have permission to see appear here.</p></div>
+    <% } else { %>
+      <div class="apps-collection" id="apps-collection">
+        <% apps.forEach(function (app) {
+          const active = app.status === 'active';
+          const connected = active && (app.hosted || app.login_verified_at);
+          const ready = active && connected && app.roles_mapped_at;
+        %>
+          <article class="apps-card">
+            <div class="apps-card-banner">
+              <span class="apps-monogram" aria-hidden="true"><%= app.name.trim().charAt(0).toUpperCase() %></span>
+              <span class="apps-status"><%= active ? 'Active' : 'Awaiting registration' %></span>
+            </div>
+            <div class="apps-card-content">
+              <h3><%= app.name %></h3>
+              <p class="apps-description"><%= app.description || 'A student-built project connected to the school Google framework.' %></p>
+              <dl class="apps-details">
+                <div><dt>Hosting</dt><dd><%= app.hosted ? 'Hosted in WHS APPSystem' : 'External app' %></dd></div>
+                <div><dt>Sign-in</dt><dd><%= !active ? 'Awaiting registration' : app.hosted ? 'Connected automatically' : app.login_verified_at ? 'Verified' : 'Not tested' %></dd></div>
+                <div><dt>Roles</dt><dd><%= app.roles_mapped_at ? 'Mapped' : 'Setup required' %></dd></div>
+              </dl>
+              <div class="apps-card-actions">
+                <% if (ready) { %>
+                  <a class="apps-button" href="/student-apps/<%= app.slug %>/open" aria-label="Open app: <%= app.name %>">Open app</a>
+                <% } else { %>
+                  <span class="apps-not-ready">Complete setup to open</span>
+                <% } %>
+                <a class="apps-button apps-secondary" href="/student-apps/<%= app.slug %>" aria-label="Set up: <%= app.name %>">Set up</a>
+              </div>
+            </div>
+          </article>
         <% }) %>
-      </tbody>
-    </table>
-  <% } %>
-</section>
-
+      </div>
+    <% } %>
+  </section>
+</div>
+<script src="/student-apps-dashboard.js"></script>
 <%- include('../partials/footer') %>

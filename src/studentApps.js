@@ -321,7 +321,11 @@ async function searchableApps(user) {
 router.get('/', async (req, res, next) => {
   try {
     const apps = await searchableApps(req.user);
-    res.render('student-apps/index', { title: 'Student Apps', apps, canImportGithub: isAdmin(req.user) });
+    res.render('student-apps/index', {
+      title: 'APPs Dashboard',
+      apps: apps.map((app) => ({ ...app, hosted: hostedApps.isHosted(app.slug) })),
+      canImportGithub: isAdmin(req.user)
+    });
   } catch (error) {
     next(error);
   }

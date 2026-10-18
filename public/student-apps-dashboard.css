@@ -1,0 +1,48 @@
+.apps-dashboard { font-family: "Segoe UI", Arial, sans-serif; }
+.apps-hero { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.5rem; padding: clamp(1.25rem, 3vw, 2.5rem); border-radius: 20px; background: linear-gradient(120deg, #093f34, #126c60); color: #fff; }
+.apps-eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: .75rem; font-weight: 700; }
+.apps-hero h1 { font-size: clamp(1.8rem, 4vw, 3rem); margin: .5rem 0; }
+.apps-hero p { max-width: 55ch; line-height: 1.6; }
+.apps-actions, .apps-card-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .65rem; }
+.apps-button { display: inline-flex; align-items: center; justify-content: center; padding: .65rem 1rem; border: 1px solid #0b5d4b; border-radius: 999px; background: #0b5d4b; color: #fff; font-size: .875rem; font-weight: 600; text-decoration: none; }
+.apps-button:hover { background: #093f34; color: #fff; }
+.apps-secondary { background: #fff; color: #0b5d4b; }
+.apps-secondary:hover { background: #e6f2ee; color: #093f34; }
+.apps-hero .apps-button { border-color: #fff; }
+.apps-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin: 1.25rem 0 2rem; }
+.apps-stats article { display: grid; gap: .35rem; background: #fff; border: 1px solid #d8e4df; border-radius: 14px; padding: 1.25rem; }
+.apps-stats strong { font-size: 1.8rem; color: #0b5d4b; }
+.apps-stats span, .apps-toolbar p { color: #50635a; font-size: .9rem; }
+.apps-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; }
+.apps-toolbar h2 { margin: 0; }
+.apps-toolbar p { margin: .4rem 0 0; }
+.apps-view-switch { display: flex; border: 1px solid #b9cfc4; border-radius: 999px; padding: .2rem; background: #fff; }
+.apps-view-switch[hidden] { display: none; }
+.apps-view-switch button { min-height: auto; padding: .5rem 1rem; border: 0; border-radius: 999px; background: transparent; color: #0b5d4b; cursor: pointer; font: inherit; }
+.apps-view-switch button[aria-pressed="true"] { background: #0b5d4b; color: #fff; }
+.apps-dashboard a:focus-visible, .apps-view-switch button:focus-visible { outline: 3px solid #c08a2c; outline-offset: 3px; }
+.apps-collection { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 1.25rem; }
+.apps-card { overflow: hidden; border: 1px solid #d8e4df; border-radius: 16px; background: #fff; box-shadow: 0 5px 16px #163d2c0d; min-width: 0; display: flex; flex-direction: column; }
+.apps-card-banner { display: flex; align-items: center; justify-content: space-between; gap: 1rem; background: linear-gradient(120deg, #dfefe9, #edf3fa); padding: 1.25rem; }
+.apps-monogram { display: grid; place-items: center; border-radius: 14px; width: 52px; height: 52px; background: #0b5d4b; color: #fff; font-size: 1.5rem; font-weight: 700; }
+.apps-status { background: #fff; border: 1px solid #c9dbd3; border-radius: 999px; padding: .35rem .7rem; font-size: .75rem; color: #234c3d; }
+.apps-card-content { display: flex; flex: 1; flex-direction: column; padding: 1.25rem; min-width: 0; }
+.apps-card h3 { font-size: 1.2rem; margin: 0 0 .5rem; overflow-wrap: anywhere; }
+.apps-description { color: #50635a; line-height: 1.6; margin: 0 0 1rem; overflow-wrap: anywhere; }
+.apps-details { margin: 0 0 1.25rem; font-size: .85rem; }
+.apps-details div { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .5rem; padding: .5rem 0; border-bottom: 1px solid #edf1ee; }
+.apps-details dt { color: #50635a; }
+.apps-details dd { margin: 0; font-weight: 600; }
+.apps-card-actions { margin-top: auto; }
+.apps-not-ready { font-size: .85rem; color: #6b4a17; }
+.apps-empty { background: #fff; border: 1px dashed #b9cfc4; border-radius: 16px; padding: 2rem; text-align: center; }
+.apps-collection[data-view="list"] { grid-template-columns: 1fr; }
+.apps-collection[data-view="list"] .apps-card { flex-direction: row; }
+.apps-collection[data-view="list"] .apps-card-banner { flex-direction: column; justify-content: center; width: 180px; flex-shrink: 0; }
+@media (max-width: 600px) {
+  .apps-stats { gap: .5rem; }
+  .apps-stats article { padding: .8rem; }
+  .apps-stats span { font-size: .75rem; }
+  .apps-collection[data-view="list"] .apps-card { flex-direction: column; }
+  .apps-collection[data-view="list"] .apps-card-banner { flex-direction: row; width: auto; }
+}

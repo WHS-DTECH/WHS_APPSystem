@@ -18,6 +18,13 @@ Unified Westland High School app shell for one Render Web Service and one Google
 - Original DTECH-HUB pages at `/dtech-hub/`, using the existing DTECH database and private teaching-file archive.
 - Sewing Hub public homepage with assigned Student and Teacher activity access.
 - Initial Kamar Uploader module under the ADMIN dashboard, with term-aware PostgreSQL uploads and history.
+
+The **APPs Dashboard** (`/student-apps`) lists permitted projects as responsive
+cards, with Grid/List controls and separate **Open app** and **Set up** actions.
+Open app uses the existing checked `/student-apps/:slug/open` route and appears
+when an active app has sign-in connected and roles mapped. Hosted apps use their
+automatic school sign-in even when no external app URL is stored. Setup pages,
+project visibility and GitHub import permissions are unchanged.
 - Docker and Render Blueprint configuration.
 
 ## Shared module-sensitive search
