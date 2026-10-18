@@ -35,6 +35,11 @@ explicit between-term school holiday ranges through the grant-authenticated
 as Global Control's **School Terms & Holidays** page; it does not expose Core
 credentials or make requests directly from the module browser to Core.
 National term opening/closing windows remain guidance, not confirmed WHS dates.
+The same bridge includes national public holidays and Westland's observed
+anniversary from govt.nz, retaining both actual and observed dates. Dates are
+read from visible table text rather than potentially inconsistent HTML datetime
+attributes. Public-holiday fetch failures are explicitly reported separately
+so Ministry school breaks can still be displayed.
 Source failures return 502 rather than an empty success, and unsupported years
 are explicitly marked unavailable. Module deployment is separate from Core.
 

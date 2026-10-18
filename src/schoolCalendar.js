@@ -1,4 +1,5 @@
 const SOURCE_URL = 'https://www.education.govt.nz/school-terms-and-holidays-dates';
+const { loadPublicHolidays } = require('./publicHolidays');
 const months = ['january', 'february', 'march', 'april', 'may', 'june',
   'july', 'august', 'september', 'october', 'november', 'december'];
 
@@ -44,9 +45,14 @@ function parseSchoolCalendar(html, year) {
 }
 
 async function loadSchoolCalendar(year) {
+  const publicHolidays = loadPublicHolidays(year).catch(error => {
+    console.error('Public holiday source failed:', error);
+    return { publicHolidaysAvailable: false, publicHolidays: [], publicHolidaysError: 'Public holiday dates could not be loaded from govt.nz. Retry shortly.' };
+  });
   const response = await fetch(SOURCE_URL, { signal: AbortSignal.timeout(15000) });
   if (!response.ok) throw new Error('Ministry calendar source returned ' + response.status);
-  return { ...parseSchoolCalendar(await response.text(), year), sourceUrl: SOURCE_URL, fetchedAt: new Date().toISOString() };
+  return { ...parseSchoolCalendar(await response.text(), year), ...await publicHolidays,
+    sourceUrl: SOURCE_URL, fetchedAt: new Date().toISOString() };
 }
 
 module.exports = { loadSchoolCalendar, parseSchoolCalendar };
