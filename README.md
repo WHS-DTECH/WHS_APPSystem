@@ -695,7 +695,7 @@ roles and assigned-user list. Global Control remains a separate system-wide
 option. Sewing Hub, Technology Hub, Workshop, Food Room Hub and DTECH Hub use
 their existing `hub_roles` and `user_hub_roles` records and permissions; only hubs
 with registered roles appear. Lead Teacher is the administrator role within a
-hub. No new permission model or role records are introduced.
+hub. Hub choices reuse existing role records and permissions.
 
 Directory searches require at least two characters and match current KAMAR names,
 school emails, staff codes or student IDs. Results are limited to 20; refine the
@@ -710,6 +710,12 @@ roles are protected and labelled separately. Hub changes affect only hub-wide
 assignments, preserving area-specific grants, other hubs and global roles.
 Existing hub-role pages see the same assignments. Global ADMIN continues to
 override hub permissions: assigning a lower hub role does not restrict it.
+Global Lead Teacher has the same effective access as Teacher (including the
+Teacher dashboard and existing per-user teacher module assignments), not ADMIN.
+The Google session derives Teacher access from a current Lead Teacher assignment
+on each request without creating a separate stored Teacher role assignment.
+Removing Lead Teacher therefore removes that inherited access unless Teacher
+is independently assigned. Hub Lead Teacher roles remain separate.
 Modules without independent hub roles and area-specific access remain managed
 through their existing pages. The page and directory API are
 global-ADMIN-only, and role mutations require the session's form token. Existing

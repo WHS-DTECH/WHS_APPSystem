@@ -18,9 +18,11 @@ test('Global Control role directory and individual changes preserve primary and 
   try {
     await db.query('CREATE SCHEMA ' + schema);
     await db.query('SET search_path TO ' + schema + ',public');
-    for (const name of ['001_init.sql', '002_roles_and_module_assignments.sql']) {
+    for (const name of ['001_init.sql', '002_roles_and_module_assignments.sql', '029_global_lead_teacher.sql']) {
       await db.query(await fs.readFile(path.join(__dirname, '..', 'migrations', name), 'utf8'));
     }
+    await db.query(await fs.readFile(path.join(__dirname, '..', 'migrations', '029_global_lead_teacher.sql'), 'utf8'));
+    assert.equal((await db.query("SELECT id FROM roles WHERE name='Lead Teacher'")).rows.length, 1);
     await db.query(`ALTER TABLE user_roles ADD COLUMN assignment_source text NOT NULL DEFAULT 'manual';
       CREATE TABLE sewing_hub_access(user_id uuid,access_level text,granted_by uuid);
       CREATE TABLE technology_hub_access(user_id uuid,area_key text);
@@ -65,7 +67,8 @@ test('Global Control role directory and individual changes preserve primary and 
     assert.match(html, /Staff List/);
     assert.match(html, /Student List/);
     assert.match(html, /Users with Additional Roles/);
-    assert.doesNotMatch(html, /<option value="[^"]+">Lead Teacher<\/option>|name="roleIds"/);
+    assert.match(html, /<option value="[^"]+">Lead Teacher<\/option>/);
+    assert.doesNotMatch(html, /name="roleIds"/);
     const csrf = /name="csrf" value="([^"]+)"/.exec(html)[1];
     assert.equal((await call('/directory?type=staff&q=fi')).status, 200);
     let directory = await (await call('/directory?type=student&q=1234')).json();
@@ -104,6 +107,9 @@ test('Global Control role directory and individual changes preserve primary and 
     assert.equal((await db.query('SELECT * FROM user_roles WHERE user_id=$1', [staff.id])).rows.length, 2);
     assert.equal((await call('/remove', { csrf, userId: staff.id, roleId: roles.Teacher })).status, 409);
     assert.equal((await add('student@school.test', 'student')).status, 302);
+    assert.equal((await add('staff@school.test', 'staff', roles['Lead Teacher'])).status, 302);
+    assert.equal((await db.query('SELECT * FROM user_roles WHERE user_id=$1 AND role_id=$2', [staff.id, roles['Lead Teacher']])).rows.length, 1);
+    assert.equal((await call('/remove', { csrf, userId: staff.id, roleId: roles['Lead Teacher'] })).status, 302);
     const hubRoles = (await db.query('SELECT * FROM hub_roles')).rows;
     const dtechLead = hubRoles.find(role => role.hub_key === 'dtech-hub' && role.role_key === 'lead-teacher').id;
     const dtechStaff = hubRoles.find(role => role.hub_key === 'dtech-hub' && role.role_key === 'staff').id;

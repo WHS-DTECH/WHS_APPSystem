@@ -20,7 +20,11 @@ passport.deserializeUser(async (id, done) => {
       [id]
     );
 
-    done(null, result.rows[0] || false);
+    const user = result.rows[0];
+    if (user?.roles.includes('Lead Teacher') && !user.roles.includes('Teacher')) {
+      user.roles.push('Teacher');
+    }
+    done(null, user || false);
   } catch (error) {
     done(error);
   }

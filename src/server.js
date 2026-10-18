@@ -338,10 +338,10 @@ app.get('/admin/teachers', ensureAuthenticated, ensureRole('ADMIN'), async (req,
   try {
     const teachers = (await query(
       `SELECT users.id, users.display_name, users.email,
-              COALESCE(array_agg(assignments.module_id) FILTER (WHERE assignments.module_id IS NOT NULL), '{}') AS module_ids
+              COALESCE(array_agg(DISTINCT assignments.module_id) FILTER (WHERE assignments.module_id IS NOT NULL), '{}') AS module_ids
        FROM users
        INNER JOIN user_roles ON user_roles.user_id = users.id
-       INNER JOIN roles ON roles.id = user_roles.role_id AND roles.name = 'Teacher'
+       INNER JOIN roles ON roles.id = user_roles.role_id AND roles.name IN ('Teacher', 'Lead Teacher')
        LEFT JOIN teacher_module_assignments assignments ON assignments.user_id = users.id
        GROUP BY users.id
        ORDER BY users.email`

@@ -19,7 +19,7 @@
   </form>
   <p>Managing: <strong><%= moduleLabel %></strong>. Role choices and the list below apply only to this selection.</p>
   <p><strong>Global ADMIN has administration across all hubs.</strong> A lower hub role does not restrict a Global ADMIN.
-    Lead Teacher is the administrator role within an individual hub.</p>
+    Within a hub, Lead Teacher is its administrator role. Global Control Lead Teacher has Teacher access only.</p>
   <p>Only hubs with existing independent roles are included. Other modules and area-specific grants remain in their existing management pages.</p>
 </section>
 <% if (saved) { %>
@@ -119,7 +119,7 @@
       <ul>
         <li><strong>Primary access:</strong> Staff and Student access comes from the current KAMAR lists and is refreshed at Google sign-in.</li>
         <li><strong>Module roles:</strong> Select a hub to manage its existing roles, such as Lead Teacher, Teacher or Staff where available. Lead Teacher manages that hub, not the whole system. Role choices differ by hub.</li>
-        <li><strong>Global roles:</strong> Select Global Control to add system-wide ADMIN or Teacher access. Assigning a role before a person's first sign-in prepares their account; it does not sign them in.</li>
+        <li><strong>Global roles:</strong> Select Global Control to add ADMIN, Teacher or Lead Teacher. Global Lead Teacher has the same access as Teacher; it does not grant ADMIN or hub administration. Assigning a role before a person's first sign-in prepares their account; it does not sign them in.</li>
         <li><strong>Combined access:</strong> Permissions from assigned roles work together. ADMIN grants system-wide administration, not just DTECH-HUB access. Hub role changes do not change global roles, other hubs or area-specific grants.</li>
         <li><strong>Protected roles:</strong> KAMAR and system-managed assignments cannot be removed here. Only manually assigned additional roles have Remove buttons.</li>
         <li><strong>Directory:</strong> Searches use current uploaded KAMAR staff and students. Missing people or email addresses must be corrected in KAMAR Uploader.</li>
