@@ -1,4 +1,6 @@
 const express = require('express');
+const path = require('path');
+const { renderShell } = require('./shell');
 
 // Embedded hosting supplies req.user from Global Control; never trust identity headers.
 function createModuleRouter() {
@@ -11,11 +13,12 @@ function createModuleRouter() {
     }
     next();
   });
-  router.get('/', (req, res) => res.json({
-    module: '__MODULE_SLUG__',
-    status: 'Framework ready; application features are not implemented.',
-    environment: process.env.MODULE_ENVIRONMENT || 'development'
-  }));
+  router.use('/framework', express.static(path.join(__dirname, 'public')));
+  router.get('/', (req, res) => {
+    const standalone = Boolean(req.moduleStandalone);
+    const coreUrl = standalone ? new URL(process.env.GLOBAL_CONTROL_URL).origin : '';
+    res.type('html').send(renderShell({ baseUrl: req.baseUrl.replace(/\/$/, '') + '/', coreUrl, standalone }));
+  });
   return router;
 }
 

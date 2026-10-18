@@ -1,12 +1,14 @@
 const crypto = require('crypto');
 const express = require('express');
 const { query } = require('./db');
+const { createModuleSearch } = require('./moduleSearch');
 
 const hash = (value) => crypto.createHash('sha256').update(value).digest('base64url');
 const opaque = (value) => typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value);
 
 function createModuleIdentityRouter({ dbQuery = query } = {}) {
   const router = express.Router();
+  const search = createModuleSearch({ dbQuery });
   router.use((req, res, next) => {
     res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
     next();
@@ -61,17 +63,34 @@ function createModuleIdentityRouter({ dbQuery = query } = {}) {
       VALUES ($1,$2,$3,$4,$5)`, [hash(token), registered.id, registered.kind, grant.user_id, registered.callback]);
     res.json({ access_token: token, token_type: 'Bearer', expires_in: 300 });
   }));
-  router.post('/identity', wrap(async (req, res) => {
+  async function identity(req, res) {
     const registered = await client(req.body.client_id);
     const token = req.get('authorization')?.replace(/^Bearer /, '');
-    if (!registered || !opaque(token)) return deny(res, 'Invalid module identity request.', 401);
-    const user = (await dbQuery(`SELECT u.id,u.email,u.display_name FROM module_identity_grants g
+    if (!registered || !opaque(token)) { deny(res, 'Invalid module identity request.', 401); return null; }
+    const user = (await dbQuery(`SELECT u.id,u.email,u.display_name,u.avatar_url FROM module_identity_grants g
       JOIN users u ON u.id=g.user_id
       WHERE g.token_hash=$1 AND g.project_id=$2 AND g.kind=$3 AND g.callback_url=$4 AND g.expires_at>NOW()
       AND EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id=ur.role_id WHERE ur.user_id=u.id AND r.name='ADMIN')`,
     [hash(token), registered.id, registered.kind, registered.callback])).rows[0];
-    if (!user) return deny(res, 'Module access expired or no longer authorised.', 401);
-    res.json({ ...user, roles: ['ADMIN'] });
+    if (!user) { deny(res, 'Module access expired or no longer authorised.', 401); return null; }
+    return { ...user, roles: ['ADMIN'] };
+  }
+  router.post('/identity', wrap(async (req, res) => {
+    const user = await identity(req, res);
+    if (user) res.json(user);
+  }));
+  router.post('/search', wrap(async (req, res) => {
+    const user = await identity(req, res);
+    if (!user) return;
+    req.user = user;
+    req.query = { path: '/dashboard', q: req.body.q };
+    await search(req, res);
+  }));
+  router.post('/revoke', wrap(async (req, res) => {
+    const token = req.get('authorization')?.replace(/^Bearer /, '');
+    if (!opaque(token)) return deny(res, 'Invalid module sign-out request.', 401);
+    await dbQuery('DELETE FROM module_identity_grants WHERE token_hash=$1', [hash(token)]);
+    res.json({ signedOut: true });
   }));
   return router;
 }

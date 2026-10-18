@@ -1,0 +1,6 @@
+html, body { margin: 0; min-height: 100%; background: #fff; color: #173d34; font-family: system-ui, sans-serif; }
+body.whs-module-shell { min-height: 100dvh; display: flex; flex-direction: column; }
+.whs-module-main { flex: 1; display: grid; place-items: center; padding: 32px 20px; }
+.whs-module-logo { display: block; width: min(280px, 60vw); height: auto; }
+.whs-module-footer { padding: 18px 20px; border-top: 1px solid #e5e7eb; color: #4b5563; text-align: center; font-size: 14px; line-height: 1.7; }
+.whs-module-footer p { margin: 0; }

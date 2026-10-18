@@ -85,22 +85,29 @@ test('framework installation is a fast-forward commit of bundled source and neve
   const calls = [];
   const responses = [
     { object: { sha: 'parent' } }, { tree: { sha: 'base-tree' } },
-    { tree: [{ path: 'README.md' }] }, { sha: 'new-tree' }, { sha: 'framework' }, {}
+    { tree: [{ path: 'README.md' }] }, { sha: 'logo-blob' }, { sha: 'new-tree' }, { sha: 'framework' }, {}
   ];
   const providers = createBuilderProviders({ env, fetchImpl: async (url, init) => {
     calls.push({ url, method: init.method, body: init.body && JSON.parse(init.body) });
     return reply(responses.shift());
   } });
   assert.equal((await providers.scaffold(project)).commit, 'framework');
-  const files = calls[3].body.tree;
+  const files = calls[4].body.tree;
+  assert.ok(files.some((file)=>file.path === 'public/whs-logo.png' && file.sha === 'logo-blob'));
+  assert.equal(calls[3].body.encoding, 'base64');
   assert.ok(files.some((file) => file.path === '.github/workflows/ci.yml'));
   assert.ok(files.some((file) => file.path === '.env.example'));
+  for (const name of ['global-nav.js', 'account-controls.css', 'module-shell.css']) {
+    assert.ok(files.some((file) => file.path === 'public/' + name));
+  }
+  assert.ok(files.find((file) => file.path === 'shell.js').content.includes('Last Updated:'));
+  assert.ok(!files.find((file) => file.path === 'shell.js').content.includes('__FRAMEWORK_UPDATED_AT__'));
   assert.ok(files.some((file) => file.path === 'db/migrations/001_initial.sql'));
   assert.match(files.find((file) => file.path === 'package.json').content, /node migrate.js && node server.js/);
   assert.ok(files.some((file) => file.path === 'module.json' && file.content.includes('/example-module/')));
-  assert.ok(files.every((file) => !file.content.includes(env.MODULE_BUILDER_GITHUB_TOKEN)));
+  assert.ok(files.every((file) => !file.content?.includes(env.MODULE_BUILDER_GITHUB_TOKEN)));
   for (const file of files.filter((file) => file.path.endsWith('.js'))) new vm.Script(file.content);
-  assert.equal(calls[5].body.force, false);
+  assert.equal(calls[6].body.force, false);
   await assert.rejects(providers.scaffold({ ...project, repository_managed: false }), /only for new/);
   const protectedProvider = createBuilderProviders({ env, fetchImpl: async (url) => reply(
     url.includes('/git/ref/') ? { object: { sha: 'parent' } }
@@ -129,15 +136,15 @@ test('framework upgrades refuse repositories with application commits and fast-f
   let calls = [];
   const responses = [
     { object: { sha: 'parent' } }, { tree: { sha: 'base-tree' } },
-    { tree: [{ path: 'server.js' }, { path: 'app.js' }] }, { sha: 'new-tree' }, { sha: 'updated' }, {}
+    { tree: [{ path: 'server.js' }, { path: 'app.js' }] }, {sha:'logo-blob'}, { sha: 'new-tree' }, { sha: 'updated' }, {}
   ];
   const providers = createBuilderProviders({ env, fetchImpl: async (url, init) => {
     calls.push({ url, method: init.method, body: init.body && JSON.parse(init.body) });
     return reply(responses.shift());
   } });
   assert.equal((await providers.upgrade(projectWithFramework)).commit, 'updated');
-  assert.equal(calls[5].body.force, false);
-  assert.ok(calls[3].body.tree.find((file) => file.path === 'server.js').content.includes('GLOBAL_CONTROL_URL'));
+  assert.equal(calls[6].body.force, false);
+  assert.ok(calls[4].body.tree.find((file) => file.path === 'server.js').content.includes('GLOBAL_CONTROL_URL'));
   calls = [];
   const changed = createBuilderProviders({ env, fetchImpl: async (url, init) => {
     calls.push(init.method);
@@ -238,7 +245,22 @@ test('provider failures are explicit, redact response bodies, and mark ambiguous
 test('generated module router enforces supplied identity and supports a nested mount', async () => {
   const source = await fs.readFile(path.join(__dirname, '..', 'module-templates', 'node', 'app.js.template'), 'utf8');
   const exported = { exports: {} };
-  vm.runInNewContext(source.replaceAll('__MODULE_SLUG__', 'test-module'), { require, module: exported, process });
+  const shellModule = { exports: {} };
+  const shellSource = (await fs.readFile(path.join(__dirname, '..', 'module-templates', 'node', 'shell.js.template'), 'utf8'))
+    .replaceAll('__MODULE_SLUG__', 'test-module').replaceAll('__FRAMEWORK_UPDATED_AT__', '2026-10-18T02:00:00.000Z');
+  vm.runInNewContext(shellSource, { module: shellModule, Intl, Date });
+  const later = shellModule.exports.renderShell({
+    baseUrl: '/', coreUrl: 'https://core.example.test/"<test>', standalone: true,
+    now: new Date('2026-10-31T12:00:00.000Z')
+  });
+  assert.match(later, /&copy; November 2026/);
+  assert.match(later, /18 October 2026/);
+  assert.match(later, /datetime="2026-10-18T02:00:00.000Z"/);
+  assert.ok(later.includes('https://core.example.test/&quot;&lt;test&gt;'));
+  vm.runInNewContext(source.replaceAll('__MODULE_SLUG__', 'test-module'), {
+    require: (name) => name === './shell' ? shellModule.exports : require(name),
+    module: exported, process, __dirname
+  });
   let user;
   const app = express();
   app.use((req, res, next) => { req.user = user; next(); });
@@ -251,6 +273,12 @@ test('generated module router enforces supplied identity and supports a nested m
     user = { roles: ['Student'] };
     assert.equal((await fetch(url)).status, 403);
     user = { roles: ['Teacher'] };
-    assert.equal((await fetch(url)).status, 200);
+    const response = await fetch(url);
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    assert.match(html, /Westland High School/);
+    assert.match(html, /18 October 2026/);
+    assert.match(html, /href="\/test-module\/framework\/module-shell.css"/);
+    assert.ok(!html.includes('whs-global-control'));
   } finally { await new Promise((resolve) => server.close(resolve)); }
 });

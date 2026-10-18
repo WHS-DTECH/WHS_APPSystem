@@ -2,6 +2,16 @@
 
 DEVELOPMENT - TEST DATA ONLY. This is a framework, not a completed application.
 
+The starter homepage is a white WHS-branded landing page with the shared account
+header (Google avatar, Profile and sign-out), Global Control search, centred WHS
+logo and centred footer. Search is Global Control's existing search until the
+module has its own search implementation; results open in Global Control.
+The copyright uses the current month/year in Pacific/Auckland. Last Updated is
+stamped when this framework is installed/updated, not reset on each page view.
+When application code is changed later, update `UPDATED_AT` in `shell.js` as part
+of the release. Shared header/CSS assets are bundled from Core at generation time.
+Sign-out revokes the module grant, destroys its session, then signs out of Core.
+
 ## Standalone
 
 1. Install Node 22+, run `npm install`, and commit the generated package-lock.json.

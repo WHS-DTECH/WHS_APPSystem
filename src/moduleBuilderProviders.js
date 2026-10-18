@@ -91,19 +91,27 @@ function createBuilderProviders({ env = process.env, fetchImpl = fetch } = {}) {
     }
     const directory = path.join(__dirname, '..', 'module-templates', 'node');
     const files = await fs.readdir(directory);
+    const updatedAt = new Date().toISOString();
+    const sharedFiles = ['global-nav.js', 'account-controls.css', 'module-shell.css'];
+    const logo = await api('GitHub', `${base}/git/blobs`, 'POST', {
+      encoding: 'base64',
+      content: (await fs.readFile(path.join(__dirname, '..', 'public', 'images', 'whs logo circular reo .png'))).toString('base64')
+    });
     const tree = await api('GitHub', `${base}/git/trees`, 'POST', {
       base_tree: commit.tree.sha,
-      tree: await Promise.all(files.map(async (name) => ({
-        path: name === 'ci.yml.template' ? '.github/workflows/ci.yml'
+      tree: [{ path: 'public/whs-logo.png', mode: '100644', type: 'blob', sha: logo.sha }, ...await Promise.all([...files, ...sharedFiles].map(async (name) => ({
+        path: sharedFiles.includes(name) ? `public/${name}`
+          : name === 'ci.yml.template' ? '.github/workflows/ci.yml'
           : name === 'initial.sql.template' ? 'db/migrations/001_initial.sql'
             : name.endsWith('.template') ? name.slice(0, -9) : name,
         mode: '100644', type: 'blob',
-        content: (await fs.readFile(path.join(directory, name), 'utf8'))
+        content: (await fs.readFile(sharedFiles.includes(name) ? path.join(__dirname, '..', 'public', name) : path.join(directory, name), 'utf8'))
           .replaceAll('__MODULE_SLUG__', project.slug).replaceAll('__MOUNT_PATH__', project.mount_path)
-      })))
+          .replaceAll('__FRAMEWORK_UPDATED_AT__', updatedAt)
+      })))]
     });
     const created = await api('GitHub', `${base}/git/commits`, 'POST', {
-      message: upgrade ? 'Use Global Control identity for module development' : 'Initial WHS integration-ready development framework', tree: tree.sha, parents: [parent]
+      message: upgrade ? 'Update WHS branded framework and Global Control integration' : 'Initial WHS integration-ready development framework', tree: tree.sha, parents: [parent]
     });
     await api('GitHub', `${base}/git/refs/heads/${encodeURIComponent(project.branch)}`, 'PATCH', { sha: created.sha, force: false });
     return { commit: created.sha };

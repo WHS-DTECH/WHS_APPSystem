@@ -16,6 +16,12 @@ test('module denies anonymous/student access and accepts a supplied teacher iden
     user = { roles: ['Student'] };
     assert.equal((await fetch(url)).status, 403);
     user = { roles: ['Teacher'] };
-    assert.equal((await fetch(url)).status, 200);
+    const response = await fetch(url);
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get('content-type'), /text\/html/);
+    const html = await response.text();
+    assert.match(html, /framework\/whs-logo.png/);
+    assert.match(html, /Last Updated:/);
+    assert.ok(!html.includes('name="whs-global-control"'));
   } finally { await new Promise((resolve) => server.close(resolve)); }
 });

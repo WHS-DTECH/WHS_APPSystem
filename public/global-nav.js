@@ -172,6 +172,9 @@
     }
   }
 
+  var moduleShell = document.querySelector('meta[name="whs-global-control"]');
+  var coreOrigin = moduleShell ? new URL(moduleShell.content).origin : location.origin;
+
   function signOutAccount(button, status) {
     status.textContent = '';
     status.setAttribute('role', 'status');
@@ -179,7 +182,7 @@
     fetch('/logout', { method: 'POST', credentials: 'same-origin' })
       .then(function (response) {
         if (!response.ok) throw new Error('Sign out failed.');
-        location.href = '/';
+        location.href = moduleShell ? coreOrigin + '/auth/logout' : '/';
       })
       .catch(function (error) {
         console.error('WHS account sign out:', error);
@@ -278,7 +281,7 @@
     }
     account.menu.appendChild(el('strong', {}, data.name || 'School account'));
     account.menu.appendChild(el('p', {}, data.email || ''));
-    link(account.menu, 'Profile', '/profile');
+    link(account.menu, 'Profile', moduleShell ? coreOrigin + '/profile' : '/profile');
     if (data.datasetManagerUrl || data.assignRolesUrl || data.courseManagementUrl || data.userRoleManagementUrl || data.homepageEventSettingsUrl || data.hubManagementUrl) {
       var settings = el('details', { 'class': 'whs-account-settings' });
       settings.appendChild(el('summary', {}, 'Settings'));
@@ -371,12 +374,12 @@
       }).then(function (body) {
         if (pending !== controller) return;
         body.results.forEach(function (result) {
-          var destination = new URL(result.url, location.origin);
-          if (destination.origin !== location.origin || !result.url.startsWith('/') || result.url.startsWith('//')) {
+          var destination = new URL(result.url, coreOrigin);
+          if (destination.origin !== coreOrigin || !result.url.startsWith('/') || result.url.startsWith('//')) {
             throw new Error('Search returned an invalid result link.');
           }
           var row = el('li');
-          var anchor = el('a', { href: result.url });
+          var anchor = el('a', { href: moduleShell ? destination.href : result.url });
           anchor.appendChild(el('strong', {}, result.title));
           anchor.appendChild(el('span', {}, result.kind + (result.description ? ' - ' + result.description : '')));
           row.appendChild(anchor);
@@ -447,7 +450,7 @@
       })
       .then(function (data) {
         buildAccount(data);
-        if (data && data.isAdmin) build(data);
+        if (data && data.isAdmin && !moduleShell) build(data);
       })
       .catch(function (error) {
         console.error('WHS account controls:', error);

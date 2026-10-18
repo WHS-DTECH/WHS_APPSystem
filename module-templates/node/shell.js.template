@@ -1,0 +1,35 @@
+const UPDATED_AT = '__FRAMEWORK_UPDATED_AT__';
+const escape = (value) => String(value).replace(/[&<>"']/g, (char) => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+}[char]));
+
+function renderShell({ baseUrl, coreUrl, standalone, now = new Date() }) {
+  const asset = (file) => escape(baseUrl + 'framework/' + file);
+  const monthYear = new Intl.DateTimeFormat('en-NZ', {
+    month: 'long', year: 'numeric', timeZone: 'Pacific/Auckland'
+  }).format(now);
+  const updated = new Intl.DateTimeFormat('en-NZ', {
+    day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Pacific/Auckland'
+  }).format(new Date(UPDATED_AT));
+  const title = '__MODULE_SLUG__'.split('-').map((word) => word[0].toUpperCase() + word.slice(1)).join(' ');
+  return `<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escape(title)} | WHS APPSystem</title>
+${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` : ''}
+<link rel="icon" type="image/png" href="${asset('whs-logo.png')}">
+<link rel="stylesheet" href="${asset('account-controls.css')}">
+<link rel="stylesheet" href="${asset('module-shell.css')}">
+</head><body class="whs-module-shell">
+<main class="whs-module-main" aria-label="${escape(title)}">
+<img class="whs-module-logo" src="${asset('whs-logo.png')}" alt="Westland High School" width="280" height="280">
+</main>
+<footer class="whs-module-footer">
+<p>&copy; ${escape(monthYear)} Westland High School</p>
+<p>Last Updated: <time datetime="${UPDATED_AT}">${escape(updated)}</time></p>
+</footer>
+${standalone ? `<script src="${asset('global-nav.js')}" defer></script>` : ''}
+</body></html>`;
+}
+
+module.exports = { renderShell };

@@ -12,7 +12,7 @@ const DATABASE_PLANS = ['free', 'basic_256mb', '0.1c-256mb'];
 const ACTIONS = {
   repository: 'Create private GitHub repository',
   scaffold: 'Install Node/Express framework',
-  upgrade: 'Update untouched framework to Global Control sign-in',
+  upgrade: 'Update untouched module framework',
   database: 'Create separate Render development database',
   service: 'Create Render development web service'
 };

@@ -21,7 +21,7 @@ test('Global Control identity binds codes to clients, PKCE, current ADMIN roles 
     for (const migration of ['001_init.sql', '002_roles_and_module_assignments.sql', '026_module_builder.sql', '027_module_identity.sql', '027_module_identity.sql']) {
       await pool.query(await fs.readFile(path.join(__dirname, '..', 'migrations', migration), 'utf8'));
     }
-    const user = (await pool.query("INSERT INTO users(email,display_name) VALUES ('admin@example.test','Admin') RETURNING *")).rows[0];
+    const user = (await pool.query("INSERT INTO users(email,display_name,avatar_url) VALUES ('admin@example.test','Admin','https://lh3.googleusercontent.com/fixture') RETURNING *")).rows[0];
     await pool.query("INSERT INTO user_roles(user_id,role_id) SELECT $1,id FROM roles WHERE name='ADMIN'", [user.id]);
     const project = (await pool.query("SELECT * FROM module_builder_projects WHERE slug='teacher-planner'")).rows[0];
     await pool.query(`UPDATE module_builder_environments SET config=config || '{"appUrl":"https://fixture.onrender.com/"}' WHERE project_id=$1 AND kind='development'`, [project.id]);
@@ -69,7 +69,14 @@ test('Global Control identity binds codes to clients, PKCE, current ADMIN roles 
     const exchanges = await Promise.all([post('token', body), post('token', body)]);
     assert.deepEqual(exchanges.map((item) => item.status).sort(), [200, 401]);
     const token = (await exchanges.find((item) => item.status === 200).json()).access_token;
-    assert.equal((await post('identity', { client_id: parameters.client_id }, token)).status, 200);
+    const identity = await post('identity', { client_id: parameters.client_id }, token);
+    assert.equal(identity.status, 200);
+    assert.equal((await identity.json()).avatar_url, user.avatar_url);
+    const search = await post('search', {client_id:parameters.client_id,q:'Dashboard'},token);
+    assert.equal(search.status,200);
+    assert.ok((await search.json()).results.some((item)=>item.url==='/dashboard'));
+    assert.equal((await post('search', {client_id:parameters.client_id,q:'Dashboard'},'Z'.repeat(43))).status,401);
+    assert.equal((await post('search', {client_id:parameters.client_id,q:'D'},token)).status,400);
     assert.equal((await post('identity', { client_id: 'teacher-planner:staging' }, token)).status, 401);
     const stored = (await pool.query('SELECT * FROM module_identity_grants')).rows[0];
     assert.notEqual(stored.token_hash, token);
@@ -78,10 +85,19 @@ test('Global Control identity binds codes to clients, PKCE, current ADMIN roles 
     await pool.query("INSERT INTO user_roles(user_id,role_id) SELECT $1,id FROM roles WHERE name='ADMIN'", [user.id]);
     await pool.query("UPDATE module_identity_grants SET expires_at=NOW()-INTERVAL '1 second'");
     assert.equal((await post('identity', { client_id: parameters.client_id }, token)).status, 401);
+    assert.equal((await post('revoke', {},token)).status,200);
+    assert.equal((await pool.query('SELECT * FROM module_identity_grants')).rows.length,0);
     response = await authorize('ADMIN');
     const expiring = new URL(response.headers.get('location')).searchParams.get('code');
     await pool.query("UPDATE module_identity_codes SET expires_at=NOW()-INTERVAL '1 second'");
     assert.equal((await post('token', { ...body, code: expiring })).status, 401);
+    response = await authorize('ADMIN');
+    const freshCode = new URL(response.headers.get('location')).searchParams.get('code');
+    const active = await post('token', {...body, code:freshCode});
+    const activeToken = (await active.json()).access_token;
+    assert.equal((await post('revoke', {}, 'bad')).status,401);
+    assert.equal((await post('revoke', {}, activeToken)).status,200);
+    assert.equal((await post('identity', {client_id:parameters.client_id},activeToken)).status,401);
     await pool.query("UPDATE module_builder_projects SET stage='archived' WHERE id=$1", [project.id]);
     assert.equal((await authorize('ADMIN')).status, 400);
   } finally {

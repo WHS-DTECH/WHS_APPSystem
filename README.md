@@ -171,6 +171,18 @@ replace module business data. Existing services require manual redeployment
 because automatic deploys are off. Separate standalone Google configuration is
 no longer part of the generated framework.
 
+New Node frameworks include a branded HTML homepage instead of a JSON response:
+the existing shared header/avatar controls, Global Control search, a centred WHS
+logo on white, and a centred footer. Shared header JavaScript and CSS are bundled
+from Core during framework generation/update, not independently rebuilt.
+Standalone search is forwarded server-to-server using the verified module grant;
+results and Profile links go to Core. Sign-out revokes the local grant/session and
+then signs out of Core. Embedded pages use Core's existing header injection.
+Copyright month/year uses Pacific/Auckland; Last Updated is stamped during
+framework installation/update. Future application releases should update
+`UPDATED_AT` in their generated `shell.js`. Existing untouched frameworks can use
+the guarded framework-update action, followed by a manual Render deployment.
+
 ## Module-sensitive role views
 
 Role View controls now describe the current module instead of always linking to

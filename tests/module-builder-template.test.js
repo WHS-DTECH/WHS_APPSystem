@@ -79,9 +79,19 @@ test('generated server checks its separate DB and redirects only to Global Contr
     });
   }
   try {
-    for (const name of ['app.js', 'server.js']) {
-      await fs.writeFile(path.join(directory, name), (await fs.readFile(path.join(template, `${name}.template`), 'utf8')).replaceAll('__MODULE_SLUG__', 'test-module'));
+    for (const name of ['app.js', 'server.js', 'shell.js', 'app.test.js']) {
+      await fs.writeFile(path.join(directory, name), (await fs.readFile(path.join(template, `${name}.template`), 'utf8'))
+        .replaceAll('__MODULE_SLUG__', 'test-module').replaceAll('__FRAMEWORK_UPDATED_AT__', '2026-10-18T02:00:00.000Z'));
     }
+    await fs.mkdir(path.join(directory, 'public'));
+    for (const name of ['global-nav.js', 'account-controls.css', 'module-shell.css']) {
+      await fs.copyFile(path.join(__dirname, '..', 'public', name), path.join(directory, 'public', name));
+    }
+    await fs.copyFile(path.join(__dirname, '..', 'public', 'images', 'whs logo circular reo .png'), path.join(directory, 'public', 'whs-logo.png'));
+    await promisify(execFile)(process.execPath, ['--test', path.join(directory, 'app.test.js')], {
+      env: {PATH:process.env.PATH,SystemRoot:process.env.SystemRoot,NODE_PATH:path.join(__dirname,'..','node_modules')},
+      timeout:15000
+    });
     let base = await start();
     assert.equal((await fetch(base + '/health')).status, 200);
     let response = await fetch(base);
@@ -118,10 +128,12 @@ test('generated server checks its separate DB and redirects only to Global Contr
           return Response.json({access_token:'A'.repeat(43)});
         }
         if (options.headers.Authorization !== 'Bearer ' + 'A'.repeat(43)) throw new Error('Missing token.');
+        if (String(url).endsWith('/search')) return Response.json({results:[{title:'Dashboard',url:'/dashboard',kind:'Page'}],truncated:false});
+        if (String(url).endsWith('/revoke')) return Response.json({signedOut:true});
         identityChecks++;
-        if (identityChecks === 2) return new Response('', {status:503});
-        if (identityChecks > 2) return new Response('', {status:401});
-        return Response.json({id:'fixture-admin',email:'admin@example.test',roles:['ADMIN']});
+        if (identityChecks === 7) return new Response('', {status:503});
+        if (identityChecks === 8) return new Response('', {status:401});
+        return Response.json({id:'fixture-admin',email:'admin@example.test',display_name:'Fixture Admin',avatar_url:'https://lh3.googleusercontent.com/test',roles:['ADMIN']});
       };`);
     base = await start({
       SESSION_SECRET: 'isolated-template-session-secret', GLOBAL_CONTROL_URL: 'https://core.example.test',
@@ -139,19 +151,51 @@ test('generated server checks its separate DB and redirects only to Global Contr
     assert.notEqual(signedInCookie, pendingCookie);
     response = await fetch(base, {redirect:'manual',headers:{cookie:signedInCookie}});
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), {
-      module: 'test-module', status: 'Framework ready; application features are not implemented.', environment: 'development'
-    });
+    const html = await response.text();
+    assert.match(html, /<main class="whs-module-main"/);
+    assert.match(html, /framework\/whs-logo.png/);
+    assert.match(html, /18 October 2026/);
+    assert.match(html, /name="whs-global-control"/);
+    assert.match(response.headers.get('content-security-policy'), /https:\/\/core.example.test/);
+    response = await fetch(base + '/nav-data',{headers:{cookie:signedInCookie}});
+    const account = await response.json();
+    assert.equal(account.name,'Fixture Admin');
+    assert.equal(account.searchModule.label,'Global Control');
+    response = await fetch(base + '/module-search?q=Dashboard',{headers:{cookie:signedInCookie}});
+    assert.equal((await response.json()).results[0].url,'/dashboard');
+    response = await fetch(base + '/framework/global-nav.js',{headers:{cookie:signedInCookie}});
+    assert.equal(response.status,200);
+    assert.match(await response.text(),/whs-global-control/);
     response = await fetch(base, {redirect:'manual',headers:{'x-user-email':'admin@example.test','x-user-role':'ADMIN'}});
     assert.equal(response.status, 302);
     response = await fetch(base + '/api/example', {method:'POST',redirect:'manual',headers:{cookie:signedInCookie,origin:'https://evil.example'}});
     assert.equal(response.status, 403);
+    response = await fetch(base + '/framework/module-shell.css',{headers:{cookie:signedInCookie}});
+    assert.equal(response.status,200);
+    response = await fetch(base + '/framework/whs-logo.png',{headers:{cookie:signedInCookie}});
+    assert.equal(response.status,200);
+    assert.match(response.headers.get('content-type'), /image\/png/);
+    assert.deepEqual(Buffer.from(await response.arrayBuffer()),await fs.readFile(path.join(directory,'public','whs-logo.png')));
     response = await fetch(base, {redirect:'manual',headers:{cookie:signedInCookie}});
     assert.equal(response.status, 500);
     assert.deepEqual(await response.json(), {error:'Module request failed. Contact the project owner.'});
     response = await fetch(base, {redirect:'manual',headers:{cookie:signedInCookie}});
     assert.equal(response.status, 302);
     assert.equal(response.headers.get('location'), '/auth/global-control');
+    response = await fetch(base + '/logout',{method:'POST',headers:{cookie:signedInCookie,origin:'https://fixture.onrender.com'}});
+    assert.equal(response.status,200,'expired local identity can still sign out');
+    response = await fetch(base + '/auth/global-control',{redirect:'manual'});
+    const renewedCookie = response.headers.get('set-cookie').split(';')[0];
+    const renewedState = new URL(response.headers.get('location')).searchParams.get('state');
+    response = await fetch(base + '/auth/global-control/callback?' + new URLSearchParams({code:'C'.repeat(43),state:renewedState}), {
+      redirect:'manual',headers:{cookie:renewedCookie}
+    });
+    const logoutCookie = response.headers.get('set-cookie').split(';')[0];
+    response = await fetch(base + '/logout',{method:'POST',headers:{cookie:logoutCookie,origin:'https://fixture.onrender.com'}});
+    assert.equal(response.status,200);
+    assert.deepEqual(await response.json(),{signedOut:true});
+    response = await fetch(base, {redirect:'manual',headers:{cookie:logoutCookie}});
+    assert.equal(response.status,302);
   } finally {
     for (const child of children) {
       if (child.exitCode !== null) continue;

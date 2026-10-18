@@ -12,7 +12,9 @@ if (!env.DATABASE_URL) throw new Error('Set a separate module DATABASE_URL.');
 const pool = new Pool({ connectionString: env.DATABASE_URL, ssl: env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false } });
 const app = express();
 app.set('trust proxy', 1);
-app.use(helmet());
+const imageOrigins = ['https://lh3.googleusercontent.com'];
+if (env.GLOBAL_CONTROL_URL) imageOrigins.push(new URL(env.GLOBAL_CONTROL_URL).origin);
+app.use(helmet({ contentSecurityPolicy: { directives: { imgSrc: ["'self'", 'data:', ...imageOrigins] } } }));
 app.get('/health', async (req, res) => {
   try { await pool.query('SELECT 1'); res.json({ status: 'ok', database: 'connected' }); }
   catch { console.error('Module database health check failed.'); res.status(503).json({ status: 'error' }); }
@@ -81,11 +83,23 @@ if (missing.length) {
     await save(req);
     res.redirect('/');
   }));
-  app.use(wrap(async (req, res, next) => {
+  app.use((req, res, next) => {
     if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && req.get('origin') !== base.origin) {
       console.warn('Cross-origin module mutation was rejected.');
       return res.status(403).json({ error: 'Use the module site to submit changes.' });
     }
+    next();
+  });
+  app.post('/logout', wrap(async (req, res) => {
+    if (req.session.moduleToken) {
+      const response = await coreRequest('revoke', {}, req.session.moduleToken);
+      if (!response.ok) throw new Error('Global Control sign-out failed.');
+    }
+    await new Promise((resolve, reject) => req.session.destroy((error) => error ? reject(error) : resolve()));
+    res.clearCookie('__MODULE_SLUG__.sid');
+    res.json({ signedOut: true });
+  }));
+  app.use(wrap(async (req, res, next) => {
     if (!req.session.moduleToken) return res.redirect('/auth/global-control');
     const response = await coreRequest('identity', {}, req.session.moduleToken);
     if (response.status === 401 || response.status === 403) {
@@ -99,7 +113,20 @@ if (missing.length) {
       throw new Error('Global Control returned an invalid identity.');
     }
     req.user = user;
+    req.moduleStandalone = true;
     next();
+  }));
+  app.get('/nav-data', (req, res) => res.json({
+    signedIn: true, name: req.user.display_name, email: req.user.email, avatarUrl: req.user.avatar_url,
+    isAdmin: true, searchModule: { key: 'core', label: 'Global Control' }
+  }));
+  app.get('/module-search', wrap(async (req, res) => {
+    const response = await coreRequest('search', { q: req.query.q }, req.session.moduleToken);
+    if (!response.ok) {
+      console.warn('Global Control search request failed.');
+      return res.status(response.status).json({ error: 'Global Control search could not be loaded. Please retry.' });
+    }
+    res.json(await response.json());
   }));
   app.use('/', createModuleRouter());
 }
