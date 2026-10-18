@@ -34,7 +34,14 @@ test('Global Control identity binds codes to clients, PKCE, current ADMIN roles 
       if (req.get('x-role')) req.user = { ...user, roles: [req.get('x-role')] };
       next();
     });
-    app.use('/module-auth', createModuleIdentityRouter({ dbQuery: (sql, values) => pool.query(sql, values) }));
+    let calendarFailure = false;
+    app.use('/module-auth', createModuleIdentityRouter({
+      dbQuery: (sql, values) => pool.query(sql, values),
+      schoolCalendar: async year => {
+        if (calendarFailure) throw new Error('Fixture source outage');
+        return {year, available:true,terms:[],holidays:[]};
+      }
+    }));
     server = app.listen(0, '127.0.0.1');
     await new Promise((resolve) => server.once('listening', resolve));
     const base = `http://127.0.0.1:${server.address().port}/module-auth`;
@@ -72,6 +79,13 @@ test('Global Control identity binds codes to clients, PKCE, current ADMIN roles 
     const identity = await post('identity', { client_id: parameters.client_id }, token);
     assert.equal(identity.status, 200);
     assert.equal((await identity.json()).avatar_url, user.avatar_url);
+    assert.equal((await post('school-calendar', {client_id:parameters.client_id,year:2026},'Z'.repeat(43))).status,401);
+    assert.equal((await post('school-calendar', {client_id:parameters.client_id,year:'2026'},token)).status,400);
+    assert.equal((await post('school-calendar', {client_id:parameters.client_id,year:2101},token)).status,400);
+    assert.equal((await (await post('school-calendar', {client_id:parameters.client_id,year:2027},token)).json()).year,2027);
+    calendarFailure = true;
+    assert.equal((await post('school-calendar', {client_id:parameters.client_id,year:2026},token)).status,502);
+    calendarFailure = false;
     const search = await post('search', {client_id:parameters.client_id,q:'Dashboard'},token);
     assert.equal(search.status,200);
     assert.ok((await search.json()).results.some((item)=>item.url==='/dashboard'));
@@ -81,6 +95,7 @@ test('Global Control identity binds codes to clients, PKCE, current ADMIN roles 
     const stored = (await pool.query('SELECT * FROM module_identity_grants')).rows[0];
     assert.notEqual(stored.token_hash, token);
     await pool.query('DELETE FROM user_roles WHERE user_id=$1', [user.id]);
+    assert.equal((await post('school-calendar', {client_id:parameters.client_id,year:2026},token)).status,401);
     assert.equal((await post('identity', { client_id: parameters.client_id }, token)).status, 401);
     await pool.query("INSERT INTO user_roles(user_id,role_id) SELECT $1,id FROM roles WHERE name='ADMIN'", [user.id]);
     await pool.query("UPDATE module_identity_grants SET expires_at=NOW()-INTERVAL '1 second'");

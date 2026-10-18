@@ -29,6 +29,15 @@ project visibility and GitHub import permissions are unchanged.
 
 ## Shared module-sensitive search
 
+Teacher Planner's Year overview can read selected-year Ministry term dates and
+explicit between-term school holiday ranges through the grant-authenticated
+`POST /module-auth/school-calendar` bridge. This uses the same Ministry source
+as Global Control's **School Terms & Holidays** page; it does not expose Core
+credentials or make requests directly from the module browser to Core.
+National term opening/closing windows remain guidance, not confirmed WHS dates.
+Source failures return 502 rather than an empty success, and unsupported years
+are explicitly marked unavailable. Module deployment is separate from Core.
+
 The shared account header places search at the left, with a blue Sign out pill
 immediately before the Google avatar at the right. Sign out uses the existing
 school-session logout action and reports failures visibly; it is no longer

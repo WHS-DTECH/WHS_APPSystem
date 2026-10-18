@@ -2,11 +2,12 @@ const crypto = require('crypto');
 const express = require('express');
 const { query } = require('./db');
 const { createModuleSearch } = require('./moduleSearch');
+const { loadSchoolCalendar } = require('./schoolCalendar');
 
 const hash = (value) => crypto.createHash('sha256').update(value).digest('base64url');
 const opaque = (value) => typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value);
 
-function createModuleIdentityRouter({ dbQuery = query } = {}) {
+function createModuleIdentityRouter({ dbQuery = query, schoolCalendar = loadSchoolCalendar } = {}) {
   const router = express.Router();
   const search = createModuleSearch({ dbQuery });
   router.use((req, res, next) => {
@@ -85,6 +86,18 @@ function createModuleIdentityRouter({ dbQuery = query } = {}) {
     req.user = user;
     req.query = { path: '/dashboard', q: req.body.q };
     await search(req, res);
+  }));
+  router.post('/school-calendar', wrap(async (req, res) => {
+    const user = await identity(req, res);
+    if (!user) return;
+    if (!Number.isInteger(req.body.year) || req.body.year < 2000 || req.body.year > 2100) {
+      return deny(res, 'Choose a valid calendar year.', 400);
+    }
+    try { res.json(await schoolCalendar(req.body.year)); }
+    catch (error) {
+      console.error('Shared school calendar load failed:', error);
+      res.status(502).json({ error: 'School terms and holidays could not be loaded from the Ministry. Calendar highlights are unavailable; retry shortly.' });
+    }
   }));
   router.post('/revoke', wrap(async (req, res) => {
     const token = req.get('authorization')?.replace(/^Bearer /, '');
