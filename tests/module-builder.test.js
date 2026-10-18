@@ -40,16 +40,44 @@ test('wizard accepts metadata, but rejects secret URLs, unsafe links and malform
 test('GitHub creates a private org repository, never rewrites an existing unrelated repository', async () => {
   const calls = [];
   const providers = createBuilderProviders({ env, fetchImpl: async (url, init) => {
-    calls.push({ url, ...init, body: JSON.parse(init.body) });
+    calls.push({ url, ...init, body: init.body && JSON.parse(init.body) });
+    if (init.method === 'GET') return reply({ type: 'Organization' });
     return reply({ full_name: 'WHS-DTECH/example-module', private: true, default_branch: 'main' }, 201);
   } });
   const result = await providers.repository({ slug: project.slug, repository: '' });
   assert.equal(result.repositoryManaged, true);
-  assert.equal(calls[0].url, 'https://api.github.com/orgs/WHS-DTECH/repos');
-  assert.equal(calls[0].body.private, true);
-  assert.equal(calls[0].body.auto_init, true);
+  assert.equal(calls[0].url, 'https://api.github.com/users/WHS-DTECH');
+  assert.equal(calls[1].url, 'https://api.github.com/orgs/WHS-DTECH/repos');
+  assert.equal(calls[1].body.private, true);
+  assert.equal(calls[1].body.auto_init, true);
   await assert.rejects(providers.repository({ ...project, repository: 'WHS-DTECH/WHS_TeacherPlanner' }), /will not be overwritten/);
-  assert.equal(calls.length, 1);
+  assert.equal(calls.length, 2);
+});
+
+test('GitHub personal repositories use the authenticated owner endpoint and remain private', async () => {
+  const calls = [];
+  const providers = createBuilderProviders({ env, fetchImpl: async (url, init) => {
+    calls.push({ url, method: init.method, body: init.body && JSON.parse(init.body) });
+    if (url.endsWith('/users/WHS-DTECH')) return reply({ type: 'User' });
+    if (url.endsWith('/user')) return reply({ login: 'whs-dtech' });
+    return reply({ full_name: 'WHS-DTECH/example-module', private: true, default_branch: 'main' }, 201);
+  } });
+  assert.equal((await providers.repository({ slug: project.slug, repository: '' })).repositoryManaged, true);
+  assert.equal(calls[2].url, 'https://api.github.com/user/repos');
+  assert.equal(calls[2].body.private, true);
+  assert.equal(calls[2].body.auto_init, true);
+});
+
+test('GitHub owner mismatch or unsupported type blocks repository creation before any write', async () => {
+  for (const type of ['User', 'Unexpected']) {
+    const methods = [];
+    const providers = createBuilderProviders({ env, fetchImpl: async (url, init) => {
+      methods.push(init.method);
+      return reply(url.endsWith('/user') ? { login: 'another-account' } : { type });
+    } });
+    await assert.rejects(providers.repository({ slug: project.slug, repository: '' }), BuilderError);
+    assert.ok(methods.every((method) => method === 'GET'));
+  }
 });
 
 test('framework installation is a fast-forward commit of bundled source and never overwrites other work', async () => {

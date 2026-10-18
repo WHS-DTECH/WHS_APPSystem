@@ -10,13 +10,13 @@
   <p>The registry lives in Global Control; application code and data do not.
     Provisioning requires a separate confirmation for each resource. No resources are deleted or promoted automatically.</p>
   <p>GitHub: <strong><%= configuration.githubConfigured ? 'Credential configured (not verified)' : 'Not configured' %></strong>
-    · Organisation: <%= configuration.githubOwner %><br>
+    · Owner: <%= configuration.githubOwner %><br>
     Render: <strong><%= configuration.renderConfigured ? 'Credential/workspace configured (not verified)' : 'Not configured' %></strong></p>
   <details><summary>Provisioning setup</summary>
     <p>Set <code>MODULE_BUILDER_GITHUB_TOKEN</code>, <code>MODULE_BUILDER_GITHUB_OWNER</code>,
       <code>MODULE_BUILDER_RENDER_API_KEY</code> and <code>MODULE_BUILDER_RENDER_OWNER_ID</code>
       on the Global Control service. Never enter tokens or database URLs in project records.</p>
-    <p>GitHub organisation repository creation and Contents/Workflows write permission are required.
+    <p>GitHub repository creation and Contents/Workflows write permission are required. Personal-account tokens must belong to the configured owner; organisation policies also apply.
       Render must have GitHub access to each private repository. Credentials are not shared with new modules.</p>
   </details>
 </section>

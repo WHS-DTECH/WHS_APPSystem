@@ -12,8 +12,8 @@ const moduleDocs = {
     summary: 'Global ADMIN-only development registry, infrastructure records and individually confirmed GitHub/Render provisioning. Development applications never execute in Core.',
     legacyDatabase: { used: false, how: 'Registry metadata and operation history use Core. Each automatically provisioned development module gets its own Render PostgreSQL database.' },
     env: [
-      { name: 'MODULE_BUILDER_GITHUB_OWNER', note: 'GitHub organisation for new private repositories; defaults to WHS-DTECH.', optional: true },
-      { name: 'MODULE_BUILDER_GITHUB_TOKEN', note: 'Dedicated server-side token with organisation repository creation and Contents/Workflows write permission.', optional: true },
+      { name: 'MODULE_BUILDER_GITHUB_OWNER', note: 'GitHub personal account or organisation for new private repositories; defaults to WHS-DTECH.', optional: true },
+      { name: 'MODULE_BUILDER_GITHUB_TOKEN', note: 'Dedicated server-side token with repository creation and Contents/Workflows write permission. For personal repositories it must belong to the configured owner.', optional: true },
       { name: 'MODULE_BUILDER_RENDER_API_KEY', note: 'Dedicated Render API credential; never passed to development services.', optional: true },
       { name: 'MODULE_BUILDER_RENDER_OWNER_ID', note: 'Render workspace ID for development resources.', optional: true }
     ]

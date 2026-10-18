@@ -89,12 +89,15 @@ Provisioning is optional. Configure these on the Global Control Render service:
 
 | Variable | Purpose |
 |---|---|
-| `MODULE_BUILDER_GITHUB_OWNER` | Organisation for new private repositories; defaults to `WHS-DTECH` |
-| `MODULE_BUILDER_GITHUB_TOKEN` | Dedicated token authorised for organisation repository creation and Contents/Workflows write; never reuse the archive Writer credential |
+| `MODULE_BUILDER_GITHUB_OWNER` | Personal account or organisation for new private repositories; defaults to `WHS-DTECH` |
+| `MODULE_BUILDER_GITHUB_TOKEN` | Dedicated token authorised for repository creation and Contents/Workflows write; for a personal owner it must belong to that account; never reuse the archive Writer credential |
 | `MODULE_BUILDER_RENDER_OWNER_ID` | Workspace in which development resources are created |
 | `MODULE_BUILDER_RENDER_API_KEY` | Dedicated Render API credential; treat as sensitive and restrict account/workspace access |
 
-GitHub organisation policy and Render's GitHub connection must permit access to
+The wizard checks the GitHub owner type before creating a repository. Personal
+accounts use the authenticated user's repository endpoint, after verifying the
+token owner matches; organisations use the organisation endpoint.
+GitHub organisation policy (where applicable) and Render's GitHub connection must permit access to
 new private repositories. The wizard does not create that connection or Google
 OAuth clients. Without credentials, records/navigation work but provider actions
 show an explicit setup error. Do not paste credentials into project forms.

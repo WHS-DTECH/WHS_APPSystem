@@ -4,7 +4,7 @@
 <section class="panel">
   <p><strong>Project:</strong> <%= project.name %> · <strong>Environment:</strong> Development only</p>
   <dl>
-    <dt>GitHub organisation</dt><dd><%= plan.configuration.githubOwner %></dd>
+    <dt>GitHub owner</dt><dd><%= plan.configuration.githubOwner %></dd>
     <dt>Repository</dt><dd><%= project.repository || plan.configuration.githubOwner + '/' + project.slug %></dd>
     <dt>Branch</dt><dd><%= project.branch %></dd>
     <dt>Render workspace</dt><dd><%= plan.configuration.renderOwnerId || 'Not configured' %></dd>

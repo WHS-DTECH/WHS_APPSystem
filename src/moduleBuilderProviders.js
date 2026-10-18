@@ -48,12 +48,25 @@ function createBuilderProviders({ env = process.env, fetchImpl = fetch } = {}) {
   }
 
   async function repository(project) {
-    if (!/^[A-Za-z0-9-]+$/.test(githubOwner)) throw new BuilderError('Configure a valid GitHub organisation.');
+    if (!/^[A-Za-z0-9-]+$/.test(githubOwner)) throw new BuilderError('Configure a valid GitHub account or organisation.');
     const expected = `${githubOwner}/${project.slug}`;
     if (project.repository && project.repository.toLowerCase() !== expected.toLowerCase()) {
       throw new BuilderError('This project already references a repository. It will not be overwritten.');
     }
-    const repo = await api('GitHub', `/orgs/${githubOwner}/repos`, 'POST', {
+    const owner = await api('GitHub', `/users/${githubOwner}`);
+    let endpoint;
+    if (owner.type === 'Organization') {
+      endpoint = `/orgs/${githubOwner}/repos`;
+    } else if (owner.type === 'User') {
+      const authenticated = await api('GitHub', '/user');
+      if (authenticated.login?.toLowerCase() !== githubOwner.toLowerCase()) {
+        throw new BuilderError('For a personal GitHub account, the provisioning token must belong to the configured repository owner.', 403);
+      }
+      endpoint = '/user/repos';
+    } else {
+      throw new BuilderError('GitHub owner type is unsupported. No repository was created.', 502);
+    }
+    const repo = await api('GitHub', endpoint, 'POST', {
       name: project.slug, description: 'WHS module development sandbox',
       private: true, auto_init: true
     });
