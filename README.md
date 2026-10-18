@@ -183,6 +183,16 @@ framework installation/update. Future application releases should update
 `UPDATED_AT` in their generated `shell.js`. Existing untouched frameworks can use
 the guarded framework-update action, followed by a manual Render deployment.
 
+Development app links in the shared navigation and Module Builder open in the
+current tab (GitHub/Render management links still open separately). The module
+footer's **Contact Web Master** link opens Core's `/contact` form in the same tab.
+Signed-in, active school users can send to `tech@westlandhigh.school.nz` through
+the existing Global Control Gmail service (`src/email.js`), including its Email
+Service log. The sender's verified school email becomes Reply-To; recipients
+cannot be changed in the form. CSRF checks and a five-attempt/15-minute limit
+protect submissions. Disabled/failed Gmail delivery is reported as not sent.
+No Gmail credentials or additional email environment variables belong on modules.
+
 ## Module-sensitive role views
 
 Role View controls now describe the current module instead of always linking to

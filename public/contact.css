@@ -1,0 +1,6 @@
+.whs-contact { max-width: 720px; margin: 24px auto; }
+.whs-contact form { display: grid; gap: 12px; }
+.whs-contact input, .whs-contact textarea { box-sizing: border-box; width: 100%; padding: 10px; font: inherit; }
+.whs-contact textarea { resize: vertical; }
+.whs-contact [role="alert"] { color: #b3261e; }
+.whs-contact [role="status"] { color: #173d34; }

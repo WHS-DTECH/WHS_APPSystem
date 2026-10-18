@@ -58,7 +58,7 @@
   <summary><strong><%= kind.toUpperCase() %></strong> — <%= config.serviceId || 'No web service recorded' %></summary>
   <p>Recorded configuration is not proof that a service is healthy or its permissions work.</p>
   <div class="mb-actions">
-    <% if (config.appUrl) { %><a class="button" href="<%= config.appUrl %>" target="_blank" rel="noopener noreferrer">Open app ↗</a><% } %>
+    <% if (config.appUrl) { %><a class="button" href="<%= config.appUrl %>">Open app</a><% } %>
     <% if (config.serviceId) { %><a class="button" href="https://dashboard.render.com/web/<%= config.serviceId %>" target="_blank" rel="noopener noreferrer">Render web service ↗</a><% } %>
     <% if (config.databaseId) { %><a class="button" href="https://dashboard.render.com/d/<%= config.databaseId %>" target="_blank" rel="noopener noreferrer">Render database ↗</a><% } %>
     <form action="/module-builder/<%= project.id %>/verify/<%= kind %>" method="post">

@@ -257,6 +257,9 @@ test('generated module router enforces supplied identity and supports a nested m
   assert.match(later, /18 October 2026/);
   assert.match(later, /datetime="2026-10-18T02:00:00.000Z"/);
   assert.ok(later.includes('https://core.example.test/&quot;&lt;test&gt;'));
+  const standalone = shellModule.exports.renderShell({baseUrl:'/',coreUrl:'https://core.example.test',standalone:true});
+  assert.match(standalone, /href="https:\/\/core.example.test\/contact">Contact Web Master<\/a>/);
+  assert.ok(!standalone.includes('target="_blank"'));
   vm.runInNewContext(source.replaceAll('__MODULE_SLUG__', 'test-module'), {
     require: (name) => name === './shell' ? shellModule.exports : require(name),
     module: exported, process, __dirname
@@ -280,5 +283,6 @@ test('generated module router enforces supplied identity and supports a nested m
     assert.match(html, /18 October 2026/);
     assert.match(html, /href="\/test-module\/framework\/module-shell.css"/);
     assert.ok(!html.includes('whs-global-control'));
+    assert.match(html, /href="\/contact">Contact Web Master<\/a>/);
   } finally { await new Promise((resolve) => server.close(resolve)); }
 });

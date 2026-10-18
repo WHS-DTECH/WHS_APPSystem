@@ -11,6 +11,9 @@ stamped when this framework is installed/updated, not reset on each page view.
 When application code is changed later, update `UPDATED_AT` in `shell.js` as part
 of the release. Shared header/CSS assets are bundled from Core at generation time.
 Sign-out revokes the module grant, destroys its session, then signs out of Core.
+The footer's Contact Web Master link opens Global Control's signed-in contact
+form in the current tab. Messages go to tech@westlandhigh.school.nz through Core's
+existing Gmail service and email log; no Gmail credentials are copied here.
 
 ## Standalone
 

@@ -30,6 +30,7 @@ const { injectGlobalNav, navData, safeNext, readCookie, NEXT_COOKIE } = require(
 const { describeModules } = require('./moduleDocs');
 const { createModuleBuilderRouter } = require('./moduleBuilder');
 const { createModuleIdentityRouter } = require('./moduleIdentity');
+const { createContactRouter } = require('./contact');
 
 const app = express();
 
@@ -84,6 +85,7 @@ app.get('/healthz', (req, res) => {
 
 app.get('/nav-data', navData(query, hubRoles.canManageHubRoles, studentApps.datasetManagerUrl, canManageCourses));
 app.get('/module-search', createModuleSearch());
+app.use('/contact', createContactRouter());
 
 app.get('/email-status', (req, res) => {
   res.json({

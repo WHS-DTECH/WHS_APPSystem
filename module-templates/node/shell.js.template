@@ -27,6 +27,7 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
 <footer class="whs-module-footer">
 <p>&copy; ${escape(monthYear)} Westland High School</p>
 <p>Last Updated: <time datetime="${UPDATED_AT}">${escape(updated)}</time></p>
+<p><a href="${escape(coreUrl)}/contact">Contact Web Master</a></p>
 </footer>
 ${standalone ? `<script src="${asset('global-nav.js')}" defer></script>` : ''}
 </body></html>`;

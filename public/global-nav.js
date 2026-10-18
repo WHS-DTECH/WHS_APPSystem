@@ -137,12 +137,7 @@
       if (data.isAdmin) {
         nav.appendChild(el('div', { 'class': 'gn-head' }, 'In Development'));
         (data.developmentProjects || []).forEach(function (project) {
-          var attrs = { href: project.url };
-          if (project.deployed) {
-            attrs.target = '_blank';
-            attrs.rel = 'noopener noreferrer';
-          }
-          nav.appendChild(el('a', attrs, project.name + (project.deployed ? ' \u2197' : ' (not deployed)')));
+          nav.appendChild(el('a', { href: project.url }, project.name + (project.deployed ? '' : ' (not deployed)')));
         });
         if (!(data.developmentProjects || []).length) nav.appendChild(el('div', { 'class': 'gn-empty' }, 'None yet'));
       }
