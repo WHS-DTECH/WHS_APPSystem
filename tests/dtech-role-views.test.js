@@ -8,6 +8,31 @@ const session = require('express-session');
 const { navData } = require('../src/globalNav');
 const { createDtechRouter, effectiveDtechView, prefixText } = require('../src/modules/dtechHub');
 
+test('Homepage Event Settings uses the original page and requires current DTECH admin access', async () => {
+  for (const [page, systemAdmin, permissions, active, expected] of [
+    ['/dtech-hub/', true, [], true, true],
+    ['/dtech-hub/settings.html', false, ['admin.manage'], true, true],
+    ['/dtech-hub/teacher-view.html', false, ['teacher.view'], true, false],
+    ['/dtech-hub/', false, [], true, false],
+    ['/dtech-hub/', true, [], false, false],
+    ['/dtech-hub/class-training/home', true, [], true, false],
+    ['/food-room/', true, [], true, false]
+  ]) {
+    let data;
+    await navData(async (sql) => ({ rows: sql.includes('FROM users') && active
+      ? [{ system_admin: systemAdmin, permissions, hub_roles: [] }] : [] }),
+    async () => false, async () => null)(
+      { user: { email: 'fixture@westlandhigh.school.nz', roles: systemAdmin ? ['ADMIN'] : [] },
+        session: { dtechView: 'student' }, query: { path: page } },
+      { locals: {}, set() {}, json(value) { data = value; } },
+      (error) => { throw error; }
+    );
+    assert.equal(data.homepageEventSettingsUrl, expected ? '/dtech-hub/settings.html' : null, page);
+  }
+  const source = await fs.readFile(path.join(__dirname, '..', 'public', 'global-nav.js'), 'utf8');
+  assert.match(source, /if \(data\.homepageEventSettingsUrl\) link\(settings, 'Homepage Event Settings', data\.homepageEventSettingsUrl\)/);
+});
+
 test('Global Control offers only current DTECH teachers its independent module views', async () => {
   for (const [page, permissions, selected, expected] of [
     ['/dtech-hub/', ['teacher.view'], undefined, 'teacher'],

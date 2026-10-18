@@ -107,6 +107,11 @@ account actions remain in the shared Google avatar. Switching rechecks current
 DTECH teacher permission and never grants roles or changes legacy data. As in the
 original site, this is a content-view choice, not a reduction of server permissions.
 
+The Google avatar's Settings menu includes **Homepage Event Settings** while in
+DTECH Hub for current DTECH administrators (including global ADMIN). It opens the
+original settings page with its existing 7/14/30-day browser-stored event window;
+the original page access restrictions and local shortcuts are unchanged.
+
 Only the **Commenting and Debugging Training** homepage card is presented as a
 burgundy **Capsule**, grouped/filterable under Capsules. Other Activity cards
 and stored legacy categories are unchanged. Its link resolves the existing

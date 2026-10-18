@@ -90,7 +90,7 @@ test('Course Management settings are contextual and require current training tea
     assert.equal(body.courseManagementUrl, expected, page);
   }
   const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'global-nav.js'), 'utf8');
-  assert.match(source, /if \(data\.datasetManagerUrl \|\| data\.assignRolesUrl \|\| data\.courseManagementUrl \|\| data\.userRoleManagementUrl\)/);
+  assert.match(source, /if \(data\.datasetManagerUrl \|\| data\.assignRolesUrl \|\| data\.courseManagementUrl \|\| data\.userRoleManagementUrl \|\| data\.homepageEventSettingsUrl\)/);
   assert.match(source, /link\(settings, 'Course Management', data\.courseManagementUrl\)/);
 });
 
