@@ -1,5 +1,7 @@
 const express = require('express');
 const { isDeepStrictEqual } = require('node:util');
+const { readFile } = require('node:fs/promises');
+const path = require('node:path');
 const { query } = require('./db');
 const { sendEmail } = require('./email');
 const config = require('./config');
@@ -9,6 +11,8 @@ const { BuilderError } = require('./moduleBuilderProviders');
 
 const ROOT = '/admin/users/invites';
 const TEST_ADDRESS = 'tech@westlandhigh.school.nz';
+const LOGO_CID = 'whs-school-logo@westlandhigh.school.nz';
+const LOGO_PATH = path.join(__dirname, '..', 'public', 'images', 'whs logo circular reo .png');
 const uuid = value => typeof value === 'string' && /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(value);
 const email = value => typeof value === 'string' && /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/.test(value);
 const escape = value => String(value).replace(/[&<>"']/g, char => ({
@@ -112,7 +116,7 @@ function createModuleInvitesRouter({ dbQuery = query, mail = sendEmail, baseUrl 
       'Ng\u0101 mihi,\nWHS Technology Support'
     ];
     const text = paragraphs.join('\n\n');
-    const html = paragraphs.map((paragraph, index) => index === 4
+    const html = `<div style="padding:0 0 16px;margin:0 0 24px;border-bottom:2px solid #193d6a"><img src="cid:${LOGO_CID}" alt="Westland High School logo" width="104" height="104" style="display:block;width:104px;height:104px;margin:0 0 12px"><strong style="font-family:Arial,sans-serif;font-size:20px;color:#193d6a">Westland High School</strong></div>` + paragraphs.map((paragraph, index) => index === 4
       ? `<p>Open ${escape(name)}:<br><a href="${escape(url)}">Open ${escape(name)}</a></p>`
       : `<p>${escape(paragraph).replace(/\n/g, '<br>').replace(TEST_ADDRESS, `<a href="mailto:${TEST_ADDRESS}">${TEST_ADDRESS}</a>`)}</p>`).join('');
     return { to: user.email, cc: actor.email, name, url, subject, text, html };
@@ -166,7 +170,11 @@ function createModuleInvitesRouter({ dbQuery = query, mail = sendEmail, baseUrl 
         cc: test ? [] : [current.cc],
         subject: test ? '[TEST] ' + current.subject : current.subject,
         text: test ? `TEST ONLY - no invitation has been sent to the user.\nIntended To: ${current.to}\nIntended CC: ${current.cc}\n\n${current.text}` : current.text,
-        html: test ? `<p><strong>TEST ONLY - no invitation has been sent to the user.</strong><br>Intended To: ${escape(current.to)}<br>Intended CC: ${escape(current.cc)}</p>${current.html}` : current.html
+        html: test ? `<p><strong>TEST ONLY - no invitation has been sent to the user.</strong><br>Intended To: ${escape(current.to)}<br>Intended CC: ${escape(current.cc)}</p>${current.html}` : current.html,
+        attachments: [{
+          filename: 'whs-school-logo.png', content: await readFile(LOGO_PATH),
+          contentType: 'image/png', contentDisposition: 'inline', cid: LOGO_CID
+        }]
       });
     } catch (error) {
       await dbQuery("UPDATE module_invitations SET status='failed' WHERE id=$1", [draft.id]);

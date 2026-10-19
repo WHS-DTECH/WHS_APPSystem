@@ -747,6 +747,11 @@ beside an assigned user. Role assignment itself never sends email. The preview
 includes the module name in the subject, a module description, current roles,
 a working module link, school Google sign-in instructions and feedback to
 tech@westlandhigh.school.nz. Teacher Planner uses the approved planner wording.
+Both test and confirmed invitations include the school logo and a branded header.
+The logo is embedded inline in the email, without requiring a website login or
+an external image download; plain-text wording is unchanged. The preview shows
+the same branding. Drafts prepared before a wording or branding change must be
+prepared and tested again before sending.
 
 1. **Send Test Email to Tech** sends only to tech@westlandhigh.school.nz; the
    intended user and CC address are shown in that test but do not receive it.

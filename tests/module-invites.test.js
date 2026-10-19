@@ -99,6 +99,7 @@ test('module invitations require a Tech-only test and one-use confirmed delivery
     assert.equal(calls.length, 0, 'preparing does not send');
     html = await (await call(draft)).text();
     assert.match(html, /Kia ora Ema,/);
+    assert.match(html, /alt="Westland High School logo" width="104" height="104"/);
     assert.match(html, /Teacher Planner — Your invitation to get started/);
     assert.match(html, /year and term overviews, weekly planning/);
     assert.match(html, /https:\/\/planner-fixture.onrender.com\//);
@@ -112,6 +113,13 @@ test('module invitations require a Tech-only test and one-use confirmed delivery
     assert.equal(calls[0].to, 'tech@westlandhigh.school.nz');
     assert.deepEqual(calls[0].cc, []);
     assert.equal(calls[0].bcc, undefined);
+    const logo = await fs.readFile(path.join(__dirname, '..', 'public', 'images', 'whs logo circular reo .png'));
+    const attachments = [{
+      filename: 'whs-school-logo.png', content: logo, contentType: 'image/png',
+      contentDisposition: 'inline', cid: 'whs-school-logo@westlandhigh.school.nz'
+    }];
+    assert.deepEqual(calls[0].attachments, attachments);
+    assert.match(calls[0].html, /src="cid:whs-school-logo@westlandhigh.school.nz"/);
     assert.match(calls[0].subject, /^\[TEST\] Teacher Planner/);
     assert.match(calls[0].text, /Intended To: ema@fixture.test\nIntended CC: admin@fixture.test/);
     const { subject, text, html: emailHtml } = (await db.query('SELECT snapshot FROM module_invitations WHERE id=$1', [draft.split('/').pop()])).rows[0].snapshot;
@@ -125,7 +133,7 @@ test('module invitations require a Tech-only test and one-use confirmed delivery
     ]);
     assert.deepEqual(confirmations.map(response => response.status).sort(), [302, 409]);
     assert.equal(calls.length, 2);
-    assert.deepEqual(calls[1], { to: target.email, cc: [admin.email], subject, text, html: emailHtml });
+    assert.deepEqual(calls[1], { to: target.email, cc: [admin.email], subject, text, html: emailHtml, attachments });
     html = await (await call(draft)).text();
     assert.match(html, /Invitation sent/);
     assert.doesNotMatch(html, /type="submit"/);

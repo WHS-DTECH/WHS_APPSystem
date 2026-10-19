@@ -8,6 +8,12 @@
   <h2>Email preview</h2>
   <p><strong>To:</strong> <%= content.to %><br><strong>CC:</strong> <%= content.cc %> (your signed-in Google address)</p>
   <p><strong>Subject:</strong> <%= content.subject %></p>
+  <% if (content.html.includes('cid:whs-school-logo@westlandhigh.school.nz')) { %>
+    <div style="padding:0 0 16px;margin:0 0 24px;border-bottom:2px solid #193d6a">
+      <img src="/images/whs%20logo%20circular%20reo%20.png" alt="Westland High School logo" width="104" height="104" style="display:block;width:104px;height:104px;margin:0 0 12px">
+      <strong style="font-family:Arial,sans-serif;font-size:20px;color:#193d6a">Westland High School</strong>
+    </div>
+  <% } %>
   <% content.text.split('\n\n').forEach(paragraph => { %>
     <p><% paragraph.split('\n').forEach((line,index) => { %><% if (index) { %><br><% } %><%= line %><% }) %></p>
   <% }) %>
