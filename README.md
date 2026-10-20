@@ -817,8 +817,12 @@ services must deploy the updated identity adapter before accepting non-ADMIN use
 
 Global ADMINs can schedule staff maintenance emails at **Administration >
 Maintenance Notifications** or from **Assign User Roles > All Additional Roles
-Summary**. Each app's recipient preview includes active users with a current
-KAMAR staff record and a role in that app, plus every active Global ADMIN.
+Summary**. Select one or more modules to send the same notice for all of them.
+The combined recipient preview includes active users with a current KAMAR staff
+record and a role in any selected module, plus every active Global ADMIN. Each
+email address receives only one copy, even with roles in several selected modules.
+Both the warning and resumption email name all selected modules; existing
+single-module notices retain their original scope.
 Warnings are sent 14 days before the scheduled start (or at the next scheduler run
 when scheduled less than 14 days ahead), using private BCC recipients. After
 confirming the service is available, an administrator can send the resumption email

@@ -2,40 +2,40 @@
 <section class="page-title">
   <p class="eyebrow">Administration</p>
   <h1>Maintenance Notifications</h1>
-  <p>Schedule app maintenance emails for staff with a role in that app. Active Global ADMINs are always included.</p>
+  <p>Send one maintenance notice for one or more modules. Staff with a role in any selected module and active Global ADMINs are included once each.</p>
 </section>
 <% if (message) { %><p role="status"><%= message === 'created' ? 'Maintenance notice scheduled.' : 'Test email sent to your signed-in address.' %></p><% } %>
 
 <section class="panel">
-  <h2>Choose an app to preview recipients</h2>
+  <h2>Choose modules to preview recipients</h2>
   <form method="get" action="/admin/maintenance-notifications" class="row-form stacked">
-    <label for="recipient-module">App</label>
-    <select id="recipient-module" name="module" required>
-      <option value="">Choose an app</option>
+    <fieldset class="checks permissions">
+      <legend>Modules (select one or more)</legend>
       <% modules.forEach(module => { %>
-        <option value="<%= module.hub_key %>" <%= module.hub_key === moduleKey ? 'selected' : '' %>><%= module.label %></option>
+        <label><input type="checkbox" name="module" value="<%= module.hub_key %>" <%= moduleKeys.includes(module.hub_key) ? 'checked' : '' %>> <%= module.label %></label>
       <% }) %>
-    </select>
+    </fieldset>
     <button class="button" type="submit">Show recipients</button>
   </form>
-  <% if (moduleKey) { %>
+  <% if (moduleKeys.length) { %>
+    <p><strong>Selected modules:</strong> <%= modules.filter(module => moduleKeys.includes(module.hub_key)).map(module => module.label).join(', ') %></p>
     <h3>Current recipients (<%= recipients.length %>)</h3>
     <% if (recipients.length) { %>
       <ul><% recipients.forEach(person => { %><li><%= person.display_name || person.email %> &lt;<%= person.email %>&gt;</li><% }) %></ul>
-      <p>Staff must have a current KAMAR staff record and a role in this app. Active Global ADMINs are included even without an app role. Emails are sent as a private BCC list.</p>
+      <p>Staff must have a current KAMAR staff record and a role in at least one selected module. Active Global ADMINs are also included. Each address receives one email, even if assigned to several selected modules. Emails use a private BCC list.</p>
     <% } else { %>
-      <p>No eligible staff or active administrators are currently listed for this app. A notice cannot be sent until recipients are available.</p>
+      <p>No eligible staff or active administrators are currently listed for these modules. A notice cannot be sent until recipients are available.</p>
     <% } %>
   <% } %>
 </section>
 
-<% if (moduleKey) { %>
+<% if (moduleKeys.length) { %>
 <section class="panel">
   <h2>Schedule maintenance</h2>
   <p>The warning is automatically sent 14 days before the scheduled start. If the start is less than 14 days away, it will be sent at the next scheduler run.</p>
   <form action="/admin/maintenance-notifications" method="post" class="row-form stacked">
     <input type="hidden" name="csrf" value="<%= csrf %>">
-    <input type="hidden" name="moduleKey" value="<%= moduleKey %>">
+    <% moduleKeys.forEach(key => { %><input type="hidden" name="moduleKey" value="<%= key %>"><% }) %>
     <label for="scheduled-at">Start date and time (New Zealand time)</label>
     <input id="scheduled-at" name="scheduledAt" type="datetime-local" required>
     <label for="expected-duration">Expected duration (optional)</label>

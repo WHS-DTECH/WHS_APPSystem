@@ -34,12 +34,18 @@ function formatDate(value) {
   return dateTimeFormatter.format(new Date(value));
 }
 
+function moduleSelection(value) {
+  const values = Array.isArray(value) ? value : value === undefined ? [] : [value];
+  if (values.some(key => typeof key !== 'string' || !key || key.length > 100)) return [];
+  return [...new Set(values)];
+}
+
 function noticeEmail(notice, kind, notes = '') {
   const resumed = kind === 'resumed';
   const subject = `[WHS APPSystem] ${notice.module_name} maintenance ${resumed ? 'complete' : 'planned'}`;
   const text = resumed
     ? [
-      `${notice.module_name} is available again.`,
+      `Service has resumed for: ${notice.module_name}.`,
       '',
       notes ? `Update: ${notes}` : 'The planned maintenance is complete and the service is available again.',
       '',
@@ -56,7 +62,7 @@ function noticeEmail(notice, kind, notes = '') {
       'A further email will be sent when the service is available again.'
     ].filter(Boolean).join('\n');
   const html = resumed
-    ? `<p><strong>${escapeHtml(notice.module_name)} is available again.</strong></p><p>${escapeHtml(notes || 'The planned maintenance is complete and the service is available again.')}</p><p>Thank you for your patience.</p>`
+    ? `<p><strong>Service has resumed for: ${escapeHtml(notice.module_name)}.</strong></p><p>${escapeHtml(notes || 'The planned maintenance is complete and the service is available again.')}</p><p>Thank you for your patience.</p>`
     : `<p><strong>Planned maintenance for ${escapeHtml(notice.module_name)}</strong></p><p><strong>When:</strong> ${escapeHtml(formatDate(notice.scheduled_at))} (New Zealand time)</p>${notice.expected_duration ? `<p><strong>Expected duration:</strong> ${escapeHtml(notice.expected_duration)}</p>` : ''}<p><strong>What to expect:</strong><br>${escapeHtml(notice.impact).replace(/\n/g, '<br>')}</p>${notice.details ? `<p><strong>Additional information:</strong><br>${escapeHtml(notice.details).replace(/\n/g, '<br>')}</p>` : ''}<p>A further email will be sent when the service is available again.</p>`;
   return { subject, text, html };
 }
@@ -79,7 +85,9 @@ async function loadModules(dbQuery = query) {
   return result.rows;
 }
 
-async function loadRecipients(moduleKey, dbQuery = query) {
+async function loadRecipients(moduleKeys, dbQuery = query) {
+  const keys = moduleSelection(moduleKeys);
+  if (!keys.length) throw new Error('Select at least one module before loading recipients.');
   const result = await dbQuery(
     `SELECT DISTINCT LOWER(TRIM(users.email)) AS email, users.display_name
      FROM users
@@ -93,7 +101,7 @@ async function loadRecipients(moduleKey, dbQuery = query) {
            JOIN hub_roles assigned_role ON assigned_role.id = assignments.hub_role_id
            WHERE LOWER(TRIM(staff.email_school)) = LOWER(TRIM(users.email))
              AND staff.status = 'Current'
-             AND assigned_role.hub_key = $1
+             AND assigned_role.hub_key = ANY($1::text[])
          )
          OR EXISTS (
            SELECT 1
@@ -103,9 +111,14 @@ async function loadRecipients(moduleKey, dbQuery = query) {
          )
        )
      ORDER BY email`,
-    [moduleKey]
+    [keys]
   );
-  return result.rows.filter(person => EMAIL_FORMAT.test(person.email));
+  const recipients = new Map();
+  for (const person of result.rows) {
+    const email = person.email.trim().toLowerCase();
+    if (EMAIL_FORMAT.test(email) && !recipients.has(email)) recipients.set(email, { ...person, email });
+  }
+  return [...recipients.values()];
 }
 
 function createMaintenanceRouter({
@@ -135,23 +148,29 @@ function createMaintenanceRouter({
   router.get('/', async (req, res, next) => {
     try {
       const modules = await loadModules(dbQuery);
-      const moduleKey = typeof req.query.module === 'string' && modules.some(module => module.hub_key === req.query.module)
-        ? req.query.module : '';
+      const moduleKeys = moduleSelection(req.query.module);
+      if ((req.query.module !== undefined && !moduleKeys.length) ||
+          moduleKeys.some(key => !modules.some(module => module.hub_key === key))) {
+        return res.status(400).render('error', {
+          title: 'Invalid module selection',
+          message: 'Choose one or more modules registered for staff roles.'
+        });
+      }
       const [notices, recipients] = await Promise.all([
         dbQuery(
           `SELECT * FROM maintenance_notices
            ORDER BY CASE status WHEN 'scheduled' THEN 0 WHEN 'in_progress' THEN 1 ELSE 2 END,
                     scheduled_at DESC LIMIT 100`
         ),
-        moduleKey
-          ? initDirectory().then(() => loadRecipients(moduleKey, dbQuery))
+        moduleKeys.length
+          ? initDirectory().then(() => loadRecipients(moduleKeys, dbQuery))
           : Promise.resolve([])
       ]);
       res.render('admin/maintenance-notifications', {
         csrf: req.session.maintenanceCsrf,
         formatDate,
         message: req.query.message === 'created' ? 'Maintenance notice scheduled.' : '',
-        moduleKey,
+        moduleKeys,
         modules,
         notices: notices.rows,
         recipients,
@@ -163,7 +182,7 @@ function createMaintenanceRouter({
   });
 
   router.post('/', async (req, res, next) => {
-    const moduleKey = typeof req.body.moduleKey === 'string' ? req.body.moduleKey : '';
+    const moduleKeys = moduleSelection(req.body.moduleKey);
     const scheduledAt = typeof req.body.scheduledAt === 'string' ? req.body.scheduledAt : '';
     const expectedDuration = typeof req.body.expectedDuration === 'string' ? req.body.expectedDuration.trim() : '';
     const impact = typeof req.body.impact === 'string' ? req.body.impact.trim() : '';
@@ -177,28 +196,29 @@ function createMaintenanceRouter({
     }
     try {
       const modules = await loadModules(dbQuery);
-      const selected = modules.find(module => module.hub_key === moduleKey);
-      if (!selected) {
+      const selected = moduleKeys.map(key => modules.find(module => module.hub_key === key));
+      if (!selected.length || selected.some(module => !module)) {
         return res.status(400).render('error', {
           title: 'Maintenance notice not saved',
-          message: 'Choose an app that is registered for staff roles.'
+          message: 'Choose one or more modules registered for staff roles.'
         });
       }
       await initDirectory();
-      const recipients = await loadRecipients(moduleKey, dbQuery);
+      const recipients = await loadRecipients(moduleKeys, dbQuery);
       if (!recipients.length) {
         return res.status(409).render('error', {
           title: 'Maintenance notice not saved',
-          message: 'No eligible staff or active administrators were found for this app.'
+          message: 'No eligible staff or active administrators were found for the selected modules.'
         });
       }
       const saved = await dbQuery(
         `INSERT INTO maintenance_notices
-           (module_key, module_name, scheduled_at, expected_duration, impact, details, created_by)
-         SELECT $1, $2, ($3::timestamp AT TIME ZONE 'Pacific/Auckland'), $4, $5, $6, $7
+           (module_key, module_name, scheduled_at, expected_duration, impact, details, created_by, module_keys)
+         SELECT $1, $2, ($3::timestamp AT TIME ZONE 'Pacific/Auckland'), $4, $5, $6, $7, $8::text[]
          WHERE ($3::timestamp AT TIME ZONE 'Pacific/Auckland') > NOW()
          RETURNING id`,
-        [moduleKey, selected.label, scheduledAt, expectedDuration, impact, details, req.user.id]
+        [moduleKeys[0], selected.map(module => module.label).join(', '),
+          scheduledAt, expectedDuration, impact, details, req.user.id, moduleKeys]
       );
       if (!saved.rowCount) {
         return res.status(400).render('error', {
@@ -280,7 +300,7 @@ function createMaintenanceRouter({
         });
       }
       await initDirectory();
-      const recipients = await loadRecipients(notice.module_key, dbQuery);
+      const recipients = await loadRecipients(notice.module_keys, dbQuery);
       if (!recipients.length) {
         await dbQuery(
           `UPDATE maintenance_notices SET status='resumption_failed',
@@ -290,7 +310,7 @@ function createMaintenanceRouter({
         );
         return res.status(409).render('error', {
           title: 'Resumption email not sent',
-          message: 'No eligible staff or active administrators were found for this app.'
+          message: 'No eligible staff or active administrators were found for the selected modules.'
         });
       }
       const content = noticeEmail(notice, 'resumed', notes);
@@ -382,7 +402,7 @@ async function sendDueWarnings(dbQuery = query, mail = sendEmail) {
   );
   for (const notice of claimed.rows) {
     try {
-      const recipients = await loadRecipients(notice.module_key, dbQuery);
+      const recipients = await loadRecipients(notice.module_keys, dbQuery);
       if (!recipients.length) throw new Error('No eligible staff or active administrators were found.');
       const content = noticeEmail(notice, 'planned');
       const result = await mail({

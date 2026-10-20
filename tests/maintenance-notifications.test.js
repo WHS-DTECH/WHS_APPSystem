@@ -3,6 +3,9 @@ const assert = require('node:assert/strict');
 const express = require('express');
 const session = require('express-session');
 const path = require('node:path');
+const fs = require('node:fs/promises');
+const crypto = require('node:crypto');
+const { Pool } = require('pg');
 const {
   createMaintenanceRouter,
   formatDate,
@@ -46,7 +49,7 @@ test('staff recipients query filters out invalid email addresses returned by the
   let sql;
   const people = await loadRecipients('teacher-planner', async (text, params) => {
     sql = text;
-    assert.deepEqual(params, ['teacher-planner']);
+    assert.deepEqual(params, [['teacher-planner']]);
     return { rows: [
       { email: 'planner@westlandhigh.school.nz', display_name: 'Planner Teacher' },
       { email: 'not-an-email', display_name: 'Invalid' }
@@ -54,9 +57,26 @@ test('staff recipients query filters out invalid email addresses returned by the
   });
 
   assert.match(sql, /staff\.status = 'Current'/);
-  assert.match(sql, /assigned_role\.hub_key = \$1/);
+  assert.match(sql, /assigned_role\.hub_key = ANY\(\$1::text\[\]\)/);
   assert.match(sql, /assigned_role\.name = 'ADMIN'/);
   assert.deepEqual(people.map(person => person.email), ['planner@westlandhigh.school.nz']);
+});
+
+test('combined module recipients are deduplicated by email, including administrators', async () => {
+  const people = await loadRecipients(['teacher-planner', 'workshop', 'teacher-planner'], async (sql, params) => {
+    assert.deepEqual(params, [['teacher-planner', 'workshop']]);
+    return { rows: [
+      { email: 'Teacher@westlandhigh.school.nz', display_name: 'Teacher' },
+      { email: 'teacher@westlandhigh.school.nz', display_name: 'Other account' },
+      { email: 'admin@westlandhigh.school.nz', display_name: 'Admin' },
+      { email: 'ADMIN@westlandhigh.school.nz', display_name: 'Admin in both modules' },
+      { email: 'workshop@westlandhigh.school.nz', display_name: 'Workshop' }
+    ] };
+  });
+  assert.deepEqual(people.map(person => person.email), [
+    'teacher@westlandhigh.school.nz', 'admin@westlandhigh.school.nz', 'workshop@westlandhigh.school.nz'
+  ]);
+  await assert.rejects(loadRecipients([], async () => assert.fail('Empty scope must not query')), /Select at least one module/);
 });
 
 test('warning scheduler BCCs eligible staff and records successful delivery', async () => {
@@ -64,7 +84,8 @@ test('warning scheduler BCCs eligible staff and records successful delivery', as
   const notice = {
     id: 'cfa89387-7632-4a70-b700-f7142d07e946',
     module_key: 'teacher-planner',
-    module_name: 'Teacher Planner',
+    module_keys: ['teacher-planner', 'workshop'],
+    module_name: 'Teacher Planner, Workshop',
     scheduled_at: '2027-03-15T20:30:00.000Z',
     expected_duration: 'about 30 minutes',
     impact: 'The planner will be unavailable.',
@@ -74,7 +95,11 @@ test('warning scheduler BCCs eligible staff and records successful delivery', as
   const dbQuery = async (sql, params = []) => {
     calls.push({ sql, params });
     if (sql.includes('SELECT DISTINCT LOWER(TRIM(users.email))')) {
-      return { rows: [{ email: 'teacher@westlandhigh.school.nz', display_name: 'Teacher' }] };
+      assert.deepEqual(params, [['teacher-planner', 'workshop']]);
+      return { rows: [
+        { email: 'teacher@westlandhigh.school.nz', display_name: 'Teacher' },
+        { email: 'teacher@westlandhigh.school.nz', display_name: 'Teacher' }
+      ] };
     }
     if (sql.includes('RETURNING *')) return { rows: [notice] };
     return { rows: [], rowCount: 1 };
@@ -86,7 +111,8 @@ test('warning scheduler BCCs eligible staff and records successful delivery', as
   });
 
   assert.deepEqual(mailed.bcc, ['teacher@westlandhigh.school.nz']);
-  assert.match(mailed.subject, /Teacher Planner maintenance planned/);
+  assert.match(mailed.subject, /Teacher Planner, Workshop maintenance planned/);
+  assert.match(mailed.text, /Planned maintenance for Teacher Planner, Workshop/);
   assert.match(calls[1].sql, /FOR UPDATE SKIP LOCKED/);
   assert.match(calls[1].sql, /AT TIME ZONE 'Pacific\/Auckland'/);
   assert.match(calls[3].sql, /warning_sent_at=NOW\(\)/);
@@ -97,6 +123,7 @@ test('warning scheduler records a delivery failure for an hourly retry', async (
   const notice = {
     id: 'cfa89387-7632-4a70-b700-f7142d07e946',
     module_key: 'teacher-planner',
+    module_keys: ['teacher-planner'],
     module_name: 'Teacher Planner',
     scheduled_at: '2027-03-15T20:30:00.000Z',
     expected_duration: '',
@@ -130,7 +157,10 @@ test('admin can schedule a notice only with a valid session form token and eligi
   const dbQuery = async (sql, params = []) => {
     calls.push({ sql, params });
     if (sql.includes('FROM hub_roles roles')) {
-      return { rows: [{ hub_key: 'teacher-planner', label: 'Teacher Planner' }] };
+      return { rows: [
+        { hub_key: 'teacher-planner', label: 'Teacher Planner' },
+        { hub_key: 'workshop', label: 'Workshop' }
+      ] };
     }
     if (sql.includes('SELECT * FROM maintenance_notices')) return { rows: notice ? [notice] : [] };
     if (sql.includes('SELECT DISTINCT LOWER(TRIM(users.email))')) {
@@ -140,6 +170,7 @@ test('admin can schedule a notice only with a valid session form token and eligi
       notice = {
         id: 'cfa89387-7632-4a70-b700-f7142d07e946',
         module_key: params[0],
+        module_keys: params[7],
         module_name: params[1],
         scheduled_at: params[2],
         expected_duration: params[3],
@@ -172,6 +203,7 @@ test('admin can schedule a notice only with a valid session form token and eligi
     res.locals.activeRole = 'ADMIN';
     next();
   });
+
   app.use('/admin/maintenance-notifications', createMaintenanceRouter({
     dbQuery,
     initDirectory: async () => {},
@@ -196,25 +228,39 @@ test('admin can schedule a notice only with a valid session form token and eligi
     assert.equal(page.status, 200);
     assert.match(html, /Current recipients \(1\)/);
     const csrf = /name="csrf" value="([^"]+)"/.exec(html)[1];
-    const submit = async token => fetch(base, {
+    const submit = async (token, keys = ['teacher-planner']) => fetch(base, {
       method: 'POST', redirect: 'manual',
       headers: { cookie, 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        csrf: token,
-        moduleKey: 'teacher-planner',
-        scheduledAt: '2099-02-10T09:30',
-        expectedDuration: '30 minutes',
-        impact: 'The planner will be unavailable.',
-        details: ''
-      })
+      body: new URLSearchParams([
+        ['csrf', token],
+        ...keys.map(key => ['moduleKey', key]),
+        ['scheduledAt', '2099-02-10T09:30'],
+        ['expectedDuration', '30 minutes'],
+        ['impact', 'The selected modules will be unavailable.'],
+        ['details', '']
+      ])
     });
     assert.equal((await submit('invalid-token')).status, 403);
-    const created = await submit(csrf);
+    assert.equal((await submit(csrf, [])).status, 400);
+    assert.equal((await submit(csrf, ['teacher-planner', 'unknown'])).status, 400);
+    assert.equal((await getPage('?module=teacher-planner&module=unknown')).status, 400);
+    const multiplePage = await getPage('?module=teacher-planner&module=workshop');
+    const multipleHtml = await multiplePage.text();
+    assert.equal(multiplePage.status, 200);
+    assert.match(multipleHtml, /Selected modules:<\/strong> Teacher Planner, Workshop/);
+    assert.match(multipleHtml, /type="checkbox" name="module" value="workshop" checked/);
+    assert.equal((multipleHtml.match(/type="hidden" name="moduleKey"/g) || []).length, 2);
+    assert.equal((await submit(csrf)).status, 302);
+    assert.deepEqual(notice.module_keys, ['teacher-planner']);
+    const created = await submit(csrf, ['teacher-planner', 'workshop', 'teacher-planner']);
     assert.equal(created.status, 302, await created.text());
     assert.equal(created.headers.get('location'), '/admin/maintenance-notifications?message=created');
     const insert = calls.find(call => call.sql.includes('INSERT INTO maintenance_notices'));
     assert.match(insert.sql, /AT TIME ZONE 'Pacific\/Auckland'/);
     assert.equal(insert.params[2], '2099-02-10T09:30');
+    assert.deepEqual(notice.module_keys, ['teacher-planner', 'workshop']);
+    assert.equal(notice.module_name, 'Teacher Planner, Workshop');
+    assert.equal(calls.filter(call => call.sql.includes('INSERT INTO maintenance_notices')).length, 2);
 
     const resume = await fetch(base + `/${notice.id}/resume`, {
       method: 'POST', redirect: 'manual',
@@ -224,6 +270,10 @@ test('admin can schedule a notice only with a valid session form token and eligi
     assert.equal(resume.status, 302);
     assert.deepEqual(mailed.bcc, ['teacher@westlandhigh.school.nz']);
     assert.match(mailed.text, /Reports may take a few minutes to refresh\./);
+    assert.match(mailed.text, /Service has resumed for: Teacher Planner, Workshop/);
+    assert.match(mailed.subject, /Teacher Planner, Workshop maintenance complete/);
+    const resumptionRecipients = calls.filter(call => call.sql.includes('SELECT DISTINCT LOWER(TRIM(users.email))')).at(-1);
+    assert.deepEqual(resumptionRecipients.params, [['teacher-planner', 'workshop']]);
     assert.equal(notice.status, 'resumed');
 
     const duplicate = await fetch(base + `/${notice.id}/resume`, {
@@ -234,5 +284,55 @@ test('admin can schedule a notice only with a valid session form token and eligi
     assert.equal(duplicate.status, 409);
   } finally {
     await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+  }
+});
+
+test('database migration preserves old notices and combined scope includes only eligible recipients', {
+  skip: !process.env.MODULE_BUILDER_TEST_DATABASE_URL
+}, async () => {
+  const pool = new Pool({ connectionString: process.env.MODULE_BUILDER_TEST_DATABASE_URL, ssl: false });
+  const client = await pool.connect();
+  const schema = 'maintenance_' + crypto.randomBytes(8).toString('hex');
+  try {
+    await client.query(`CREATE SCHEMA "${schema}"`);
+    await client.query(`SET search_path TO "${schema}",public`);
+    await client.query(`
+      CREATE TABLE users(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), email text, display_name text, is_active boolean DEFAULT true);
+      CREATE TABLE staff_upload(email_school text, status text);
+      CREATE TABLE hub_roles(id int PRIMARY KEY, hub_key text);
+      CREATE TABLE user_hub_roles(user_id uuid, hub_role_id int);
+      CREATE TABLE roles(id int PRIMARY KEY, name text);
+      CREATE TABLE user_roles(user_id uuid, role_id int);
+      INSERT INTO users(email,display_name,is_active) VALUES
+        ('both@school.test','Both modules',true),
+        ('workshop@school.test','Workshop only',true),
+        ('student@school.test','Student',true),
+        ('inactive@school.test','Inactive',false),
+        ('other@school.test','Other module',true),
+        ('admin@school.test','Global ADMIN',true);
+      INSERT INTO staff_upload SELECT email,'Current' FROM users WHERE email NOT IN ('student@school.test','admin@school.test');
+      INSERT INTO hub_roles VALUES (1,'teacher-planner'),(2,'workshop'),(3,'other');
+      INSERT INTO user_hub_roles SELECT id,1 FROM users WHERE email IN ('both@school.test','student@school.test','inactive@school.test');
+      INSERT INTO user_hub_roles SELECT id,2 FROM users WHERE email IN ('both@school.test','workshop@school.test');
+      INSERT INTO user_hub_roles SELECT id,3 FROM users WHERE email='other@school.test';
+      INSERT INTO roles VALUES (1,'ADMIN');
+      INSERT INTO user_roles SELECT id,1 FROM users WHERE email='admin@school.test';
+    `);
+    const migration = name => fs.readFile(path.join(__dirname, '..', 'migrations', name), 'utf8');
+    await client.query(await migration('033_maintenance_notifications.sql'));
+    await client.query(`INSERT INTO maintenance_notices(module_key,module_name,scheduled_at,impact)
+      VALUES ('teacher-planner','Teacher Planner',NOW()+INTERVAL '30 days','Temporarily unavailable')`);
+    await client.query(await migration('035_maintenance_multiple_modules.sql'));
+    const notice = (await client.query('SELECT * FROM maintenance_notices')).rows[0];
+    assert.deepEqual(notice.module_keys, ['teacher-planner']);
+    assert.equal(notice.status, 'scheduled');
+    const people = await loadRecipients(['teacher-planner', 'workshop'], (...args) => client.query(...args));
+    assert.deepEqual(people.map(person => person.email), ['admin@school.test', 'both@school.test', 'workshop@school.test']);
+    await assert.rejects(client.query(`UPDATE maintenance_notices SET module_keys='{}'`), /maintenance_notice_modules_required/);
+  } finally {
+    await client.query('SET search_path TO public');
+    await client.query(`DROP SCHEMA "${schema}" CASCADE`);
+    client.release();
+    await pool.end();
   }
 });
