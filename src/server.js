@@ -32,6 +32,7 @@ const { createModuleIdentityRouter } = require('./moduleIdentity');
 const { createContactRouter } = require('./contact');
 const { createAdminUsersRouter } = require('./adminUsers');
 const maintenanceNotifications = require('./maintenanceNotifications');
+const { createPublicLaunchpad, createLaunchpadAdminRouter } = require('./launchpad');
 
 const app = express();
 
@@ -43,7 +44,7 @@ app.get('/favicon.ico', (req, res) => res.sendFile(path.join(__dirname, '..', 'p
 
 app.use(helmet({ contentSecurityPolicy: false }));
 // The portable public Launchpad must not depend on sessions or shared navigation.
-app.get('/launchpad.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'launchpad.html')));
+app.get('/launchpad.html', createPublicLaunchpad());
 // The Food Room pages make many small API calls, so they are not counted against the shared limit.
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, skip: (req) => req.path.startsWith('/food-room/') || req.path.startsWith('/dtech-hub/') || req.path === '/nav-data' }));
 // Hosted Flask apps receive their request bodies untouched, including training uploads.
@@ -336,6 +337,7 @@ app.get('/admin', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, nex
 });
 
 app.use('/admin/users', createAdminUsersRouter());
+app.use('/admin/launchpad', createLaunchpadAdminRouter());
 app.use('/admin/maintenance-notifications', maintenanceNotifications.createMaintenanceRouter());
 
 app.get('/admin/teachers', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {

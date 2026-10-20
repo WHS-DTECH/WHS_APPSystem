@@ -85,15 +85,23 @@ required.
 ## Public school Launchpad
 
 [`public/launchpad.html`](public/launchpad.html) is a standalone, responsive public
-landing page for WHS Learning Sites, Hub Dashboard, Teacher Planner, Guidance
+design for WHS Learning Sites, Hub Dashboard, Teacher Planner, Guidance
 Counsellor App, International App and Bus Controller App. It includes its own
 styles and icons, needs no JavaScript or additional assets, and can be uploaded as
 a single HTML file to the school website. A preview is also served at
 `/launchpad.html`, without Global Control navigation or a session dependency.
+The hosted page reads published links from PostgreSQL (`launchpad_links`), seeded
+with the original six services. **Administrator Dashboard > Launchpad Management**
+lets active Global ADMINs add and edit names, HTTPS addresses, descriptions,
+icons, visibility and numeric display order. This changes only Launchpad links,
+not module registration, permissions or the apps themselves.
 
 Choose a permanent URL on `westlandhigh.school.nz` for the published file and
-share that URL with users. When a service moves, update its card's `href` in this
-file and replace the copy on the school website. Moving a service does not
+share that URL with users. When a service moves, edit its address in Launchpad
+Management, choose **Download standalone HTML**, and replace the copy on the
+school website. The downloaded HTML contains the current visible links and has
+no runtime dependency on Global Control. The checked-in HTML is the design and
+initial six-link example; it is not rewritten by admin edits. Moving a service does not
 automatically update the school-hosted file. All service links are absolute HTTPS
 URLs and open in the same tab; each service retains its existing sign-in and
 permissions. This page does not integrate or modify the independently hosted

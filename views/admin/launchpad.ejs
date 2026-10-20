@@ -1,0 +1,31 @@
+<%- include('../partials/header') %>
+<section class="page-title">
+  <p class="eyebrow">Administration</p>
+  <h1>Launchpad Management</h1>
+  <p>Add and edit the public school service links. This does not change the apps themselves or their access permissions.</p>
+</section>
+<section class="panel">
+  <% if (saved) { %><p role="status">Launchpad link saved. The hosted Launchpad is updated.</p><% } %>
+  <p><a class="button" href="/launchpad.html" target="_blank" rel="noopener">View public Launchpad</a>
+    <a class="button" href="/admin/launchpad/download">Download standalone HTML</a></p>
+  <p>Changes appear immediately on this system's public Launchpad. For a copy hosted on the school website, download the HTML after editing and ask the website administrator to replace the published file.</p>
+  <p>Lower order numbers appear first. Clear <strong>Show on public Launchpad</strong> to hide a link without deleting it.</p>
+</section>
+<% const forms = [{ id: '', title: '', url: '', description: '', icon: 'hub', sort_order: 100, is_visible: true }, ...links]; %>
+<% forms.forEach(link => { %>
+<section class="panel">
+  <h2><%= link.id ? link.title : 'Add a module or service' %><% if (link.id && !link.is_visible) { %> (hidden)<% } %></h2>
+  <form class="row-form stacked" action="/admin/launchpad/save" method="post">
+    <input type="hidden" name="csrf" value="<%= csrf %>">
+    <input type="hidden" name="id" value="<%= link.id %>">
+    <label>Module name <input name="title" value="<%= link.title %>" maxlength="100" required></label>
+    <label>Site address (HTTPS) <input name="url" type="url" value="<%= link.url %>" maxlength="2048" placeholder="https://example.school.nz/" required></label>
+    <label>Description <textarea name="description" maxlength="500" rows="3" required><%= link.description %></textarea></label>
+    <label>Icon <select name="icon"><% Object.entries(iconLabels).forEach(([key,label]) => { %><option value="<%= key %>" <%= key === link.icon ? 'selected' : '' %>><%= label %></option><% }) %></select></label>
+    <label>Display order <input name="sortOrder" type="number" min="0" max="9999" step="1" value="<%= link.sort_order %>" required></label>
+    <label><input name="visible" type="checkbox" <%= link.is_visible ? 'checked' : '' %>> Show on public Launchpad</label>
+    <button class="button button-primary" type="submit"><%= link.id ? 'Save changes' : 'Add to Launchpad' %></button>
+  </form>
+</section>
+<% }) %>
+<%- include('../partials/footer') %>
