@@ -42,6 +42,8 @@ app.set('trust proxy', 1);
 app.get('/favicon.ico', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'images', 'favicon.ico')));
 
 app.use(helmet({ contentSecurityPolicy: false }));
+// The portable public Launchpad must not depend on sessions or shared navigation.
+app.get('/launchpad.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'launchpad.html')));
 // The Food Room pages make many small API calls, so they are not counted against the shared limit.
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, skip: (req) => req.path.startsWith('/food-room/') || req.path.startsWith('/dtech-hub/') || req.path === '/nav-data' }));
 // Hosted Flask apps receive their request bodies untouched, including training uploads.

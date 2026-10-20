@@ -82,6 +82,23 @@ search: they need an explicit permission-aware provider before displaying the
 shared search bar. No additional environment keys or replacement databases are
 required.
 
+## Public school Launchpad
+
+[`public/launchpad.html`](public/launchpad.html) is a standalone, responsive public
+landing page for WHS Learning Sites, Hub Dashboard, Teacher Planner, Guidance
+Counsellor App, International App and Bus Controller App. It includes its own
+styles and icons, needs no JavaScript or additional assets, and can be uploaded as
+a single HTML file to the school website. A preview is also served at
+`/launchpad.html`, without Global Control navigation or a session dependency.
+
+Choose a permanent URL on `westlandhigh.school.nz` for the published file and
+share that URL with users. When a service moves, update its card's `href` in this
+file and replace the copy on the school website. Moving a service does not
+automatically update the school-hosted file. All service links are absolute HTTPS
+URLs and open in the same tab; each service retains its existing sign-in and
+permissions. This page does not integrate or modify the independently hosted
+International, Bus Controller or Teacher Planner apps.
+
 ## Module Builder / Module Wizard
 
 Global ADMIN can open **Modules > Module Builder** (`/module-builder`). The
