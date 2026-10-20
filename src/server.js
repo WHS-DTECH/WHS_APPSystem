@@ -31,6 +31,7 @@ const { createModuleBuilderRouter } = require('./moduleBuilder');
 const { createModuleIdentityRouter } = require('./moduleIdentity');
 const { createContactRouter } = require('./contact');
 const { createAdminUsersRouter } = require('./adminUsers');
+const maintenanceNotifications = require('./maintenanceNotifications');
 
 const app = express();
 
@@ -333,6 +334,7 @@ app.get('/admin', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, nex
 });
 
 app.use('/admin/users', createAdminUsersRouter());
+app.use('/admin/maintenance-notifications', maintenanceNotifications.createMaintenanceRouter());
 
 app.get('/admin/teachers', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
   try {
@@ -579,6 +581,7 @@ async function start() {
     console.log(`WHS APPSystem listening on port ${config.port}`);
     require('./hostedApps').start();
     if (config.databaseUrl) {
+      maintenanceNotifications.startMaintenanceScheduler();
       console.log('Legacy Food Room import: starting in background...');
       importLegacyFoodRoom()
         .catch((error) => {
