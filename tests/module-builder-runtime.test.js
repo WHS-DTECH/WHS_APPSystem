@@ -29,6 +29,17 @@ test('wizard database, admin forms, confirmations, durable operations and sideba
     await query(await fs.readFile(path.join(__dirname, '..', 'migrations', '026_module_builder.sql'), 'utf8'));
     assert.equal((await query('SELECT * FROM module_builder_projects')).rows.length, 1);
     assert.equal((await query('SELECT * FROM module_builder_environments')).rows.length, 3);
+    const existingAppsMigration = await fs.readFile(path.join(__dirname, '..', 'migrations', '034_existing_development_apps.sql'), 'utf8');
+    await query(existingAppsMigration);
+    await query(existingAppsMigration);
+    assert.equal((await query('SELECT * FROM module_builder_projects')).rows.length, 3);
+    assert.equal((await query('SELECT * FROM module_builder_environments')).rows.length, 9);
+    await query(`UPDATE module_builder_environments SET config=config || '{"appUrl":"https://custom.example.test"}'::jsonb
+      WHERE project_id=(SELECT id FROM module_builder_projects WHERE slug='international-app') AND kind='staging'`);
+    await query(existingAppsMigration);
+    assert.equal((await query(`SELECT config->>'appUrl' AS url FROM module_builder_environments
+      WHERE project_id=(SELECT id FROM module_builder_projects WHERE slug='international-app') AND kind='staging'`)).rows[0].url,
+    'https://custom.example.test');
     const user = (await query("INSERT INTO users(email,display_name) VALUES ('wizard@example.test','Wizard Admin') RETURNING *")).rows[0];
     const calls = [];
     let ambiguous = false;
@@ -151,6 +162,12 @@ test('wizard database, admin forms, confirmations, durable operations and sideba
     const nav = await response.json();
     assert.equal(nav.developmentProjects.find((entry) => entry.name === '<Test Module>').url, 'https://created.onrender.com/');
     assert.ok(nav.developmentProjects.find((entry) => entry.name === 'Teacher Planner' && !entry.deployed));
+    for (const [name, url] of [
+      ['International App', 'https://whs-international.onrender.com'],
+      ['Bus Controller App', 'https://whs-buscontroller.onrender.com']
+    ]) {
+      assert.deepEqual(nav.developmentProjects.find(entry => entry.name === name), { name, url, deployed: true });
+    }
     assert.deepEqual((await (await get('/nav-data', 'Teacher')).json()).developmentProjects, []);
     assert.ok(!(await (await get('/nav-data', 'Teacher')).json()).modules.some((module) => module.path === '/module-builder'));
     response = await post(`${detail}/project`, {

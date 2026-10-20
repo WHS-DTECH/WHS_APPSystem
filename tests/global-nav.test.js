@@ -6,6 +6,26 @@ const os = require('os');
 const path = require('path');
 const { injectGlobalNav, navData, safeNext } = require('../src/globalNav');
 
+test('existing development apps have deployed links only in the ADMIN sidebar', async () => {
+  const projects = [
+    { id: 'international', name: 'International App', app_url: 'https://whs-international.onrender.com' },
+    { id: 'bus', name: 'Bus Controller App', app_url: 'https://whs-buscontroller.onrender.com' }
+  ];
+  for (const role of ['ADMIN', 'Teacher', 'Student']) {
+    let body;
+    await navData(async sql => ({
+      rows: sql.includes('FROM module_builder_projects') ? projects : []
+    }), async () => false, async () => null)(
+      { user: { roles: [role] }, query: {} },
+      { locals: {}, set() {}, json(value) { body = value; } },
+      error => { throw error; }
+    );
+    assert.deepEqual(body.developmentProjects, role === 'ADMIN'
+      ? projects.map(project => ({ name: project.name, url: project.app_url, deployed: true }))
+      : []);
+  }
+});
+
 test('module Leads get only contextual module role-management links without global ADMIN', async () => {
   for (const [page, hub] of [
     ['/ADMIN/', 'learning-sites'], ['/DTECH/10DTEC/', 'learning-sites'],

@@ -91,6 +91,9 @@ staging and production infrastructure without executing their code in Core.
 open in a new tab; undeployed entries open their technical record instead.
 Teacher Planner is seeded once with its existing GitHub repository and an explicit
 warning to check for a surviving database. Its source and data are not changed.
+International App and Bus Controller App are also registered with their existing
+Render URLs in the development list. These are navigation/registry entries only:
+they do not change the apps' source, databases or sign-in configuration.
 
 The first approved framework is Node/Express. Global Control is the sign-in
 authority for every new module, including separately hosted development services.
