@@ -8,6 +8,10 @@ const { injectGlobalNav } = require('../src/globalNav');
 const kamarUploader = require('../src/modules/kamarUploader');
 const kamarApi = require('../src/legacy/kamar-uploader/routes');
 
+test('department feed is registered at startup without first loading the staff feed', () => {
+  assert.strictEqual(kamarApi.stack.filter(layer => layer.route?.path === '/api/feed/departments').length, 1);
+});
+
 function startApp(roles) {
   const app = express();
   app.set('view engine', 'ejs');

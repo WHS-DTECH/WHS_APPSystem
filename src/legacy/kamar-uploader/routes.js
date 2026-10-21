@@ -1110,17 +1110,18 @@ router.get('/api/feed/staff/current', async (req, res) => {
       staff: rows
     });
 
-    router.get('/api/feed/departments', async (_req, res) => {
-      try {
-        const staff = await pool.query("SELECT id::text AS id,code,first_name,last_name FROM staff_upload WHERE status='Current'");
-        res.json({ departments: await loadDepartments((sql, params) => pool.query(sql, params), staff.rows) });
-      } catch (error) {
-        console.error('Kamar department directory failed:', error.message);
-        res.status(502).json({ error: 'The shared department directory could not be loaded. Retry or contact your administrator.' });
-      }
-    });
   } catch (error) {
     res.status(500).json({ error: 'Failed to load current staff feed.' });
+  }
+});
+
+router.get('/api/feed/departments', async (_req, res) => {
+  try {
+    const staff = await pool.query("SELECT id::text AS id,code,first_name,last_name FROM staff_upload WHERE status='Current'");
+    res.json({ departments: await loadDepartments((sql, params) => pool.query(sql, params), staff.rows) });
+  } catch (error) {
+    console.error('Kamar department directory failed:', error.message);
+    res.status(502).json({ error: 'The shared department directory could not be loaded. Retry or contact your administrator.' });
   }
 });
 

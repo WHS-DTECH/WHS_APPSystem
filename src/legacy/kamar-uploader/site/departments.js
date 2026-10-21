@@ -6,7 +6,9 @@
     refresh.disabled = true; status.setAttribute('role', 'status'); status.textContent = 'Loading departments...';
     try {
       const response = await fetch('/api/feed/departments', { cache: 'no-store' });
-      if (!response.headers.get('content-type')?.includes('application/json')) throw new Error('School sign-in required. Sign in again and retry.');
+      if (!response.headers.get('content-type')?.includes('application/json')) {
+        throw new Error('The department service returned HTTP ' + response.status + '. Reload or contact your administrator.');
+      }
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'The department directory could not be loaded.');
       directory.replaceChildren();
