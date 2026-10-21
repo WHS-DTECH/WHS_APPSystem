@@ -32,48 +32,12 @@ function firstDepartmentFromList(departmentsComma) {
   );
 }
 
-const schemaReady = (async () => {
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS department (
-        id SERIAL PRIMARY KEY,
-        code TEXT,
-        last_name TEXT,
-        first_name TEXT,
-        title TEXT,
-        departments_comma TEXT,
-        staff_name TEXT,
-        staff_email TEXT,
-        department TEXT,
-        classes TEXT
-      )
-    `);
-
-    await pool.query("ALTER TABLE department ADD COLUMN IF NOT EXISTS code TEXT");
-    await pool.query("ALTER TABLE department ADD COLUMN IF NOT EXISTS last_name TEXT");
-    await pool.query("ALTER TABLE department ADD COLUMN IF NOT EXISTS first_name TEXT");
-    await pool.query("ALTER TABLE department ADD COLUMN IF NOT EXISTS title TEXT");
-    await pool.query("ALTER TABLE department ADD COLUMN IF NOT EXISTS departments_comma TEXT");
-    await pool.query("ALTER TABLE department ADD COLUMN IF NOT EXISTS staff_name TEXT");
-    await pool.query("ALTER TABLE department ADD COLUMN IF NOT EXISTS staff_email TEXT");
-    await pool.query("ALTER TABLE department ADD COLUMN IF NOT EXISTS department TEXT");
-    await pool.query("ALTER TABLE department ADD COLUMN IF NOT EXISTS classes TEXT");
-    
-    // Reset the sequence to the max(id) + 1 to avoid duplicate key errors
-    await pool.query(`SELECT setval(pg_get_serial_sequence('department', 'id'), COALESCE((SELECT MAX(id) FROM department), 0) + 1)`);
-    console.log('[DEPARTMENT] Schema ready');
-    return true;
-  } catch (err) {
-    console.error('[DEPARTMENT] Schema initialization error:', err);
-    return false;
-  }
-})();
+// Kamar owns public.department after migration 037; Food Room uses the same rows.
 
 // Upload Kamar Department CSV: Code, Last Name, First Name, Title, Departments (Comma)
 router.post('/upload-csv', async (req, res) => {
   try {
     console.log('[DEPARTMENT] POST /upload-csv - Starting upload');
-    await schemaReady;
     console.log('[DEPARTMENT] POST /upload-csv - Schema ready');
 
     const rows = Array.isArray(req.body?.staff) ? req.body.staff : [];
@@ -239,7 +203,6 @@ router.post('/assign', async (req, res) => {
   }
 
   try {
-    await schemaReady;
 
     const staffResult = await pool.query(
       'SELECT code, last_name, first_name, title, email_school FROM staff_upload WHERE id = $1',
@@ -303,7 +266,6 @@ router.post('/assign', async (req, res) => {
 
 router.get('/all', async (req, res) => {
   try {
-    await schemaReady;
     const result = await pool.query(`
       SELECT
         d.id,
@@ -333,13 +295,8 @@ router.get('/all', async (req, res) => {
 });
 
 router.post('/delete-all', async (req, res) => {
-  try {
-    await schemaReady;
-    await pool.query('TRUNCATE TABLE department RESTART IDENTITY');
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
+  console.warn('Food Room bulk department deletion rejected: shared Kamar directory.');
+  res.status(409).json({ success: false, error: 'Departments are now shared through Kamar Uploader. Food Room cannot clear the school-wide directory. Existing assignments can still be updated.' });
 });
 
 router.get('/timetable/by-staff/:staffId', async (req, res) => {

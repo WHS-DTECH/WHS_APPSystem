@@ -1,6 +1,7 @@
 const express = require('express');
 const { pool } = require('../../db');
 const store = require('./store');
+const { loadDepartments } = require('./departments');
 
 // Legacy Kamar Uploader API, ported from the original server.js. Data routes are unchanged;
 // the old cookie login and role tables are replaced by the app's Google session roles.
@@ -1107,6 +1108,16 @@ router.get('/api/feed/staff/current', async (req, res) => {
       count: rows.length,
       filters: { q: q || null, limit },
       staff: rows
+    });
+
+    router.get('/api/feed/departments', async (_req, res) => {
+      try {
+        const staff = await pool.query("SELECT id::text AS id,code,first_name,last_name FROM staff_upload WHERE status='Current'");
+        res.json({ departments: await loadDepartments((sql, params) => pool.query(sql, params), staff.rows) });
+      } catch (error) {
+        console.error('Kamar department directory failed:', error.message);
+        res.status(502).json({ error: 'The shared department directory could not be loaded. Retry or contact your administrator.' });
+      }
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to load current staff feed.' });

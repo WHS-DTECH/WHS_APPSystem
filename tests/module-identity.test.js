@@ -17,6 +17,7 @@ test('staff bridge validates module identity before returning minimal current Ka
       kind: 'development', app_url: 'https://fixture.onrender.com' }] };
     if (sql.includes('FROM module_identity_grants')) return { rows: allowed ? [{ user_id: 'user' }] : [] };
     if (sql.includes('FROM users u')) return { rows: [{ id: 'user', roles: ['Teacher'] }] };
+    if (sql.includes('FROM public.department')) return { rows: [] };
     if (sql.includes('FROM staff_upload')) {
       if (unavailable) throw new Error('Staff upload unavailable');
       assert.match(sql, /SELECT id::text AS id,code,first_name,last_name/);
@@ -38,7 +39,7 @@ test('staff bridge validates module identity before returning minimal current Ka
   assert.equal(calls.some(([sql]) => sql.includes('FROM staff_upload')), false);
   const token = 'A'.repeat(43), response = await post(token);
   assert.equal(response.status, 200); assert.equal(response.headers.get('cache-control'), 'no-store');
-  assert.deepEqual(await response.json(), { staff: [{ id: '1', code: 'TST', first_name: 'Synthetic', last_name: 'Teacher' }] });
+  assert.deepEqual(await response.json(), { departments: [], staff: [{ id: '1', code: 'TST', first_name: 'Synthetic', last_name: 'Teacher' }] });
   allowed = false; calls.length = 0;
   assert.equal((await post(token)).status, 401);
   assert.equal(calls.some(([sql]) => sql.includes('FROM staff_upload')), false);
@@ -89,7 +90,7 @@ test('Global Control identity binds codes to clients, PKCE, current ADMIN roles 
     });
     let calendarFailure = false;
     app.use('/module-auth', createModuleIdentityRouter({
-      dbQuery: (sql, values) => pool.query(sql, values),
+      dbQuery: (sql, values) => sql.includes('FROM public.department') ? Promise.resolve({rows:[]}) : pool.query(sql, values),
       schoolCalendar: async year => {
         if (calendarFailure) throw new Error('Fixture source outage');
         return {year, available:true,terms:[],holidays:[]};
@@ -143,7 +144,7 @@ test('Global Control identity binds codes to clients, PKCE, current ADMIN roles 
     assert.equal((await post('staff', {client_id:parameters.client_id},'Z'.repeat(43))).status,401);
     const staffResponse = await post('staff', {client_id:parameters.client_id},token);
     assert.equal(staffResponse.status,200);
-    assert.deepEqual(await staffResponse.json(), {staff:[
+    assert.deepEqual(await staffResponse.json(), {departments:[],staff:[
       {id:'2',code:'AAD',first_name:'Amy',last_name:'Adams'},
       {id:'1',code:'ZBA',first_name:'Zoe',last_name:'Baker'}
     ]});

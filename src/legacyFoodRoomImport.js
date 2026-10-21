@@ -20,6 +20,7 @@ const columnTypes = {
   real: 'real', 'double precision': 'double precision', date: 'date', json: 'jsonb', jsonb: 'jsonb',
   'timestamp without time zone': 'timestamp', 'timestamp with time zone': 'timestamptz'
 };
+const targetSchema = table => table === 'department' ? 'public' : 'food_room';
 
 async function connectSource(url) {
   for (const ssl of [{ rejectUnauthorized: false }, false]) {
@@ -38,8 +39,8 @@ async function connectSource(url) {
 
 async function targetColumns(client, table) {
   const result = await client.query(
-    `SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'food_room' AND table_name = $1`,
-    [table]
+    `SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = $2 AND table_name = $1`,
+    [table, targetSchema(table)]
   );
   return new Map(result.rows.map((column) => [column.column_name, column.data_type]));
 }
@@ -53,7 +54,7 @@ async function addMissingColumns(source, client, table, known) {
   for (const column of result.rows) {
     if (known.has(column.column_name)) continue;
     const type = columnTypes[column.data_type] || 'text';
-    await client.query(`ALTER TABLE food_room.${table} ADD COLUMN IF NOT EXISTS "${column.column_name}" ${type}`);
+    await client.query(`ALTER TABLE ${targetSchema(table)}.${table} ADD COLUMN IF NOT EXISTS "${column.column_name}" ${type}`);
     known.set(column.column_name, type === 'jsonb' ? 'jsonb' : column.data_type);
   }
 }
@@ -70,7 +71,7 @@ async function insertRow(client, table, columns, types, row) {
   await client.query('SAVEPOINT food_row');
   try {
     await client.query(
-      `INSERT INTO food_room.${table} (${columns.map((column) => `"${column}"`).join(', ')})
+      `INSERT INTO ${targetSchema(table)}.${table} (${columns.map((column) => `"${column}"`).join(', ')})
        VALUES (${columns.map((column, index) => `$${index + 1}`).join(', ')})
        ON CONFLICT DO NOTHING`,
       values
@@ -139,18 +140,18 @@ async function runImport() {
 
     for (const table of tables) {
       const hasId = await client.query(
-        `SELECT 1 FROM information_schema.columns WHERE table_schema = 'food_room' AND table_name = $1 AND column_name = 'id'`,
-        [table]
+        `SELECT 1 FROM information_schema.columns WHERE table_schema = $2 AND table_name = $1 AND column_name = 'id'`,
+        [table, targetSchema(table)]
       );
       if (!hasId.rowCount) continue;
       const idColumn = await client.query(
         `SELECT pg_get_serial_sequence($1, 'id') AS sequence`,
-        [`food_room.${table}`]
+        [`${targetSchema(table)}.${table}`]
       );
       const sequence = idColumn.rows[0] && idColumn.rows[0].sequence;
       if (sequence) {
         await client.query(
-          `SELECT setval($1, GREATEST((SELECT COALESCE(MAX(id), 0) FROM food_room.${table}), 1), (SELECT MAX(id) IS NOT NULL FROM food_room.${table}))`,
+          `SELECT setval($1, GREATEST((SELECT COALESCE(MAX(id), 0) FROM ${targetSchema(table)}.${table}), 1), (SELECT MAX(id) IS NOT NULL FROM ${targetSchema(table)}.${table}))`,
           [sequence]
         );
       }

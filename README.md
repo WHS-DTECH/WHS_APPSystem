@@ -37,6 +37,26 @@ Kamar admin login, school email addresses, student data or browser access to tok
 is needed. Staff upload failures return 502 rather than an empty list. Deploy
 Global Control as well as Teacher Planner when introducing this integration.
 
+Migration `037_kamar_departments.sql` moves the existing `food_room.department`
+table, including its rows/IDs and owned sequence, into `public.department` under
+Kamar Uploader ownership. A simple updatable `food_room.department` view preserves
+Food Room's existing queries without widening its schema search path. Its CSV
+assignment updates still work; its bulk-delete action now explicitly rejects
+clearing the school-wide directory. The legacy importer targets the moved base
+table. Website-only seed rows use negative IDs to avoid collisions with later
+imports of original positive IDs.
+
+The new `leadership_roles` JSONB array stores each staff member's department,
+HOL/HOLA/TIC role, acting/on-leave flags, source URL and review date. Initial roles
+were reviewed from the school staff page on 22 October 2026; this is a dated
+snapshot, not an automatic appointment synchronisation. Acting leaders take
+priority, substantive leaders remain stored, and ambiguous/unavailable leadership
+does not produce an automatic default. Names are matched to current Kamar staff
+only when unambiguous; otherwise the website name is retained for review.
+Kamar's **Departments** page (`/admin/kamar-uploader/departments.html`) displays the
+directory via the staff-authenticated `/api/feed/departments` endpoint. The module
+staff bridge includes the same department choices/leaders without exposing emails.
+
 Teacher Planner's Year overview can read selected-year Ministry term dates and
 explicit between-term school holiday ranges through the grant-authenticated
 `POST /module-auth/school-calendar` bridge. This uses the same Ministry source

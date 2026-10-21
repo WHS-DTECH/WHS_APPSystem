@@ -32,7 +32,7 @@ function startApp(roles) {
 test('ADMIN gets the legacy Kamar Uploader pages and session permissions', async () => {
   const { server, base } = await startApp(['ADMIN']);
   try {
-    for (const page of ['', 'staff_upload.html', 'student_details_upload.html', 'student_upload.html', 'timetable_upload.html']) {
+    for (const page of ['', 'staff_upload.html', 'departments.html', 'student_details_upload.html', 'student_upload.html', 'timetable_upload.html']) {
       const response = await fetch(`${base}/admin/kamar-uploader/${page}`);
       assert.strictEqual(response.status, 200, page);
       const html = await response.text();

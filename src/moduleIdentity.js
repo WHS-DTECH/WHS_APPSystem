@@ -3,6 +3,7 @@ const express = require('express');
 const { query } = require('./db');
 const { createModuleSearch } = require('./moduleSearch');
 const { loadSchoolCalendar } = require('./schoolCalendar');
+const { loadDepartments } = require('./legacy/kamar-uploader/departments');
 
 const hash = (value) => crypto.createHash('sha256').update(value).digest('base64url');
 const opaque = (value) => typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value);
@@ -128,7 +129,7 @@ function createModuleIdentityRouter({ dbQuery = query, schoolCalendar = loadScho
         FROM staff_upload WHERE status='Current'
         AND (NULLIF(TRIM(first_name),'') IS NOT NULL OR NULLIF(TRIM(last_name),'') IS NOT NULL)
         ORDER BY lower(trim(last_name)) NULLS LAST,lower(trim(first_name)) NULLS LAST,id`);
-      res.json({ staff: result.rows });
+      res.json({ staff: result.rows, departments: await loadDepartments(dbQuery, result.rows) });
     } catch (error) {
       console.error('Shared Kamar staff directory load failed.');
       res.status(502).json({ error: 'The current Kamar Uploader staff list could not be loaded. Check the staff upload and retry.' });

@@ -6,6 +6,7 @@
   const links = [
     { href: base, label: 'Home', permission: 'homepage' },
     { href: base + 'staff_upload.html', label: 'Staff Upload', permission: 'staff_upload' },
+    { href: base + 'departments.html', label: 'Departments', permission: 'staff_upload' },
     { href: base + 'student_details_upload.html', label: 'Student Upload', permission: 'student_upload' },
     { href: base + 'student_upload.html', label: 'Student Timetable', permission: 'student_timetable' },
     { href: base + 'timetable_upload.html', label: 'Staff Timetable', permission: 'staff_timetable' }
@@ -13,6 +14,7 @@
 
   const pagePermissionMap = {
     'staff_upload.html': 'staff_upload',
+    'departments.html': 'staff_upload',
     'student_details_upload.html': 'student_upload',
     'student_upload.html': 'student_timetable',
     'timetable_upload.html': 'staff_timetable'

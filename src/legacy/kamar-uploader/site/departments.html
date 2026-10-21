@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Departments | Kamar Uploader</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="shared/navbar_loader.js" defer></script>
+  <script src="departments.js" defer></script>
+</head>
+<body class="home-body">
+  <div id="navbar-include"></div>
+  <main class="home-shell">
+    <section class="panel">
+      <h1>Departments and leadership</h1>
+      <p>The shared department/staff table has moved from Food Room to Kamar Uploader.
+        Existing Food Room department assignments still use these same records.</p>
+      <p>Leadership roles were reviewed against the
+        <a href="https://www.westlandhigh.school.nz/intranet/staff-at-westland-high/" target="_blank" rel="noopener noreferrer">school staff page</a>
+        on 22 October 2026. This is a reviewed snapshot, not a live appointment feed.
+        Acting leaders take priority; staff on leave are retained but not chosen automatically.
+        No default is chosen when there is more than one available leader.</p>
+      <button type="button" id="refresh-departments">Refresh directory</button>
+      <p id="department-status" role="status"></p>
+      <div id="department-directory"></div>
+    </section>
+  </main>
+</body>
+</html>
