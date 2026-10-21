@@ -29,6 +29,14 @@ project visibility and GitHub import permissions are unchanged.
 
 ## Shared module-sensitive search
 
+The grant-authenticated `POST /module-auth/staff` bridge supplies Teacher Planner's
+Teacher in Charge selector from Kamar Uploader's `staff_upload` table. It returns
+only the ID, code, first name and surname of current, named staff, sorted by surname
+then first name. It uses the existing module grant and current access check; no
+Kamar admin login, school email addresses, student data or browser access to tokens
+is needed. Staff upload failures return 502 rather than an empty list. Deploy
+Global Control as well as Teacher Planner when introducing this integration.
+
 Teacher Planner's Year overview can read selected-year Ministry term dates and
 explicit between-term school holiday ranges through the grant-authenticated
 `POST /module-auth/school-calendar` bridge. This uses the same Ministry source

@@ -120,6 +120,20 @@ function createModuleIdentityRouter({ dbQuery = query, schoolCalendar = loadScho
       res.status(502).json({ error: 'School terms and holidays could not be loaded from the Ministry. Calendar highlights are unavailable; retry shortly.' });
     }
   }));
+  router.post('/staff', wrap(async (req, res) => {
+    const user = await identity(req, res);
+    if (!user) return;
+    try {
+      const result = await dbQuery(`SELECT id::text AS id,code,first_name,last_name
+        FROM staff_upload WHERE status='Current'
+        AND (NULLIF(TRIM(first_name),'') IS NOT NULL OR NULLIF(TRIM(last_name),'') IS NOT NULL)
+        ORDER BY lower(trim(last_name)) NULLS LAST,lower(trim(first_name)) NULLS LAST,id`);
+      res.json({ staff: result.rows });
+    } catch (error) {
+      console.error('Shared Kamar staff directory load failed.');
+      res.status(502).json({ error: 'The current Kamar Uploader staff list could not be loaded. Check the staff upload and retry.' });
+    }
+  }));
   router.post('/revoke', wrap(async (req, res) => {
     const token = req.get('authorization')?.replace(/^Bearer /, '');
     if (!opaque(token)) return deny(res, 'Invalid module sign-out request.', 401);
