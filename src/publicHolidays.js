@@ -7,7 +7,7 @@ const text = html => html.replace(/<[^>]*>/g, ' ').replace(/&nbsp;|&#160;/g, ' '
 function parsePublicHolidays(html, year) {
   const tables = [...html.matchAll(/<table\b[^>]*>([\s\S]*?)<\/table>/gi)];
   if (!tables.some(table => /National public holidays/i.test(text(table[1])))) throw new Error('Government holiday tables were not recognised.');
-  const holidays = [];
+  const holidays = [], regionalAnniversaries = [];
   let national = 0, westland = 0;
   for (const [, table] of tables) {
     const caption = text(table.match(/<caption\b[^>]*>([\s\S]*?)<\/caption>/i)?.[1] || '');
@@ -16,7 +16,7 @@ function parsePublicHolidays(html, year) {
     if (!isNational && !isRegional) continue;
     for (const [, row] of table.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)) {
       const cells = [...row.matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/gi)].map(cell => text(cell[1]));
-      if (!cells.length || (isRegional && cells[0] !== 'Westland')) continue;
+      if (!cells.length) continue;
       const description = isNational ? cells[1] : cells[2];
       if (!description) throw new Error('Government holiday date column was missing.');
       // Parse visible dates: source datetime attributes can disagree with the displayed date.
@@ -26,16 +26,18 @@ function parsePublicHolidays(html, year) {
         const date = `${year}-${String(months.indexOf(match[2].toLowerCase()) + 1).padStart(2, '0')}-${match[1].padStart(2, '0')}`;
         const parsed = new Date(date + 'T00:00:00Z');
         if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) throw new Error('Invalid government holiday date.');
-        holidays.push({ date, name: isRegional ? 'Westland Anniversary Day (observed)' :
-          cells[0] + (dates.length > 1 ? index ? ' (observed)' : ' (actual date)' : '') });
+        if (isRegional) {
+          regionalAnniversaries.push({ region: cells[0], date, name: cells[0] + ' Anniversary Day (observed)' });
+          if (cells[0] === 'Westland') holidays.push({ date, name: 'Westland Anniversary Day (observed)' });
+        } else holidays.push({ date, name: cells[0] + (dates.length > 1 ? index ? ' (observed)' : ' (actual date)' : '') });
       });
       if (isNational) national++;
-      else westland++;
+      else if (cells[0] === 'Westland') westland++;
     }
   }
   if (!national && !westland) return { publicHolidaysAvailable: false, publicHolidays: [], publicHolidaysSourceUrl: PUBLIC_HOLIDAYS_URL };
   if (national !== 11 || westland !== 1) throw new Error('Government holiday dates were incomplete.');
-  return { publicHolidaysAvailable: true, publicHolidays: holidays, publicHolidaysSourceUrl: PUBLIC_HOLIDAYS_URL };
+  return { publicHolidaysAvailable: true, publicHolidays: holidays, regionalAnniversaries, publicHolidaysSourceUrl: PUBLIC_HOLIDAYS_URL };
 }
 async function loadPublicHolidays(year) {
   const response = await fetch(PUBLIC_HOLIDAYS_URL, { signal: AbortSignal.timeout(15000) });
