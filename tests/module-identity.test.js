@@ -9,37 +9,47 @@ const { createModuleIdentityRouter } = require('../src/moduleIdentity');
 
 test('staff bridge validates module identity before returning minimal current Kamar staff and reports outages', async t => {
   const calls = [];
-  let allowed = true, unavailable = false;
+  let allowed = true, unavailable = false, role = 'Teacher', moduleRoles = [];
   const app = express(); app.use(express.json());
   app.use('/module-auth', createModuleIdentityRouter({ dbQuery: async (sql, params) => {
     calls.push([sql, params]);
     if (sql.includes('FROM module_builder_projects')) return { rows: [{ id: 'project', slug: 'teacher-planner',
       kind: 'development', app_url: 'https://fixture.onrender.com' }] };
     if (sql.includes('FROM module_identity_grants')) return { rows: allowed ? [{ user_id: 'user' }] : [] };
-    if (sql.includes('FROM users u')) return { rows: [{ id: 'user', roles: ['Teacher'] }] };
+    if (sql.includes('FROM users u')) return { rows: [{ id: 'user', roles: [role], module_roles: moduleRoles }] };
     if (sql.includes('FROM public.department')) return { rows: [] };
     if (sql.includes('FROM staff_upload')) {
       if (unavailable) throw new Error('Staff upload unavailable');
       assert.match(sql, /SELECT id::text AS id,code,first_name,last_name/);
       assert.match(sql, /WHERE status='Current'/);
       assert.match(sql, /ORDER BY lower\(trim\(last_name\)\)/);
-      assert.doesNotMatch(sql, /email|title|upload_date|SELECT \*/);
-      return { rows: [{ id: '1', code: 'TST', first_name: 'Synthetic', last_name: 'Teacher' }] };
+      assert.doesNotMatch(sql, /title|upload_date|SELECT \*/);
+      return { rows: [{ id: '1', code: 'TST', first_name: 'Synthetic', last_name: 'Teacher',
+        ...(sql.includes('email_school') ? { email_school: 'synthetic@example.test' } : {}) }] };
     }
     throw new Error('Unexpected query: ' + sql);
   } }));
   const server = app.listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
   t.after(() => new Promise(resolve => server.close(resolve)));
-  const post = token => fetch(`http://127.0.0.1:${server.address().port}/module-auth/staff`, {
+  const post = (token, extra = {}) => fetch(`http://127.0.0.1:${server.address().port}/module-auth/staff`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: JSON.stringify({ client_id: 'teacher-planner:development' })
+    body: JSON.stringify({ client_id: 'teacher-planner:development', ...extra })
   });
   assert.equal((await post()).status, 401);
   assert.equal(calls.some(([sql]) => sql.includes('FROM staff_upload')), false);
   const token = 'A'.repeat(43), response = await post(token);
   assert.equal(response.status, 200); assert.equal(response.headers.get('cache-control'), 'no-store');
   assert.deepEqual(await response.json(), { departments: [], staff: [{ id: '1', code: 'TST', first_name: 'Synthetic', last_name: 'Teacher' }] });
+  assert.equal((await post(token, { includeEmails: true })).status, 403);
+  assert.equal((await post(token, { includeEmails: 'true' })).status, 400);
+  role = 'ADMIN';
+  const emails = await post(token, { includeEmails: true });
+  assert.equal(emails.status, 200);
+  assert.equal((await emails.json()).staff[0].email_school, 'synthetic@example.test');
+  moduleRoles = ['lead-teacher']; role = 'Teacher';
+  assert.equal((await post(token, { includeEmails: true })).status, 200);
+  moduleRoles = [];
   allowed = false; calls.length = 0;
   assert.equal((await post(token)).status, 401);
   assert.equal(calls.some(([sql]) => sql.includes('FROM staff_upload')), false);
@@ -62,10 +72,10 @@ test('Global Control identity binds codes to clients, PKCE, current ADMIN roles 
     }
     await pool.query(`CREATE TABLE sewing_hub_access(user_id uuid,access_level text,granted_by uuid);
       CREATE TABLE technology_hub_access(user_id uuid,area_key text);
-      CREATE TABLE staff_upload(id bigint,code text,first_name text,last_name text,status text);
-      INSERT INTO staff_upload VALUES (1,'ZBA','Zoe','Baker','Current'),
-        (2,'AAD','Amy','Adams','Current'),(3,'OLD','Former','Teacher','Left'),
-        (4,'EMPTY',' ','','Current');`);
+      CREATE TABLE staff_upload(id bigint,code text,first_name text,last_name text,status text,email_school text);
+      INSERT INTO staff_upload VALUES (1,'ZBA','Zoe','Baker','Current','zoe@example.test'),
+        (2,'AAD','Amy','Adams','Current','amy@example.test'),(3,'OLD','Former','Teacher','Left','former@example.test'),
+        (4,'EMPTY',' ','','Current',NULL);`);
     for (const migration of ['007_hub_roles_and_permissions.sql', '016_hub_roles_base.sql', '018_student_apps.sql', '030_teacher_planner_roles.sql', '031_standard_teaching_module_roles.sql']) {
       await pool.query(await fs.readFile(path.join(__dirname, '..', 'migrations', migration), 'utf8'));
     }
@@ -148,6 +158,9 @@ test('Global Control identity binds codes to clients, PKCE, current ADMIN roles 
       {id:'2',code:'AAD',first_name:'Amy',last_name:'Adams'},
       {id:'1',code:'ZBA',first_name:'Zoe',last_name:'Baker'}
     ]});
+    const dutyStaff = await post('staff', {client_id:parameters.client_id,includeEmails:true},token);
+    assert.equal(dutyStaff.status,200);
+    assert.deepEqual((await dutyStaff.json()).staff.map(person=>person.email_school),['amy@example.test','zoe@example.test']);
     assert.equal((await post('school-calendar', {client_id:parameters.client_id,year:2026},'Z'.repeat(43))).status,401);
     assert.equal((await post('school-calendar', {client_id:parameters.client_id,year:'2026'},token)).status,400);
     assert.equal((await post('school-calendar', {client_id:parameters.client_id,year:2101},token)).status,400);

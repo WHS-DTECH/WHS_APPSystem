@@ -31,7 +31,7 @@ project visibility and GitHub import permissions are unchanged.
 
 The grant-authenticated `POST /module-auth/staff` bridge supplies Teacher Planner's
 Teacher in Charge selector from Kamar Uploader's `staff_upload` table. It returns
-only the ID, code, first name and surname of current, named staff, sorted by surname
+by default only the ID, code, first name and surname of current, named staff, sorted by surname
 then first name. It uses the existing module grant and current access check; no
 Kamar admin login, school email addresses, student data or browser access to tokens
 is needed. Staff upload failures return 502 rather than an empty list. Deploy
@@ -55,7 +55,13 @@ does not produce an automatic default. Names are matched to current Kamar staff
 only when unambiguous; otherwise the website name is retained for review.
 Kamar's **Departments** page (`/admin/kamar-uploader/departments.html`) displays the
 directory via the staff-authenticated `/api/feed/departments` endpoint. The module
-staff bridge includes the same department choices/leaders without exposing emails.
+staff bridge includes the same department choices/leaders without exposing emails by default.
+Teacher Planner duty setup can additionally request `includeEmails: true`.
+This requires global ADMIN or the requesting module's Lead Teacher role, and adds
+`email_school` from the current Staff Upload to support code/first-name duty
+mapping suggestions. Ordinary staff-selector requests and browser token handling
+are unchanged. Deploy this bridge update before using the Planner's
+**Build map from Staff List** action.
 
 Teacher Planner's Year overview can read selected-year Ministry term dates and
 explicit between-term school holiday ranges through the grant-authenticated

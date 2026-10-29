@@ -124,8 +124,15 @@ function createModuleIdentityRouter({ dbQuery = query, schoolCalendar = loadScho
   router.post('/staff', wrap(async (req, res) => {
     const user = await identity(req, res);
     if (!user) return;
+    if (req.body.includeEmails !== undefined && typeof req.body.includeEmails !== 'boolean') {
+      return deny(res, 'Choose whether staff school emails are required.', 400);
+    }
+    const includeEmails = req.body.includeEmails === true;
+    if (includeEmails && !user.roles?.includes('ADMIN') && !user.module_roles?.includes('lead-teacher')) {
+      return deny(res, 'Only administrators and module Lead Teachers can request staff school email mappings.');
+    }
     try {
-      const result = await dbQuery(`SELECT id::text AS id,code,first_name,last_name
+      const result = await dbQuery(`SELECT id::text AS id,code,first_name,last_name${includeEmails ? ',email_school' : ''}
         FROM staff_upload WHERE status='Current'
         AND (NULLIF(TRIM(first_name),'') IS NOT NULL OR NULLIF(TRIM(last_name),'') IS NOT NULL)
         ORDER BY lower(trim(last_name)) NULLS LAST,lower(trim(first_name)) NULLS LAST,id`);
