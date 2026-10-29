@@ -539,6 +539,18 @@ npm run dev
 
 Use the existing Render Web Service with Docker.
 
+The Docker image pins Node **22.23.4**, including the October 2026 Node security
+and bundled certificate fixes. Builds also refresh the operating-system
+certificate store. Local/native Node uses the matching `.node-version`; the
+supported package range is `>=22.23.4 <23`.
+After runtime security changes, use **Clear build cache & deploy** for every
+Global Control Render service. Confirm the printed Node version in build logs
+and run `node --version` in the deployed service shell before treating the
+update as complete. Native Node services must not retain an older `NODE_VERSION`
+override, which takes precedence over `.node-version`. Keep these pins current
+with later Node security releases; a repository update alone does not patch
+already-running containers.
+
 ### Hosted Student Apps
 
 All full HTML pages, including legacy and hosted pages, use the shared
