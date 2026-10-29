@@ -67,9 +67,15 @@ The Teacher Planner also uses grant-authenticated
 `POST /module-auth/attendance-classes` with an integer `year` to build its private
 attendance class tabs. This bridge is limited to the `teacher-planner` registered
 module and current authorised module users. It returns current Student Timetable
-upload class labels and student IDs/names for that upload year, without student
+upload class labels and student IDs/names for that upload year, plus the signed-in
+teacher's matched `staffCode`, without student
 emails, contact details or other directory fields. No attendance is written back
 to KAMAR. This is a current roster source, not a historical enrolment service.
+The verified sign-in email must match exactly one current Staff List code through
+case-insensitive, trimmed `email_school`; caller-supplied emails/codes are not
+used. Returned classes are filtered by the exact teacher-prefix tokens, including
+shared slash-separated codes. Missing/ambiguous staff matches return 409 before
+student lists are read; they never fall back to the full school directory.
 
 Teacher Planner's Year overview can read selected-year Ministry term dates and
 explicit between-term school holiday ranges through the grant-authenticated

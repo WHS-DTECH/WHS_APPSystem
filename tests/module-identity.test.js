@@ -9,14 +9,14 @@ const { createModuleIdentityRouter } = require('../src/moduleIdentity');
 
 test('staff bridge validates module identity before returning minimal current Kamar staff and reports outages', async t => {
   const calls = [];
-  let allowed = true, unavailable = false, role = 'Teacher', moduleRoles = [], directoryFails = false;
+  let allowed = true, unavailable = false, role = 'Teacher', moduleRoles = [], directoryFails = false, staffCodes = ['TST'];
   const app = express(); app.use(express.json());
   app.use('/module-auth', createModuleIdentityRouter({ dbQuery: async (sql, params) => {
     calls.push([sql, params]);
     if (sql.includes('FROM module_builder_projects')) return { rows: [{ id: 'project', slug: 'teacher-planner',
       kind: 'development', app_url: 'https://fixture.onrender.com' }] };
     if (sql.includes('FROM module_identity_grants')) return { rows: allowed ? [{ user_id: 'user' }] : [] };
-    if (sql.includes('FROM users u')) return { rows: [{ id: 'user', roles: [role], module_roles: moduleRoles }] };
+    if (sql.includes('FROM users u')) return { rows: [{ id: 'user', email: 'synthetic@example.test', roles: [role], module_roles: moduleRoles }] };
     if (sql.includes('FROM public.department')) return { rows: [] };
     if (sql.includes('FROM student_upload')) {
       if (directoryFails) throw new Error('Student upload unavailable');
@@ -24,9 +24,16 @@ test('staff bridge validates module identity before returning minimal current Ka
       assert.match(sql, /status='Current' AND upload_year=\$1/);
       assert.doesNotMatch(sql, /email|SELECT \*|date_of_birth/);
       return { rows: [
-        { id_number: '100', student_name: 'Synthetic Student', mon_p1_1: '11TEST', mon_p1_2: '11TEST', thu_p3: '12TEST' },
-        { id_number: '200', student_name: 'Another Student', thu_p3: '12TEST' }
+        { id_number: '100', student_name: 'Synthetic Student', mon_p1_1: 'TST-11TEST-CW', mon_p1_2: 'TST-11TEST-CW', thu_p3: 'AA/TST-12TEST-05',
+          fri_p5: 'OTHER-13TEST-CW', mon_p3: 'TSTX-13TEST-CW' },
+        { id_number: '200', student_name: 'Another Student', thu_p3: 'AA/TST-12TEST-05' }
       ] };
+    }
+    if (sql.includes('SELECT DISTINCT upper(trim(code))')) {
+      assert.deepEqual(params, ['synthetic@example.test'], 'match verified sign-in email, never a caller-supplied code');
+      assert.match(sql, /status='Current'/);
+      assert.match(sql, /lower\(trim\(email_school\)\)=lower\(trim\(\$1\)\)/);
+      return { rows: staffCodes.map(code => ({ code })) };
     }
     if (sql.includes('FROM staff_upload')) {
       if (unavailable) throw new Error('Staff upload unavailable');
@@ -62,7 +69,7 @@ test('staff bridge validates module identity before returning minimal current Ka
   moduleRoles = [];
   const classes = (token, year = 2026) => fetch(`http://127.0.0.1:${server.address().port}/module-auth/attendance-classes`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: JSON.stringify({ client_id: 'teacher-planner:development', year })
+    body: JSON.stringify({ client_id: 'teacher-planner:development', year, staffCode: 'OTHER', email: 'forged@example.test' })
   });
   calls.length = 0;
   assert.equal((await classes()).status, 401);
@@ -70,10 +77,16 @@ test('staff bridge validates module identity before returning minimal current Ka
   const classResponse = await classes(token);
   assert.equal(classResponse.status, 200);
   assert.equal(classResponse.headers.get('cache-control'), 'no-store');
-  assert.deepEqual(await classResponse.json(), { classes: [
-    { code: '11TEST', students: [{ id: 'k:100', name: 'Synthetic Student' }] },
-    { code: '12TEST', students: [{ id: 'k:100', name: 'Synthetic Student' }, { id: 'k:200', name: 'Another Student' }] }
+  assert.deepEqual(await classResponse.json(), { staffCode: 'TST', classes: [
+    { code: 'AA/TST-12TEST-05', students: [{ id: 'k:100', name: 'Synthetic Student' }, { id: 'k:200', name: 'Another Student' }] },
+    { code: 'TST-11TEST-CW', students: [{ id: 'k:100', name: 'Synthetic Student' }] }
   ] });
+  staffCodes = []; calls.length = 0;
+  assert.equal((await classes(token)).status, 409);
+  assert.equal(calls.some(([sql]) => sql.includes('FROM student_upload')), false, 'unmatched identities never read student lists');
+  staffCodes = ['TST', 'OTHER'];
+  assert.equal((await classes(token)).status, 409, 'ambiguous staff identity is never guessed');
+  staffCodes = ['TST'];
   assert.equal((await classes(token, 1999)).status, 400);
   directoryFails = true;
   assert.equal((await classes(token)).status, 502);

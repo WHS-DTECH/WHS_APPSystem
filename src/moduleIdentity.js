@@ -154,6 +154,15 @@ function createModuleIdentityRouter({ dbQuery = query, schoolCalendar = loadScho
     const columns = ['mon', 'tue', 'wed', 'thu', 'fri']
       .flatMap(day => ['p1_1', 'p1_2', 'p2', 'p3', 'p4', 'p5'].map(period => day + '_' + period));
     try {
+      const staff = await dbQuery(`SELECT DISTINCT upper(trim(code)) AS code FROM staff_upload
+        WHERE status='Current' AND lower(trim(email_school))=lower(trim($1))
+        AND NULLIF(TRIM(code),'') IS NOT NULL`, [user.email]);
+      if (staff.rows.length !== 1) {
+        return deny(res, staff.rows.length ?
+          'Your school sign-in email matches multiple current staff codes. Ask an administrator to correct the Staff List.' :
+          'Your school sign-in email has no current Staff List code. Ask an administrator to check your school email and staff code.', 409);
+      }
+      const staffCode = staff.rows[0].code;
       const { rows } = await dbQuery(`SELECT id_number,student_name,${columns.join(',')}
         FROM student_upload WHERE status='Current' AND upload_year=$1
         AND NULLIF(TRIM(id_number),'') IS NOT NULL AND NULLIF(TRIM(student_name),'') IS NOT NULL
@@ -161,11 +170,13 @@ function createModuleIdentityRouter({ dbQuery = query, schoolCalendar = loadScho
       const classes = new Map();
       for (const student of rows) {
         for (const code of new Set(columns.map(key => student[key]?.trim()).filter(Boolean))) {
+          const separator = code.indexOf('-');
+          if (separator < 1 || !code.slice(0, separator).toUpperCase().split('/').map(value => value.trim()).includes(staffCode)) continue;
           if (!classes.has(code)) classes.set(code, new Map());
           classes.get(code).set(student.id_number, { id: 'k:' + student.id_number.trim(), name: student.student_name.trim() });
         }
       }
-      res.json({ classes: [...classes].sort(([a], [b]) => a.localeCompare(b))
+      res.json({ staffCode, classes: [...classes].sort(([a], [b]) => a.localeCompare(b))
         .map(([code, students]) => ({ code, students: [...students.values()] })) });
     } catch (error) {
       console.error('Attendance class directory load failed.');
