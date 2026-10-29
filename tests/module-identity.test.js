@@ -9,7 +9,7 @@ const { createModuleIdentityRouter } = require('../src/moduleIdentity');
 
 test('staff bridge validates module identity before returning minimal current Kamar staff and reports outages', async t => {
   const calls = [];
-  let allowed = true, unavailable = false, role = 'Teacher', moduleRoles = [];
+  let allowed = true, unavailable = false, role = 'Teacher', moduleRoles = [], directoryFails = false;
   const app = express(); app.use(express.json());
   app.use('/module-auth', createModuleIdentityRouter({ dbQuery: async (sql, params) => {
     calls.push([sql, params]);
@@ -18,6 +18,16 @@ test('staff bridge validates module identity before returning minimal current Ka
     if (sql.includes('FROM module_identity_grants')) return { rows: allowed ? [{ user_id: 'user' }] : [] };
     if (sql.includes('FROM users u')) return { rows: [{ id: 'user', roles: [role], module_roles: moduleRoles }] };
     if (sql.includes('FROM public.department')) return { rows: [] };
+    if (sql.includes('FROM student_upload')) {
+      if (directoryFails) throw new Error('Student upload unavailable');
+      assert.deepEqual(params, [2026]);
+      assert.match(sql, /status='Current' AND upload_year=\$1/);
+      assert.doesNotMatch(sql, /email|SELECT \*|date_of_birth/);
+      return { rows: [
+        { id_number: '100', student_name: 'Synthetic Student', mon_p1_1: '11TEST', mon_p1_2: '11TEST', thu_p3: '12TEST' },
+        { id_number: '200', student_name: 'Another Student', thu_p3: '12TEST' }
+      ] };
+    }
     if (sql.includes('FROM staff_upload')) {
       if (unavailable) throw new Error('Staff upload unavailable');
       assert.match(sql, /SELECT id::text AS id,code,first_name,last_name/);
@@ -50,6 +60,24 @@ test('staff bridge validates module identity before returning minimal current Ka
   moduleRoles = ['lead-teacher']; role = 'Teacher';
   assert.equal((await post(token, { includeEmails: true })).status, 200);
   moduleRoles = [];
+  const classes = (token, year = 2026) => fetch(`http://127.0.0.1:${server.address().port}/module-auth/attendance-classes`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify({ client_id: 'teacher-planner:development', year })
+  });
+  calls.length = 0;
+  assert.equal((await classes()).status, 401);
+  assert.equal(calls.some(([sql]) => sql.includes('FROM student_upload')), false);
+  const classResponse = await classes(token);
+  assert.equal(classResponse.status, 200);
+  assert.equal(classResponse.headers.get('cache-control'), 'no-store');
+  assert.deepEqual(await classResponse.json(), { classes: [
+    { code: '11TEST', students: [{ id: 'k:100', name: 'Synthetic Student' }] },
+    { code: '12TEST', students: [{ id: 'k:100', name: 'Synthetic Student' }, { id: 'k:200', name: 'Another Student' }] }
+  ] });
+  assert.equal((await classes(token, 1999)).status, 400);
+  directoryFails = true;
+  assert.equal((await classes(token)).status, 502);
+  directoryFails = false;
   allowed = false; calls.length = 0;
   assert.equal((await post(token)).status, 401);
   assert.equal(calls.some(([sql]) => sql.includes('FROM staff_upload')), false);

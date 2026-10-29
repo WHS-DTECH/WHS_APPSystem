@@ -142,6 +142,36 @@ function createModuleIdentityRouter({ dbQuery = query, schoolCalendar = loadScho
       res.status(502).json({ error: 'The current Kamar Uploader staff list could not be loaded. Check the staff upload and retry.' });
     }
   }));
+  router.post('/attendance-classes', wrap(async (req, res) => {
+    const user = await identity(req, res);
+    if (!user) return;
+    if (req.body.client_id?.split(':')[0] !== 'teacher-planner') {
+      return deny(res, 'Student class lists are available only to Teacher Planner.');
+    }
+    if (!Number.isInteger(req.body.year) || req.body.year < 2000 || req.body.year > 2100) {
+      return deny(res, 'Choose a valid attendance year.', 400);
+    }
+    const columns = ['mon', 'tue', 'wed', 'thu', 'fri']
+      .flatMap(day => ['p1_1', 'p1_2', 'p2', 'p3', 'p4', 'p5'].map(period => day + '_' + period));
+    try {
+      const { rows } = await dbQuery(`SELECT id_number,student_name,${columns.join(',')}
+        FROM student_upload WHERE status='Current' AND upload_year=$1
+        AND NULLIF(TRIM(id_number),'') IS NOT NULL AND NULLIF(TRIM(student_name),'') IS NOT NULL
+        ORDER BY lower(student_name),id_number`, [req.body.year]);
+      const classes = new Map();
+      for (const student of rows) {
+        for (const code of new Set(columns.map(key => student[key]?.trim()).filter(Boolean))) {
+          if (!classes.has(code)) classes.set(code, new Map());
+          classes.get(code).set(student.id_number, { id: 'k:' + student.id_number.trim(), name: student.student_name.trim() });
+        }
+      }
+      res.json({ classes: [...classes].sort(([a], [b]) => a.localeCompare(b))
+        .map(([code, students]) => ({ code, students: [...students.values()] })) });
+    } catch (error) {
+      console.error('Attendance class directory load failed.');
+      res.status(502).json({ error: 'School class lists could not be loaded. Check the current student timetable upload for this year.' });
+    }
+  }));
   router.post('/revoke', wrap(async (req, res) => {
     const token = req.get('authorization')?.replace(/^Bearer /, '');
     if (!opaque(token)) return deny(res, 'Invalid module sign-out request.', 401);

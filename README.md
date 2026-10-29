@@ -63,6 +63,14 @@ mapping suggestions. Ordinary staff-selector requests and browser token handling
 are unchanged. Deploy this bridge update before using the Planner's
 **Build map from Staff List** action.
 
+The Teacher Planner also uses grant-authenticated
+`POST /module-auth/attendance-classes` with an integer `year` to build its private
+attendance class tabs. This bridge is limited to the `teacher-planner` registered
+module and current authorised module users. It returns current Student Timetable
+upload class labels and student IDs/names for that upload year, without student
+emails, contact details or other directory fields. No attendance is written back
+to KAMAR. This is a current roster source, not a historical enrolment service.
+
 Teacher Planner's Year overview can read selected-year Ministry term dates and
 explicit between-term school holiday ranges through the grant-authenticated
 `POST /module-auth/school-calendar` bridge. This uses the same Ministry source
