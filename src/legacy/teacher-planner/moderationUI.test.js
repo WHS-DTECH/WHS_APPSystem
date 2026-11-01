@@ -530,6 +530,31 @@ test('contents empty and failed states are explicit, with retry', async () => {
   fail = false; await f.click('Retry loading records');
   assert.ok(f.host.find(n => n.textContent.includes('No records for this contents page')));
 });
+test('Confirmation & Feedback contents identify feedback forms without changing saved schedule titles', async () => {
+  const child = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+  const records = [
+    { entry_key: child, title: '29785 — Student A - TV — Marking Schedule', student_name: 'Student A - TV', standard_number: '29785', parent_record: record },
+    { entry_key: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', title: '29785 — Student B - CJ — Marking Schedule', standard_number: '29785', parent_record: record },
+    { entry_key: record, title: '29785 — Integrate data into documents', standard_number: '29785' }
+  ];
+  const original = JSON.stringify(records);
+  const f = fixture({ id: '', page: 'feedback', recordsRequest: async () => ({ records }) });
+  await flush();
+  const links = f.host.all().filter(n => n.tag === 'a');
+  assert.equal(links.length, 3);
+  assert.ok(links.some(n => n.textContent === 'Student A - TV — Confirmation & Feedback'));
+  assert.ok(links.some(n => n.textContent === '29785 — Student B - CJ — Confirmation & Feedback'));
+  for (const link of links) {
+    assert.ok(link.textContent.endsWith(' — Confirmation & Feedback'));
+    assert.ok(!link.textContent.includes('Marking Schedule'));
+    const params = new URLSearchParams(link.attrs.href.slice(1));
+    assert.equal(params.get('page'), 'feedback');
+    await link.events.click({ preventDefault() {} });
+    assert.deepEqual(f.navigation.at(-1), [params.get('record'), 'feedback']);
+  }
+  assert.equal(JSON.stringify(records), original);
+  assert.equal(f.calls.filter(call => ['mutate', 'upload', 'authorize'].includes(call[0])).length, 0);
+});
 test('Records table groups standards and stacks student links in the correct document columns', async () => {
   const first = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', second = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
   const f = fixture({ id: '', recordsRequest: async () => ({ records: [

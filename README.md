@@ -1020,6 +1020,10 @@ Keep the original development callback authorised. Add
 authorised JavaScript origins and the Drive browser key's allowed referrers.
 Use the future `APP_BASE_URL` origin instead when hosting/domain changes.
 
+The Moderation **Marking Confirmation & Feedback** contents tab labels and opens
+each record's feedback form, independently of its marking schedule. Existing
+record titles and linked Drive documents are not renamed by this listing.
+
 Before acceptance, back up the original Planner database, then check the new
 page and `/teacher-planner/health` while signed in. Compare existing private
 planner entries, attendance and duties against the original service. Verify
