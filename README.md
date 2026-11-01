@@ -929,8 +929,9 @@ KAMAR staff record is not required for an assigned user to receive the notice.
 Every notification email is gated on a successful test email to the administrator who
 prepared it. A maintenance request must be tested before it can be scheduled, and
 the scheduler only sends warnings linked to a successful test. A completion
-notification has its own test-and-send workflow and uses generic wording that
-directs staff to access the selected app(s) from the WHS Launchpad. Both tabs show
+notification has its own test-and-send workflow; it names the selected app(s) in
+the subject and body, then uses generic wording that directs recipients to access
+them from the WHS Launchpad. Both tabs show
 their test and staff-delivery history, including failures, from Email Service.
 Warnings are sent 14 days before the scheduled start (or at the next scheduler run
 when scheduled less than 14 days ahead).

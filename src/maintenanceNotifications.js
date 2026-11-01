@@ -42,18 +42,19 @@ function moduleSelection(value) {
 
 function noticeEmail(notice, kind, notes = '') {
   const resumed = kind === 'resumed';
+  const appNames = notice.module_name || 'Selected apps';
   const source = resumed ? 'Maintenance Completed' : 'Maintenance Req';
   const subject = resumed
-    ? `[${source}] [WHS APPSystem] Maintenance work completed`
+    ? `[${source}] [WHS APPSystem] Maintenance work completed: ${appNames}`
     : `[${source}] [WHS APPSystem] ${notice.module_name} maintenance planned`;
   const launchpadUrl = new URL('/', config.appBaseUrl).href;
-  const completionUpdate = notes || 'The maintenance work is complete and the selected app(s) are available again.';
+  const completionUpdate = String(notes || '').trim();
   const text = resumed
     ? [
-      'The maintenance work is complete and the selected app(s) are available again.',
+      'The maintenance work is complete and the following app(s) are available again:',
+      appNames,
       '',
-      completionUpdate,
-      '',
+      ...(completionUpdate ? [completionUpdate, ''] : []),
       `Please access the app(s) covered by this notice from the WHS Launchpad: ${launchpadUrl}`,
       '',
       'Thank you for your patience.'
@@ -69,7 +70,7 @@ function noticeEmail(notice, kind, notes = '') {
       'A further email will be sent when the service is available again.'
     ].filter(Boolean).join('\n');
   const html = resumed
-    ? `<p><strong>The maintenance work is complete and the selected app(s) are available again.</strong></p><p>${escapeHtml(completionUpdate).replace(/\n/g, '<br>')}</p><p>Please access the app(s) covered by this notice from the <a href="${escapeHtml(launchpadUrl)}">WHS Launchpad</a>.</p><p>Thank you for your patience.</p>`
+    ? `<p><strong>The maintenance work is complete and the following app(s) are available again:</strong></p><p>${escapeHtml(appNames)}</p>${completionUpdate ? `<p>${escapeHtml(completionUpdate).replace(/\n/g, '<br>')}</p>` : ''}<p>Please access the app(s) covered by this notice from the <a href="${escapeHtml(launchpadUrl)}">WHS Launchpad</a>.</p><p>Thank you for your patience.</p>`
     : `<p><strong>Planned maintenance for ${escapeHtml(notice.module_name)}</strong></p><p><strong>When:</strong> ${escapeHtml(formatDate(notice.scheduled_at))} (New Zealand time)</p>${notice.expected_duration ? `<p><strong>Expected duration:</strong> ${escapeHtml(notice.expected_duration)}</p>` : ''}<p><strong>What to expect:</strong><br>${escapeHtml(notice.impact).replace(/\n/g, '<br>')}</p>${notice.details ? `<p><strong>Additional information:</strong><br>${escapeHtml(notice.details).replace(/\n/g, '<br>')}</p>` : ''}<p>A further email will be sent when the service is available again.</p>`;
   return { subject, text, html };
 }
@@ -79,9 +80,12 @@ function emailTestSubject(content) {
   return match ? `[${match[1]}] [TEST] ${content.subject.slice(match[0].length)}` : `[TEST] ${content.subject}`;
 }
 
+const TEMPLATE_VERSIONS = { completed: 2 };
+
 function contentHash(kind, moduleKeys, payload) {
+  const templateVersion = TEMPLATE_VERSIONS[kind];
   return crypto.createHash('sha256')
-    .update(JSON.stringify({ kind, moduleKeys: [...moduleKeys].sort(), payload }))
+    .update(JSON.stringify({ kind, moduleKeys: [...moduleKeys].sort(), payload, ...(templateVersion ? { templateVersion } : {}) }))
     .digest('hex');
 }
 

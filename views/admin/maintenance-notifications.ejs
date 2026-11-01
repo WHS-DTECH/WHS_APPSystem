@@ -163,7 +163,7 @@
   <% if (completedKeys.length && completedRecipients.length) { %>
     <section class="panel">
       <h2>Test and send completion notification</h2>
-      <p>This app-independent message tells recipients that maintenance is complete and asks them to access their app(s) from the WHS Launchpad. The test goes only to your signed-in address. A successful test is required before selected app users can be emailed.</p>
+      <p>This message lists the selected apps, tells recipients that maintenance is complete and asks them to access their app(s) from the WHS Launchpad. The test goes only to your signed-in address. A successful test is required before selected app users can be emailed.</p>
       <form action="/admin/maintenance-notifications/test-completed" method="post" class="row-form stacked">
         <input type="hidden" name="csrf" value="<%= csrf %>">
         <% completedKeys.forEach(key => { %><input type="hidden" name="moduleKey" value="<%= key %>"><% }) %>

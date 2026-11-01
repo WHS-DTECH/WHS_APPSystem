@@ -43,12 +43,13 @@ test('maintenance email preview includes New Zealand time and escapes user-provi
 test('maintenance resumption email includes optional staff update', () => {
   const content = noticeEmail({ module_name: 'Teacher Planner' }, 'resumed', 'Some reports may take a few minutes to refresh.');
   assert.match(content.subject, /^\[Maintenance Completed\]/);
-  assert.doesNotMatch(content.subject, /Teacher Planner/);
+  assert.match(content.subject, /Maintenance work completed: Teacher Planner$/);
   assert.match(content.text, /Some reports may take a few minutes to refresh\./);
   assert.match(content.text, /WHS Launchpad: http:\/\/localhost:3000\//);
   assert.match(content.html, /<a href="http:\/\/localhost:3000\/">WHS Launchpad<\/a>/);
-  assert.match(content.text, /selected app\(s\) are available again/);
-  assert.doesNotMatch(content.text, /Teacher Planner/);
+  assert.match(content.text, /following app\(s\) are available again:\r?\nTeacher Planner/);
+  assert.match(content.html, /<p>Teacher Planner<\/p>/);
+  assert.equal(noticeEmail({ module_name: 'Teacher Planner' }, 'resumed').text.match(/available again/g).length, 1);
 });
 
 test('active app role holders are recipients even without a current KAMAR staff record', async () => {
@@ -384,9 +385,9 @@ test('maintenance request and completion notifications require test emails and l
     assert.deepEqual(mailed.to, ['admin@westlandhigh.school.nz']);
     assert.equal(mailed.bcc, undefined);
     assert.match(mailed.subject, /^\[Maintenance Completed\] \[TEST\]/);
-    assert.match(mailed.text, /selected app\(s\) are available again/);
+    assert.match(mailed.text, /following app\(s\) are available again:\nTeacher Planner/);
     assert.match(mailed.text, /WHS Launchpad: http:\/\/localhost:3000\//);
-    assert.doesNotMatch(mailed.text, /Teacher Planner/);
+    assert.match(mailed.subject, /Maintenance work completed: Teacher Planner$/);
     assert.match(mailed.text, /The maintenance work has completed as planned\./);
 
     const completedDraftPage = await getPage(completedUrl.search);
