@@ -327,6 +327,7 @@ test('maintenance request and completion notifications require test emails and l
 
     const testedRequestPage = await getPage(requestUrl.search);
     const testedRequestHtml = await testedRequestPage.text();
+    assert.match(testedRequestHtml, /class="maintenance-folder"[\s\S]*class="maintenance-folder-tabs"[\s\S]*class="maintenance-page"/);
     assert.match(testedRequestHtml, /href="\/admin\/maintenance-notifications\?tab=request" aria-current="page"/);
     assert.doesNotMatch(testedRequestHtml, /href="\/admin\/maintenance-notifications\?tab=completed" aria-current="page"/);
     assert.match(testedRequestHtml, /Schedule tested request/);

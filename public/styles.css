@@ -1230,26 +1230,110 @@ select {
 .env-unset { color: var(--muted); }
 .env-missing { color: #b3261e; font-weight: 600; }
 
-.maintenance-tabs {
-  display: grid;
-  gap: 0.45rem;
-  max-width: 22rem;
-  margin: 0 0 1rem;
+.maintenance-folder {
+  position: relative;
+  isolation: isolate;
+  margin: 12px 12px 30px 0;
+  padding-right: 150px;
 }
 
-.maintenance-tabs a {
-  display: block;
-  padding: 0.7rem 0.9rem;
+.maintenance-folder::before,
+.maintenance-folder::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 7px 143px -7px 7px;
+  background: #f8f6f0;
   border: 1px solid var(--line);
-  border-radius: 0.45rem;
-  background: #fff;
-  color: inherit;
-  text-decoration: none;
 }
 
-.maintenance-tabs a[aria-current="page"] {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: #fff;
+.maintenance-folder::after {
+  inset: 14px 136px -14px 14px;
+  z-index: -2;
+}
+
+.maintenance-page {
+  min-height: 520px;
+  padding: clamp(1rem, 3vw, 2rem);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.maintenance-page > .panel {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+
+.maintenance-page > .panel + .panel {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+}
+
+.maintenance-folder-tabs {
+  position: absolute;
+  top: 28px;
+  right: 0;
+  z-index: 1;
+  display: grid;
+  gap: 12px;
+  width: 151px;
+}
+
+.maintenance-folder-tabs a {
+  display: block;
+  min-height: 68px;
+  padding: 0.75rem;
+  overflow-wrap: anywhere;
+  text-align: left;
+  background: #e5eee8;
+  border: 1px solid #b8cfc1;
+  border-radius: 0 12px 12px 0;
+}
+
+.maintenance-folder-tabs a[aria-current="page"] {
+  color: var(--accent-strong);
   font-weight: 700;
+  background: var(--panel);
+  border-left-color: var(--panel);
+}
+
+@media (max-width: 600px) {
+  .maintenance-folder {
+    margin-right: 0;
+    padding-right: 0;
+  }
+
+  .maintenance-folder::before,
+  .maintenance-folder::after {
+    display: none;
+  }
+
+  .maintenance-page {
+    min-height: 0;
+    border-radius: 0 8px 8px 8px;
+  }
+
+  .maintenance-folder-tabs {
+    position: static;
+    display: flex;
+    gap: 4px;
+    width: 100%;
+  }
+
+  .maintenance-folder-tabs a {
+    flex: 1;
+    min-height: 0;
+    padding: 0.65rem 0.5rem;
+    border-radius: 8px 8px 0 0;
+    text-align: center;
+  }
+
+  .maintenance-folder-tabs a[aria-current="page"] {
+    border-bottom-color: var(--panel);
+  }
 }
