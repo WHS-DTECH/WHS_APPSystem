@@ -4,6 +4,7 @@ const { query } = require('./db');
 const { createModuleSearch } = require('./moduleSearch');
 const { loadSchoolCalendar } = require('./schoolCalendar');
 const { loadDepartments } = require('./legacy/kamar-uploader/departments');
+const { httpsAppUrl } = require('./appAddresses');
 
 const hash = (value) => crypto.createHash('sha256').update(value).digest('base64url');
 const opaque = (value) => typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value);
@@ -30,9 +31,9 @@ function createModuleIdentityRouter({ dbQuery = query, schoolCalendar = loadScho
       FROM module_builder_projects p JOIN module_builder_environments e ON e.project_id=p.id
       WHERE p.slug=$1 AND e.kind=$2 AND p.stage<>'archived'`, [slug, kind])).rows[0];
     if (!row?.app_url) return null;
-    const url = new URL(row.app_url);
-    if (url.protocol !== 'https:' || !/^[a-z0-9-]+\.onrender\.com$/.test(url.hostname)
-      || url.username || url.password || url.port || url.search || url.hash) return null;
+    let url;
+    try { url = new URL(httpsAppUrl(row.app_url)); }
+    catch (error) { console.warn('[module-identity] Invalid registered app URL:', error.message); return null; }
     return { ...row, callback: new URL('/auth/global-control/callback', url.origin).href };
   }
   async function authorisedUser(registered, userId) {
@@ -43,13 +44,21 @@ function createModuleIdentityRouter({ dbQuery = query, schoolCalendar = loadScho
       ,ARRAY(SELECT r.role_key FROM user_hub_roles ur JOIN hub_roles r ON r.id=ur.hub_role_id
         WHERE ur.user_id=u.id AND ur.area_key IS NULL AND r.hub_key=$2
           AND r.role_key IN ('lead-teacher','teacher','technician')) AS module_roles
-      FROM users u WHERE u.id=$1 AND u.is_active=true AND (
+      FROM users u WHERE u.id=$1 AND u.is_active=true
+      AND NOT EXISTS (SELECT 1 FROM modules m WHERE m.module_key=$2 AND m.is_active=false) AND (
         EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id=ur.role_id
           WHERE ur.user_id=u.id AND r.name='ADMIN')
-        OR ($2 NOT IN ('core','kamar-uploader','module-builder') AND EXISTS (
-          SELECT 1 FROM user_hub_roles ur JOIN hub_roles r ON r.id=ur.hub_role_id
-          WHERE ur.user_id=u.id AND ur.area_key IS NULL
-            AND r.hub_key=$2 AND r.role_key IN ('lead-teacher','teacher','technician')
+        OR ($2 NOT IN ('core','kamar-uploader','module-builder') AND (
+          EXISTS (
+            SELECT 1 FROM user_hub_roles ur JOIN hub_roles r ON r.id=ur.hub_role_id
+            JOIN hub_role_permissions rp ON rp.hub_role_id=r.id
+            JOIN hub_permissions p ON p.id=rp.hub_permission_id AND p.hub_key=r.hub_key
+            WHERE ur.user_id=u.id AND ur.area_key IS NULL AND r.hub_key=$2
+              AND r.role_key IN ('lead-teacher','teacher','technician') AND p.permission_key='home.view'
+          ) OR EXISTS (
+            SELECT 1 FROM teacher_module_assignments t JOIN modules m ON m.id=t.module_id
+            WHERE t.user_id=u.id AND m.module_key=$2 AND m.is_active=true
+          )
         )))`, [userId, registered.slug])).rows[0];
   }
   router.get('/authorize', wrap(async (req, res) => {

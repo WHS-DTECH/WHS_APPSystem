@@ -4,8 +4,10 @@ const path = require('path');
 const express = require('express');
 const { query } = require('./db');
 const { ensureAuthenticated, ensureRole } = require('./middleware');
+const { accessibleModules } = require('./moduleAccess');
+const { appDestination } = require('./appAddresses');
 
-const template = fs.readFileSync(path.join(__dirname, '..', 'public', 'launchpad.html'), 'utf8');
+const template = fs.readFileSync(path.join(__dirname, '..', 'views', 'launchpad.html'), 'utf8');
 const icons = Object.fromEntries([...template.matchAll(/<span class="icon" data-icon="([^"]+)" aria-hidden="true">(<svg[\s\S]*?<\/svg>)<\/span>/g)]
   .map(([, name, svg]) => [name, svg]));
 const iconLabels = {
@@ -21,52 +23,72 @@ function linkInput(body) {
   const text = key => typeof body[key] === 'string' ? body[key].trim() : '';
   const title = text('title');
   const description = text('description');
-  const url = text('url');
+  const moduleKey = text('moduleKey');
   const icon = text('icon');
   const order = text('sortOrder');
   if (!title || title.length > 100 || !description || description.length > 500 ||
-      url.length > 2048 || !Object.hasOwn(iconLabels, icon) ||
-      !/^\d{1,4}$/.test(order) || /[\x00-\x1f\x7f]/.test(title + description + url)) {
-    throw new Error('Enter a title (1-100 characters), description (1-500 characters), HTTPS address, icon and order (0-9999).');
+      !/^[a-z][a-z0-9-]{1,79}$/.test(moduleKey) || !Object.hasOwn(iconLabels, icon) ||
+      !/^\d{1,4}$/.test(order) || /[\x00-\x1f\x7f]/.test(title + description)) {
+    throw new Error('Enter a title (1-100 characters), description (1-500 characters), registered module, icon and order (0-9999).');
   }
-  let parsed;
-  try {
-    parsed = new URL(url);
-  } catch {
-    throw new Error('Enter a valid absolute HTTPS address.');
-  }
-  if (parsed.protocol !== 'https:' || !parsed.hostname || parsed.username || parsed.password) {
-    throw new Error('Use an HTTPS address without embedded sign-in credentials.');
-  }
-  return { title, description, url: parsed.href, icon, sortOrder: Number(order), visible: body.visible === 'on' };
+  return { title, description, moduleKey, icon, sortOrder: Number(order), visible: body.visible === 'on' };
 }
 
 function renderLaunchpad(links) {
   if (!cardRegion.test(template)) throw new Error('Launchpad template is missing its card markers.');
   const cards = links.filter(link => link.is_visible).map(link => {
     if (!Object.hasOwn(icons, link.icon)) throw new Error('Unknown Launchpad icon.');
-    const parsed = new URL(link.url);
-    if (parsed.protocol !== 'https:' || parsed.username || parsed.password) throw new Error('Invalid Launchpad link address.');
-    return `<a class="app" href="${escapeHtml(link.url)}">
+    const destination = appDestination(link.url);
+    return `<a class="app" href="${escapeHtml(destination)}">
       <span class="icon" aria-hidden="true">${icons[link.icon]}</span>
       <h3>${escapeHtml(link.title)}</h3>
       <p class="description">${escapeHtml(link.description)}</p>
       <span class="open">Open ${escapeHtml(link.title)} <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg></span>
     </a>`;
   }).join('\n');
-  return template.replace(cardRegion, () => `<div class="apps">${cards || '<p>No services are currently published. Please check back later.</p>'}</div>`);
+  return template.replace(cardRegion, () => `<div class="apps">${cards || '<p>No active apps are assigned to your account. Ask your module Lead Teacher or a Global Control administrator for access.</p>'}</div>`);
 }
 
-function createPublicLaunchpad({ dbQuery = query } = {}) {
+function createLaunchpad({ dbQuery = query } = {}) {
   return async (req, res, next) => {
     try {
-      const { rows } = await dbQuery('SELECT * FROM launchpad_links WHERE is_visible=true ORDER BY sort_order,title,id');
       res.set('Cache-Control', 'no-store');
-      res.type('html').send(renderLaunchpad(rows));
+      if (!req.user) return res.render('home', { title: 'WHS Launchpad', modules: [] });
+      if (req.user.is_active === false) {
+        return res.status(403).render('error', { title: 'Access denied', message: 'This school account is inactive.' });
+      }
+      const modules = await accessibleModules(req.user, dbQuery);
+      const { rows } = await dbQuery('SELECT * FROM launchpad_links ORDER BY sort_order,title,id');
+      const cards = modules.map(module => {
+        const configured = rows.find(link => link.module_key === module.module_key);
+        return configured ? { ...configured, url: `/launchpad/apps/${encodeURIComponent(module.module_key)}` } : {
+          title: module.display_name, description: module.description || 'Open your assigned school app.',
+          icon: 'hub', is_visible: true, sort_order: 100,
+          url: `/launchpad/apps/${encodeURIComponent(module.module_key)}`
+        };
+      }).sort((a, b) => a.sort_order - b.sort_order || a.title.localeCompare(b.title));
+      res.type('html').send(renderLaunchpad(cards));
     } catch (error) {
-      console.error('[launchpad] Could not load public links:', error);
+      console.error('[launchpad] Could not load assigned apps:', error);
       res.status(503).type('text').send('The school Launchpad is temporarily unavailable. Please try again later or contact tech@westlandhigh.school.nz.');
     }
+  };
+}
+
+function createLaunchApp({ dbQuery = query } = {}) {
+  return async (req, res, next) => {
+    res.set('Cache-Control', 'no-store');
+    if (!req.user) return res.redirect('/auth/google?next=' + encodeURIComponent(req.originalUrl));
+    try {
+      const modules = await accessibleModules(req.user, dbQuery);
+      const module = modules.find(item => item.module_key === req.params.moduleKey);
+      if (!module) return res.status(403).render('error', { title: 'App access denied', message: 'This app is inactive or has not been assigned to your active school account.' });
+      const destination = appDestination(module.path);
+      if (destination === '/' || /^\/(?:launchpad|auth)(?:[/?#]|$)/i.test(destination)) {
+        throw new Error('The registered app destination points to Global Control sign-in or the Launchpad.');
+      }
+      res.redirect(destination);
+    } catch (error) { next(error); }
   };
 }
 
@@ -88,19 +110,18 @@ function createLaunchpadAdminRouter({ dbQuery = query } = {}) {
   });
   router.get('/', async (req, res, next) => {
     try {
-      const { rows } = await dbQuery('SELECT * FROM launchpad_links ORDER BY sort_order,title,id');
+      const [links, modules] = await Promise.all([
+        dbQuery('SELECT * FROM launchpad_links ORDER BY sort_order,title,id'),
+        dbQuery('SELECT * FROM modules ORDER BY display_name')
+      ]);
       res.render('admin/launchpad', {
-        title: 'Launchpad Management', links: rows, iconLabels,
+        title: 'Launchpad Management', links: links.rows, modules: modules.rows, iconLabels,
         csrf: req.session.launchpadCsrf, saved: req.query.saved === '1'
       });
     } catch (error) { next(error); }
   });
-  router.get('/download', async (req, res, next) => {
-    try {
-      const { rows } = await dbQuery('SELECT * FROM launchpad_links WHERE is_visible=true ORDER BY sort_order,title,id');
-      // Downloads must bypass shared HTML-navigation injection.
-      res.attachment('launchpad.html').type('application/octet-stream').send(renderLaunchpad(rows));
-    } catch (error) { next(error); }
+  router.get('/download', (req, res) => {
+    res.status(410).render('error', { title: 'Standalone download retired', message: 'The Launchpad now requires Google sign-in and live app assignments. Share the WHS_APPSystem address instead of a standalone HTML copy.' });
   });
   router.post('/save', async (req, res, next) => {
     const id = typeof req.body.id === 'string' ? req.body.id : '';
@@ -111,17 +132,23 @@ function createLaunchpadAdminRouter({ dbQuery = query } = {}) {
     try {
       input = linkInput(req.body);
     } catch (error) {
+      console.warn('[launchpad] Link input rejected:', error.message);
       return res.status(400).render('error', { title: 'Link not saved', message: error.message });
     }
-    const params = [input.title, input.url, input.description, input.icon, input.sortOrder, input.visible, req.user.id];
     try {
+      const module = (await dbQuery('SELECT * FROM modules WHERE module_key=$1', [input.moduleKey])).rows[0];
+      if (!module) return res.status(400).render('error', { title: 'Link not saved', message: 'Choose a registered module. Register the app in App Module Management first.' });
+      if ((await dbQuery('SELECT id FROM launchpad_links WHERE module_key=$1 AND id::text<>$2', [input.moduleKey, id])).rows.length) {
+        return res.status(409).render('error', { title: 'Link not saved', message: 'This module already has a Launchpad card. Edit that card instead.' });
+      }
+      const params = [input.title, module.path, input.description, input.icon, input.sortOrder, input.visible, req.user.id, input.moduleKey];
       if (id) {
         const result = await dbQuery(`UPDATE launchpad_links SET title=$1,url=$2,description=$3,icon=$4,
-          sort_order=$5,is_visible=$6,updated_by=$7,updated_at=NOW() WHERE id=$8 RETURNING id`, [...params, id]);
+          sort_order=$5,is_visible=$6,updated_by=$7,module_key=$8,updated_at=NOW() WHERE id=$9 RETURNING id`, [...params, id]);
         if (!result.rowCount) return res.status(404).render('error', { title: 'Link not found', message: 'This Launchpad link no longer exists. Reload the page.' });
       } else {
-        await dbQuery(`INSERT INTO launchpad_links(title,url,description,icon,sort_order,is_visible,updated_by)
-          VALUES ($1,$2,$3,$4,$5,$6,$7)`, params);
+        await dbQuery(`INSERT INTO launchpad_links(title,url,description,icon,sort_order,is_visible,updated_by,module_key)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, params);
       }
       res.redirect(303, '/admin/launchpad?saved=1');
     } catch (error) { next(error); }
@@ -129,4 +156,4 @@ function createLaunchpadAdminRouter({ dbQuery = query } = {}) {
   return router;
 }
 
-module.exports = { createPublicLaunchpad, createLaunchpadAdminRouter, renderLaunchpad, linkInput };
+module.exports = { createLaunchpad, createLaunchApp, createLaunchpadAdminRouter, renderLaunchpad, linkInput };

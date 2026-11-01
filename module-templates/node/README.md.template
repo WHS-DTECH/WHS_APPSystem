@@ -17,7 +17,10 @@ existing Gmail service and email log; no Gmail credentials are copied here.
 
 ## Standalone
 
-1. Install Node 22+, run `npm install`, and commit the generated package-lock.json.
+1. Use Node 22.23.4 or a later 22.x release. The package engine enforces this
+   minimum; Docker and CI are pinned to 22.23.4. Update all three pins together
+   when adopting a later security release. Run `npm install` and commit the
+   generated package-lock.json.
    Switch CI/Docker installs to `npm ci` once that lockfile is committed.
 2. Configure the names in `.env.example` in your environment; never commit values.
    For local development load them with your shell or Node's `--env-file` option.
@@ -26,7 +29,7 @@ existing Gmail service and email log; no Gmail credentials are copied here.
    Do not link groups containing Core database credentials, provider tokens,
    Google client secrets or Core's session secret.
 5. Set site-specific `MODULE_CLIENT_ID=__MODULE_SLUG__:development`. Register the
-   exact HTTPS Render app URL in Global Control's Module Builder environment record.
+   exact HTTPS app origin in Global Control's Module Builder environment record.
    `APP_BASE_URL` defaults to Render's `RENDER_EXTERNAL_URL`.
 6. Run `npm test`, then `npm start` (runs versioned migrations before starting).
    `npm run db:migrate` can also be run separately. `/health` checks the database, not user access.

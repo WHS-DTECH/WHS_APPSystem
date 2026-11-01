@@ -10,11 +10,12 @@
     <label>Module key<input name="moduleKey" placeholder="attendance" required></label>
     <label>Display name<input name="displayName" placeholder="Attendance" required></label>
     <label>Description<input name="description" placeholder="Attendance tracking and reports"></label>
-    <label>Path<input name="path" placeholder="/modules/attendance"></label>
+    <label>App destination<input name="path" placeholder="/modules/attendance or https://example.school.nz/" required></label>
     <label class="inline"><input name="isActive" type="checkbox" checked> Active</label>
     <button class="button button-primary" type="submit">Save module</button>
   </form>
 </section>
+<p>Use this module key to update an existing app. Destinations can change without changing its assignments or Launchpad link. Use <a href="/admin/launchpad">Launchpad Management</a> to add its card and <a href="/hubs">Assign User Roles</a> to grant module-specific access.</p>
 
 <section class="panel table-panel">
   <% modules.forEach((module) => { const doc = moduleDocs[module.module_key]; %>

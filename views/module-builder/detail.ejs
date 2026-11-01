@@ -76,7 +76,7 @@
     <label>Render web service ID<input name="serviceId" value="<%= config.serviceId || '' %>" placeholder="srv-..."></label>
     <label>Database resource name<input name="databaseName" maxlength="63" value="<%= config.databaseName || '' %>" required></label>
     <label>Render database ID<input name="databaseId" value="<%= config.databaseId || '' %>" placeholder="dpg-..."></label>
-    <label>App URL (Render HTTPS)<input name="appUrl" value="<%= config.appUrl || '' %>" placeholder="https://example.onrender.com/"></label>
+    <label>Registered app origin (HTTPS)<input name="appUrl" value="<%= config.appUrl || '' %>" placeholder="https://example.onrender.com/"></label>
     <label>Region<select name="region"><% regions.forEach((value) => { %><option value="<%= value %>" <%= config.region === value ? 'selected' : '' %>><%= value %></option><% }) %></select></label>
     <label>Web service plan<select name="servicePlan"><% servicePlans.forEach((value) => { %><option value="<%= value %>" <%= config.servicePlan === value ? 'selected' : '' %>><%= value %></option><% }) %></select></label>
     <label>Database plan<select name="databasePlan"><% databasePlans.forEach((value) => { %><option value="<%= value %>" <%= config.databasePlan === value ? 'selected' : '' %>><%= value %></option><% }) %></select></label>

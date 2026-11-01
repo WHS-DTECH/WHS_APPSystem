@@ -97,6 +97,40 @@ test('staff bridge validates module identity before returning minimal current Ka
   allowed = true; unavailable = true; assert.equal((await post(token)).status, 502);
 });
 
+test('module identity accepts another provider only at its exact registered callback', async () => {
+  const origin = 'https://planner.example.school.nz';
+  const app = express();
+  app.use(express.json());
+  app.use((req, res, next) => { req.user = { id: 'fixture', roles: ['ADMIN'] }; next(); });
+  app.use('/module-auth', createModuleIdentityRouter({ dbQuery: async sql => {
+    if (sql.includes('FROM module_builder_projects')) return { rows: [{ id: 'project', slug: 'teacher-planner',
+      kind: 'development', app_url: origin }] };
+    if (sql.includes('FROM users u')) {
+      assert.match(sql, /m.is_active=false/);
+      assert.match(sql, /p.permission_key='home.view'/);
+      return { rows: [{ id: 'fixture' }] };
+    }
+    if (sql.startsWith('DELETE FROM module_identity_codes') || sql.startsWith('INSERT INTO module_identity_codes')) return { rows: [] };
+    throw new Error('Unexpected identity query: ' + sql);
+  } }));
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  try {
+    const base = `http://127.0.0.1:${server.address().port}/module-auth/authorize?`;
+    const params = {
+      client_id: 'teacher-planner:development', redirect_uri: origin + '/auth/global-control/callback',
+      state: 'S'.repeat(43), code_challenge: 'C'.repeat(43), code_challenge_method: 'S256'
+    };
+    const response = await fetch(base + new URLSearchParams(params), { redirect: 'manual' });
+    assert.equal(response.status, 302);
+    assert.equal(new URL(response.headers.get('location')).origin, origin);
+    const wrong = await fetch(base + new URLSearchParams({ ...params, redirect_uri: 'https://other.example.school.nz/auth/global-control/callback' }), { redirect: 'manual' });
+    assert.equal(wrong.status, 400);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+});
+
 test('Global Control identity binds codes to clients, PKCE, current ADMIN roles and registered callbacks', {
   skip: !process.env.MODULE_BUILDER_TEST_DATABASE_URL
 }, async () => {

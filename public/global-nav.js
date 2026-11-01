@@ -128,7 +128,7 @@
             if (used[module.path] || !match(module, name)) return;
             used[module.path] = true;
             found++;
-            link(nav, rename ? rename(module) : module.name, module.path);
+            link(nav, rename ? rename(module) : module.name, module.launchPath || module.path);
           });
         });
         return found;

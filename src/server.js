@@ -32,7 +32,9 @@ const { createModuleIdentityRouter } = require('./moduleIdentity');
 const { createContactRouter } = require('./contact');
 const { createAdminUsersRouter } = require('./adminUsers');
 const maintenanceNotifications = require('./maintenanceNotifications');
-const { createPublicLaunchpad, createLaunchpadAdminRouter } = require('./launchpad');
+const { createLaunchpad, createLaunchApp, createLaunchpadAdminRouter } = require('./launchpad');
+const { accessibleModules, createModuleAccessGuard } = require('./moduleAccess');
+const { appDestination } = require('./appAddresses');
 
 const app = express();
 
@@ -43,8 +45,6 @@ app.set('trust proxy', 1);
 app.get('/favicon.ico', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'images', 'favicon.ico')));
 
 app.use(helmet({ contentSecurityPolicy: false }));
-// The portable public Launchpad must not depend on sessions or shared navigation.
-app.get('/launchpad.html', createPublicLaunchpad());
 // The Food Room pages make many small API calls, so they are not counted against the shared limit.
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, skip: (req) => req.path.startsWith('/food-room/') || req.path.startsWith('/dtech-hub/') || req.path === '/nav-data' }));
 // Hosted Flask apps receive their request bodies untouched, including training uploads.
@@ -82,6 +82,10 @@ app.use((req, res, next) => {
     : req.user?.roles?.find((role) => ['Teacher', 'Student', 'Staff'].includes(role)) || 'Staff';
   next();
 });
+
+app.get(['/', '/launchpad', '/launchpad.html'], createLaunchpad());
+app.get('/launchpad/apps/:moduleKey', createLaunchApp());
+app.use(createModuleAccessGuard());
 
 app.get('/healthz', (req, res) => {
   res.status(200).json({ ok: true });
@@ -202,18 +206,6 @@ app.use('/module-builder', createModuleBuilderRouter());
 app.use('/module-auth', createModuleIdentityRouter());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-app.get('/', async (req, res, next) => {
-  try {
-    const modules = req.user
-      ? (await query('SELECT * FROM modules WHERE is_active = true ORDER BY display_name')).rows
-      : [];
-
-    res.render('home', { modules, title: 'WHS APPSystem' });
-  } catch (error) {
-    next(error);
-  }
-});
-
 app.get('/auth/google', (req, res, next) => {
   if (!config.google.isConfigured) {
     return res.status(503).render('error', {
@@ -241,7 +233,7 @@ app.get('/auth/google/callback', (req, res, next) => {
   }
 
   return passport.authenticate('google', { failureRedirect: '/?login=failed' })(req, res, () => {
-    const target = safeNext(readCookie(req, NEXT_COOKIE)) || '/dashboard';
+    const target = safeNext(readCookie(req, NEXT_COOKIE)) || '/';
     res.clearCookie(NEXT_COOKIE);
     res.redirect(target);
   });
@@ -263,31 +255,9 @@ app.get('/auth/logout', ensureAuthenticated, (req, res, next) => {
 
 app.get('/dashboard', ensureAuthenticated, async (req, res, next) => {
   try {
-    const activeRole = res.locals.activeRole;
-    let modules;
-
-    if (activeRole === 'ADMIN') {
-      modules = (await query('SELECT * FROM modules WHERE is_active = true ORDER BY display_name')).rows;
-    } else if (activeRole === 'Teacher') {
-      modules = (await query(
-        `SELECT modules.*
-         FROM modules
-         INNER JOIN teacher_module_assignments assignments ON assignments.module_id = modules.id
-         WHERE modules.is_active = true AND assignments.user_id = $1
-         ORDER BY modules.display_name`,
-        [req.user.id]
-      )).rows;
-    } else {
-      modules = (await query(
-        `SELECT DISTINCT modules.*
-         FROM modules
-         INNER JOIN role_modules ON role_modules.module_id = modules.id
-         INNER JOIN roles ON roles.id = role_modules.role_id
-         WHERE modules.is_active = true AND roles.name = $1
-         ORDER BY modules.display_name`,
-        [activeRole]
-      )).rows;
-    }
+    const modules = (await accessibleModules(req.user)).map(module => ({
+      ...module, path: `/launchpad/apps/${encodeURIComponent(module.module_key)}`
+    }));
 
     res.render('dashboard', { modules, title: 'Dashboard' });
   } catch (error) {
@@ -527,13 +497,20 @@ app.get('/admin/modules', ensureAuthenticated, ensureRole('ADMIN'), async (req, 
 });
 
 app.post('/admin/modules', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {
+  let destination;
+  try {
+    destination = appDestination(req.body.path);
+  } catch (error) {
+    console.warn('[modules] Invalid app destination:', error.message);
+    return res.status(400).render('error', { title: 'Module not saved', message: error.message });
+  }
   try {
     await query(
       `INSERT INTO modules (module_key, display_name, description, path, is_active)
        VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (module_key)
        DO UPDATE SET display_name = EXCLUDED.display_name, description = EXCLUDED.description, path = EXCLUDED.path, is_active = EXCLUDED.is_active, updated_at = NOW()`,
-      [req.body.moduleKey, req.body.displayName, req.body.description || null, req.body.path || '#', req.body.isActive === 'on']
+      [req.body.moduleKey, req.body.displayName, req.body.description || null, destination, req.body.isActive === 'on']
     );
 
     res.redirect('/admin/modules');

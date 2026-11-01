@@ -3,6 +3,7 @@ const FAVICON_TAG = '<link rel="icon" type="image/x-icon" href="/images/favicon.
 const { moduleForPath } = require('./moduleSearch');
 const { effectiveTrainingRole } = require('./modules/classTraining');
 const { accessForEmail, effectiveDtechView } = require('./modules/dtechHub');
+const { accessibleModules } = require('./moduleAccess');
 
 // Adds the global left navigation script to every full HTML page, including the static legacy pages.
 function injectGlobalNav(req, res, next) {
@@ -88,7 +89,7 @@ function injectGlobalNav(req, res, next) {
     const output = Buffer.from(html, 'utf8');
     res.removeHeader('ETag');
     res.removeHeader('Last-Modified');
-    res.setHeader('Cache-Control', 'no-cache');
+    if (!String(res.getHeader('Cache-Control') || '').includes('no-store')) res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Content-Length', output.length);
     return end(output, callback);
   };
@@ -100,9 +101,7 @@ function navData(query, canManageHubRoles, datasetManagerUrl, canManageCourses =
   return async (req, res, next) => {
     try {
       const user = req.user;
-      const modules = user
-        ? (await query('SELECT display_name, path FROM modules WHERE is_active = true ORDER BY display_name')).rows
-        : [];
+      const modules = await accessibleModules(user, query);
       const developmentProjects = user?.roles?.includes('ADMIN')
         ? (await query(`SELECT p.id, p.name, e.config->>'appUrl' AS app_url
           FROM module_builder_projects p JOIN module_builder_environments e ON e.project_id=p.id AND e.kind='development'
@@ -191,7 +190,10 @@ function navData(query, canManageHubRoles, datasetManagerUrl, canManageCourses =
           deployed: Boolean(project.app_url)
         })),
         modules: modules.filter((module) => module.path !== '/module-builder' || user?.roles?.includes('ADMIN'))
-          .map((module) => ({ name: module.display_name, path: module.path }))
+          .map((module) => ({
+            name: module.display_name, path: module.path,
+            launchPath: `/launchpad/apps/${encodeURIComponent(module.module_key)}`
+          }))
       });
     } catch (error) {
       next(error);

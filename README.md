@@ -130,30 +130,55 @@ search: they need an explicit permission-aware provider before displaying the
 shared search bar. No additional environment keys or replacement databases are
 required.
 
-## Public school Launchpad
+## Google-authenticated school Launchpad
 
-[`public/launchpad.html`](public/launchpad.html) is a standalone, responsive public
-design for WHS Learning Sites, Hub Dashboard, Teacher Planner, Guidance
-Counsellor App, International App and Bus Controller App. It includes its own
-styles and icons, needs no JavaScript or additional assets, and can be uploaded as
-a single HTML file to the school website. A preview is also served at
-`/launchpad.html`, without Global Control navigation or a session dependency.
-The hosted page reads published links from PostgreSQL (`launchpad_links`), seeded
-with the original six services. **Administrator Dashboard > Launchpad Management**
-lets active Global ADMINs add and edit names, HTTPS addresses, descriptions,
-icons, visibility and numeric display order. This changes only Launchpad links,
-not module registration, permissions or the apps themselves.
+The WHS_APPSystem root (`/`) is the Launchpad. `/launchpad` and the former
+`/launchpad.html` address use the same authenticated handler. Signed-out visitors
+see Google sign-in, not app cards; successful sign-in returns to the Launchpad
+unless an app-specific return path was requested. Inactive accounts are denied.
+The template is private at [`views/launchpad.html`](views/launchpad.html), not a
+public static file. Standalone downloads are retired (HTTP 410).
 
-Choose a permanent URL on `westlandhigh.school.nz` for the published file and
-share that URL with users. When a service moves, edit its address in Launchpad
-Management, choose **Download standalone HTML**, and replace the copy on the
-school website. The downloaded HTML contains the current visible links and has
-no runtime dependency on Global Control. The checked-in HTML is the design and
-initial six-link example; it is not rewritten by admin edits. Moving a service does not
-automatically update the school-hosted file. All service links are absolute HTTPS
-URLs and open in the same tab; each service retains its existing sign-in and
-permissions. This page does not integrate or modify the independently hosted
-International, Bus Controller or Teacher Planner apps.
+The existing `modules` registry owns app destinations and active status.
+Non-admin users see only individually assigned active modules: existing
+`teacher_module_assignments` or whole-module `user_hub_roles` with `home.view`.
+Global Teacher/Staff/Student roles and area-only assignments do not grant
+Launchpad access. Active Global ADMINs can open all active modules. The dashboard
+and shared module navigation use the same access query. Direct registered local
+app paths are gated before module routers; existing app-specific permissions
+continue to apply inside each app.
+Global ADMIN retains direct Core administration access even if the Core card is
+inactive, so administrators can restore registry configuration.
+
+Every assigned app gets a default card. **Administrator Dashboard > Launchpad
+Management** binds optional custom names, descriptions, icons, visibility and
+order to a registered module. One custom card is allowed per module. Hiding a
+card is presentation only: remove the assignment or deactivate the module to
+revoke access. Custom links that cannot be mapped during migration are preserved
+as drafts for administrator review.
+
+Cards use stable relative `/launchpad/apps/<module-key>` links. These recheck
+current access and resolve the latest destination from App Module Management.
+Use local paths for integrated apps; retain HTTPS destinations for apps awaiting
+migration. Migration 038 registers the existing Teacher Planner, International
+and Bus Controller destinations from their development records without changing
+their services or business databases. No user notifications are sent.
+
+For deployment, apply migrations and check Launchpad cards, module activation and
+existing assignments before directing users to the root URL. Set `APP_BASE_URL`
+to the current WHS_APPSystem address. When a permanent domain becomes available,
+update that value, Google OAuth callbacks, registered module origins and each
+external module's `GLOBAL_CONTROL_URL`/callbacks as needed. Keep relative app
+paths and assignments unchanged and redirect the old address while available.
+Users then need only one Launchpad bookmark change.
+
+This is the access/address foundation, not a migration of the three external
+apps. Their old direct HTTPS addresses still have their own sign-in/permissions;
+Global Control cannot revoke access enforced by an unchanged external service.
+Before moving each app, verify its deployed source, database restore, identity
+mapping, files, background jobs and integration behaviour using isolated test
+data. Preserve its individual database and plan cutover/rollback before changing
+its registry destination. Notify assigned users only after acceptance testing.
 
 ## Module Builder / Module Wizard
 
@@ -249,9 +274,12 @@ deployment/commit, health path and environment-variable **names/purposes only**.
 No database URLs, tokens or secret values are persisted/displayed; provider error
 bodies are not logged because they can echo secrets. Environment-name presence
 is not value validation; environment groups may require checking in Render.
-Checks are explicit, never run during sidebar loading. App launch URLs currently
-support HTTPS `*.onrender.com` addresses only; custom domains and Python templates
-are future extensions, not silently assumed supported.
+Checks are explicit, never run during sidebar loading. Registered app origins
+support HTTPS Render and other-provider/custom domains, without credentials,
+non-default ports, paths, queries or fragments. Identity callbacks must match the
+exact registered origin; changing it invalidates grants bound to the old address.
+Automatic infrastructure provisioning remains Render-specific. Python templates
+are not supported by this wizard.
 
 Global Control identity uses state and PKCE, exact registered callbacks, single-use
 60-second codes and eight-hour opaque grants, matching the Core and module session
@@ -564,6 +592,12 @@ update as complete. Native Node services must not retain an older `NODE_VERSION`
 override, which takes precedence over `.node-version`. Keep these pins current
 with later Node security releases; a repository update alone does not patch
 already-running containers.
+
+New Node modules generated from `module-templates/node/` inherit the same
+minimum patched Node version, a matching Docker/CI pin, and a refreshed
+operating-system certificate store. Keep the template's engine, Docker, and CI
+versions aligned when adopting later security releases, and redeploy each
+affected service after updating it.
 
 ### Hosted Student Apps
 

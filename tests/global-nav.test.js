@@ -278,7 +278,11 @@ test('script is still injected when a signed-in session refreshes on the respons
 });
 
 test('nav-data returns the module links for a signed in user and none for anonymous visitors', async () => {
-  const query = async () => ({ rows: [{ display_name: 'Food Room Hub', path: '/food-room' }] });
+  const query = async () => ({ rows: [
+    { module_key: 'food-room', display_name: 'Food Room Hub', path: '/food-room', is_active: true, has_access: true },
+    { module_key: 'workshop', display_name: 'Workshop', path: '/workshop', is_active: true, has_access: false },
+    { module_key: 'inactive', display_name: 'Inactive', path: '/inactive', is_active: false, has_access: true }
+  ] });
   await withServer((app) => {
     app.use((req, res, next) => {
       res.locals.activeRole = 'ADMIN';
@@ -298,7 +302,7 @@ test('nav-data returns the module links for a signed in user and none for anonym
     assert.equal(user.email, 'v@x.nz');
     assert.equal(user.avatarUrl, 'https://example.invalid/avatar.png');
     assert.equal(user.role, 'ADMIN');
-    assert.deepEqual(user.modules, [{ name: 'Food Room Hub', path: '/food-room' }]);
+    assert.deepEqual(user.modules, [{ name: 'Food Room Hub', path: '/food-room', launchPath: '/launchpad/apps/food-room' }]);
   });
 
 });

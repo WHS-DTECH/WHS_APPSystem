@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const express = require('express');
 const { query } = require('./db');
 const { BuilderError, createBuilderProviders } = require('./moduleBuilderProviders');
+const { httpsAppUrl } = require('./appAddresses');
 
 const ROOT = '/module-builder';
 const KINDS = ['development', 'staging', 'production'];
@@ -34,15 +35,10 @@ function repositoryName(value) {
   return repository;
 }
 function appUrl(value) {
-  const raw = text(value, 'development URL', 300);
+  if (typeof value === 'string' && /[\x00-\x1f\x7f]/.test(value)) throw new BuilderError('Use an HTTPS app address without control characters.');
+  const raw = text(value, 'app URL', 300);
   if (!raw) return '';
-  let url;
-  try { url = new URL(raw); } catch { throw new BuilderError('Enter a valid HTTPS Render app URL.'); }
-  if (url.protocol !== 'https:' || !/^[a-z0-9-]+\.onrender\.com$/.test(url.hostname)
-    || url.username || url.password || url.port || url.search || url.hash) {
-    throw new BuilderError('Use an HTTPS *.onrender.com app URL without credentials, port, query or fragment.');
-  }
-  return url.href;
+  try { return httpsAppUrl(raw); } catch (error) { throw new BuilderError(error.message); }
 }
 function environmentInput(body) {
   const result = {};

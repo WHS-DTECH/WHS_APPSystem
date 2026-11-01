@@ -2,7 +2,7 @@
   "name": "__MODULE_SLUG__",
   "version": "0.1.0",
   "private": true,
-  "engines": { "node": ">=22" },
+  "engines": { "node": ">=22.23.4 <23" },
   "scripts": {
     "start": "node migrate.js && node server.js",
     "db:migrate": "node migrate.js",
