@@ -1,104 +1,207 @@
 <%- include('../partials/header') %>
+<%
+  const messages = {
+    created: 'Maintenance request scheduled. Its staff email will only be sent after a successful test.',
+    'request-test-sent': 'Maintenance request test email sent to your signed-in address. Review it before scheduling.',
+    'request-test-failed': 'The maintenance request test email failed. Check the email log, then send another test.',
+    'completed-test-sent': 'Completion test email sent to your signed-in address. Review it before notifying staff.',
+    'completed-test-failed': 'The completion test email failed. Check the email log, then send another test.',
+    'completed-sent': 'Completion notification sent to the staff assigned to the selected apps.'
+  };
+%>
 <section class="page-title">
   <p class="eyebrow">Administration</p>
   <h1>Maintenance Notifications</h1>
-  <p>Send one maintenance notice for one or more modules. Staff with a role in any selected module and active Global ADMINs are included once each.</p>
+  <p>Prepare maintenance requests and completion notifications separately. Select only the apps covered by each message. Every staff email requires a successful test email first.</p>
 </section>
-<% if (message) { %><p role="status"><%= message === 'created' ? 'Maintenance notice scheduled.' : message === 'completion-test-sent' ? 'Completion test email sent to your signed-in address.' : 'Maintenance warning test email sent to your signed-in address.' %></p><% } %>
+<% if (message && messages[message]) { %><p role="status"><%= messages[message] %></p><% } %>
 
-<section class="panel">
-  <h2>Choose modules to preview recipients</h2>
-  <form method="get" action="/admin/maintenance-notifications" class="row-form stacked">
-    <fieldset class="checks permissions">
-      <legend>Modules (select one or more)</legend>
-      <% modules.forEach(module => { %>
-        <label><input type="checkbox" name="module" value="<%= module.hub_key %>" <%= moduleKeys.includes(module.hub_key) ? 'checked' : '' %>> <%= module.label %></label>
-      <% }) %>
-    </fieldset>
-    <button class="button" type="submit">Show recipients</button>
-  </form>
-  <% if (moduleKeys.length) { %>
-    <p><strong>Selected modules:</strong> <%= modules.filter(module => moduleKeys.includes(module.hub_key)).map(module => module.label).join(', ') %></p>
-    <h3>Current recipients (<%= recipients.length %>)</h3>
-    <% if (recipients.length) { %>
-      <ul><% recipients.forEach(person => { %><li><%= person.display_name || person.email %> &lt;<%= person.email %>&gt;</li><% }) %></ul>
-      <p>Staff must have a current KAMAR staff record and a role in at least one selected module. Active Global ADMINs are also included. Each address receives one email, even if assigned to several selected modules. Emails use a private BCC list.</p>
-    <% } else { %>
-      <p>No eligible staff or active administrators are currently listed for these modules. A notice cannot be sent until recipients are available.</p>
+<nav class="maintenance-tabs" aria-label="Maintenance notification pages">
+  <a href="/admin/maintenance-notifications?tab=request" <%= activeTab === 'request' ? 'aria-current="page"' : '' %>>Maintenance Req</a>
+  <a href="/admin/maintenance-notifications?tab=completed" <%= activeTab === 'completed' ? 'aria-current="page"' : '' %>>Maintenance Completed</a>
+</nav>
+
+<% if (activeTab === 'request') { %>
+  <section class="panel">
+    <h2>Choose apps for this maintenance request</h2>
+    <form method="get" action="/admin/maintenance-notifications" class="row-form stacked">
+      <input type="hidden" name="tab" value="request">
+      <fieldset class="checks permissions">
+        <legend>Apps (select one or more)</legend>
+        <% modules.forEach(module => { %>
+          <label><input type="checkbox" name="requestModule" value="<%= module.hub_key %>" <%= requestKeys.includes(module.hub_key) ? 'checked' : '' %>> <%= module.label %></label>
+        <% }) %>
+      </fieldset>
+      <button class="button" type="submit">Show recipients</button>
+    </form>
+    <% if (requestKeys.length) { %>
+      <p><strong>Selected apps:</strong> <%= modules.filter(module => requestKeys.includes(module.hub_key)).map(module => module.label).join(', ') %></p>
+      <h3>Current recipients (<%= requestRecipients.length %>)</h3>
+      <% if (requestRecipients.length) { %>
+        <ul><% requestRecipients.forEach(person => { %><li><%= person.display_name || person.email %> &lt;<%= person.email %>&gt;</li><% }) %></ul>
+        <p>Current staff assigned to any selected app and active Global ADMINs are included once each by private BCC.</p>
+      <% } else { %>
+        <p>No eligible staff or active administrators are currently listed for these apps.</p>
+      <% } %>
     <% } %>
+  </section>
+
+  <% if (requestKeys.length && requestRecipients.length) { %>
+    <section class="panel">
+      <h2>Test and schedule a maintenance request</h2>
+      <p>The test goes only to your signed-in address. A successful test is required before this request can be scheduled. The staff warning is sent 14 days before the scheduled start, or at the next scheduler run if closer.</p>
+      <form action="/admin/maintenance-notifications/test-request" method="post" class="row-form stacked">
+        <input type="hidden" name="csrf" value="<%= csrf %>">
+        <% requestKeys.forEach(key => { %><input type="hidden" name="moduleKey" value="<%= key %>"><% }) %>
+        <label for="request-scheduled-at">Start date and time (New Zealand time)</label>
+        <input id="request-scheduled-at" name="scheduledAt" type="datetime-local" required value="<%= requestDraft?.payload?.scheduledAt || '' %>">
+        <label for="request-expected-duration">Expected duration (optional)</label>
+        <input id="request-expected-duration" name="expectedDuration" maxlength="120" placeholder="For example, about 30 minutes" value="<%= requestDraft?.payload?.expectedDuration || '' %>">
+        <label for="request-impact">What staff should expect</label>
+        <textarea id="request-impact" name="impact" rows="3" maxlength="2000" required><%= requestDraft?.payload?.impact || '' %></textarea>
+        <label for="request-details">Additional information (optional)</label>
+        <textarea id="request-details" name="details" rows="3" maxlength="3000"><%= requestDraft?.payload?.details || '' %></textarea>
+        <button class="button button-primary" type="submit">Send test email to me</button>
+      </form>
+      <% if (requestDraft) { %>
+        <article class="panel">
+          <h3>Tested maintenance request</h3>
+          <p><strong>Status:</strong> <%= requestDraft.status.replace(/_/g, ' ') %></p>
+          <p><strong>Apps:</strong> <%= requestDraft.module_name %></p>
+          <% if (requestDraft.error) { %><p role="alert"><%= requestDraft.error %></p><% } %>
+          <% if (requestDraft.status === 'tested') { %>
+            <p>The test email was sent successfully. Review it before scheduling this exact request.</p>
+            <form action="/admin/maintenance-notifications/schedule/<%= requestDraft.id %>" method="post">
+              <input type="hidden" name="csrf" value="<%= csrf %>">
+              <button class="button button-primary" type="submit">Schedule tested request</button>
+            </form>
+          <% } %>
+        </article>
+      <% } %>
+    </section>
   <% } %>
-</section>
 
-<% if (moduleKeys.length) { %>
-<section class="panel">
-  <h2>Schedule maintenance</h2>
-  <p>The warning is automatically sent 14 days before the scheduled start. If the start is less than 14 days away, it will be sent at the next scheduler run.</p>
-  <form action="/admin/maintenance-notifications" method="post" class="row-form stacked">
-    <input type="hidden" name="csrf" value="<%= csrf %>">
-    <% moduleKeys.forEach(key => { %><input type="hidden" name="moduleKey" value="<%= key %>"><% }) %>
-    <label for="scheduled-at">Start date and time (New Zealand time)</label>
-    <input id="scheduled-at" name="scheduledAt" type="datetime-local" required>
-    <label for="expected-duration">Expected duration (optional)</label>
-    <input id="expected-duration" name="expectedDuration" maxlength="120" placeholder="For example, about 30 minutes">
-    <label for="impact">What staff should expect</label>
-    <textarea id="impact" name="impact" rows="3" maxlength="2000" required></textarea>
-    <label for="details">Additional information (optional)</label>
-    <textarea id="details" name="details" rows="3" maxlength="3000"></textarea>
-    <button class="button button-primary" type="submit" <%= recipients.length ? '' : 'disabled' %>>Schedule notice</button>
-  </form>
-</section>
-<% } %>
-
-<section class="panel">
-  <h2>Notices</h2>
-  <% if (!notices.length) { %>
-    <p>No maintenance notices have been scheduled.</p>
-  <% } else { %>
-    <% notices.forEach(notice => { %>
-      <article class="panel">
-        <h3><%= notice.module_name %> — <%= formatDate(notice.scheduled_at) %> NZ time</h3>
-        <p><strong>Status:</strong> <%= notice.status.replace(/_/g, ' ') %></p>
-        <% if (notice.expected_duration) { %><p><strong>Expected duration:</strong> <%= notice.expected_duration %></p><% } %>
-        <p><strong>What staff should expect:</strong><br><%= notice.impact %></p>
-        <% if (notice.details) { %><p><strong>Additional information:</strong><br><%= notice.details %></p><% } %>
-        <% if (notice.warning_sent_at) { %>
-          <p role="status">Warning sent <%= formatDate(notice.warning_sent_at) %>.</p>
-        <% } else if (notice.warning_error) { %>
-          <p role="alert">Warning not sent: <%= notice.warning_error %>. The system will retry hourly until the warning is sent or maintenance begins.</p>
-        <% } else if (notice.status === 'scheduled') { %>
-          <p>Warning scheduled for 14 days before maintenance.</p>
-        <% } %>
-        <% if (notice.resumption_error) { %><p role="alert">Resumption email failed: <%= notice.resumption_error %>. You can retry below.</p><% } %>
-        <% if (notice.status === 'resuming') { %>
-          <p role="alert">Resumption delivery is awaiting review. Check the <a href="/admin/emails">Email Service log</a> before deciding whether to retry.</p>
-          <form action="/admin/maintenance-notifications/<%= notice.id %>/recover-resumption" method="post">
-            <input type="hidden" name="csrf" value="<%= csrf %>">
-            <label><input type="radio" name="delivery" value="sent" required> The log confirms the resumption email was sent; mark this notice complete.</label>
-            <label><input type="radio" name="delivery" value="not-sent" required> The log confirms it was not sent; make a retry available.</label>
-            <button class="button" type="submit">Save reviewed delivery status</button>
-          </form>
-        <% } %>
-        <% if (notice.status === 'scheduled' || notice.status === 'in_progress' || notice.status === 'resumption_failed') { %>
-          <form action="/admin/maintenance-notifications/<%= notice.id %>/test" method="post">
-            <input type="hidden" name="csrf" value="<%= csrf %>">
-            <button class="button" type="submit">Send maintenance warning test email to me</button>
-          </form>
-          <form action="/admin/maintenance-notifications/<%= notice.id %>/resume" method="post" class="row-form stacked">
-            <input type="hidden" name="csrf" value="<%= csrf %>">
-            <label for="resume-notes-<%= notice.id %>">Completion notification update (optional)</label>
-            <textarea id="resume-notes-<%= notice.id %>" name="notes" rows="2" maxlength="3000" placeholder="Add any known issues, next steps, or other useful information."></textarea>
-            <button class="button" type="submit" formaction="/admin/maintenance-notifications/<%= notice.id %>/test-completion">Send completion test email to me</button>
-            <button class="button button-primary" type="submit">Confirm service is available and email staff</button>
-          </form>
+  <section class="panel">
+    <h2>Maintenance requests</h2>
+    <% if (!notices.length) { %>
+      <p>No maintenance requests have been scheduled.</p>
+    <% } else { %>
+      <% notices.forEach(notice => { %>
+        <article class="panel">
+          <h3><%= notice.module_name %> — <%= formatDate(notice.scheduled_at) %> NZ time</h3>
+          <p><strong>Status:</strong> <%= notice.status.replace(/_/g, ' ') %></p>
+          <% if (notice.expected_duration) { %><p><strong>Expected duration:</strong> <%= notice.expected_duration %></p><% } %>
+          <p><strong>What staff should expect:</strong><br><%= notice.impact %></p>
+          <% if (notice.details) { %><p><strong>Additional information:</strong><br><%= notice.details %></p><% } %>
+          <% if (notice.warning_sent_at) { %><p role="status">Warning sent <%= formatDate(notice.warning_sent_at) %>.</p>
+          <% } else if (notice.warning_error) { %><p role="alert">Warning not sent: <%= notice.warning_error %></p>
+          <% } else if (notice.status === 'scheduled') { %><p>Warning is scheduled only after its test email has been sent successfully.</p><% } %>
+          <% if (notice.status === 'scheduled' && !notice.warning_sent_at) { %>
+            <% if (notice.warning_tested_at) { %>
+              <p role="status">A maintenance request test email was sent successfully.</p>
+            <% } else { %>
+              <form action="/admin/maintenance-notifications/<%= notice.id %>/test" method="post">
+                <input type="hidden" name="csrf" value="<%= csrf %>">
+                <button class="button" type="submit">Send warning test email to me before staff</button>
+              </form>
+            <% } %>
+          <% } %>
           <% if (notice.status === 'scheduled') { %>
             <form action="/admin/maintenance-notifications/<%= notice.id %>/cancel" method="post">
               <input type="hidden" name="csrf" value="<%= csrf %>">
-              <button class="button" type="submit">Cancel notice</button>
+              <button class="button" type="submit">Cancel request</button>
             </form>
           <% } %>
-        <% } %>
-      </article>
-    <% }) %>
+        </article>
+      <% }) %>
+    <% } %>
+  </section>
+
+  <section class="panel">
+    <h2>Maintenance request email log</h2>
+    <% if (!requestLog.length) { %><p>No maintenance request emails have been logged.</p>
+    <% } else { %>
+      <div class="admin-table-wrap"><table>
+        <thead><tr><th>Sent</th><th>Status</th><th>To / BCC</th><th>Subject</th><th>Error</th></tr></thead>
+        <tbody><% requestLog.forEach(entry => { %>
+          <tr>
+            <td><%= formatDate(entry.sent_at) %></td><td><%= entry.status %></td>
+            <td><%= entry.to_addresses %><% if (entry.bcc_addresses) { %><br>BCC: <%= entry.bcc_addresses %><% } %></td>
+            <td><%= entry.subject %></td><td><%= entry.error || '' %></td>
+          </tr>
+        <% }) %></tbody>
+      </table></div>
+    <% } %>
+  </section>
+<% } else { %>
+  <section class="panel">
+    <h2>Choose apps for this completion notification</h2>
+    <form method="get" action="/admin/maintenance-notifications" class="row-form stacked">
+      <input type="hidden" name="tab" value="completed">
+      <fieldset class="checks permissions">
+        <legend>Apps (select one or more)</legend>
+        <% modules.forEach(module => { %>
+          <label><input type="checkbox" name="completedModule" value="<%= module.hub_key %>" <%= completedKeys.includes(module.hub_key) ? 'checked' : '' %>> <%= module.label %></label>
+        <% }) %>
+      </fieldset>
+      <button class="button" type="submit">Show recipients</button>
+    </form>
+    <% if (completedKeys.length) { %>
+      <p><strong>Selected apps:</strong> <%= modules.filter(module => completedKeys.includes(module.hub_key)).map(module => module.label).join(', ') %></p>
+      <h3>Current recipients (<%= completedRecipients.length %>)</h3>
+      <% if (completedRecipients.length) { %>
+        <ul><% completedRecipients.forEach(person => { %><li><%= person.display_name || person.email %> &lt;<%= person.email %>&gt;</li><% }) %></ul>
+        <p>Current staff assigned to any selected app and active Global ADMINs are included once each by private BCC.</p>
+      <% } else { %>
+        <p>No eligible staff or active administrators are currently listed for these apps.</p>
+      <% } %>
+    <% } %>
+  </section>
+
+  <% if (completedKeys.length && completedRecipients.length) { %>
+    <section class="panel">
+      <h2>Test and send completion notification</h2>
+      <p>This app-independent message tells recipients that maintenance is complete and asks them to access their app(s) from the WHS Launchpad. The test goes only to your signed-in address. A successful test is required before staff can be emailed.</p>
+      <form action="/admin/maintenance-notifications/test-completed" method="post" class="row-form stacked">
+        <input type="hidden" name="csrf" value="<%= csrf %>">
+        <% completedKeys.forEach(key => { %><input type="hidden" name="moduleKey" value="<%= key %>"><% }) %>
+        <label for="completed-notes">Completion update (optional)</label>
+        <textarea id="completed-notes" name="notes" rows="3" maxlength="3000" placeholder="Add any known issues, next steps, or other useful information."><%= completedDraft?.payload?.notes || '' %></textarea>
+        <button class="button button-primary" type="submit">Send completion test email to me</button>
+      </form>
+      <% if (completedDraft) { %>
+        <article class="panel">
+          <h3>Tested completion notification</h3>
+          <p><strong>Status:</strong> <%= completedDraft.status.replace(/_/g, ' ') %></p>
+          <p><strong>Apps:</strong> <%= completedDraft.module_name %></p>
+          <% if (completedDraft.error) { %><p role="alert"><%= completedDraft.error %></p><% } %>
+          <% if (completedDraft.status === 'tested') { %>
+            <p>The test email was sent successfully. Review it before sending this notification to the selected staff.</p>
+            <form action="/admin/maintenance-notifications/send-completed/<%= completedDraft.id %>" method="post">
+              <input type="hidden" name="csrf" value="<%= csrf %>">
+              <button class="button button-primary" type="submit">Confirm and email selected staff</button>
+            </form>
+          <% } %>
+        </article>
+      <% } %>
+    </section>
   <% } %>
-</section>
+
+  <section class="panel">
+    <h2>Maintenance completed email log</h2>
+    <% if (!completedLog.length) { %><p>No completion notification emails have been logged.</p>
+    <% } else { %>
+      <div class="admin-table-wrap"><table>
+        <thead><tr><th>Sent</th><th>Status</th><th>To / BCC</th><th>Subject</th><th>Error</th></tr></thead>
+        <tbody><% completedLog.forEach(entry => { %>
+          <tr>
+            <td><%= formatDate(entry.sent_at) %></td><td><%= entry.status %></td>
+            <td><%= entry.to_addresses %><% if (entry.bcc_addresses) { %><br>BCC: <%= entry.bcc_addresses %><% } %></td>
+            <td><%= entry.subject %></td><td><%= entry.error || '' %></td>
+          </tr>
+        <% }) %></tbody>
+      </table></div>
+    <% } %>
+  </section>
+<% } %>
 <%- include('../partials/footer') %>

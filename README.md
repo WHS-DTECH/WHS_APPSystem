@@ -919,21 +919,20 @@ settings; Teacher and Technician cannot. Deploy both Core and Teacher Planner.
 New generated modules accept these verified identities; existing independent
 services must deploy the updated identity adapter before accepting non-ADMIN users.
 
-Global ADMINs can schedule staff maintenance emails at **Administration >
-Maintenance Notifications** or from **Assign User Roles > All Additional Roles
-Summary**. Select one or more modules to send the same notice for all of them.
-The combined recipient preview includes active users with a current KAMAR staff
-record and a role in any selected module, plus every active Global ADMIN. Each
-email address receives only one copy, even with roles in several selected modules.
-Both the warning and resumption email name all selected modules; existing
-single-module notices retain their original scope.
+Global ADMINs can prepare staff emails at **Administration > Maintenance
+Notifications**. The stacked **Maintenance Req** and **Maintenance Completed** tabs
+have independent app selectors, recipient previews and email logs. Active users
+with a current KAMAR staff record and a role in a selected app, plus active Global
+ADMINs, are included once each using private BCC.
+
+Every staff email is gated on a successful test email to the administrator who
+prepared it. A maintenance request must be tested before it can be scheduled, and
+the scheduler only sends warnings linked to a successful test. A completion
+notification has its own test-and-send workflow and uses generic wording that
+directs staff to access the selected app(s) from the WHS Launchpad. Both tabs show
+their test and staff-delivery history, including failures, from Email Service.
 Warnings are sent 14 days before the scheduled start (or at the next scheduler run
-when scheduled less than 14 days ahead), using private BCC recipients. After
-confirming the service is available, an administrator can first send a completion
-email test to their signed-in address, then send the same completion notification
-to staff with optional updates. Completion emails direct users to open the app from
-the WHS Launchpad. Email delivery uses the configured Gmail service and is recorded
-in Email Service.
+when scheduled less than 14 days ahead).
 
 ## Kamar Uploader module
 

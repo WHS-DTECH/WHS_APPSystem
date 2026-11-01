@@ -34,6 +34,7 @@ test('maintenance email preview includes New Zealand time and escapes user-provi
   }, 'planned');
 
   assert.match(content.subject, /Teacher Planner/);
+  assert.match(content.subject, /^\[Maintenance Req\]/);
   assert.match(content.text, /New Zealand time/);
   assert.match(content.text, /about 30 minutes/);
   assert.match(content.html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
@@ -43,11 +44,13 @@ test('maintenance email preview includes New Zealand time and escapes user-provi
 
 test('maintenance resumption email includes optional staff update', () => {
   const content = noticeEmail({ module_name: 'Teacher Planner' }, 'resumed', 'Some reports may take a few minutes to refresh.');
-  assert.match(content.subject, /complete/);
+  assert.match(content.subject, /^\[Maintenance Completed\]/);
+  assert.doesNotMatch(content.subject, /Teacher Planner/);
   assert.match(content.text, /Some reports may take a few minutes to refresh\./);
   assert.match(content.text, /WHS Launchpad: http:\/\/localhost:3000\//);
   assert.match(content.html, /<a href="http:\/\/localhost:3000\/">WHS Launchpad<\/a>/);
-  assert.match(content.text, /Teacher Planner is available again/);
+  assert.match(content.text, /selected app\(s\) are available again/);
+  assert.doesNotMatch(content.text, /Teacher Planner/);
 });
 
 test('staff recipients query filters out invalid email addresses returned by the database', async () => {
@@ -117,9 +120,11 @@ test('warning scheduler BCCs eligible staff and records successful delivery', as
   }, directoryQuery);
 
   assert.deepEqual(mailed.bcc, ['teacher@westlandhigh.school.nz']);
-  assert.match(mailed.subject, /Teacher Planner, Workshop maintenance planned/);
+  assert.match(mailed.subject, /^\[Maintenance Req\].*Teacher Planner, Workshop maintenance planned/);
   assert.match(mailed.text, /Planned maintenance for Teacher Planner, Workshop/);
   assert.match(calls[1].sql, /FOR UPDATE SKIP LOCKED/);
+  assert.match(calls[1].sql, /warning_test_draft_id IS NOT NULL/);
+  assert.match(calls[1].sql, /tested\.test_sent_at IS NOT NULL/);
   assert.match(calls[1].sql, /AT TIME ZONE 'Pacific\/Auckland'/);
   assert.match(calls[3].sql, /warning_sent_at=NOW\(\)/);
 });
@@ -156,10 +161,14 @@ test('warning scheduler records a delivery failure for an hourly retry', async (
   assert.deepEqual(failedUpdate.params, [notice.id, 'Gmail unavailable']);
 });
 
-test('admin can schedule a notice only with a valid session form token and eligible recipients', async () => {
+test('maintenance request and completion notifications require test emails and log separate tabs', async () => {
   const calls = [];
-  let notice;
+  const drafts = new Map();
+  const notices = [];
+  const emails = [];
   let mailed;
+  let nextId = 0;
+  const id = () => `cfa89387-7632-4a70-b700-${String(++nextId).padStart(12, '0')}`;
   const dbQuery = async (sql, params = []) => {
     calls.push({ sql, params });
     if (sql.includes('FROM hub_roles roles')) {
@@ -168,33 +177,76 @@ test('admin can schedule a notice only with a valid session form token and eligi
         { hub_key: 'workshop', label: 'Workshop' }
       ] };
     }
-    if (sql.includes('SELECT * FROM maintenance_notices')) return { rows: notice ? [notice] : [] };
     if (sql.includes('SELECT DISTINCT LOWER(TRIM(users.email))')) {
       return { rows: [{ email: 'teacher@westlandhigh.school.nz', display_name: 'Teacher' }] };
     }
-    if (sql.includes('INSERT INTO maintenance_notices')) {
-      notice = {
-        id: 'cfa89387-7632-4a70-b700-f7142d07e946',
-        module_key: params[0],
-        module_keys: params[7],
-        module_name: params[1],
-        scheduled_at: params[2],
-        expected_duration: params[3],
-        impact: params[4],
-        details: params[5],
-        status: 'scheduled'
+    if (sql.includes('FROM email_log')) return { rows: [] };
+    if (sql.includes('SELECT * FROM maintenance_notices')) return { rows: notices };
+    if (sql.includes('SELECT * FROM maintenance_email_drafts WHERE id=$1')) {
+      const draft = drafts.get(params[0]);
+      return { rows: draft && draft.created_by === params[1] && draft.kind === params[2] ? [draft] : [] };
+    }
+    if (sql.includes('SELECT ($1::timestamp AT TIME ZONE')) {
+      return { rows: [{ scheduled_at: '2099-02-10T20:30:00.000Z', is_future: true }] };
+    }
+    if (sql.includes('INSERT INTO maintenance_email_drafts')) {
+      const draftId = id();
+      const draft = {
+        id: draftId, kind: sql.includes("VALUES ('request'") ? 'request' : 'completed',
+        module_keys: params[0], module_name: params[1], payload: JSON.parse(params[2]),
+        content_hash: params[3], status: 'test_pending', created_by: params[4]
       };
+      drafts.set(draftId, draft);
+      return { rows: [{ id: draftId }], rowCount: 1 };
+    }
+    if (sql.includes("SET status='scheduling'")) {
+      const draft = drafts.get(params[0]);
+      if (!draft || draft.kind !== 'request' || draft.created_by !== params[1] || draft.status !== 'tested') return { rows: [] };
+      draft.status = 'scheduling';
+      return { rows: [draft], rowCount: 1 };
+    }
+    if (sql.includes("SET status='sending'")) {
+      const draft = drafts.get(params[0]);
+      if (!draft || draft.kind !== 'completed' || draft.created_by !== params[1] || draft.status !== 'tested') return { rows: [] };
+      draft.status = 'sending';
+      return { rows: [draft], rowCount: 1 };
+    }
+    if (sql.includes('INSERT INTO maintenance_notices')) {
+      const notice = {
+        id: id(), module_key: params[0], module_name: params[1], scheduled_at: params[2],
+        expected_duration: params[3], impact: params[4], details: params[5],
+        created_by: params[6], module_keys: params[7], warning_test_draft_id: params[8],
+        warning_tested_at: params[9], status: 'scheduled'
+      };
+      notices.push(notice);
       return { rows: [{ id: notice.id }], rowCount: 1 };
     }
-    if (sql.includes("SET status='resuming'")) {
-      if (!notice || !['scheduled', 'in_progress', 'resumption_failed'].includes(notice.status)) return { rows: [], rowCount: 0 };
-      notice.status = 'resuming';
-      notice.resumption_notes = params[1];
-      return { rows: [notice], rowCount: 1 };
+    if (sql.includes('SET status=$2,test_sent_at=')) {
+      const draft = drafts.get(params[0]);
+      draft.status = params[1];
+      draft.test_sent_at = params[1] === 'tested' ? new Date() : null;
+      draft.error = params[2];
+      return { rows: [], rowCount: 1 };
     }
-    if (sql.includes("SET status='resumed'")) {
-      notice.status = 'resumed';
-      return { rows: [{ id: notice.id }], rowCount: 1 };
+    if (sql.includes("SET status='scheduled',scheduled_at=") || sql.includes("SET status='scheduled',sent_at=") || sql.includes("SET status='sent',sent_at=")) {
+      const draft = drafts.get(params[0]);
+      draft.status = sql.includes("status='scheduled'") ? 'scheduled' : 'sent';
+      draft.sent_at = new Date();
+      return { rows: [], rowCount: 1 };
+    }
+    if (sql.includes("SET status='test_failed',error=$2")) {
+      const draft = drafts.get(params[0]);
+      if (draft) { draft.status = 'test_failed'; draft.error = params[1]; }
+      return { rows: [], rowCount: 1 };
+    }
+    if (sql.includes("SET status='failed',error=$2")) {
+      const draft = drafts.get(params[0]);
+      draft.status = 'failed';
+      draft.error = params[1];
+      return { rows: [], rowCount: 1 };
+    }
+    if (sql.includes('INSERT INTO maintenance_notices')) {
+      return { rows: [], rowCount: 0 };
     }
     throw new Error(`Unexpected query: ${sql}`);
   };
@@ -216,6 +268,7 @@ test('admin can schedule a notice only with a valid session form token and eligi
     directoryQuery,
     mail: async input => {
       mailed = input;
+      emails.push(input);
       return { ok: true };
     }
   }));
@@ -230,12 +283,12 @@ test('admin can schedule a notice only with a valid session form token and eligi
       if (response.headers.get('set-cookie')) cookie = response.headers.get('set-cookie').split(';')[0];
       return response;
     };
-    const page = await getPage('?module=teacher-planner');
+    const page = await getPage('?tab=request&requestModule=teacher-planner');
     const html = await page.text();
     assert.equal(page.status, 200);
     assert.match(html, /Current recipients \(1\)/);
     const csrf = /name="csrf" value="([^"]+)"/.exec(html)[1];
-    const submit = async (token, keys = ['teacher-planner']) => fetch(base, {
+    const submitRequestTest = async (token, keys = ['teacher-planner']) => fetch(base + '/test-request', {
       method: 'POST', redirect: 'manual',
       headers: { cookie, 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams([
@@ -247,69 +300,102 @@ test('admin can schedule a notice only with a valid session form token and eligi
         ['details', '']
       ])
     });
-    assert.equal((await submit('invalid-token')).status, 403);
-    assert.equal((await submit(csrf, [])).status, 400);
-    assert.equal((await submit(csrf, ['teacher-planner', 'unknown'])).status, 400);
-    assert.equal((await getPage('?module=teacher-planner&module=unknown')).status, 400);
-    const multiplePage = await getPage('?module=teacher-planner&module=workshop');
-    const multipleHtml = await multiplePage.text();
-    assert.equal(multiplePage.status, 200);
-    assert.match(multipleHtml, /Selected modules:<\/strong> Teacher Planner, Workshop/);
-    assert.match(multipleHtml, /type="checkbox" name="module" value="workshop" checked/);
-    assert.equal((multipleHtml.match(/type="hidden" name="moduleKey"/g) || []).length, 2);
-    assert.equal((await submit(csrf)).status, 302);
-    assert.deepEqual(notice.module_keys, ['teacher-planner']);
-    const created = await submit(csrf, ['teacher-planner', 'workshop', 'teacher-planner']);
-    assert.equal(created.status, 302, await created.text());
-    assert.equal(created.headers.get('location'), '/admin/maintenance-notifications?message=created');
-    const insert = calls.find(call => call.sql.includes('INSERT INTO maintenance_notices'));
-    assert.match(insert.sql, /AT TIME ZONE 'Pacific\/Auckland'/);
-    assert.equal(insert.params[2], '2099-02-10T09:30');
-    assert.deepEqual(notice.module_keys, ['teacher-planner', 'workshop']);
-    assert.equal(notice.module_name, 'Teacher Planner, Workshop');
-    assert.equal(calls.filter(call => call.sql.includes('INSERT INTO maintenance_notices')).length, 2);
+    assert.equal((await submitRequestTest('invalid-token')).status, 403);
+    assert.equal((await submitRequestTest(csrf, [])).status, 400);
+    assert.equal((await submitRequestTest(csrf, ['teacher-planner', 'unknown'])).status, 400);
+    assert.equal((await getPage('?tab=request&requestModule=unknown')).status, 400);
 
-    const noticePage = await getPage('');
-    const noticeHtml = await noticePage.text();
-    assert.equal(noticePage.status, 200);
-    assert.match(noticeHtml, /Send completion test email to me/);
-    assert.match(noticeHtml, /Completion notification update \(optional\)/);
-
-    const completionTest = await fetch(base + `/${notice.id}/test-completion`, {
+    const untestedSchedule = await fetch(base + `/schedule/${id()}`, {
       method: 'POST', redirect: 'manual',
       headers: { cookie, 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ csrf, notes: 'Reports may take a few minutes to refresh.' })
+      body: new URLSearchParams({ csrf })
     });
-    assert.equal(completionTest.status, 302);
-    assert.equal(completionTest.headers.get('location'), '/admin/maintenance-notifications?message=completion-test-sent');
+    assert.equal(untestedSchedule.status, 409);
+
+    const requestTest = await submitRequestTest(csrf, ['teacher-planner', 'workshop', 'teacher-planner']);
+    assert.equal(requestTest.status, 302);
+    const requestUrl = new URL(requestTest.headers.get('location'), base);
+    assert.equal(requestUrl.searchParams.get('tab'), 'request');
+    const requestDraftId = requestUrl.searchParams.get('requestDraft');
+    const requestDraft = drafts.get(requestDraftId);
+    assert.deepEqual(requestDraft.module_keys, ['teacher-planner', 'workshop']);
+    assert.equal(requestDraft.status, 'tested');
     assert.deepEqual(mailed.to, ['admin@westlandhigh.school.nz']);
     assert.equal(mailed.bcc, undefined);
-    assert.match(mailed.subject, /^\[TEST\].*maintenance complete/);
-    assert.match(mailed.text, /WHS Launchpad: http:\/\/localhost:3000\//);
-    assert.match(mailed.text, /Reports may take a few minutes to refresh\./);
-    assert.equal(notice.status, 'scheduled');
+    assert.match(mailed.subject, /^\[Maintenance Req\] \[TEST\]/);
+    assert.equal(notices.length, 0);
 
-    const resume = await fetch(base + `/${notice.id}/resume`, {
+    const testedRequestPage = await getPage(requestUrl.search);
+    const testedRequestHtml = await testedRequestPage.text();
+    assert.match(testedRequestHtml, /Schedule tested request/);
+    assert.match(testedRequestHtml, /Maintenance request email log/);
+    const scheduleRequest = await fetch(base + `/schedule/${requestDraftId}`, {
       method: 'POST', redirect: 'manual',
       headers: { cookie, 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ csrf, notes: 'Reports may take a few minutes to refresh.' })
+      body: new URLSearchParams({ csrf })
     });
-    assert.equal(resume.status, 302);
+    assert.equal(scheduleRequest.status, 302);
+    assert.equal(notices.length, 1);
+    assert.deepEqual(notices[0].module_keys, ['teacher-planner', 'workshop']);
+    assert.equal(notices[0].warning_test_draft_id, requestDraftId);
+    assert.equal(drafts.get(requestDraftId).status, 'scheduled');
+
+    const completedPage = await getPage('?tab=completed&completedModule=teacher-planner');
+    const completedHtml = await completedPage.text();
+    assert.equal(completedPage.status, 200);
+    assert.match(completedHtml, /Maintenance Completed/);
+    assert.match(completedHtml, /Choose apps for this completion notification/);
+    assert.match(completedHtml, /Maintenance completed email log/);
+    assert.match(completedHtml, /Send completion test email to me/);
+    const completedCsrf = /name="csrf" value="([^"]+)"/.exec(completedHtml)[1];
+    const premature = await fetch(base + `/send-completed/${id()}`, {
+      method: 'POST', redirect: 'manual',
+      headers: { cookie, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ csrf: completedCsrf })
+    });
+    assert.equal(premature.status, 409);
+    assert.equal(emails.length, 1);
+    const completionTest = await fetch(base + '/test-completed', {
+      method: 'POST', redirect: 'manual',
+      headers: { cookie, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams([
+        ['csrf', completedCsrf], ['moduleKey', 'teacher-planner'],
+        ['notes', 'The maintenance work has completed as planned.']
+      ])
+    });
+    assert.equal(completionTest.status, 302);
+    const completedUrl = new URL(completionTest.headers.get('location'), base);
+    const completedDraftId = completedUrl.searchParams.get('completedDraft');
+    const completedDraft = drafts.get(completedDraftId);
+    assert.equal(completedDraft.status, 'tested');
+    assert.deepEqual(completedDraft.module_keys, ['teacher-planner']);
+    assert.deepEqual(mailed.to, ['admin@westlandhigh.school.nz']);
+    assert.equal(mailed.bcc, undefined);
+    assert.match(mailed.subject, /^\[Maintenance Completed\] \[TEST\]/);
+    assert.match(mailed.text, /selected app\(s\) are available again/);
+    assert.match(mailed.text, /WHS Launchpad: http:\/\/localhost:3000\//);
+    assert.doesNotMatch(mailed.text, /Teacher Planner/);
+    assert.match(mailed.text, /The maintenance work has completed as planned\./);
+
+    const completedDraftPage = await getPage(completedUrl.search);
+    assert.match(await completedDraftPage.text(), /Confirm and email selected staff/);
+    assert.equal(emails.length, 2);
+    const sendCompleted = await fetch(base + `/send-completed/${completedDraftId}`, {
+      method: 'POST', redirect: 'manual',
+      headers: { cookie, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ csrf: completedCsrf })
+    });
+    assert.equal(sendCompleted.status, 302);
+    assert.equal(drafts.get(completedDraftId).status, 'sent');
     assert.deepEqual(mailed.bcc, ['teacher@westlandhigh.school.nz']);
-    assert.match(mailed.text, /Reports may take a few minutes to refresh\./);
-    assert.match(mailed.text, /Maintenance is complete and Teacher Planner, Workshop is available again/);
-    assert.match(mailed.text, /WHS Launchpad: http:\/\/localhost:3000\//);
-    assert.match(mailed.subject, /Teacher Planner, Workshop maintenance complete/);
-    const resumptionRecipients = calls.filter(call => call.sql.includes('SELECT DISTINCT LOWER(TRIM(users.email))')).at(-1);
-    assert.deepEqual(resumptionRecipients.params, [['teacher-planner', 'workshop'], ['teacher@westlandhigh.school.nz']]);
-    assert.equal(notice.status, 'resumed');
-
-    const duplicate = await fetch(base + `/${notice.id}/resume`, {
+    assert.match(mailed.subject, /^\[Maintenance Completed\]/);
+    assert.equal(emails.length, 3);
+    assert.equal((await fetch(base + `/send-completed/${completedDraftId}`, {
       method: 'POST', redirect: 'manual',
       headers: { cookie, 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ csrf, notes: '' })
-    });
-    assert.equal(duplicate.status, 409);
+      body: new URLSearchParams({ csrf: completedCsrf })
+    })).status, 409);
+    assert.equal(emails.length, 3);
   } finally {
     await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
   }
@@ -347,13 +433,21 @@ test('database migration preserves old notices and combined scope includes only 
       INSERT INTO user_roles SELECT id,1 FROM users WHERE email='admin@school.test';
     `);
     const migration = name => fs.readFile(path.join(__dirname, '..', 'migrations', name), 'utf8');
+    await client.query(await migration('015_email_log.sql'));
     await client.query(await migration('033_maintenance_notifications.sql'));
     await client.query(`INSERT INTO maintenance_notices(module_key,module_name,scheduled_at,impact)
       VALUES ('teacher-planner','Teacher Planner',NOW()+INTERVAL '30 days','Temporarily unavailable')`);
     await client.query(await migration('035_maintenance_multiple_modules.sql'));
+    await client.query(await migration('040_maintenance_email_workflow.sql'));
     const notice = (await client.query('SELECT * FROM maintenance_notices')).rows[0];
     assert.deepEqual(notice.module_keys, ['teacher-planner']);
     assert.equal(notice.status, 'scheduled');
+    assert.equal(notice.warning_test_draft_id, null);
+    await client.query(`INSERT INTO maintenance_email_drafts
+      (kind,module_keys,module_name,payload,content_hash,status)
+      VALUES ('completed',ARRAY['teacher-planner'],'Teacher Planner','{"notes":""}','hash','tested')`);
+    const draft = (await client.query('SELECT kind,status FROM maintenance_email_drafts')).rows[0];
+    assert.deepEqual(draft, { kind: 'completed', status: 'tested' });
     const people = await loadRecipients(['teacher-planner', 'workshop'], (...args) => client.query(...args), (...args) => client.query(...args));
     assert.deepEqual(people.map(person => person.email), ['admin@school.test', 'both@school.test', 'workshop@school.test']);
     await assert.rejects(client.query(`UPDATE maintenance_notices SET module_keys='{}'`), /maintenance_notice_modules_required/);
