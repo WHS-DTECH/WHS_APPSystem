@@ -999,6 +999,9 @@ sign-in. Planner CSRF, revision-conflict checks and per-owner filtering remain
 unchanged. `TEACHER_PLANNER_DATABASE_SSL=false` is for local PostgreSQL only.
 Missing database/schema or invalid Google integration configuration returns an
 explicit unavailable response without affecting Core or the original service.
+Signed-in Global ADMIN users also see a safe `diagnostic` identifying the failed
+configuration or table check. Render logs contain the same diagnostic, never
+connection strings, passwords, token keys or raw database error messages.
 
 Keep the original `GOOGLE_CALENDAR_TOKEN_KEY` and Calendar/Drive credentials:
 changing that key would make stored Google connections unreadable. The linked

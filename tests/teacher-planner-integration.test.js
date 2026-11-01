@@ -13,9 +13,9 @@ const { configuration, encryptTokens, decryptTokens } = require('../src/legacy/t
 
 const origin = 'https://school.example.test';
 
-async function fixture(t) {
+async function fixture(t, { env = {}, useRealDatabase = false } = {}) {
   const owner = crypto.randomUUID();
-  const state = { signedIn: true, allowed: true, unavailable: false, revision: 4,
+  const state = { signedIn: true, allowed: true, unavailable: false, failureCode: null, roles: ['Teacher'], revision: 4,
     content: { professional: 'Original private planner' }, plannerCalls: [], coreCalls: [], directoryCalls: [] };
   const app = express();
   app.use(session({ secret: 'embedded-planner-test-session', resave: false, saveUninitialized: false }));
@@ -32,13 +32,14 @@ async function fixture(t) {
       assert.match(sql, /u.is_active=true/);
       assert.match(sql, /p.permission_key='home.view'/);
       return { rows: state.allowed ? [{ id: owner, email: 'teacher@school.test', display_name: 'Current Teacher',
-        roles: ['Teacher'], module_roles: ['lead-teacher'] }] : [] };
+        roles: state.roles, module_roles: ['lead-teacher'] }] : [] };
     }
     if (sql.includes('FROM public.department')) return { rows: [] };
     assert.fail('Unexpected Core query: ' + sql);
   };
   const plannerQuery = async (sql, values) => {
     state.plannerCalls.push({ sql, values });
+    if (state.failureCode) throw Object.assign(new Error('private connection details must not be exposed'), { code: state.failureCode });
     if (state.unavailable) throw new Error('Database unavailable');
     if (/LIMIT 0$/.test(sql) || sql === 'SELECT 1') return { rows: [] };
     assert.doesNotMatch(sql, /users|roles|staff_upload|student_upload/);
@@ -66,8 +67,8 @@ async function fixture(t) {
     if (sql.includes('FROM staff_upload')) return { rows: [{ id: '1', code: 'TST', first_name: 'Current', last_name: 'Teacher' }] };
     assert.fail('Unexpected directory query: ' + sql);
   };
-  app.use('/teacher-planner', createTeacherPlannerRouter({ dbQuery, plannerQuery, directoryQuery,
-    env: { APP_BASE_URL: origin }, schoolCalendar: async year => ({ year, terms: [], holidays: [] }) }));
+  app.use('/teacher-planner', createTeacherPlannerRouter({ dbQuery, ...(useRealDatabase ? {} : { plannerQuery }), directoryQuery,
+    env: { APP_BASE_URL: origin, ...env }, schoolCalendar: async year => ({ year, terms: [], holidays: [] }) }));
   app.use((error, req, res, next) => res.status(500).json({ error: error.message }));
   const server = app.listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
@@ -190,4 +191,32 @@ test('shared Planner navigation links role management without offering unrelated
     { locals: {}, set() {}, json: value => { model = value; } }, error => { throw error; });
   assert.equal(model.assignRolesUrl, '/hubs/teacher-planner/roles');
   assert.deepEqual(model.roleViews, []);
+});
+
+test('readiness diagnostics distinguish configuration and schema failures without exposing secrets', async t => {
+  const missing = await fixture(t, { useRealDatabase: true });
+  missing.state.roles = ['ADMIN'];
+  const missingResponse = await missing.call('/');
+  assert.equal(missingResponse.status, 503);
+  assert.match((await missingResponse.json()).diagnostic, /Set TEACHER_PLANNER_DATABASE_URL/);
+  assert.equal(missing.state.plannerCalls.length, 0);
+
+  const schema = await fixture(t);
+  schema.state.roles = ['ADMIN'];
+  schema.state.failureCode = '42P01';
+  const schemaResponse = await schema.call('/');
+  assert.equal(schemaResponse.status, 503);
+  const detail = await schemaResponse.json();
+  assert.match(detail.diagnostic, /missing table planner_sections/);
+  assert.match(detail.diagnostic, /42P01/);
+  assert.doesNotMatch(JSON.stringify(detail), /private connection details/);
+  schema.state.roles = ['Teacher'];
+  assert.equal((await (await schema.call('/')).json()).diagnostic, undefined);
+
+  const google = await fixture(t, { env: { GOOGLE_CALENDAR_CLIENT_ID: 'incomplete' } });
+  google.state.roles = ['ADMIN'];
+  const googleResponse = await google.call('/');
+  assert.equal(googleResponse.status, 503);
+  assert.equal((await googleResponse.json()).diagnostic, 'Set all three GOOGLE_CALENDAR credentials.');
+  assert.ok(google.state.plannerCalls.every(({ sql }) => sql.startsWith('SELECT')));
 });

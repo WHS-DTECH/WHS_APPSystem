@@ -12,6 +12,18 @@ const { pickerPolicy } = require('../legacy/teacher-planner/googleDrive');
 const { selectRegionalHolidays } = require('../legacy/teacher-planner/regionalHolidays');
 
 const PREFIX = '/teacher-planner';
+const CONFIGURATION_ERRORS = new Set([
+  'Set TEACHER_PLANNER_DATABASE_URL to the existing Teacher Planner database. No fallback is used.',
+  'Teacher Planner requires its existing PostgreSQL database.',
+  'Teacher Planner must not use the Core or Kamar database.',
+  'Set all three GOOGLE_CALENDAR credentials.',
+  'GOOGLE_CALENDAR_TOKEN_KEY must be a base64-encoded 32-byte key.',
+  'Google Calendar requires an HTTPS APP_BASE_URL origin.'
+]);
+
+function configurationFailure(error, fallback) {
+  return new Error(CONFIGURATION_ERRORS.has(error.message) ? error.message : fallback);
+}
 
 function databaseOptions(env = process.env, coreUrl = config.databaseUrl) {
   const connectionString = env.TEACHER_PLANNER_DATABASE_URL;
@@ -46,13 +58,32 @@ function createTeacherPlannerRouter({ env = process.env, dbQuery = coreQuery, di
   const calendar = (req, year) => schoolCalendar(year);
   function initialize() {
     if (!ready) ready = Promise.resolve().then(async () => {
+      if (!plannerQuery) {
+        try { databaseOptions(env); }
+        catch (error) {
+          throw configurationFailure(error, 'Check TEACHER_PLANNER_DATABASE_URL and the Core/Kamar database URL formats. Do not share their values.');
+        }
+      }
       for (const table of ['planner_sections', 'school_planner_settings', 'teacher_calendar_settings',
         'google_calendar_connections', 'school_duty_rosters', 'planner_attendance_groups', 'planner_attendance_marks']) {
-        await query(`SELECT * FROM ${table} LIMIT 0`);
+        try { await query(`SELECT * FROM ${table} LIMIT 0`); }
+        catch (error) {
+          const code = typeof error.code === 'string' && /^[A-Z0-9_]{2,30}$/.test(error.code) ? ` (${error.code})` : '';
+          const detail = error.code === '42P01' ? `The existing Planner database is missing table ${table}. Check that this is the standalone Planner database and its schema is up to date.` :
+            error.code === '28P01' ? 'The existing Planner database rejected its login credentials.' :
+            error.code === '3D000' ? 'The configured Planner database does not exist.' :
+            error.code === '42501' ? `The Planner database account lacks permission to read ${table}.` :
+            `Could not read ${table} from the existing Planner database. Check connection access and availability.`;
+          throw new Error(detail + code);
+        }
       }
-      module = createModuleRouter({ query, env: plannerEnv, loadSchoolCalendar: calendar,
-        loadStaff: (req, options) => staffDirectory(req.user, options, directoryQuery, dbQuery),
-        loadClasses: (req, year) => attendanceClasses(req.user, year, directoryQuery) });
+      try {
+        module = createModuleRouter({ query, env: plannerEnv, loadSchoolCalendar: calendar,
+          loadStaff: (req, options) => staffDirectory(req.user, options, directoryQuery, dbQuery),
+          loadClasses: (req, year) => attendanceClasses(req.user, year, directoryQuery) });
+      } catch (error) {
+        throw configurationFailure(error, 'Planner Google integration setup failed. Check APP_BASE_URL and the linked Google Calendar environment group.');
+      }
     }).catch(error => { ready = null; throw error; });
     return ready;
   }
@@ -89,9 +120,12 @@ function createTeacherPlannerRouter({ env = process.env, dbQuery = coreQuery, di
   });
   router.use(async (req, res, next) => {
     try { await initialize(); next(); }
-    catch {
-      console.error('Teacher Planner existing database or integration configuration is unavailable.');
-      res.status(503).json({ error: 'Teacher Planner is unavailable. Check its existing database and Google integration configuration. No fallback or data migration is used.' });
+    catch (error) {
+      console.error('Teacher Planner setup failed:', error.message);
+      res.status(503).json({
+        error: 'Teacher Planner is unavailable. Check its existing database and Google integration configuration. No fallback or data migration is used.',
+        ...(req.user.roles.includes('ADMIN') ? { diagnostic: error.message } : {})
+      });
     }
   });
   router.use(helmet(pickerPolicy(['https://lh3.googleusercontent.com'])));
