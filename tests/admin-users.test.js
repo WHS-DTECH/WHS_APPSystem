@@ -8,6 +8,65 @@ const session = require('express-session');
 const { Pool } = require('pg');
 const { createAdminUsersRouter } = require('../src/adminUsers');
 
+test('admin directory searches and person verification use legacy Kamar while assignments stay in Core', async () => {
+  let unavailable = false;
+  const writes = [];
+  const person = { email: 'staff@school.test', display_name: 'Current Teacher', reference: 'TST' };
+  const roleId = crypto.randomUUID();
+  const app = express();
+  app.use(express.urlencoded({ extended: false }));
+  app.use(session({ secret: 'admin-users-directory-fixture', saveUninitialized: false, resave: false }));
+  app.use((req, res, next) => {
+    req.user = { id: 'admin', roles: ['ADMIN'] };
+    req.isAuthenticated = () => true;
+    req.session.adminUsersCsrf = 'test-token';
+    res.render = (view, model) => res.json({ view, ...model });
+    next();
+  });
+  app.use('/admin/users', createAdminUsersRouter({
+    initDirectory: async () => {},
+    directoryQuery: async (sql, params) => {
+      assert.match(sql, /FROM staff_upload/);
+      assert.doesNotMatch(sql, /users|roles/);
+      if (unavailable) throw new Error('Kamar directory unavailable');
+      assert.deepEqual(params, sql.includes('email=$1') ? [person.email] : ['%current%']);
+      return { rows: [person] };
+    },
+    dbQuery: async (sql, params) => {
+      assert.doesNotMatch(sql, /staff_upload|student_details_upload/);
+      if (sql.includes("SELECT 'module:'")) return { rows: [] };
+      if (sql.includes('SELECT id FROM roles')) return { rows: [{ id: roleId }] };
+      if (sql.includes('INSERT INTO users')) {
+        writes.push(params);
+        return { rows: [{ id: 'user' }] };
+      }
+      assert.fail('Unexpected Core query: ' + sql);
+    }
+  }));
+  app.use((error, req, res, next) => res.status(503).json({ error: error.message }));
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  try {
+    const base = `http://127.0.0.1:${server.address().port}/admin/users`;
+    const directory = await fetch(base + '/directory?type=staff&q=current');
+    assert.equal(directory.status, 200);
+    assert.deepEqual(await directory.json(), { people: [person], more: false });
+    const add = () => fetch(base + '/add', {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, redirect: 'manual',
+      body: new URLSearchParams({ csrf: 'test-token', type: 'staff', email: person.email, roleId })
+    });
+    assert.equal((await add()).status, 302);
+    assert.deepEqual(writes, [[person.email, person.display_name, roleId]]);
+    unavailable = true;
+    const failed = await add();
+    assert.equal(failed.status, 503);
+    assert.match((await failed.json()).error, /Kamar directory unavailable/);
+    assert.equal(writes.length, 1, 'an outage must not add or remove assignments');
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+});
+
 test('Global Control role directory and individual changes preserve primary and system roles', {
   skip: !process.env.MODULE_BUILDER_TEST_DATABASE_URL
 }, async () => {
@@ -49,7 +108,7 @@ test('Global Control role directory and individual changes preserve primary and 
       res.locals.activeRole = 'ADMIN';
       next();
     });
-    app.use('/admin/users', createAdminUsersRouter({ dbQuery: (...args) => db.query(...args), initDirectory: async () => {} }));
+    app.use('/admin/users', createAdminUsersRouter({ dbQuery: (...args) => db.query(...args), directoryQuery: (...args) => db.query(...args), initDirectory: async () => {} }));
     server = app.listen(0, '127.0.0.1');
     await new Promise(resolve => server.once('listening', resolve));
     const base = 'http://127.0.0.1:' + server.address().port + '/admin/users';

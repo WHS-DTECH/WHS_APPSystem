@@ -13,10 +13,15 @@ const registered = {
 };
 let statements = [];
 let failInsert = false;
+let directoryFails = false;
 
 async function query(sql, params = []) {
   statements.push({ sql, params });
-  if (sql.includes('FROM staff_upload staff')) return { rows: [{ email: 'client@example.invalid', display_name: 'Client Teacher' }] };
+  assert.doesNotMatch(sql, /FROM staff_upload|FROM student_details_upload/, 'Core must not read imported Kamar tables');
+  if (sql.includes('jsonb_to_recordset')) {
+    assert.equal(JSON.parse(params[0])[0].email_school, 'client@example.invalid');
+    return { rows: [{ email: 'client@example.invalid', display_name: 'Client Teacher' }] };
+  }
   if (sql.startsWith('SELECT id FROM users')) return { rows: [{ id: 'client' }], rowCount: 1 };
   if (sql.includes('INSERT INTO student_apps')) return { rows: [{ ...registered, status: 'pending' }] };
   if (sql.startsWith('SELECT * FROM student_apps WHERE slug')) return { rows: [registered] };
@@ -51,6 +56,15 @@ require.cache[require.resolve('../src/db')] = {
   }
 };
 require.cache[require.resolve('../src/email')] = { exports: { sendEmail: async () => ({ ok: true }) } };
+require.cache[require.resolve('../src/legacy/kamar-uploader/db')] = {
+  exports: { query: async sql => {
+    if (directoryFails) throw new Error('Kamar directory unavailable');
+    assert.match(sql, /FROM staff_upload|FROM student_details_upload/);
+    return { rows: sql.includes('FROM staff_upload') ? [
+      { code: 'TST', first_name: 'Client', last_name: 'Teacher', email_school: 'client@example.invalid' }
+    ] : [] };
+  } }
+};
 const { router, hostedProxy, resolveAppRole, datasetManagerUrl } = require('../src/studentApps');
 const hostedApps = require('../src/hostedApps');
 const { roleConfig, contentHash } = hostedApps;
@@ -75,7 +89,7 @@ test.before(async () => {
   });
 });
 test.after(() => new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve())));
-test.beforeEach(() => { statements = []; failInsert = false; });
+test.beforeEach(() => { statements = []; failInsert = false; directoryFails = false; });
 
 async function saveAs(user, body) {
   return fetch(`http://127.0.0.1:${server.address().port}/student-apps/${registered.slug}/roles`, {
@@ -118,6 +132,18 @@ test('registration automatically assigns the Builder, chosen client and Guidance
   assert.deepEqual(mappings.map(({ params }) => params.slice(1)), [
     ['admin', 'ADMIN'], ['builder', 'AppBuilder'], ['lead-teacher', 'ADMIN'], ['teacher', 'Counsellor'], ['technician', 'Counsellor']
   ]);
+});
+
+test('registration reports a live Kamar directory outage without creating a project or changing roles', async () => {
+  directoryFails = true;
+  const response = await fetch(`http://127.0.0.1:${server.address().port}/student-apps/new`, {
+    method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ name: 'Guidance Counsellor App', client_id: 'client@example.invalid' }),
+    redirect: 'manual'
+  });
+  assert.equal(response.status, 500);
+  assert.match((await response.json()).error, /Kamar directory unavailable/);
+  assert.equal(statements.some(({ sql }) => /INSERT|UPDATE|DELETE/.test(sql)), false);
 });
 
 test('the client can open setup to manage access, while the Builder sees it read-only', async () => {

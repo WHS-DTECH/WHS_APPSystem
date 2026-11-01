@@ -11,7 +11,7 @@ test('staff bridge validates module identity before returning minimal current Ka
   const calls = [];
   let allowed = true, unavailable = false, role = 'Teacher', moduleRoles = [], directoryFails = false, staffCodes = ['TST'];
   const app = express(); app.use(express.json());
-  app.use('/module-auth', createModuleIdentityRouter({ dbQuery: async (sql, params) => {
+  const fixtureQuery = async (sql, params) => {
     calls.push([sql, params]);
     if (sql.includes('FROM module_builder_projects')) return { rows: [{ id: 'project', slug: 'teacher-planner',
       kind: 'development', app_url: 'https://fixture.onrender.com' }] };
@@ -45,7 +45,17 @@ test('staff bridge validates module identity before returning minimal current Ka
         ...(sql.includes('email_school') ? { email_school: 'synthetic@example.test' } : {}) }] };
     }
     throw new Error('Unexpected query: ' + sql);
-  } }));
+  };
+  app.use('/module-auth', createModuleIdentityRouter({
+    dbQuery: async (sql, params) => {
+      assert.doesNotMatch(sql, /FROM staff_upload|FROM student_upload/, 'Core must not supply Kamar directory data');
+      return fixtureQuery(sql, params);
+    },
+    directoryQuery: async (sql, params) => {
+      assert.match(sql, /FROM staff_upload|FROM student_upload/, 'only directory reads belong in the legacy database');
+      return fixtureQuery(sql, params);
+    }
+  }));
   const server = app.listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
   t.after(() => new Promise(resolve => server.close(resolve)));
@@ -176,6 +186,7 @@ test('Global Control identity binds codes to clients, PKCE, current ADMIN roles 
     let calendarFailure = false;
     app.use('/module-auth', createModuleIdentityRouter({
       dbQuery: (sql, values) => sql.includes('FROM public.department') ? Promise.resolve({rows:[]}) : pool.query(sql, values),
+      directoryQuery: (sql, values) => pool.query(sql, values),
       schoolCalendar: async year => {
         if (calendarFailure) throw new Error('Fixture source outage');
         return {year, available:true,terms:[],holidays:[]};

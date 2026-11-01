@@ -3,6 +3,8 @@ const express = require('express');
 const { query } = require('./db');
 const { ensureAuthenticated, ensureRole } = require('./middleware');
 const { HUBS, SYSTEM_MODULES } = require('./hubRoles');
+const { query: kamarQuery } = require('./legacy/kamar-uploader/db');
+const { currentDirectory, classifyPeople } = require('./kamarDirectory');
 
 const uuid = value => typeof value === 'string' && /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(value);
 const directorySql = type => type === 'staff'
@@ -13,7 +15,7 @@ const directorySql = type => type === 'staff'
        TRIM(CONCAT_WS(' ', first_name, last_name)) AS display_name, id_number::text AS reference
      FROM student_details_upload WHERE status='Current'`;
 
-function createAdminUsersRouter({ dbQuery = query, initDirectory = () => require('./legacy/kamar-uploader/store').init(), mail, baseUrl } = {}) {
+function createAdminUsersRouter({ dbQuery = query, directoryQuery = kamarQuery, initDirectory = () => require('./legacy/kamar-uploader/store').init(), mail, baseUrl } = {}) {
   const router = express.Router();
   router.use(ensureAuthenticated, ensureRole('ADMIN'));
   router.use((req, res, next) => {
@@ -71,6 +73,7 @@ function createAdminUsersRouter({ dbQuery = query, initDirectory = () => require
     const global = module === 'global';
     try {
       await initDirectory();
+      const directory = await currentDirectory(directoryQuery);
       const modules = await moduleCatalogue();
       const canonical = modules.find(item => item.key !== module &&
         (module === item.original_key || module === 'module:' + item.hub_key || (item.project_id && module === 'project:' + item.project_id)));
@@ -81,9 +84,7 @@ function createAdminUsersRouter({ dbQuery = query, initDirectory = () => require
       const [roles, assignments, summary] = await Promise.all([
         global ? dbQuery("SELECT id,name,description FROM roles WHERE name NOT IN ('Staff','Student') ORDER BY name") :
           dbQuery('SELECT id,display_name AS name,description FROM hub_roles WHERE hub_key=$1 ORDER BY display_name', [module]),
-        dbQuery(`SELECT u.id,u.display_name,u.email,r.id AS role_id,r.name AS role_name,ur.assignment_source,
-          EXISTS (SELECT 1 FROM staff_upload s WHERE LOWER(TRIM(s.email_school))=LOWER(u.email) AND s.status='Current') AS is_staff,
-          EXISTS (SELECT 1 FROM student_details_upload s WHERE LOWER(TRIM(s.email_school))=LOWER(u.email) AND s.status='Current') AS is_student
+        dbQuery(`SELECT u.id,u.display_name,u.email,r.id AS role_id,r.name AS role_name,ur.assignment_source
           FROM users u JOIN ${global ? 'user_roles' : "(SELECT user_id,hub_role_id AS role_id,'manual'::text AS assignment_source FROM user_hub_roles WHERE area_key IS NULL)"} ur ON ur.user_id=u.id
           JOIN ${global ? 'roles' : '(SELECT id,display_name AS name,hub_key FROM hub_roles)'} r ON r.id=ur.role_id
           WHERE ${global ? "r.name NOT IN ('Staff','Student')" : 'r.hub_key=$1'} ORDER BY LOWER(u.email),r.name`, global ? [] : [module]),
@@ -102,19 +103,17 @@ function createAdminUsersRouter({ dbQuery = query, initDirectory = () => require
           SELECT t.user_id,'teacher-module',m.display_name,NULL,NULL,NULL
           FROM teacher_module_assignments t JOIN modules m ON m.id=t.module_id
         )
-        SELECT u.id,u.display_name,u.email,u.is_active,assignments.*,
-          EXISTS (SELECT 1 FROM staff_upload s WHERE LOWER(TRIM(s.email_school))=LOWER(u.email) AND s.status='Current') AS is_staff,
-          EXISTS (SELECT 1 FROM student_details_upload s WHERE LOWER(TRIM(s.email_school))=LOWER(u.email) AND s.status='Current') AS is_student
+        SELECT u.id,u.display_name,u.email,u.is_active,assignments.*
         FROM assignments JOIN users u ON u.id=assignments.user_id
         ORDER BY LOWER(u.email),u.id,kind,module_label,role_name,area_key`)
       ]);
       const grouped = new Map();
-      for (const row of assignments.rows) {
+      for (const row of classifyPeople(assignments.rows, directory)) {
         if (!grouped.has(row.id)) grouped.set(row.id, { ...row, assignments: [] });
         grouped.get(row.id).assignments.push({ id: row.role_id, name: row.role_name, source: row.assignment_source });
       }
       const summaryUsers = new Map();
-      for (const row of summary.rows) {
+      for (const row of classifyPeople(summary.rows, directory)) {
         if (!summaryUsers.has(row.id)) summaryUsers.set(row.id, { ...row, globalRoles: [], moduleRoles: [], teacherModules: [] });
         const user = summaryUsers.get(row.id);
         if (row.kind === 'global') user.globalRoles.push({ name: row.role_name, source: row.assignment_source });
@@ -137,7 +136,7 @@ function createAdminUsersRouter({ dbQuery = query, initDirectory = () => require
     try {
       await initDirectory();
       const term = '%' + req.query.q.trim().toLowerCase().replace(/[\\%_]/g, '\\$&') + '%';
-      const result = await dbQuery(`SELECT DISTINCT email,display_name,reference FROM (${directorySql(req.query.type)}) directory
+      const result = await directoryQuery(`SELECT DISTINCT email,display_name,reference FROM (${directorySql(req.query.type)}) directory
         WHERE email<>'' AND (email LIKE $1 OR LOWER(display_name) LIKE $1 OR LOWER(reference) LIKE $1)
         ORDER BY display_name,email LIMIT 21`, [term]);
       res.json({ people: result.rows.slice(0, 20), more: result.rows.length > 20 });
@@ -157,7 +156,7 @@ function createAdminUsersRouter({ dbQuery = query, initDirectory = () => require
         return invalid(res, 'This module does not support role changes here. Use its existing access controls.');
       }
       await initDirectory();
-      const person = (await dbQuery(`SELECT * FROM (${directorySql(type)}) directory WHERE email=$1 LIMIT 1`, [email])).rows[0];
+      const person = (await directoryQuery(`SELECT * FROM (${directorySql(type)}) directory WHERE email=$1 LIMIT 1`, [email])).rows[0];
       if (!person) return invalid(res, 'That email is not on the selected current KAMAR list. Check the type, email and uploaded directory.');
       const role = (await (global ?
         dbQuery("SELECT id FROM roles WHERE id=$1 AND name NOT IN ('Staff','Student')", [roleId]) :

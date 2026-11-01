@@ -6,6 +6,7 @@ const { query } = require('./db');
 const { ensureAuthenticated, ensureRole } = require('./middleware');
 const { sendEmail } = require('./email');
 const { SYSTEM_MODULES } = require('./hubRoles');
+const { query: kamarQuery } = require('./legacy/kamar-uploader/db');
 
 const TIME_ZONE = 'Pacific/Auckland';
 const EMAIL_FORMAT = /^[^\s<>@,;]+@[^\s<>@,;]+\.[^\s<>@,;]+$/;
@@ -85,9 +86,11 @@ async function loadModules(dbQuery = query) {
   return result.rows;
 }
 
-async function loadRecipients(moduleKeys, dbQuery = query) {
+async function loadRecipients(moduleKeys, dbQuery = query, directoryQuery = kamarQuery) {
   const keys = moduleSelection(moduleKeys);
   if (!keys.length) throw new Error('Select at least one module before loading recipients.');
+  const staff = (await directoryQuery("SELECT LOWER(TRIM(email_school)) AS email FROM staff_upload WHERE status='Current'")).rows;
+  const staffEmails = staff.map(person => person.email).filter(Boolean);
   const result = await dbQuery(
     `SELECT DISTINCT LOWER(TRIM(users.email)) AS email, users.display_name
      FROM users
@@ -96,11 +99,10 @@ async function loadRecipients(moduleKeys, dbQuery = query) {
        AND (
          EXISTS (
            SELECT 1
-           FROM staff_upload staff
-           JOIN user_hub_roles assignments ON assignments.user_id = users.id
+           FROM user_hub_roles assignments
            JOIN hub_roles assigned_role ON assigned_role.id = assignments.hub_role_id
-           WHERE LOWER(TRIM(staff.email_school)) = LOWER(TRIM(users.email))
-             AND staff.status = 'Current'
+           WHERE assignments.user_id = users.id
+             AND LOWER(TRIM(users.email)) = ANY($2::text[])
              AND assigned_role.hub_key = ANY($1::text[])
          )
          OR EXISTS (
@@ -111,7 +113,7 @@ async function loadRecipients(moduleKeys, dbQuery = query) {
          )
        )
      ORDER BY email`,
-    [keys]
+    [keys, staffEmails]
   );
   const recipients = new Map();
   for (const person of result.rows) {
@@ -123,6 +125,7 @@ async function loadRecipients(moduleKeys, dbQuery = query) {
 
 function createMaintenanceRouter({
   dbQuery = query,
+  directoryQuery = kamarQuery,
   mail = sendEmail,
   initDirectory = () => require('./legacy/kamar-uploader/store').init()
 } = {}) {
@@ -163,7 +166,7 @@ function createMaintenanceRouter({
                     scheduled_at DESC LIMIT 100`
         ),
         moduleKeys.length
-          ? initDirectory().then(() => loadRecipients(moduleKeys, dbQuery))
+          ? initDirectory().then(() => loadRecipients(moduleKeys, dbQuery, directoryQuery))
           : Promise.resolve([])
       ]);
       res.render('admin/maintenance-notifications', {
@@ -204,7 +207,7 @@ function createMaintenanceRouter({
         });
       }
       await initDirectory();
-      const recipients = await loadRecipients(moduleKeys, dbQuery);
+      const recipients = await loadRecipients(moduleKeys, dbQuery, directoryQuery);
       if (!recipients.length) {
         return res.status(409).render('error', {
           title: 'Maintenance notice not saved',
@@ -300,7 +303,7 @@ function createMaintenanceRouter({
         });
       }
       await initDirectory();
-      const recipients = await loadRecipients(notice.module_keys, dbQuery);
+      const recipients = await loadRecipients(notice.module_keys, dbQuery, directoryQuery);
       if (!recipients.length) {
         await dbQuery(
           `UPDATE maintenance_notices SET status='resumption_failed',
@@ -380,7 +383,7 @@ function createMaintenanceRouter({
   return router;
 }
 
-async function sendDueWarnings(dbQuery = query, mail = sendEmail) {
+async function sendDueWarnings(dbQuery = query, mail = sendEmail, directoryQuery = kamarQuery) {
   await dbQuery(
     `UPDATE maintenance_notices SET status='in_progress'
      WHERE status='scheduled' AND scheduled_at <= NOW()`
@@ -402,7 +405,7 @@ async function sendDueWarnings(dbQuery = query, mail = sendEmail) {
   );
   for (const notice of claimed.rows) {
     try {
-      const recipients = await loadRecipients(notice.module_keys, dbQuery);
+      const recipients = await loadRecipients(notice.module_keys, dbQuery, directoryQuery);
       if (!recipients.length) throw new Error('No eligible staff or active administrators were found.');
       const content = noticeEmail(notice, 'planned');
       const result = await mail({

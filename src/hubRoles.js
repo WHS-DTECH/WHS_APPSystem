@@ -2,6 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const { query } = require('./db');
 const { ensureAuthenticated } = require('./middleware');
+const { currentDirectory } = require('./kamarDirectory');
 
 const HUBS = {
   'sewing-hub': { label: 'Sewing Hub', home: '/sewing-hub/' },
@@ -116,13 +117,15 @@ router.get('/:hubKey/roles', async (req, res, next) => {
       [req.hub.key]
     )).rows;
     const params = [req.hub.key];
+    const directory = await currentDirectory();
+    params.push(directory.staffEmails, directory.studentEmails);
     const where = [];
     if (q) { params.push(`%${q.toLowerCase()}%`); where.push(`(LOWER(users.email) LIKE $${params.length} OR LOWER(users.display_name) LIKE $${params.length})`); }
     const users = (await query(
       `SELECT * FROM (
          SELECT users.id, users.display_name, users.email,
-                EXISTS (SELECT 1 FROM staff_upload s WHERE LOWER(s.email_school) = LOWER(users.email) AND s.status = 'Current') AS is_staff,
-                EXISTS (SELECT 1 FROM student_details_upload d WHERE LOWER(d.email_school) = LOWER(users.email) AND d.status = 'Current') AS is_student,
+                LOWER(TRIM(users.email)) = ANY($2::text[]) AS is_staff,
+                LOWER(TRIM(users.email)) = ANY($3::text[]) AS is_student,
                 COALESCE(array_agg(DISTINCT assignments.hub_role_id::text) FILTER (WHERE assignments.hub_role_id IS NOT NULL), '{}') AS hub_role_ids
          FROM users
          LEFT JOIN user_hub_roles assignments ON assignments.user_id = users.id AND assignments.area_key IS NULL

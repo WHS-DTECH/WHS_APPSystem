@@ -5,12 +5,13 @@ const { createModuleSearch } = require('./moduleSearch');
 const { loadSchoolCalendar } = require('./schoolCalendar');
 const { loadDepartments } = require('./legacy/kamar-uploader/departments');
 const { httpsAppUrl } = require('./appAddresses');
+const { query: kamarQuery } = require('./legacy/kamar-uploader/db');
 
 const hash = (value) => crypto.createHash('sha256').update(value).digest('base64url');
 const opaque = (value) => typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value);
 const GRANT_SECONDS = 8 * 60 * 60;
 
-function createModuleIdentityRouter({ dbQuery = query, schoolCalendar = loadSchoolCalendar } = {}) {
+function createModuleIdentityRouter({ dbQuery = query, directoryQuery = kamarQuery, schoolCalendar = loadSchoolCalendar } = {}) {
   const router = express.Router();
   const search = createModuleSearch({ dbQuery });
   router.use((req, res, next) => {
@@ -141,7 +142,7 @@ function createModuleIdentityRouter({ dbQuery = query, schoolCalendar = loadScho
       return deny(res, 'Only administrators and module Lead Teachers can request staff school email mappings.');
     }
     try {
-      const result = await dbQuery(`SELECT id::text AS id,code,first_name,last_name${includeEmails ? ',email_school' : ''}
+      const result = await directoryQuery(`SELECT id::text AS id,code,first_name,last_name${includeEmails ? ',email_school' : ''}
         FROM staff_upload WHERE status='Current'
         AND (NULLIF(TRIM(first_name),'') IS NOT NULL OR NULLIF(TRIM(last_name),'') IS NOT NULL)
         ORDER BY lower(trim(last_name)) NULLS LAST,lower(trim(first_name)) NULLS LAST,id`);
@@ -163,7 +164,7 @@ function createModuleIdentityRouter({ dbQuery = query, schoolCalendar = loadScho
     const columns = ['mon', 'tue', 'wed', 'thu', 'fri']
       .flatMap(day => ['p1_1', 'p1_2', 'p2', 'p3', 'p4', 'p5'].map(period => day + '_' + period));
     try {
-      const staff = await dbQuery(`SELECT DISTINCT upper(trim(code)) AS code FROM staff_upload
+      const staff = await directoryQuery(`SELECT DISTINCT upper(trim(code)) AS code FROM staff_upload
         WHERE status='Current' AND lower(trim(email_school))=lower(trim($1))
         AND NULLIF(TRIM(code),'') IS NOT NULL`, [user.email]);
       if (staff.rows.length !== 1) {
@@ -172,7 +173,7 @@ function createModuleIdentityRouter({ dbQuery = query, schoolCalendar = loadScho
           'Your school sign-in email has no current Staff List code. Ask an administrator to check your school email and staff code.', 409);
       }
       const staffCode = staff.rows[0].code;
-      const { rows } = await dbQuery(`SELECT id_number,student_name,${columns.join(',')}
+      const { rows } = await directoryQuery(`SELECT id_number,student_name,${columns.join(',')}
         FROM student_upload WHERE status='Current' AND upload_year=$1
         AND NULLIF(TRIM(id_number),'') IS NOT NULL AND NULLIF(TRIM(student_name),'') IS NOT NULL
         ORDER BY lower(student_name),id_number`, [req.body.year]);

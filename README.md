@@ -946,7 +946,37 @@ account. Upload pages, ADMIN access and legacy data APIs are unchanged.
 
 The original Kamar Uploader pages (Home, Staff Upload, Student Upload, Student Timetable, Staff Timetable) are served at `/admin/kamar-uploader/` to ADMIN users, with the legacy API (`/api/staff_upload`, `/api/student_details_upload`, `/api/student_upload`, `/api/upload_timetable`, `/api/timetable/all`, `/api/feed/*`, `/api/projects/links`) ported from the legacy server. Roles come from the app's Google login; the legacy cookie login, permission tables and role pages are replaced by `/admin/users`. Feed APIs need a Teacher, Staff or ADMIN user.
 
-Data lives in the unified `DATABASE_URL` database using the legacy tables (`staff_upload`, `student_details_upload`, `student_upload`, `timetable_upload`, `app_project_links`). If `INTEGRATION_KAMAR_DATABASE_URL` is set (or, failing that, `INTEGRATION_LEARNING_SITES_DATABASE_URL`, since both legacy sites share `whs_tech_main`), the legacy Term 1-3 data is copied once into the unified database on first use; all new uploads are written to the unified database only. Staff and Student roles are derived from the current `staff_upload` and `student_details_upload` emails. The copied legacy source and sample data under `LegacySites/` are excluded from Git.
+Kamar uses its existing legacy PostgreSQL database exclusively. Set
+`INTEGRATION_KAMAR_DATABASE_URL` on WHS_APPSystem to the same database used by the
+working legacy service. It must differ from Core `DATABASE_URL`; no fallback to
+Core or Learning Sites is used. TLS is enabled by default; `KAMAR_DATABASE_SSL=false`
+is for local PostgreSQL only. No Kamar tables or records are created, imported,
+deleted or reset by initialization; the existing schema is checked read-only.
+The previous imported Core tables remain untouched but are no longer the source
+for Kamar uploads or shared directories.
+
+All four term upload options and original staff/student/timetable upload pages
+are retained. New uploads update the existing legacy tables (`staff_upload`,
+`student_details_upload`, `student_upload`, `timetable_upload`, `app_project_links`)
+using the original transactions, identifiers and Current/Not Current behaviour.
+Role sync, Global Control user/role directories, Student Apps client selection,
+maintenance recipient eligibility and the Teacher Planner staff/class-list
+bridges read that same live Kamar database. Global accounts, assignments,
+notification logs and the separately curated shared department directory stay
+in Core. Staff and Student roles are derived from live current Kamar emails;
+directory failure prevents role synchronization rather than removing roles.
+
+Before deployment, verify the Kamar connection is configured on WHS_APPSystem
+and back up the legacy database. Do not upload production CSVs as a test: uploads
+intentionally update records and mark absent people/teachers Not Current.
+First sign in as ADMIN, check `/api/feed/health`, the current-count summary and
+existing Term 4 rows against the working legacy service. Then verify directory
+search, Google sign-in and Teacher Planner staff/class lists. Use an isolated
+database copy for destructive upload testing. The original service can remain
+available for rollback; avoid simultaneous uploads from both services.
+There is no new migration for this change and no user notification is sent.
+Private CSVs, `.env`, `node_modules` and the original project's `.git` are not
+copied into WHS_APPSystem.
 
 ## Workshop module
 

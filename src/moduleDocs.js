@@ -51,11 +51,11 @@ const moduleDocs = {
     summary: 'Legacy Kamar Uploader site for Staff, Student and Timetable refreshes.',
     legacyDatabase: {
       used: true,
-      how: 'One-time import of the Term 1-3 Kamar data (guard table kamar_legacy_import). New uploads are saved only in the unified database. If no Kamar-specific URL is set it falls back to the Learning Sites legacy URL. If the copy fails it retries on the next start.'
+      how: 'Live connection to the existing Kamar Uploader database. Terms 1-4, existing and new uploads stay there. Core directory readers use that same source. No import into Core and no fallback to Core or Learning Sites. The separately curated shared department directory remains in Core.'
     },
     env: [
-      { name: 'INTEGRATION_KAMAR_DATABASE_URL', note: 'Connection string of the legacy Kamar database. Falls back to INTEGRATION_LEARNING_SITES_DATABASE_URL.', legacy: true },
-      { name: 'DATABASE_SSL', note: 'Set to false if the legacy database does not use SSL.', optional: true }
+      { name: 'INTEGRATION_KAMAR_DATABASE_URL', note: 'Required connection string of the existing live Kamar database, distinct from Core DATABASE_URL.', legacy: true },
+      { name: 'KAMAR_DATABASE_SSL', note: 'TLS is enabled by default. Set false only for local PostgreSQL without TLS.', optional: true }
     ]
   },
   'technology-hub': {

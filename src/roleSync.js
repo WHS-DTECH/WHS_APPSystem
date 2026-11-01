@@ -1,6 +1,11 @@
-async function syncKamarRoles(db, userId, email) {
-  await require('./legacy/kamar-uploader/store').init();
+const { query: kamarQuery } = require('./legacy/kamar-uploader/db');
 
+async function syncKamarRoles(db, userId, email, directoryQuery = kamarQuery) {
+  // Read both lists before changing Core roles; a directory outage must not remove access.
+  const [staff, students] = await Promise.all([
+    directoryQuery("SELECT 1 FROM staff_upload WHERE LOWER(TRIM(email_school))=LOWER(TRIM($1)) AND status='Current' LIMIT 1", [email]),
+    directoryQuery("SELECT 1 FROM student_details_upload WHERE LOWER(TRIM(email_school))=LOWER(TRIM($1)) AND status='Current' LIMIT 1", [email])
+  ]);
   await db.query(
     `DELETE FROM user_roles
      WHERE user_id = $1 AND assignment_source = 'kamar'`,
@@ -12,13 +17,10 @@ async function syncKamarRoles(db, userId, email) {
      SELECT $1, roles.id, 'kamar'
      FROM roles
      WHERE roles.name = 'Staff'
-       AND EXISTS (
-         SELECT 1 FROM staff_upload
-         WHERE LOWER(email_school) = LOWER($2) AND status = 'Current'
-       )
+       AND $2::boolean
      ON CONFLICT (user_id, role_id)
-     DO UPDATE SET assignment_source = EXCLUDED.assignment_source`,
-    [userId, email]
+     DO NOTHING`,
+    [userId, staff.rows.length > 0]
   );
 
   await db.query(
@@ -26,13 +28,10 @@ async function syncKamarRoles(db, userId, email) {
      SELECT $1, roles.id, 'kamar'
      FROM roles
      WHERE roles.name = 'Student'
-       AND EXISTS (
-         SELECT 1 FROM student_details_upload
-         WHERE LOWER(email_school) = LOWER($2) AND status = 'Current'
-       )
+       AND $2::boolean
      ON CONFLICT (user_id, role_id)
-     DO UPDATE SET assignment_source = EXCLUDED.assignment_source`,
-    [userId, email]
+     DO NOTHING`,
+    [userId, students.rows.length > 0]
   );
 }
 

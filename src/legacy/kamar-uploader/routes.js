@@ -1,9 +1,10 @@
 const express = require('express');
-const { pool } = require('../../db');
+const { pool } = require('./db');
+const { query: coreQuery } = require('../../db');
 const store = require('./store');
 const { loadDepartments } = require('./departments');
 
-// Legacy Kamar Uploader API, ported from the original server.js. Data routes are unchanged;
+// Legacy Kamar Uploader API using its existing database. Data routes are unchanged;
 // the old cookie login and role tables are replaced by the app's Google session roles.
 const router = express.Router();
 
@@ -90,10 +91,21 @@ router.use('/api/feed', requireStaffApi);
 router.use('/api/projects', requireSignedIn);
 
 router.use(['/api/feed', '/api/projects', ...DATA_API_PATHS], (req, res, next) => {
+  res.set('Cache-Control', 'no-store');
   store.init().then(() => next(), (error) => {
-    console.error('Kamar Uploader init failed:', error.message);
-    res.status(500).json({ success: false, error: 'Kamar Uploader database is unavailable.' });
+    console.error('Kamar Uploader legacy database validation failed.');
+    res.status(503).json({ success: false, error: 'The existing Kamar Uploader database is unavailable. Check its connection and schema; no fallback database is used.' });
   });
+});
+
+router.get('/api/feed/health', async (_req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ success: true, database: 'existing-kamar', importsEnabled: false });
+  } catch {
+    console.error('Kamar Uploader legacy database health check failed.');
+    res.status(503).json({ success: false, error: 'The existing Kamar database is unavailable.' });
+  }
 });
 
 router.get('/api/projects/links', async (_req, res) => {
@@ -770,6 +782,7 @@ router.post('/api/staff_upload', async (req, res) => {
       upload_date: uploadDate
     });
   } catch (error) {
+    console.error('Kamar legacy staff upload transaction failed.');
     res.status(500).json({ error: 'Failed to save staff upload data.' });
   }
 });
@@ -904,6 +917,7 @@ router.post('/api/student_details_upload', async (req, res) => {
       upload_date: uploadDate
     });
   } catch (error) {
+    console.error('Kamar legacy student upload transaction failed.');
     res.status(500).json({ error: 'Failed to save student upload data.' });
   }
 });
@@ -1060,6 +1074,7 @@ router.post('/api/student_upload', async (req, res) => {
       upload_date: uploadDate
     });
   } catch (error) {
+    console.error('Kamar legacy student timetable upload transaction failed.');
     res.status(500).json({ error: 'Failed to save student upload data.' });
   }
 });
@@ -1118,7 +1133,7 @@ router.get('/api/feed/staff/current', async (req, res) => {
 router.get('/api/feed/departments', async (_req, res) => {
   try {
     const staff = await pool.query("SELECT id::text AS id,code,first_name,last_name FROM staff_upload WHERE status='Current'");
-    res.json({ departments: await loadDepartments((sql, params) => pool.query(sql, params), staff.rows) });
+    res.json({ departments: await loadDepartments(coreQuery, staff.rows) });
   } catch (error) {
     console.error('Kamar department directory failed:', error.message);
     res.status(502).json({ error: 'The shared department directory could not be loaded. Retry or contact your administrator.' });
@@ -1478,6 +1493,7 @@ router.post('/api/upload_timetable', async (req, res) => {
       upload_date: uploadDate
     });
   } catch (error) {
+    console.error('Kamar legacy staff timetable upload transaction failed.');
     res.status(500).json({ error: 'Failed to save timetable upload data.' });
   }
 });

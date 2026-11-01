@@ -4,6 +4,7 @@ const config = require('./config');
 const { pool, query } = require('./db');
 const { sendEmail } = require('./email');
 const hostedApps = require('./hostedApps');
+const { query: kamarQuery } = require('./legacy/kamar-uploader/db');
 
 const router = express.Router();
 const apiRouter = express.Router();
@@ -52,19 +53,21 @@ function chosenRoles(value) {
 
 // Kamar staff list: admins first (the first one is the default), then teachers already chosen as a client, then everyone else.
 async function clientChoices() {
+  const staff = (await kamarQuery("SELECT title,first_name,last_name,email_school FROM staff_upload WHERE COALESCE(status,'Current')='Current'")).rows;
   const result = await query(
     `SELECT * FROM (
-       SELECT LOWER(staff.email_school) AS email,
+       SELECT LOWER(TRIM(staff.email_school)) AS email,
               TRIM(CONCAT_WS(' ', NULLIF(staff.title, ''), staff.first_name, staff.last_name)) AS display_name,
               staff.last_name, staff.first_name,
               EXISTS (SELECT 1 FROM users u JOIN user_roles ur ON ur.user_id = u.id JOIN roles r ON r.id = ur.role_id
                       WHERE LOWER(u.email) = LOWER(staff.email_school) AND r.name = 'ADMIN') AS is_admin,
               (SELECT COUNT(*) FROM student_apps sa JOIN users u ON u.id = sa.client_user_id
                 WHERE LOWER(u.email) = LOWER(staff.email_school))::int AS times_chosen
-       FROM staff_upload staff
-       WHERE COALESCE(staff.status, 'Current') = 'Current' AND COALESCE(staff.email_school, '') <> ''
+       FROM jsonb_to_recordset($1::jsonb) AS staff(email_school text,title text,first_name text,last_name text)
+       WHERE COALESCE(staff.email_school, '') <> ''
      ) ranked
-     ORDER BY is_admin DESC, times_chosen DESC, last_name, first_name`
+     ORDER BY is_admin DESC, times_chosen DESC, last_name, first_name`,
+    [JSON.stringify(staff)]
   );
   return result.rows;
 }
