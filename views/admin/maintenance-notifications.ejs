@@ -1,18 +1,18 @@
 <%- include('../partials/header') %>
 <%
   const messages = {
-    created: 'Maintenance request scheduled. Its staff email will only be sent after a successful test.',
+    created: 'Maintenance request scheduled. Its email to selected app users will only be sent after a successful test.',
     'request-test-sent': 'Maintenance request test email sent to your signed-in address. Review it before scheduling.',
     'request-test-failed': 'The maintenance request test email failed. Check the email log, then send another test.',
     'completed-test-sent': 'Completion test email sent to your signed-in address. Review it before notifying staff.',
     'completed-test-failed': 'The completion test email failed. Check the email log, then send another test.',
-    'completed-sent': 'Completion notification sent to the staff assigned to the selected apps.'
+    'completed-sent': 'Completion notification sent to the users assigned to the selected apps.'
   };
 %>
 <section class="page-title">
   <p class="eyebrow">Administration</p>
   <h1>Maintenance Notifications</h1>
-  <p>Prepare maintenance requests and completion notifications separately. Select only the apps covered by each message. Every staff email requires a successful test email first.</p>
+  <p>Prepare maintenance requests and completion notifications separately. Select only the apps covered by each message. Every notification email requires a successful test email first.</p>
 </section>
 <% if (message && messages[message]) { %><p role="status"><%= messages[message] %></p><% } %>
 
@@ -41,9 +41,9 @@
       <h3>Current recipients (<%= requestRecipients.length %>)</h3>
       <% if (requestRecipients.length) { %>
         <ul><% requestRecipients.forEach(person => { %><li><%= person.display_name || person.email %> &lt;<%= person.email %>&gt;</li><% }) %></ul>
-        <p>Current staff assigned to any selected app and active Global ADMINs are included once each by private BCC.</p>
+        <p>All active users assigned a role in any selected app, plus active Global ADMINs, are included once each by private BCC.</p>
       <% } else { %>
-        <p>No eligible staff or active administrators are currently listed for these apps.</p>
+        <p>No eligible users or active Global ADMINs are currently listed for these apps.</p>
       <% } %>
     <% } %>
   </section>
@@ -51,7 +51,7 @@
   <% if (requestKeys.length && requestRecipients.length) { %>
     <section class="panel">
       <h2>Test and schedule a maintenance request</h2>
-      <p>The test goes only to your signed-in address. A successful test is required before this request can be scheduled. The staff warning is sent 14 days before the scheduled start, or at the next scheduler run if closer.</p>
+      <p>The test goes only to your signed-in address. A successful test is required before this request can be scheduled. The warning is sent to the selected app users 14 days before the scheduled start, or at the next scheduler run if closer.</p>
       <form action="/admin/maintenance-notifications/test-request" method="post" class="row-form stacked">
         <input type="hidden" name="csrf" value="<%= csrf %>">
         <% requestKeys.forEach(key => { %><input type="hidden" name="moduleKey" value="<%= key %>"><% }) %>
@@ -104,7 +104,7 @@
             <% } else { %>
               <form action="/admin/maintenance-notifications/<%= notice.id %>/test" method="post">
                 <input type="hidden" name="csrf" value="<%= csrf %>">
-                <button class="button" type="submit">Send warning test email to me before staff</button>
+                <button class="button" type="submit">Send warning test email to me before users</button>
               </form>
             <% } %>
           <% } %>
@@ -153,9 +153,9 @@
       <h3>Current recipients (<%= completedRecipients.length %>)</h3>
       <% if (completedRecipients.length) { %>
         <ul><% completedRecipients.forEach(person => { %><li><%= person.display_name || person.email %> &lt;<%= person.email %>&gt;</li><% }) %></ul>
-        <p>Current staff assigned to any selected app and active Global ADMINs are included once each by private BCC.</p>
+        <p>All active users assigned a role in any selected app, plus active Global ADMINs, are included once each by private BCC.</p>
       <% } else { %>
-        <p>No eligible staff or active administrators are currently listed for these apps.</p>
+        <p>No eligible users or active Global ADMINs are currently listed for these apps.</p>
       <% } %>
     <% } %>
   </section>
@@ -163,7 +163,7 @@
   <% if (completedKeys.length && completedRecipients.length) { %>
     <section class="panel">
       <h2>Test and send completion notification</h2>
-      <p>This app-independent message tells recipients that maintenance is complete and asks them to access their app(s) from the WHS Launchpad. The test goes only to your signed-in address. A successful test is required before staff can be emailed.</p>
+      <p>This app-independent message tells recipients that maintenance is complete and asks them to access their app(s) from the WHS Launchpad. The test goes only to your signed-in address. A successful test is required before selected app users can be emailed.</p>
       <form action="/admin/maintenance-notifications/test-completed" method="post" class="row-form stacked">
         <input type="hidden" name="csrf" value="<%= csrf %>">
         <% completedKeys.forEach(key => { %><input type="hidden" name="moduleKey" value="<%= key %>"><% }) %>
@@ -178,10 +178,10 @@
           <p><strong>Apps:</strong> <%= completedDraft.module_name %></p>
           <% if (completedDraft.error) { %><p role="alert"><%= completedDraft.error %></p><% } %>
           <% if (completedDraft.status === 'tested') { %>
-            <p>The test email was sent successfully. Review it before sending this notification to the selected staff.</p>
+            <p>The test email was sent successfully. Review it before sending this notification to the selected app users.</p>
             <form action="/admin/maintenance-notifications/send-completed/<%= completedDraft.id %>" method="post">
               <input type="hidden" name="csrf" value="<%= csrf %>">
-              <button class="button button-primary" type="submit">Confirm and email selected staff</button>
+              <button class="button button-primary" type="submit">Confirm and email selected app users</button>
             </form>
           <% } %>
         </article>

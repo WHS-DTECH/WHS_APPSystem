@@ -6,7 +6,6 @@ const { query } = require('./db');
 const { ensureAuthenticated, ensureRole } = require('./middleware');
 const { sendEmail } = require('./email');
 const { SYSTEM_MODULES } = require('./hubRoles');
-const { query: kamarQuery } = require('./legacy/kamar-uploader/db');
 
 const TIME_ZONE = 'Pacific/Auckland';
 const EMAIL_FORMAT = /^[^\s<>@,;]+@[^\s<>@,;]+\.[^\s<>@,;]+$/;
@@ -116,11 +115,9 @@ async function loadModules(dbQuery = query) {
   return result.rows;
 }
 
-async function loadRecipients(moduleKeys, dbQuery = query, directoryQuery = kamarQuery) {
+async function loadRecipients(moduleKeys, dbQuery = query) {
   const keys = moduleSelection(moduleKeys);
   if (!keys.length) throw new Error('Select at least one module before loading recipients.');
-  const staff = (await directoryQuery("SELECT LOWER(TRIM(email_school)) AS email FROM staff_upload WHERE status='Current'")).rows;
-  const staffEmails = staff.map(person => person.email).filter(Boolean);
   const result = await dbQuery(
     `SELECT DISTINCT LOWER(TRIM(users.email)) AS email, users.display_name
      FROM users
@@ -132,7 +129,6 @@ async function loadRecipients(moduleKeys, dbQuery = query, directoryQuery = kama
            FROM user_hub_roles assignments
            JOIN hub_roles assigned_role ON assigned_role.id = assignments.hub_role_id
            WHERE assignments.user_id = users.id
-             AND LOWER(TRIM(users.email)) = ANY($2::text[])
              AND assigned_role.hub_key = ANY($1::text[])
          )
          OR EXISTS (
@@ -143,7 +139,7 @@ async function loadRecipients(moduleKeys, dbQuery = query, directoryQuery = kama
          )
        )
      ORDER BY email`,
-    [keys, staffEmails]
+    [keys]
   );
   const recipients = new Map();
   for (const person of result.rows) {
@@ -155,9 +151,7 @@ async function loadRecipients(moduleKeys, dbQuery = query, directoryQuery = kama
 
 function createMaintenanceRouter({
   dbQuery = query,
-  directoryQuery = kamarQuery,
-  mail = sendEmail,
-  initDirectory = () => require('./legacy/kamar-uploader/store').init()
+  mail = sendEmail
 } = {}) {
   const router = express.Router();
   router.use(ensureAuthenticated, ensureRole('ADMIN'));
@@ -195,15 +189,14 @@ function createMaintenanceRouter({
       }
       const requestDraftId = typeof req.query.requestDraft === 'string' ? req.query.requestDraft : '';
       const completedDraftId = typeof req.query.completedDraft === 'string' ? req.query.completedDraft : '';
-      if (requestKeys.length || completedKeys.length) await initDirectory();
       const [notices, requestRecipients, completedRecipients, requestLog, completedLog, requestDraft, completedDraft] = await Promise.all([
         dbQuery(
           `SELECT * FROM maintenance_notices
            ORDER BY CASE status WHEN 'scheduled' THEN 0 WHEN 'in_progress' THEN 1 ELSE 2 END,
                     scheduled_at DESC LIMIT 100`
         ),
-        requestKeys.length ? loadRecipients(requestKeys, dbQuery, directoryQuery) : Promise.resolve([]),
-        completedKeys.length ? loadRecipients(completedKeys, dbQuery, directoryQuery) : Promise.resolve([]),
+        requestKeys.length ? loadRecipients(requestKeys, dbQuery) : Promise.resolve([]),
+        completedKeys.length ? loadRecipients(completedKeys, dbQuery) : Promise.resolve([]),
         dbQuery(
           `SELECT id,sent_at,status,to_addresses,bcc_addresses,subject,error FROM email_log
            WHERE source=$1 OR subject ILIKE $2
@@ -273,12 +266,11 @@ function createMaintenanceRouter({
           message: 'Choose one or more modules registered for staff roles.'
         });
       }
-      await initDirectory();
-      const recipients = await loadRecipients(moduleKeys, dbQuery, directoryQuery);
+      const recipients = await loadRecipients(moduleKeys, dbQuery);
       if (!recipients.length) {
         return res.status(409).render('error', {
           title: 'Maintenance test email not sent',
-          message: 'No eligible staff or active administrators were found for the selected modules.'
+          message: 'No eligible users or active Global ADMINs were found for the selected apps.'
         });
       }
       const date = await dbQuery(
@@ -417,12 +409,11 @@ function createMaintenanceRouter({
           message: 'Choose one or more modules registered for staff roles.'
         });
       }
-      await initDirectory();
-      const recipients = await loadRecipients(moduleKeys, dbQuery, directoryQuery);
+      const recipients = await loadRecipients(moduleKeys, dbQuery);
       if (!recipients.length) {
         return res.status(409).render('error', {
           title: 'Completion test email not sent',
-          message: 'No eligible staff or active administrators were found for the selected modules.'
+          message: 'No eligible users or active Global ADMINs were found for the selected apps.'
         });
       }
       const moduleName = selected.map(module => module.label).join(', ');
@@ -467,7 +458,7 @@ function createMaintenanceRouter({
       if (!draft) {
         return res.status(409).render('error', {
           title: 'Completion notification not sent',
-          message: 'A successful test email is required. Send or resend the test email before notifying staff.'
+          message: 'A successful test email is required. Send or resend the test email before emailing the selected app users.'
         });
       }
       if (contentHash('completed', draft.module_keys, draft.payload) !== draft.content_hash) {
@@ -479,14 +470,13 @@ function createMaintenanceRouter({
         });
       }
       try {
-        await initDirectory();
-        const recipients = await loadRecipients(draft.module_keys, dbQuery, directoryQuery);
+        const recipients = await loadRecipients(draft.module_keys, dbQuery);
         if (!recipients.length) {
           await dbQuery(`UPDATE maintenance_email_drafts SET status='test_failed',error=$2,updated_at=NOW() WHERE id=$1`,
-            [draft.id, 'No eligible staff or active administrators were found.']);
+            [draft.id, 'No eligible users or active Global ADMINs were found.']);
           return res.status(409).render('error', {
             title: 'Completion notification not sent',
-            message: 'No eligible staff or active administrators were found for the selected modules.'
+            message: 'No eligible users or active Global ADMINs were found for the selected apps.'
           });
         }
         const content = draftEmail(draft);
@@ -581,7 +571,7 @@ function createMaintenanceRouter({
   router.post('/:id/test-completion', async (req, res, next) => {
     return res.status(410).render('error', {
       title: 'Completion notification moved',
-      message: 'Use the Maintenance Completed tab to select the apps, test the email, and then notify staff.'
+      message: 'Use the Maintenance Completed tab to select the apps, test the email, and then notify the selected app users.'
     });
   });
 
@@ -608,7 +598,7 @@ function createMaintenanceRouter({
   router.post('/:id/resume', async (req, res, next) => {
     return res.status(410).render('error', {
       title: 'Completion notification moved',
-      message: 'Use the Maintenance Completed tab to select the apps, test the email, and then notify staff.'
+      message: 'Use the Maintenance Completed tab to select the apps, test the email, and then notify the selected app users.'
     });
   });
 
@@ -651,7 +641,7 @@ function createMaintenanceRouter({
   return router;
 }
 
-async function sendDueWarnings(dbQuery = query, mail = sendEmail, directoryQuery = kamarQuery) {
+async function sendDueWarnings(dbQuery = query, mail = sendEmail) {
   await dbQuery(
     `UPDATE maintenance_notices SET status='in_progress'
      WHERE status='scheduled' AND scheduled_at <= NOW()`
@@ -681,8 +671,8 @@ async function sendDueWarnings(dbQuery = query, mail = sendEmail, directoryQuery
   );
   for (const notice of claimed.rows) {
     try {
-      const recipients = await loadRecipients(notice.module_keys, dbQuery, directoryQuery);
-      if (!recipients.length) throw new Error('No eligible staff or active administrators were found.');
+      const recipients = await loadRecipients(notice.module_keys, dbQuery);
+      if (!recipients.length) throw new Error('No eligible users or active Global ADMINs were found.');
       const content = noticeEmail(notice, 'planned');
       const result = await mail({
         to: [config.email.gmail.senderEmail],

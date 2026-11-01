@@ -919,13 +919,14 @@ settings; Teacher and Technician cannot. Deploy both Core and Teacher Planner.
 New generated modules accept these verified identities; existing independent
 services must deploy the updated identity adapter before accepting non-ADMIN users.
 
-Global ADMINs can prepare staff emails at **Administration > Maintenance
+Global ADMINs can prepare app-user emails at **Administration > Maintenance
 Notifications**. The stacked **Maintenance Req** and **Maintenance Completed** tabs
-have independent app selectors, recipient previews and email logs. Active users
-with a current KAMAR staff record and a role in a selected app, plus active Global
-ADMINs, are included once each using private BCC.
+have independent app selectors, recipient previews and email logs. All active
+users assigned a role in a selected app, plus active Global ADMINs, are included
+once each using private BCC. The app role assignment is authoritative; a current
+KAMAR staff record is not required for an assigned user to receive the notice.
 
-Every staff email is gated on a successful test email to the administrator who
+Every notification email is gated on a successful test email to the administrator who
 prepared it. A maintenance request must be tested before it can be scheduled, and
 the scheduler only sends warnings linked to a successful test. A completion
 notification has its own test-and-send workflow and uses generic wording that
