@@ -45,6 +45,9 @@ test('maintenance resumption email includes optional staff update', () => {
   const content = noticeEmail({ module_name: 'Teacher Planner' }, 'resumed', 'Some reports may take a few minutes to refresh.');
   assert.match(content.subject, /complete/);
   assert.match(content.text, /Some reports may take a few minutes to refresh\./);
+  assert.match(content.text, /WHS Launchpad: http:\/\/localhost:3000\//);
+  assert.match(content.html, /<a href="http:\/\/localhost:3000\/">WHS Launchpad<\/a>/);
+  assert.match(content.text, /Teacher Planner is available again/);
 });
 
 test('staff recipients query filters out invalid email addresses returned by the database', async () => {
@@ -266,6 +269,26 @@ test('admin can schedule a notice only with a valid session form token and eligi
     assert.equal(notice.module_name, 'Teacher Planner, Workshop');
     assert.equal(calls.filter(call => call.sql.includes('INSERT INTO maintenance_notices')).length, 2);
 
+    const noticePage = await getPage('');
+    const noticeHtml = await noticePage.text();
+    assert.equal(noticePage.status, 200);
+    assert.match(noticeHtml, /Send completion test email to me/);
+    assert.match(noticeHtml, /Completion notification update \(optional\)/);
+
+    const completionTest = await fetch(base + `/${notice.id}/test-completion`, {
+      method: 'POST', redirect: 'manual',
+      headers: { cookie, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ csrf, notes: 'Reports may take a few minutes to refresh.' })
+    });
+    assert.equal(completionTest.status, 302);
+    assert.equal(completionTest.headers.get('location'), '/admin/maintenance-notifications?message=completion-test-sent');
+    assert.deepEqual(mailed.to, ['admin@westlandhigh.school.nz']);
+    assert.equal(mailed.bcc, undefined);
+    assert.match(mailed.subject, /^\[TEST\].*maintenance complete/);
+    assert.match(mailed.text, /WHS Launchpad: http:\/\/localhost:3000\//);
+    assert.match(mailed.text, /Reports may take a few minutes to refresh\./);
+    assert.equal(notice.status, 'scheduled');
+
     const resume = await fetch(base + `/${notice.id}/resume`, {
       method: 'POST', redirect: 'manual',
       headers: { cookie, 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -274,7 +297,8 @@ test('admin can schedule a notice only with a valid session form token and eligi
     assert.equal(resume.status, 302);
     assert.deepEqual(mailed.bcc, ['teacher@westlandhigh.school.nz']);
     assert.match(mailed.text, /Reports may take a few minutes to refresh\./);
-    assert.match(mailed.text, /Service has resumed for: Teacher Planner, Workshop/);
+    assert.match(mailed.text, /Maintenance is complete and Teacher Planner, Workshop is available again/);
+    assert.match(mailed.text, /WHS Launchpad: http:\/\/localhost:3000\//);
     assert.match(mailed.subject, /Teacher Planner, Workshop maintenance complete/);
     const resumptionRecipients = calls.filter(call => call.sql.includes('SELECT DISTINCT LOWER(TRIM(users.email))')).at(-1);
     assert.deepEqual(resumptionRecipients.params, [['teacher-planner', 'workshop'], ['teacher@westlandhigh.school.nz']]);

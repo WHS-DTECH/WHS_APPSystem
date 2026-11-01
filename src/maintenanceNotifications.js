@@ -44,11 +44,15 @@ function moduleSelection(value) {
 function noticeEmail(notice, kind, notes = '') {
   const resumed = kind === 'resumed';
   const subject = `[WHS APPSystem] ${notice.module_name} maintenance ${resumed ? 'complete' : 'planned'}`;
+  const launchpadUrl = new URL('/', config.appBaseUrl).href;
+  const completionUpdate = notes || 'The planned maintenance is complete and the service is available again.';
   const text = resumed
     ? [
-      `Service has resumed for: ${notice.module_name}.`,
+      `Maintenance is complete and ${notice.module_name} is available again.`,
       '',
-      notes ? `Update: ${notes}` : 'The planned maintenance is complete and the service is available again.',
+      completionUpdate,
+      '',
+      `Please access ${notice.module_name} from the WHS Launchpad: ${launchpadUrl}`,
       '',
       'Thank you for your patience.'
     ].join('\n')
@@ -63,7 +67,7 @@ function noticeEmail(notice, kind, notes = '') {
       'A further email will be sent when the service is available again.'
     ].filter(Boolean).join('\n');
   const html = resumed
-    ? `<p><strong>Service has resumed for: ${escapeHtml(notice.module_name)}.</strong></p><p>${escapeHtml(notes || 'The planned maintenance is complete and the service is available again.')}</p><p>Thank you for your patience.</p>`
+    ? `<p><strong>Maintenance is complete and ${escapeHtml(notice.module_name)} is available again.</strong></p><p>${escapeHtml(completionUpdate).replace(/\n/g, '<br>')}</p><p>Please access ${escapeHtml(notice.module_name)} from the <a href="${escapeHtml(launchpadUrl)}">WHS Launchpad</a>.</p><p>Thank you for your patience.</p>`
     : `<p><strong>Planned maintenance for ${escapeHtml(notice.module_name)}</strong></p><p><strong>When:</strong> ${escapeHtml(formatDate(notice.scheduled_at))} (New Zealand time)</p>${notice.expected_duration ? `<p><strong>Expected duration:</strong> ${escapeHtml(notice.expected_duration)}</p>` : ''}<p><strong>What to expect:</strong><br>${escapeHtml(notice.impact).replace(/\n/g, '<br>')}</p>${notice.details ? `<p><strong>Additional information:</strong><br>${escapeHtml(notice.details).replace(/\n/g, '<br>')}</p>` : ''}<p>A further email will be sent when the service is available again.</p>`;
   return { subject, text, html };
 }
@@ -172,7 +176,7 @@ function createMaintenanceRouter({
       res.render('admin/maintenance-notifications', {
         csrf: req.session.maintenanceCsrf,
         formatDate,
-        message: req.query.message === 'created' ? 'Maintenance notice scheduled.' : '',
+        message: ['created', 'test-sent', 'completion-test-sent'].includes(req.query.message) ? req.query.message : '',
         moduleKeys,
         modules,
         notices: notices.rows,
@@ -254,6 +258,52 @@ function createMaintenanceRouter({
         });
       }
       res.redirect('/admin/maintenance-notifications?message=test-sent');
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post('/:id/test-completion', async (req, res, next) => {
+    if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return res.sendStatus(404);
+    const notes = typeof req.body.notes === 'string' ? req.body.notes.trim() : '';
+    if (notes.length > 3000) {
+      return res.status(400).render('error', {
+        title: 'Completion test email not sent',
+        message: 'Keep the completion update under 3,000 characters.'
+      });
+    }
+    if (!EMAIL_FORMAT.test(req.user.email || '')) {
+      return res.status(409).render('error', {
+        title: 'Completion test email not sent',
+        message: 'Your signed-in email address is missing or invalid. Sign in again.'
+      });
+    }
+    try {
+      const notice = (await dbQuery(
+        `SELECT * FROM maintenance_notices
+         WHERE id=$1 AND status IN ('scheduled','in_progress','resumption_failed')`,
+        [req.params.id]
+      )).rows[0];
+      if (!notice) {
+        return res.status(409).render('error', {
+          title: 'Completion test email not sent',
+          message: 'This notice is already completed, cancelled, or has an email delivery in progress.'
+        });
+      }
+      const content = noticeEmail(notice, 'resumed', notes);
+      const result = await mail({
+        to: [req.user.email],
+        subject: `[TEST] ${content.subject}`,
+        text: content.text,
+        html: content.html
+      });
+      if (!result.ok) {
+        return res.status(502).render('error', {
+          title: 'Completion test email not sent',
+          message: result.message || result.error || 'The email service could not send the test message.'
+        });
+      }
+      res.redirect('/admin/maintenance-notifications?message=completion-test-sent');
     } catch (error) {
       next(error);
     }

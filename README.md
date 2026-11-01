@@ -929,9 +929,11 @@ Both the warning and resumption email name all selected modules; existing
 single-module notices retain their original scope.
 Warnings are sent 14 days before the scheduled start (or at the next scheduler run
 when scheduled less than 14 days ahead), using private BCC recipients. After
-confirming the service is available, an administrator can send the resumption email
-with optional updates. Email delivery uses the configured Gmail service and is
-recorded in Email Service.
+confirming the service is available, an administrator can first send a completion
+email test to their signed-in address, then send the same completion notification
+to staff with optional updates. Completion emails direct users to open the app from
+the WHS Launchpad. Email delivery uses the configured Gmail service and is recorded
+in Email Service.
 
 ## Kamar Uploader module
 

@@ -4,7 +4,7 @@
   <h1>Maintenance Notifications</h1>
   <p>Send one maintenance notice for one or more modules. Staff with a role in any selected module and active Global ADMINs are included once each.</p>
 </section>
-<% if (message) { %><p role="status"><%= message === 'created' ? 'Maintenance notice scheduled.' : 'Test email sent to your signed-in address.' %></p><% } %>
+<% if (message) { %><p role="status"><%= message === 'created' ? 'Maintenance notice scheduled.' : message === 'completion-test-sent' ? 'Completion test email sent to your signed-in address.' : 'Maintenance warning test email sent to your signed-in address.' %></p><% } %>
 
 <section class="panel">
   <h2>Choose modules to preview recipients</h2>
@@ -81,12 +81,13 @@
         <% if (notice.status === 'scheduled' || notice.status === 'in_progress' || notice.status === 'resumption_failed') { %>
           <form action="/admin/maintenance-notifications/<%= notice.id %>/test" method="post">
             <input type="hidden" name="csrf" value="<%= csrf %>">
-            <button class="button" type="submit">Send test email to me</button>
+            <button class="button" type="submit">Send maintenance warning test email to me</button>
           </form>
           <form action="/admin/maintenance-notifications/<%= notice.id %>/resume" method="post" class="row-form stacked">
             <input type="hidden" name="csrf" value="<%= csrf %>">
-            <label for="resume-notes-<%= notice.id %>">Resumption email update (optional)</label>
+            <label for="resume-notes-<%= notice.id %>">Completion notification update (optional)</label>
             <textarea id="resume-notes-<%= notice.id %>" name="notes" rows="2" maxlength="3000" placeholder="Add any known issues, next steps, or other useful information."></textarea>
+            <button class="button" type="submit" formaction="/admin/maintenance-notifications/<%= notice.id %>/test-completion">Send completion test email to me</button>
             <button class="button button-primary" type="submit">Confirm service is available and email staff</button>
           </form>
           <% if (notice.status === 'scheduled') { %>
