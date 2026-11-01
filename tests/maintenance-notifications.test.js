@@ -327,6 +327,8 @@ test('maintenance request and completion notifications require test emails and l
 
     const testedRequestPage = await getPage(requestUrl.search);
     const testedRequestHtml = await testedRequestPage.text();
+    assert.match(testedRequestHtml, /href="\/admin\/maintenance-notifications\?tab=request" aria-current="page"/);
+    assert.doesNotMatch(testedRequestHtml, /href="\/admin\/maintenance-notifications\?tab=completed" aria-current="page"/);
     assert.match(testedRequestHtml, /Schedule tested request/);
     assert.match(testedRequestHtml, /Maintenance request email log/);
     const scheduleRequest = await fetch(base + `/schedule/${requestDraftId}`, {
@@ -344,6 +346,8 @@ test('maintenance request and completion notifications require test emails and l
     const completedHtml = await completedPage.text();
     assert.equal(completedPage.status, 200);
     assert.match(completedHtml, /Maintenance Completed/);
+    assert.match(completedHtml, /href="\/admin\/maintenance-notifications\?tab=completed" aria-current="page"/);
+    assert.doesNotMatch(completedHtml, /href="\/admin\/maintenance-notifications\?tab=request" aria-current="page"/);
     assert.match(completedHtml, /Choose apps for this completion notification/);
     assert.match(completedHtml, /Maintenance completed email log/);
     assert.match(completedHtml, /Send completion test email to me/);

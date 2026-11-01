@@ -17,8 +17,8 @@
 <% if (message && messages[message]) { %><p role="status"><%= messages[message] %></p><% } %>
 
 <nav class="maintenance-tabs" aria-label="Maintenance notification pages">
-  <a href="/admin/maintenance-notifications?tab=request" <%= activeTab === 'request' ? 'aria-current="page"' : '' %>>Maintenance Req</a>
-  <a href="/admin/maintenance-notifications?tab=completed" <%= activeTab === 'completed' ? 'aria-current="page"' : '' %>>Maintenance Completed</a>
+  <a href="/admin/maintenance-notifications?tab=request" <% if (activeTab === 'request') { %>aria-current="page"<% } %>>Maintenance Req</a>
+  <a href="/admin/maintenance-notifications?tab=completed" <% if (activeTab === 'completed') { %>aria-current="page"<% } %>>Maintenance Completed</a>
 </nav>
 
 <% if (activeTab === 'request') { %>
