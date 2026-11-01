@@ -105,7 +105,9 @@ function navData(query, canManageHubRoles, datasetManagerUrl, canManageCourses =
       const developmentProjects = user?.roles?.includes('ADMIN')
         ? (await query(`SELECT p.id, p.name, e.config->>'appUrl' AS app_url
           FROM module_builder_projects p JOIN module_builder_environments e ON e.project_id=p.id AND e.kind='development'
-          WHERE p.stage IN ('draft','development','staging') ORDER BY p.name`)).rows
+          WHERE p.stage IN ('draft','development','staging')
+            AND NOT EXISTS (SELECT 1 FROM modules m WHERE m.module_key=p.slug AND m.path LIKE '/%')
+          ORDER BY p.name`)).rows
         : [];
       let assignRolesUrl = null;
       let datasetUrl = null;

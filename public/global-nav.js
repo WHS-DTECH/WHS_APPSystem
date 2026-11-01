@@ -133,7 +133,7 @@
         });
         return found;
       }
-      section('Modules', ['Core Administration', 'Kamar Uploader', 'WHS Learning Sites', 'Module Builder'], function (module, name) { return module.name === name; });
+      section('Modules', ['Core Administration', 'Kamar Uploader', 'WHS Learning Sites', 'Teacher Planner', 'Module Builder'], function (module, name) { return module.name === name; });
       if (data.isAdmin) {
         nav.appendChild(el('div', { 'class': 'gn-head' }, 'In Development'));
         (data.developmentProjects || []).forEach(function (project) {

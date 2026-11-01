@@ -983,6 +983,10 @@ copied into WHS_APPSystem.
 Teacher Planner is embedded at `/teacher-planner/`, using the original module
 router and screens from `src/legacy/teacher-planner`. Shared Google sign-in,
 navigation, Search, sign-out and role assignment come from Global Control.
+The integrated Teacher Planner appears under **Modules** in shared navigation,
+not In Development or Student Apps. Development registry/service details are
+retained for rollback; locally integrated projects are excluded from the
+In Development sidebar.
 Migration 039 changes the Launchpad/module destination only; the standalone
 development service and its registered handoff callback remain available for
 rollback. No user notification is sent.
