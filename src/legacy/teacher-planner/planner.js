@@ -194,11 +194,12 @@ function createPlannerRouter({ query, searchStandards = searchNzqaStandards, loa
     }
   });
   router.get('/moderation/templates/:type', (req, res, next) => {
-    const filenames = { feedback: 'confirmation-feedback-template.docx', schedule: 'marking-schedule-template.docx' };
+    const filenames = { feedback: 'confirmation-feedback-template.docx', schedule: 'marking-schedule-template.docx',
+      coversheet: 'whs-coversheet-template.docx' };
     const { type } = req.params;
     if (!Object.hasOwn(filenames, type)) {
       console.warn('Moderation blank template type rejected.');
-      return res.status(400).json({ error: 'Choose a reusable Marking Schedule or Confirmation & Feedback template.' });
+      return res.status(400).json({ error: 'Choose a reusable Marking Schedule, Confirmation & Feedback or WHS Coversheet template.' });
     }
     try {
       res.type(DOCX).attachment(filenames[type]).send(renderDocument(type, {}, ''));

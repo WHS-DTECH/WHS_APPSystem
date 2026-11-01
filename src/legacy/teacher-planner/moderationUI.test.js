@@ -81,6 +81,7 @@ function fixture({ page = 'overview', id = record, data = {}, setupOnly = false,
     year: 2026, record: id, page, setupOnly, ownerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
     feedbackTemplateUrl: '/teacher-planner/api/planner/moderation/templates/feedback',
     scheduleTemplateUrl: '/teacher-planner/api/planner/moderation/templates/schedule',
+    coversheetTemplateUrl: '/teacher-planner/api/planner/moderation/templates/coversheet',
     request: async path => {
       calls.push(['request', path]);
       if (path === 'staff') return staffRequest ? staffRequest() : { staff, departments };
@@ -504,10 +505,10 @@ test('year contents group shared and individual schedules by standard and open t
       assert.equal(path, 'moderation/2026'); return { records };
     } }); await flush();
     const groups = f.host.all().filter(n => n.attrs.class === 'moderation-contents-group');
-    assert.deepEqual(groups.map(n => n.children[0].textContent), ['feedback', 'schedule'].includes(page)
+    assert.deepEqual(groups.map(n => n.children[0].textContent), page !== 'internal'
       ? ['99999 — Example standard'] : ['92004 — Other standard', '99999 — Example standard']);
     const links = groups.flatMap(n => n.all()).filter(n => n.tag === 'a');
-    assert.equal(links.length, ['feedback', 'schedule'].includes(page) ? 1 : page === 'internal' ? 2 : 3);
+    assert.equal(links.length, page === 'internal' ? 2 : 1);
     if (page === 'schedule') {
       assert.ok(links.some(n => n.textContent.includes('(Individual schedule)')));
       assert.ok(!links.some(n => n.textContent.includes('(Standard marking schedule template)')));
@@ -545,7 +546,7 @@ test(title + ' contents identify the correct forms without changing saved schedu
   const f = fixture({ id: '', page, recordsRequest: async () => ({ records }) });
   await flush();
   const links = f.host.all().filter(n => n.tag === 'a' && n.attrs.href.startsWith('#'));
-  assert.equal(links.length, page === 'feedback' ? 2 : 3);
+  assert.equal(links.length, 2);
   assert.ok(links.some(n => n.textContent === 'Student A - TV — ' + title));
   assert.ok(links.some(n => n.textContent === '29785 — Student B - CJ — ' + title));
   for (const link of links) {
@@ -562,7 +563,8 @@ test(title + ' contents identify the correct forms without changing saved schedu
 }
 for (const [page, title, filename] of [
   ['feedback', 'Confirmation & Feedback', 'confirmation-feedback-template.docx'],
-  ['schedule', 'Marking Schedule', 'marking-schedule-template.docx']
+  ['schedule', 'Marking Schedule', 'marking-schedule-template.docx'],
+  ['coversheet', 'WHS Coversheet', 'whs-coversheet-template.docx']
 ]) {
 test(title + ' offers one blank template even without student forms', async () => {
   const f = fixture({ id: '', page, recordsRequest: async () => ({ records: [
@@ -578,7 +580,9 @@ test(title + ' offers one blank template even without student forms', async () =
   assert.ok(f.host.find(n => n.textContent.startsWith('No student ' + title + ' forms yet.')));
   assert.ok(f.host.find(n => n.textContent.includes(page === 'feedback'
     ? 'Existing assessment-level feedback remains available through Records.'
-    : 'Existing standard-specific instructions and criteria remain available through Records')));
+    : page === 'schedule' ? 'Existing standard-specific instructions and criteria remain available through Records'
+    : 'Existing assessment-level coversheets remain available through Records.')));
+  if (page === 'coversheet') assert.ok(f.host.find(n => n.textContent.includes('Open a student WHS Coversheet from the list below.')));
   assert.equal(f.calls.filter(call => ['mutate', 'upload', 'authorize'].includes(call[0])).length, 0);
 });
 }

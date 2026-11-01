@@ -802,6 +802,21 @@ test('moderation routes enforce sign-in, owner isolation, CSRF and private datab
   }
   for (const key of ['grade', 'markerComments', 'achieved', 'merit', 'excellence']) assert.ok(!blankSchedule.document[key]);
   assert.deepEqual(blankSchedule.document.requirements, []);
+  const coversheetTemplatePath = base + 'moderation/templates/coversheet';
+  assert.equal((await fetch(coversheetTemplatePath)).status, 401);
+  assert.equal((await fetch(coversheetTemplatePath, { headers: { ...headers, 'x-test-role': 'Student' } })).status, 403);
+  const coversheetTemplate = await fetch(coversheetTemplatePath, { headers });
+  assert.equal(coversheetTemplate.status, 200);
+  assert.equal(coversheetTemplate.headers.get('cache-control'), 'no-store');
+  assert.ok(coversheetTemplate.headers.get('content-disposition').includes('whs-coversheet-template.docx'));
+  assert.ok(coversheetTemplate.headers.get('content-type').includes(DOCX));
+  const blankCoversheet = importDocument(Buffer.from(await coversheetTemplate.arrayBuffer()), 'coversheet');
+  for (const key of ['studentName', 'studentId', 'standardNumber', 'standardTitle', 'version', 'level', 'credits']) {
+    assert.ok(!blankCoversheet.common[key], key + ' must be blank in the coversheet template');
+  }
+  for (const key of ['grade', 'signatureName', 'signatureDate', 'achieved', 'higherGrades', 'appeal', 'acknowledgedDate']) {
+    assert.ok(!blankCoversheet.document[key], key + ' must be blank in the coversheet template');
+  }
   assert.equal((await fetch(base + 'moderation/templates/unsupported', { headers })).status, 400);
   assert.equal(calls.length, beforeTemplate, 'Template downloads and invalid types never access assessment records');
   const listing = await fetch(base + 'moderation/2026', { headers });

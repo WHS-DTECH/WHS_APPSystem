@@ -296,7 +296,9 @@
         feedback: { title: 'Confirmation & Feedback', url: options.feedbackTemplateUrl, filename: 'confirmation-feedback-template.docx',
           action: 'Create / open Confirmation & Feedback', existing: 'Existing assessment-level feedback remains available through Records.' },
         schedule: { title: 'Marking Schedule', url: options.scheduleTemplateUrl, filename: 'marking-schedule-template.docx',
-          action: 'Create / open marking schedule', existing: 'Existing standard-specific instructions and criteria remain available through Records → Marking Schedules. Fill in the correct criteria for each standard before using a completed schedule.' }
+          action: 'Create / open marking schedule', existing: 'Existing standard-specific instructions and criteria remain available through Records → Marking Schedules. Fill in the correct criteria for each standard before using a completed schedule.' },
+        coversheet: { title: 'WHS Coversheet', url: options.coversheetTemplateUrl, filename: 'whs-coversheet-template.docx',
+          existing: 'Existing assessment-level coversheets remain available through Records.' }
       }[page];
       area.append(el('h2', 'Moderation — ' + year, { class: 'paper-heading' }));
       area.append(el('p', reusable
@@ -307,7 +309,10 @@
         template.append(el('h3', 'Reusable ' + reusable.title + ' template'),
           el('p', 'This blank template has no student, standard or assessment results filled in. Use it for any standard; it is not a separate template for each assessment.'),
           el('a', 'Download blank ' + reusable.title + ' template', { href: reusable.url, download: reusable.filename }),
-          el('p', 'To create or open a student sheet, use Internal Moderation → ' + reusable.action + ' for that student. You can then import a completed copy or create a Google Drive document. ' + reusable.existing));
+          el('p', (page === 'coversheet'
+            ? 'Open a student WHS Coversheet from the list below. If the student is not listed, create their marking schedule in Internal Moderation first, then return to this tab. '
+            : 'To create or open a student sheet, use Internal Moderation → ' + reusable.action + ' for that student. ') +
+            'You can then import a completed copy or create a Google Drive document. ' + reusable.existing));
         area.append(template);
       }
       if (page === 'overview') area.append(el('p', 'Your main Assessment and Moderation folder is managed in Setup Assessment → Setup Moderation.'));
