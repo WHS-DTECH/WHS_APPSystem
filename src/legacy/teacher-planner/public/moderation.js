@@ -414,8 +414,9 @@
             const list = el('ul');
             for (const item of items) {
               const row = el('li');
-              const label = page === 'feedback'
-                ? (item.student_name || (item.title || 'Untitled assessment').replace(/ — Marking Schedule$/, '')) + ' — Confirmation & Feedback'
+              const label = ['feedback', 'coversheet'].includes(page)
+                ? (item.student_name || (item.title || 'Untitled assessment').replace(/ — Marking Schedule$/, '')) +
+                  ' — ' + (page === 'feedback' ? 'Confirmation & Feedback' : documents[page].title)
                 : (item.title || 'Untitled assessment') +
                   (page === 'schedule' ? item.parent_record ? ' (Individual schedule)' : ' (Standard marking schedule template)' : '');
               row.append(recordLink(item, page, label)); list.append(row);
