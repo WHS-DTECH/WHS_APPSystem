@@ -726,7 +726,7 @@ test('moderation routes enforce sign-in, owner isolation, CSRF and private datab
   const app = express();
   app.use(session({ secret: 'synthetic-moderation-test-secret', resave: false, saveUninitialized: false }));
   app.use((req, res, next) => {
-    if (req.get('x-test-user')) req.user = { id: req.get('x-test-user'), roles: ['Teacher'] };
+    if (req.get('x-test-user')) req.user = { id: req.get('x-test-user'), roles: [req.get('x-test-role') || 'Teacher'] };
     next();
   });
   app.use(createModuleRouter({ query: async (sql, params) => {
@@ -772,6 +772,22 @@ test('moderation routes enforce sign-in, owner isolation, CSRF and private datab
   const cookie = sessionResponse.headers.get('set-cookie').split(';')[0];
   const csrf = (await sessionResponse.json()).csrf;
   const headers = { 'x-test-user': owner, cookie };
+  const templatePath = base + 'moderation/templates/feedback';
+  assert.equal((await fetch(templatePath)).status, 401);
+  assert.equal((await fetch(templatePath, { headers: { ...headers, 'x-test-role': 'Student' } })).status, 403);
+  const beforeTemplate = calls.length;
+  const template = await fetch(templatePath, { headers });
+  assert.equal(template.status, 200);
+  assert.equal(template.headers.get('cache-control'), 'no-store');
+  assert.ok(template.headers.get('content-disposition').includes('confirmation-feedback-template.docx'));
+  assert.ok(template.headers.get('content-type').includes(DOCX));
+  const blank = importDocument(Buffer.from(await template.arrayBuffer()), 'feedback');
+  for (const key of ['studentName', 'studentId', 'standardNumber', 'standardTitle', 'version', 'level', 'credits']) {
+    assert.ok(!blank.common[key], key + ' must be blank in the reusable template');
+  }
+  assert.ok(!blank.document.grade);
+  assert.ok(!blank.document.feedback);
+  assert.equal(calls.length, beforeTemplate, 'Downloading the blank template never reads or writes assessment records');
   const listing = await fetch(base + 'moderation/2026', { headers });
   assert.equal(listing.headers.get('cache-control'), 'no-store');
   const listed = (await listing.json()).records[0];

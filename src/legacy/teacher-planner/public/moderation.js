@@ -293,7 +293,17 @@
     area.append(tabs);
     if (!record) {
       area.append(el('h2', 'Moderation — ' + year, { class: 'paper-heading' }));
-      area.append(el('p', 'Choose a record below to open its form. Use the tabs above to browse this year’s other document types.'));
+      area.append(el('p', page === 'feedback'
+        ? 'Use the same blank Confirmation & Feedback template for every standard. Keep a separate completed sheet for each student and standard.'
+        : 'Choose a record below to open its form. Use the tabs above to browse this year’s other document types.'));
+      if (page === 'feedback') {
+        const template = el('section', '', { class: 'moderation-panel' });
+        template.append(el('h3', 'Reusable Confirmation & Feedback template'),
+          el('p', 'This blank template has no student, standard or assessment results filled in. Use it for any standard; it is not a separate template for each assessment.'),
+          el('a', 'Download blank Confirmation & Feedback template', { href: options.feedbackTemplateUrl, download: 'confirmation-feedback-template.docx' }),
+          el('p', 'To create or open a student sheet, use Internal Moderation → Create / open Confirmation & Feedback for that student. You can then import a completed copy or create a Google Drive document. Existing assessment-level feedback remains available through Records.'));
+        area.append(template);
+      }
       if (page === 'overview') area.append(el('p', 'Your main Assessment and Moderation folder is managed in Setup Assessment → Setup Moderation.'));
       const create = el('section', '', { class: 'moderation-panel', 'data-planner-navigation': '' });
       create.append(el('h3', 'New moderation record'));
@@ -333,7 +343,8 @@
         finally { delete area.dataset.moderationBusy; area.inert = false; working = false; createButton.disabled = false; }
       }, create);
       const listing = el('section', '', { class: 'moderation-panel' });
-      const listTitle = page === 'overview' ? 'My moderation records' : (page === 'internal' ? 'Internal Moderation' : documents[page].title) + ' — ' + year;
+      const listTitle = page === 'overview' ? 'My moderation records'
+        : (page === 'feedback' ? 'Student Confirmation & Feedback forms' : page === 'internal' ? 'Internal Moderation' : documents[page].title) + ' — ' + year;
       listing.append(el('h3', listTitle), el('p', 'Loading records…', { role: 'status' }));
       if (page === 'overview') area.append(create);
       else {
@@ -345,8 +356,10 @@
           const result = await request('moderation/' + year);
           if (!area.isConnected) return;
           listing.replaceChildren(el('h3', listTitle));
-          const records = result.records.filter(item => page !== 'internal' || !item.parent_record);
-          if (!records.length) listing.append(el('p', 'No records for this contents page yet. Use Records to create an assessment.'));
+          const records = result.records.filter(item => page === 'feedback' ? item.parent_record : page !== 'internal' || !item.parent_record);
+          if (!records.length) listing.append(el('p', page === 'feedback'
+            ? 'No student feedback forms yet. Use Internal Moderation to create a separate Confirmation & Feedback sheet for each student and standard.'
+            : 'No records for this contents page yet. Use Records to create an assessment.'));
           const groups = new Map();
           for (const item of records.sort((a, b) => String(a.standard_number || '').localeCompare(String(b.standard_number || ''), 'en-NZ', { numeric: true }) ||
               String(a.title || '').localeCompare(String(b.title || ''), 'en-NZ'))) {

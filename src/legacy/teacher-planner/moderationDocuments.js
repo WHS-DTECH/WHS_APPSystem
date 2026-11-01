@@ -599,7 +599,7 @@ function importDocument(buffer, type) {
       const entry = allParagraphs.find(line => line.toLowerCase().startsWith(label.toLowerCase() + ': '));
       if (entry !== undefined) (commonKeys.has(key) ? data : values)[key] = entry.slice(label.length + 2);
     }
-    const combined = allParagraphs.join('\n').match(/Level:\s*(\d+)\s+Credits:\s*(\d+)\s+Version:\s*(\d+)/i);
+    const combined = allParagraphs.join('\n').match(/Level:\s*(\d*)\s+Credits:\s*(\d*)\s+Version:\s*(\d*)/i);
     if (combined) { data.level = combined[1]; data.credits = combined[2]; data.version = combined[3]; }
     if (!data.standardTitle) {
       const detailsIndex = allParagraphs.findIndex(line => /^Level:.*Credits:.*Version:/i.test(line));

@@ -193,6 +193,11 @@ function createPlannerRouter({ query, searchStandards = searchNzqaStandards, loa
       res.status(400).json({ error: 'The document could not be imported. ' + error.message });
     }
   });
+  router.get('/moderation/templates/feedback', (req, res, next) => {
+    try {
+      res.type(DOCX).attachment('confirmation-feedback-template.docx').send(renderDocument('feedback', {}, ''));
+    } catch (error) { next(error); }
+  });
   router.get('/moderation/:year', async (req, res, next) => {
     const year = Number(req.params.year);
     if (!validKey(year, 'moderation', 'main') || !/^\d{4}$/.test(req.params.year)) {

@@ -1024,6 +1024,11 @@ The Moderation **Marking Confirmation & Feedback** and **WHS Coversheet** conten
 tabs label and open each record's respective form, independently of its marking
 schedule. Existing record titles and linked Drive documents are not renamed by
 these listings.
+Confirmation & Feedback provides one downloadable blank template for all standards,
+with separate student/standard forms listed below it. Create those forms from each
+Internal Moderation student entry, then import a completed document or create one
+in Drive. Assessment-level feedback remains accessible through Records; the shared
+template does not merge, overwrite or delete existing records.
 
 Before acceptance, back up the original Planner database, then check the new
 page and `/teacher-planner/health` while signed in. Compare existing private
