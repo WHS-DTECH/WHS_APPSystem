@@ -80,6 +80,7 @@ function fixture({ page = 'overview', id = record, data = {}, setupOnly = false,
       level: page === 'overview' ? '' : '3', version: page === 'overview' ? '' : '2', standardNumber: '99999', ...data }, displayName, userEmail,
     year: 2026, record: id, page, setupOnly, ownerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
     feedbackTemplateUrl: '/teacher-planner/api/planner/moderation/templates/feedback',
+    scheduleTemplateUrl: '/teacher-planner/api/planner/moderation/templates/schedule',
     request: async path => {
       calls.push(['request', path]);
       if (path === 'staff') return staffRequest ? staffRequest() : { staff, departments };
@@ -503,13 +504,13 @@ test('year contents group shared and individual schedules by standard and open t
       assert.equal(path, 'moderation/2026'); return { records };
     } }); await flush();
     const groups = f.host.all().filter(n => n.attrs.class === 'moderation-contents-group');
-    assert.deepEqual(groups.map(n => n.children[0].textContent), page === 'feedback'
+    assert.deepEqual(groups.map(n => n.children[0].textContent), ['feedback', 'schedule'].includes(page)
       ? ['99999 — Example standard'] : ['92004 — Other standard', '99999 — Example standard']);
     const links = groups.flatMap(n => n.all()).filter(n => n.tag === 'a');
-    assert.equal(links.length, page === 'feedback' ? 1 : page === 'internal' ? 2 : 3);
+    assert.equal(links.length, ['feedback', 'schedule'].includes(page) ? 1 : page === 'internal' ? 2 : 3);
     if (page === 'schedule') {
       assert.ok(links.some(n => n.textContent.includes('(Individual schedule)')));
-      assert.ok(links.some(n => n.textContent.includes('(Standard marking schedule template)')));
+      assert.ok(!links.some(n => n.textContent.includes('(Standard marking schedule template)')));
     }
     let prevented = false;
     await links[0].events.click({ preventDefault: () => { prevented = true; } });
@@ -530,7 +531,7 @@ test('contents empty and failed states are explicit, with retry', async () => {
   } }); await flush();
   assert.ok(f.host.find(n => n.attrs.role === 'alert' && n.textContent === 'Records unavailable'));
   fail = false; await f.click('Retry loading records');
-  assert.ok(f.host.find(n => n.textContent.includes('No records for this contents page')));
+  assert.ok(f.host.find(n => n.textContent.startsWith('No student Marking Schedule forms yet.')));
 });
 for (const [page, title] of [['feedback', 'Confirmation & Feedback'], ['coversheet', 'WHS Coversheet']]) {
 test(title + ' contents identify the correct forms without changing saved schedule titles', async () => {
@@ -559,21 +560,28 @@ test(title + ' contents identify the correct forms without changing saved schedu
   assert.equal(f.calls.filter(call => ['mutate', 'upload', 'authorize'].includes(call[0])).length, 0);
 });
 }
-test('Confirmation & Feedback offers one blank template even without student forms', async () => {
-  const f = fixture({ id: '', page: 'feedback', recordsRequest: async () => ({ records: [
+for (const [page, title, filename] of [
+  ['feedback', 'Confirmation & Feedback', 'confirmation-feedback-template.docx'],
+  ['schedule', 'Marking Schedule', 'marking-schedule-template.docx']
+]) {
+test(title + ' offers one blank template even without student forms', async () => {
+  const f = fixture({ id: '', page, recordsRequest: async () => ({ records: [
     { entry_key: record, title: 'Standard assessment', standard_number: '29785' },
     { entry_key: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', title: 'Another assessment', standard_number: '29786' }
   ] }) });
   await flush();
   const links = f.host.all().filter(n => n.tag === 'a');
   assert.equal(links.length, 1);
-  assert.equal(links[0].textContent, 'Download blank Confirmation & Feedback template');
-  assert.equal(links[0].attrs.href, '/teacher-planner/api/planner/moderation/templates/feedback');
-  assert.equal(links[0].attrs.download, 'confirmation-feedback-template.docx');
-  assert.ok(f.host.find(n => n.textContent.startsWith('No student feedback forms yet.')));
-  assert.ok(f.host.find(n => n.textContent.includes('Existing assessment-level feedback remains available through Records.')));
+  assert.equal(links[0].textContent, 'Download blank ' + title + ' template');
+  assert.equal(links[0].attrs.href, '/teacher-planner/api/planner/moderation/templates/' + page);
+  assert.equal(links[0].attrs.download, filename);
+  assert.ok(f.host.find(n => n.textContent.startsWith('No student ' + title + ' forms yet.')));
+  assert.ok(f.host.find(n => n.textContent.includes(page === 'feedback'
+    ? 'Existing assessment-level feedback remains available through Records.'
+    : 'Existing standard-specific instructions and criteria remain available through Records')));
   assert.equal(f.calls.filter(call => ['mutate', 'upload', 'authorize'].includes(call[0])).length, 0);
 });
+}
 test('Records table groups standards and stacks student links in the correct document columns', async () => {
   const first = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', second = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
   const f = fixture({ id: '', recordsRequest: async () => ({ records: [

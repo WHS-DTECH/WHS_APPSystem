@@ -193,9 +193,15 @@ function createPlannerRouter({ query, searchStandards = searchNzqaStandards, loa
       res.status(400).json({ error: 'The document could not be imported. ' + error.message });
     }
   });
-  router.get('/moderation/templates/feedback', (req, res, next) => {
+  router.get('/moderation/templates/:type', (req, res, next) => {
+    const filenames = { feedback: 'confirmation-feedback-template.docx', schedule: 'marking-schedule-template.docx' };
+    const { type } = req.params;
+    if (!Object.hasOwn(filenames, type)) {
+      console.warn('Moderation blank template type rejected.');
+      return res.status(400).json({ error: 'Choose a reusable Marking Schedule or Confirmation & Feedback template.' });
+    }
     try {
-      res.type(DOCX).attachment('confirmation-feedback-template.docx').send(renderDocument('feedback', {}, ''));
+      res.type(DOCX).attachment(filenames[type]).send(renderDocument(type, {}, ''));
     } catch (error) { next(error); }
   });
   router.get('/moderation/:year', async (req, res, next) => {

@@ -292,16 +292,22 @@
     }
     area.append(tabs);
     if (!record) {
+      const reusable = {
+        feedback: { title: 'Confirmation & Feedback', url: options.feedbackTemplateUrl, filename: 'confirmation-feedback-template.docx',
+          action: 'Create / open Confirmation & Feedback', existing: 'Existing assessment-level feedback remains available through Records.' },
+        schedule: { title: 'Marking Schedule', url: options.scheduleTemplateUrl, filename: 'marking-schedule-template.docx',
+          action: 'Create / open marking schedule', existing: 'Existing standard-specific instructions and criteria remain available through Records → Marking Schedules. Fill in the correct criteria for each standard before using a completed schedule.' }
+      }[page];
       area.append(el('h2', 'Moderation — ' + year, { class: 'paper-heading' }));
-      area.append(el('p', page === 'feedback'
-        ? 'Use the same blank Confirmation & Feedback template for every standard. Keep a separate completed sheet for each student and standard.'
+      area.append(el('p', reusable
+        ? 'Use the same blank ' + reusable.title + ' template for every standard. Keep a separate completed sheet for each student and standard.'
         : 'Choose a record below to open its form. Use the tabs above to browse this year’s other document types.'));
-      if (page === 'feedback') {
+      if (reusable) {
         const template = el('section', '', { class: 'moderation-panel' });
-        template.append(el('h3', 'Reusable Confirmation & Feedback template'),
+        template.append(el('h3', 'Reusable ' + reusable.title + ' template'),
           el('p', 'This blank template has no student, standard or assessment results filled in. Use it for any standard; it is not a separate template for each assessment.'),
-          el('a', 'Download blank Confirmation & Feedback template', { href: options.feedbackTemplateUrl, download: 'confirmation-feedback-template.docx' }),
-          el('p', 'To create or open a student sheet, use Internal Moderation → Create / open Confirmation & Feedback for that student. You can then import a completed copy or create a Google Drive document. Existing assessment-level feedback remains available through Records.'));
+          el('a', 'Download blank ' + reusable.title + ' template', { href: reusable.url, download: reusable.filename }),
+          el('p', 'To create or open a student sheet, use Internal Moderation → ' + reusable.action + ' for that student. You can then import a completed copy or create a Google Drive document. ' + reusable.existing));
         area.append(template);
       }
       if (page === 'overview') area.append(el('p', 'Your main Assessment and Moderation folder is managed in Setup Assessment → Setup Moderation.'));
@@ -344,7 +350,7 @@
       }, create);
       const listing = el('section', '', { class: 'moderation-panel' });
       const listTitle = page === 'overview' ? 'My moderation records'
-        : (page === 'feedback' ? 'Student Confirmation & Feedback forms' : page === 'internal' ? 'Internal Moderation' : documents[page].title) + ' — ' + year;
+        : (reusable ? 'Student ' + reusable.title + ' forms' : page === 'internal' ? 'Internal Moderation' : documents[page].title) + ' — ' + year;
       listing.append(el('h3', listTitle), el('p', 'Loading records…', { role: 'status' }));
       if (page === 'overview') area.append(create);
       else {
@@ -356,9 +362,9 @@
           const result = await request('moderation/' + year);
           if (!area.isConnected) return;
           listing.replaceChildren(el('h3', listTitle));
-          const records = result.records.filter(item => page === 'feedback' ? item.parent_record : page !== 'internal' || !item.parent_record);
-          if (!records.length) listing.append(el('p', page === 'feedback'
-            ? 'No student feedback forms yet. Use Internal Moderation to create a separate Confirmation & Feedback sheet for each student and standard.'
+          const records = result.records.filter(item => reusable ? item.parent_record : page !== 'internal' || !item.parent_record);
+          if (!records.length) listing.append(el('p', reusable
+            ? 'No student ' + reusable.title + ' forms yet. Use Internal Moderation to create a separate sheet for each student and standard.'
             : 'No records for this contents page yet. Use Records to create an assessment.'));
           const groups = new Map();
           for (const item of records.sort((a, b) => String(a.standard_number || '').localeCompare(String(b.standard_number || ''), 'en-NZ', { numeric: true }) ||

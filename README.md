@@ -1029,6 +1029,11 @@ with separate student/standard forms listed below it. Create those forms from ea
 Internal Moderation student entry, then import a completed document or create one
 in Drive. Assessment-level feedback remains accessible through Records; the shared
 template does not merge, overwrite or delete existing records.
+Marking Schedule uses the same workflow: one blank template for all standards,
+followed by separate student schedules. Fill in each standard's own criteria;
+existing standard-specific schedule instructions and criteria remain accessible
+through Records → Marking Schedules and are still used when preparing student
+schedules. No existing marking or linked documents are changed by the template.
 
 Before acceptance, back up the original Planner database, then check the new
 page and `/teacher-planner/health` while signed in. Compare existing private

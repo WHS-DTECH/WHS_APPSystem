@@ -2424,6 +2424,7 @@
       globalThis.plannerModeration.mount(content, {
         el, data, year, record: moderationRecord, page: moderationPage, ownerId, notice,
         feedbackTemplateUrl: api + 'moderation/templates/feedback',
+        scheduleTemplateUrl: api + 'moderation/templates/schedule',
         displayName: document.body.dataset.plannerName,
         userEmail: document.body.dataset.userEmail,
         request: async path => { await refreshSession(); return request(api + path); },

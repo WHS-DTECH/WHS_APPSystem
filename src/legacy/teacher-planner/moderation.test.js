@@ -788,6 +788,22 @@ test('moderation routes enforce sign-in, owner isolation, CSRF and private datab
   assert.ok(!blank.document.grade);
   assert.ok(!blank.document.feedback);
   assert.equal(calls.length, beforeTemplate, 'Downloading the blank template never reads or writes assessment records');
+  const scheduleTemplatePath = base + 'moderation/templates/schedule';
+  assert.equal((await fetch(scheduleTemplatePath)).status, 401);
+  assert.equal((await fetch(scheduleTemplatePath, { headers: { ...headers, 'x-test-role': 'Student' } })).status, 403);
+  const scheduleTemplate = await fetch(scheduleTemplatePath, { headers });
+  assert.equal(scheduleTemplate.status, 200);
+  assert.equal(scheduleTemplate.headers.get('cache-control'), 'no-store');
+  assert.ok(scheduleTemplate.headers.get('content-disposition').includes('marking-schedule-template.docx'));
+  assert.ok(scheduleTemplate.headers.get('content-type').includes(DOCX));
+  const blankSchedule = importDocument(Buffer.from(await scheduleTemplate.arrayBuffer()), 'schedule');
+  for (const key of ['studentName', 'studentId', 'standardNumber', 'standardTitle', 'version', 'level', 'credits']) {
+    assert.ok(!blankSchedule.common[key], key + ' must be blank in the schedule template');
+  }
+  for (const key of ['grade', 'markerComments', 'achieved', 'merit', 'excellence']) assert.ok(!blankSchedule.document[key]);
+  assert.deepEqual(blankSchedule.document.requirements, []);
+  assert.equal((await fetch(base + 'moderation/templates/unsupported', { headers })).status, 400);
+  assert.equal(calls.length, beforeTemplate, 'Template downloads and invalid types never access assessment records');
   const listing = await fetch(base + 'moderation/2026', { headers });
   assert.equal(listing.headers.get('cache-control'), 'no-store');
   const listed = (await listing.json()).records[0];
