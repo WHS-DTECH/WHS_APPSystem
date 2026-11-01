@@ -50,8 +50,11 @@ function createModuleAccessGuard({ dbQuery = query } = {}) {
       const module = matching[0];
       if (!module) return next();
       res.set('Cache-Control', 'no-store');
+      const plannerApi = /^\/teacher-planner\/api(?:\/|$)/.test(requestPath);
+      if (!req.user && plannerApi) return res.status(401).json({ error: 'School sign-in required. Copy unsaved work before signing in again.' });
       if (!req.user) return res.redirect('/auth/google?next=' + encodeURIComponent(req.originalUrl));
       if ((!module.is_active && module.module_key !== 'core') || !module.has_access || req.user.is_active === false) {
+        if (plannerApi) return res.status(403).json({ error: 'Teacher Planner is inactive or has not been assigned to your active school account.' });
         return res.status(403).render('error', { title: 'App access denied', message: 'This app is inactive or has not been assigned to your active school account.' });
       }
       next();

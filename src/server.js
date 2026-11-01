@@ -35,6 +35,7 @@ const maintenanceNotifications = require('./maintenanceNotifications');
 const { createLaunchpad, createLaunchApp, createLaunchpadAdminRouter } = require('./launchpad');
 const { accessibleModules, createModuleAccessGuard } = require('./moduleAccess');
 const { appDestination } = require('./appAddresses');
+const { createTeacherPlannerRouter } = require('./modules/teacherPlanner');
 
 const app = express();
 
@@ -45,11 +46,11 @@ app.set('trust proxy', 1);
 app.get('/favicon.ico', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'images', 'favicon.ico')));
 
 app.use(helmet({ contentSecurityPolicy: false }));
-// The Food Room pages make many small API calls, so they are not counted against the shared limit.
-app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, skip: (req) => req.path.startsWith('/food-room/') || req.path.startsWith('/dtech-hub/') || req.path === '/nav-data' }));
+// Interactive legacy apps make frequent API calls and use their own access/form guards.
+app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, skip: (req) => req.path.startsWith('/food-room/') || req.path.startsWith('/dtech-hub/') || req.path.startsWith('/teacher-planner/') || req.path === '/nav-data' }));
 // Hosted Flask apps receive their request bodies untouched, including training uploads.
 const parseBodies = [express.urlencoded({ extended: false }), express.json({ limit: '25mb' })];
-app.use((req, res, next) => (req.path.startsWith('/apps/') || req.path.startsWith('/dtech-hub/class-training/')
+app.use((req, res, next) => (req.path.startsWith('/apps/') || req.path.startsWith('/dtech-hub/class-training/') || req.path.startsWith('/teacher-planner/')
   ? next()
   : parseBodies[0](req, res, (error) => (error ? next(error) : parseBodies[1](req, res, next)))));
 app.use(session({
@@ -86,6 +87,7 @@ app.use((req, res, next) => {
 app.get(['/', '/launchpad', '/launchpad.html'], createLaunchpad());
 app.get('/launchpad/apps/:moduleKey', createLaunchApp());
 app.use(createModuleAccessGuard());
+app.use('/teacher-planner', createTeacherPlannerRouter());
 
 app.get('/healthz', (req, res) => {
   res.status(200).json({ ok: true });

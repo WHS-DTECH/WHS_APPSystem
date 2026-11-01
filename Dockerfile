@@ -21,6 +21,7 @@ RUN python3 -m venv /opt/pyenv \
 COPY . .
 
 RUN npm ci --omit=dev --prefix src/legacy/dtech-hub
+RUN npm ci --omit=dev --prefix src/legacy/teacher-planner
 
 ENV NODE_ENV=production
 ENV PYTHON_BIN=/opt/pyenv/bin/python

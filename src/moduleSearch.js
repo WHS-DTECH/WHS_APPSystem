@@ -14,7 +14,7 @@ const scopes = [
   { key: 'kamar', label: 'Kamar Uploader', pattern: /^\/admin\/kamar-uploader(?:\/|$)/ },
   { key: 'learning', label: 'WHS Learning Sites', pattern: /^\/(?:learning-sites(?:\/|$)|learning-sites-public\.html$|hubs\/learning-sites\/roles(?:\/|$)|ADMIN(?:\/|$)|ReleverPlan(?:\/|$)|(?:DTECH|COMP|Food|Textiles|WOOD|DVC)(?:\/|$))/ },
   { key: 'apps', label: 'APPs Dashboard', pattern: /^\/student-apps(?:\/|$)/ },
-  { key: 'core', label: 'Core Administration', pattern: /^\/(?:admin(?:\/|$)|hubs(?:\/|$)|dashboard$|profile(?:\/|$)|$)/ }
+  { key: 'core', label: 'Core Administration', pattern: /^\/(?:teacher-planner(?:\/|$)|admin(?:\/|$)|hubs(?:\/|$)|dashboard$|profile(?:\/|$)|$)/ }
 ];
 
 function moduleForPath(value) {

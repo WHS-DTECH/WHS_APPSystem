@@ -978,6 +978,47 @@ There is no new migration for this change and no user notification is sent.
 Private CSVs, `.env`, `node_modules` and the original project's `.git` are not
 copied into WHS_APPSystem.
 
+## Teacher Planner integration
+
+Teacher Planner is embedded at `/teacher-planner/`, using the original module
+router and screens from `src/legacy/teacher-planner`. Shared Google sign-in,
+navigation, Search, sign-out and role assignment come from Global Control.
+Migration 039 changes the Launchpad/module destination only; the standalone
+development service and its registered handoff callback remain available for
+rollback. No user notification is sent.
+
+Set `TEACHER_PLANNER_DATABASE_URL` to the **existing Planner database**, not Core
+`DATABASE_URL` or the Kamar connection. Initialization checks its existing tables
+read-only and performs no schema/data migration, import, deletion or fallback.
+Private records retain the same Core user UUIDs used by standalone Global Control
+sign-in. Planner CSRF, revision-conflict checks and per-owner filtering remain
+unchanged. `TEACHER_PLANNER_DATABASE_SSL=false` is for local PostgreSQL only.
+Missing database/schema or invalid Google integration configuration returns an
+explicit unavailable response without affecting Core or the original service.
+
+Keep the original `GOOGLE_CALENDAR_TOKEN_KEY` and Calendar/Drive credentials:
+changing that key would make stored Google connections unreadable. The linked
+Google environment groups are reused; `GLOBAL_CONTROL_URL` and `MODULE_CLIENT_ID`
+remain useful to the standalone service but embedded sign-in uses the Core
+session directly. Kamar staff/class readers and curated Core departments are
+shared with the existing standalone bridge.
+
+In Google Cloud, add this authorised redirect URI to the Calendar OAuth client:
+`https://whs-appsystem.onrender.com/teacher-planner/api/planner/google-calendar/callback`.
+Keep the original development callback authorised. Add
+`https://whs-appsystem.onrender.com` to the relevant Google browser clients'
+authorised JavaScript origins and the Drive browser key's allowed referrers.
+Use the future `APP_BASE_URL` origin instead when hosting/domain changes.
+
+Before acceptance, back up the original Planner database, then check the new
+page and `/teacher-planner/health` while signed in. Compare existing private
+planner entries, attendance and duties against the original service. Verify
+autosave, reload, staff/class lists, Google Calendar/Docs/Tasks and Drive Picker.
+Do not edit the same planner in both services simultaneously; revision checks
+still protect against stale saves. The original Planner regression suite runs
+with `npm test --prefix src/legacy/teacher-planner`; PostgreSQL tests require an
+isolated `PLANNER_TEST_DATABASE_URL`, never a production connection.
+
 ## Workshop module
 
 The Workshop is the legacy Workshop site (public/workshop, legacy API in src/legacy/workshop) under /workshop, using the Google login. Admins and users given the Workshop Lead Teacher hub role (assign at /admin/users) can upload worksheets, lesson notes and planners; signed-in users can upload activities. Existing data is copied once from INTEGRATION_WORKSHOP_DATABASE_URL (guarded by workshop_legacy_import); new data goes to DATABASE_URL. Suggestion notification emails are sent through the framework's Google Gmail API (GOOGLE_GMAIL_* variables) to Admins and Workshop Lead Teachers; SITE_URL is used in the email links.

@@ -1,0 +1,22 @@
+{
+  "name": "teacher-planner",
+  "version": "0.2.0",
+  "private": true,
+  "engines": { "node": ">=22.23.4 <23" },
+  "scripts": {
+    "start": "node migrate.js && node server.js",
+    "db:migrate": "node migrate.js",
+    "test": "node --test app.test.js planner.test.js attendance.test.js periodPlanner.test.js kamarCalendar.test.js googleCalendar.test.js googleDrive.test.js dutyRoster.test.js nzqaStandards.test.js standardDetails.test.js nzqaReferences.test.js assessmentSetup.test.js moderation.test.js moderationUI.test.js moderationDrive.test.js googleTasks.test.js googleTasksUI.test.js googleDocEvents.test.js termAutosave.test.js weeklyPrompts.test.js weeklyLayout.test.js weeklyTimetable.test.js weeklyValues.test.js regionalHolidays.test.js"
+  },
+  "dependencies": {
+    "@xmldom/xmldom": "^0.8.11",
+    "connect-pg-simple": "^10.0.0",
+    "express": "^4.21.2",
+    "express-session": "^1.18.1",
+    "helmet": "^8.0.0",
+    "ical.js": "^2.2.1",
+    "pg": "^8.13.1",
+    "pdf-parse": "1.1.1",
+    "pizzip": "^3.2.0"
+  }
+}

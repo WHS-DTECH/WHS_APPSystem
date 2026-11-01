@@ -9,7 +9,7 @@ const GMAIL_TO = { name: 'GOOGLE_GMAIL_TO', note: 'Default recipients for notifi
 
 const moduleDocs = {
   'module-builder': {
-    summary: 'Global ADMIN-only development registry, infrastructure records and individually confirmed GitHub/Render provisioning. Development applications never execute in Core.',
+    summary: 'Global ADMIN-only development registry, infrastructure records and individually confirmed GitHub/Render provisioning. Provisioning does not automatically embed development applications in Core.',
     legacyDatabase: { used: false, how: 'Registry metadata and operation history use Core. Each automatically provisioned development module gets its own Render PostgreSQL database.' },
     env: [
       { name: 'MODULE_BUILDER_GITHUB_OWNER', note: 'GitHub personal account or organisation for new private repositories; defaults to WHS-DTECH.', optional: true },
@@ -23,7 +23,7 @@ const moduleDocs = {
     summary: 'Google login, users, roles, permissions, modules and the shared Gmail sender. This is the framework itself, not a legacy site.',
     legacyDatabase: { used: false, how: 'No legacy database.' },
     env: [
-      { name: 'DATABASE_URL', note: 'The unified WHS APPSystem Postgres database. All new data is saved here.' },
+      { name: 'DATABASE_URL', note: 'The Core WHS APPSystem Postgres database for shared accounts and assignments. Integrated apps retain their configured databases.' },
       { name: 'SESSION_SECRET', note: 'Signs login sessions.' },
       { name: 'GOOGLE_CLIENT_ID', note: 'Google sign-in client.' },
       { name: 'GOOGLE_CLIENT_SECRET', note: 'Google sign-in client secret.' },
@@ -56,6 +56,20 @@ const moduleDocs = {
     env: [
       { name: 'INTEGRATION_KAMAR_DATABASE_URL', note: 'Required connection string of the existing live Kamar database, distinct from Core DATABASE_URL.', legacy: true },
       { name: 'KAMAR_DATABASE_SSL', note: 'TLS is enabled by default. Set false only for local PostgreSQL without TLS.', optional: true }
+    ]
+  },
+  'teacher-planner': {
+    summary: 'Original Teacher Planner embedded at /teacher-planner/ with shared Google login, Search and navigation.',
+    legacyDatabase: { used: true, how: 'The existing Teacher Planner database remains authoritative for private planners, attendance, duties and encrypted Google connections. No import, schema migration or fallback to Core/Kamar occurs. Core owner IDs are preserved.' },
+    env: [
+      { name: 'TEACHER_PLANNER_DATABASE_URL', note: 'Required existing Planner database connection, distinct from Core and Kamar.', legacy: true },
+      { name: 'TEACHER_PLANNER_DATABASE_SSL', note: 'Set false only for local PostgreSQL without TLS.', optional: true },
+      { name: 'GOOGLE_CALENDAR_CLIENT_ID', note: 'Existing Planner Google Calendar client; authorise the new /teacher-planner/api/planner/google-calendar/callback under APP_BASE_URL.', optional: true },
+      { name: 'GOOGLE_CALENDAR_CLIENT_SECRET', note: 'Existing Calendar client secret.', optional: true },
+      { name: 'GOOGLE_CALENDAR_TOKEN_KEY', note: 'Keep the original token encryption key so existing Google connections remain readable.', optional: true },
+      { name: 'GOOGLE_DRIVE_CLIENT_ID', note: 'Original Google Picker client. Authorise the new site origin.', optional: true },
+      { name: 'GOOGLE_DRIVE_API_KEY', note: 'Original restricted browser key. Include the new site in allowed referrers.', optional: true },
+      { name: 'GOOGLE_DRIVE_APP_ID', note: 'Original Google Picker numeric project ID.', optional: true }
     ]
   },
   'technology-hub': {
