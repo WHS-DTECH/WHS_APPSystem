@@ -138,6 +138,8 @@ see Google sign-in, not app cards; successful sign-in returns to the Launchpad
 unless an app-specific return path was requested. Inactive accounts are denied.
 The template is private at [`views/launchpad.html`](views/launchpad.html), not a
 public static file. Standalone downloads are retired (HTTP 410).
+The Launchpad masthead uses the shared circular school logo, identical to the
+original Kamar Uploader asset.
 
 The existing `modules` registry owns app destinations and active status.
 Non-admin users see only individually assigned active modules: existing

@@ -19,6 +19,8 @@ test('Launchpad template retains responsive and keyboard-accessible presentation
   assert.match(html, /<main id="services"/);
   assert.match(html, /:focus-visible/);
   assert.match(html, /prefers-reduced-motion/);
+  assert.match(html, /<img class="brand-mark" src="\/images\/whs%20logo%20circular%20reo%20\.png" width="58" height="58" alt="">/);
+  assert.equal(fs.existsSync(path.join(__dirname, '..', 'public', 'images', 'whs logo circular reo .png')), true);
   assert.doesNotMatch(html, /target="_blank"/);
   assert.equal([...html.matchAll(/<h1\b/g)].length, 1);
   assert.equal(fs.existsSync(path.join(__dirname, '..', 'public', 'launchpad.html')), false);
