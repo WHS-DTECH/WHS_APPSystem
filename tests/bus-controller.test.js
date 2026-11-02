@@ -61,6 +61,12 @@ test('parent map, Westroad sign-in and shared files are public', async () => {
   }
 });
 
+test('pages send their origin as Referer so OpenStreetMap serves map tiles', async () => {
+  for (const route of ['/parent.html', '/westroad.html']) {
+    assert.equal((await get(route)).headers.get('referrer-policy'), 'strict-origin-when-cross-origin', route);
+  }
+});
+
 test('staff pages need a Global Control sign-in', async () => {
   for (const route of ['/staff', '/principal.html', '/admin.html']) {
     const response = await get(route);

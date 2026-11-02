@@ -151,6 +151,8 @@ function renderFirebaseUsers(req, res) {
 
 function createBusControllerRouter({ dbQuery = query, firebase = createFirebase() } = {}) {
   const router = express.Router();
+  // OpenStreetMap refuses tile requests without a Referer; send only the origin, as browsers do by default.
+  router.use((req, res, next) => { res.set('Referrer-Policy', 'strict-origin-when-cross-origin'); next(); });
   const problem = (res, status, message) => res.status(status).render('error', { title: 'Bus Controller', message });
   const signIn = (req, res) => res.redirect(`/auth/google?next=${encodeURIComponent(req.originalUrl)}`);
 
