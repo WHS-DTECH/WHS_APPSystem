@@ -26,7 +26,26 @@ async function migrate() {
   } finally { await client.end(); }
 }
 
-if (require.main === module) {
-  migrate().catch(() => { console.error('Module migration failed. Check database access and migration files.'); process.exitCode = 1; });
+function migrationFailure(error) {
+  const reasons = {
+    ENOENT: 'Migration files are missing.',
+    ENOTFOUND: 'Database hostname could not be resolved.',
+    ECONNREFUSED: 'Database connection was refused.',
+    ETIMEDOUT: 'Database connection timed out.',
+    '28P01': 'Database authentication failed.',
+    '3D000': 'Configured database does not exist.',
+    '42501': 'Database user lacks migration permissions.',
+    SELF_SIGNED_CERT_IN_CHAIN: 'Database TLS certificate was rejected.',
+    DEPTH_ZERO_SELF_SIGNED_CERT: 'Database TLS certificate was rejected.',
+    ERR_TLS_CERT_ALTNAME_INVALID: 'Database TLS hostname did not match the certificate.'
+  };
+  const reason = reasons[error?.code] ||
+    (/does not support ssl/i.test(error?.message || '') ? 'Database server does not support the requested TLS connection.' :
+      'Check database access and migration files.');
+  return `Module migration failed. ${reason}`;
 }
-module.exports = { migrate };
+
+if (require.main === module) {
+  migrate().catch(error => { console.error(migrationFailure(error)); process.exitCode = 1; });
+}
+module.exports = { migrate, migrationFailure };

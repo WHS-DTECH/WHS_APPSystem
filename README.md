@@ -315,6 +315,11 @@ requests one durable step at a time: repository, starter commit, separate paid
 database, wait for availability, connected paid Web Service, wait for deployment,
 then verify the shared group link and database health and grant approved testers.
 The recorded service origin registers its Global Control identity automatically.
+The resource checklist, provider links and recorded operations refresh after each
+step/check, including failures. Waiting displays the observed Render deployment
+state, check time and next-check interval; a disabled running button prevents
+duplicate submits. A deployment failure stops setup and requires inspection of
+the existing Render service logs, not registration of a replacement app.
 Keep the page open; closing it pauses further steps, not an already-sent provider
 operation. The page pauses after 15 minutes; reload/resume slow deployments.
 Provider errors stop the workflow. Uncertain outcomes remain locked until inspected

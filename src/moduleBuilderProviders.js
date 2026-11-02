@@ -284,7 +284,10 @@ function createBuilderProviders({ env = process.env, fetchImpl = fetch } = {}) {
     if (typeof origin !== 'string' || !/^https:\/\/[a-z0-9-]+\.onrender\.com\/?$/.test(origin)) {
       throw new BuilderError('Render has not returned a valid default HTTPS service address. Inspect Render.', 409);
     }
-    if (deployment?.status !== 'live') return { state: 'waiting', message: 'Waiting for the first Render deployment to become live.', appUrl: origin };
+    if (deployment?.status !== 'live') return { state: 'waiting',
+      message: deployment ? `Render deployment is ${deployment.status || 'unknown'}; waiting for it to become live.` :
+        'Render has not returned a deployment yet; waiting for the first deployment.',
+      appUrl: origin };
     if (deployment.commit?.id !== project.framework_commit) throw new BuilderError('Repository work has changed since starter setup. Use technical details to verify this deployment; the wizard will not replace your code.', 409);
     const group = await api('Render', `/env-groups/${sharedGroupId}`);
     if (group.ownerId !== ownerId || !Array.isArray(group.serviceLinks) || !group.serviceLinks.some(link => link.id === settings.serviceId)) {
