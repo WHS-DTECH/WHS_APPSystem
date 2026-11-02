@@ -133,6 +133,13 @@ test('Course Management settings are contextual and require current training tea
   assert.match(source, /link\(settings, 'Course Management', data\.courseManagementUrl\)/);
 });
 
+test('Teacher Planner pages use the same menu script as Core, with Teacher Planner under Modules', () => {
+  const core = fs.readFileSync(path.join(__dirname, '..', 'public', 'global-nav.js'), 'utf8');
+  const planner = fs.readFileSync(path.join(__dirname, '..', 'src', 'legacy', 'teacher-planner', 'public', 'global-nav.js'), 'utf8');
+  assert.equal(planner, core);
+  assert.match(core, /section\('Modules', \[[^\]]*'Teacher Planner'/);
+});
+
 test('HUB Dashboard, DTECH and Class Training use the requested navigation groups', async () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'global-nav.js'), 'utf8');
   const start = source.indexOf('var modules = data.modules || [];');
