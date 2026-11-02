@@ -8,6 +8,8 @@ const SCHOOL_ID = 'westland high school';
 const DATABASE_URL = 'https://whsbuscontroller-default-rtdb.firebaseio.com';
 const PUBLIC_DIR = path.join(__dirname, 'legacy', 'bus-controller', 'public');
 const STAFF_PAGES = { principal: 'principal.html', admin: 'admin.html' };
+// westroad.html stays public for Westroad's own Firebase login; Global Control staff may also get a token there.
+const TOKEN_PAGES = { ...STAFF_PAGES, westroad: 'westroad.html' };
 const CUSTOM_TOKEN_AUDIENCE = 'https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit';
 
 function serviceAccount(env = process.env) {
@@ -76,7 +78,10 @@ async function staffAccess(user, dbQuery = query) {
   const access = {};
   if (user.roles?.includes('ADMIN')) Object.assign(access, { admin: 'admin', principal: 'principal' });
   if (roles.includes('lead-teacher')) access.principal = 'principal';
-  else if (roles.includes('tester') && !access.principal) access.principal = 'tester';
+  // Testers see every staff page, including Westroad hazards, view only.
+  if (roles.includes('tester')) {
+    for (const page of Object.keys(TOKEN_PAGES)) access[page] = access[page] || 'tester';
+  }
   return access;
 }
 
@@ -117,10 +122,11 @@ function createBusControllerRouter({ dbQuery = query, firebase = createFirebase(
     const page = String(req.query.page || '');
     const uid = firebaseUid(req.user);
     try {
-      const role = STAFF_PAGES[page] ? (await staffAccess(req.user, dbQuery))[page] : null;
+      const role = TOKEN_PAGES[page] ? (await staffAccess(req.user, dbQuery))[page] : null;
       if (!role) {
         // Removing access in Global Control also removes it from any earlier Firebase session.
-        await firebase.updateUser(uid, { role: 'none' }).catch(() => {});
+        // The public Westroad page only asks in case the visitor is staff, so a "no" there changes nothing.
+        if (page !== 'westroad') await firebase.updateUser(uid, { role: 'none' }).catch(() => {});
         return res.status(403).json({ error: 'No Bus Controller access for this page.' });
       }
       const record = { name: req.user.display_name || req.user.email, email: req.user.email, role };

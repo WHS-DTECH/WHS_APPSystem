@@ -79,14 +79,32 @@ test('staff sign-in sends each Global Control role to its own page', async () =>
   assert.equal((await get('/staff', 'lead')).status, 503);
 });
 
-test('Lead Teachers and testers get the routes page only; only ADMIN gets user management', async () => {
+test('Lead Teachers get the routes page; testers see every staff page; only ADMIN manages users', async () => {
   assert.equal((await get('/principal.html', 'lead')).status, 200);
   assert.equal((await get('/principal.html', 'tester')).status, 200);
   assert.equal((await get('/principal.html', 'admin')).status, 200);
   assert.equal((await get('/principal.html', 'teacher')).status, 403);
   assert.equal((await get('/admin.html', 'admin')).status, 200);
   assert.equal((await get('/admin.html', 'lead')).status, 403);
-  assert.equal((await get('/admin.html', 'tester')).status, 403);
+  assert.equal((await get('/admin.html', 'tester')).status, 200);
+  assert.deepEqual(await staffAccess(users.tester, dbQuery), { principal: 'tester', admin: 'tester', westroad: 'tester' });
+  assert.deepEqual(await staffAccess(users.lead, dbQuery), { principal: 'principal' });
+});
+
+test('testers get a view-only token for Westroad hazards and user management too', async () => {
+  for (const page of ['westroad', 'admin']) {
+    updates = [];
+    const response = await get(`/api/firebase-token?page=${page}`, 'tester');
+    assert.deepEqual(await response.json(), { token: 'token-for-core-t1-tester', viewOnly: true }, page);
+    assert.equal(updates[0].record.role, 'tester');
+  }
+});
+
+test('the public Westroad page leaves non-testers alone', async () => {
+  assert.equal((await get('/westroad.html', 'teacher')).status, 200);
+  assert.equal((await get('/api/firebase-token?page=westroad')).status, 401);
+  assert.equal((await get('/api/firebase-token?page=westroad', 'lead')).status, 403);
+  assert.deepEqual(updates, []);
 });
 
 test('Firebase token records the Global Control role for Westland High only', async () => {
@@ -152,7 +170,7 @@ test('Firebase helper signs custom tokens and writes users with a cached service
   assert.equal(createFirebase({ env: {} }).configured, false);
 });
 
-async function runCoreSession(viewOnly) {
+async function runCoreSession(viewOnly, { page = 'principal', tokenOk = true, currentUid = 'core-t1' } = {}) {
   const vm = require('vm');
   const writes = [];
   const Reference = function () {};
@@ -161,10 +179,13 @@ async function runCoreSession(viewOnly) {
   });
   Reference.prototype.push = function (value) { if (value !== undefined) writes.push('push'); return new Reference(); };
   const alerts = [];
+  const links = [];
   let signedInWith;
+  let signOuts = 0;
+  let redirectedTo;
   const context = {
-    location: { pathname: '/bus-controller/principal.html', replace() {} },
-    fetch: async () => ({ ok: true, json: async () => ({ token: 'T', viewOnly }) }),
+    location: { pathname: `/bus-controller/${page}.html`, replace(url) { redirectedTo = url; } },
+    fetch: async () => (tokenOk ? { ok: true, json: async () => ({ token: 'T', viewOnly }) } : { ok: false, status: 401 }),
     alert: (message) => alerts.push(message),
     encodeURIComponent,
     Promise,
@@ -172,29 +193,56 @@ async function runCoreSession(viewOnly) {
     Error,
     firebase: { database: { Reference } },
     auth: {
-      signOut: async () => {},
+      signOut: async () => { signOuts += 1; },
       signInWithCustomToken: async (token) => { signedInWith = token; },
-      onAuthStateChanged: (callback) => callback({ uid: 'core-t1' })
+      onAuthStateChanged: (callback) => { callback(currentUid ? { uid: currentUid } : null); return () => {}; }
     },
-    document: { createElement: () => ({ style: {} }), body: { appendChild() {} } }
+    document: {
+      createElement: (tag) => { const node = { tag, style: {}, appendChild() {} }; if (tag === 'a') links.push(node); return node; },
+      createTextNode: (text) => ({ text }),
+      body: { appendChild() {} }
+    }
   };
   vm.runInNewContext(fs.readFileSync(path.join(PUBLIC_DIR, 'core-session.js'), 'utf8'), context);
-  await new Promise((resolve) => context.auth.onAuthStateChanged(resolve));
+  const ready = await Promise.race([
+    new Promise((resolve) => context.auth.onAuthStateChanged(() => resolve(true))),
+    new Promise((resolve) => setTimeout(() => resolve(false), 200))
+  ]);
   const ref = new Reference();
   const results = await Promise.allSettled([ref.set({}), ref.update({}), ref.remove(), ref.push({ name: 'x' }), ref.transaction(() => 1)]);
   ref.push();
-  return { writes, alerts, results, signedInWith };
+  return { writes, alerts, results, signedInWith, signOuts, redirectedTo, ready, links: links.map((link) => link.href) };
 }
 
-test('testers see the Lead Teacher routes page but cannot save', async () => {
-  const tester = await runCoreSession(true);
-  assert.equal(tester.signedInWith, 'T');
-  assert.deepEqual(tester.writes, []);
-  assert.ok(tester.results.every((result) => result.status === 'rejected'));
-  assert.equal(tester.alerts.length, 1);
+test('testers see every staff page but cannot save, with links between them', async () => {
+  for (const page of ['principal', 'westroad', 'admin']) {
+    const tester = await runCoreSession(true, { page });
+    assert.equal(tester.signedInWith, 'T', page);
+    assert.deepEqual(tester.writes, [], page);
+    assert.ok(tester.results.every((result) => result.status === 'rejected'), page);
+    assert.equal(tester.alerts.length, 1, page);
+    assert.deepEqual(tester.links, ['principal.html', 'westroad.html', 'admin.html']);
+  }
 
   const lead = await runCoreSession(false);
   assert.deepEqual(lead.writes, ['set', 'update', 'remove', 'push', 'transaction']);
+  assert.deepEqual(lead.links, []);
+});
+
+test('Westroad keeps its own Firebase login when Global Control says no', async () => {
+  const westroad = await runCoreSession(false, { page: 'westroad', tokenOk: false, currentUid: 'firebase-westroad-user' });
+  assert.equal(westroad.ready, true);
+  assert.equal(westroad.signOuts, 0);
+  assert.equal(westroad.signedInWith, undefined);
+  assert.equal(westroad.redirectedTo, undefined);
+
+  const oldStaff = await runCoreSession(false, { page: 'westroad', tokenOk: false, currentUid: 'core-t1' });
+  assert.equal(oldStaff.signOuts, 1);
+
+  const denied = await runCoreSession(false, { page: 'principal', tokenOk: false });
+  assert.equal(denied.ready, false);
+  assert.equal(denied.redirectedTo, 'staff?problem=1');
+  assert.equal(denied.signOuts, 1);
 });
 
 test('lifted pages stay inside /bus-controller and drop the shared test logins', () => {
@@ -203,7 +251,8 @@ test('lifted pages stay inside /bus-controller and drop the shared test logins',
     assert.doesNotMatch(text, /\.\.\/index\.html/, file);
     assert.doesNotMatch(text, /par@test\.com|createAccountWithGoogle|GoogleAuthProvider/, file);
   }
-  for (const file of ['principal.html', 'admin.html']) {
+  for (const file of ['principal.html', 'admin.html', 'westroad.html']) {
     assert.match(fs.readFileSync(path.join(PUBLIC_DIR, file), 'utf8'), /<script src="app\.js"><\/script>\s*<script src="core-session\.js"><\/script>/, file);
   }
+  assert.match(fs.readFileSync(path.join(PUBLIC_DIR, 'admin.html'), 'utf8'), /role === 'admin' \|\| role === 'tester'/);
 });

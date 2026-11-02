@@ -166,7 +166,7 @@
         if (user) {
             db.ref('users/' + user.uid + '/role').once('value').then(snap => {
                 const role = snap.val();
-                if (role === 'admin') {
+                if (role === 'admin' || role === 'tester') {
                     listenToSchools();
                 } else {
                     window.location.href = 'index.html';

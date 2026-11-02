@@ -1239,7 +1239,7 @@ user records; nothing is copied into Core.
 | Parents / public | No sign-in | `parent.html` view-only map |
 | Westroad | Firebase email and password on `/bus-controller/` | `westroad.html` hazards |
 | Bus Controller Lead Teacher (incl. principal@) | **Sign in with school Google** → `/bus-controller/staff` | `principal.html`, Westland High routes only |
-| Bus Controller Tester (e.g. J_leaf) | School Google, own account | `principal.html` **view only**: every save is blocked and a "View only" label shows |
+| Bus Controller Tester (e.g. J_leaf) | School Google, own account | **View only** on every staff page: routes, Westroad hazards and users. Every save is blocked; a "View only" bar links the three pages |
 | ADMIN | School Google | `admin.html` to manage Westroad accounts |
 
 Assign the Lead Teacher and Tester roles for `bus-controller-app` at
@@ -1255,8 +1255,12 @@ Set `BUS_CONTROLLER_FIREBASE_SERVICE_ACCOUNT` to the service-account JSON key
 (Firebase console → Project settings → Service accounts → Generate new private
 key). Without it, staff sign-in shows "not set up yet"; public and Westroad
 pages still work. Testers' saves are blocked in the page. To block them in
-Firebase too, add `auth.token.busControllerRole !== 'tester'` to the `schools`
-write rule in the Firebase console; staff tokens carry that claim.
+Firebase too, add `auth.token.busControllerRole !== 'tester'` to the `schools`,
+`hazards` and `users` write rules in the Firebase console; staff tokens carry
+that claim. For the tester to see the user list, the `users` read rule must
+also allow `auth.token.busControllerRole === 'tester'`. On `westroad.html`, a
+Westroad email/password login is left alone when Global Control has no Tester
+role for the visitor.
 
 ## Workshop module
 
