@@ -927,6 +927,9 @@ Dashboard (listed there under "Moved to In Development"), so it shows only under
 **In Development** (a Module Builder project). It sets
 `student_apps.moved_to_development_at`; nothing is deleted and access, roles and
 Launchpad cards are unchanged. **Put back in Student Apps** reverses it.
+Existing independently hosted student apps registered in Module Builder (for
+example the International App) carry `module_builder_projects.listed_as_student_app`
+so they stay under Student Apps; the same step clears that flag to move them.
 
 Set `STUDENT_HANDOVER_GITHUB_TOKEN` to a GitHub token for the owner with
 **Administration** and **Contents: Read and write**; if it is not set the

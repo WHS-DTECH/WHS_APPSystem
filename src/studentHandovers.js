@@ -98,8 +98,13 @@ function createHandoverRouter({
     const studentApps = (await dbQuery(
       'SELECT slug, name, moved_to_development_at FROM student_apps ORDER BY name'
     )).rows;
+    const projectApps = (await dbQuery(
+      `SELECT 'project:'||slug AS slug, name, NULL::timestamptz AS moved_to_development_at FROM module_builder_projects
+       WHERE listed_as_student_app OR 'project:'||slug = $1 ORDER BY name`, [item.student_app_slug || '']
+    )).rows;
+    studentApps.push(...projectApps);
     const developmentProjects = (await dbQuery(
-      `SELECT id, name FROM module_builder_projects WHERE stage IN ('draft','development','staging') ORDER BY name`
+      `SELECT id, name FROM module_builder_projects WHERE stage IN ('draft','development','staging') AND NOT listed_as_student_app ORDER BY name`
     )).rows;
     const words = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\b(whs|app)\b/g, ' ').trim().split(/\s+/).filter(Boolean);
     const compact = (value) => words(value).join('');
@@ -299,26 +304,36 @@ function createHandoverRouter({
     return res.redirect(303, `${BASE}/${item.id}`);
   }));
 
+  async function moveApp(choice, moved) {
+    const project = choice.startsWith('project:') ? choice.slice(8) : null;
+    if (!SLUG.test(project || choice)) return null;
+    if (project) {
+      return (await dbQuery(
+        `UPDATE module_builder_projects SET listed_as_student_app = $2 WHERE slug = $1 AND listed_as_student_app = $3 RETURNING name`,
+        [project, !moved, moved]
+      )).rows[0];
+    }
+    return (await dbQuery(moved
+      ? 'UPDATE student_apps SET moved_to_development_at = NOW() WHERE slug = $1 AND moved_to_development_at IS NULL RETURNING name'
+      : 'UPDATE student_apps SET moved_to_development_at = NULL WHERE slug = $1 RETURNING name', [choice])).rows[0];
+  }
+
   router.post('/:id/move-app', handle(async (req, res, item) => {
-    const slug = text(req.body.studentApp, 60);
+    const choice = text(req.body.studentApp, 70);
     if (item.student_app_slug) throw new HandoverError('A student app is already moved for this handover. Put it back first to choose a different one.', 409);
-    if (!SLUG.test(slug)) throw new HandoverError('Choose the registered student app to move.');
-    const app = (await dbQuery(
-      'UPDATE student_apps SET moved_to_development_at = NOW() WHERE slug = $1 AND moved_to_development_at IS NULL RETURNING name', [slug]
-    )).rows[0];
+    if (!choice) throw new HandoverError('Choose the registered student app to move.');
+    const app = await moveApp(choice, true);
     if (!app) throw new HandoverError('That student app was not found, or it has already moved to In Development.', 409);
     await dbQuery(
       'UPDATE student_project_handovers SET student_app_slug = $2, history = history || $3::jsonb WHERE id = $1',
-      [item.id, slug, event(req, 'Moved out of Student Apps into In Development', app.name)]
+      [item.id, choice, event(req, 'Moved out of Student Apps into In Development', app.name)]
     );
     return res.redirect(303, `${BASE}/${item.id}`);
   }));
 
   router.post('/:id/move-app/undo', handle(async (req, res, item) => {
     if (!item.student_app_slug) throw new HandoverError('No student app has been moved for this handover.', 409);
-    const app = (await dbQuery(
-      'UPDATE student_apps SET moved_to_development_at = NULL WHERE slug = $1 RETURNING name', [item.student_app_slug]
-    )).rows[0];
+    const app = await moveApp(item.student_app_slug, false);
     await dbQuery(
       'UPDATE student_project_handovers SET student_app_slug = NULL, history = history || $2::jsonb WHERE id = $1',
       [item.id, event(req, 'Put back in Student Apps', app ? app.name : item.student_app_slug)]

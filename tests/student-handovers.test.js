@@ -15,6 +15,7 @@ let live;
 let renderConfigured;
 let owner;
 let apps;
+let projects;
 
 const push = (row, entry) => { row.history = [...row.history, ...JSON.parse(entry)]; };
 
@@ -22,7 +23,19 @@ const BUILDER = '11111111-2222-4333-8444-555555555555';
 
 async function dbQuery(sql, params = []) {
   if (sql.includes('FROM student_apps ORDER BY name')) return { rows: [...apps.values()] };
-  if (sql.includes('FROM module_builder_projects')) return { rows: [{ id: 'p1', name: 'Bus Controller App' }, { id: 'p2', name: 'International App' }] };
+  if (sql.includes('WHERE listed_as_student_app OR')) {
+    return { rows: [...projects.values()].filter((project) => project.listed || `project:${project.slug}` === params[0])
+      .map((project) => ({ slug: `project:${project.slug}`, name: project.name, moved_to_development_at: null })) };
+  }
+  if (sql.startsWith('UPDATE module_builder_projects SET listed_as_student_app')) {
+    const project = projects.get(params[0]);
+    if (!project || project.listed !== params[2]) return { rows: [] };
+    project.listed = params[1];
+    return { rows: [{ name: project.name }] };
+  }
+  if (sql.includes('FROM module_builder_projects')) {
+    return { rows: [{ id: 'p1', name: 'Bus Controller App' }, ...[...projects.values()].filter((project) => !project.listed).map((project) => ({ id: 'p2', name: project.name }))] };
+  }
   if (sql.startsWith('UPDATE student_apps SET moved_to_development_at = NOW()')) {
     const app = apps.get(params[0]);
     if (!app || app.moved_to_development_at) return { rows: [] };
@@ -134,6 +147,7 @@ test.beforeEach(() => {
     ['international', { slug: 'international', name: 'International App', moved_to_development_at: null }],
     ['bus-controller', { slug: 'bus-controller', name: 'Bus Controller App', moved_to_development_at: null }]
   ]);
+  projects = new Map([['international-app', { slug: 'international-app', name: 'International App', listed: true }]]);
 });
 
 async function formSession() {
@@ -301,6 +315,22 @@ test('a handed-over app can move out of Student Apps into In Development and be 
   assert.equal((await post(`/${id}/move-app/undo`, { csrf: form.csrf }, form.cookie)).status, 303);
   assert.equal(apps.get('bus-controller').moved_to_development_at, null);
   assert.equal(rows.get(id).student_app_slug, null);
+});
+
+test('an existing student app registered in Module Builder stays in Student Apps until its handover moves it', async () => {
+  const form = await formSession();
+  const id = await start(form);
+  let html = await (await fetch(`${base}/${id}`, { headers: { cookie: form.cookie } })).text();
+  assert.match(html, /<option value="project:international-app" >International App<\/option>/);
+  assert.doesNotMatch(html, /module-builder\/p2/);
+  assert.equal((await post(`/${id}/move-app`, { csrf: form.csrf, studentApp: 'project:international-app' }, form.cookie)).status, 303);
+  assert.equal(projects.get('international-app').listed, false);
+  assert.equal(rows.get(id).student_app_slug, 'project:international-app');
+  html = await (await fetch(`${base}/${id}`, { headers: { cookie: form.cookie } })).text();
+  assert.match(html, /Moved out of Student Apps: International App/);
+  assert.equal((await post(`/${id}/move-app/undo`, { csrf: form.csrf }, form.cookie)).status, 303);
+  assert.equal(projects.get('international-app').listed, true);
+  assert.equal((await post(`/${id}/move-app`, { csrf: form.csrf, studentApp: 'project:../x' }, form.cookie)).status, 409);
 });
 
 function fakeGithub(routes) {
