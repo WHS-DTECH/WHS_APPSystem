@@ -11,7 +11,34 @@
       if (!response.ok) throw new Error('denied');
       return response.json();
     })
-    .then(function (data) { return auth.signInWithCustomToken(data.token); });
+    .then(function (data) {
+      if (data.viewOnly) viewOnly();
+      return auth.signInWithCustomToken(data.token);
+    });
+
+  // Testers explore the Lead Teacher page without being able to save anything.
+  function viewOnly() {
+    var proto = firebase.database.Reference.prototype;
+    var lastNotice = 0;
+    function blocked() {
+      if (Date.now() - lastNotice > 3000) {
+        lastNotice = Date.now();
+        alert('View only: testers cannot save changes to routes.');
+      }
+      return Promise.reject(new Error('View only'));
+    }
+    ['set', 'update', 'remove', 'setWithPriority', 'setPriority', 'transaction'].forEach(function (name) {
+      proto[name] = blocked;
+    });
+    var push = proto.push;
+    proto.push = function (value) {
+      return value === undefined ? push.call(this) : blocked();
+    };
+    var banner = document.createElement('div');
+    banner.textContent = 'View only (tester): changes are not saved';
+    banner.style.cssText = 'position:fixed;left:50%;bottom:12px;transform:translateX(-50%);z-index:10000;background:#222;color:#fff;padding:6px 14px;border-radius:16px;font:600 13px sans-serif;pointer-events:none';
+    document.body.appendChild(banner);
+  }
 
   var watch = auth.onAuthStateChanged.bind(auth);
   auth.onAuthStateChanged = function (callback) {

@@ -21,7 +21,7 @@ const dbQuery = async (sql, params) => {
 
 const firebase = {
   get configured() { return configured; },
-  customToken: (uid) => `token-for-${uid}`,
+  customToken: (uid, claims) => `token-for-${uid}-${claims.busControllerRole}`,
   updateUser: async (uid, record) => { updates.push({ uid, record }); }
 };
 
@@ -92,13 +92,13 @@ test('Lead Teachers and testers get the routes page only; only ADMIN gets user m
 test('Firebase token records the Global Control role for Westland High only', async () => {
   const response = await get('/api/firebase-token?page=principal', 'lead');
   assert.equal(response.headers.get('cache-control'), 'no-store');
-  assert.deepEqual(await response.json(), { token: 'token-for-core-l1' });
+  assert.deepEqual(await response.json(), { token: 'token-for-core-l1-principal', viewOnly: false });
   assert.deepEqual(updates, [{ uid: 'core-l1', record: {
     name: 'Principal', email: 'principal@westlandhigh.school.nz', role: 'principal', schoolId: 'westland high school'
   } }]);
 
   updates = [];
-  await get('/api/firebase-token?page=principal', 'tester');
+  assert.deepEqual(await (await get('/api/firebase-token?page=principal', 'tester')).json(), { token: 'token-for-core-t1-tester', viewOnly: true });
   assert.equal(updates[0].record.role, 'tester');
 
   updates = [];
@@ -132,10 +132,11 @@ test('Firebase helper signs custom tokens and writes users with a cached service
   const helper = createFirebase({ env: { BUS_CONTROLLER_FIREBASE_SERVICE_ACCOUNT: JSON.stringify(account) }, fetchImpl, now: () => 1700000000000 });
   assert.equal(helper.configured, true);
 
-  const [header, payload, signature] = helper.customToken('core-l1').split('.');
+  const [header, payload, signature] = helper.customToken('core-l1', { busControllerRole: 'tester' }).split('.');
   assert.ok(crypto.verify('RSA-SHA256', Buffer.from(`${header}.${payload}`), publicKey, Buffer.from(signature, 'base64url')));
   const claims = JSON.parse(Buffer.from(payload, 'base64url').toString());
   assert.equal(claims.uid, 'core-l1');
+  assert.deepEqual(claims.claims, { busControllerRole: 'tester' });
   assert.equal(claims.iss, account.client_email);
   assert.equal(claims.exp - claims.iat, 3600);
   assert.match(claims.aud, /identitytoolkit/);
@@ -149,6 +150,51 @@ test('Firebase helper signs custom tokens and writes users with a cached service
   assert.equal(write.options.headers.Authorization, 'Bearer service-token');
 
   assert.equal(createFirebase({ env: {} }).configured, false);
+});
+
+async function runCoreSession(viewOnly) {
+  const vm = require('vm');
+  const writes = [];
+  const Reference = function () {};
+  ['set', 'update', 'remove', 'setWithPriority', 'setPriority', 'transaction'].forEach((name) => {
+    Reference.prototype[name] = function () { writes.push(name); return Promise.resolve(); };
+  });
+  Reference.prototype.push = function (value) { if (value !== undefined) writes.push('push'); return new Reference(); };
+  const alerts = [];
+  let signedInWith;
+  const context = {
+    location: { pathname: '/bus-controller/principal.html', replace() {} },
+    fetch: async () => ({ ok: true, json: async () => ({ token: 'T', viewOnly }) }),
+    alert: (message) => alerts.push(message),
+    encodeURIComponent,
+    Promise,
+    Date,
+    Error,
+    firebase: { database: { Reference } },
+    auth: {
+      signOut: async () => {},
+      signInWithCustomToken: async (token) => { signedInWith = token; },
+      onAuthStateChanged: (callback) => callback({ uid: 'core-t1' })
+    },
+    document: { createElement: () => ({ style: {} }), body: { appendChild() {} } }
+  };
+  vm.runInNewContext(fs.readFileSync(path.join(PUBLIC_DIR, 'core-session.js'), 'utf8'), context);
+  await new Promise((resolve) => context.auth.onAuthStateChanged(resolve));
+  const ref = new Reference();
+  const results = await Promise.allSettled([ref.set({}), ref.update({}), ref.remove(), ref.push({ name: 'x' }), ref.transaction(() => 1)]);
+  ref.push();
+  return { writes, alerts, results, signedInWith };
+}
+
+test('testers see the Lead Teacher routes page but cannot save', async () => {
+  const tester = await runCoreSession(true);
+  assert.equal(tester.signedInWith, 'T');
+  assert.deepEqual(tester.writes, []);
+  assert.ok(tester.results.every((result) => result.status === 'rejected'));
+  assert.equal(tester.alerts.length, 1);
+
+  const lead = await runCoreSession(false);
+  assert.deepEqual(lead.writes, ['set', 'update', 'remove', 'push', 'transaction']);
 });
 
 test('lifted pages stay inside /bus-controller and drop the shared test logins', () => {

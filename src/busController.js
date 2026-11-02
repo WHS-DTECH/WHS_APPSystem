@@ -50,9 +50,10 @@ function createFirebase({ env = process.env, fetchImpl = (...args) => fetch(...a
 
   return {
     configured: Boolean(account),
-    customToken(uid) {
+    customToken(uid, claims) {
       const iat = Math.floor(now() / 1000);
-      return signJwt(account, { iss: account.client_email, sub: account.client_email, aud: CUSTOM_TOKEN_AUDIENCE, iat, exp: iat + 3600, uid });
+      // Custom claims are readable in Firebase rules as auth.token.busControllerRole.
+      return signJwt(account, { iss: account.client_email, sub: account.client_email, aud: CUSTOM_TOKEN_AUDIENCE, iat, exp: iat + 3600, uid, ...(claims ? { claims } : {}) });
     },
     async updateUser(uid, record) {
       const response = await fetchImpl(`${DATABASE_URL}/users/${encodeURIComponent(uid)}.json`, {
@@ -125,7 +126,7 @@ function createBusControllerRouter({ dbQuery = query, firebase = createFirebase(
       const record = { name: req.user.display_name || req.user.email, email: req.user.email, role };
       if (role !== 'admin') record.schoolId = SCHOOL_ID;
       await firebase.updateUser(uid, record);
-      return res.json({ token: firebase.customToken(uid) });
+      return res.json({ token: firebase.customToken(uid, { busControllerRole: role }), viewOnly: role === 'tester' });
     } catch (error) {
       console.error('[bus-controller] staff sign-in failed:', error.message);
       return res.status(502).json({ error: 'Bus Controller could not sign you in to its map database.' });
