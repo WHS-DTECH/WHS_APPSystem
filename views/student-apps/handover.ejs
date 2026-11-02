@@ -41,6 +41,41 @@
   <% } %>
 </section>
 
+<section class="panel">
+  <h2>Move to In Development</h2>
+  <% const movedApp = item.student_app_slug && studentApps.find((app) => app.slug === item.student_app_slug); %>
+  <% if (item.student_app_slug) { %>
+    <p class="done">Moved out of Student Apps: <%= movedApp ? movedApp.name : item.student_app_slug %><%= movedApp && movedApp.moved_to_development_at ? ` (${when(movedApp.moved_to_development_at)})` : '' %>.</p>
+    <p>It no longer appears under Student Apps in the menu or on the APPs Dashboard. Nothing was deleted; its access, roles and Launchpad card are unchanged.</p>
+    <form action="<%= base %>/move-app/undo" method="post">
+      <input type="hidden" name="csrf" value="<%= csrf %>">
+      <button class="button" type="submit">Put back in Student Apps</button>
+    </form>
+  <% } else { %>
+    <p>Once the school maintains this project, take its registered app out of the Student Apps menu and the APPs Dashboard so it only shows under In Development. Access, roles and Launchpad cards are unchanged, and you can put it back.</p>
+    <% const available = studentApps.filter((app) => !app.moved_to_development_at); %>
+    <% if (!available.length) { %>
+      <p>No registered student apps are waiting to move.</p>
+    <% } else { %>
+    <form action="<%= base %>/move-app" method="post" class="stacked">
+      <input type="hidden" name="csrf" value="<%= csrf %>">
+      <label>Registered student app
+        <select name="studentApp" required>
+          <option value="">Choose the app</option>
+          <% available.forEach((app) => { %><option value="<%= app.slug %>" <%= app.slug === suggestedApp ? 'selected' : '' %>><%= app.name %></option><% }) %>
+        </select>
+      </label>
+      <button class="button" type="submit">Move out of Student Apps</button>
+    </form>
+    <% } %>
+  <% } %>
+  <% if (developmentMatches.length) { %>
+    <p>In Development: <% developmentMatches.forEach((project, index) => { %><%= index ? ', ' : '' %><a href="/module-builder/<%= project.id %>"><%= project.name %></a><% }) %>.</p>
+  <% } else { %>
+    <p>No matching In Development project was found. <a href="/module-builder/new">Create one in Module Builder</a> so it appears under In Development.</p>
+  <% } %>
+</section>
+
 <section class="panel <%= step === 'label' ? 'current' : '' %>">
   <h2>1. Label</h2>
   <% if (item.labelled_at) { %>

@@ -66,6 +66,17 @@
       </div>
     <% } %>
   </section>
+  <% if (typeof movedApps !== 'undefined' && movedApps.length) { %>
+    <section aria-labelledby="moved-heading" class="apps-moved">
+      <h2 id="moved-heading">Moved to In Development</h2>
+      <p>These student projects have been handed over to the school and are now maintained under In Development.</p>
+      <ul>
+        <% movedApps.forEach(function (app) { %>
+          <li><a href="/student-apps/<%= app.slug %>"><%= app.name %></a> <small>(moved <%= new Date(app.moved_to_development_at).toLocaleDateString('en-NZ', { timeZone: 'Pacific/Auckland' }) %>)</small></li>
+        <% }) %>
+      </ul>
+    </section>
+  <% } %>
 </div>
 <script src="/student-apps-dashboard.js"></script>
 <%- include('../partials/footer') %>

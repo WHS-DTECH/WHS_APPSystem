@@ -14,12 +14,28 @@ let calls;
 let live;
 let renderConfigured;
 let owner;
+let apps;
 
 const push = (row, entry) => { row.history = [...row.history, ...JSON.parse(entry)]; };
 
 const BUILDER = '11111111-2222-4333-8444-555555555555';
 
 async function dbQuery(sql, params = []) {
+  if (sql.includes('FROM student_apps ORDER BY name')) return { rows: [...apps.values()] };
+  if (sql.includes('FROM module_builder_projects')) return { rows: [{ id: 'p1', name: 'Bus Controller App' }, { id: 'p2', name: 'International App' }] };
+  if (sql.startsWith('UPDATE student_apps SET moved_to_development_at = NOW()')) {
+    const app = apps.get(params[0]);
+    if (!app || app.moved_to_development_at) return { rows: [] };
+    app.moved_to_development_at = new Date();
+    return { rows: [{ name: app.name }] };
+  }
+  if (sql.startsWith('UPDATE student_apps SET moved_to_development_at = NULL')) {
+    const app = apps.get(params[0]);
+    if (app) app.moved_to_development_at = null;
+    return { rows: app ? [{ name: app.name }] : [] };
+  }
+  if (sql.includes('SET student_app_slug = $2')) { const item = rows.get(params[0]); item.student_app_slug = params[1]; push(item, params[2]); return { rows: [] }; }
+  if (sql.includes('SET student_app_slug = NULL')) { const item = rows.get(params[0]); item.student_app_slug = null; push(item, params[1]); return { rows: [] }; }
   if (sql.includes('FROM student_builders ORDER BY')) return { rows: [{ id: BUILDER, full_name: 'Jonas Full', credit_name: 'Student <Name>', github_url: 'https://github.com/zomotokari-cpu/WHS_BusController', status: 'left' }] };
   if (sql.includes('FROM student_builders WHERE id')) return { rows: params[0] === BUILDER ? [{ id: BUILDER, credit_name: 'Student <Name>', github_url: 'https://github.com/zomotokari-cpu/WHS_BusController' }] : [] };
   const row = rows.get(params[0]);
@@ -112,7 +128,13 @@ test.before(async () => {
   base = `http://127.0.0.1:${server.address().port}/student-apps/handovers`;
 });
 test.after(() => new Promise((resolve) => server.close(resolve)));
-test.beforeEach(() => { rows = new Map(); calls = []; live = []; renderConfigured = true; owner = 'WHS-DTECH'; });
+test.beforeEach(() => {
+  rows = new Map(); calls = []; live = []; renderConfigured = true; owner = 'WHS-DTECH';
+  apps = new Map([
+    ['international', { slug: 'international', name: 'International App', moved_to_development_at: null }],
+    ['bus-controller', { slug: 'bus-controller', name: 'Bus Controller App', moved_to_development_at: null }]
+  ]);
+});
 
 async function formSession() {
   const response = await fetch(base);
@@ -258,6 +280,27 @@ test('due handovers are highlighted on the list', async () => {
   rows.get(id).review_on = '2026-11-01';
   const html = await (await fetch(base, { headers: { cookie: form.cookie } })).text();
   assert.match(html, /Due 2026-11-01/);
+});
+
+test('a handed-over app can move out of Student Apps into In Development and be put back', async () => {
+  const form = await formSession();
+  const id = await start(form);
+  let html = await (await fetch(`${base}/${id}`, { headers: { cookie: form.cookie } })).text();
+  assert.match(html, /<option value="bus-controller" selected>Bus Controller App<\/option>/);
+  assert.match(html, /href="\/module-builder\/p1">Bus Controller App<\/a>/);
+  assert.doesNotMatch(html, /module-builder\/p2/);
+  assert.equal((await post(`/${id}/move-app`, { csrf: form.csrf, studentApp: 'bus-controller' }, form.cookie)).status, 303);
+  assert.ok(apps.get('bus-controller').moved_to_development_at);
+  assert.equal(apps.get('international').moved_to_development_at, null);
+  assert.equal(rows.get(id).student_app_slug, 'bus-controller');
+  assert.equal(rows.get(id).history.at(-1).action, 'Moved out of Student Apps into In Development');
+  const again = await post(`/${id}/move-app`, { csrf: form.csrf, studentApp: 'international' }, form.cookie);
+  assert.equal(again.status, 409);
+  html = await (await fetch(`${base}/${id}`, { headers: { cookie: form.cookie } })).text();
+  assert.match(html, /Put back in Student Apps/);
+  assert.equal((await post(`/${id}/move-app/undo`, { csrf: form.csrf }, form.cookie)).status, 303);
+  assert.equal(apps.get('bus-controller').moved_to_development_at, null);
+  assert.equal(rows.get(id).student_app_slug, null);
 });
 
 function fakeGithub(routes) {

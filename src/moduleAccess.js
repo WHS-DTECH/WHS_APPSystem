@@ -3,7 +3,7 @@ const { appDestination } = require('./appAddresses');
 const path = require('node:path');
 
 async function registeredModules(user, dbQuery = query) {
-  const { rows } = await dbQuery(`SELECT m.*,
+  const { rows } = await dbQuery(`SELECT m.*, s.moved_to_development_at AS app_moved_to_development_at,
     (u.is_active=true AND (
       EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id=ur.role_id WHERE ur.user_id=u.id AND r.name='ADMIN')
       OR (m.module_key NOT IN ('core','kamar-uploader','module-builder') AND (

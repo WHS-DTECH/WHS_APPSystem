@@ -95,10 +95,26 @@ function createHandoverRouter({
     if (!item.finished_at || item.finish_action === 'kept') {
       try { github = await providers.status(item.source_repository); } catch (problem) { githubError = problem.message; }
     }
+    const studentApps = (await dbQuery(
+      'SELECT slug, name, moved_to_development_at FROM student_apps ORDER BY name'
+    )).rows;
+    const developmentProjects = (await dbQuery(
+      `SELECT id, name FROM module_builder_projects WHERE stage IN ('draft','development','staging') ORDER BY name`
+    )).rows;
+    const words = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\b(whs|app)\b/g, ' ').trim().split(/\s+/).filter(Boolean);
+    const compact = (value) => words(value).join('');
+    const targets = [item.title, item.slug, item.source_repository.split('/').pop()].map(compact).filter(Boolean);
+    const target = new Set([...words(item.title), ...words(item.slug), ...words(item.source_repository.split('/').pop())]);
+    const resembles = (name) => {
+      const short = compact(name);
+      return words(name).some((word) => target.has(word)) || Boolean(short && targets.some((value) => value.includes(short) || short.includes(value)));
+    };
+    const suggestedApp = (studentApps.find((app) => !app.moved_to_development_at && resembles(app.name)) || {}).slug || '';
     return res.status(status).render('student-apps/handover', {
       title: `Handover: ${item.title}`, item, github, githubError, configuration: providers.configuration(),
       archiveReady: archiveService.configuration().ready, today: today(), step: nextStep(item),
-      csrf: req.session.handoverCsrf, error, notice, backupPreview, userId: req.user.id
+      csrf: req.session.handoverCsrf, error, notice, backupPreview, userId: req.user.id,
+      studentApps, suggestedApp, developmentMatches: developmentProjects.filter((project) => resembles(project.name))
     });
   }
 
@@ -279,6 +295,33 @@ function createHandoverRouter({
     await dbQuery(
       `UPDATE student_project_handovers SET review_on = $2::date, history = history || $3::jsonb WHERE id = $1`,
       [item.id, date, event(req, 'Changed review date', date)]
+    );
+    return res.redirect(303, `${BASE}/${item.id}`);
+  }));
+
+  router.post('/:id/move-app', handle(async (req, res, item) => {
+    const slug = text(req.body.studentApp, 60);
+    if (item.student_app_slug) throw new HandoverError('A student app is already moved for this handover. Put it back first to choose a different one.', 409);
+    if (!SLUG.test(slug)) throw new HandoverError('Choose the registered student app to move.');
+    const app = (await dbQuery(
+      'UPDATE student_apps SET moved_to_development_at = NOW() WHERE slug = $1 AND moved_to_development_at IS NULL RETURNING name', [slug]
+    )).rows[0];
+    if (!app) throw new HandoverError('That student app was not found, or it has already moved to In Development.', 409);
+    await dbQuery(
+      'UPDATE student_project_handovers SET student_app_slug = $2, history = history || $3::jsonb WHERE id = $1',
+      [item.id, slug, event(req, 'Moved out of Student Apps into In Development', app.name)]
+    );
+    return res.redirect(303, `${BASE}/${item.id}`);
+  }));
+
+  router.post('/:id/move-app/undo', handle(async (req, res, item) => {
+    if (!item.student_app_slug) throw new HandoverError('No student app has been moved for this handover.', 409);
+    const app = (await dbQuery(
+      'UPDATE student_apps SET moved_to_development_at = NULL WHERE slug = $1 RETURNING name', [item.student_app_slug]
+    )).rows[0];
+    await dbQuery(
+      'UPDATE student_project_handovers SET student_app_slug = NULL, history = history || $2::jsonb WHERE id = $1',
+      [item.id, event(req, 'Put back in Student Apps', app ? app.name : item.student_app_slug)]
     );
     return res.redirect(303, `${BASE}/${item.id}`);
   }));

@@ -188,7 +188,8 @@ function navData(query, canManageHubRoles, datasetManagerUrl, canManageCourses =
           name: project.name, url: project.app_url || `/module-builder/${project.id}`,
           deployed: Boolean(project.app_url)
         })),
-        modules: modules.filter((module) => module.path !== '/module-builder' || user?.roles?.includes('ADMIN'))
+        modules: modules.filter((module) => (module.path !== '/module-builder' || user?.roles?.includes('ADMIN'))
+          && !module.app_moved_to_development_at)
           .map((module) => ({
             name: module.display_name, path: module.path,
             launchPath: `/launchpad/apps/${encodeURIComponent(module.module_key)}`

@@ -921,6 +921,13 @@ history:
    (they must accept GitHub's email within one day), confirm it was deleted in
    GitHub, or keep it frozen. Deletion is never performed by the app.
 
+**Move to In Development** (any time during a handover): choose the registered
+student app and it leaves the **Student Apps** menu section and the APPs
+Dashboard (listed there under "Moved to In Development"), so it shows only under
+**In Development** (a Module Builder project). It sets
+`student_apps.moved_to_development_at`; nothing is deleted and access, roles and
+Launchpad cards are unchanged. **Put back in Student Apps** reverses it.
+
 Set `STUDENT_HANDOVER_GITHUB_TOKEN` to a GitHub token for the owner with
 **Administration** and **Contents: Read and write**; if it is not set the
 `MODULE_BUILDER_GITHUB_TOKEN` is used. `MODULE_BUILDER_RENDER_API_KEY` enables the

@@ -319,6 +319,25 @@ test('public pages load the shared account-control assets', async () => {
   });
 });
 
+test('student apps moved to In Development are left out of the menu modules', async () => {
+  const query = async (sql) => {
+    if (sql.includes('FROM modules')) {
+      return { rows: [
+        { module_key: 'student-app-bus', display_name: 'Bus Controller App', path: '/student-apps/bus/open', is_active: true, has_access: true, app_moved_to_development_at: new Date() },
+        { module_key: 'student-app-quiz', display_name: 'Quiz App', path: '/student-apps/quiz/open', is_active: true, has_access: true, app_moved_to_development_at: null }
+      ] };
+    }
+    return { rows: [] };
+  };
+  await withServer((app) => {
+    app.use((req, res, next) => { req.user = { id: 'teacher', email: 'teacher@example.invalid' }; next(); });
+    app.get('/nav-data', navData(query, async () => false, async () => null));
+  }, async (base) => {
+    const data = await (await fetch(`${base}/nav-data?path=%2F`)).json();
+    assert.deepEqual(data.modules.map((module) => module.name), ['Quiz App']);
+  });
+});
+
 test('account role link uses the current app and the global role-management permission', async () => {
   const checks = [];
   const query = async (sql, params) => {
