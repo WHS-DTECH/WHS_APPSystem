@@ -14,14 +14,24 @@ const CUSTOM_TOKEN_AUDIENCE = 'https://identitytoolkit.googleapis.com/google.ide
 
 function serviceAccount(env = process.env) {
   const raw = env.BUS_CONTROLLER_FIREBASE_SERVICE_ACCOUNT;
-  if (!raw) return null;
+  if (!raw || !raw.trim()) return { problem: 'missing' };
+  let account;
   try {
-    const account = JSON.parse(raw);
-    if (account.client_email && account.private_key) return account;
-  } catch { /* reported below */ }
-  console.warn('[bus-controller] BUS_CONTROLLER_FIREBASE_SERVICE_ACCOUNT is not a valid service account key.');
-  return null;
+    account = JSON.parse(raw.trim());
+  } catch {
+    console.warn('[bus-controller] BUS_CONTROLLER_FIREBASE_SERVICE_ACCOUNT is not valid JSON.');
+    return { problem: 'not-json' };
+  }
+  if (account && account.client_email && account.private_key) return { account };
+  console.warn('[bus-controller] BUS_CONTROLLER_FIREBASE_SERVICE_ACCOUNT has no client_email/private_key.');
+  return { problem: 'not-service-account' };
 }
+
+const SETUP_PROBLEMS = {
+  missing: 'BUS_CONTROLLER_FIREBASE_SERVICE_ACCOUNT is not set on this service. Check the Bus_Controller_App environment group is linked to WHS_APPSystem and the deploy has finished.',
+  'not-json': 'BUS_CONTROLLER_FIREBASE_SERVICE_ACCOUNT is set but is not valid JSON. Paste the whole downloaded key file, from the first { to the last }.',
+  'not-service-account': 'BUS_CONTROLLER_FIREBASE_SERVICE_ACCOUNT is JSON but not a service account key. Use Firebase Project settings > Service accounts > Generate new private key.'
+};
 
 function signJwt(account, payload) {
   const part = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
@@ -30,7 +40,7 @@ function signJwt(account, payload) {
 }
 
 function createFirebase({ env = process.env, fetchImpl = (...args) => fetch(...args), now = () => Date.now() } = {}) {
-  const account = serviceAccount(env);
+  const { account, problem: setupProblem } = serviceAccount(env);
   let cached = null;
 
   async function accessToken() {
@@ -52,6 +62,7 @@ function createFirebase({ env = process.env, fetchImpl = (...args) => fetch(...a
 
   return {
     configured: Boolean(account),
+    setupProblem,
     customToken(uid, claims) {
       const iat = Math.floor(now() / 1000);
       // Custom claims are readable in Firebase rules as auth.token.busControllerRole.
@@ -110,7 +121,11 @@ function createBusControllerRouter({ dbQuery = query, firebase = createFirebase(
     try {
       if (!req.user) return signIn(req, res);
       res.set('Cache-Control', 'no-store');
-      if (!firebase.configured) return problem(res, 503, 'Bus Controller staff sign-in is not set up yet. An administrator needs to add the Firebase service account key.');
+      if (!firebase.configured) {
+        // Only ADMIN sees which setting is wrong; it never includes the key itself.
+        const detail = req.user.roles?.includes('ADMIN') ? SETUP_PROBLEMS[firebase.setupProblem] : '';
+        return problem(res, 503, `Bus Controller staff sign-in is not set up yet. An administrator needs to add the Firebase service account key.${detail ? ` ${detail}` : ''}`);
+      }
       if (req.query.problem) return problem(res, 502, 'Bus Controller could not sign you in to its map database. Try again shortly, or contact the administrator.');
       const access = await staffAccess(req.user, dbQuery);
       if (access.principal && !req.user.roles?.includes('ADMIN')) return res.redirect(STAFF_PAGES.principal);

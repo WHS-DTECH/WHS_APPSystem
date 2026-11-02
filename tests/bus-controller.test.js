@@ -168,6 +168,10 @@ test('Firebase helper signs custom tokens and writes users with a cached service
   assert.equal(write.options.headers.Authorization, 'Bearer service-token');
 
   assert.equal(createFirebase({ env: {} }).configured, false);
+  assert.equal(createFirebase({ env: {} }).setupProblem, 'missing');
+  assert.equal(createFirebase({ env: { BUS_CONTROLLER_FIREBASE_SERVICE_ACCOUNT: '-----BEGIN PRIVATE KEY-----' } }).setupProblem, 'not-json');
+  assert.equal(createFirebase({ env: { BUS_CONTROLLER_FIREBASE_SERVICE_ACCOUNT: '{"apiKey":"x"}' } }).setupProblem, 'not-service-account');
+  assert.equal(createFirebase({ env: { BUS_CONTROLLER_FIREBASE_SERVICE_ACCOUNT: `\n ${JSON.stringify(account, null, 2)}\n` } }).configured, true);
 });
 
 async function runCoreSession(viewOnly, { page = 'principal', tokenOk = true, currentUid = 'core-t1' } = {}) {
