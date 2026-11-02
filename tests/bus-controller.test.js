@@ -245,6 +245,38 @@ test('Westroad keeps its own Firebase login when Global Control says no', async 
   assert.equal(denied.signOuts, 1);
 });
 
+test('Running Firebase page shows the off-site user steps to ADMIN only', async () => {
+  const { renderFirebaseUsers } = require('../src/busController');
+  const { ensureAuthenticated, ensureRole } = require('../src/middleware');
+  const app = express();
+  app.set('view engine', 'ejs');
+  app.set('views', path.join(__dirname, '..', 'views'));
+  app.use((req, res, next) => {
+    req.user = users[req.get('x-user')];
+    req.isAuthenticated = () => Boolean(req.user);
+    res.locals.currentUser = req.user;
+    res.locals.isAdmin = Boolean(req.user?.roles.includes('ADMIN'));
+    res.locals.activeRole = 'ADMIN';
+    next();
+  });
+  app.get('/admin/firebase-users', ensureAuthenticated, ensureRole('ADMIN'), renderFirebaseUsers);
+  const listener = await new Promise((resolve) => { const l = app.listen(0, '127.0.0.1', () => resolve(l)); });
+  try {
+    const url = `http://127.0.0.1:${listener.address().port}/admin/firebase-users`;
+    const page = await fetch(url, { headers: { 'x-user': 'admin' } });
+    assert.equal(page.status, 200);
+    const html = await page.text();
+    assert.match(html, /Running Firebase &ndash; Off-site Users/);
+    assert.match(html, /Add user<\/strong> \(email and password\)/);
+    assert.match(html, /<code>role<\/code>: <code>westroad<\/code>/);
+    assert.match(html, /console\.firebase\.google\.com\/project\/whsbuscontroller\/authentication\/users/);
+    assert.match(html, /console\.firebase\.google\.com\/project\/whsbuscontroller\/database\/whsbuscontroller-default-rtdb\/data/);
+    assert.notEqual((await fetch(url, { redirect: 'manual', headers: { 'x-user': 'lead' } })).status, 200);
+  } finally {
+    await new Promise((resolve) => listener.close(resolve));
+  }
+});
+
 test('lifted pages stay inside /bus-controller and drop the shared test logins', () => {
   for (const file of fs.readdirSync(PUBLIC_DIR)) {
     const text = fs.readFileSync(path.join(PUBLIC_DIR, file), 'utf8');

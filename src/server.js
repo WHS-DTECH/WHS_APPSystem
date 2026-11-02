@@ -38,7 +38,7 @@ const { createLaunchpad, createLaunchApp, createLaunchpadAdminRouter } = require
 const { accessibleModules, createModuleAccessGuard } = require('./moduleAccess');
 const { appDestination } = require('./appAddresses');
 const { createTeacherPlannerRouter } = require('./modules/teacherPlanner');
-const { createBusControllerRouter } = require('./busController');
+const { createBusControllerRouter, renderFirebaseUsers } = require('./busController');
 
 const app = express();
 
@@ -143,6 +143,7 @@ app.get('/admin/google-login', ensureAuthenticated, ensureRole('ADMIN'), async (
 app.get('/admin/school-terms', ensureAuthenticated, ensureRole('ADMIN'), (req, res) => {
   res.render('admin/school-terms', { title: 'School Terms & Holidays' });
 });
+app.get('/admin/firebase-users', ensureAuthenticated, ensureRole('ADMIN'), renderFirebaseUsers);
 
 app.get('/admin/school-terms/data', ensureAuthenticated, ensureRole('ADMIN'), async (req, res) => {
   try {

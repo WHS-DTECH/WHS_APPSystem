@@ -1262,6 +1262,10 @@ also allow `auth.token.busControllerRole === 'tester'`. On `westroad.html`, a
 Westroad email/password login is left alone when Global Control has no Tester
 role for the visitor.
 
+Westroad (and any other off-site Firebase) accounts are added and removed by an
+ADMIN following **Administration → Running Firebase – Off-site Users**
+(`/admin/firebase-users`), which links straight to the Firebase console.
+
 ## Workshop module
 
 The Workshop is the legacy Workshop site (public/workshop, legacy API in src/legacy/workshop) under /workshop, using the Google login. Admins and users given the Workshop Lead Teacher hub role (assign at /admin/users) can upload worksheets, lesson notes and planners; signed-in users can upload activities. Existing data is copied once from INTEGRATION_WORKSHOP_DATABASE_URL (guarded by workshop_legacy_import); new data goes to DATABASE_URL. Suggestion notification emails are sent through the framework's Google Gmail API (GOOGLE_GMAIL_* variables) to Admins and Workshop Lead Teachers; SITE_URL is used in the email links.

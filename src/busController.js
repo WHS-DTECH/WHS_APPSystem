@@ -87,6 +87,20 @@ async function staffAccess(user, dbQuery = query) {
 
 const firebaseUid = (user) => `core-${user.id}`;
 
+// Apps that keep their own Firebase sign-in for people without a school Google account.
+const FIREBASE_OFFSITE_APPS = [{
+  name: 'Bus Controller (Westroad)',
+  who: 'Westroad staff sign in with Firebase email and password to edit hazards.',
+  project: 'whsbuscontroller',
+  database: 'whsbuscontroller-default-rtdb',
+  role: 'westroad',
+  signIn: '/bus-controller/'
+}];
+
+function renderFirebaseUsers(req, res) {
+  res.render('admin/firebase-users', { title: 'Running Firebase - Off-site Users', apps: FIREBASE_OFFSITE_APPS });
+}
+
 function createBusControllerRouter({ dbQuery = query, firebase = createFirebase() } = {}) {
   const router = express.Router();
   const problem = (res, status, message) => res.status(status).render('error', { title: 'Bus Controller', message });
@@ -143,4 +157,4 @@ function createBusControllerRouter({ dbQuery = query, firebase = createFirebase(
   return router;
 }
 
-module.exports = { createBusControllerRouter, createFirebase, staffAccess, HUB, SCHOOL_ID };
+module.exports = { createBusControllerRouter, createFirebase, staffAccess, renderFirebaseUsers, FIREBASE_OFFSITE_APPS, HUB, SCHOOL_ID };

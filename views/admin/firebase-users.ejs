@@ -1,0 +1,49 @@
+<%- include('../partials/header') %>
+
+<section class="page-title">
+  <p class="eyebrow">Administration</p>
+  <h1>Running Firebase &ndash; Off-site Users</h1>
+  <p>Some apps keep their own Firebase sign-in for people outside the school, who have no school Google account. Westland High staff never go here: give them roles in <a href="/admin/users">Assign User Roles</a> instead.</p>
+</section>
+
+<% apps.forEach(function (app) { %>
+<section class="panel firebase-guide">
+  <h2><%= app.name %></h2>
+  <p><%= app.who %> Firebase project: <code><%= app.project %></code>.</p>
+  <div class="firebase-links">
+    <a class="button" href="https://console.firebase.google.com/project/<%= app.project %>/authentication/users" target="_blank" rel="noopener">Firebase Authentication &rarr; Users</a>
+    <a class="button secondary" href="https://console.firebase.google.com/project/<%= app.project %>/database/<%= app.database %>/data" target="_blank" rel="noopener">Realtime Database &rarr; Data</a>
+  </div>
+
+  <h3>Add an off-site user</h3>
+  <ol>
+    <li>Add the user under <strong>Firebase Authentication &rarr; Users &rarr; Add user</strong> (email and password).</li>
+    <li>Copy their <strong>User UID</strong> from the users list.</li>
+    <li>In <strong>Realtime Database &rarr; Data</strong>, add <code>users/&lt;that UID&gt;</code> with these fields:
+      <ul>
+        <li><code>role</code>: <code><%= app.role %></code></li>
+        <li><code>name</code></li>
+        <li><code>email</code></li>
+      </ul>
+    </li>
+  </ol>
+  <p>The user then signs in with that email and password at <a href="<%= app.signIn %>"><%= app.signIn %></a>.</p>
+
+  <h3>Remove an off-site user</h3>
+  <ol>
+    <li>In <strong>Realtime Database &rarr; Data</strong>, change their <code>role</code> to <code>none</code> (or delete <code>users/&lt;their UID&gt;</code>).</li>
+    <li>In <strong>Firebase Authentication &rarr; Users</strong>, delete the account.</li>
+  </ol>
+
+  <p class="firebase-note">The database rules let a new account create its own record only with the role <code>none</code>, so this page is the only way an off-site user gets access.</p>
+</section>
+<% }) %>
+
+<style>
+  .firebase-guide ol { line-height: 1.8; }
+  .firebase-guide code { background: #f1f1ec; padding: 1px 6px; border-radius: 4px; }
+  .firebase-links { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0 4px; }
+  .firebase-note { font-size: .9rem; color: #555; }
+</style>
+
+<%- include('../partials/footer') %>
