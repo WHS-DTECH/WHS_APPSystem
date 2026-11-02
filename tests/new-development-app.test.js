@@ -64,6 +64,31 @@ test('guided preflight verifies credentials/owner and safe group using only read
   }
 });
 
+test('missing group ID discovers one exact named workspace group, never creates one or chooses ambiguous results', async () => {
+  const matching = { id: 'evg-test', name: 'WIZARD-Global-CONTROL', ownerId: 'tea-test' };
+  for (const inventory of [[matching], [], [matching, { ...matching, id: 'evg-other' }],
+    [{ ...matching, ownerId: 'tea-other' }], [{ ...matching, name: 'Core secrets' }]]) {
+    const calls = [];
+    const providers = createBuilderProviders({ env: { ...env, MODULE_BUILDER_RENDER_ENV_GROUP_ID: '' },
+      fetchImpl: async (url, init) => {
+        calls.push(init.method);
+        if (url.endsWith('/users/WHS-DTECH')) return reply({ type: 'User' });
+        if (url.endsWith('/user')) return reply({ login: 'WHS-DTECH' });
+        if (url.includes('/env-groups?')) {
+          assert.equal(new URL(url).searchParams.get('ownerId'), 'tea-test');
+          assert.equal(new URL(url).searchParams.get('name'), 'WIZARD-Global-CONTROL');
+          return reply(inventory);
+        }
+        return reply(group);
+      } });
+    if (inventory.length === 1 && inventory[0] === matching) {
+      await providers.preflight();
+      assert.equal(providers.configuration().renderEnvGroupId, 'evg-test');
+    } else await assert.rejects(providers.preflight(), /module-safe WIZARD-Global-CONTROL/);
+    assert.ok(calls.every(method => method === 'GET'));
+  }
+});
+
 test('guided readiness waits, rejects failed/mismatched resources, and checks only provider default health without credentials', async () => {
   let databaseStatus = 'creating', deploymentStatus = 'build_in_progress', serviceOrigin = 'https://equipment.onrender.com';
   let databaseRegion = 'oregon', health = { status: 'ok', database: 'connected' }, linked = true, commit = 'starter';
@@ -128,14 +153,14 @@ test('guided routes persist approvals, serialize/resume steps, wait safely, gran
     const users = (await query(`INSERT INTO users(email,display_name) VALUES
       ('admin@example.test','Admin'),('tester@example.test','Tester'),('other@example.test','Unselected') RETURNING *`)).rows;
     const [user, tester] = users;
-    let databaseReady = false, deploymentReady = false, scaffoldFails = true, databaseUncertain = false;
+    let databaseReady = false, deploymentReady = false, scaffoldFails = true, databaseUncertain = false, groupConfigured = true;
     let repositoryEntered, releaseRepository;
     const entered = new Promise(resolve => { repositoryEntered = resolve; });
     const released = new Promise(resolve => { releaseRepository = resolve; });
     const calls = [];
     const providers = {
-      configuration: () => configuration,
-      preflight: async () => {},
+      configuration: () => ({ ...configuration, renderEnvGroupId: groupConfigured ? configuration.renderEnvGroupId : '' }),
+      preflight: async () => { groupConfigured = true; },
       repository: async p => { calls.push('repository'); repositoryEntered(); await released; return { repository: 'WHS-DTECH/' + p.slug, branch: 'default-branch' }; },
       scaffold: async () => { calls.push('scaffold'); if (scaffoldFails) throw new BuilderError('Fixture permission denied.', 403); return { commit: 'starter' }; },
       database: async () => { calls.push('database'); if (databaseUncertain) throw new BuilderError('Inspect ambiguous fixture result.', 502, true); return { databaseId: 'dpg-test-a' }; },
@@ -195,7 +220,9 @@ test('guided routes persist approvals, serialize/resume steps, wait safely, gran
     assert.equal(overlappingStep.status, 409);
     assert.equal((await firstStep).status, 200);
     assert.equal(calls.filter(action => action === 'repository').length, 1);
+    groupConfigured = false;
     assert.equal((await step()).status, 502);
+    assert.equal(groupConfigured, true);
     assert.equal((await query('SELECT active_operation FROM module_builder_projects WHERE id=$1', [id])).rows[0].active_operation, null);
     scaffoldFails = false;
     assert.equal((await step()).status, 200);

@@ -268,7 +268,7 @@ Provisioning is optional. Configure these on the Global Control Render service:
 | `MODULE_BUILDER_GITHUB_TOKEN` | Dedicated token authorised for repository creation and Contents/Workflows write; for a personal owner it must belong to that account; never reuse the archive Writer credential |
 | `MODULE_BUILDER_RENDER_OWNER_ID` | Workspace in which development resources are created |
 | `MODULE_BUILDER_RENDER_API_KEY` | Dedicated Render API credential; treat as sensitive and restrict account/workspace access |
-| `MODULE_BUILDER_RENDER_ENV_GROUP_ID` | ID (`evg-...`) of the shared `WIZARD-Global-CONTROL` group automatically linked to new module services; must contain only `GLOBAL_CONTROL_URL`, with no secret files |
+| `MODULE_BUILDER_RENDER_ENV_GROUP_ID` | Optional explicit ID (`evg-...`) of the module-safe shared group. When omitted, discover exactly one `WIZARD-Global-CONTROL` group in the configured workspace. Must contain only `GLOBAL_CONTROL_URL`, with no secret files; groups are never automatically created/modified |
 
 The wizard checks the GitHub owner type before creating a repository. Personal
 accounts use the authenticated user's repository endpoint, after verifying the

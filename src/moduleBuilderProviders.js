@@ -14,7 +14,7 @@ class BuilderError extends Error {
 function createBuilderProviders({ env = process.env, fetchImpl = fetch } = {}) {
   const githubOwner = env.MODULE_BUILDER_GITHUB_OWNER || 'WHS-DTECH';
   const ownerId = env.MODULE_BUILDER_RENDER_OWNER_ID || '';
-  const sharedGroupId = env.MODULE_BUILDER_RENDER_ENV_GROUP_ID || '';
+  let sharedGroupId = env.MODULE_BUILDER_RENDER_ENV_GROUP_ID || '';
   const configuration = () => ({
     githubOwner,
     githubConfigured: Boolean(env.MODULE_BUILDER_GITHUB_TOKEN),
@@ -132,6 +132,15 @@ function createBuilderProviders({ env = process.env, fetchImpl = fetch } = {}) {
   }
 
   async function sharedConfiguration() {
+    if (!sharedGroupId) {
+      const groups = await api('Render', `/env-groups?${new URLSearchParams({ ownerId, name: 'WIZARD-Global-CONTROL', limit: '100' })}`);
+      if (!Array.isArray(groups) || groups.length >= 100) throw new BuilderError('Shared group discovery is incomplete. Set MODULE_BUILDER_RENDER_ENV_GROUP_ID explicitly.', 409);
+      const matches = groups.map(item => item.envGroup || item)
+        .filter(group => group.ownerId === ownerId && group.name === 'WIZARD-Global-CONTROL');
+      if (matches.length !== 1) throw new BuilderError('Create one module-safe WIZARD-Global-CONTROL group in the configured Render workspace containing only GLOBAL_CONTROL_URL, or set MODULE_BUILDER_RENDER_ENV_GROUP_ID to its ID. Discovery never creates or modifies groups.', 503);
+      if (!/^evg-[a-z0-9]+$/.test(matches[0].id || '')) throw new BuilderError('Render returned an invalid shared group ID. Set MODULE_BUILDER_RENDER_ENV_GROUP_ID explicitly.', 502);
+      sharedGroupId = matches[0].id;
+    }
     if (!/^evg-[a-z0-9]+$/.test(sharedGroupId)) throw new BuilderError('Configure MODULE_BUILDER_RENDER_ENV_GROUP_ID with the module-safe shared Render group ID before creating a service.', 503);
     const group = await api('Render', `/env-groups/${sharedGroupId}`);
     if (group.ownerId !== ownerId || !Array.isArray(group.envVars) || !Array.isArray(group.secretFiles)

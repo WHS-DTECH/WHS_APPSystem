@@ -227,7 +227,7 @@ test('unsafe or missing shared group blocks service creation before any write', 
     await assert.rejects(providers.service({...project,framework_commit:'framework'},settings),BuilderError);
     assert.deepEqual(methods,['GET']);
   }
-  const providers = createBuilderProviders({env:{...env,MODULE_BUILDER_RENDER_ENV_GROUP_ID:''}});
+  const providers = createBuilderProviders({env:{...env,MODULE_BUILDER_RENDER_ENV_GROUP_ID:'invalid'}});
   await assert.rejects(providers.service({...project,framework_commit:'framework'},settings),/MODULE_BUILDER_RENDER_ENV_GROUP_ID/);
 });
 

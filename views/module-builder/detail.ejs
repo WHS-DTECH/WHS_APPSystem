@@ -51,7 +51,7 @@
   <p class="mb-provider-status"><span><strong>GitHub credentials:</strong> <%= configuration.githubConfigured ? 'Configured; not automatically verified' : 'Missing' %>.</span>
     <span><strong>Render credentials/workspace:</strong> <%= configuration.renderConfigured ? 'Configured; not automatically verified' : 'Missing' %>.</span></p>
   <p>Automatic provisioning supports development only. Existing databases may be recorded, but automatic database wiring uses only a database created by this wizard.</p>
-  <p><strong>Shared Global Control Environment Group:</strong> <code><%= configuration.renderEnvGroupId || 'Not configured: set MODULE_BUILDER_RENDER_ENV_GROUP_ID on Global Control' %></code>.
+  <p><strong>Shared Global Control Environment Group:</strong> <code><%= configuration.renderEnvGroupId || 'Discover WIZARD-Global-CONTROL during review, or set MODULE_BUILDER_RENDER_ENV_GROUP_ID explicitly' %></code>.
     New services link this group automatically; existing services are not modified. The group must contain only GLOBAL_CONTROL_URL and no secret files.</p>
   <p><strong>Global Control sign-in:</strong> client ID <code><%= project.slug %>:development</code>.
     Access defaults to global ADMIN only; explicitly assigned app-wide Lead Teachers, Teachers and Technicians can also sign in.

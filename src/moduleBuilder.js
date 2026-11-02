@@ -197,6 +197,7 @@ function createModuleBuilderRouter({ dbQuery = query, providers = createBuilderP
   router.post('/:id/setup/step', wrap(async (req, res) => {
     const { project, environment } = await load(req.params.id);
     await ensureIdle(project.id);
+    if (!providers.configuration().renderEnvGroupId) await providers.preflight();
     const setup = project.new_app_setup, settings = environment.config;
     if (!setup || !['development', 'draft'].includes(project.stage) ||
         setup.fingerprint !== setupFingerprint(project, settings, providers.configuration())) {
@@ -291,6 +292,7 @@ function createModuleBuilderRouter({ dbQuery = query, providers = createBuilderP
   router.post('/:id/review', wrap(async (req, res) => {
     const { project, environment } = await load(req.params.id);
     await ensureIdle(project.id);
+    if (req.body.action === 'service' && !providers.configuration().renderEnvGroupId) await providers.preflight();
     const plan = reviewData(project, environment, req.body.action);
     res.render('module-builder/confirm', { title: 'Confirm development resources', project, plan,
       actionLabel: ACTIONS[plan.action], digest: digest(plan) });
@@ -356,6 +358,7 @@ function createModuleBuilderRouter({ dbQuery = query, providers = createBuilderP
   }
   router.post('/:id/provision', wrap(async (req, res) => {
     const { project, environment } = await load(req.params.id);
+    if (req.body.action === 'service' && !providers.configuration().renderEnvGroupId) await providers.preflight();
     const plan = reviewData(project, environment, req.body.action);
     if (req.body.confirm !== project.slug || req.body.consent !== 'yes' || req.body.digest !== digest(plan)) {
       throw new BuilderError('Review the current settings, acknowledge costs/access and type the project key to confirm.', 409);

@@ -16,9 +16,10 @@
     Render: <strong><%= configuration.renderConfigured ? 'Credential/workspace configured (not verified)' : 'Not configured' %></strong></p>
   <details><summary>Provisioning setup</summary>
     <p>Set <code>MODULE_BUILDER_GITHUB_TOKEN</code>, <code>MODULE_BUILDER_GITHUB_OWNER</code>,
-      <code>MODULE_BUILDER_RENDER_API_KEY</code>, <code>MODULE_BUILDER_RENDER_OWNER_ID</code> and
-      <code>MODULE_BUILDER_RENDER_ENV_GROUP_ID</code> (the <code>evg-...</code> ID of WIZARD-Global-CONTROL)
-      on the Global Control service. Never enter tokens or database URLs in project records.</p>
+      <code>MODULE_BUILDER_RENDER_API_KEY</code> and <code>MODULE_BUILDER_RENDER_OWNER_ID</code>
+      on the Global Control service. The wizard discovers one existing <code>WIZARD-Global-CONTROL</code>
+      group in that workspace, or use <code>MODULE_BUILDER_RENDER_ENV_GROUP_ID</code> to select its
+      <code>evg-...</code> ID explicitly. Never enter tokens or database URLs in project records.</p>
     <p>New services automatically link the selected shared group. It must contain only <code>GLOBAL_CONTROL_URL</code> and no secret files.
       Keep each module's client ID, database connection and session secret on that service.</p>
     <p>GitHub repository creation and Contents/Workflows write permission are required. Personal-account tokens must belong to the configured owner; organisation policies also apply.
