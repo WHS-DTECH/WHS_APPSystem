@@ -114,6 +114,8 @@ test('saving derives the credit name and fills the single shared GitHub link fro
   const html = await (await fetch(base, { headers: { cookie: form.cookie } })).text();
   assert.match(html, /Sam &lt;Example&gt;/);
   assert.match(html, /SExample/);
+  assert.match(html, new RegExp(`action="/admin/student-builders/${row.id}/delete"`));
+  assert.match(html, /confirm\('Delete the student builder record for Sam &lt;Example&gt;\?'\)/);
 
   const edit = await (await fetch(`${base}/${row.id}`, { headers: { cookie: form.cookie } })).text();
   assert.match(edit, /Senior App, 12/);

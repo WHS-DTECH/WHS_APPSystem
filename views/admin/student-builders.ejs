@@ -61,7 +61,7 @@
     <% } %>
     <form action="/admin/student-builders/<%= editing.id %>/delete" method="post" onsubmit="return confirm('Remove this student builder\'s details?');">
       <input type="hidden" name="csrf" value="<%= csrf %>">
-      <button class="button secondary" type="submit">Remove details</button>
+      <button class="button secondary" type="submit">Delete</button>
     </form>
   <% } %>
 </section>
@@ -69,7 +69,7 @@
   <h2>Student builders</h2>
   <% if (!builders.length) { %><p>No student builders recorded yet.</p><% } else { %>
   <div class="sb-table"><table>
-    <thead><tr><th>Student</th><th>Credit name</th><th>Shared GitHub link</th><th>Status</th><th>Permission</th><th>Projects</th></tr></thead>
+    <thead><tr><th>Student</th><th>Credit name</th><th>Shared GitHub link</th><th>Status</th><th>Permission</th><th>Projects</th><th>Actions</th></tr></thead>
     <tbody><% builders.forEach((builder) => { %>
       <tr>
         <td><a href="/admin/student-builders/<%= builder.id %>"><%= builder.full_name %></a><br><small><%= builder.school_email || '' %></small></td>
@@ -78,6 +78,15 @@
         <td><%= builder.status === 'left' ? 'Left school' : 'Current student' %></td>
         <td><%= builder.permission_recorded_at ? 'Recorded' : 'Not yet' %></td>
         <td><%= builder.projects.split('\n').filter(Boolean).join(', ') %></td>
+        <td>
+          <div class="sb-actions">
+            <a class="button secondary" href="/admin/student-builders/<%= builder.id %>">Edit</a>
+            <form action="/admin/student-builders/<%= builder.id %>/delete" method="post" onsubmit="return confirm('Delete the student builder record for <%= builder.full_name.replace(/[\\'"]/g, '') %>?');">
+              <input type="hidden" name="csrf" value="<%= csrf %>">
+              <button class="button secondary" type="submit">Delete</button>
+            </form>
+          </div>
+        </td>
       </tr>
     <% }) %></tbody>
   </table></div>
