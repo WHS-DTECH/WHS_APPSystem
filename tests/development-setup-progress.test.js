@@ -75,3 +75,17 @@ test('generated migration diagnostics identify safe failure categories without e
   assert.equal(migrationFailure({ code: 'secret-code', message: 'postgresql://password; private SQL' }),
     'Module migration failed. Check database access and migration files.');
 });
+
+test('generated migrator retries a newly created database that is not yet reachable, but not real failures', async () => {
+  const source = await fs.readFile(path.join(__dirname, '..', 'module-templates', 'node', 'migrate.js.template'), 'utf8');
+  const module = { exports: {} };
+  vm.runInNewContext(source, { module, require, process, console: { log() {} }, setTimeout });
+  const { connect } = module.exports;
+  const fakeClient = (codes) => () => ({ connect: async () => { const code = codes.shift(); if (code) throw Object.assign(new Error('x'), { code }); }, end: async () => {} });
+  const waits = [];
+  const wait = async (ms) => { waits.push(ms); };
+  assert.ok(await connect({ createClient: fakeClient(['ENOTFOUND', 'ECONNREFUSED']), wait }));
+  assert.deepEqual(waits, [2000, 4000]);
+  await assert.rejects(connect({ createClient: fakeClient(['28P01']), wait }), { code: '28P01' });
+  await assert.rejects(connect({ attempts: 3, createClient: fakeClient(['ENOTFOUND', 'ENOTFOUND', 'ENOTFOUND']), wait }), { code: 'ENOTFOUND' });
+});
