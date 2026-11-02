@@ -71,7 +71,7 @@
   <div class="user-roles-main">
     <section class="panel" id="add-user-role">
       <h2>Add Role to User — <%= moduleLabel %></h2>
-      <p>Signed in as <%= currentUser.email %>. Select someone from either list or enter their current KAMAR email.</p>
+      <p>Signed in as <%= currentUser.email %>. Select someone from either list or enter their current KAMAR email. For a shared school mailbox such as principal@, choose "School account (not in KAMAR)".</p>
       <form action="/admin/users/add" method="post" class="user-role-add">
         <input type="hidden" name="csrf" value="<%= csrf %>">
         <input type="hidden" name="module" value="<%= module %>">
@@ -81,6 +81,7 @@
             <option value="">Select type</option>
             <option value="staff">Staff</option>
             <option value="student">Student</option>
+            <option value="school">School account (not in KAMAR)</option>
           </select>
         </div>
         <div>

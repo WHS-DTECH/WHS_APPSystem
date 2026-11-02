@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const express = require('express');
 const { query } = require('./db');
+const config = require('./config');
 const { ensureAuthenticated, ensureRole } = require('./middleware');
 const { HUBS, SYSTEM_MODULES } = require('./hubRoles');
 const { query: kamarQuery } = require('./legacy/kamar-uploader/db');
@@ -147,17 +148,25 @@ function createAdminUsersRouter({ dbQuery = query, directoryQuery = kamarQuery, 
     const module = scopeKey(req.body.module);
     const global = module === 'global';
     const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
-    if (!['staff', 'student'].includes(type) || !uuid(roleId) || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return invalid(res, 'Choose a staff/student type, valid school email and an additional role.');
+    if (!['staff', 'student', 'school'].includes(type) || !uuid(roleId) || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return invalid(res, 'Choose a user type, valid school email and an additional role.');
+    }
+    // Shared school mailboxes (e.g. principal@) are not in KAMAR; they must still be on the school's Google domain.
+    const schoolDomain = (config.google.hostedDomain || String(req.user.email || '').split('@')[1] || '').toLowerCase();
+    if (type === 'school' && (!schoolDomain || email.split('@')[1] !== schoolDomain)) {
+      return invalid(res, `A school account not in KAMAR must use an @${schoolDomain || 'school'} email address.`);
     }
     try {
       const modules = await moduleCatalogue();
       if (!validScope(module, modules) || (!global && !modules.find(item => item.key === module).has_roles)) {
         return invalid(res, 'This module does not support role changes here. Use its existing access controls.');
       }
-      await initDirectory();
-      const person = (await directoryQuery(`SELECT * FROM (${directorySql(type)}) directory WHERE email=$1 LIMIT 1`, [email])).rows[0];
-      if (!person) return invalid(res, 'That email is not on the selected current KAMAR list. Check the type, email and uploaded directory.');
+      let person = { display_name: email.split('@')[0] };
+      if (type !== 'school') {
+        await initDirectory();
+        person = (await directoryQuery(`SELECT * FROM (${directorySql(type)}) directory WHERE email=$1 LIMIT 1`, [email])).rows[0];
+        if (!person) return invalid(res, 'That email is not on the selected current KAMAR list. Check the type, email and uploaded directory, or choose "School account (not in KAMAR)" for a shared school mailbox.');
+      }
       const role = (await (global ?
         dbQuery("SELECT id FROM roles WHERE id=$1 AND name NOT IN ('Staff','Student')", [roleId]) :
         dbQuery('SELECT id FROM hub_roles WHERE id=$1 AND hub_key=$2', [roleId, module]))).rows[0];

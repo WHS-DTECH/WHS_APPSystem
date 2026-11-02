@@ -17,7 +17,7 @@ test('admin directory searches and person verification use legacy Kamar while as
   app.use(express.urlencoded({ extended: false }));
   app.use(session({ secret: 'admin-users-directory-fixture', saveUninitialized: false, resave: false }));
   app.use((req, res, next) => {
-    req.user = { id: 'admin', roles: ['ADMIN'] };
+    req.user = { id: 'admin', email: 'admin@school.test', roles: ['ADMIN'] };
     req.isAuthenticated = () => true;
     req.session.adminUsersCsrf = 'test-token';
     res.render = (view, model) => res.json({ view, ...model });
@@ -62,6 +62,14 @@ test('admin directory searches and person verification use legacy Kamar while as
     assert.equal(failed.status, 503);
     assert.match((await failed.json()).error, /Kamar directory unavailable/);
     assert.equal(writes.length, 1, 'an outage must not add or remove assignments');
+    const addSchool = email => fetch(base + '/add', {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, redirect: 'manual',
+      body: new URLSearchParams({ csrf: 'test-token', type: 'school', email, roleId })
+    });
+    assert.equal((await addSchool('principal@school.test')).status, 302, 'shared school mailboxes skip the KAMAR list');
+    assert.deepEqual(writes[1], ['principal@school.test', 'principal', roleId]);
+    assert.equal((await addSchool('someone@gmail.com')).status, 400, 'non-KAMAR accounts must be on the school domain');
+    assert.equal(writes.length, 2);
   } finally {
     await new Promise(resolve => server.close(resolve));
   }
