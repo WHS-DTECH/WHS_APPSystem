@@ -881,14 +881,20 @@ Administrators can open **Student Apps > Handover student project**
 The repository must already be owned by `MODULE_BUILDER_GITHUB_OWNER` (default
 `WHS-DTECH`); ask the student to transfer it first if it is on their own account.
 The student must first be recorded under **Administration > Student Builders**
-(`/admin/student-builders`, administrators only): full name, a **credit name**
-(first initial and surname by default, e.g. `JPinkerneil`), Kamar student ID
-(checked against the Kamar student list to link their academic record), GitHub
-username, status, projects, permission and notes. No email addresses are stored.
+(`/admin/student-builders`, administrators only): full name, **school email**
+(kept on this page only; it links the student to their DTECH Hub record), status,
+projects, permission and notes. No student ID or personal email is stored. The
+**credit name** is made from the school username without the underscore
+(`j_pinkerneil@…` becomes `JPinkerneil`). The **shared GitHub link** is looked up
+(read-only) from the student's SeniorDTECH/MiddleDTECH task lists in the DTECH Hub
+database (`DTECH_DATABASE_URL`, `GITHUB_REPO_URL|` evidence in
+`project_interests`); a single link is filled in automatically, several are
+offered to choose from, and a typed link always wins.
 The handover form picks the student from that list; only the credit name and
-GitHub username are written to GitHub (Student Work label and `HANDOVER.md`). A
-builder's details cannot be removed while one of their handovers is in progress
-(migrations `044_student_builders.sql`, `045_student_builder_credit.sql`).
+the GitHub link's owner are written to GitHub (Student Work label and
+`HANDOVER.md`), never the school email. A builder's details cannot be removed
+while one of their handovers is in progress (migrations `044_student_builders.sql`,
+`045_student_builder_credit.sql`, `046_student_builder_school_identity.sql`).
 Starting a handover pins the current default-branch commit and sets the review
 date to 1 February of the following year. Each step is recorded in the handover
 history:

@@ -3,17 +3,21 @@ const assert = require('node:assert/strict');
 const path = require('path');
 const express = require('express');
 const session = require('express-session');
-const { createStudentBuildersRouter, creditFrom } = require('../src/studentBuilders');
+const { createStudentBuildersRouter } = require('../src/studentBuilders');
+const { createDtechRecords, creditFromEmail, githubOwner, normaliseRepoUrl } = require('../src/dtechRecords');
 
 let server;
 let base;
 let rows;
 let handovers;
-let kamarFails = false;
-const kamarDb = async (sql, params) => {
-  if (kamarFails) throw new Error('down');
-  assert.match(sql, /student_details_upload WHERE id_number = \$1/);
-  return { rows: params[0] === '12345' ? [{ first_name: 'Jonas', last_name: 'Pinkerneil', status: 'Left' }] : [] };
+let hubLinks;
+let hubDown;
+
+const dtech = {
+  githubLinks: async (email) => {
+    if (hubDown) return { unavailable: true, links: [] };
+    return { unavailable: false, links: hubLinks[email] || [] };
+  }
 };
 
 async function dbQuery(sql, params = []) {
@@ -21,15 +25,16 @@ async function dbQuery(sql, params = []) {
   if (sql.includes('FROM student_builders ORDER BY')) return { rows: [...rows.values()] };
   if (sql.includes('FROM student_builders WHERE id')) return { rows: rows.has(params[0]) ? [rows.get(params[0])] : [] };
   if (sql.includes('FROM student_project_handovers')) return { rows: handovers.filter((item) => item.builder_id === params[0]) };
+  const record = (p) => ({ full_name: p[0], school_email: p[1], credit_name: p[2], github_url: p[3], first_year: p[4],
+    status: p[5], projects: p[6], notes: p[8] });
   if (sql.startsWith('INSERT INTO student_builders')) {
-    rows.set(params[0], { id: params[0], full_name: params[1], credit_name: params[2], kamar_student_id: params[3], github_username: params[4],
-      first_year: params[5], status: params[6], projects: params[7], permission_recorded_at: params[8] ? new Date() : null, notes: params[9] });
+    if ([...rows.values()].some((row) => row.school_email === params[2])) throw Object.assign(new Error('duplicate'), { code: '23505' });
+    rows.set(params[0], { id: params[0], ...record(params.slice(1)), permission_recorded_at: params[8] ? new Date() : null });
     return { rows: [] };
   }
   if (sql.startsWith('UPDATE student_builders')) {
     const row = rows.get(params[0]);
-    Object.assign(row, { full_name: params[1], credit_name: params[2], kamar_student_id: params[3], github_username: params[4],
-      first_year: params[5], status: params[6], projects: params[7], permission_recorded_at: params[8] ? (row.permission_recorded_at || new Date()) : null, notes: params[9] });
+    Object.assign(row, record(params.slice(1)), { permission_recorded_at: params[8] ? (row.permission_recorded_at || new Date()) : null });
     return { rows: [] };
   }
   throw new Error(`Unexpected SQL: ${sql}`);
@@ -46,13 +51,13 @@ test.before(async () => {
     res.locals.activeRole = 'ADMIN';
     next();
   });
-  app.use('/admin/student-builders', createStudentBuildersRouter({ dbQuery, kamarDb }));
+  app.use('/admin/student-builders', createStudentBuildersRouter({ dbQuery, dtech }));
   app.use((error, req, res, next) => res.status(500).send(error.message));
   server = await new Promise((resolve) => { const listener = app.listen(0, '127.0.0.1', () => resolve(listener)); });
   base = `http://127.0.0.1:${server.address().port}/admin/student-builders`;
 });
 test.after(() => new Promise((resolve) => server.close(resolve)));
-test.beforeEach(() => { rows = new Map(); handovers = []; kamarFails = false; });
+test.beforeEach(() => { rows = new Map(); handovers = []; hubLinks = {}; hubDown = false; });
 
 async function formSession() {
   const response = await fetch(base);
@@ -63,8 +68,16 @@ async function formSession() {
 const post = (route, data, cookie) => fetch(base + route, { method: 'POST', redirect: 'manual',
   headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie }, body: new URLSearchParams(data) });
 
-const jonas = { fullName: 'Jonas <P> Pinkerneil', githubUsername: 'zomotokari-cpu', kamarStudentId: '12345', status: 'left',
-  projects: 'WHS-DTECH/WHS_BusController\nWHS-DTECH/WHS_International', permission: 'yes' };
+const sam = { fullName: 'Sam <Example>', schoolEmail: 'S_Example@westlandhigh.school.nz', status: 'left',
+  projects: 'WHS-DTECH/example-app', permission: 'yes' };
+
+test('credit names come from the school username without underscores', () => {
+  assert.equal(creditFromEmail('j_pinkerneil@westlandhigh.school.nz'), 'JPinkerneil');
+  assert.equal(creditFromEmail('v_pringle2@westlandhigh.school.nz'), 'VPringle2');
+  assert.equal(githubOwner('https://github.com/student-one/app'), 'student-one');
+  assert.equal(normaliseRepoUrl('https://www.github.com/a/b.git/'), 'https://github.com/a/b');
+  assert.equal(normaliseRepoUrl('https://example.com/a/b'), null);
+});
 
 test('only administrators can view or record student builders', async () => {
   for (const method of ['GET', 'POST']) {
@@ -75,49 +88,83 @@ test('only administrators can view or record student builders', async () => {
 
 test('forms require a valid CSRF token', async () => {
   const form = await formSession();
-  const response = await post('', { csrf: 'wrong', ...jonas }, form.cookie);
+  const response = await post('', { csrf: 'wrong', ...sam }, form.cookie);
   assert.equal(response.status, 403);
   assert.equal(rows.size, 0);
 });
 
-test('administrators record, list and edit a student builder', async () => {
+test('the form asks for a school email, not a student ID or personal email', async () => {
+  const html = await (await fetch(base)).text();
+  assert.match(html, /name="schoolEmail"/);
+  assert.match(html, /name="githubUrl"/);
+  assert.doesNotMatch(html, /kamarStudentId|contactEmail|creditName|githubUsername/);
+});
+
+test('saving derives the credit name and fills the single shared GitHub link from the DTECH Hub', async () => {
+  hubLinks['s_example@westlandhigh.school.nz'] = [{ url: 'https://github.com/sample-dev/example-app', project: 'Senior App', yearLevel: '12' }];
   const form = await formSession();
-  let response = await post('', { csrf: form.csrf, ...jonas }, form.cookie);
+  const response = await post('', { csrf: form.csrf, ...sam }, form.cookie);
   assert.equal(response.status, 303);
   const [row] = rows.values();
-  assert.equal(row.credit_name, 'JPinkerneil');
-  assert.equal(row.kamar_student_id, '12345');
-  assert.equal(Object.keys(row).some((key) => key.includes('email')), false);
-  assert.equal(row.status, 'left');
+  assert.equal(row.school_email, 's_example@westlandhigh.school.nz');
+  assert.equal(row.credit_name, 'SExample');
+  assert.equal(row.github_url, 'https://github.com/sample-dev/example-app');
   assert.ok(row.permission_recorded_at);
-  const html = await (await fetch(base, { headers: { cookie: form.cookie } })).text();
-  assert.match(html, /Jonas &lt;P&gt; Pinkerneil/);
-  assert.match(html, /JPinkerneil/);
-  const edit = await (await fetch(`${base}/${row.id}`, { headers: { cookie: form.cookie } })).text();
-  assert.match(edit, /Kamar record: <strong>Jonas Pinkerneil<\/strong> \(Left\)/);
-  assert.doesNotMatch(edit, /email/i);
-  assert.match(html, /WHS-DTECH\/WHS_BusController, WHS-DTECH\/WHS_International/);
 
-  response = await post(`/${row.id}`, { csrf: form.csrf, ...jonas, permission: '', notes: 'Returned to Germany' }, form.cookie);
-  assert.equal(response.status, 303);
-  assert.equal(rows.get(row.id).notes, 'Returned to Germany');
+  const html = await (await fetch(base, { headers: { cookie: form.cookie } })).text();
+  assert.match(html, /Sam &lt;Example&gt;/);
+  assert.match(html, /SExample/);
+
+  const edit = await (await fetch(`${base}/${row.id}`, { headers: { cookie: form.cookie } })).text();
+  assert.match(edit, /Senior App, 12/);
+});
+
+test('several Hub links are offered rather than guessed, and a typed link wins', async () => {
+  hubLinks['s_example@westlandhigh.school.nz'] = [
+    { url: 'https://github.com/sample-dev/one', project: 'One', yearLevel: '' },
+    { url: 'https://github.com/sample-dev/two', project: 'Two', yearLevel: '' }];
+  const form = await formSession();
+  await post('', { csrf: form.csrf, ...sam }, form.cookie);
+  const [row] = rows.values();
+  assert.equal(row.github_url, null);
+  const edit = await (await fetch(`${base}/${row.id}`, { headers: { cookie: form.cookie } })).text();
+  assert.match(edit, /sample-dev\/one/);
+  assert.match(edit, /sample-dev\/two/);
+
+  await post(`/${row.id}`, { csrf: form.csrf, ...sam, githubUrl: 'https://github.com/sample-dev/two/', permission: '' }, form.cookie);
+  assert.equal(rows.get(row.id).github_url, 'https://github.com/sample-dev/two');
   assert.equal(rows.get(row.id).permission_recorded_at, null);
 });
 
-test('invalid details are rejected', async () => {
+test('an unavailable DTECH Hub does not stop saving', async () => {
+  hubDown = true;
   const form = await formSession();
-  for (const bad of [{ fullName: '' }, { githubUsername: 'bad name' }, { kamarStudentId: 'no spaces' }, { creditName: 'J Pinkerneil' }, { firstYear: '99' }]) {
-    const response = await post('', { csrf: form.csrf, ...jonas, ...bad }, form.cookie);
+  const response = await post('', { csrf: form.csrf, ...sam }, form.cookie);
+  assert.equal(response.status, 303);
+  const [row] = rows.values();
+  const edit = await (await fetch(`${base}/${row.id}`, { headers: { cookie: form.cookie } })).text();
+  assert.match(edit, /could not be checked/);
+});
+
+test('invalid details and duplicate school emails are rejected', async () => {
+  const form = await formSession();
+  for (const bad of [{ fullName: '' }, { schoolEmail: 'sam@gmail.com' }, { schoolEmail: '' }, { githubUrl: 'https://example.com/x/y' }, { firstYear: '99' }]) {
+    const response = await post('', { csrf: form.csrf, ...sam, ...bad }, form.cookie);
     assert.equal(response.status, 400);
   }
   assert.equal(rows.size, 0);
+  await post('', { csrf: form.csrf, ...sam }, form.cookie);
+  const again = await post('', { csrf: form.csrf, ...sam, fullName: 'Someone Else' }, form.cookie);
+  assert.equal(again.status, 400);
+  assert.match(await again.text(), /already recorded/);
+  assert.equal(rows.size, 1);
 });
 
 test('details cannot be removed while a handover is in progress', async () => {
   const form = await formSession();
-  await post('', { csrf: form.csrf, ...jonas }, form.cookie);
+  await post('', { csrf: form.csrf, ...sam }, form.cookie);
   const [row] = rows.values();
-  handovers = [{ id: 'h1', builder_id: row.id, title: 'Bus', source_repository: 'WHS-DTECH/WHS_BusController', finished_at: null }];
+  handovers = [{ id: 'h1', builder_id: row.id, title: 'App', source_repository: 'WHS-DTECH/example-app', finished_at: null }];
   let response = await post(`/${row.id}/delete`, { csrf: form.csrf }, form.cookie);
   assert.equal(response.status, 409);
   assert.ok(rows.has(row.id));
@@ -128,18 +175,18 @@ test('details cannot be removed while a handover is in progress', async () => {
   assert.equal(rows.size, 0);
 });
 
-test('credit names default to first initial and surname', () => {
-  assert.equal(creditFrom('Jonas Pinkerneil'), 'JPinkerneil');
-  assert.equal(creditFrom('jonas Michael Pinkerneil'), 'JPinkerneil');
-  assert.equal(creditFrom('Jonas'), 'J');
-});
-
-test('an unavailable Kamar database does not stop editing', async () => {
-  const form = await formSession();
-  await post('', { csrf: form.csrf, ...jonas }, form.cookie);
-  const [row] = rows.values();
-  kamarFails = true;
-  const response = await fetch(`${base}/${row.id}`, { headers: { cookie: form.cookie } });
-  assert.equal(response.status, 200);
-  assert.match(await response.text(), /Kamar records could not be checked/);
+test('DTECH Hub lookup reads shared GitHub links from task-list evidence', async () => {
+  const pool = {
+    query: async (sql, params) => {
+      assert.match(sql, /FROM project_interests/);
+      assert.equal(params[0], 's_example@westlandhigh.school.nz');
+      return { rows: [
+        { project_id: 'p1', name: 'Senior App', year_level: '12', evidence: JSON.stringify([{ standard: 'x', steps: [{ text: 'GITHUB_REPO_URL|https://github.com/sample-dev/app' }] }]) },
+        { project_id: 'p2', name: null, year_level: null, evidence: JSON.stringify([{ standard: 'y', steps: [{ text: 'GITHUB_REPO_URL|https://github.com/Sample-Dev/App' }, { text: 'no link' }] }]) }
+      ] };
+    }
+  };
+  const result = await createDtechRecords({ pool }).githubLinks('s_example@westlandhigh.school.nz');
+  assert.deepEqual(result, { unavailable: false, links: [{ url: 'https://github.com/sample-dev/app', project: 'Senior App', yearLevel: '12' }] });
+  assert.deepEqual(await createDtechRecords({ env: {} }).githubLinks('x'), { unavailable: true, links: [] });
 });

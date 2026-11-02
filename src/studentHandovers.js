@@ -3,6 +3,7 @@ const express = require('express');
 const { query } = require('./db');
 const { createArchiveService, ArchiveError } = require('./studentAppArchive');
 const { createHandoverProviders, HandoverError, parseRepository } = require('./studentHandoverProviders');
+const { githubOwner } = require('./dtechRecords');
 
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -79,7 +80,7 @@ function createHandoverRouter({
        FROM student_project_handovers ORDER BY finished_at IS NOT NULL, review_on, created_at DESC LIMIT 200`
     )).rows;
     const builders = (await dbQuery(
-      `SELECT id, full_name, credit_name, github_username, status FROM student_builders ORDER BY status, lower(full_name)`
+      `SELECT id, full_name, credit_name, github_url, status FROM student_builders ORDER BY status, lower(full_name)`
     )).rows;
     return res.status(status).render('student-apps/handovers', {
       title: 'Handover student project', handovers, builders, configuration: providers.configuration(), today: today(),
@@ -133,7 +134,7 @@ function createHandoverRouter({
     try {
       if (req.body.permission !== 'yes') throw new HandoverError('Confirm the school has permission to keep and maintain a copy of this work.');
       const builder = UUID.test(form.builderId)
-        ? (await dbQuery('SELECT id, COALESCE(credit_name, full_name) AS credit_name, github_username FROM student_builders WHERE id = $1', [form.builderId])).rows[0]
+        ? (await dbQuery('SELECT id, credit_name, github_url FROM student_builders WHERE id = $1', [form.builderId])).rows[0]
         : null;
       if (!builder) throw new HandoverError('Choose the student builder. Add them under Administration > Student Builders first.');
       const year = Number(form.schoolYear);
@@ -152,7 +153,7 @@ function createHandoverRouter({
            (id, slug, title, source_repository, source_commit, student_name, student_github, school_year, review_on, created_by, history, builder_id)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12)
          ON CONFLICT DO NOTHING RETURNING id`,
-        [id, slug, form.title || repo.name, info.fullName, info.latestCommit, builder.credit_name, builder.github_username || null,
+        [id, slug, form.title || repo.name, info.fullName, info.latestCommit, builder.credit_name, githubOwner(builder.github_url),
           year, `${year + 1}-02-01`, req.user.id, event(req, 'Started handover', `Pinned ${info.latestCommit}`), builder.id]
       )).rows[0];
       if (!inserted) throw new HandoverError('That short name is in use, or this repository already has an unfinished handover.', 409);

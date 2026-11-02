@@ -20,8 +20,8 @@ const push = (row, entry) => { row.history = [...row.history, ...JSON.parse(entr
 const BUILDER = '11111111-2222-4333-8444-555555555555';
 
 async function dbQuery(sql, params = []) {
-  if (sql.includes('FROM student_builders ORDER BY')) return { rows: [{ id: BUILDER, full_name: 'Jonas Full', credit_name: 'Student <Name>', github_username: 'zomotokari-cpu', status: 'left' }] };
-  if (sql.includes('FROM student_builders WHERE id')) return { rows: params[0] === BUILDER ? [{ id: BUILDER, credit_name: 'Student <Name>', github_username: 'zomotokari-cpu' }] : [] };
+  if (sql.includes('FROM student_builders ORDER BY')) return { rows: [{ id: BUILDER, full_name: 'Jonas Full', credit_name: 'Student <Name>', github_url: 'https://github.com/zomotokari-cpu/WHS_BusController', status: 'left' }] };
+  if (sql.includes('FROM student_builders WHERE id')) return { rows: params[0] === BUILDER ? [{ id: BUILDER, credit_name: 'Student <Name>', github_url: 'https://github.com/zomotokari-cpu/WHS_BusController' }] : [] };
   const row = rows.get(params[0]);
   if (sql.includes('ORDER BY finished_at IS NOT NULL')) {
     return { rows: [...rows.values()].map((item) => ({ ...item, review_date: item.review_on })) };
@@ -164,7 +164,7 @@ test('starting a handover pins the latest commit, escapes names and sets a new-y
 
 test('a handover must use a recorded student builder', async () => {
   const form = await formSession();
-  assert.match(form.html, /Jonas Full, credited as Student &lt;Name&gt; \(zomotokari-cpu\), left school/);
+  assert.match(form.html, /Jonas Full, credited as Student &lt;Name&gt; \(zomotokari-cpu\/WHS_BusController\), left school/);
   const response = await post('', { csrf: form.csrf, repository: 'WHS-DTECH/x', builderId: '99999999-2222-4333-8444-555555555555', schoolYear: '2026', permission: 'yes' }, form.cookie);
   assert.equal(response.status, 400);
   assert.match(await response.text(), /Choose the student builder/);

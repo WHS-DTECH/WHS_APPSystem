@@ -12,6 +12,7 @@
   <p class="eyebrow">Administration</p>
   <h1>Student Builders</h1>
   <p>Record the students who build school apps, so their work can be credited and handed back at the new school year. Only administrators can see these details.</p>
+  <p>The school email stays on this page and links the student to their DTECH Hub record. It is never shown on the app they built. Apps and GitHub credit them by a <strong>credit name</strong>: their school username without the underscore (<code>j_pinkerneil</code> becomes <strong>JPinkerneil</strong>).</p>
   <p><a href="/admin">Back to Administration</a> · <a href="/student-apps/handovers">Handover student project</a></p>
 </section>
 <% if (notice) { %><section class="panel" role="status"><strong><%= notice %></strong></section><% } %>
@@ -20,13 +21,22 @@
   <h2><%= editing ? `Edit ${editing.full_name}` : 'Add a student builder' %></h2>
   <form action="/admin/student-builders<%= editing ? `/${editing.id}` : '' %>" method="post" class="stacked">
     <input type="hidden" name="csrf" value="<%= csrf %>">
-    <label>Student's name<input name="fullName" value="<%= form.fullName || '' %>" maxlength="120" required></label>
-    <label>Credit name (shown on the Student Work)<input name="creditName" value="<%= form.creditName || '' %>" maxlength="40" pattern="[A-Za-z0-9][A-Za-z0-9.\-]*" placeholder="First initial and surname if blank, e.g. JPinkerneil"></label>
-    <label>Kamar student ID (links to their academic record)<input name="kamarStudentId" value="<%= form.kamarStudentId || '' %>" maxlength="20" pattern="[A-Za-z0-9\-]+" inputmode="numeric"></label>
-    <% if (editing && kamar) { %>
-      <p role="status"><small><% if (kamar.unavailable) { %>Kamar records could not be checked right now.<% } else if (kamar.found) { %>Kamar record: <strong><%= kamar.name %></strong> (<%= kamar.status %>)<% } else { %>No Kamar record found for this ID.<% } %></small></p>
+    <label>Student's name (admin only)<input name="fullName" value="<%= form.fullName || '' %>" maxlength="120" required></label>
+    <label>School email (admin only, links to their DTECH Hub record)<input name="schoolEmail" type="email" value="<%= form.schoolEmail || '' %>" maxlength="200" pattern="[A-Za-z0-9]+([._][A-Za-z0-9]+)*@westlandhigh\.school\.nz" placeholder="j_pinkerneil@westlandhigh.school.nz" autocomplete="off" required></label>
+    <p><small>Credit name: <strong><%= creditPreview || 'made from the school username when you save' %></strong></small></p>
+    <label>Shared GitHub link<input name="githubUrl" type="url" value="<%= form.githubUrl || '' %>" maxlength="200" placeholder="https://github.com/owner/repository" list="hub-github-links" autocomplete="off"></label>
+    <% if (hub && hub.links.length) { %>
+      <datalist id="hub-github-links"><% hub.links.forEach((link) => { %><option value="<%= link.url %>"><%= link.project %></option><% }) %></datalist>
+      <div role="status"><small>Shared GitHub links in their DTECH Hub task lists:</small>
+        <ul><% hub.links.forEach((link) => { %><li><small><a href="<%= link.url %>" target="_blank" rel="noopener noreferrer"><%= link.url %></a> (<%= link.project %><%= link.yearLevel ? `, ${link.yearLevel}` : '' %>)</small></li><% }) %></ul>
+      </div>
+    <% } else if (hub && hub.unavailable) { %>
+      <p role="status"><small>The DTECH Hub could not be checked right now. Enter the link by hand, or try again later.</small></p>
+    <% } else if (hub) { %>
+      <p role="status"><small>No shared GitHub link found in their DTECH Hub task lists.</small></p>
+    <% } else { %>
+      <p><small>Leave blank to fill it from the student's SeniorDTECH or MiddleDTECH task lists when you save, if there is exactly one.</small></p>
     <% } %>
-    <label>GitHub username (optional)<input name="githubUsername" value="<%= form.githubUsername || '' %>" maxlength="39"></label>
     <label>Year they started building (optional)<input name="firstYear" type="number" min="2000" max="2100" value="<%= form.firstYear || '' %>"></label>
     <label>Status
       <select name="status">
@@ -59,13 +69,12 @@
   <h2>Student builders</h2>
   <% if (!builders.length) { %><p>No student builders recorded yet.</p><% } else { %>
   <div class="sb-table"><table>
-    <thead><tr><th>Student</th><th>Credit name</th><th>Kamar ID</th><th>GitHub</th><th>Status</th><th>Permission</th><th>Projects</th></tr></thead>
+    <thead><tr><th>Student</th><th>Credit name</th><th>Shared GitHub link</th><th>Status</th><th>Permission</th><th>Projects</th></tr></thead>
     <tbody><% builders.forEach((builder) => { %>
       <tr>
-        <td><a href="/admin/student-builders/<%= builder.id %>"><%= builder.full_name %></a></td>
+        <td><a href="/admin/student-builders/<%= builder.id %>"><%= builder.full_name %></a><br><small><%= builder.school_email || '' %></small></td>
         <td><%= builder.credit_name || '' %></td>
-        <td><%= builder.kamar_student_id || '' %></td>
-        <td><%= builder.github_username || '' %></td>
+        <td><% if (builder.github_url) { %><a href="<%= builder.github_url %>" target="_blank" rel="noopener noreferrer"><%= builder.github_url.replace('https://github.com/', '') %></a><% } %></td>
         <td><%= builder.status === 'left' ? 'Left school' : 'Current student' %></td>
         <td><%= builder.permission_recorded_at ? 'Recorded' : 'Not yet' %></td>
         <td><%= builder.projects.split('\n').filter(Boolean).join(', ') %></td>
