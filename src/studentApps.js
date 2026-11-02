@@ -307,6 +307,7 @@ router.use((req, res, next) => {
 });
 
 router.use('/github-import', require('./studentAppImports').createImportRouter());
+router.use('/handovers', require('./studentHandovers').createHandoverRouter());
 
 async function searchableApps(user) {
   return isAdmin(user)

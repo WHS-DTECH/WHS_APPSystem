@@ -1,0 +1,66 @@
+<%- include('../partials/header') %>
+<style>
+  .sa-handover { min-width: 0; overflow-wrap: anywhere; }
+  .sa-handover form.stacked { display: grid; gap: 14px; max-width: 640px; }
+  .sa-handover .button { justify-self: start; max-width: 100%; white-space: normal; }
+  .sa-handover .sa-table { overflow-x: auto; }
+  .sa-handover table { min-width: 640px; }
+  .sa-handover .due { font-weight: 700; color: #9a3412; }
+</style>
+<div class="sa-handover">
+<section class="page-title">
+  <p class="eyebrow">Student Apps · Administrator</p>
+  <h1>Handover student project</h1>
+  <p>Keep a student's GitHub project unchanged as <strong>Student Work</strong> while the school keeps working on its own copy. At the new school year, return it to the student or remove it.</p>
+  <p><a href="/student-apps">Back to Student Apps</a></p>
+</section>
+<% if (error) { %><section class="panel" role="alert"><strong><%= error %></strong></section><% } %>
+<section class="panel">
+  <h2>How it works</h2>
+  <ol>
+    <li><strong>Label</strong>: mark the repository “Student Work: name, year” and optionally make it private.</li>
+    <li><strong>School copy</strong>: make a new private repository with the student credited, or record where the school already maintains it.</li>
+    <li><strong>Backup</strong>: save a reviewed snapshot to the school archive.</li>
+    <li><strong>Freeze</strong>: archive the Student Work as read-only. Blocked while a live Render site still deploys from it.</li>
+    <li><strong>New school year</strong>: transfer it to the student, delete it, or keep it frozen.</li>
+  </ol>
+  <% if (!configuration.githubConfigured) { %>
+    <p role="status">GitHub access is not configured. Add <code>STUDENT_HANDOVER_GITHUB_TOKEN</code> (or <code>MODULE_BUILDER_GITHUB_TOKEN</code>) to the Render service.</p>
+  <% } %>
+  <% if (!configuration.renderConfigured) { %>
+    <p>Render is not connected, so you will be asked to confirm manually that no live site deploys from the repository before freezing.</p>
+  <% } %>
+</section>
+<section class="panel">
+  <h2>Start a handover</h2>
+  <p>The repository must already belong to <strong><%= configuration.owner %></strong>. If it is on the student's own account, ask them to transfer it to <%= configuration.owner %> first.</p>
+  <form action="/student-apps/handovers" method="post" class="stacked">
+    <input type="hidden" name="csrf" value="<%= csrf %>">
+    <label>GitHub repository<input name="repository" value="<%= form.repository || '' %>" placeholder="<%= configuration.owner %>/project-name" maxlength="200" required></label>
+    <label>Project name (optional)<input name="title" value="<%= form.title || '' %>" maxlength="120" placeholder="Repository name if blank"></label>
+    <label>Student's name<input name="studentName" value="<%= form.studentName || '' %>" maxlength="120" required></label>
+    <label>Student's GitHub username (optional)<input name="studentGithub" value="<%= form.studentGithub || '' %>" maxlength="39"></label>
+    <label>School year the work was made<input name="schoolYear" type="number" min="2000" max="2100" value="<%= form.schoolYear || defaultYear %>" required></label>
+    <label>Short name for the archive (optional)<input name="slug" value="<%= form.slug || '' %>" maxlength="60" pattern="[a-z0-9]+(-[a-z0-9]+)*" placeholder="From the repository name if blank"></label>
+    <label><input type="checkbox" name="permission" value="yes" required> The school has permission to keep and maintain a copy of this work, and the student will be credited.</label>
+    <button class="button" type="submit" <%= configuration.githubConfigured ? '' : 'disabled' %>>Start handover</button>
+  </form>
+</section>
+<section class="panel table-panel">
+  <h2>Handovers</h2>
+  <% if (!handovers.length) { %><p>No handovers yet.</p><% } else { %>
+  <div class="sa-table"><table>
+    <thead><tr><th>Project</th><th>Student Work</th><th>Next step</th><th>Review</th></tr></thead>
+    <tbody><% handovers.forEach((item) => { const step = nextStep(item); const reviewOn = item.review_date; %>
+      <tr>
+        <td><a href="/student-apps/handovers/<%= item.id %>"><%= item.title %></a><br><small><%= item.student_name %>, <%= item.school_year %></small></td>
+        <td><%= item.source_repository %></td>
+        <td><%= step === 'finished' ? `Finished (${item.finish_action})` : { label: 'Label', 'school-copy': 'School copy', backup: 'Backup', freeze: 'Freeze', finish: 'Waiting for new school year' }[step] %></td>
+        <td><% if (!item.finished_at && reviewOn <= today) { %><span class="due">Due <%= reviewOn %></span><% } else { %><%= reviewOn %><% } %></td>
+      </tr>
+    <% }) %></tbody>
+  </table></div>
+  <% } %>
+</section>
+</div>
+<%- include('../partials/footer') %>

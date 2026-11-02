@@ -1,0 +1,169 @@
+<%- include('../partials/header') %>
+<%
+  const base = `/student-apps/handovers/${item.id}`;
+  const when = (value) => value ? new Date(value).toLocaleString('en-NZ', { timeZone: 'Pacific/Auckland' }) : '';
+  const reviewOn = item.review_date;
+  const sourceUrl = `https://github.com/${item.source_repository}`;
+  const finished = Boolean(item.finished_at);
+%>
+<style>
+  .sa-handover { min-width: 0; overflow-wrap: anywhere; }
+  .sa-handover form.stacked { display: grid; gap: 14px; max-width: 640px; }
+  .sa-handover .button { justify-self: start; max-width: 100%; white-space: normal; }
+  .sa-handover .done { color: #166534; font-weight: 700; }
+  .sa-handover .due { font-weight: 700; color: #9a3412; }
+  .sa-handover .current { border-left: 4px solid #2563eb; }
+</style>
+<div class="sa-handover">
+<section class="page-title">
+  <p class="eyebrow">Handover student project</p>
+  <h1><%= item.title %></h1>
+  <p>Student Work by <strong><%= item.student_name %></strong> (<%= item.school_year %>)<% if (item.student_github) { %>, GitHub <code><%= item.student_github %></code><% } %>.</p>
+  <p><a href="/student-apps/handovers">Back to handovers</a></p>
+</section>
+<% if (error) { %><section class="panel" role="alert"><strong><%= error %></strong></section><% } %>
+<% if (notice) { %><section class="panel" role="status"><%= notice %></section><% } %>
+<section class="panel">
+  <h2>Student Work</h2>
+  <p><a href="<%= sourceUrl %>" target="_blank" rel="noopener noreferrer"><%= item.source_repository %></a>, pinned at <code><%= item.source_commit %></code>.</p>
+  <% if (githubError) { %><p role="alert">GitHub status unavailable: <%= githubError %></p><% } %>
+  <% if (github && github.missing) { %><p>The repository no longer exists on GitHub, or the token cannot see it.</p><% } %>
+  <% if (github && !github.missing) { %>
+    <p><%= github.private ? 'Private' : 'Public' %><%= github.archived ? ', archived (read-only)' : '' %>. Description: <em><%= github.description || 'none' %></em></p>
+  <% } %>
+  <p>Review on: <% if (!finished && reviewOn <= today) { %><span class="due">Due <%= reviewOn %></span><% } else { %><%= reviewOn %><% } %></p>
+  <% if (!finished) { %>
+  <form action="<%= base %>/review-date" method="post">
+    <input type="hidden" name="csrf" value="<%= csrf %>">
+    <label>Change review date <input type="date" name="reviewOn" value="<%= reviewOn %>" required></label>
+    <button class="button" type="submit">Save date</button>
+  </form>
+  <% } %>
+</section>
+
+<section class="panel <%= step === 'label' ? 'current' : '' %>">
+  <h2>1. Label</h2>
+  <% if (item.labelled_at) { %>
+    <p class="done">Labelled <%= when(item.labelled_at) %><%= item.made_private ? '; private' : '' %>.</p>
+  <% } %>
+  <% if (!finished && !item.frozen_at) { %>
+  <p>Sets the GitHub description to “Student Work: <%= item.student_name %>, <%= item.school_year %>…”. Making it private hides the code (including any old keys) from the public. A Render site that deploys from it keeps working; check the live site afterwards.</p>
+  <form action="<%= base %>/label" method="post" class="stacked">
+    <input type="hidden" name="csrf" value="<%= csrf %>">
+    <label><input type="checkbox" name="makePrivate" value="yes" <%= github && !github.missing && github.private ? 'checked' : '' %>> Make the repository private</label>
+    <button class="button" type="submit"><%= item.labelled_at ? 'Label again' : 'Label Student Work' %></button>
+  </form>
+  <% } %>
+</section>
+
+<section class="panel <%= step === 'school-copy' ? 'current' : '' %>">
+  <h2>2. School copy</h2>
+  <% if (item.school_copy_at) { %>
+    <p class="done"><%= item.school_copy_kind === 'repository' ? 'Private school copy created' : 'School location recorded' %> <%= when(item.school_copy_at) %>:
+      <a href="<%= item.school_copy_url %>" target="_blank" rel="noopener noreferrer"><%= item.school_copy_url %></a></p>
+  <% } else if (!item.labelled_at) { %>
+    <p>Label the Student Work first.</p>
+  <% } else if (!finished) { %>
+    <h3>Option A: new private repository</h3>
+    <p>Copies the files at the pinned commit (not the Git history) into a new private <%= configuration.owner %> repository and adds a <code>HANDOVER.md</code> that credits the student. Likely secrets and generated folders are withheld and listed. Existing repositories are never overwritten.</p>
+    <form action="<%= base %>/school-copy" method="post" class="stacked">
+      <input type="hidden" name="csrf" value="<%= csrf %>">
+      <input type="hidden" name="mode" value="repository">
+      <label>New repository name<input name="name" value="<%= item.source_repository.split('/')[1] %>-School" maxlength="100" required></label>
+      <button class="button" type="submit">Create private school copy</button>
+    </form>
+    <h3>Option B: already maintained elsewhere</h3>
+    <p>Use this when the project has been moved into an existing school repository, for example a folder in WHS_APPSystem.</p>
+    <form action="<%= base %>/school-copy" method="post" class="stacked">
+      <input type="hidden" name="csrf" value="<%= csrf %>">
+      <input type="hidden" name="mode" value="existing">
+      <label>GitHub address of the school version<input name="location" type="url" maxlength="300" placeholder="https://github.com/<%= configuration.owner %>/..." required></label>
+      <label><input type="checkbox" name="creditConfirmed" value="yes" required> The school version credits <%= item.student_name %> and links to the Student Work.</label>
+      <button class="button" type="submit">Record school location</button>
+    </form>
+  <% } %>
+</section>
+
+<section class="panel <%= step === 'backup' ? 'current' : '' %>">
+  <h2>3. Backup</h2>
+  <% if (item.backup_at) { %>
+    <p class="done">Saved to the school archive <%= when(item.backup_at) %>: <a href="<%= item.backup_url %>" target="_blank" rel="noopener noreferrer">open backup</a>.</p>
+  <% } else if (item.backup_skipped_reason) { %>
+    <p class="done">Skipped: <%= item.backup_skipped_reason %></p>
+  <% } %>
+  <% if (!item.backup_at && !finished && !item.frozen_at) { %>
+    <p>Saves a reviewed snapshot of the pinned commit to the private school archive. The GitHub Reader App must be installed on <code><%= item.source_repository %></code>.</p>
+    <% if (!archiveReady) { %><p role="status">The school archive is not configured. See GitHub Import for the required settings, or skip this step.</p><% } %>
+    <% if (backupPreview) { %>
+      <p><%= backupPreview.files.length %> files, <%= backupPreview.bytes %> bytes. Preview expires after one hour.</p>
+      <details><summary>Files to save</summary><ul><% backupPreview.files.forEach((file) => { %><li><code><%= file.path %></code></li><% }) %></ul></details>
+      <h3>Withheld files (<%= backupPreview.excluded.length %>)</h3>
+      <ul><% backupPreview.excluded.forEach((file) => { %><li><code><%= file.path %></code>: <%= file.reason %></li><% }) %></ul>
+      <form action="<%= base %>/backup/confirm" method="post" class="stacked">
+        <input type="hidden" name="csrf" value="<%= csrf %>">
+        <label><input type="checkbox" name="confirmReview" value="yes" required> I have reviewed the files and withheld list. Automated checks cannot find every secret or private record.</label>
+        <button class="button" type="submit">Save backup to school archive</button>
+      </form>
+    <% } else { %>
+      <form action="<%= base %>/backup/preview" method="post">
+        <input type="hidden" name="csrf" value="<%= csrf %>">
+        <button class="button" type="submit" <%= archiveReady ? '' : 'disabled' %>>Preview backup</button>
+      </form>
+    <% } %>
+    <% if (!item.backup_skipped_reason) { %>
+    <form action="<%= base %>/backup/skip" method="post" class="stacked">
+      <input type="hidden" name="csrf" value="<%= csrf %>">
+      <label>Or skip the archive backup because…<input name="reason" maxlength="300" placeholder="e.g. school copy already holds the full source" required></label>
+      <button class="button secondary" type="submit">Skip backup</button>
+    </form>
+    <% } %>
+  <% } %>
+</section>
+
+<section class="panel <%= step === 'freeze' ? 'current' : '' %>">
+  <h2>4. Freeze</h2>
+  <% if (item.frozen_at) { %>
+    <p class="done">Archived read-only on GitHub <%= when(item.frozen_at) %>. The student's work stays exactly as they left it.</p>
+  <% } else if (step !== 'freeze') { %>
+    <p>Available after the school copy and backup steps.</p>
+  <% } else { %>
+    <p>Archives the Student Work on GitHub so nobody can change it. Only do this after any live site has moved to the school copy and the old Render service is suspended. <%= configuration.renderConfigured ? 'Render is checked automatically.' : '' %></p>
+    <form action="<%= base %>/freeze" method="post" class="stacked">
+      <input type="hidden" name="csrf" value="<%= csrf %>">
+      <% if (!configuration.renderConfigured) { %>
+        <label><input type="checkbox" name="noLiveSite" value="yes" required> No live Render service still deploys from this repository.</label>
+      <% } %>
+      <button class="button" type="submit">Freeze Student Work</button>
+    </form>
+  <% } %>
+</section>
+
+<section class="panel <%= step === 'finish' ? 'current' : '' %>">
+  <h2>5. New school year</h2>
+  <% if (finished) { %>
+    <p class="done">Finished <%= when(item.finished_at) %>: <%= { transferred: 'transferred to the student', deleted: 'deleted', kept: 'kept as frozen Student Work' }[item.finish_action] %>.</p>
+  <% } else if (!item.frozen_at) { %>
+    <p>Available after the Student Work is frozen.</p>
+  <% } else { %>
+    <% if (reviewOn > today) { %><p>Planned for <%= reviewOn %>. You can finish early if needed.</p><% } %>
+    <form action="<%= base %>/finish" method="post" class="stacked">
+      <input type="hidden" name="csrf" value="<%= csrf %>">
+      <label><input type="radio" name="action" value="transferred" required> Transfer to the student's GitHub account</label>
+      <label>Student's GitHub username<input name="newOwner" value="<%= item.student_github || '' %>" maxlength="39"></label>
+      <p><small>GitHub emails the student, who must accept within one day. If GitHub refuses because the repository is archived, unarchive it in GitHub settings and try again.</small></p>
+      <label><input type="radio" name="action" value="deleted"> I have deleted it in GitHub (<a href="<%= sourceUrl %>/settings" target="_blank" rel="noopener noreferrer">open settings</a>)</label>
+      <label><input type="radio" name="action" value="kept"> Keep it frozen in <%= configuration.owner %></label>
+      <label><input type="checkbox" name="confirmFinish" value="yes" required> I understand this is the final step.</label>
+      <button class="button" type="submit">Finish handover</button>
+    </form>
+  <% } %>
+</section>
+
+<section class="panel">
+  <h2>History</h2>
+  <ul><% (item.history || []).slice().reverse().forEach((entry) => { %>
+    <li><%= when(entry.at) %> · <%= entry.by %> · <%= entry.action %><% if (entry.detail) { %>: <%= entry.detail %><% } %></li>
+  <% }) %></ul>
+</section>
+</div>
+<%- include('../partials/footer') %>

@@ -873,6 +873,39 @@ before retrying; the commit may already exist. Stale in-progress rows are not
 reported as successful. No live repository import is performed by automated
 tests; use the first real project as a supervised connectivity/handover test.
 
+### Handover student project
+
+Administrators can open **Student Apps > Handover student project**
+(`/student-apps/handovers`) to keep a student's GitHub repository unchanged as
+**Student Work** until the new school year while the school maintains its own copy.
+The repository must already be owned by `MODULE_BUILDER_GITHUB_OWNER` (default
+`WHS-DTECH`); ask the student to transfer it first if it is on their own account.
+Starting a handover pins the current default-branch commit and sets the review
+date to 1 February of the following year. Each step is recorded in the handover
+history:
+
+1. **Label**: sets the GitHub description to `Student Work: name, year` and can
+   make the repository private. Render deploys continue to work.
+2. **School copy**: either creates a new private repository containing the pinned
+   files (no Git history) and a `HANDOVER.md` crediting the student, or records an
+   existing school location such as a folder in WHS_APPSystem. Likely secrets and
+   generated folders use the same exclusions and limits as the archive importer.
+   Existing repositories are never overwritten.
+3. **Backup**: saves a reviewed snapshot of the pinned commit through the private
+   archive above (the Reader App must be installed on the repository), or records
+   why it is skipped.
+4. **Freeze**: archives the Student Work read-only. It is refused while an
+   unsuspended Render service deploys from the repository; without a Render API
+   key the administrator must confirm this manually.
+5. **New school year**: transfer the repository to the student's GitHub account
+   (they must accept GitHub's email within one day), confirm it was deleted in
+   GitHub, or keep it frozen. Deletion is never performed by the app.
+
+Set `STUDENT_HANDOVER_GITHUB_TOKEN` to a GitHub token for the owner with
+**Administration** and **Contents: Read and write**; if it is not set the
+`MODULE_BUILDER_GITHUB_TOKEN` is used. `MODULE_BUILDER_RENDER_API_KEY` enables the
+automatic live-deploy check. Tests use mocked providers only.
+
 Run the isolated Python regressions with
 `python tests\guidance_global_roles_test.py -v` (Flask and the app requirements
 must be installed). They use a temporary dummy database, never the live database.
