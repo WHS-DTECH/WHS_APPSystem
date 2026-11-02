@@ -12,17 +12,53 @@ const STAFF_PAGES = { principal: 'principal.html', admin: 'admin.html' };
 const TOKEN_PAGES = { ...STAFF_PAGES, westroad: 'westroad.html' };
 const CUSTOM_TOKEN_AUDIENCE = 'https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit';
 
+// Escapes raw line breaks inside JSON strings, which appear when a key is pasted through a form that rewraps it.
+function escapeNewlinesInStrings(text) {
+  let out = '';
+  let inString = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    if (inString && char === '\\') { out += char + (text[i + 1] || ''); i += 1; continue; }
+    if (char === '"') inString = !inString;
+    if (inString && (char === '\n' || char === '\r')) { if (char === '\n') out += '\\n'; continue; }
+    out += char;
+  }
+  return out;
+}
+
+function parseServiceAccount(raw) {
+  const text = raw.trim();
+  const candidates = [text, escapeNewlinesInStrings(text)];
+  if (/^(['"]).*\1$/s.test(text)) candidates.push(text.slice(1, -1), text.slice(1, -1).replace(/\\"/g, '"'));
+  if (/^[A-Za-z0-9+/=\s]+$/.test(text)) candidates.push(Buffer.from(text, 'base64').toString('utf8'));
+  for (const candidate of candidates) {
+    try {
+      let value = JSON.parse(candidate);
+      if (typeof value === 'string') value = JSON.parse(value);
+      if (value && typeof value === 'object') return value;
+    } catch { /* try the next form */ }
+  }
+  return null;
+}
+
+// Safe facts about a bad value for ADMIN troubleshooting; never includes the key text.
+function describeValue(raw) {
+  const text = raw.trim();
+  return `It is ${text.length} characters, starts with ${JSON.stringify(text[0] || '')} and ends with ${JSON.stringify(text.slice(-1))}`
+    + (text.includes('"private_key"') ? '' : ', and has no "private_key" field') + '.';
+}
+
 function serviceAccount(env = process.env) {
   const raw = env.BUS_CONTROLLER_FIREBASE_SERVICE_ACCOUNT;
   if (!raw || !raw.trim()) return { problem: 'missing' };
-  let account;
-  try {
-    account = JSON.parse(raw.trim());
-  } catch {
-    console.warn('[bus-controller] BUS_CONTROLLER_FIREBASE_SERVICE_ACCOUNT is not valid JSON.');
-    return { problem: 'not-json' };
+  const account = parseServiceAccount(raw);
+  if (!account) {
+    console.warn(`[bus-controller] BUS_CONTROLLER_FIREBASE_SERVICE_ACCOUNT is not valid JSON. ${describeValue(raw)}`);
+    return { problem: 'not-json', hint: describeValue(raw) };
   }
-  if (account && account.client_email && account.private_key) return { account };
+  if (account.client_email && account.private_key) {
+    return { account: { ...account, private_key: String(account.private_key).replace(/\\n/g, '\n') } };
+  }
   console.warn('[bus-controller] BUS_CONTROLLER_FIREBASE_SERVICE_ACCOUNT has no client_email/private_key.');
   return { problem: 'not-service-account' };
 }
@@ -40,7 +76,7 @@ function signJwt(account, payload) {
 }
 
 function createFirebase({ env = process.env, fetchImpl = (...args) => fetch(...args), now = () => Date.now() } = {}) {
-  const { account, problem: setupProblem } = serviceAccount(env);
+  const { account, problem: setupProblem, hint: setupHint } = serviceAccount(env);
   let cached = null;
 
   async function accessToken() {
@@ -63,6 +99,7 @@ function createFirebase({ env = process.env, fetchImpl = (...args) => fetch(...a
   return {
     configured: Boolean(account),
     setupProblem,
+    setupHint,
     customToken(uid, claims) {
       const iat = Math.floor(now() / 1000);
       // Custom claims are readable in Firebase rules as auth.token.busControllerRole.
@@ -123,7 +160,8 @@ function createBusControllerRouter({ dbQuery = query, firebase = createFirebase(
       res.set('Cache-Control', 'no-store');
       if (!firebase.configured) {
         // Only ADMIN sees which setting is wrong; it never includes the key itself.
-        const detail = req.user.roles?.includes('ADMIN') ? SETUP_PROBLEMS[firebase.setupProblem] : '';
+        const detail = req.user.roles?.includes('ADMIN')
+          ? [SETUP_PROBLEMS[firebase.setupProblem], firebase.setupHint].filter(Boolean).join(' ') : '';
         return problem(res, 503, `Bus Controller staff sign-in is not set up yet. An administrator needs to add the Firebase service account key.${detail ? ` ${detail}` : ''}`);
       }
       if (req.query.problem) return problem(res, 502, 'Bus Controller could not sign you in to its map database. Try again shortly, or contact the administrator.');

@@ -172,6 +172,22 @@ test('Firebase helper signs custom tokens and writes users with a cached service
   assert.equal(createFirebase({ env: { BUS_CONTROLLER_FIREBASE_SERVICE_ACCOUNT: '-----BEGIN PRIVATE KEY-----' } }).setupProblem, 'not-json');
   assert.equal(createFirebase({ env: { BUS_CONTROLLER_FIREBASE_SERVICE_ACCOUNT: '{"apiKey":"x"}' } }).setupProblem, 'not-service-account');
   assert.equal(createFirebase({ env: { BUS_CONTROLLER_FIREBASE_SERVICE_ACCOUNT: `\n ${JSON.stringify(account, null, 2)}\n` } }).configured, true);
+  const pasted = [
+    `'${JSON.stringify(account)}'`,
+    JSON.stringify(JSON.stringify(account)),
+    Buffer.from(JSON.stringify(account)).toString('base64'),
+    JSON.stringify(account, null, 2).replace(/\\n/g, '\n')
+  ];
+  for (const value of pasted) {
+    const helper2 = createFirebase({ env: { BUS_CONTROLLER_FIREBASE_SERVICE_ACCOUNT: value }, fetchImpl, now: () => 1700000000000 });
+    assert.equal(helper2.configured, true, value.slice(0, 12));
+    const [h, p, s] = helper2.customToken('core-x').split('.');
+    assert.ok(crypto.verify('RSA-SHA256', Buffer.from(`${h}.${p}`), publicKey, Buffer.from(s, 'base64url')));
+  }
+  const broken = createFirebase({ env: { BUS_CONTROLLER_FIREBASE_SERVICE_ACCOUNT: '{"type":"service_account","private_key_id":"abc' } });
+  assert.equal(broken.setupProblem, 'not-json');
+  assert.match(broken.setupHint, /starts with "\{" and ends with "c"/);
+  assert.doesNotMatch(broken.setupHint, /service_account|abc/);
 });
 
 async function runCoreSession(viewOnly, { page = 'principal', tokenOk = true, currentUid = 'core-t1' } = {}) {
