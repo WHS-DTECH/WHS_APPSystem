@@ -3,8 +3,30 @@
   .sb-page { min-width: 0; overflow-wrap: anywhere; }
   .sb-page form.stacked { display: grid; gap: 14px; max-width: 640px; }
   .sb-page .button { justify-self: start; max-width: 100%; white-space: normal; }
-  .sb-page .sb-table { overflow-x: auto; }
-  .sb-page table { min-width: 640px; }
+  .page:has(.sb-page) { max-width: 1680px; }
+  .sb-page form.stacked label { display: grid; gap: 6px; }
+  .sb-page form.stacked label:has(> input[type=checkbox]) { display: flex; gap: 10px; align-items: flex-start; }
+  .sb-page form.stacked textarea { width: 100%; min-height: 90px; box-sizing: border-box; font: inherit; }
+  .sb-page .sb-table { overflow-x: auto; border: 1px solid #d5dde6; border-radius: 10px; }
+  .sb-page table { width: 100%; min-width: 1100px; border-collapse: collapse; font-size: 0.95rem; }
+  .sb-page th, .sb-page td { padding: 12px 16px; text-align: left; vertical-align: middle; overflow-wrap: normal; }
+  .sb-page thead th { background: #1c3550; color: #fff; font-weight: 600; white-space: nowrap; }
+  .sb-page tbody tr { border-top: 1px solid #e3e8ee; }
+  .sb-page tbody tr:nth-child(even) { background: #f6f8fa; }
+  .sb-page tbody tr:hover { background: #eef4fa; }
+  .sb-page .sb-name a { font-weight: 600; }
+  .sb-page .sb-email { display: block; color: #5a6b7c; font-size: 0.85rem; white-space: nowrap; }
+  .sb-page .sb-nowrap { white-space: nowrap; }
+  .sb-page .sb-badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.82rem; font-weight: 600; white-space: nowrap; }
+  .sb-page .sb-badge.ok { background: #dff3e4; color: #1d6b34; }
+  .sb-page .sb-badge.warn { background: #fdf0d5; color: #8a5a00; }
+  .sb-page .sb-badge.muted { background: #e7ebf0; color: #3e4c5a; }
+  .sb-page .sb-badge.current { background: #dcecfb; color: #1c4f86; }
+  .sb-page .sb-projects { margin: 0; padding: 0; list-style: none; }
+  .sb-page .sb-projects li { white-space: nowrap; }
+  .sb-page td .sb-actions { flex-wrap: nowrap; }
+  .sb-page td .sb-actions form { margin: 0; display: flex; }
+  .sb-page td .button { padding: 6px 14px; }
   .sb-page .sb-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 </style>
 <div class="sb-page">
@@ -72,13 +94,12 @@
     <thead><tr><th>Student</th><th>Credit name</th><th>Shared GitHub link</th><th>Status</th><th>Permission</th><th>Projects</th><th>Actions</th></tr></thead>
     <tbody><% builders.forEach((builder) => { %>
       <tr>
-        <td><a href="/admin/student-builders/<%= builder.id %>"><%= builder.full_name %></a><br><small><%= builder.school_email || '' %></small></td>
-        <td><%= builder.credit_name || '' %></td>
-        <td><% if (builder.github_url) { %><a href="<%= builder.github_url %>" target="_blank" rel="noopener noreferrer"><%= builder.github_url.replace('https://github.com/', '') %></a><% } %></td>
-        <td><%= builder.status === 'left' ? 'Left school' : 'Current student' %></td>
-        <td><%= builder.permission_recorded_at ? 'Recorded' : 'Not yet' %></td>
-        <td><%= builder.projects.split('\n').filter(Boolean).join(', ') %></td>
-        <td>
+        <td class="sb-name"><a href="/admin/student-builders/<%= builder.id %>"><%= builder.full_name %></a><span class="sb-email"><%= builder.school_email || '' %></span></td>
+        <td class="sb-nowrap"><%= builder.credit_name || '' %></td>
+        <td class="sb-nowrap"><% if (builder.github_url) { %><a href="<%= builder.github_url %>" target="_blank" rel="noopener noreferrer"><%= builder.github_url.replace('https://github.com/', '') %></a><% } %></td>
+        <td><span class="sb-badge <%= builder.status === 'left' ? 'muted' : 'current' %>"><%= builder.status === 'left' ? 'Left school' : 'Current student' %></span></td>
+        <td><span class="sb-badge <%= builder.permission_recorded_at ? 'ok' : 'warn' %>"><%= builder.permission_recorded_at ? 'Recorded' : 'Not yet' %></span></td>
+        <td><% const projectList = builder.projects.split('\n').map((p) => p.trim()).filter(Boolean); %><% if (projectList.length) { %><ul class="sb-projects"><% projectList.forEach((p) => { %><li><%= p %></li><% }) %></ul><% } else { %>—<% } %></td>        <td>
           <div class="sb-actions">
             <a class="button secondary" href="/admin/student-builders/<%= builder.id %>">Edit</a>
             <form action="/admin/student-builders/<%= builder.id %>/delete" method="post" onsubmit="return confirm('Delete the student builder record for <%= builder.full_name.replace(/[\\'"]/g, '') %>?');">
