@@ -189,7 +189,9 @@ function navData(query, canManageHubRoles, datasetManagerUrl, canManageCourses =
           deployed: Boolean(project.app_url)
         })),
         modules: modules.filter((module) => (module.path !== '/module-builder' || user?.roles?.includes('ADMIN'))
-          && !module.app_moved_to_development_at)
+          && !module.app_moved_to_development_at
+          // Already listed under In Development, so not repeated under Student Apps.
+          && !developmentProjects.some((project) => project.slug === module.module_key))
           .map((module) => ({
             name: module.display_name, path: module.path,
             launchPath: `/launchpad/apps/${encodeURIComponent(module.module_key)}`

@@ -338,6 +338,27 @@ test('student apps moved to In Development are left out of the menu modules', as
   });
 });
 
+test('modules already listed under In Development are not repeated in the menu modules', async () => {
+  const query = async (sql) => {
+    if (sql.includes('FROM module_builder_projects')) return { rows: [{ id: 'p1', slug: 'bus-controller-app', name: 'Bus Controller App', app_url: 'https://bus.example.invalid' }] };
+    if (sql.includes('FROM modules')) {
+      return { rows: [
+        { module_key: 'bus-controller-app', display_name: 'Bus Controller App', path: 'https://bus.example.invalid', is_active: true, has_access: true },
+        { module_key: 'student-app-quiz', display_name: 'Quiz App', path: '/student-apps/quiz/open', is_active: true, has_access: true }
+      ] };
+    }
+    return { rows: [] };
+  };
+  await withServer((app) => {
+    app.use((req, res, next) => { req.user = { id: 'admin', email: 'admin@example.invalid', roles: ['ADMIN'] }; next(); });
+    app.get('/nav-data', navData(query, async () => false, async () => null));
+  }, async (base) => {
+    const data = await (await fetch(`${base}/nav-data?path=%2F`)).json();
+    assert.deepEqual(data.developmentProjects.map((project) => project.name), ['Bus Controller App']);
+    assert.deepEqual(data.modules.map((module) => module.name), ['Quiz App']);
+  });
+});
+
 test('account role link uses the current app and the global role-management permission', async () => {
   const checks = [];
   const query = async (sql, params) => {
