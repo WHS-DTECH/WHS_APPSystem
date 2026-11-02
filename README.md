@@ -270,6 +270,9 @@ Provisioning is optional. Configure these on the Global Control Render service:
 | `MODULE_BUILDER_RENDER_API_KEY` | Dedicated Render API credential; treat as sensitive and restrict account/workspace access |
 | `MODULE_BUILDER_RENDER_ENV_GROUP_ID` | Optional explicit ID (`evg-...`) of the module-safe shared group. When omitted, discover exactly one `WIZARD-Global-CONTROL` group in the configured workspace. Must contain only `GLOBAL_CONTROL_URL`, with no secret files; groups are never automatically created/modified |
 
+The literal documentation placeholder `evg-...` is logged and treated as unset
+for read-only discovery; other malformed explicit IDs fail rather than being ignored.
+
 The wizard checks the GitHub owner type before creating a repository. Personal
 accounts use the authenticated user's repository endpoint, after verifying the
 token owner matches; organisations use the organisation endpoint.

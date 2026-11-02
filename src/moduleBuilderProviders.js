@@ -14,7 +14,11 @@ class BuilderError extends Error {
 function createBuilderProviders({ env = process.env, fetchImpl = fetch } = {}) {
   const githubOwner = env.MODULE_BUILDER_GITHUB_OWNER || 'WHS-DTECH';
   const ownerId = env.MODULE_BUILDER_RENDER_OWNER_ID || '';
-  let sharedGroupId = env.MODULE_BUILDER_RENDER_ENV_GROUP_ID || '';
+  let sharedGroupId = (env.MODULE_BUILDER_RENDER_ENV_GROUP_ID || '').trim();
+  if (sharedGroupId === 'evg-...') {
+    console.warn('[module-builder] Render group ID is still the documentation placeholder; using read-only named group discovery.');
+    sharedGroupId = '';
+  }
   const configuration = () => ({
     githubOwner,
     githubConfigured: Boolean(env.MODULE_BUILDER_GITHUB_TOKEN),

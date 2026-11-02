@@ -66,26 +66,28 @@ test('guided preflight verifies credentials/owner and safe group using only read
 
 test('missing group ID discovers one exact named workspace group, never creates one or chooses ambiguous results', async () => {
   const matching = { id: 'evg-test', name: 'WIZARD-Global-CONTROL', ownerId: 'tea-test' };
-  for (const inventory of [[matching], [], [matching, { ...matching, id: 'evg-other' }],
-    [{ ...matching, ownerId: 'tea-other' }], [{ ...matching, name: 'Core secrets' }]]) {
-    const calls = [];
-    const providers = createBuilderProviders({ env: { ...env, MODULE_BUILDER_RENDER_ENV_GROUP_ID: '' },
-      fetchImpl: async (url, init) => {
-        calls.push(init.method);
-        if (url.endsWith('/users/WHS-DTECH')) return reply({ type: 'User' });
-        if (url.endsWith('/user')) return reply({ login: 'WHS-DTECH' });
-        if (url.includes('/env-groups?')) {
-          assert.equal(new URL(url).searchParams.get('ownerId'), 'tea-test');
-          assert.equal(new URL(url).searchParams.get('name'), 'WIZARD-Global-CONTROL');
-          return reply(inventory);
-        }
-        return reply(group);
-      } });
-    if (inventory.length === 1 && inventory[0] === matching) {
-      await providers.preflight();
-      assert.equal(providers.configuration().renderEnvGroupId, 'evg-test');
-    } else await assert.rejects(providers.preflight(), /module-safe WIZARD-Global-CONTROL/);
-    assert.ok(calls.every(method => method === 'GET'));
+  for (const configuredId of ['', 'evg-...']) {
+    for (const inventory of [[matching], [], [matching, { ...matching, id: 'evg-other' }],
+      [{ ...matching, ownerId: 'tea-other' }], [{ ...matching, name: 'Core secrets' }]]) {
+      const calls = [];
+      const providers = createBuilderProviders({ env: { ...env, MODULE_BUILDER_RENDER_ENV_GROUP_ID: configuredId },
+        fetchImpl: async (url, init) => {
+          calls.push(init.method);
+          if (url.endsWith('/users/WHS-DTECH')) return reply({ type: 'User' });
+          if (url.endsWith('/user')) return reply({ login: 'WHS-DTECH' });
+          if (url.includes('/env-groups?')) {
+            assert.equal(new URL(url).searchParams.get('ownerId'), 'tea-test');
+            assert.equal(new URL(url).searchParams.get('name'), 'WIZARD-Global-CONTROL');
+            return reply(inventory);
+          }
+          return reply(group);
+        } });
+      if (inventory.length === 1 && inventory[0] === matching) {
+        await providers.preflight();
+        assert.equal(providers.configuration().renderEnvGroupId, 'evg-test');
+      } else await assert.rejects(providers.preflight(), /module-safe WIZARD-Global-CONTROL/);
+      assert.ok(calls.every(method => method === 'GET'));
+    }
   }
 });
 
