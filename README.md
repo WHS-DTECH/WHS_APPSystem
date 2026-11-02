@@ -1234,6 +1234,12 @@ The handed-over student Bus Controller is served unchanged at `/bus-controller/`
 uses its own Firebase project (`whsbuscontroller`) for routes, hazards and its
 user records; nothing is copied into Core.
 
+Migration 050 points the In Development sidebar link, the Launchpad card and
+the module address at `https://whs-appsystem.onrender.com/bus-controller/`.
+The address is stored as a full URL, not `/bus-controller/`. A local path would
+put the public parent map behind the module sign-in guard and remove the app
+from In Development.
+
 | Who | How they get in | Page |
 |---|---|---|
 | Parents / public | No sign-in | `parent.html` view-only map |
