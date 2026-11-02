@@ -1,7 +1,20 @@
 <%- include('../partials/header') %>
 <style>
   .sb-page { min-width: 0; overflow-wrap: anywhere; }
-  .sb-page form.stacked { display: grid; gap: 14px; max-width: 640px; }
+  .sb-page form.stacked { display: grid; gap: 14px; }
+  .sb-page form.stacked > :not(.sb-hub) { max-width: 640px; }
+  .sb-page .sb-hub { border: 1px solid #d5dde6; border-radius: 10px; padding: 14px 18px 18px; display: grid; gap: 12px; min-width: 0; }
+  .sb-page .sb-hub legend { font-weight: 600; padding: 0 6px; }
+  .sb-page .sb-hub > label { max-width: 640px; }
+  .sb-page .sb-hub-table { max-height: 460px; overflow: auto; }
+  .sb-page .sb-hub-table table { min-width: 900px; }
+  .sb-page .sb-hub-table thead th { position: sticky; top: 0; z-index: 1; }
+  .sb-page .sb-hub-table td:first-child, .sb-page .sb-hub-table th:first-child { width: 44px; text-align: center; }
+  .sb-page .sb-hub-table input[type=checkbox] { width: 18px; height: 18px; cursor: pointer; }
+  .sb-page .sb-hub-table tr:has(input:checked) { background: #e3f1e6; }
+  .sb-page .sb-hub-table label { cursor: pointer; }
+  .sb-page .sb-check { display: flex; gap: 10px; align-items: center; }
+  .sb-page .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .sb-page .button { justify-self: start; max-width: 100%; white-space: normal; }
   .page:has(.sb-page) { max-width: 1680px; }
   .sb-page form.stacked label { display: grid; gap: 6px; }
@@ -45,7 +58,7 @@
     <input type="hidden" name="csrf" value="<%= csrf %>">
     <label>Student's name (admin only)<input name="fullName" value="<%= form.fullName || '' %>" maxlength="120" required></label>
     <label>School email (admin only, links to their DTECH Hub record)<input name="schoolEmail" type="email" value="<%= form.schoolEmail || '' %>" maxlength="200" pattern="[A-Za-z0-9]+([._][A-Za-z0-9]+)*@westlandhigh\.school\.nz" autocomplete="off" required></label>
-    <p><small>Credit name: <strong><%= creditPreview || 'made from the school username when you save' %></strong></small></p>
+    <p><small>Credit name: <strong id="sb-credit"><%= creditPreview || 'made from the school username when you save' %></strong></small></p>
     <label>Shared GitHub link<input name="githubUrl" type="url" value="<%= form.githubUrl || '' %>" maxlength="200" list="hub-github-links" autocomplete="off"></label>
     <% if (hub && hub.links.length) { %>
       <datalist id="hub-github-links"><% hub.links.forEach((link) => { %><option value="<%= link.url %>"><%= link.project %></option><% }) %></datalist>
@@ -53,7 +66,7 @@
         <ul><% hub.links.forEach((link) => { %><li><small><a href="<%= link.url %>" target="_blank" rel="noopener noreferrer"><%= link.url %></a> (<%= link.project %><%= link.yearLevel ? `, ${link.yearLevel}` : '' %>)</small></li><% }) %></ul>
       </div>
     <% } else if (hub && hub.unavailable) { %>
-      <p role="status"><small>The DTECH Hub could not be checked right now. Enter the link by hand, or try again later.</small></p>
+      <p role="status"><small>The DTECH Hub could not be checked right now<%= hub.reason ? ` (${hub.reason})` : '' %>. Enter the link by hand, or try again later.</small></p>
     <% } else if (hub) { %>
       <p role="status"><small>No shared GitHub link found in their DTECH Hub task lists.</small></p>
     <% } else { %>
@@ -66,7 +79,34 @@
         <option value="left" <%= form.status === 'left' ? 'selected' : '' %>>Left school</option>
       </select>
     </label>
-    <label>Projects they built (one per line, optional)<textarea name="projects" rows="3" maxlength="2000"><%= form.projects || '' %></textarea></label>
+    <fieldset class="sb-hub">
+      <legend>Projects they built: tick their apps from the DTECH Hub task lists</legend>
+      <% if (hubUnavailable) { %>
+        <p role="status"><small>The DTECH Hub could not be checked right now<%= hubReason ? ` (${hubReason})` : '' %>. Type the project below instead, or try again later.</small></p>
+      <% } else if (!hubApps.length) { %>
+        <p role="status"><small>No shared GitHub links have been saved in the DTECH Hub task lists yet.</small></p>
+      <% } else { %>
+        <p><small>Ticking an app fills in the student's name, school email and shared GitHub link when those boxes are empty.</small></p>
+        <label class="sb-filter">Find a student or app<input type="search" id="sb-hub-filter" autocomplete="off"></label>
+        <div class="sb-table sb-hub-table"><table>
+          <thead><tr><th scope="col"><span class="visually-hidden">Tick</span></th><th>Student</th><th>App name</th><th>Shared GitHub link</th><th>Year</th><th>Builder record</th></tr></thead>
+          <tbody><% hubApps.forEach((app, index) => { %>
+            <tr data-search="<%= `${app.name} ${app.email} ${app.project} ${app.repo}`.toLowerCase() %>">
+              <td><input type="checkbox" id="hub-app-<%= index %>" name="projects" value="<%= app.line %>" data-email="<%= app.email %>" data-name="<%= app.name %>" data-url="<%= app.url %>" <%= app.checked ? 'checked' : '' %>></td>
+              <td><label for="hub-app-<%= index %>" class="sb-name"><strong><%= app.name %></strong><span class="sb-email"><%= app.email %></span></label></td>
+              <td><%= app.project %></td>
+              <td class="sb-nowrap"><a href="<%= app.url %>" target="_blank" rel="noopener noreferrer"><%= app.repo %></a></td>
+              <td><%= app.yearLevel %></td>
+              <td><% if (app.recordedAs) { %><span class="sb-badge ok">Recorded</span><% } else { %><span class="sb-badge muted">Not yet</span><% } %></td>
+            </tr>
+          <% }) %></tbody>
+        </table></div>
+      <% } %>
+      <% otherProjects.forEach((line, index) => { %>
+        <label class="sb-check"><input type="checkbox" name="projects" value="<%= line %>" checked> <%= line %> <small>(recorded earlier, not in the DTECH Hub)</small></label>
+      <% }) %>
+      <label>Another project not in the DTECH Hub (optional)<input name="projectsOther" maxlength="300" autocomplete="off"></label>
+    </fieldset>
     <label><input type="checkbox" name="permission" value="yes" <%= form.permission ? 'checked' : '' %>> The student has agreed the school may keep and maintain a copy of their work, with credit.</label>
     <label>Notes (optional)<textarea name="notes" rows="3" maxlength="2000"><%= form.notes || '' %></textarea></label>
     <div class="sb-actions">
@@ -99,7 +139,8 @@
         <td class="sb-nowrap"><% if (builder.github_url) { %><a href="<%= builder.github_url %>" target="_blank" rel="noopener noreferrer"><%= builder.github_url.replace('https://github.com/', '') %></a><% } %></td>
         <td><span class="sb-badge <%= builder.status === 'left' ? 'muted' : 'current' %>"><%= builder.status === 'left' ? 'Left school' : 'Current student' %></span></td>
         <td><span class="sb-badge <%= builder.permission_recorded_at ? 'ok' : 'warn' %>"><%= builder.permission_recorded_at ? 'Recorded' : 'Not yet' %></span></td>
-        <td><% const projectList = builder.projects.split('\n').map((p) => p.trim()).filter(Boolean); %><% if (projectList.length) { %><ul class="sb-projects"><% projectList.forEach((p) => { %><li><%= p %></li><% }) %></ul><% } else { %>—<% } %></td>        <td>
+        <td><% const projectList = builder.projects.split('\n').map((p) => p.trim()).filter(Boolean); %><% if (projectList.length) { %><ul class="sb-projects"><% projectList.forEach((p) => { %><li><%= p %></li><% }) %></ul><% } else { %>—<% } %></td>
+        <td>
           <div class="sb-actions">
             <a class="button secondary" href="/admin/student-builders/<%= builder.id %>">Edit</a>
             <form action="/admin/student-builders/<%= builder.id %>/delete" method="post" onsubmit="return confirm('Delete the student builder record for <%= builder.full_name.replace(/[\\'"]/g, '') %>?');">
@@ -114,4 +155,30 @@
   <% } %>
 </section>
 </div>
+<script>
+  (() => {
+    const form = document.querySelector('.sb-page form.stacked');
+    if (!form) return;
+    const field = (name) => form.elements.namedItem(name);
+    const credit = (email) => email.split('@')[0].split(/[._]/).filter(Boolean)
+      .map((part) => part[0].toUpperCase() + part.slice(1)).join('');
+    form.addEventListener('change', (event) => {
+      const box = event.target;
+      if (!box.matches('.sb-hub-table input[type=checkbox]') || !box.checked) return;
+      if (!field('schoolEmail').value) {
+        field('schoolEmail').value = box.dataset.email;
+        document.getElementById('sb-credit').textContent = credit(box.dataset.email);
+      }
+      if (!field('fullName').value && box.dataset.name !== box.dataset.email.split('@')[0]) field('fullName').value = box.dataset.name;
+      if (!field('githubUrl').value && field('schoolEmail').value.toLowerCase() === box.dataset.email) field('githubUrl').value = box.dataset.url;
+    });
+    const filter = document.getElementById('sb-hub-filter');
+    if (filter) filter.addEventListener('input', () => {
+      const words = filter.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+      document.querySelectorAll('.sb-hub-table tbody tr').forEach((row) => {
+        row.hidden = !words.every((word) => row.dataset.search.includes(word));
+      });
+    });
+  })();
+</script>
 <%- include('../partials/footer') %>

@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const express = require('express');
 const { query } = require('./db');
+const { query: kamarQuery } = require('./legacy/kamar-uploader/db');
 const { createDtechRecords, creditFromEmail, githubOwner, normaliseRepoUrl, SCHOOL_EMAIL } = require('./dtechRecords');
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -12,6 +13,35 @@ class BuilderError extends Error {}
 
 const text = (value, max = 200) => String(value || '').trim().slice(0, max);
 
+const repoPath = (url) => String(url || '').replace('https://github.com/', '');
+const projectLine = (link) => (link.project ? `${link.project} (${repoPath(link.url)})` : repoPath(link.url));
+
+// Ticked DTECH Hub apps plus one optional project typed by hand, one per line.
+function readProjects(body) {
+  const ticked = [].concat(body.projects || []).map((value) => text(value, 300));
+  const lines = [...new Set([...ticked, text(body.projectsOther, 300)].filter(Boolean))];
+  return lines.join('\n').slice(0, 2000);
+}
+
+// Student names come from the KAMAR student list, matched on school email.
+async function studentNames(emails, directoryQuery) {
+  const names = new Map();
+  if (!emails.length) return names;
+  try {
+    const { rows } = await directoryQuery(
+      `SELECT lower(trim(email_school)) AS email, first_name, last_name, status FROM student_details_upload
+       WHERE lower(trim(email_school)) = ANY($1::text[]) ORDER BY (status = 'Current') DESC`, [emails]
+    );
+    for (const row of rows) {
+      const name = [row.first_name, row.last_name].map((part) => String(part || '').trim()).filter(Boolean).join(' ');
+      if (name && !names.has(row.email)) names.set(row.email, name);
+    }
+  } catch (error) {
+    console.warn('[student-builders] KAMAR student names unavailable:', error.message);
+  }
+  return names;
+}
+
 function readForm(body) {
   return {
     fullName: text(body.fullName, 120),
@@ -19,7 +49,7 @@ function readForm(body) {
     githubUrl: text(body.githubUrl, 200),
     firstYear: text(body.firstYear, 4),
     status: body.status === 'left' ? 'left' : 'current',
-    projects: text(body.projects, 2000),
+    projects: readProjects(body),
     permission: body.permission === 'yes',
     notes: text(body.notes, 2000)
   };
@@ -57,7 +87,7 @@ async function listBuilders(dbQuery = query) {
   return (await dbQuery(`SELECT ${COLUMNS} FROM student_builders ORDER BY status, lower(full_name)`)).rows;
 }
 
-function createStudentBuildersRouter({ dbQuery = query, dtech = createDtechRecords() } = {}) {
+function createStudentBuildersRouter({ dbQuery = query, dtech = createDtechRecords(), directoryQuery = kamarQuery } = {}) {
   const router = express.Router();
 
   router.use((req, res, next) => {
@@ -103,14 +133,31 @@ function createStudentBuildersRouter({ dbQuery = query, dtech = createDtechRecor
     }
   }
 
+  // All DTECH Hub GitHub links as tick-box rows, this student's first, with ticks for projects already chosen.
+  async function hubApps(all, builders, form, email) {
+    const names = await studentNames([...new Set(all.links.map((link) => link.email))], directoryQuery);
+    const recorded = new Map(builders.map((builder) => [String(builder.school_email || '').toLowerCase(), builder.full_name]));
+    const chosen = new Set(String(form.projects || '').split('\n').map((line) => line.trim()).filter(Boolean));
+    const apps = all.links.map((link) => {
+      const line = projectLine(link);
+      return { ...link, line, repo: repoPath(link.url), checked: chosen.delete(line),
+        name: names.get(link.email) || link.email.split('@')[0], recordedAs: recorded.get(link.email) || '' };
+    });
+    apps.sort((a, b) => Number(b.email === email) - Number(a.email === email));
+    return { apps, otherProjects: [...chosen] };
+  }
+
   async function renderPage(req, res, { status = 200, error = null, form = null, editing = null, notice = null } = {}) {
     const builders = await listBuilders(dbQuery);
-    const email = editing?.school_email || (form && SCHOOL_EMAIL.test(form.schoolEmail || '') ? form.schoolEmail : '');
+    const values = form || { status: 'current', permission: false };
+    const email = editing?.school_email || (SCHOOL_EMAIL.test(values.schoolEmail || '') ? values.schoolEmail : '');
+    const all = await dtech.allGithubLinks();
+    const { apps, otherProjects } = await hubApps(all, builders, values, email);
     return res.status(status).render('admin/student-builders', {
-      title: 'Student Builders', builders, error, notice, editing,
-      form: form || { status: 'current', permission: false },
+      title: 'Student Builders', builders, error, notice, editing, form: values,
       creditPreview: email ? creditFromEmail(email) : '',
-      hub: email ? await dtech.githubLinks(email) : null,
+      hub: email ? { ...all, links: all.links.filter((link) => link.email === email) } : null,
+      hubApps: apps, hubUnavailable: all.unavailable, hubReason: all.reason || '', otherProjects,
       linked: editing ? await handovers(editing.id) : []
     });
   }

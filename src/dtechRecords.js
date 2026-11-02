@@ -37,32 +37,47 @@ function createDtechRecords({ env = process.env, pool = null } = {}) {
     return shared;
   }
 
-  async function githubLinks(email) {
-    const target = db();
-    if (!target) return { unavailable: true, links: [] };
-    try {
-      const rows = (await target.query(
-        `SELECT pi.project_id, a.name, a.year_level, pi.evidence_steps::text AS evidence, pi.updated_at
-         FROM project_interests pi LEFT JOIN activities a ON a.id = pi.project_id
-         WHERE lower(pi.student_email) = lower($1) ORDER BY pi.updated_at DESC`, [email]
-      )).rows;
-      const seen = new Map();
-      for (const row of rows) {
-        for (const match of String(row.evidence || '').matchAll(MARKER)) {
-          const url = normaliseRepoUrl(match[1]);
-          if (url && !seen.has(url.toLowerCase())) {
-            seen.set(url.toLowerCase(), { url, project: row.name || row.project_id, yearLevel: row.year_level || '' });
-          }
+  function collect(rows) {
+    const seen = new Map();
+    for (const row of rows) {
+      for (const match of String(row.evidence || '').matchAll(MARKER)) {
+        const url = normaliseRepoUrl(match[1]);
+        const email = String(row.student_email || '').trim().toLowerCase();
+        const key = `${email}|${String(url).toLowerCase()}`;
+        if (url && !seen.has(key)) {
+          seen.set(key, { url, project: row.name || row.project_id, yearLevel: row.year_level || '', email });
         }
       }
-      return { unavailable: false, links: [...seen.values()] };
+    }
+    return [...seen.values()];
+  }
+
+  async function read(where, params) {
+    const target = db();
+    if (!target) return { unavailable: true, reason: 'DTECH_DATABASE_URL is not set for Global Control.', links: [] };
+    try {
+      const rows = (await target.query(
+        `SELECT pi.project_id, pi.student_email, a.name, a.year_level, pi.evidence_steps::text AS evidence, pi.updated_at
+         FROM project_interests pi LEFT JOIN activities a ON a.id = pi.project_id
+         WHERE ${where} ORDER BY pi.updated_at DESC`, params
+      )).rows;
+      return { unavailable: false, links: collect(rows) };
     } catch (error) {
       console.warn('[student-builders] DTECH Hub lookup unavailable:', error.message);
-      return { unavailable: true, links: [] };
+      return { unavailable: true, reason: String(error.code ? `${error.code}: ${error.message}` : error.message).slice(0, 200), links: [] };
     }
   }
 
-  return { githubLinks };
+  async function githubLinks(email) {
+    const result = await read('lower(pi.student_email) = lower($1)', [email]);
+    return { ...result, links: result.links.map(({ email: _email, ...link }) => link) };
+  }
+
+  // Every shared GitHub link saved in any student's task lists, newest first.
+  async function allGithubLinks() {
+    return read("pi.evidence_steps::text LIKE '%GITHUB_REPO_URL|%'", []);
+  }
+  return { githubLinks, allGithubLinks };
 }
 
 module.exports = { createDtechRecords, creditFromEmail, githubOwner, normaliseRepoUrl, SCHOOL_DOMAIN, SCHOOL_EMAIL };

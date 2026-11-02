@@ -889,7 +889,12 @@ projects, permission and notes. No student ID or personal email is stored. The
 (read-only) from the student's SeniorDTECH/MiddleDTECH task lists in the DTECH Hub
 database (`DTECH_DATABASE_URL`, `GITHUB_REPO_URL|` evidence in
 `project_interests`); a single link is filled in automatically, several are
-offered to choose from, and a typed link always wins.
+offered to choose from, and a typed link always wins. **Projects** are chosen by
+ticking apps in a table of every shared GitHub link in the DTECH Hub task lists
+(student, app name, link, year level); student names come from the KAMAR student
+list (`INTEGRATION_KAMAR_DATABASE_URL`, matched on school email). Ticking an app
+fills in an empty name, school email and GitHub link. One extra project can be
+typed by hand. If the DTECH Hub cannot be read, the page shows the reason.
 The handover form picks the student from that list; only the credit name and
 the GitHub link's owner are written to GitHub (Student Work label and
 `HANDOVER.md`), never the school email. A builder's details cannot be removed

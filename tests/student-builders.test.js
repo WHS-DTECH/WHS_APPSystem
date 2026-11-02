@@ -17,7 +17,18 @@ const dtech = {
   githubLinks: async (email) => {
     if (hubDown) return { unavailable: true, links: [] };
     return { unavailable: false, links: hubLinks[email] || [] };
+  },
+  allGithubLinks: async () => {
+    if (hubDown) return { unavailable: true, reason: 'ECONNREFUSED: test', links: [] };
+    return { unavailable: false, links: Object.entries(hubLinks).flatMap(([email, links]) => links.map((link) => ({ ...link, email }))) };
   }
+};
+
+const directoryQuery = async (sql, params) => {
+  assert.match(sql, /FROM student_details_upload/);
+  assert.doesNotMatch(sql, /id_number/);
+  return { rows: params[0].filter((email) => email === 's_example@westlandhigh.school.nz')
+    .map((email) => ({ email, first_name: 'Sam', last_name: 'Example', status: 'Current' })) };
 };
 
 async function dbQuery(sql, params = []) {
@@ -51,7 +62,7 @@ test.before(async () => {
     res.locals.activeRole = 'ADMIN';
     next();
   });
-  app.use('/admin/student-builders', createStudentBuildersRouter({ dbQuery, dtech }));
+  app.use('/admin/student-builders', createStudentBuildersRouter({ dbQuery, dtech, directoryQuery }));
   app.use((error, req, res, next) => res.status(500).send(error.message));
   server = await new Promise((resolve) => { const listener = app.listen(0, '127.0.0.1', () => resolve(listener)); });
   base = `http://127.0.0.1:${server.address().port}/admin/student-builders`;
@@ -66,7 +77,8 @@ async function formSession() {
 }
 
 const post = (route, data, cookie) => fetch(base + route, { method: 'POST', redirect: 'manual',
-  headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie }, body: new URLSearchParams(data) });
+  headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie },
+  body: new URLSearchParams(Object.entries(data).flatMap(([key, value]) => [].concat(value).map((item) => [key, item]))) });
 
 const sam = { fullName: 'Sam <Example>', schoolEmail: 'S_Example@westlandhigh.school.nz', status: 'left',
   projects: 'WHS-DTECH/example-app', permission: 'yes' };
@@ -146,6 +158,26 @@ test('an unavailable DTECH Hub does not stop saving', async () => {
   const [row] = rows.values();
   const edit = await (await fetch(`${base}/${row.id}`, { headers: { cookie: form.cookie } })).text();
   assert.match(edit, /could not be checked/);
+  assert.match(edit, /ECONNREFUSED: test/);
+});
+
+test('DTECH Hub apps are listed with tick boxes, KAMAR names and saved as projects', async () => {
+  hubLinks['s_example@westlandhigh.school.nz'] = [{ url: 'https://github.com/sample-dev/bus-app', project: 'Bus App', yearLevel: '13' }];
+  hubLinks['o_other@westlandhigh.school.nz'] = [{ url: 'https://github.com/other-dev/quiz', project: 'Quiz', yearLevel: '10' }];
+  const form = await formSession();
+  const html = await (await fetch(base, { headers: { cookie: form.cookie } })).text();
+  assert.match(html, /name="projects" value="Bus App \(sample-dev\/bus-app\)" data-email="s_example@westlandhigh.school.nz" data-name="Sam Example"/);
+  assert.match(html, /data-name="o_other"/);
+  assert.doesNotMatch(html, /<textarea name="projects"/);
+
+  await post('', { csrf: form.csrf, ...sam, projects: ['Bus App (sample-dev/bus-app)', 'Quiz (other-dev/quiz)'], projectsOther: 'Typed project' }, form.cookie);
+  const [row] = rows.values();
+  assert.equal(row.projects, 'Bus App (sample-dev/bus-app)\nQuiz (other-dev/quiz)\nTyped project');
+
+  const edit = await (await fetch(`${base}/${row.id}`, { headers: { cookie: form.cookie } })).text();
+  assert.match(edit, /value="Bus App \(sample-dev\/bus-app\)"[^>]*checked/);
+  assert.match(edit, /value="Typed project" checked/);
+  assert.ok(edit.indexOf('sample-dev/bus-app') < edit.indexOf('other-dev/quiz'));
 });
 
 test('invalid details and duplicate school emails are rejected', async () => {
@@ -190,5 +222,24 @@ test('DTECH Hub lookup reads shared GitHub links from task-list evidence', async
   };
   const result = await createDtechRecords({ pool }).githubLinks('s_example@westlandhigh.school.nz');
   assert.deepEqual(result, { unavailable: false, links: [{ url: 'https://github.com/sample-dev/app', project: 'Senior App', yearLevel: '12' }] });
-  assert.deepEqual(await createDtechRecords({ env: {} }).githubLinks('x'), { unavailable: true, links: [] });
+  const missing = await createDtechRecords({ env: {} }).githubLinks('x');
+  assert.equal(missing.unavailable, true);
+  assert.match(missing.reason, /DTECH_DATABASE_URL/);
+});
+
+test('DTECH Hub lookup can list every shared GitHub link with the student email', async () => {
+  const pool = {
+    query: async (sql, params) => {
+      assert.match(sql, /GITHUB_REPO_URL/);
+      assert.deepEqual(params, []);
+      return { rows: [
+        { project_id: 'p1', student_email: 'A_One@westlandhigh.school.nz', name: 'App', year_level: '12', evidence: '[{"text":"GITHUB_REPO_URL|https://github.com/a/app"}]' },
+        { project_id: 'p1', student_email: 'b_two@westlandhigh.school.nz', name: 'App', year_level: '12', evidence: '[{"text":"GITHUB_REPO_URL|https://github.com/a/app"}]' }
+      ] };
+    }
+  };
+  const result = await createDtechRecords({ pool }).allGithubLinks();
+  assert.deepEqual(result.links.map((link) => link.email), ['a_one@westlandhigh.school.nz', 'b_two@westlandhigh.school.nz']);
+  const broken = await createDtechRecords({ pool: { query: async () => { throw Object.assign(new Error('no route'), { code: 'EHOSTUNREACH' }); } } }).allGithubLinks();
+  assert.equal(broken.reason, 'EHOSTUNREACH: no route');
 });
