@@ -1227,6 +1227,36 @@ still protect against stale saves. The original Planner regression suite runs
 with `npm test --prefix src/legacy/teacher-planner`; PostgreSQL tests require an
 isolated `PLANNER_TEST_DATABASE_URL`, never a production connection.
 
+## Bus Controller
+
+The handed-over student Bus Controller is served unchanged at `/bus-controller/`
+(`src/legacy/bus-controller/public`, router `src/busController.js`). It still
+uses its own Firebase project (`whsbuscontroller`) for routes, hazards and its
+user records; nothing is copied into Core.
+
+| Who | How they get in | Page |
+|---|---|---|
+| Parents / public | No sign-in | `parent.html` view-only map |
+| Westroad | Firebase email and password on `/bus-controller/` | `westroad.html` hazards |
+| Bus Controller Lead Teacher (incl. principal@) | **Sign in with school Google** → `/bus-controller/staff` | `principal.html`, Westland High routes only |
+| Bus Controller Tester (e.g. J_leaf) | School Google | `principal.html`, to explore |
+| ADMIN | School Google | `admin.html` to manage Westroad accounts |
+
+Assign the Lead Teacher and Tester roles for `bus-controller-app` at
+`/admin/users`. There is no separate principal role. For staff,
+`/bus-controller/api/firebase-token` checks the Global Control role on every
+page load, writes `users/core-<Core user id>` in Firebase with that role and
+`schoolId` `westland high school`, and returns a one-hour Firebase custom token.
+Removing the role in Global Control sets the Firebase role to `none` at the
+next attempt. Old Google/test sign-ins and the shared parent test login were
+removed from the sign-in page.
+
+Set `BUS_CONTROLLER_FIREBASE_SERVICE_ACCOUNT` to the service-account JSON key
+(Firebase console → Project settings → Service accounts → Generate new private
+key). Without it, staff sign-in shows "not set up yet"; public and Westroad
+pages still work. Whether the Tester can save changes depends on the Firebase
+database rules; set them in the Firebase console.
+
 ## Workshop module
 
 The Workshop is the legacy Workshop site (public/workshop, legacy API in src/legacy/workshop) under /workshop, using the Google login. Admins and users given the Workshop Lead Teacher hub role (assign at /admin/users) can upload worksheets, lesson notes and planners; signed-in users can upload activities. Existing data is copied once from INTEGRATION_WORKSHOP_DATABASE_URL (guarded by workshop_legacy_import); new data goes to DATABASE_URL. Suggestion notification emails are sent through the framework's Google Gmail API (GOOGLE_GMAIL_* variables) to Admins and Workshop Lead Teachers; SITE_URL is used in the email links.

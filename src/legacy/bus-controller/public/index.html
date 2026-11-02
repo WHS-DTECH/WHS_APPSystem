@@ -166,24 +166,24 @@
         <div class="login-box">
             <h2>Main Page</h2>
             
-            <button class="btn btn-secondary" onclick="quickParentLogin()">View Live Map</button>
+            <a class="btn btn-secondary" href="parent.html" style="display: block; text-align: center; text-decoration: none; box-sizing: border-box;">View Live Map</a>
             
-            <div class="divider">Staff Administration</div>
+            <div class="divider">Westland High School Staff</div>
+            <a class="btn" href="staff" style="display: block; text-align: center; text-decoration: none; box-sizing: border-box; background: #4285F4; color: white; box-shadow: 0 4px 12px rgba(66, 133, 244, 0.2);">
+                Sign in with school Google
+            </a>
+
+            <div class="divider">Westroad</div>
 
             <div class="input-group">
                 <label for="email">Email Address</label>
-                <input type="email" id="email" placeholder="e.g. name@gmail.com" autocomplete="email">
+                <input type="email" id="email" autocomplete="email">
             </div>
             <div class="input-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+                <input type="password" id="password" autocomplete="current-password">
             </div>
             <button class="btn btn-primary" onclick="login()" style="margin-top: 10px;">Sign In</button>
-            
-            <div class="divider">New Users</div>
-            <button class="btn" onclick="createAccountWithGoogle()" style="background: #4285F4; color: white; box-shadow: 0 4px 12px rgba(66, 133, 244, 0.2);">
-                Login with Google
-            </button>
             
             <p id="error-msg" style="color: #EF4444; margin-top: 15px; font-size: 0.85rem; font-weight: 600; text-align: center; margin-bottom: 0; min-height: 20px;"></p>
         </div>
@@ -194,15 +194,9 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <script src="app.js"></script>
     <script>
-        const googleProvider = new firebase.auth.GoogleAuthProvider();
-
         document.getElementById('password').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') login();
         });
-
-        function quickParentLogin() {
-            executeAuth("par@test.com", "123456");
-        }
 
         // Hilfsfunktion für Fehlermeldungen
         function showError(msg, color = "#EF4444") {
@@ -230,6 +224,12 @@
                     auth.signOut();
                     return;
                 }
+                // Westland High staff now sign in through Global Control; only Westroad uses this form.
+                if (userData.role !== 'westroad') {
+                    showError("Westland High School staff: use 'Sign in with school Google'.");
+                    auth.signOut();
+                    return;
+                }
                 redirectBasedOnRole(userData.role);
             });
         }
@@ -253,61 +253,6 @@
                 } else {
                     showError("Invalid credentials. Please try again.");
                 }
-            });
-        }
-
-        // Der Google-Popup Prozess (Direktaufruf)
-        function createAccountWithGoogle() {
-            const googleBtn = document.querySelector("button[onclick='createAccountWithGoogle()']");
-            if (googleBtn) {
-                googleBtn.disabled = true;
-                googleBtn.innerText = "Loading Google...";
-            }
-        
-            // Sofortiger Aufruf -> Kein Popup-Blocker mehr!
-            auth.signInWithPopup(googleProvider).then((result) => {
-                const user = result.user;
-                
-                db.ref('users/' + user.uid).once('value').then(snap => {
-                    if (!snap.exists()) {
-                        // Brand new user -> gets 'none' role and empty School ID
-                        db.ref('users/' + user.uid).set({
-                            name: user.displayName || "Google User",
-                            email: user.email,
-                            role: 'none',
-                            schoolID: ''
-                        }).then(() => {
-                            showError("Account created. Please contact the administrator.", "#34D399");
-                            
-                            setTimeout(() => { 
-                                auth.signOut(); 
-                                if (googleBtn) { googleBtn.disabled = false; googleBtn.innerText = "Login with Google"; }
-                            }, 1200);
-                        });
-                    } else {
-                        const userData = snap.val();
-                        if (userData.role === 'none') {
-                            showError("Your account does not have permissions yet. Please contact the administrator.");
-                            setTimeout(() => { 
-                                auth.signOut(); 
-                                if (googleBtn) { googleBtn.disabled = false; googleBtn.innerText = "Login with Google"; }
-                            }, 1200);
-                        } else {
-                            if (googleBtn) { googleBtn.disabled = false; googleBtn.innerText = "Login with Google"; }
-                            redirectBasedOnRole(userData.role);
-                        }
-                    }
-                });
-            }).catch(error => {
-                if (googleBtn) { googleBtn.disabled = false; googleBtn.innerText = "Login with Google"; }
-                
-                // Ignoriere den Fehler, wenn der Nutzer das Popup selbst wegklickt
-                if (error.code === "auth/cancelled-popup-request" || error.code === "auth/popup-closed-by-user") {
-                    return showError("Login cancelled by user.");
-                }
-                
-                console.error("Google Auth Error: ", error);
-                showError("Google sign-in failed.");
             });
         }
 

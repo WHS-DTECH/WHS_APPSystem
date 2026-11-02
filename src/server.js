@@ -38,6 +38,7 @@ const { createLaunchpad, createLaunchApp, createLaunchpadAdminRouter } = require
 const { accessibleModules, createModuleAccessGuard } = require('./moduleAccess');
 const { appDestination } = require('./appAddresses');
 const { createTeacherPlannerRouter } = require('./modules/teacherPlanner');
+const { createBusControllerRouter } = require('./busController');
 
 const app = express();
 
@@ -208,6 +209,8 @@ app.get(/^\/dtech-hub$/, (req, res) => res.redirect(`/dtech-hub/${req.url.includ
 app.use('/dtech-hub', createDtechRouter());
 app.use('/module-builder', createModuleBuilderRouter());
 app.use('/module-auth', createModuleIdentityRouter());
+app.get(/^\/bus-controller$/, (req, res) => res.redirect(`/bus-controller/${req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''}`));
+app.use('/bus-controller', createBusControllerRouter());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.get('/auth/google', (req, res, next) => {
