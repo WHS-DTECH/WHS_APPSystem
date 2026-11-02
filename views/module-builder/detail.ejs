@@ -54,7 +54,8 @@
   <p><strong>Shared Global Control Environment Group:</strong> <code><%= configuration.renderEnvGroupId || 'Not configured: set MODULE_BUILDER_RENDER_ENV_GROUP_ID on Global Control' %></code>.
     New services link this group automatically; existing services are not modified. The group must contain only GLOBAL_CONTROL_URL and no secret files.</p>
   <p><strong>Global Control sign-in:</strong> client ID <code><%= project.slug %>:development</code>.
-    Initial access is global ADMIN only. The update button only replaces an untouched wizard framework;
+    Access defaults to global ADMIN only; explicitly assigned app-wide Lead Teachers, Teachers and Technicians can also sign in.
+    Guided setup grants its approved named testers the app's Teacher role after the health check. The update button only replaces an untouched wizard framework;
     if application work has started, use a reviewed code update instead. Existing services with Auto-Deploy off need a manual deployment after updating; new services deploy on each push.</p>
 </section>
 <% kinds.forEach((kind) => { const record = environments.find((item) => item.kind === kind); const config = record.config;
@@ -113,7 +114,7 @@
     <dt>Google sign-in and avatar</dt>
     <dd>School Google sign-in through Global Control, with avatar, Profile and sign-out controls.</dd>
     <dt>Roles and permissions</dt>
-    <dd>Current Global Control roles are checked on each module request. Development access is global ADMIN only; assigned tester access is not yet implemented.</dd>
+    <dd>Current Global Control roles are checked on each module request. Development access defaults to global ADMIN only, with explicitly assigned app-wide Lead Teacher, Teacher or Technician access. Guided setup supports named testers as Teacher.</dd>
     <dt>Site search</dt>
     <dd>Shared header search uses Global Control search until module-specific search is implemented. Results open in Global Control in the same tab.</dd>
     <dt>Integrated Google email</dt>

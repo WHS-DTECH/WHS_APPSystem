@@ -24,7 +24,8 @@ test('wizard shows one framework-services card between Development and Staging w
   for (const label of ['Google sign-in and avatar', 'Roles and permissions', 'Site search', 'Integrated Google email', 'Shared branding and footer']) {
     assert.ok(html.includes(`<dt>${label}</dt>`));
   }
-  assert.match(html, /Development access is global ADMIN only/);
+  assert.match(html, /Development access defaults to global ADMIN only/);
+  assert.match(html, /Guided setup supports named testers as Teacher/);
   assert.match(html, /until module-specific search is implemented/);
   assert.match(html, /tech@westlandhigh.school.nz/);
   assert.match(html, /Framework reference, not a live service check/);
