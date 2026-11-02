@@ -1,0 +1,73 @@
+<%- include('../partials/header') %>
+<style>
+  .sb-page { min-width: 0; overflow-wrap: anywhere; }
+  .sb-page form.stacked { display: grid; gap: 14px; max-width: 640px; }
+  .sb-page .button { justify-self: start; max-width: 100%; white-space: normal; }
+  .sb-page .sb-table { overflow-x: auto; }
+  .sb-page table { min-width: 640px; }
+  .sb-page .sb-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+</style>
+<div class="sb-page">
+<section class="page-title">
+  <p class="eyebrow">Administration</p>
+  <h1>Student Builders</h1>
+  <p>Record the students who build school apps, so their work can be credited and handed back at the new school year. Only administrators can see these details.</p>
+  <p><a href="/admin">Back to Administration</a> · <a href="/student-apps/handovers">Handover student project</a></p>
+</section>
+<% if (notice) { %><section class="panel" role="status"><strong><%= notice %></strong></section><% } %>
+<% if (error) { %><section class="panel" role="alert"><strong><%= error %></strong></section><% } %>
+<section class="panel">
+  <h2><%= editing ? `Edit ${editing.full_name}` : 'Add a student builder' %></h2>
+  <form action="/admin/student-builders<%= editing ? `/${editing.id}` : '' %>" method="post" class="stacked">
+    <input type="hidden" name="csrf" value="<%= csrf %>">
+    <label>Student's name<input name="fullName" value="<%= form.fullName || '' %>" maxlength="120" required></label>
+    <label>School email (optional)<input name="schoolEmail" type="email" value="<%= form.schoolEmail || '' %>" maxlength="200" placeholder="name@westlandhigh.school.nz"></label>
+    <label>Contact email after leaving school (optional)<input name="contactEmail" type="email" value="<%= form.contactEmail || '' %>" maxlength="200"></label>
+    <label>GitHub username (optional)<input name="githubUsername" value="<%= form.githubUsername || '' %>" maxlength="39"></label>
+    <label>Year they started building (optional)<input name="firstYear" type="number" min="2000" max="2100" value="<%= form.firstYear || '' %>"></label>
+    <label>Status
+      <select name="status">
+        <option value="current" <%= form.status === 'left' ? '' : 'selected' %>>Current student</option>
+        <option value="left" <%= form.status === 'left' ? 'selected' : '' %>>Left school</option>
+      </select>
+    </label>
+    <label>Projects they built (one per line, optional)<textarea name="projects" rows="3" maxlength="2000" placeholder="WHS-DTECH/WHS_BusController"><%= form.projects || '' %></textarea></label>
+    <label><input type="checkbox" name="permission" value="yes" <%= form.permission ? 'checked' : '' %>> The student has agreed the school may keep and maintain a copy of their work, with credit.</label>
+    <label>Notes (optional)<textarea name="notes" rows="3" maxlength="2000"><%= form.notes || '' %></textarea></label>
+    <div class="sb-actions">
+      <button class="button" type="submit"><%= editing ? 'Save changes' : 'Add student builder' %></button>
+      <% if (editing) { %><a href="/admin/student-builders">Cancel</a><% } %>
+    </div>
+  </form>
+  <% if (editing) { %>
+    <% if (linked.length) { %>
+      <h3>Handovers</h3>
+      <ul><% linked.forEach((item) => { %>
+        <li><a href="/student-apps/handovers/<%= item.id %>"><%= item.title %></a> (<%= item.source_repository %>)<%= item.finished_at ? `, finished: ${item.finish_action}` : ', in progress' %></li>
+      <% }) %></ul>
+    <% } %>
+    <form action="/admin/student-builders/<%= editing.id %>/delete" method="post" onsubmit="return confirm('Remove this student builder\'s details?');">
+      <input type="hidden" name="csrf" value="<%= csrf %>">
+      <button class="button secondary" type="submit">Remove details</button>
+    </form>
+  <% } %>
+</section>
+<section class="panel table-panel">
+  <h2>Student builders</h2>
+  <% if (!builders.length) { %><p>No student builders recorded yet.</p><% } else { %>
+  <div class="sb-table"><table>
+    <thead><tr><th>Student</th><th>GitHub</th><th>Status</th><th>Permission</th><th>Projects</th></tr></thead>
+    <tbody><% builders.forEach((builder) => { %>
+      <tr>
+        <td><a href="/admin/student-builders/<%= builder.id %>"><%= builder.full_name %></a><% if (builder.school_email) { %><br><small><%= builder.school_email %></small><% } %></td>
+        <td><%= builder.github_username || '' %></td>
+        <td><%= builder.status === 'left' ? 'Left school' : 'Current student' %></td>
+        <td><%= builder.permission_recorded_at ? 'Recorded' : 'Not yet' %></td>
+        <td><%= builder.projects.split('\n').filter(Boolean).join(', ') %></td>
+      </tr>
+    <% }) %></tbody>
+  </table></div>
+  <% } %>
+</section>
+</div>
+<%- include('../partials/footer') %>

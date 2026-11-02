@@ -32,6 +32,7 @@ const { createInfrastructureCostsRouter } = require('./infrastructureCosts');
 const { createModuleIdentityRouter } = require('./moduleIdentity');
 const { createContactRouter } = require('./contact');
 const { createAdminUsersRouter } = require('./adminUsers');
+const { createStudentBuildersRouter } = require('./studentBuilders');
 const maintenanceNotifications = require('./maintenanceNotifications');
 const { createLaunchpad, createLaunchApp, createLaunchpadAdminRouter } = require('./launchpad');
 const { accessibleModules, createModuleAccessGuard } = require('./moduleAccess');
@@ -312,6 +313,7 @@ app.get('/admin', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, nex
 app.use('/admin/users', createAdminUsersRouter());
 app.use('/admin/infrastructure-costs', createInfrastructureCostsRouter());
 app.use('/admin/launchpad', createLaunchpadAdminRouter());
+app.use('/admin/student-builders', ensureAuthenticated, createStudentBuildersRouter());
 app.use('/admin/maintenance-notifications', maintenanceNotifications.createMaintenanceRouter());
 
 app.get('/admin/teachers', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, next) => {

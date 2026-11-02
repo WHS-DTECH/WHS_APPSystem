@@ -17,7 +17,11 @@ let owner;
 
 const push = (row, entry) => { row.history = [...row.history, ...JSON.parse(entry)]; };
 
+const BUILDER = '11111111-2222-4333-8444-555555555555';
+
 async function dbQuery(sql, params = []) {
+  if (sql.includes('FROM student_builders ORDER BY')) return { rows: [{ id: BUILDER, full_name: 'Student <Name>', github_username: 'zomotokari-cpu', status: 'left' }] };
+  if (sql.includes('FROM student_builders WHERE id')) return { rows: params[0] === BUILDER ? [{ id: BUILDER, full_name: 'Student <Name>', github_username: 'zomotokari-cpu' }] : [] };
   const row = rows.get(params[0]);
   if (sql.includes('ORDER BY finished_at IS NOT NULL')) {
     return { rows: [...rows.values()].map((item) => ({ ...item, review_date: item.review_on })) };
@@ -29,7 +33,7 @@ async function dbQuery(sql, params = []) {
     if (clash) return { rows: [] };
     rows.set(params[0], { id: params[0], slug: params[1], title: params[2], source_repository: params[3], source_commit: params[4],
       student_name: params[5], student_github: params[6], school_year: params[7], review_on: params[8], created_by: params[9],
-      history: JSON.parse(params[10]), busy_until: null });
+      history: JSON.parse(params[10]), builder_id: params[11], busy_until: null });
     return { rows: [{ id: params[0] }] };
   }
   if (sql.includes("SET busy_until = NOW() + INTERVAL")) {
@@ -123,7 +127,7 @@ function post(route, data, cookie, user = 'admin') {
 
 async function start(form) {
   const response = await post('', { csrf: form.csrf, repository: 'https://github.com/WHS-DTECH/WHS_BusController',
-    studentName: 'Student <Name>', studentGithub: 'zomotokari-cpu', schoolYear: '2026', permission: 'yes' }, form.cookie);
+    builderId: BUILDER, schoolYear: '2026', permission: 'yes' }, form.cookie);
   assert.equal(response.status, 303);
   return response.headers.get('location').split('/').pop();
 }
@@ -138,7 +142,7 @@ test('only administrators can view or change handovers', async () => {
 
 test('forms require a valid CSRF token', async () => {
   const form = await formSession();
-  const response = await post('', { csrf: 'wrong', repository: 'WHS-DTECH/x', studentName: 'A', schoolYear: '2026', permission: 'yes' }, form.cookie);
+  const response = await post('', { csrf: 'wrong', repository: 'WHS-DTECH/x', builderId: BUILDER, schoolYear: '2026', permission: 'yes' }, form.cookie);
   assert.equal(response.status, 403);
   assert.equal(calls.length, 0);
 });
@@ -154,14 +158,23 @@ test('starting a handover pins the latest commit, escapes names and sets a new-y
   const html = await (await fetch(`${base}/${id}`, { headers: { cookie: form.cookie } })).text();
   assert.match(html, /Student &lt;Name&gt;/);
   assert.doesNotMatch(html, /Student <Name>/);
-  const again = await post('', { csrf: form.csrf, repository: 'WHS-DTECH/whs_buscontroller', studentName: 'A', schoolYear: '2026', slug: 'other', permission: 'yes' }, form.cookie);
+  const again = await post('', { csrf: form.csrf, repository: 'WHS-DTECH/whs_buscontroller', builderId: BUILDER, schoolYear: '2026', slug: 'other', permission: 'yes' }, form.cookie);
   assert.equal(again.status, 409);
+});
+
+test('a handover must use a recorded student builder', async () => {
+  const form = await formSession();
+  assert.match(form.html, /Student &lt;Name&gt; \(zomotokari-cpu\), left school/);
+  const response = await post('', { csrf: form.csrf, repository: 'WHS-DTECH/x', builderId: '99999999-2222-4333-8444-555555555555', schoolYear: '2026', permission: 'yes' }, form.cookie);
+  assert.equal(response.status, 400);
+  assert.match(await response.text(), /Choose the student builder/);
+  assert.equal(calls.length, 0);
 });
 
 test('repositories outside the school account must be transferred first', async () => {
   owner = 'zomotokari-cpu';
   const form = await formSession();
-  const response = await post('', { csrf: form.csrf, repository: 'zomotokari-cpu/project', studentName: 'A', schoolYear: '2026', permission: 'yes' }, form.cookie);
+  const response = await post('', { csrf: form.csrf, repository: 'zomotokari-cpu/project', builderId: BUILDER, schoolYear: '2026', permission: 'yes' }, form.cookie);
   assert.equal(response.status, 400);
   assert.match(await response.text(), /Transfer ownership/);
   assert.equal(rows.size, 0);

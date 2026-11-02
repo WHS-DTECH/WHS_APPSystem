@@ -78,8 +78,11 @@ function createHandoverRouter({
               backup_at, backup_skipped_reason, frozen_at, finished_at, finish_action, created_at
        FROM student_project_handovers ORDER BY finished_at IS NOT NULL, review_on, created_at DESC LIMIT 200`
     )).rows;
+    const builders = (await dbQuery(
+      `SELECT id, full_name, github_username, status FROM student_builders ORDER BY status, lower(full_name)`
+    )).rows;
     return res.status(status).render('student-apps/handovers', {
-      title: 'Handover student project', handovers, configuration: providers.configuration(), today: today(),
+      title: 'Handover student project', handovers, builders, configuration: providers.configuration(), today: today(),
       csrf: req.session.handoverCsrf, error, form, nextStep,
       defaultYear: Number(today().slice(0, 4))
     });
@@ -124,15 +127,17 @@ function createHandoverRouter({
 
   router.post('/', async (req, res, next) => {
     const form = {
-      repository: text(req.body.repository), title: text(req.body.title, 120), studentName: text(req.body.studentName, 120),
-      studentGithub: text(req.body.studentGithub, 39), schoolYear: text(req.body.schoolYear, 4), slug: text(req.body.slug, 60)
+      repository: text(req.body.repository), title: text(req.body.title, 120), builderId: text(req.body.builderId, 36),
+      schoolYear: text(req.body.schoolYear, 4), slug: text(req.body.slug, 60)
     };
     try {
       if (req.body.permission !== 'yes') throw new HandoverError('Confirm the school has permission to keep and maintain a copy of this work.');
-      if (!form.studentName) throw new HandoverError('Enter the student\'s name for the Student Work label.');
+      const builder = UUID.test(form.builderId)
+        ? (await dbQuery('SELECT id, full_name, github_username FROM student_builders WHERE id = $1', [form.builderId])).rows[0]
+        : null;
+      if (!builder) throw new HandoverError('Choose the student builder. Add them under Administration > Student Builders first.');
       const year = Number(form.schoolYear);
       if (!Number.isInteger(year) || year < 2000 || year > 2100) throw new HandoverError('Enter the school year the work was made, for example 2026.');
-      if (form.studentGithub && !/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(form.studentGithub)) throw new HandoverError('Enter a valid GitHub username, or leave it blank.');
       const repo = parseRepository(form.repository);
       const slug = form.slug || slugFrom(repo.name);
       if (!SLUG.test(slug)) throw new HandoverError('Use lower-case letters, numbers and single hyphens for the short name.');
@@ -144,11 +149,11 @@ function createHandoverRouter({
       const id = crypto.randomUUID();
       const inserted = (await dbQuery(
         `INSERT INTO student_project_handovers
-           (id, slug, title, source_repository, source_commit, student_name, student_github, school_year, review_on, created_by, history)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb)
+           (id, slug, title, source_repository, source_commit, student_name, student_github, school_year, review_on, created_by, history, builder_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12)
          ON CONFLICT DO NOTHING RETURNING id`,
-        [id, slug, form.title || repo.name, info.fullName, info.latestCommit, form.studentName, form.studentGithub || null,
-          year, `${year + 1}-02-01`, req.user.id, event(req, 'Started handover', `Pinned ${info.latestCommit}`)]
+        [id, slug, form.title || repo.name, info.fullName, info.latestCommit, builder.full_name, builder.github_username || null,
+          year, `${year + 1}-02-01`, req.user.id, event(req, 'Started handover', `Pinned ${info.latestCommit}`), builder.id]
       )).rows[0];
       if (!inserted) throw new HandoverError('That short name is in use, or this repository already has an unfinished handover.', 409);
       return res.redirect(303, `${BASE}/${id}`);

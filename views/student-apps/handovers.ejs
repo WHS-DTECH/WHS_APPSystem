@@ -38,8 +38,15 @@
     <input type="hidden" name="csrf" value="<%= csrf %>">
     <label>GitHub repository<input name="repository" value="<%= form.repository || '' %>" placeholder="<%= configuration.owner %>/project-name" maxlength="200" required></label>
     <label>Project name (optional)<input name="title" value="<%= form.title || '' %>" maxlength="120" placeholder="Repository name if blank"></label>
-    <label>Student's name<input name="studentName" value="<%= form.studentName || '' %>" maxlength="120" required></label>
-    <label>Student's GitHub username (optional)<input name="studentGithub" value="<%= form.studentGithub || '' %>" maxlength="39"></label>
+    <label>Student builder
+      <select name="builderId" required>
+        <option value="">Choose a student</option>
+        <% builders.forEach((builder) => { %>
+          <option value="<%= builder.id %>" <%= form.builderId === builder.id ? 'selected' : '' %>><%= builder.full_name %><%= builder.github_username ? ` (${builder.github_username})` : '' %><%= builder.status === 'left' ? ', left school' : '' %></option>
+        <% }) %>
+      </select>
+    </label>
+    <p><small>Not listed? <a href="/admin/student-builders">Record the student under Administration &gt; Student Builders</a> first.</small></p>
     <label>School year the work was made<input name="schoolYear" type="number" min="2000" max="2100" value="<%= form.schoolYear || defaultYear %>" required></label>
     <label>Short name for the archive (optional)<input name="slug" value="<%= form.slug || '' %>" maxlength="60" pattern="[a-z0-9]+(-[a-z0-9]+)*" placeholder="From the repository name if blank"></label>
     <label><input type="checkbox" name="permission" value="yes" required> The school has permission to keep and maintain a copy of this work, and the student will be credited.</label>
