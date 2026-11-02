@@ -6,6 +6,7 @@ const { query } = require('./db');
 const { ensureAuthenticated, ensureRole } = require('./middleware');
 const { accessibleModules } = require('./moduleAccess');
 const { appDestination } = require('./appAddresses');
+const { developmentProjects } = require('./developmentProjects');
 
 const template = fs.readFileSync(path.join(__dirname, '..', 'views', 'launchpad.html'), 'utf8');
 const icons = Object.fromEntries([...template.matchAll(/<span class="icon" data-icon="([^"]+)" aria-hidden="true">(<svg[\s\S]*?<\/svg>)<\/span>/g)]
@@ -39,9 +40,10 @@ function renderLaunchpad(links) {
   const cards = links.filter(link => link.is_visible).map(link => {
     if (!Object.hasOwn(icons, link.icon)) throw new Error('Unknown Launchpad icon.');
     const destination = appDestination(link.url);
-    return `<a class="app" href="${escapeHtml(destination)}">
+    const badge = link.development ? '<span class="dev-badge">In development · ADMIN only</span>' : '';
+    return `<a class="app${link.development ? ' app-dev' : ''}" href="${escapeHtml(destination)}">
       <span class="icon" aria-hidden="true">${icons[link.icon]}</span>
-      <h3>${escapeHtml(link.title)}</h3>
+      ${badge}<h3>${escapeHtml(link.title)}</h3>
       <p class="description">${escapeHtml(link.description)}</p>
       <span class="open">Open ${escapeHtml(link.title)} <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg></span>
     </a>`;
@@ -67,6 +69,15 @@ function createLaunchpad({ dbQuery = query } = {}) {
           url: `/launchpad/apps/${encodeURIComponent(module.module_key)}`
         };
       }).sort((a, b) => a.sort_order - b.sort_order || a.title.localeCompare(b.title));
+      for (const project of await developmentProjects(req.user, dbQuery)) {
+        cards.push({
+          title: project.name, icon: 'hub', is_visible: true, development: true,
+          description: project.description || (project.app_url
+            ? 'New app in development. Only global administrators can see this card.'
+            : 'Not deployed yet. Open its setup in Module Builder.'),
+          url: project.app_url || `/module-builder/${project.id}/setup`
+        });
+      }
       res.type('html').send(renderLaunchpad(cards));
     } catch (error) {
       console.error('[launchpad] Could not load assigned apps:', error);

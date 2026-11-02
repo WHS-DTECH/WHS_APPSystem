@@ -4,6 +4,7 @@ const { moduleForPath } = require('./moduleSearch');
 const { effectiveTrainingRole } = require('./modules/classTraining');
 const { accessForEmail, effectiveDtechView } = require('./modules/dtechHub');
 const { accessibleModules } = require('./moduleAccess');
+const { developmentProjects: listDevelopmentProjects } = require('./developmentProjects');
 
 // Adds the global left navigation script to every full HTML page, including the static legacy pages.
 function injectGlobalNav(req, res, next) {
@@ -102,13 +103,7 @@ function navData(query, canManageHubRoles, datasetManagerUrl, canManageCourses =
     try {
       const user = req.user;
       const modules = await accessibleModules(user, query);
-      const developmentProjects = user?.roles?.includes('ADMIN')
-        ? (await query(`SELECT p.id, p.name, e.config->>'appUrl' AS app_url
-          FROM module_builder_projects p JOIN module_builder_environments e ON e.project_id=p.id AND e.kind='development'
-          WHERE p.stage IN ('draft','development','staging')
-            AND NOT EXISTS (SELECT 1 FROM modules m WHERE m.module_key=p.slug AND m.path LIKE '/%')
-          ORDER BY p.name`)).rows
-        : [];
+      const developmentProjects = await listDevelopmentProjects(user, query);
       let assignRolesUrl = null;
       let datasetUrl = null;
       let courseManagementUrl = null;

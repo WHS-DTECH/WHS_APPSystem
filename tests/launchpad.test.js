@@ -111,6 +111,10 @@ test('authenticated Launchpad, admin cards, stable launch routes and direct modu
   const writes = [];
   let user = null;
   const dbQuery = async (sql, params = []) => {
+    if (sql.includes('FROM module_builder_projects')) return { rows: [
+      { id: 'b0000000-0000-4000-8000-000000000002', name: 'Tracker <Dev>', description: null, app_url: 'https://tracker-development.onrender.com/' },
+      { id: 'b0000000-0000-4000-8000-000000000003', name: 'Undeployed Dev', description: null, app_url: null }
+    ] };
     if (sql.includes('FROM modules m')) return { rows: modules.map(module => ({
       ...module, has_access: Boolean(user && user.is_active !== false && (user.roles.includes('ADMIN') || assigned.has(module.module_key)))
     })) };
@@ -181,6 +185,7 @@ test('authenticated Launchpad, admin cards, stable launch routes and direct modu
     let output = await page.text();
     assert.match(output, /href="\/launchpad\/apps\/example-module"/);
     assert.doesNotMatch(output, /International App|Inactive App/);
+    assert.doesNotMatch(output, /Tracker|Undeployed Dev|In development/, 'development apps are hidden from non-ADMIN users');
     assert.equal(page.headers.get('cache-control'), 'no-store');
     assert.equal((await call('/example/')).status, 200);
     assert.equal((await call('/launchpad/apps/international-app')).status, 403);
@@ -216,6 +221,9 @@ test('authenticated Launchpad, admin cards, stable launch routes and direct modu
     assert.match(output, /New module/);
     assert.match(output, /International App/);
     assert.doesNotMatch(output, /Inactive App/);
+    assert.match(output, /In development · ADMIN only<\/span><h3>Tracker &lt;Dev&gt;<\/h3>/);
+    assert.match(output, /href="https:\/\/tracker-development\.onrender\.com\/"/);
+    assert.match(output, /href="\/module-builder\/b0000000-0000-4000-8000-000000000003\/setup"/);
     const launch = '/launchpad/apps/example-module';
     assert.equal((await call(launch)).headers.get('location'), '/example/');
     modules[0].path = '/moved-example/';
