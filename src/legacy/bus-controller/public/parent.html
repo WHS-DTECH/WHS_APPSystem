@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Live Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css">
+    <style>
+        html, body { 
+            margin: 0; 
+            padding: 0; 
+            height: 100%; 
+            width: 100%; 
+            overflow: hidden; 
+            background: #f8f9fa;
+        }
+        
+        /* Desktop Layout */
+        .dashboard { 
+            display: flex; 
+            height: 100vh; 
+            width: 100vw; 
+            flex-direction: row; 
+        }
+        
+        .sidebar { 
+            width: 320px; 
+            min-width: 320px; 
+            background: #f8f9fa; 
+            padding: 20px; 
+            box-sizing: border-box; 
+            overflow-y: auto; 
+            z-index: 9999; /* Always on top */
+        }
+        
+        #map { 
+            flex-grow: 1;
+            height: 100%; 
+            width: 100%; 
+            z-index: 1; 
+        }
+        
+        /* Popup Info Box Styling */
+        .incident-popup { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; min-width: 220px; }
+        .incident-popup h3 { margin: 0 0 8px 0; font-size: 1.1rem; display: flex; align-items: center; gap: 5px; }
+        .incident-badge { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; color: #fff; margin-bottom: 8px; }
+        .incident-meta { font-size: 0.85rem; color: #333; line-height: 1.4; }
+        .incident-time { background: #f1f1f1; padding: 4px 6px; border-radius: 4px; font-weight: bold; font-size: 0.8rem; display: block; margin-top: 5px; border-left: 3px solid #666; }
+
+        /* Suchfunktions-Styling & Live-Dropdown */
+        .search-wrapper {
+            position: relative;
+            margin: 15px 0 5px 0;
+        }
+        .search-container {
+            display: flex;
+            gap: 6px;
+        }
+        .search-input {
+            flex-grow: 1;
+            padding: 10px 12px;
+            border: 1px solid var(--border, #ccc);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            outline: none;
+        }
+        .search-btn {
+            background: #409EFF;
+            color: white;
+            border: none;
+            padding: 0 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .search-btn:active { background: #3a8ee6; }
+
+        /* Das Live-Vorschau Dropdown */
+        .search-results-dropdown {
+            position: absolute;
+            top: 105%;
+            left: 0;
+            width: 100%;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            max-height: 220px;
+            overflow-y: auto;
+            z-index: 10000;
+            display: none;
+            padding: 0;
+            margin: 0;
+            list-style: none;
+        }
+        .search-results-dropdown li {
+            padding: 10px 12px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            color: #333;
+            line-height: 1.3;
+        }
+        .search-results-dropdown li:last-child { border-bottom: none; }
+        .search-results-dropdown li:hover { background: #f0f7ff; }
+
+        /* Mobile Breakpoint - Unshakable Overlay Strategy */
+        @media (max-width: 768px) {
+            .dashboard { 
+                flex-direction: column; 
+                height: 100vh;
+                position: relative;
+            }
+            
+            .sidebar { 
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%; 
+                min-width: 100%; 
+                height: 115px; 
+                min-height: 115px; 
+                max-height: 115px;
+                padding: 10px 15px; 
+                display: flex;
+                flex-direction: column;
+                align-items: stretch;
+                justify-content: flex-start;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+                overflow: hidden;
+                box-sizing: border-box;
+                gap: 8px;
+            }
+            
+            .mobile-top-row {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                width: 100%;
+            }
+
+            .panel-section { display: none; }
+            
+            .btn-logout { 
+                margin: 0 !important; 
+                width: auto !important; 
+                padding: 6px 14px !important; 
+                font-size: 0.85rem !important;
+            }
+            
+            #map { 
+                position: absolute;
+                top: 0;
+                left: 0;
+                height: 100vh; 
+                width: 100vw;
+            }
+
+            .leaflet-top {
+                top: 125px !important;
+            }
+            
+            .search-wrapper {
+                margin: 0;
+                width: 100%;
+            }
+            .search-input { padding: 8px 10px; font-size: 0.85rem; }
+            .search-btn { padding: 0 12px; font-size: 0.85rem; }
+            
+            /* Am Handy soll das Dropdown über der Karte schweben, damit es die Sidebar nicht sprengt */
+            .search-results-dropdown {
+                position: fixed;
+                top: 115px;
+                left: 15px;
+                width: calc(100% - 30px);
+                max-height: 200px;
+            }
+
+            .incident-popup { min-width: 180px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="sidebar">
+            <div class="mobile-top-row">
+                <h2 style="margin: 0; font-size: 1.2rem;" class="mobile-title">West Coast: Overview</h2>
+                <button class="btn btn-logout" onclick="logout()" style="width: 100%; padding: 12px; font-size: 1rem;">Return</button>
+            </div>
+
+            <div class="search-wrapper">
+                <div class="search-container">
+                    <input type="text" id="map-search" class="search-input" placeholder="Search street or place..." autocomplete="off">
+                    <button class="search-btn" id="search-trigger-btn">🔍</button>
+                </div>
+                <ul id="search-dropdown" class="search-results-dropdown"></ul>
+            </div>
+
+            <div class="panel-section" style="margin-top: 5px;">
+                <h3>ℹ️ West Coast: Overview</h3>
+                <p style="font-size: 0.9rem; line-height: 1.4; color: var(--text); margin-top: 8px;">
+                    Welcome back! Below you see all real-time bus routes and active road hazard advisories managed by Westroad Operations. We try to ensure the information on this site is always up to date, but we cannot guarantee its accuracy.
+                </p>
+            </div>
+        </div>
+        <div id="map"></div>
+    </div>
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <script src="app.js"></script>
+    <script>
+        let routeLinesLayer, publicHazardLayer, searchMarkerLayer;
+        let searchTimeout = null; // Debounce-Timer für die API-Schonung
+
+        if(window.innerWidth <= 768) {
+            document.querySelector('.mobile-title').style.display = 'block';
+        }
+
+        auth.onAuthStateChanged(user => {
+            if (!user) {
+                window.location.href = "index.html";
+            } else {
+                initMap('map');
+                
+                map.on('popupopen', function(e) {
+                    if (window.innerWidth <= 768) {
+                        const popupLatLng = e.popup.getLatLng();
+                        if (popupLatLng) {
+                            const targetPoint = map.project(popupLatLng).subtract([0, 150]);
+                            map.panTo(map.unproject(targetPoint), { animate: true });
+                        }
+                    }
+                });
+
+                routeLinesLayer = L.layerGroup().addTo(map);
+                publicHazardLayer = L.layerGroup().addTo(map);
+                searchMarkerLayer = L.layerGroup().addTo(map);
+
+                listenToAllSchoolRoutes();
+                listenToGlobalHazards();
+
+                map.on('zoomend', updateParentHazardScales);
+
+                // Event-Listener für die Live-Suche initialisieren
+                initSearchAutocomplete();
+            }
+        });
+
+        // =========================================================================
+        // LIVE AUTOCOMPLETE SUCH-LOGIK (NOMINATIM)
+        // =========================================================================
+        function initSearchAutocomplete() {
+            const searchInput = document.getElementById('map-search');
+            const dropdown = document.getElementById('search-dropdown');
+            const searchBtn = document.getElementById('search-trigger-btn');
+
+            // Wenn der User tippt
+            searchInput.addEventListener('input', () => {
+                clearTimeout(searchTimeout);
+                const query = searchInput.value.trim();
+
+                if (query.length < 3) {
+                    dropdown.style.display = 'none';
+                    return;
+                }
+
+                // Debounce von 400ms, damit wir nicht bei jedem Buchstaben die API triggern
+                searchTimeout = setTimeout(() => {
+                    fetchLiveSuggestions(query);
+                }, 500);
+            });
+
+            // Such-Button oder Enter wählt einfach das oberste Element
+            searchBtn.addEventListener('click', selectTopResult);
+            searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') selectTopResult();
+            });
+
+            // Schließt das Dropdown, wenn man irgendwo anders hin klickt
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.search-wrapper')) {
+                    dropdown.style.display = 'none';
+                }
+            });
+        }
+
+        function fetchLiveSuggestions(query) {
+            const dropdown = document.getElementById('search-dropdown');
+            // Holt bis zu 5 Ergebnisse
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`;
+
+            fetch(url)
+                .then(res => res.json())
+                .then(data => {
+                    dropdown.innerHTML = '';
+
+                    if (data && data.length > 0) {
+                        data.forEach(item => {
+                            const li = document.createElement('li');
+                            // Voller Anzeigename aus der API
+                            li.innerText = item.display_name;
+                            
+                            // Bei Klick auf einen Vorschlag
+                            li.addEventListener('click', () => {
+                                selectLocation(item.lat, item.lon, item.display_name);
+                            });
+                            dropdown.appendChild(li);
+                        });
+                        dropdown.style.display = 'block';
+                    } else {
+                        const li = document.createElement('li');
+                        li.innerText = "No results found";
+                        li.style.cursor = 'default';
+                        dropdown.appendChild(li);
+                        dropdown.style.display = 'block';
+                    }
+                })
+                .catch(err => console.error("Autocomplete error:", err));
+        }
+
+        function selectLocation(lat, lon, displayName) {
+            const searchInput = document.getElementById('map-search');
+            const dropdown = document.getElementById('search-dropdown');
+            
+            const targetLatLng = [parseFloat(lat), parseFloat(lon)];
+            searchInput.value = displayName.split(',')[0]; // Setzt den Kurznamen ins Feld
+            dropdown.style.display = 'none';
+
+            searchMarkerLayer.clearLayers();
+
+            // Marker setzen und Map fokussieren
+            const marker = L.marker(targetLatLng).addTo(searchMarkerLayer);
+            const shortName = displayName.split(',').slice(0, 3).join(',');
+            marker.bindPopup(`📍 <b>Location:</b><br>${shortName}`).openPopup();
+            
+            map.setView(targetLatLng, 16, { animate: true });
+        }
+
+        function selectTopResult() {
+            const dropdown = document.getElementById('search-dropdown');
+            const firstItem = dropdown.querySelector('li');
+            // Falls das Dropdown offen ist und ein valides Element hat, klick es virtuell an
+            if (dropdown.style.display === 'block' && firstItem && firstItem.innerText !== "No results found") {
+                firstItem.click();
+            }
+        }
+
+        // =========================================================================
+        // RESTLICHE KARTEN-LOGIK (UNVERÄNDERT)
+        // =========================================================================
+        function getScales(zoom) {
+            const factor = Math.pow(1.4, zoom - 13);
+            return {
+                lineWidth: Math.max(2, Math.min(12, 6 * factor)),
+                iconSize: Math.max(16, Math.min(42, 24 * factor))
+            };
+        }
+
+        function updateParentHazardScales() {
+            const currentZoom = map.getZoom();
+            const scales = getScales(currentZoom);
+
+            publicHazardLayer.eachLayer(layer => {
+                if (layer instanceof L.Polyline) {
+                    layer.setStyle({ weight: scales.lineWidth });
+                } else if (layer instanceof L.Marker && layer.options.icon) {
+                    const color = layer.options.hazardColor || '#F56C6C';
+                    layer.setIcon(createHazardIcon(color, scales.iconSize));
+                }
+            });
+        }
+
+        function createHazardIcon(color, size) {
+            return L.divIcon({
+                html: `
+                    <svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L1 21H23L12 2Z" fill="${color}" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
+                        <path d="M12 9V14" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+                        <circle cx="12" cy="18" r="1" fill="#ffffff"/>
+                    </svg>
+                `,
+                className: 'custom-hazard-marker',
+                iconSize: [size, size],
+                iconAnchor: [size / 2, size]
+            });
+        }
+
+        function listenToAllSchoolRoutes() {
+            db.ref('schools').on('value', snapshot => {
+                routeLinesLayer.clearLayers();
+                const schoolsData = snapshot.val() || {};
+
+                Object.keys(schoolsData).forEach(schoolId => {
+                    const school = schoolsData[schoolId];
+                    if (school.routes) {
+                        Object.values(school.routes).forEach(route => {
+                            if (route.coords && route.coords.length >= 2) {
+                                L.polyline(route.coords, {
+                                    color: route.color || '#409EFF',
+                                    weight: 4,
+                                    opacity: 0.85
+                                }).addTo(routeLinesLayer).bindPopup(`<b>Bus Route:</b> ${route.name}`, {
+                                    autoPan: false
+                                });
+                            }
+                        });
+                    }
+                });
+            });
+        }
+
+        function listenToGlobalHazards() {
+            db.ref('hazards').on('value', snapshot => {
+                publicHazardLayer.clearLayers();
+                const hazardsData = snapshot.val() || {};
+                const scales = getScales(map.getZoom());
+
+                Object.values(hazardsData).forEach(h => {
+                    if (h.coords && h.coords.length >= 2) {
+                        const hazardColor = h.color || '#F56C6C';
+                        const popupContent = `
+                            <div class="incident-popup">
+                                <h3 style="color: ${hazardColor};">🚧 Road Information: ${h.title}</h3>
+                                <div class="incident-badge" style="background-color: ${hazardColor};">${h.type}</div>
+                                <div class="incident-meta">
+                                    <b>Reason:</b><br>${h.desc}<br><br>
+                                    <b>Duration:</b>
+                                    <span class="incident-time">${h.time}</span>
+                                </div>
+                            </div>
+                        `;
+
+                        const popupOptions = {
+                            autoPan: false
+                        };
+
+                        L.polyline(h.coords, { 
+                            color: hazardColor, 
+                            weight: scales.lineWidth, 
+                            opacity: 0.85 
+                        }).addTo(publicHazardLayer).bindPopup(popupContent, popupOptions);
+
+                        L.marker(h.coords[0], {
+                            icon: createHazardIcon(hazardColor, scales.iconSize),
+                            hazardColor: hazardColor
+                        }).addTo(publicHazardLayer).bindPopup(popupContent, popupOptions);
+                    }
+                });
+            });
+        }
+    </script>
+</body>
+</html>

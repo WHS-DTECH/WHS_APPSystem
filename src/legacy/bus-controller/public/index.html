@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>West Coast: Road and Bus Information</title>
+    <style>
+        :root {
+            --wdc-navy: #002147;
+            --wdc-navy-hover: #001530;
+            --wdc-gold: #D97706;
+            --wdc-gold-hover: #B45309;
+            --wdc-text-dark: #1F2937;
+            --wdc-border: #D1D5DB;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #022c22 0%, #047857 50%, #0369a1 100%);
+            background-attachment: fixed;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: var(--wdc-text-dark);
+        }
+        
+        .login-container {
+            width: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            justify-content: center;
+        }
+        
+        .login-box {
+            width: 100%;
+            max-width: 420px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            background: rgba(255, 255, 255, 0.96);
+            padding: 40px 30px;
+            border-radius: 6px;
+            border-top: 6px solid var(--wdc-navy);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        h2 {
+            color: var(--wdc-navy);
+            font-weight: 700;
+            font-size: 1.6rem;
+            letter-spacing: -0.5px;
+            margin-top: 0;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+
+        .input-group {
+            margin-bottom: 18px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .input-group label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--wdc-navy);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px 14px;
+            font-size: 16px; 
+            box-sizing: border-box;
+            border: 1px solid var(--wdc-border);
+            border-radius: 4px;
+            background: #FAFAFA;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--wdc-navy);
+            box-shadow: 0 0 0 3px rgba(0, 33, 71, 0.15);
+            background: #ffffff;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 4px;
+            border: none;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        .btn:active {
+            transform: scale(0.99);
+        }
+
+        .btn-secondary {
+            background: var(--wdc-gold);
+            color: #ffffff;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 12px rgba(217, 119, 6, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: var(--wdc-gold-hover);
+        }
+
+        .btn-primary {
+            background: var(--wdc-navy);
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(0, 33, 71, 0.15);
+        }
+
+        .btn-primary:hover {
+            background: var(--wdc-navy-hover);
+        }
+
+        .divider {
+            text-align: center;
+            position: relative;
+            margin-bottom: 24px;
+            color: #6B7280;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 15px;
+        }
+
+        .divider::before, .divider::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            width: 22%;
+            height: 1px;
+            background: var(--wdc-border);
+        }
+        .divider::before { left: 0; }
+        .divider::after { right: 0; }
+
+        @media (max-width: 480px) {
+            .login-box {
+                padding: 30px 20px;
+                background: #ffffff;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-box">
+            <h2>Main Page</h2>
+            
+            <button class="btn btn-secondary" onclick="quickParentLogin()">View Live Map</button>
+            
+            <div class="divider">Staff Administration</div>
+
+            <div class="input-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" placeholder="e.g. name@gmail.com" autocomplete="email">
+            </div>
+            <div class="input-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+            </div>
+            <button class="btn btn-primary" onclick="login()" style="margin-top: 10px;">Sign In</button>
+            
+            <div class="divider">New Users</div>
+            <button class="btn" onclick="createAccountWithGoogle()" style="background: #4285F4; color: white; box-shadow: 0 4px 12px rgba(66, 133, 244, 0.2);">
+                Login with Google
+            </button>
+            
+            <p id="error-msg" style="color: #EF4444; margin-top: 15px; font-size: 0.85rem; font-weight: 600; text-align: center; margin-bottom: 0; min-height: 20px;"></p>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <script src="app.js"></script>
+    <script>
+        const googleProvider = new firebase.auth.GoogleAuthProvider();
+
+        document.getElementById('password').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') login();
+        });
+
+        function quickParentLogin() {
+            executeAuth("par@test.com", "123456");
+        }
+
+        // Hilfsfunktion für Fehlermeldungen
+        function showError(msg, color = "#EF4444") {
+            const errEl = document.getElementById('error-msg');
+            errEl.style.color = color;
+            errEl.innerText = msg;
+        }
+
+        function login() {
+            const e = document.getElementById('email').value.trim();
+            const p = document.getElementById('password').value;
+            
+            if (!e) return showError("Please enter your email address.");
+            if (!p) return showError("Please enter your password.");
+            
+            executeAuth(e, p);
+        }
+        
+        // Helfer-Funktion zur Weiterleitung
+        function checkUserRoleAndRedirect(uid) {
+            db.ref('users/' + uid).once('value').then(snap => {
+                const userData = snap.val();
+                if (!userData || userData.role === 'none') {
+                    showError("Access denied. Please contact the administrator.");
+                    auth.signOut();
+                    return;
+                }
+                redirectBasedOnRole(userData.role);
+            });
+        }
+
+        // Der E-Mail/Passwort Login Prozess
+        function executeAuth(email, password) {
+            auth.signInWithEmailAndPassword(email, password).then((userCredential) => {
+                checkUserRoleAndRedirect(userCredential.user.uid);
+            }).catch(error => {
+                console.error("Auth Error: ", error);
+                
+                // Falls der Login fehlschlägt, prüfen wir im Hintergrund, ob es eigentlich ein Google-Account ist
+                if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
+                    auth.fetchSignInMethodsForEmail(email).then((methods) => {
+                        if (methods.includes('google.com')) {
+                            showError("This email is linked with Google. Please click 'Login with Google'.");
+                        } else {
+                            showError("Invalid credentials. Please try again.");
+                        }
+                    }).catch(() => showError("Invalid credentials. Please try again."));
+                } else {
+                    showError("Invalid credentials. Please try again.");
+                }
+            });
+        }
+
+        // Der Google-Popup Prozess (Direktaufruf)
+        function createAccountWithGoogle() {
+            const googleBtn = document.querySelector("button[onclick='createAccountWithGoogle()']");
+            if (googleBtn) {
+                googleBtn.disabled = true;
+                googleBtn.innerText = "Loading Google...";
+            }
+        
+            // Sofortiger Aufruf -> Kein Popup-Blocker mehr!
+            auth.signInWithPopup(googleProvider).then((result) => {
+                const user = result.user;
+                
+                db.ref('users/' + user.uid).once('value').then(snap => {
+                    if (!snap.exists()) {
+                        // Brand new user -> gets 'none' role and empty School ID
+                        db.ref('users/' + user.uid).set({
+                            name: user.displayName || "Google User",
+                            email: user.email,
+                            role: 'none',
+                            schoolID: ''
+                        }).then(() => {
+                            showError("Account created. Please contact the administrator.", "#34D399");
+                            
+                            setTimeout(() => { 
+                                auth.signOut(); 
+                                if (googleBtn) { googleBtn.disabled = false; googleBtn.innerText = "Login with Google"; }
+                            }, 1200);
+                        });
+                    } else {
+                        const userData = snap.val();
+                        if (userData.role === 'none') {
+                            showError("Your account does not have permissions yet. Please contact the administrator.");
+                            setTimeout(() => { 
+                                auth.signOut(); 
+                                if (googleBtn) { googleBtn.disabled = false; googleBtn.innerText = "Login with Google"; }
+                            }, 1200);
+                        } else {
+                            if (googleBtn) { googleBtn.disabled = false; googleBtn.innerText = "Login with Google"; }
+                            redirectBasedOnRole(userData.role);
+                        }
+                    }
+                });
+            }).catch(error => {
+                if (googleBtn) { googleBtn.disabled = false; googleBtn.innerText = "Login with Google"; }
+                
+                // Ignoriere den Fehler, wenn der Nutzer das Popup selbst wegklickt
+                if (error.code === "auth/cancelled-popup-request" || error.code === "auth/popup-closed-by-user") {
+                    return showError("Login cancelled by user.");
+                }
+                
+                console.error("Google Auth Error: ", error);
+                showError("Google sign-in failed.");
+            });
+        }
+
+        function redirectBasedOnRole(role) {
+            if(role === 'admin') window.location.href = 'admin.html';
+            if(role === 'parent') window.location.href = 'parent.html';
+            if(role === 'principal') window.location.href = 'principal.html';
+            if(role === 'westroad') window.location.href = 'westroad.html';
+        }
+    </script>
+</body>
+</html>

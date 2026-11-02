@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - User Management</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #022c22 0%, #047857 50%, #0369a1 100%);
+            background-attachment: fixed;
+            margin: 0; 
+            padding: 40px 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+        .admin-box {
+            width: 100%;
+            max-width: 950px;
+            background: rgba(255, 255, 255, 0.96);
+            padding: 30px;
+            border-radius: 6px;
+            border-top: 6px solid #002147;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 25px;
+        }
+        h2 { 
+            color: #002147; 
+            margin: 0 0 5px 0;
+            font-size: 1.6rem;
+        }
+        p {
+            color: #4B5563;
+            font-size: 0.95rem;
+            margin: 0;
+        }
+        .btn-logout {
+            background: #EF4444;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.5px;
+            transition: background 0.2s;
+        }
+        .btn-logout:hover {
+            background: #DC2626;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: #ffffff;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        th, td {
+            padding: 14px;
+            text-align: left;
+            border-bottom: 1px solid #E5E7EB;
+        }
+        th { 
+            background-color: #002147; 
+            color: white; 
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.5px;
+        }
+        td {
+            color: #1F2937;
+            font-size: 0.95rem;
+        }
+        select, .school-input {
+            padding: 8px;
+            border: 1px solid #D1D5DB;
+            border-radius: 4px;
+            background: #FAFAFA;
+            font-size: 0.9rem;
+            outline: none;
+            box-sizing: border-box;
+        }
+        select:focus, .school-input:focus {
+            border-color: #002147;
+        }
+        .school-container {
+            display: inline-flex;
+            flex-direction: column;
+            gap: 5px;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+        .school-input {
+            width: 160px;
+        }
+        .btn-save {
+            background: #D97706;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.5px;
+            transition: background 0.2s;
+        }
+        .btn-save:hover { 
+            background: #B45309; 
+        }
+    </style>
+</head>
+<body>
+
+<div class="admin-box">
+    <div class="header-container">
+        <div>
+            <h2>Admin Dashboard – User Authorization</h2>
+            <p>Registered accounts within the database:</p>
+        </div>
+        <button class="btn-logout" onclick="logout()">Logout</button>
+    </div>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role / Permissions</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="user-table-body">
+            <tr>
+                <td colspan="4" style="text-align: center; color: #6B7280;">Loading user profiles from Firebase...</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+<script src="app.js"></script>
+
+<script>
+    let availableSchools = [];
+
+    // Session guardian on the admin page
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            db.ref('users/' + user.uid + '/role').once('value').then(snap => {
+                const role = snap.val();
+                if (role === 'admin') {
+                    listenToSchools();
+                } else {
+                    window.location.href = 'index.html';
+                }
+            }).catch(err => {
+                console.error("Error during role verification:", err);
+                window.location.href = 'index.html';
+            });
+        } else {
+            window.location.href = 'index.html';
+        }
+    });
+
+    // Synchronize available school IDs first
+    function listenToSchools() {
+        db.ref('schools').on('value', snap => {
+            availableSchools = [];
+            const data = snap.val();
+            if (data) {
+                availableSchools = Object.keys(data);
+            }
+            loadUserTable();
+        });
+    }
+
+    function loadUserTable() {
+        db.ref('users').once('value').then(snap => {
+            const users = snap.val();
+            const tbody = document.getElementById('user-table-body');
+            tbody.innerHTML = ""; 
+
+            if (!users) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #6B7280;">No users found in the system.</td></tr>`;
+                return;
+            }
+
+            for (let uid in users) {
+                const user = users[uid];
+                if (user.role === 'admin') continue;
+
+                const tr = document.createElement('tr');
+                const isPrincipal = user.role === 'principal';
+                const showContainer = isPrincipal ? 'inline-flex' : 'none';
+                
+                // Build dynamic dropdown options based on DB schools
+                let schoolOptions = `<option value="" ${!user.schoolId ? 'selected' : ''}>-- Select School --</option>`;
+                let isExistingSchool = false;
+
+                availableSchools.forEach(schoolKey => {
+                    const selected = user.schoolId === schoolKey ? 'selected' : '';
+                    if (selected) isExistingSchool = true;
+                    schoolOptions += `<option value="${schoolKey}" ${selected}>${schoolKey}</option>`;
+                });
+
+                // If the user has a custom ID that isn't listed yet, keep it selected
+                if (user.schoolId && !isExistingSchool) {
+                    schoolOptions += `<option value="${user.schoolId}" selected>${user.schoolId}</option>`;
+                }
+
+                schoolOptions += `<option value="__new__">+ Add New School...</option>`;
+
+                tr.innerHTML = `
+                    <td><b>${user.name || 'Google User'}</b></td>
+                    <td>${user.email}</td>
+                    <td>
+                        <select id="role-${uid}" onchange="toggleRole('${uid}')">
+                            <option value="none" ${user.role === 'none' ? 'selected' : ''}>None (No Permissions)</option>
+                            <option value="parent" ${user.role === 'parent' ? 'selected' : ''}>Parent</option>
+                            <option value="principal" ${user.role === 'principal' ? 'selected' : ''}>Principal</option>
+                            <option value="westroad" ${user.role === 'westroad' ? 'selected' : ''}>Westroad Admin</option>
+                        </select>
+                        
+                        <div id="school-container-${uid}" class="school-container" style="display: ${showContainer};">
+                            <select id="school-select-${uid}" onchange="toggleSchoolSelect('${uid}')">
+                                ${schoolOptions}
+                            </select>
+                            <input type="text" id="school-custom-${uid}" class="school-input" placeholder="id (e.g. grey-high)" style="display: none;">
+                        </div>
+                    </td>
+                    <td>
+                        <button class="btn-save" onclick="saveUser('${uid}')">Save</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            }
+        }).catch(error => {
+            console.error("Database error:", error);
+            document.getElementById('user-table-body').innerHTML = `<tr><td colspan="4" style="text-align: center; color: #EF4444;">Failed to load data: ${error.message}</td></tr>`;
+        });
+    }
+
+    function toggleRole(uid) {
+        const roleSelect = document.getElementById(`role-${uid}`).value;
+        const container = document.getElementById(`school-container-${uid}`);
+        if (roleSelect === 'principal') {
+            container.style.display = 'inline-flex';
+        } else {
+            container.style.display = 'none';
+        }
+    }
+
+    function toggleSchoolSelect(uid) {
+        const selectVal = document.getElementById(`school-select-${uid}`).value;
+        const customInput = document.getElementById(`school-custom-${uid}`);
+        if (selectVal === '__new__') {
+            customInput.style.display = 'inline-block';
+            customInput.focus();
+        } else {
+            customInput.style.display = 'none';
+            customInput.value = '';
+        }
+    }
+
+    async function saveUser(uid) {
+        const selectedRole = document.getElementById(`role-${uid}`).value;
+        const schoolSelect = document.getElementById(`school-select-${uid}`);
+        let schoolIdValue = "";
+
+        if (selectedRole === 'principal') {
+            if (schoolSelect.value === '__new__') {
+                const customId = document.getElementById(`school-custom-${uid}`).value.trim().toLowerCase();
+                if (!customId) {
+                    alert("Please enter a unique School ID.");
+                    return;
+                }
+                schoolIdValue = customId;
+            } else {
+                schoolIdValue = schoolSelect.value;
+            }
+        }
+
+        try {
+            // Check if school setup is required
+            if (selectedRole === 'principal' && schoolIdValue) {
+                const schoolSnap = await db.ref('schools/' + schoolIdValue).once('value');
+                
+                // If the school node doesn't exist, create it cleanly
+                if (!schoolSnap.exists()) {
+                    const schoolName = prompt(`The school ID "${schoolIdValue}" does not exist yet.\nPlease enter the full name for this school:`);
+                    if (!schoolName || !schoolName.trim()) {
+                        alert("Saving cancelled. A school name is required to initialize a new entry.");
+                        return;
+                    }
+                    await db.ref('schools/' + schoolIdValue).set({
+                        name: schoolName.trim()
+                    });
+                }
+            }
+
+            // Update user record
+            await db.ref('users/' + uid).update({
+                role: selectedRole,
+                schoolId: schoolIdValue
+            });
+
+            alert("User permissions successfully updated!");
+            loadUserTable(); // Refresh view
+        } catch (err) {
+            alert("Failed to save changes: " + err.message);
+        }
+    }
+
+    function logout() {
+        auth.signOut().then(() => {
+            window.location.href = 'index.html';
+        }).catch(err => {
+            alert("Error during logout.");
+        });
+    }
+</script>
+</body>
+</html>

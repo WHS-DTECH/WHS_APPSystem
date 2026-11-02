@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Westroad Operations Control</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css">
+    <style>
+        html, body { 
+            margin: 0; 
+            padding: 0; 
+            height: 100%; 
+            width: 100%; 
+            overflow: hidden; 
+            background: #f8f9fa;
+        }
+
+        /* Desktop Layout Flexbox */
+        .dashboard { 
+            display: flex; 
+            height: 100vh; 
+            width: 100vw; 
+            flex-direction: row; 
+        }
+
+        .sidebar { 
+            width: 320px; 
+            min-width: 320px; 
+            background: #f8f9fa; 
+            padding: 20px; 
+            box-sizing: border-box; 
+            overflow-y: auto; 
+            z-index: 9999; 
+        }
+
+        #map { 
+            flex-grow: 1; 
+            height: 100%; 
+            width: 100%; 
+            z-index: 1; 
+        }
+
+        /* Top Mobile Header Navigation Bar */
+        .mobile-header {
+            display: none;
+        }
+
+        /* Action bar indicator across top area of map */
+        #action-indicator {
+            position: fixed;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10000;
+            background: rgba(0, 0, 0, 0.85);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-size: 0.9rem;
+            font-family: sans-serif;
+            font-weight: 500;
+            pointer-events: none;
+            display: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+
+        /* Mobile controls container for cancelling or finalizing drawing processes */
+        #mobile-controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10000;
+            display: none;
+            width: calc(100% - 40px);
+            max-width: 340px;
+        }
+
+        #hazard-list { list-style: none; margin-top: 10px; padding: 0; }
+        #hazard-list li { 
+            display: flex; justify-content: space-between; align-items: center;
+            background: #fff; padding: 12px; margin-bottom: 8px; border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05); cursor: pointer; transition: transform 0.1s;
+        }
+        #hazard-list li:active { transform: scale(0.98); }
+        .delete-btn { color: var(--danger); font-weight: bold; padding: 4px 8px; cursor: pointer; font-size: 1.1rem; }
+        
+        .popup-menu button { 
+            display: block; width: 100%; padding: 8px; margin-top: 6px; font-size: 0.9rem;
+            border: 1px solid var(--border); border-radius: 4px; background: #fff; cursor: pointer; text-align: left;
+        }
+        .popup-menu button.danger-action { background: #fef0f0; color: var(--danger); border-color: #fde2e2; }
+        select { width: 100%; padding: 12px 16px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; background-color: #fafafa; margin-bottom: 15px; }
+
+        /* Mobile Close Overlay Button */
+        .btn-close-sidebar {
+            display: none;
+        }
+
+        /* Rigid Responsive Breakpoint for Mobile and Tablets */
+        @media (max-width: 768px) {
+            .dashboard { 
+                flex-direction: column; 
+                height: 100vh;
+                position: relative;
+            }
+
+            /* Main navigation panel at the top */
+            .mobile-header {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 70px;
+                background: #f8f9fa;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 0 15px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+                z-index: 9998;
+                box-sizing: border-box;
+            }
+
+            /* Sidebar transforms into a togglable Fullscreen Overlay Menu on mobile */
+            .sidebar { 
+                position: fixed;
+                top: 0;
+                left: -100%; /* Hidden by default */
+                width: 100%; 
+                height: 100vh; 
+                transition: left 0.3s ease;
+                padding: 20px; 
+                z-index: 10005; /* Above header and map */
+            }
+
+            .sidebar.active {
+                left: 0; /* Slides into view */
+            }
+
+            /* Close button inside mobile menu overlay */
+            .btn-close-sidebar {
+                display: block;
+                background: #e0e0e0;
+                color: #333;
+                border: none;
+                padding: 10px 15px;
+                border-radius: 6px;
+                font-weight: bold;
+                cursor: pointer;
+                margin-bottom: 15px;
+                width: 100%;
+                text-align: center;
+            }
+
+            .desktop-logout { display: none; }
+
+            #map { 
+                position: absolute;
+                top: 0;
+                left: 0;
+                height: 100vh; 
+                width: 100vw;
+            }
+
+            .leaflet-top {
+                top: 80px !important;
+            }
+
+            #action-indicator {
+                top: 85px;
+                width: calc(100% - 30px);
+                font-size: 0.85rem;
+                padding: 8px 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="action-indicator">Drawing Active</div>
+    
+    <div id="mobile-controls">
+        <button class="btn btn-logout" onclick="window.finishDrawingAction()" style="background: #222; color: #fff; width: 100%; box-shadow: 0 4px 15px rgba(0,0,0,0.3); padding: 14px; font-size: 1rem; font-weight: bold; border-radius: 8px;">✔️ Complete / Exit Mode</button>
+    </div>
+
+    <div class="mobile-header">
+        <h2 style="margin: 0; font-size: 1.1rem;">Operations</h2>
+        <div style="display: flex; gap: 8px;">
+            <button class="btn" onclick="toggleMobileSidebar()" style="background: #409EFF; color: #fff; padding: 8px 14px; font-size: 0.9rem;">Menu</button>
+            <button class="btn btn-logout" onclick="logout()" style="margin: 0; padding: 8px 12px; font-size: 0.9rem;">Sign Out</button>
+        </div>
+    </div>
+
+    <div class="dashboard">
+        <div class="sidebar" id="sidebar-panel">
+            <button class="btn-close-sidebar" onclick="toggleMobileSidebar()">❌ Close Menu</button>
+            
+            <button class="btn btn-logout desktop-logout" onclick="logout()">Sign Out</button>
+            
+            <div class="panel-section">
+                <h3>⚠️ Broadcast Operations</h3>
+                
+                <div class="input-group" style="margin-top: 10px;">
+                    <label>Title</label>
+                    <input type="text" id="h-title" placeholder="e.g. SH 6 Roadworks">
+                </div>
+
+                <div class="input-group">
+                    <label>Reason</label>
+                    <input type="text" id="h-desc" placeholder="e.g. Resurfacing, expect delays.">
+                </div>
+
+                <div class="input-group">
+                    <label>Duration</label>
+                    <input type="text" id="h-time" placeholder="e.g. 25 May 10am - 3pm">
+                </div>
+
+                <div class="input-group">
+                    <label>Road Information</label>
+                    <input type="text" id="h-type" placeholder="e.g. Full Road Closed">
+                </div>
+
+                <div class="input-group">
+                    <label>Severity Level (Color)</label>
+                    <select id="h-color">
+                        <option value="#E6A23C" style="color: #E6A23C; font-weight: bold;">💛 Yellow (Minor Advisory)</option>
+                        <option value="#E67E22" style="color: #E67E22; font-weight: bold;">🧡 Orange (Moderate Delay)</option>
+                        <option value="#F56C6C" style="color: #F56C6C; font-weight: bold;">❤️ Red (Closed)</option>
+                    </select>
+                </div>
+
+                <button id="add-hazard-btn" class="btn btn-danger">🚧 Initialize</button>
+                
+                <h3 style="margin-top: 25px;">Active Operations:</h3>
+                <ul id="hazard-list"></ul>
+            </div>
+        </div>
+        <div id="map"></div>
+    </div>
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <script src="app.js"></script>
+    <script>
+        // Sofort prüfen, ob ein User eingeloggt ist
+        auth.onAuthStateChanged(user => {
+            if (!user) {
+                window.location.replace("../index.html"); 
+            }
+        });
+    </script>
+    <script>
+        let hazardLinesLayer, hazardNodesLayer, routeLinesLayer;
+        let interactionState = { mode: null, hazardId: null, nodeIndex: null };
+        let movingMarkerRef = null;
+        let localCoordsCache = null; 
+        let activeDrawingColor = '#409EFF'; 
+
+        // Mobile Sidebar Toggle Orchestration Logic
+        function toggleMobileSidebar() {
+            const sidebar = document.getElementById('sidebar-panel');
+            sidebar.classList.toggle('active');
+        }
+
+        auth.onAuthStateChanged(user => {
+            if (!user) {
+                window.location.href = "index.html";
+            } else { 
+                initMap('map'); 
+                
+                hazardLinesLayer = L.layerGroup().addTo(map);
+                hazardNodesLayer = L.layerGroup().addTo(map);
+                routeLinesLayer = L.layerGroup().addTo(map); // Routen-Layer initialisiert
+
+                map.on('click', handleMapClick);
+
+                map.on('contextmenu', (e) => {
+                    if (interactionState.mode) {
+                        L.DomEvent.preventDefault(e);
+                        window.finishDrawingAction();
+                    }
+                });
+
+                listenToHazards();
+                listenToAllSchoolRoutes(); // Routen-Echtzeit-Abfrage gestartet
+            }
+        });
+
+        // =========================================================================
+        // REALTIME DATABASE SYNC (HAZARDS)
+        // =========================================================================
+        function listenToHazards() {
+            db.ref('hazards').on('value', snapshot => {
+                if (interactionState.mode) return;
+
+                const hazardsData = snapshot.val() || {};
+                renderHazards(hazardsData);
+            });
+        }
+
+        // =========================================================================
+        // REALTIME DATABASE SYNC (BUS ROUTES)
+        // =========================================================================
+        function listenToAllSchoolRoutes() {
+            db.ref('schools').on('value', snapshot => {
+                routeLinesLayer.clearLayers();
+                const schoolsData = snapshot.val() || {};
+
+                Object.keys(schoolsData).forEach(schoolId => {
+                    const school = schoolsData[schoolId];
+                    if (school.routes) {
+                        Object.values(school.routes).forEach(route => {
+                            if (route.coords && route.coords.length >= 2) {
+                                L.polyline(route.coords, {
+                                    color: route.color || '#409EFF',
+                                    weight: 4,
+                                    opacity: 0.55 // Leicht transparent im Hintergrund
+                                }).addTo(routeLinesLayer).bindPopup(`<b>Bus Route:</b> ${route.name}`, {
+                                    autoPan: false
+                                });
+                            }
+                        });
+                    }
+                });
+            });
+        }
+
+        // Lokaler Hilfs-Renderer für sofortiges visuelles Feedback während des Zeichnens
+        function renderLocalProgress() {
+            if (!localCoordsCache || !interactionState.hazardId) return;
+
+            db.ref('hazards').once('value').then(snapshot => {
+                const hazardsData = snapshot.val() || {};
+                
+                hazardLinesLayer.clearLayers();
+                hazardNodesLayer.clearLayers();
+
+                Object.keys(hazardsData).forEach(hazardId => {
+                    let coords = hazardsData[hazardId].coords || [];
+                    let color = hazardsData[hazardId].color;
+
+                    if (hazardId === interactionState.hazardId) {
+                        coords = localCoordsCache;
+                        color = activeDrawingColor;
+                    }
+
+                    if (coords.length >= 2) {
+                        L.polyline(coords, { 
+                            color: color, 
+                            weight: 6, 
+                            opacity: hazardId === interactionState.hazardId ? 0.9 : 0.85,
+                            dashArray: (hazardId === interactionState.hazardId && interactionState.mode === 'move') ? '5, 10' : null
+                        }).addTo(hazardLinesLayer);
+                    }
+
+                    coords.forEach((coord, index) => {
+                        const isStart = index === 0;
+                        L.circleMarker(coord, {
+                            radius: isStart ? 9 : 7, 
+                            fillColor: '#ffffff', 
+                            color: color, 
+                            weight: 4, 
+                            fillOpacity: 1,
+                            interactive: hazardId !== interactionState.hazardId 
+                        }).addTo(hazardNodesLayer);
+                    });
+                });
+            });
+        }
+
+        // =========================================================================
+        // CENTRAL MAP CLICK HANDLER
+        // =========================================================================
+        function handleMapClick(e) {
+            if (!interactionState.mode) return;
+            
+            const clickedPoint = [e.latlng.lat, e.latlng.lng];
+            const hazardRef = db.ref(`hazards/${interactionState.hazardId}`);
+
+            hazardRef.once('value').then(snap => {
+                const hazard = snap.val();
+                if (!hazard) return resetInteraction();
+                if (!hazard.coords) hazard.coords = [];
+
+                if (interactionState.mode === 'move') {
+                    hazard.coords[interactionState.nodeIndex] = clickedPoint;
+                    map.off('mousemove', handleMarkerFollow);
+                    movingMarkerRef = null;
+                    
+                    hazardRef.update({ coords: hazard.coords }).then(() => {
+                        resetInteraction();
+                        db.ref('hazards').once('value', s => renderHazards(s.val() || {}));
+                    });
+                } 
+                else if (interactionState.mode === 'new') {
+                    hazard.coords.push(clickedPoint);
+                    localCoordsCache = [...hazard.coords];
+                    interactionState.mode = 'after';
+                    interactionState.nodeIndex = hazard.coords.length - 1;
+                    
+                    renderLocalProgress();
+                    hazardRef.update({ coords: hazard.coords });
+                } 
+                else if (interactionState.mode === 'before') {
+                    hazard.coords.splice(interactionState.nodeIndex, 0, clickedPoint);
+                    localCoordsCache = [...hazard.coords];
+                    interactionState.mode = 'after'; 
+                    
+                    renderLocalProgress();
+                    hazardRef.update({ coords: hazard.coords });
+                } 
+                else if (interactionState.mode === 'after') {
+                    hazard.coords.splice(interactionState.nodeIndex + 1, 0, clickedPoint);
+                    interactionState.nodeIndex++; 
+                    localCoordsCache = [...hazard.coords];
+                    
+                    renderLocalProgress();
+                    hazardRef.update({ coords: hazard.coords });
+                }
+            });
+        }
+
+        // =========================================================================
+        // RENDERING LOGIC WITH HYBRID TOUCH TRIGGERS
+        // =========================================================================
+        function renderHazards(hazardsData) {
+            hazardLinesLayer.clearLayers();
+            hazardNodesLayer.clearLayers();
+            
+            const list = document.getElementById('hazard-list');
+            list.innerHTML = '';
+
+            Object.keys(hazardsData).forEach(hazardId => {
+                const hazard = hazardsData[hazardId];
+                if (!hazard.coords) hazard.coords = [];
+
+                if (hazard.coords.length >= 2) {
+                    L.polyline(hazard.coords, { color: hazard.color, weight: 6, opacity: 0.85 }).addTo(hazardLinesLayer);
+                }
+
+                hazard.coords.forEach((coord, index) => {
+                    const isStart = index === 0;
+                    const nodeMarker = L.circleMarker(coord, {
+                        radius: isStart ? 9 : 7, 
+                        fillColor: '#ffffff', 
+                        color: hazard.color, 
+                        weight: 4, 
+                        fillOpacity: 1
+                    }).addTo(hazardNodesLayer);
+
+                    const triggerNodeMenu = (e) => {
+                        L.DomEvent.preventDefault(e);
+                        L.DomEvent.stopPropagation(e);
+                        
+                        if (interactionState.mode) return;
+
+                        window.currentSelectedMarker = nodeMarker;
+                        activeDrawingColor = hazard.color; 
+                        
+                        if (window.innerWidth <= 768) {
+                            const targetPoint = map.project(e.latlng).subtract([0, 90]);
+                            map.panTo(map.unproject(targetPoint), { animate: true });
+                        }
+
+                        L.popup()
+                            .setLatLng(e.latlng)
+                            .setContent(`
+                                <div class="popup-menu">
+                                    <h4 style="margin: 0 0 5px 0; font-size: 1rem;">${hazard.title}</h4>
+                                    <button onclick="window.startNodeMove('${hazardId}', ${index})">📍 Move Node</button>
+                                    <button onclick="window.prepareInsertion('${hazardId}', ${index}, 'before')">➕ Add Node Before</button>
+                                    <button onclick="window.prepareInsertion('${hazardId}', ${index}, 'after')">➕ Add Node After</button>
+                                    <button class="danger-action" onclick="window.deleteNode('${hazardId}', ${index})">❌ Delete Node</button>
+                                </div>
+                            `).openOn(map);
+                    };
+
+                    nodeMarker.on('contextmenu', triggerNodeMenu);
+                    nodeMarker.on('click', (e) => {
+                        L.DomEvent.stopPropagation(e);
+                        if (interactionState.mode) {
+                            handleMapClick(e);
+                            return;
+                        }
+                        triggerNodeMenu(e);
+                    });
+                });
+
+                const li = document.createElement('li');
+                li.style.borderLeft = `5px solid ${hazard.color}`;
+                li.innerHTML = `<span><b>${hazard.title}</b> (${hazard.type})</span> <span class="delete-btn">❌</span>`;
+                
+                li.onclick = () => { 
+                    if(hazard.coords.length > 0) {
+                        if (window.innerWidth <= 768) {
+                            document.getElementById('sidebar-panel').classList.remove('active');
+                        }
+                        map.panTo(hazard.coords[0]); 
+                    }
+                };
+                
+                li.querySelector('.delete-btn').onclick = (e) => {
+                    e.stopPropagation();
+                    if(confirm(`Are you sure you want to delete "${hazard.title}" completely?`)) {
+                        db.ref(`hazards/${hazardId}`).remove();
+                    }
+                };
+                list.appendChild(li);
+            });
+        }
+
+        window.startNodeMove = function(hazardId, index) {
+            map.closePopup();
+            interactionState = { mode: 'move', hazardId: hazardId, nodeIndex: index };
+            movingMarkerRef = window.currentSelectedMarker;
+            showIndicator("📍 Click the new position onto map.");
+            
+            db.ref(`hazards/${hazardId}/coords`).once('value').then(snap => {
+                localCoordsCache = snap.val() || [];
+                map.on('mousemove', handleMarkerFollow);
+            });
+        };
+
+        function handleMarkerFollow(e) {
+            if (interactionState.mode !== 'move' || !movingMarkerRef || !localCoordsCache) return;
+            
+            movingMarkerRef.setLatLng(e.latlng);
+            localCoordsCache[interactionState.nodeIndex] = [e.latlng.lat, e.latlng.lng];
+            renderLocalProgress();
+        }
+
+        window.prepareInsertion = function(hazardId, index, position) {
+            map.closePopup();
+            interactionState = { mode: position, hazardId: hazardId, nodeIndex: index };
+            showIndicator(position === 'before' ? "Click map to inject node point before selected node..." : "Click map to inject node point after selected node...");
+            
+            db.ref(`hazards/${hazardId}/coords`).once('value').then(snap => {
+                localCoordsCache = snap.val() || [];
+                renderLocalProgress();
+            });
+        };
+
+        document.getElementById('add-hazard-btn').onclick = function() {
+            const title = document.getElementById('h-title').value;
+            const desc = document.getElementById('h-desc').value;
+            const time = document.getElementById('h-time').value;
+            const type = document.getElementById('h-type').value;
+            const color = document.getElementById('h-color').value;
+
+            if(!title || !desc || !time) return alert("Please fill out Title, Description and Timeframe fields!");
+            
+            const newHazardRef = db.ref('hazards').push();
+            const newId = newHazardRef.key;
+            activeDrawingColor = color; 
+            
+            newHazardRef.set({
+                title: title,
+                desc: desc,
+                time: time,
+                type: type,
+                color: color,
+                coords: []
+            }).then(() => {
+                document.getElementById('h-title').value = '';
+                document.getElementById('h-desc').value = '';
+                document.getElementById('h-time').value = '';
+                document.getElementById('h-type').value = '';
+                
+                if (window.innerWidth <= 768) {
+                    document.getElementById('sidebar-panel').classList.remove('active');
+                }
+
+                localCoordsCache = [];
+                interactionState = { mode: 'new', hazardId: newId, nodeIndex: 0 };
+                showIndicator("Click on the map to start drawing the zone. Right-Click to finish.");
+                renderLocalProgress();
+            });
+        };
+
+        window.deleteNode = function(hazardId, index) {
+            const hazardRef = db.ref(`hazards/${hazardId}`);
+            hazardRef.once('value').then(snap => {
+                const hazard = snap.val();
+                if (!hazard) return;
+                hazard.coords.splice(index, 1);
+                
+                if (hazard.coords.length === 0) {
+                    hazardRef.remove();
+                } else {
+                    hazardRef.update({ coords: hazard.coords });
+                }
+                map.closePopup();
+            });
+        };
+
+        function showIndicator(text) {
+            const ind = document.getElementById('action-indicator');
+            ind.innerText = text;
+            ind.style.display = 'block';
+            if (window.innerWidth <= 768) {
+                document.getElementById('mobile-controls').style.display = 'block';
+            }
+        }
+
+        function resetInteraction() {
+            interactionState = { mode: null, hazardId: null, nodeIndex: null };
+            movingMarkerRef = null;
+            localCoordsCache = null;
+            document.getElementById('action-indicator').style.display = 'none';
+            document.getElementById('mobile-controls').style.display = 'none';
+        }
+
+        window.finishDrawingAction = function() {
+            if (interactionState.mode === 'move') {
+                map.off('mousemove', handleMarkerFollow);
+            }
+            
+            if (interactionState.mode && interactionState.hazardId && localCoordsCache) {
+                db.ref(`hazards/${interactionState.hazardId}`).update({ coords: localCoordsCache }).then(() => {
+                    resetInteraction();
+                    db.ref('hazards').once('value', snapshot => {
+                        renderHazards(snapshot.val() || {});
+                    });
+                });
+            } else {
+                resetInteraction();
+                db.ref('hazards').once('value', snapshot => {
+                    renderHazards(snapshot.val() || {});
+                });
+            }
+        };
+    </script>
+</body>
+</html>

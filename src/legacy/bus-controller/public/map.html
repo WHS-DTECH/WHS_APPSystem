@@ -1,0 +1,127 @@
+// --- 1. Map Setup ---
+// Zentriert auf die Südinsel Neuseelands (Bereich West Coast)
+const map = L.map('map').setView([-42.716, 170.966], 8);
+
+// Basemap: OpenStreetMap
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors',
+    maxZoom: 19
+}).addTo(map);
+
+// Layer-Gruppen für einfaches Ein-/Ausschalten
+const routeLayer = L.layerGroup().addTo(map);
+const studentLayer = L.layerGroup().addTo(map);
+const hazardLayer = L.layerGroup().addTo(map);
+
+// --- 2. Mock Datenbank (State) ---
+// Das ersetzt du später durch echte DB-Calls (z.B. Firebase Firestore)
+let database = {
+    routes: [
+        { id: 'R1', name: 'South Route', coords: [[-42.716, 170.966], [-42.8, 170.8], [-42.9, 170.7]], color: '#00FF00' }
+    ],
+    students: [
+        { id: 'S1', lat: -42.75, lng: 170.9, status: 'waiting' },
+        { id: 'S2', lat: -42.85, lng: 170.75, status: 'in_transit' }
+    ]
+};
+
+// --- 3. Rendering ---
+function renderRoutes() {
+    routeLayer.clearLayers();
+    const list = document.getElementById('route-list');
+    list.innerHTML = '';
+
+    database.routes.forEach(route => {
+        // Auf Karte zeichnen
+        const polyline = L.polyline(route.coords, { color: route.color, weight: 5 }).addTo(routeLayer);
+        polyline.bindPopup(`<b>${route.name}</b><br><button onclick="editRoute('${route.id}')">Route bearbeiten</button>`);
+
+        // Im Panel anzeigen
+        const li = document.createElement('li');
+        li.innerHTML = `<span>${route.name}</span> <span>✏️</span>`;
+        li.onclick = () => map.fitBounds(polyline.getBounds());
+        list.appendChild(li);
+    });
+}
+
+function renderStudents() {
+    studentLayer.clearLayers();
+    document.getElementById('student-count').innerText = database.students.length;
+    
+    database.students.forEach(student => {
+        L.circleMarker([student.lat, student.lng], {
+            radius: 5,
+            fillColor: '#0078D7',
+            color: '#fff',
+            weight: 1,
+            fillOpacity: 0.8
+        }).addTo(studentLayer).bindPopup(`Student ID: ${student.id}`);
+    });
+}
+
+// --- 4. API Integration (Waka Kotahi & MetService) ---
+async function fetchHazards() {
+    try {
+        // HINWEIS: Direkte Browser-Aufrufe an diese APIs könnten durch CORS blockiert werden.
+        // In Produktion brauchst du oft einen kleinen Proxy-Server (z.B. Flask oder Cloud Functions).
+        
+        // 1. Waka Kotahi API (Traffic Events)
+        // const nztaRes = await fetch('https://trafficnz.info/service/traffic/rest/4');
+        // const nztaData = await nztaRes.json();
+        
+        // Simulation eines NZTA Events (z.B. Straßensperrung)
+        const mockNztaData = [
+            { lat: -42.82, lng: 170.78, type: 'Road Closure', desc: 'Flooding on SH6', url: 'https://www.journeys.nzta.govt.nz/' }
+        ];
+
+        // 2. MetService API (Weather Warnings)
+        // MetService Warnungen kommen oft als GeoJSON Polygons.
+        const mockMetServiceData = [
+            { lat: -42.7, lng: 171.0, type: 'Orange Warning', desc: 'Heavy Rain Warning - Westland', color: 'orange' }
+        ];
+
+        renderHazards(mockNztaData, mockMetServiceData);
+        document.getElementById('status-indicator').innerText = "Live Daten aktiv (System OK)";
+        document.getElementById('status-indicator').style.color = "#00FF00";
+
+    } catch (error) {
+        console.error("API Fehler:", error);
+        document.getElementById('status-indicator').innerText = "API Fehler - Offline Modus";
+        document.getElementById('status-indicator').style.color = "red";
+    }
+}
+
+function renderHazards(nzta, met) {
+    hazardLayer.clearLayers();
+
+    // Rote Marker für Straßensperrungen
+    nzta.forEach(hazard => {
+        const marker = L.circleMarker([hazard.lat, hazard.lng], { radius: 8, fillColor: 'red', color: 'white', weight: 2, fillOpacity: 1 }).addTo(hazardLayer);
+        marker.bindPopup(`<h3>⚠️ ${hazard.type}</h3><p>${hazard.desc}</p><a href="${hazard.url}" target="_blank">Details auf NZTA</a>`);
+    });
+
+    // Orange/Rote Kreise für Wetterwarnungen
+    met.forEach(hazard => {
+        const marker = L.circleMarker([hazard.lat, hazard.lng], { radius: 20, fillColor: hazard.color, color: hazard.color, weight: 2, fillOpacity: 0.4 }).addTo(hazardLayer);
+        marker.bindPopup(`<h3>🌧️ ${hazard.type}</h3><p>${hazard.desc}</p>`);
+    });
+}
+
+// --- 5. Event Listener ---
+document.getElementById('toggle-students').addEventListener('change', (e) => {
+    e.target.checked ? map.addLayer(studentLayer) : map.removeLayer(studentLayer);
+});
+
+// Edit Route Stub (öffnet z.B. einen draggable Marker Modus)
+window.editRoute = function(id) {
+    alert(`Edit-Modus für Route ${id} aktiviert. Hier würdest du die Punkte verschiebbar machen.`);
+    // Logik: polyline.editing.enable() (braucht Leaflet.Draw Plugin)
+};
+
+// --- Init ---
+renderRoutes();
+renderStudents();
+fetchHazards();
+
+// Auto-Update alle 10 Minuten
+setInterval(fetchHazards, 10 * 60 * 1000);
