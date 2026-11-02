@@ -19,13 +19,15 @@
   <ol>
     <li>Add the user under <strong>Firebase Authentication &rarr; Users &rarr; Add user</strong> (email and password).</li>
     <li>Copy their <strong>User UID</strong> from the users list.</li>
-    <li>In <strong>Realtime Database &rarr; Data</strong>, add <code>users/&lt;that UID&gt;</code> with these fields:
+    <li>In <strong>Realtime Database &rarr; Data</strong>, hover over <code>users</code> and click <strong>+</strong>. Paste the UID as the <strong>Key</strong> and leave its Value empty.</li>
+    <li>Click the <strong>+</strong> beside that UID row (not the one beside <code>users</code>) once for each field, so all three sit inside the UID:
       <ul>
         <li><code>role</code>: <code><%= app.role %></code></li>
         <li><code>name</code></li>
         <li><code>email</code></li>
       </ul>
     </li>
+    <li>Click <strong>Add</strong> once at the end. The UID row should then expand to show the three fields.</li>
   </ol>
   <p>The user then signs in with that email and password at <a href="<%= app.signIn %>"><%= app.signIn %></a>.</p>
 
