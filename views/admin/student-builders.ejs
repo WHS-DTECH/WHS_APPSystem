@@ -22,9 +22,9 @@
   <form action="/admin/student-builders<%= editing ? `/${editing.id}` : '' %>" method="post" class="stacked">
     <input type="hidden" name="csrf" value="<%= csrf %>">
     <label>Student's name (admin only)<input name="fullName" value="<%= form.fullName || '' %>" maxlength="120" required></label>
-    <label>School email (admin only, links to their DTECH Hub record)<input name="schoolEmail" type="email" value="<%= form.schoolEmail || '' %>" maxlength="200" pattern="[A-Za-z0-9]+([._][A-Za-z0-9]+)*@westlandhigh\.school\.nz" placeholder="j_pinkerneil@westlandhigh.school.nz" autocomplete="off" required></label>
+    <label>School email (admin only, links to their DTECH Hub record)<input name="schoolEmail" type="email" value="<%= form.schoolEmail || '' %>" maxlength="200" pattern="[A-Za-z0-9]+([._][A-Za-z0-9]+)*@westlandhigh\.school\.nz" autocomplete="off" required></label>
     <p><small>Credit name: <strong><%= creditPreview || 'made from the school username when you save' %></strong></small></p>
-    <label>Shared GitHub link<input name="githubUrl" type="url" value="<%= form.githubUrl || '' %>" maxlength="200" placeholder="https://github.com/owner/repository" list="hub-github-links" autocomplete="off"></label>
+    <label>Shared GitHub link<input name="githubUrl" type="url" value="<%= form.githubUrl || '' %>" maxlength="200" list="hub-github-links" autocomplete="off"></label>
     <% if (hub && hub.links.length) { %>
       <datalist id="hub-github-links"><% hub.links.forEach((link) => { %><option value="<%= link.url %>"><%= link.project %></option><% }) %></datalist>
       <div role="status"><small>Shared GitHub links in their DTECH Hub task lists:</small>
@@ -44,7 +44,7 @@
         <option value="left" <%= form.status === 'left' ? 'selected' : '' %>>Left school</option>
       </select>
     </label>
-    <label>Projects they built (one per line, optional)<textarea name="projects" rows="3" maxlength="2000" placeholder="WHS-DTECH/WHS_BusController"><%= form.projects || '' %></textarea></label>
+    <label>Projects they built (one per line, optional)<textarea name="projects" rows="3" maxlength="2000"><%= form.projects || '' %></textarea></label>
     <label><input type="checkbox" name="permission" value="yes" <%= form.permission ? 'checked' : '' %>> The student has agreed the school may keep and maintain a copy of their work, with credit.</label>
     <label>Notes (optional)<textarea name="notes" rows="3" maxlength="2000"><%= form.notes || '' %></textarea></label>
     <div class="sb-actions">
