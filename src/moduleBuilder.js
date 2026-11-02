@@ -5,6 +5,7 @@ const { BuilderError, createBuilderProviders } = require('./moduleBuilderProvide
 const { httpsAppUrl } = require('./appAddresses');
 const { developmentPolicyError } = require('./developmentPolicy');
 const { newAppInput, newAppApproval, setupFingerprint, nextSetupAction } = require('./newDevelopmentApp');
+const { currentDirectory, classifyPeople } = require('./kamarDirectory');
 
 const ROOT = '/module-builder';
 const KINDS = ['development', 'staging', 'production'];
@@ -71,7 +72,12 @@ function environmentInput(body) {
 }
 const digest = (value) => crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 
-function createModuleBuilderRouter({ dbQuery = query, providers = createBuilderProviders() } = {}) {
+function createModuleBuilderRouter({ dbQuery = query, providers = createBuilderProviders(),
+  loadDirectory = async () => {
+    await require('./legacy/kamar-uploader/store').init();
+    return currentDirectory();
+  }
+} = {}) {
   const router = express.Router();
   router.use((req, res, next) => {
     res.set('Cache-Control', 'no-store');
@@ -150,7 +156,11 @@ function createModuleBuilderRouter({ dbQuery = query, providers = createBuilderP
     if (existing.length) throw new BuilderError('That app key is already in use. Choose a different app name; existing apps are never replaced.', 409);
   }
   router.get('/new', wrap(async (req, res) => {
-    const testers = (await dbQuery('SELECT id, display_name, email FROM users WHERE is_active=true ORDER BY display_name, email')).rows;
+    const [accounts, directory] = await Promise.all([
+      dbQuery('SELECT id, display_name, email FROM users WHERE is_active=true ORDER BY display_name, email'),
+      loadDirectory()
+    ]);
+    const testers = classifyPeople(accounts.rows, directory);
     res.render('module-builder/new', { title: 'New Development App', testers, configuration: providers.configuration() });
   }));
   router.post('/new/review', wrap(async (req, res) => {

@@ -284,10 +284,18 @@ show an explicit setup error. Do not paste credentials into project forms.
 ### New Development App (guided)
 
 Open **Core Administration > New Development App** (`/module-builder/new`).
-Enter a name and purpose; optionally select active named testers. Access defaults
+Enter a name and purpose; optionally select active named testers using separate
+Staff and Students checkbox lists with name/email search. Current Kamar lists
+classify existing active Core sign-in accounts; unmatched people remain visible
+under Other accounts, and people in both lists appear once under Staff. Filtering
+does not clear selections. People without a Core sign-in account are not imported
+or created by this picker. A directory failure is reported rather than silently
+misclassifying everyone. Access defaults
 to Global ADMIN only. Selected testers receive this app's existing hub-wide
 Teacher role, not a global role or access to other apps. No school-wide/public
 access or Launchpad integration is automatically enabled.
+Selecting a student as a tester still explicitly approves the app's Teacher tester
+role; it does not introduce restricted student-facing app permissions.
 
 Review the generated unique key, private repository, shared WHS Node/Express
 starter, Oregon plans and minimum USD 13/month compute estimate (storage,

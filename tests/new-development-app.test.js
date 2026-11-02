@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const crypto = require('crypto');
 const fs = require('fs/promises');
 const path = require('path');
+const vm = require('node:vm');
 const express = require('express');
 const session = require('express-session');
 const { Pool } = require('pg');
@@ -24,6 +25,110 @@ const project = { name: 'Equipment', slug: 'equipment', description: 'Develop eq
 const reply = (body, status = 200) => ({ ok: status < 400, status, json: async () => body });
 const group = { ownerId: 'tea-test', envVars: [{ key: 'GLOBAL_CONTROL_URL', value: 'https://core.example.test' }],
   secretFiles: [], serviceLinks: [{ id: 'srv-test' }] };
+
+test('tester picker groups active accounts by Kamar, escapes names and preserves staff/student review selections', async () => {
+  const people = [
+    { id: crypto.randomUUID(), display_name: '<Staff Name>', email: 'staff@example.test' },
+    { id: crypto.randomUUID(), display_name: 'Student Name', email: 'student@example.test' },
+    { id: crypto.randomUUID(), display_name: 'Both Lists', email: 'both@example.test' },
+    { id: crypto.randomUUID(), display_name: 'Other Name', email: 'other@example.test' }
+  ];
+  let directoryFails = false, loads = 0;
+  const app = express();
+  app.set('view engine', 'ejs'); app.set('views', path.join(__dirname, '..', 'views'));
+  app.use(express.urlencoded({ extended: false }));
+  app.use(session({ secret: 'tester-picker-test', resave: false, saveUninitialized: false }));
+  app.use((req, res, next) => {
+    req.user = { roles: [req.get('x-role') || 'ADMIN'] };
+    res.locals.activeRole = req.user.roles[0];
+    next();
+  });
+  app.use('/module-builder', createModuleBuilderRouter({
+    providers: { configuration: () => configuration, preflight: async () => {} },
+    loadDirectory: async () => {
+      loads++;
+      if (directoryFails) throw new Error('Directory unavailable');
+      return { staffEmails: ['staff@example.test', 'both@example.test'], studentEmails: ['student@example.test', 'both@example.test'] };
+    },
+    dbQuery: async (sql, params) => {
+      if (sql.startsWith('SELECT id, display_name, email FROM users WHERE is_active=true ORDER BY')) return { rows: people };
+      if (sql.includes('id=ANY($1::uuid[])')) return { rows: people.filter(person => params[0].includes(person.id)) };
+      if (sql.includes('UNION ALL SELECT 1 FROM modules')) return { rows: [] };
+      throw new Error('Unexpected picker query');
+    }
+  }));
+  app.use((error, req, res, next) => res.status(503).send(error.message));
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  try {
+    const base = `http://127.0.0.1:${server.address().port}/module-builder`;
+    assert.equal((await fetch(base + '/new', { headers: { 'x-role': 'Student' } })).status, 403);
+    assert.equal(loads, 0);
+    const response = await fetch(base + '/new');
+    const cookie = response.headers.get('set-cookie').split(';')[0];
+    const html = await response.text();
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    assert.match(html, /&lt;Staff Name&gt;/);
+    const staff = html.slice(html.indexOf('id="testers-staff-list"'), html.indexOf('id="testers-students-heading"'));
+    const students = html.slice(html.indexOf('id="testers-students-list"'), html.indexOf('id="testers-other-heading"'));
+    assert.ok(staff.includes(people[0].id) && staff.includes(people[2].id) && !staff.includes(people[1].id));
+    assert.ok(students.includes(people[1].id) && !students.includes(people[2].id));
+    for (const person of people) assert.equal(html.split(`value="${person.id}"`).length - 1, 1);
+    assert.match(html, /Search staff by name or email/);
+    assert.match(html, /Search students by name or email/);
+    assert.match(html, /Teacher tester role/);
+    const body = new URLSearchParams({ csrf: html.match(/name="csrf" value="([^"]+)"/)[1], name: 'Tester App', description: 'Test approvals.' });
+    body.append('testers', people[0].id); body.append('testers', people[1].id);
+    const review = await fetch(base + '/new/review', { method: 'POST', headers: { cookie, 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+    assert.equal(review.status, 200);
+    const reviewed = await review.text();
+    assert.match(reviewed, /&lt;Staff Name&gt;/); assert.match(reviewed, /Student Name/);
+    assert.ok(!reviewed.includes('Other Name'));
+    directoryFails = true;
+    const failed = await fetch(base + '/new', { headers: { cookie } });
+    assert.equal(failed.status, 503);
+    assert.equal(await failed.text(), 'Directory unavailable');
+  } finally { await new Promise(resolve => server.close(resolve)); }
+});
+
+test('tester searches match names/email case-insensitively and preserve checked selections across filters', async () => {
+  function makeGroup(names) {
+    const search = { value: '', addEventListener(type, handler) { this[type] = handler; } };
+    const count = { textContent: '' }, empty = { hidden: true };
+    const options = names.map(name => ({
+      textContent: name, hidden: false, checkbox: { checked: false, disabled: false },
+      querySelector() { return this.checkbox; }
+    }));
+    return {
+      search, count, empty, options,
+      querySelector(selector) { return selector === '[data-tester-search]' ? search : selector === '[data-tester-count]' ? count : empty; },
+      querySelectorAll() { return options; },
+      addEventListener(type, handler) { this[type] = handler; }
+    };
+  }
+  const staff = makeGroup(['Aisling O’Malley staff@example.test', 'Zoë Greig zoe@example.test']);
+  const students = makeGroup(['Student One student@example.test']);
+  const empty = makeGroup([]);
+  const source = await fs.readFile(path.join(__dirname, '..', 'public', 'development-testers.js'), 'utf8');
+  vm.runInNewContext(source, { document: { querySelectorAll: () => [staff, students, empty] } });
+  assert.equal(staff.count.textContent, '2 shown; 0 selected');
+  assert.equal(empty.empty.hidden, false);
+  staff.options[0].checkbox.checked = true; staff.change();
+  staff.search.value = '  ZOE greig '; staff.search.input();
+  assert.equal(staff.options[0].hidden, true);
+  assert.equal(staff.options[0].checkbox.checked, true);
+  assert.equal(staff.options[0].checkbox.disabled, false);
+  assert.equal(staff.options[1].hidden, false);
+  assert.equal(staff.count.textContent, '1 shown; 1 selected');
+  assert.equal(students.options[0].hidden, false);
+  staff.search.value = 'absent'; staff.search.input();
+  assert.equal(staff.empty.hidden, false);
+  staff.search.value = 'STAFF@EXAMPLE'; staff.search.input();
+  assert.equal(staff.options[0].hidden, false);
+  staff.search.value = ''; staff.search.input();
+  assert.equal(staff.count.textContent, '2 shown; 1 selected');
+});
 
 test('guided input is bounded, deduplicates testers, generates safe keys and binds approval to the plan', () => {
   const tester = crypto.randomUUID();
@@ -178,7 +283,8 @@ test('guided routes persist approvals, serialize/resume steps, wait safely, gran
       res.locals.activeRole = req.user.roles[0];
       next();
     });
-    app.use('/module-builder', createModuleBuilderRouter({ dbQuery: query, providers }));
+    app.use('/module-builder', createModuleBuilderRouter({ dbQuery: query, providers,
+      loadDirectory: async () => ({ staffEmails: [user.email], studentEmails: [tester.email] }) }));
     app.use((error, req, res, next) => { console.error(error); res.status(500).send('Test request failed.'); });
     server = app.listen(0, '127.0.0.1');
     await new Promise(resolve => server.once('listening', resolve));

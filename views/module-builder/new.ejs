@@ -12,12 +12,35 @@
     <input type="hidden" name="csrf" value="<%= csrf %>">
     <label class="mb-wide">App name<input name="name" maxlength="100" placeholder="Workshop Equipment" required></label>
     <label class="mb-wide">Purpose<textarea name="description" rows="4" maxlength="1500" required></textarea></label>
-    <label class="mb-wide">Optional named testers (leave empty for administrators only)
-      <select name="testers" multiple size="7" aria-describedby="tester-help">
-        <% testers.forEach(tester => { %><option value="<%= tester.id %>"><%= tester.display_name %> (<%= tester.email %>)</option><% }) %>
-      </select>
-    </label>
-    <p id="tester-help" class="mb-wide">Use Ctrl (Windows) or Command (Mac) to select multiple people. Only select people who should have Teacher access to this development app.</p>
+    <fieldset class="mb-wide mb-testers" aria-describedby="tester-help">
+      <legend>Optional named testers (leave empty for administrators only)</legend>
+      <p id="tester-help">Search by name or school email, then tick individual people. Selections stay checked when you search.
+        Only active school sign-in accounts are shown, grouped using the current Kamar Staff and Student Lists.
+        People present in both lists appear under Staff. Selecting a student still grants this development app's <strong>Teacher tester role</strong>, not restricted student access.</p>
+      <div class="mb-grid">
+        <% const groups = [
+          { key: 'staff', label: 'Staff', people: testers.filter(person => person.is_staff) },
+          { key: 'students', label: 'Students', people: testers.filter(person => person.is_student && !person.is_staff) },
+          { key: 'other', label: 'Other accounts', people: testers.filter(person => !person.is_staff && !person.is_student) }
+        ]; groups.forEach(group => { if (group.key === 'other' && !group.people.length) return; %>
+        <section class="mb-tester-group" data-tester-group aria-labelledby="testers-<%= group.key %>-heading">
+          <h2 id="testers-<%= group.key %>-heading"><%= group.label %></h2>
+          <% if (group.key === 'other') { %><p>Not matched to either current Kamar list. Check the person's identity before selecting.</p><% } %>
+          <label>Search <%= group.label.toLowerCase() %> by name or email<input type="search" data-tester-search aria-controls="testers-<%= group.key %>-list" autocomplete="off"></label>
+          <p data-tester-count role="status" aria-live="polite"><%= group.people.length %> shown; 0 selected</p>
+          <div class="mb-tester-list" id="testers-<%= group.key %>-list">
+            <% group.people.forEach(tester => { %>
+            <label class="mb-tester-option" data-tester-option>
+              <input type="checkbox" name="testers" value="<%= tester.id %>">
+              <span><span><%= tester.display_name %></span><small><%= tester.email %></small></span>
+            </label>
+            <% }) %>
+          </div>
+          <p data-tester-empty <%= group.people.length ? 'hidden' : '' %>>No matching <%= group.label.toLowerCase() %>.</p>
+        </section>
+        <% }); %>
+      </div>
+    </fieldset>
     <p class="mb-wide">The next screen generates the app key and shows the minimum paid plans and access for approval.
       Reviewing does not create external resources. GitHub owner: <strong><%= configuration.githubOwner %></strong>.</p>
     <div class="mb-actions mb-wide">
@@ -26,4 +49,5 @@
     </div>
   </form>
 </section>
+<script src="/development-testers.js" defer></script>
 <%- include('../partials/footer') %>

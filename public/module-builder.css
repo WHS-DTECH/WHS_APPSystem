@@ -9,6 +9,16 @@
   border-radius: 7px; background: #fff; color: #173d34; font: inherit;
 }
 .mb-form input[type="checkbox"] { width: auto; justify-self: start; }
+.mb-testers { min-width: 0; margin: 0; padding: 16px; border: 1px solid #bccbc8; border-radius: 7px; }
+.mb-testers legend { font-weight: 600; }
+.mb-tester-group { min-width: 0; }
+.mb-tester-group h2 { margin-top: 0; }
+.mb-tester-list { max-height: 300px; overflow-y: auto; border: 1px solid #bccbc8; border-radius: 7px; }
+.mb-form .mb-tester-option { display: flex; align-items: flex-start; gap: 10px; padding: 10px; overflow-wrap: anywhere; }
+.mb-tester-option + .mb-tester-option { border-top: 1px solid #e0e8e5; }
+.mb-tester-option input { flex-shrink: 0; margin-top: 4px; }
+.mb-tester-option small { display: block; font-weight: 400; }
+.mb-testers [hidden] { display: none; }
 .mb-wide { grid-column: 1 / -1; }
 .mb-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .mb-actions form { margin: 0; }
