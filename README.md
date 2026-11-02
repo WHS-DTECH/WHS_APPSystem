@@ -285,12 +285,17 @@ show an explicit setup error. Do not paste credentials into project forms.
 
 Open **Core Administration > New Development App** (`/module-builder/new`).
 Enter a name and purpose; optionally select active named testers using separate
-Staff and Students checkbox lists with name/email search. Current Kamar lists
-classify existing active Core sign-in accounts; unmatched people remain visible
-under Other accounts, and people in both lists appear once under Staff. Filtering
-does not clear selections. People without a Core sign-in account are not imported
-or created by this picker. A directory failure is reported rather than silently
-misclassifying everyone. Access defaults
+Staff and Students checkbox lists with name/email search. Both lists show every
+current Kamar Uploader directory row, using Kamar names, school emails and staff
+codes/student IDs. Accounts are matched by trimmed, case-insensitive school email.
+People without an account, with an inactive account, missing email or ambiguous
+account matches remain visible with a reason and a disabled checkbox. They must
+complete school sign-in (or have their account corrected/reactivated) before
+selection; this picker does not create accounts. Active accounts outside the
+current directory remain under Other accounts. People present in both Kamar lists
+appear in both; review deduplicates selected account IDs. Filtering does not clear
+selections. A directory failure is reported rather than showing partial lists.
+Access defaults
 to Global ADMIN only. Selected testers receive this app's existing hub-wide
 Teacher role, not a global role or access to other apps. No school-wide/public
 access or Launchpad integration is automatically enabled.

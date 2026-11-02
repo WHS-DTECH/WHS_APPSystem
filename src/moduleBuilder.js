@@ -4,8 +4,8 @@ const { query } = require('./db');
 const { BuilderError, createBuilderProviders } = require('./moduleBuilderProviders');
 const { httpsAppUrl } = require('./appAddresses');
 const { developmentPolicyError } = require('./developmentPolicy');
-const { newAppInput, newAppApproval, setupFingerprint, nextSetupAction } = require('./newDevelopmentApp');
-const { currentDirectory, classifyPeople } = require('./kamarDirectory');
+const { testerDirectory, newAppInput, newAppApproval, setupFingerprint, nextSetupAction } = require('./newDevelopmentApp');
+const { currentDirectory } = require('./kamarDirectory');
 
 const ROOT = '/module-builder';
 const KINDS = ['development', 'staging', 'production'];
@@ -157,10 +157,10 @@ function createModuleBuilderRouter({ dbQuery = query, providers = createBuilderP
   }
   router.get('/new', wrap(async (req, res) => {
     const [accounts, directory] = await Promise.all([
-      dbQuery('SELECT id, display_name, email FROM users WHERE is_active=true ORDER BY display_name, email'),
+      dbQuery('SELECT id, display_name, email, is_active FROM users ORDER BY display_name, email'),
       loadDirectory()
     ]);
-    const testers = classifyPeople(accounts.rows, directory);
+    const testers = testerDirectory(accounts.rows, directory);
     res.render('module-builder/new', { title: 'New Development App', testers, configuration: providers.configuration() });
   }));
   router.post('/new/review', wrap(async (req, res) => {

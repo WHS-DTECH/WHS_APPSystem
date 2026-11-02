@@ -15,12 +15,13 @@
     <fieldset class="mb-wide mb-testers" aria-describedby="tester-help">
       <legend>Optional named testers (leave empty for administrators only)</legend>
       <p id="tester-help">Search by name or school email, then tick individual people. Selections stay checked when you search.
-        Only active school sign-in accounts are shown, grouped using the current Kamar Staff and Student Lists.
-        People present in both lists appear under Staff. Selecting a student still grants this development app's <strong>Teacher tester role</strong>, not restricted student access.</p>
+        The full current Staff and Student Lists come from Kamar Uploader, matched to WHS_APPSystem accounts by school email.
+        People without an active matching account are shown but cannot be selected until their school sign-in is available.
+        Selecting a student still grants this development app's <strong>Teacher tester role</strong>, not restricted student access.</p>
       <div class="mb-grid">
         <% const groups = [
           { key: 'staff', label: 'Staff', people: testers.filter(person => person.is_staff) },
-          { key: 'students', label: 'Students', people: testers.filter(person => person.is_student && !person.is_staff) },
+          { key: 'students', label: 'Students', people: testers.filter(person => person.is_student) },
           { key: 'other', label: 'Other accounts', people: testers.filter(person => !person.is_staff && !person.is_student) }
         ]; groups.forEach(group => { if (group.key === 'other' && !group.people.length) return; %>
         <section class="mb-tester-group" data-tester-group aria-labelledby="testers-<%= group.key %>-heading">
@@ -31,8 +32,11 @@
           <div class="mb-tester-list" id="testers-<%= group.key %>-list">
             <% group.people.forEach(tester => { %>
             <label class="mb-tester-option" data-tester-option>
-              <input type="checkbox" name="testers" value="<%= tester.id %>">
-              <span><span><%= tester.display_name %></span><small><%= tester.email %></small></span>
+              <input type="checkbox" name="testers" value="<%= tester.id || '' %>" <%= tester.unavailable ? 'disabled' : '' %>>
+              <span><span><%= tester.display_name %></span><small><%= tester.email || 'School email not recorded' %></small>
+                <% if (tester.reference) { %><small><%= group.key === 'staff' ? 'Staff code' : 'Student ID' %>: <%= tester.reference %></small><% } %>
+                <% if (tester.unavailable) { %><small class="mb-tester-unavailable"><%= tester.unavailable %></small><% } %>
+              </span>
             </label>
             <% }) %>
           </div>

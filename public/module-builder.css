@@ -18,6 +18,7 @@
 .mb-tester-option + .mb-tester-option { border-top: 1px solid #e0e8e5; }
 .mb-tester-option input { flex-shrink: 0; margin-top: 4px; }
 .mb-tester-option small { display: block; font-weight: 400; }
+.mb-tester-unavailable { color: #6b3b00; }
 .mb-testers [hidden] { display: none; }
 .mb-wide { grid-column: 1 / -1; }
 .mb-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }

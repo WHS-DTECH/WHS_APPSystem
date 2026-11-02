@@ -7,7 +7,7 @@ const vm = require('node:vm');
 const express = require('express');
 const session = require('express-session');
 const { Pool } = require('pg');
-const { newAppInput, newAppApproval, setupFingerprint, nextSetupAction } = require('../src/newDevelopmentApp');
+const { testerDirectory, newAppInput, newAppApproval, setupFingerprint, nextSetupAction } = require('../src/newDevelopmentApp');
 const { createBuilderProviders, BuilderError } = require('../src/moduleBuilderProviders');
 const { createModuleBuilderRouter } = require('../src/moduleBuilder');
 
@@ -26,12 +26,43 @@ const reply = (body, status = 200) => ({ ok: status < 400, status, json: async (
 const group = { ownerId: 'tea-test', envVars: [{ key: 'GLOBAL_CONTROL_URL', value: 'https://core.example.test' }],
   secretFiles: [], serviceLinks: [{ id: 'srv-test' }] };
 
-test('tester picker groups active accounts by Kamar, escapes names and preserves staff/student review selections', async () => {
+test('full Kamar directory is not limited by signed-in accounts and disables unsafe account matches', () => {
+  const active = { id: crypto.randomUUID(), display_name: 'Old account name', email: ' STAFF@EXAMPLE.TEST ', is_active: true };
+  const inactive = { id: crypto.randomUUID(), display_name: 'Inactive', email: 'inactive@example.test', is_active: false };
+  const directory = {
+    staff: [{ first_name: 'Kamar', last_name: 'Staff', email_school: 'staff@example.test', code: 'KST' }],
+    students: Array.from({ length: 120 }, (_, index) => ({
+      first_name: 'Student', last_name: String(index), email_school: `student${index}@example.test`, id_number: String(index)
+    }))
+  };
+  directory.students.push(
+    { first_name: 'Inactive', email_school: inactive.email, id_number: 'inactive' },
+    { first_name: 'Missing Email', email_school: null, id_number: 'missing' },
+    { first_name: 'Ambiguous', email_school: 'duplicate@example.test', id_number: 'ambiguous' }
+  );
+  const accounts = [active, inactive,
+    { id: crypto.randomUUID(), email: 'duplicate@example.test', is_active: true },
+    { id: crypto.randomUUID(), email: 'DUPLICATE@example.test', is_active: true }];
+  const testers = testerDirectory(accounts, directory);
+  assert.equal(testers.filter(person => person.is_staff).length, directory.staff.length);
+  assert.equal(testers.filter(person => person.is_student).length, directory.students.length);
+  assert.equal(testers.filter(person => person.id).length, 1);
+  const staff = testers.find(person => person.is_staff);
+  assert.equal(staff.id, active.id);
+  assert.equal(staff.display_name, 'Kamar Staff');
+  assert.equal(staff.reference, 'KST');
+  assert.match(testers.find(person => person.reference === '119').unavailable, /Not signed in yet/);
+  assert.match(testers.find(person => person.reference === 'inactive').unavailable, /Account inactive/);
+  assert.match(testers.find(person => person.reference === 'missing').unavailable, /No school email/);
+  assert.match(testers.find(person => person.reference === 'ambiguous').unavailable, /Multiple matching accounts/);
+});
+
+test('tester picker shows full Kamar lists, escapes names and preserves matched account review selections', async () => {
   const people = [
-    { id: crypto.randomUUID(), display_name: '<Staff Name>', email: 'staff@example.test' },
-    { id: crypto.randomUUID(), display_name: 'Student Name', email: 'student@example.test' },
-    { id: crypto.randomUUID(), display_name: 'Both Lists', email: 'both@example.test' },
-    { id: crypto.randomUUID(), display_name: 'Other Name', email: 'other@example.test' }
+    { id: crypto.randomUUID(), display_name: '<Staff Name>', email: 'staff@example.test', is_active: true },
+    { id: crypto.randomUUID(), display_name: 'Student Name', email: 'student@example.test', is_active: true },
+    { id: crypto.randomUUID(), display_name: 'Both Lists', email: 'both@example.test', is_active: true },
+    { id: crypto.randomUUID(), display_name: 'Other Name', email: 'other@example.test', is_active: true }
   ];
   let directoryFails = false, loads = 0;
   const app = express();
@@ -48,10 +79,16 @@ test('tester picker groups active accounts by Kamar, escapes names and preserves
     loadDirectory: async () => {
       loads++;
       if (directoryFails) throw new Error('Directory unavailable');
-      return { staffEmails: ['staff@example.test', 'both@example.test'], studentEmails: ['student@example.test', 'both@example.test'] };
+      return {
+        staff: [{ first_name: '<Staff', last_name: 'Name>', email_school: 'staff@example.test', code: 'STF' },
+          { first_name: 'Both', last_name: 'Lists', email_school: 'both@example.test' }],
+        students: [{ first_name: 'Student', last_name: 'Name', email_school: 'student@example.test', id_number: '123' },
+          { first_name: 'Both', last_name: 'Lists', email_school: 'both@example.test' },
+          { first_name: 'Not Yet', last_name: 'Signed In', email_school: 'unsigned@example.test', id_number: '456' }]
+      };
     },
     dbQuery: async (sql, params) => {
-      if (sql.startsWith('SELECT id, display_name, email FROM users WHERE is_active=true ORDER BY')) return { rows: people };
+      if (sql.startsWith('SELECT id, display_name, email, is_active FROM users ORDER BY')) return { rows: people };
       if (sql.includes('id=ANY($1::uuid[])')) return { rows: people.filter(person => params[0].includes(person.id)) };
       if (sql.includes('UNION ALL SELECT 1 FROM modules')) return { rows: [] };
       throw new Error('Unexpected picker query');
@@ -73,8 +110,12 @@ test('tester picker groups active accounts by Kamar, escapes names and preserves
     const staff = html.slice(html.indexOf('id="testers-staff-list"'), html.indexOf('id="testers-students-heading"'));
     const students = html.slice(html.indexOf('id="testers-students-list"'), html.indexOf('id="testers-other-heading"'));
     assert.ok(staff.includes(people[0].id) && staff.includes(people[2].id) && !staff.includes(people[1].id));
-    assert.ok(students.includes(people[1].id) && !students.includes(people[2].id));
-    for (const person of people) assert.equal(html.split(`value="${person.id}"`).length - 1, 1);
+    assert.ok(students.includes(people[1].id) && students.includes(people[2].id));
+    for (const person of people) assert.equal(html.split(`value="${person.id}"`).length - 1, person === people[2] ? 2 : 1);
+    assert.match(students, /Not Yet Signed In/);
+    assert.match(students, /name="testers" value="" disabled/);
+    assert.match(students, /Student ID: 456/);
+    assert.match(students, /Not signed in yet/);
     assert.match(html, /Search staff by name or email/);
     assert.match(html, /Search students by name or email/);
     assert.match(html, /Teacher tester role/);
@@ -284,7 +325,10 @@ test('guided routes persist approvals, serialize/resume steps, wait safely, gran
       next();
     });
     app.use('/module-builder', createModuleBuilderRouter({ dbQuery: query, providers,
-      loadDirectory: async () => ({ staffEmails: [user.email], studentEmails: [tester.email] }) }));
+      loadDirectory: async () => ({
+        staff: [{ first_name: user.display_name, email_school: user.email }],
+        students: [{ first_name: tester.display_name, email_school: tester.email }]
+      }) }));
     app.use((error, req, res, next) => { console.error(error); res.status(500).send('Test request failed.'); });
     server = app.listen(0, '127.0.0.1');
     await new Promise(resolve => server.once('listening', resolve));

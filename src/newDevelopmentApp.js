@@ -3,6 +3,44 @@ const { BuilderError } = require('./moduleBuilderProviders');
 const { DEVELOPMENT_POLICY } = require('./developmentPolicy');
 
 const signature = value => crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
+function testerDirectory(accounts, directory) {
+  const normaliseEmail = value => String(value || '').trim().toLowerCase();
+  const byEmail = new Map();
+  for (const account of accounts) {
+    const email = normaliseEmail(account.email);
+    if (!email) continue;
+    if (!byEmail.has(email)) byEmail.set(email, []);
+    byEmail.get(email).push(account);
+  }
+  const matchedEmails = new Set();
+  const testers = [];
+  for (const [kind, people] of [['staff', directory.staff], ['student', directory.students]]) {
+    for (const person of people) {
+      const email = normaliseEmail(person.email_school);
+      const matches = byEmail.get(email) || [];
+      const account = matches.length === 1 ? matches[0] : null;
+      const unavailable = !email ? 'No school email recorded in Kamar' :
+        matches.length > 1 ? 'Multiple matching accounts - administrator check required' :
+          !account ? 'Not signed in yet - school sign-in required before selection' :
+            !account.is_active ? 'Account inactive - administrator check required' : '';
+      const reference = String(kind === 'staff' ? person.code || '' : person.id_number || '').trim();
+      testers.push({
+        id: !unavailable ? account.id : null,
+        display_name: [person.first_name, person.last_name].map(value => String(value || '').trim()).filter(Boolean).join(' ') || reference || email || 'Name not recorded',
+        email, reference, unavailable,
+        is_staff: kind === 'staff', is_student: kind === 'student'
+      });
+      if (email) matchedEmails.add(email);
+    }
+  }
+  for (const account of accounts) {
+    if (account.is_active && !matchedEmails.has(normaliseEmail(account.email))) {
+      testers.push({ ...account, reference: '', unavailable: '', is_staff: false, is_student: false });
+    }
+  }
+  return testers.sort((a, b) => a.display_name.localeCompare(b.display_name, 'en-NZ') || a.email.localeCompare(b.email));
+}
+
 function newAppInput(body) {
   function text(value, field, limit) {
     if (typeof value !== 'string' || !value.trim() || value.trim().length > limit ||
@@ -45,4 +83,4 @@ function nextSetupAction(project, settings) {
   return null;
 }
 
-module.exports = { newAppInput, newAppApproval, setupFingerprint, nextSetupAction };
+module.exports = { testerDirectory, newAppInput, newAppApproval, setupFingerprint, nextSetupAction };
