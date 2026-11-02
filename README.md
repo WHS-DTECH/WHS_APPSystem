@@ -881,11 +881,14 @@ Administrators can open **Student Apps > Handover student project**
 The repository must already be owned by `MODULE_BUILDER_GITHUB_OWNER` (default
 `WHS-DTECH`); ask the student to transfer it first if it is on their own account.
 The student must first be recorded under **Administration > Student Builders**
-(`/admin/student-builders`, administrators only): name, school email, contact email
-for after they leave, GitHub username, status, projects, permission and notes. The
-handover form picks the student from that list and copies their name and GitHub
-username. A builder's details cannot be removed while one of their handovers is in
-progress (migration `044_student_builders.sql`).
+(`/admin/student-builders`, administrators only): full name, a **credit name**
+(first initial and surname by default, e.g. `JPinkerneil`), Kamar student ID
+(checked against the Kamar student list to link their academic record), GitHub
+username, status, projects, permission and notes. No email addresses are stored.
+The handover form picks the student from that list; only the credit name and
+GitHub username are written to GitHub (Student Work label and `HANDOVER.md`). A
+builder's details cannot be removed while one of their handovers is in progress
+(migrations `044_student_builders.sql`, `045_student_builder_credit.sql`).
 Starting a handover pins the current default-branch commit and sets the review
 date to 1 February of the following year. Each step is recorded in the handover
 history:

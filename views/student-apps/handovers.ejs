@@ -42,7 +42,7 @@
       <select name="builderId" required>
         <option value="">Choose a student</option>
         <% builders.forEach((builder) => { %>
-          <option value="<%= builder.id %>" <%= form.builderId === builder.id ? 'selected' : '' %>><%= builder.full_name %><%= builder.github_username ? ` (${builder.github_username})` : '' %><%= builder.status === 'left' ? ', left school' : '' %></option>
+          <option value="<%= builder.id %>" <%= form.builderId === builder.id ? 'selected' : '' %>><%= builder.full_name %><%= builder.credit_name ? `, credited as ${builder.credit_name}` : '' %><%= builder.github_username ? ` (${builder.github_username})` : '' %><%= builder.status === 'left' ? ', left school' : '' %></option>
         <% }) %>
       </select>
     </label>

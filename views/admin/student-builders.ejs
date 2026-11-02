@@ -21,8 +21,11 @@
   <form action="/admin/student-builders<%= editing ? `/${editing.id}` : '' %>" method="post" class="stacked">
     <input type="hidden" name="csrf" value="<%= csrf %>">
     <label>Student's name<input name="fullName" value="<%= form.fullName || '' %>" maxlength="120" required></label>
-    <label>School email (optional)<input name="schoolEmail" type="email" value="<%= form.schoolEmail || '' %>" maxlength="200" placeholder="name@westlandhigh.school.nz"></label>
-    <label>Contact email after leaving school (optional)<input name="contactEmail" type="email" value="<%= form.contactEmail || '' %>" maxlength="200"></label>
+    <label>Credit name (shown on the Student Work)<input name="creditName" value="<%= form.creditName || '' %>" maxlength="40" pattern="[A-Za-z0-9][A-Za-z0-9.\-]*" placeholder="First initial and surname if blank, e.g. JPinkerneil"></label>
+    <label>Kamar student ID (links to their academic record)<input name="kamarStudentId" value="<%= form.kamarStudentId || '' %>" maxlength="20" pattern="[A-Za-z0-9\-]+" inputmode="numeric"></label>
+    <% if (editing && kamar) { %>
+      <p role="status"><small><% if (kamar.unavailable) { %>Kamar records could not be checked right now.<% } else if (kamar.found) { %>Kamar record: <strong><%= kamar.name %></strong> (<%= kamar.status %>)<% } else { %>No Kamar record found for this ID.<% } %></small></p>
+    <% } %>
     <label>GitHub username (optional)<input name="githubUsername" value="<%= form.githubUsername || '' %>" maxlength="39"></label>
     <label>Year they started building (optional)<input name="firstYear" type="number" min="2000" max="2100" value="<%= form.firstYear || '' %>"></label>
     <label>Status
@@ -56,10 +59,12 @@
   <h2>Student builders</h2>
   <% if (!builders.length) { %><p>No student builders recorded yet.</p><% } else { %>
   <div class="sb-table"><table>
-    <thead><tr><th>Student</th><th>GitHub</th><th>Status</th><th>Permission</th><th>Projects</th></tr></thead>
+    <thead><tr><th>Student</th><th>Credit name</th><th>Kamar ID</th><th>GitHub</th><th>Status</th><th>Permission</th><th>Projects</th></tr></thead>
     <tbody><% builders.forEach((builder) => { %>
       <tr>
-        <td><a href="/admin/student-builders/<%= builder.id %>"><%= builder.full_name %></a><% if (builder.school_email) { %><br><small><%= builder.school_email %></small><% } %></td>
+        <td><a href="/admin/student-builders/<%= builder.id %>"><%= builder.full_name %></a></td>
+        <td><%= builder.credit_name || '' %></td>
+        <td><%= builder.kamar_student_id || '' %></td>
         <td><%= builder.github_username || '' %></td>
         <td><%= builder.status === 'left' ? 'Left school' : 'Current student' %></td>
         <td><%= builder.permission_recorded_at ? 'Recorded' : 'Not yet' %></td>
