@@ -4,6 +4,7 @@ const { query } = require('./db');
 const { BuilderError, createBuilderProviders } = require('./moduleBuilderProviders');
 const { httpsAppUrl } = require('./appAddresses');
 const { developmentPolicyError } = require('./developmentPolicy');
+const { newAppInput, newAppApproval, setupFingerprint, nextSetupAction } = require('./newDevelopmentApp');
 
 const ROOT = '/module-builder';
 const KINDS = ['development', 'staging', 'production'];
@@ -91,6 +92,7 @@ function createModuleBuilderRouter({ dbQuery = query, providers = createBuilderP
     try { await handler(req, res, next); } catch (error) {
       if (!(error instanceof BuilderError)) return next(error);
       console.warn('[module-builder]', error.message);
+      if (req.path.endsWith('/setup/step')) return res.status(error.status).json({ error: error.message, uncertain: error.uncertain });
       return res.status(error.status).render('error', { title: 'Module Builder action not completed', message: error.message });
     }
   };
@@ -133,6 +135,105 @@ function createModuleBuilderRouter({ dbQuery = query, providers = createBuilderP
       FROM module_builder_projects p LEFT JOIN module_builder_environments e
       ON e.project_id = p.id AND e.kind = 'development' ORDER BY p.name`)).rows;
     res.render('module-builder/index', { title: 'Module Builder', projects, configuration: providers.configuration() });
+  }));
+  async function selectedTesters(ids) {
+    const testers = (await dbQuery(`SELECT id, display_name, email FROM users
+      WHERE is_active=true AND id=ANY($1::uuid[]) ORDER BY display_name, email`, [ids])).rows;
+    if (testers.length !== ids.length) throw new BuilderError('A selected tester is no longer active. Review the access list again.', 409);
+    return testers;
+  }
+  async function availableKey(slug) {
+    const existing = (await dbQuery(`SELECT 1 FROM module_builder_projects WHERE slug=$1
+      UNION ALL SELECT 1 FROM modules WHERE module_key=$1
+      UNION ALL SELECT 1 FROM hub_roles WHERE hub_key=$1
+      UNION ALL SELECT 1 FROM student_apps WHERE hub_key=$1 OR 'student-app-'||slug=$1 LIMIT 1`, [slug])).rows;
+    if (existing.length) throw new BuilderError('That app key is already in use. Choose a different app name; existing apps are never replaced.', 409);
+  }
+  router.get('/new', wrap(async (req, res) => {
+    const testers = (await dbQuery('SELECT id, display_name, email FROM users WHERE is_active=true ORDER BY display_name, email')).rows;
+    res.render('module-builder/new', { title: 'New Development App', testers, configuration: providers.configuration() });
+  }));
+  router.post('/new/review', wrap(async (req, res) => {
+    const input = newAppInput(req.body);
+    await availableKey(input.slug);
+    const testers = await selectedTesters(input.testers);
+    await providers.preflight();
+    const configuration = providers.configuration();
+    const approval = newAppApproval(input, configuration);
+    req.session.newAppReview = { input, approval, expiresAt: Date.now() + 30 * 60 * 1000 };
+    res.render('module-builder/new-review', { title: 'Review New Development App', input, testers, configuration, approval });
+  }));
+  router.post('/new/create', wrap(async (req, res) => {
+    const pending = req.session.newAppReview;
+    if (!pending || pending.expiresAt < Date.now() || req.body.approval !== pending.approval ||
+        req.body.confirm !== pending.input.slug || req.body.consent !== 'yes' ||
+        pending.approval !== newAppApproval(pending.input, providers.configuration())) {
+      throw new BuilderError('Review the app again, approve the costs and access, and type its key to confirm.', 409);
+    }
+    const { input } = pending;
+    await availableKey(input.slug);
+    await selectedTesters(input.testers);
+    await providers.preflight();
+    const settings = { region: 'oregon', servicePlan: '0.5c-512mb', databasePlan: '0.1c-256mb',
+      serviceName: input.slug + '-development', databaseName: input.slug + '-development-db',
+      healthPath: '/health', dockerfilePath: './Dockerfile' };
+    const setup = { testers: input.testers, approvedBy: req.user.id, approvedAt: new Date().toISOString(),
+      fingerprint: setupFingerprint({ ...input, branch: 'main', mount_path: `/${input.slug}/`, deployment_type: 'independent' }, settings, providers.configuration()) };
+    const project = (await dbQuery(`INSERT INTO module_builder_projects
+      (name,slug,description,mount_path,deployment_type,created_by,updated_by,new_app_setup)
+      VALUES ($1,$2,$3,$4,'independent',$5,$5,$6::jsonb) ON CONFLICT (slug) DO NOTHING RETURNING id`,
+    [input.name, input.slug, input.description, `/${input.slug}/`, req.user.id, JSON.stringify(setup)])).rows[0];
+    if (!project) throw new BuilderError('This app is already registered. Open its existing setup; do not create duplicate resources.', 409);
+    delete req.session.newAppReview;
+    res.redirect(`${ROOT}/${project.id}/setup`);
+  }));
+  router.get('/:id/setup', wrap(async (req, res) => {
+    const data = await load(req.params.id);
+    if (!data.project.new_app_setup) throw new BuilderError('This project uses the existing technical setup workflow.', 409);
+    const history = (await dbQuery(`SELECT kind,status,message,created_at FROM module_builder_operations
+      WHERE project_id=$1 ORDER BY created_at DESC LIMIT 20`, [data.project.id])).rows;
+    res.render('module-builder/setup', { ...data, history, title: 'Development App Setup', actions: ACTIONS });
+  }));
+  router.post('/:id/setup/step', wrap(async (req, res) => {
+    const { project, environment } = await load(req.params.id);
+    await ensureIdle(project.id);
+    const setup = project.new_app_setup, settings = environment.config;
+    if (!setup || !['development', 'draft'].includes(project.stage) ||
+        setup.fingerprint !== setupFingerprint(project, settings, providers.configuration())) {
+      throw new BuilderError('Approved setup settings have changed or this project is not in development. Use technical details to review each action; automatic setup is stopped.', 409);
+    }
+    await selectedTesters(setup.testers);
+    const action = nextSetupAction(project, settings);
+    if (action) {
+      if ((await dbQuery(`SELECT 1 FROM module_builder_operations WHERE project_id=$1 AND kind=$2 AND status='succeeded'`, [project.id, action])).rows.length) {
+        throw new BuilderError('This step already succeeded but its resource record is missing. Inspect operation history and reconcile; no duplicate will be created.', 409);
+      }
+      if (action === 'service') {
+        const status = await providers.setupStatus(project, settings);
+        if (status.state !== 'database-ready') return res.json(status);
+      }
+      await executePlan(project, environment, reviewData(project, environment, action), req.user.id);
+      return res.json({ state: 'progress', message: ACTIONS[action] + ' completed and recorded.' });
+    }
+    const status = await providers.setupStatus(project, settings);
+    if (status.state !== 'ready') return res.json(status);
+    if (setup.readyAt) return res.json(status);
+    const saved = await dbQuery(`WITH completed AS (
+      UPDATE module_builder_projects SET
+        new_app_setup=new_app_setup || jsonb_build_object('readyAt',$2::text), updated_by=$6, updated_at=NOW()
+      WHERE id=$1 AND revision=$3 AND active_operation IS NULL
+        AND (SELECT COUNT(*) FROM users WHERE id=ANY($4::uuid[]) AND is_active=true)=cardinality($4::uuid[])
+        AND EXISTS (SELECT 1 FROM hub_roles WHERE hub_key=$5 AND role_key='teacher')
+      RETURNING id
+    ), granted AS (
+      INSERT INTO user_hub_roles(user_id,hub_role_id,area_key,granted_by)
+      SELECT u.id,r.id,NULL,$6 FROM completed CROSS JOIN users u CROSS JOIN hub_roles r
+      WHERE u.id=ANY($4::uuid[]) AND u.is_active=true AND r.hub_key=$5 AND r.role_key='teacher'
+      ON CONFLICT DO NOTHING RETURNING user_id
+    ) SELECT id FROM completed`,
+    [project.id, new Date().toISOString(), project.revision, setup.testers, project.slug, req.user.id]);
+    if (!saved.rows.length) throw new BuilderError('Project changed during the final checks. Reload setup before continuing.', 409);
+    res.json(status);
   }));
   router.post('/projects', wrap(async (req, res) => {
     const name = text(req.body.name, 'project name', 100, true);
@@ -194,12 +295,7 @@ function createModuleBuilderRouter({ dbQuery = query, providers = createBuilderP
     res.render('module-builder/confirm', { title: 'Confirm development resources', project, plan,
       actionLabel: ACTIONS[plan.action], digest: digest(plan) });
   }));
-  router.post('/:id/provision', wrap(async (req, res) => {
-    const { project, environment } = await load(req.params.id);
-    const plan = reviewData(project, environment, req.body.action);
-    if (req.body.confirm !== project.slug || req.body.consent !== 'yes' || req.body.digest !== digest(plan)) {
-      throw new BuilderError('Review the current settings, acknowledge costs/access and type the project key to confirm.', 409);
-    }
+  async function executePlan(project, environment, plan, actorId) {
     let operation;
     try {
       const id = crypto.randomUUID();
@@ -208,7 +304,7 @@ function createModuleBuilderRouter({ dbQuery = query, providers = createBuilderP
         WHERE id=$1 AND active_operation IS NULL AND revision=$6 RETURNING id)
         INSERT INTO module_builder_operations(id, project_id, kind, status, actor_id, request_summary)
         SELECT $5,claimed.id,$2,'running',$3,$4::jsonb FROM claimed RETURNING id`,
-      [project.id, plan.action, req.user.id, JSON.stringify(plan), id, project.revision])).rows[0];
+      [project.id, plan.action, actorId, JSON.stringify(plan), id, project.revision])).rows[0];
     } catch (error) {
       if (error.code === '23505') throw new BuilderError('Another operation already started. Refresh the project.', 409);
       throw error;
@@ -227,8 +323,12 @@ function createModuleBuilderRouter({ dbQuery = query, providers = createBuilderP
       // Persist resource identifiers before updating the dashboard; never roll back/delete provider resources.
       await dbQuery(`UPDATE module_builder_operations SET result_summary=$2::jsonb WHERE id=$1`, [operation.id, JSON.stringify(result)]);
       if (plan.action === 'repository') {
-        await dbQuery(`UPDATE module_builder_projects SET repository=$2, branch=$3, repository_managed=true WHERE id=$1`,
-          [project.id, result.repository, result.branch]);
+        const approved = project.new_app_setup?.fingerprint === setupFingerprint(project, environment.config, providers.configuration());
+        const fingerprint = approved ? setupFingerprint({ ...project, branch: result.branch }, environment.config, providers.configuration()) : null;
+        await dbQuery(`UPDATE module_builder_projects SET repository=$2, branch=$3, repository_managed=true,
+          new_app_setup=CASE WHEN $4::text IS NULL THEN new_app_setup
+            ELSE jsonb_set(new_app_setup,'{fingerprint}',to_jsonb($4::text)) END WHERE id=$1`,
+          [project.id, result.repository, result.branch, fingerprint]);
       } else if (['scaffold', 'upgrade'].includes(plan.action)) {
         await dbQuery('UPDATE module_builder_projects SET framework_commit=$2 WHERE id=$1', [project.id, result.commit]);
       } else {
@@ -241,7 +341,7 @@ function createModuleBuilderRouter({ dbQuery = query, providers = createBuilderP
         UPDATE module_builder_operations SET status='succeeded', completed_at=NOW(),
         message='Provider completed the operation. Verify deployment separately.' WHERE id=$1 RETURNING project_id)
         UPDATE module_builder_projects SET active_operation=NULL, updated_by=$2, updated_at=NOW(), revision=revision+1
-        WHERE id IN (SELECT project_id FROM completed)`, [operation.id, req.user.id]);
+        WHERE id IN (SELECT project_id FROM completed)`, [operation.id, actorId]);
     } catch (error) {
       const uncertain = externalCompleted || !(error instanceof BuilderError) || error.uncertain;
       const message = error instanceof BuilderError ? error.message : 'Could not persist provider outcome. Inspect provider resources and reconcile before retrying.';
@@ -252,6 +352,15 @@ function createModuleBuilderRouter({ dbQuery = query, providers = createBuilderP
       [operation.id, uncertain ? 'uncertain' : 'failed', message, uncertain]);
       throw new BuilderError(message, 502, uncertain);
     }
+    return result;
+  }
+  router.post('/:id/provision', wrap(async (req, res) => {
+    const { project, environment } = await load(req.params.id);
+    const plan = reviewData(project, environment, req.body.action);
+    if (req.body.confirm !== project.slug || req.body.consent !== 'yes' || req.body.digest !== digest(plan)) {
+      throw new BuilderError('Review the current settings, acknowledge costs/access and type the project key to confirm.', 409);
+    }
+    await executePlan(project, environment, plan, req.user.id);
     res.redirect(`${ROOT}/${project.id}`);
   }));
   router.post('/:id/verify/:kind', wrap(async (req, res) => {

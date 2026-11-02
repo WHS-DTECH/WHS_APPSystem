@@ -8,7 +8,9 @@
 <section class="panel mb-notice">
   <strong>Development resources only</strong>
   <p>The registry lives in Global Control; application code and data do not.
-    Provisioning requires a separate confirmation for each resource. No resources are deleted or promoted automatically.</p>
+    Guided setup uses one explicit approval for its listed resources and access; technical setup confirms each resource separately.
+    No resources are deleted or promoted automatically.</p>
+  <a class="button button-primary" href="/module-builder/new">New Development App</a>
   <p>GitHub: <strong><%= configuration.githubConfigured ? 'Credential configured (not verified)' : 'Not configured' %></strong>
     · Owner: <%= configuration.githubOwner %><br>
     Render: <strong><%= configuration.renderConfigured ? 'Credential/workspace configured (not verified)' : 'Not configured' %></strong></p>
@@ -37,6 +39,7 @@
       <dt>Deployment</dt><dd><%= verified.deploy?.status || 'Unknown' %></dd>
     </dl>
     <div class="mb-actions">
+      <% if (project.new_app_setup) { %><a class="button button-primary" href="/module-builder/<%= project.id %>/setup">Resume guided setup</a><% } %>
       <a class="button button-primary" href="/module-builder/<%= project.id %>">Technical details</a>
       <% if (config.appUrl && project.stage !== 'archived') { %>
         <a class="button" href="<%= config.appUrl %>">Open development app</a>

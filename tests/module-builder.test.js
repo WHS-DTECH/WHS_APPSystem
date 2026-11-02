@@ -207,6 +207,7 @@ test('Render web service receives its separate DB and fresh secret and auto-depl
   assert.equal(body.serviceDetails.runtime, 'docker');
   assert.equal(body.serviceDetails.healthCheckPath, '/health');
   assert.equal(body.envVars.find((item) => item.key === 'DATABASE_URL').value, 'postgresql://module-development');
+  assert.equal(body.envVars.find((item) => item.key === 'GLOBAL_CONTROL_URL').value, 'https://core.example.test');
   assert.ok(body.envVars.find((item) => item.key === 'SESSION_SECRET').value.length >= 64);
   for (const secret of Object.values(env)) {
     if (secret.startsWith('fixture-') || secret.startsWith('postgresql://core')) assert.ok(!JSON.stringify(body).includes(secret));

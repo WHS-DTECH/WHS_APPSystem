@@ -3,6 +3,7 @@
 <section class="page-title">
   <p class="eyebrow"><a href="/module-builder">Module Builder</a> · <%= project.stage %></p>
   <h1><%= project.name %></h1>
+  <% if (project.new_app_setup) { %><a class="button button-primary" href="/module-builder/<%= project.id %>/setup">Guided development setup / resume</a><% } %>
   <p>Intended mount: <code><%= project.mount_path %></code> · <%= project.deployment_type %> · Node/Express</p>
   <p>Framework commit: <code><%= project.framework_commit || 'Not installed by wizard; existing work is preserved' %></code></p>
   <% if (project.repository) { %><a class="button" href="https://github.com/<%= project.repository %>" target="_blank" rel="noopener noreferrer">GitHub repository ↗</a><% } %>

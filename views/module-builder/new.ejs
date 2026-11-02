@@ -1,0 +1,29 @@
+<%- include('../partials/header') %>
+<link rel="stylesheet" href="/module-builder.css">
+<section class="page-title">
+  <p class="eyebrow">Core Administration</p>
+  <h1>New Development App</h1>
+  <p>A private repository, shared WHS starter, Oregon Web Service and its own connected database.</p>
+</section>
+<section class="panel">
+  <p>Global administrators have access. Optionally select individual testers below; they receive this app's Teacher role only.
+    No public, student-wide or school-wide access is granted. Existing apps and assessment data are not changed.</p>
+  <form action="/module-builder/new/review" method="post" class="mb-form">
+    <input type="hidden" name="csrf" value="<%= csrf %>">
+    <label class="mb-wide">App name<input name="name" maxlength="100" placeholder="Workshop Equipment" required></label>
+    <label class="mb-wide">Purpose<textarea name="description" rows="4" maxlength="1500" required></textarea></label>
+    <label class="mb-wide">Optional named testers (leave empty for administrators only)
+      <select name="testers" multiple size="7" aria-describedby="tester-help">
+        <% testers.forEach(tester => { %><option value="<%= tester.id %>"><%= tester.display_name %> (<%= tester.email %>)</option><% }) %>
+      </select>
+    </label>
+    <p id="tester-help" class="mb-wide">Use Ctrl (Windows) or Command (Mac) to select multiple people. Only select people who should have Teacher access to this development app.</p>
+    <p class="mb-wide">The next screen generates the app key and shows the minimum paid plans and access for approval.
+      Reviewing does not create external resources. GitHub owner: <strong><%= configuration.githubOwner %></strong>.</p>
+    <div class="mb-actions mb-wide">
+      <button class="button button-primary" type="submit">Review setup and costs</button>
+      <a class="button" href="/module-builder">Existing development apps</a>
+    </div>
+  </form>
+</section>
+<%- include('../partials/footer') %>

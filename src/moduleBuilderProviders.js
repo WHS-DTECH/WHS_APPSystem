@@ -131,12 +131,7 @@ function createBuilderProviders({ env = process.env, fetchImpl = fetch } = {}) {
     return { databaseId: result.id, databaseStatus: result.status || 'unknown' };
   }
 
-  async function service(project, settings, checkpoint = async () => {}) {
-    const policyError = developmentPolicyError(settings);
-    if (policyError) throw new BuilderError(policyError);
-    if (!settings.databaseId) throw new BuilderError('Create or record a separate development database first.');
-    if (!project.repository) throw new BuilderError('Register a GitHub repository first.');
-    if (project.repository_managed && !project.framework_commit) throw new BuilderError('Install the framework before creating its web service.');
+  async function sharedConfiguration() {
     if (!/^evg-[a-z0-9]+$/.test(sharedGroupId)) throw new BuilderError('Configure MODULE_BUILDER_RENDER_ENV_GROUP_ID with the module-safe shared Render group ID before creating a service.', 503);
     const group = await api('Render', `/env-groups/${sharedGroupId}`);
     if (group.ownerId !== ownerId || !Array.isArray(group.envVars) || !Array.isArray(group.secretFiles)
@@ -148,6 +143,28 @@ function createBuilderProviders({ env = process.env, fetchImpl = fetch } = {}) {
     if (coreUrl.protocol !== 'https:' || coreUrl.username || coreUrl.password || coreUrl.pathname !== '/' || coreUrl.search || coreUrl.hash) {
       throw new BuilderError('Shared GLOBAL_CONTROL_URL must be an HTTPS origin without credentials, path, query or fragment.', 409);
     }
+    return { coreUrl: coreUrl.origin };
+  }
+
+  async function preflight() {
+    if (!configuration().githubConfigured || !configuration().renderConfigured) throw new BuilderError('Configure the Module Builder GitHub and Render credentials/workspace before creating a development app.', 503);
+    if (!/^[A-Za-z0-9-]+$/.test(githubOwner)) throw new BuilderError('Configure a valid GitHub owner.');
+    const [owner, authenticated] = await Promise.all([api('GitHub', `/users/${githubOwner}`), api('GitHub', '/user')]);
+    if (!['User', 'Organization'].includes(owner.type) ||
+        owner.type === 'User' && authenticated.login?.toLowerCase() !== githubOwner.toLowerCase()) {
+      throw new BuilderError('GitHub token does not match the configured repository owner.', 403);
+    }
+    await sharedConfiguration();
+    return { checked: true };
+  }
+
+  async function service(project, settings, checkpoint = async () => {}) {
+    const policyError = developmentPolicyError(settings);
+    if (policyError) throw new BuilderError(policyError);
+    if (!settings.databaseId) throw new BuilderError('Create or record a separate development database first.');
+    if (!project.repository) throw new BuilderError('Register a GitHub repository first.');
+    if (project.repository_managed && !project.framework_commit) throw new BuilderError('Install the framework before creating its web service.');
+    const { coreUrl } = await sharedConfiguration();
     const db = await api('Render', `/postgres/${settings.databaseId}`);
     if (db.owner?.id !== ownerId || db.region !== settings.region) throw new BuilderError('Database must belong to the configured Render workspace and selected region.');
     if (!['basic_256mb', '0.1c-256mb'].includes(db.plan)) throw new BuilderError('The connected development database must use the lowest paid plan. Check its actual plan in Render before creating a service.');
@@ -162,6 +179,7 @@ function createBuilderProviders({ env = process.env, fetchImpl = fetch } = {}) {
         { key: 'NODE_ENV', value: 'production' },
         { key: 'MODULE_ENVIRONMENT', value: 'development' },
         { key: 'MODULE_CLIENT_ID', value: `${project.slug}:development` },
+        { key: 'GLOBAL_CONTROL_URL', value: coreUrl },
         { key: 'DATABASE_URL', value: databaseUrl },
         { key: 'SESSION_SECRET', value: crypto.randomBytes(48).toString('hex') }
       ],
@@ -225,7 +243,53 @@ function createBuilderProviders({ env = process.env, fetchImpl = fetch } = {}) {
     return result;
   }
 
-  return { configuration, repository, scaffold: (project, settings) => scaffold(project, settings), upgrade: (project, settings) => scaffold(project, settings, true), database, service, verify };
+  async function setupStatus(project, settings) {
+    const db = await api('Render', `/postgres/${settings.databaseId}`);
+    if (db.owner?.id !== ownerId || db.region !== 'oregon' || !['basic_256mb', '0.1c-256mb'].includes(db.plan)) {
+      throw new BuilderError('The development database no longer matches the approved workspace, Oregon region or lowest paid tier.', 409);
+    }
+    if (db.suspended === 'suspended' || ['unavailable', 'failed'].includes(db.status)) {
+      throw new BuilderError('Development database is unavailable or suspended. Inspect Render before continuing.', 409);
+    }
+    if (db.status !== 'available') return { state: 'waiting', message: 'Waiting for the separate Oregon database to become available.' };
+    if (!settings.serviceId) return { state: 'database-ready', message: 'Development database is available.' };
+    const remote = await api('Render', `/services/${settings.serviceId}`);
+    if (remote.ownerId !== ownerId || remote.type !== 'web_service' ||
+        remote.serviceDetails?.region !== 'oregon' || !['starter', '0.5c-512mb'].includes(remote.serviceDetails?.plan) ||
+        remote.repo?.toLowerCase() !== `https://github.com/${project.repository}`.toLowerCase() ||
+        remote.branch !== project.branch) {
+      throw new BuilderError('The development service no longer matches the approved repository, branch, workspace, type, region or plan.', 409);
+    }
+    if (remote.suspended === 'suspended') throw new BuilderError('Development service is suspended. Inspect Render.', 409);
+    const deployments = await api('Render', `/services/${settings.serviceId}/deploys?limit=1`);
+    if (!Array.isArray(deployments)) throw new BuilderError('Render deployment status could not be read. Inspect Render before continuing.', 502);
+    const deployment = deployments[0]?.deploy;
+    if (['build_failed', 'update_failed', 'pre_deploy_failed', 'canceled', 'deactivated'].includes(deployment?.status)) {
+      throw new BuilderError(`Development deployment is ${deployment.status}. Check Render logs; no resource will be recreated.`, 409);
+    }
+    const origin = remote.serviceDetails?.url;
+    if (typeof origin !== 'string' || !/^https:\/\/[a-z0-9-]+\.onrender\.com\/?$/.test(origin)) {
+      throw new BuilderError('Render has not returned a valid default HTTPS service address. Inspect Render.', 409);
+    }
+    if (deployment?.status !== 'live') return { state: 'waiting', message: 'Waiting for the first Render deployment to become live.', appUrl: origin };
+    if (deployment.commit?.id !== project.framework_commit) throw new BuilderError('Repository work has changed since starter setup. Use technical details to verify this deployment; the wizard will not replace your code.', 409);
+    const group = await api('Render', `/env-groups/${sharedGroupId}`);
+    if (group.ownerId !== ownerId || !Array.isArray(group.serviceLinks) || !group.serviceLinks.some(link => link.id === settings.serviceId)) {
+      throw new BuilderError('The recorded Global Control group link could not be verified. Inspect Render; do not create another service.', 409);
+    }
+    let response;
+    try {
+      response = await fetchImpl(new URL('/health', origin).href, { redirect: 'error', signal: AbortSignal.timeout(10000) });
+    } catch { throw new BuilderError('The development health endpoint could not be reached. Retry the check or inspect Render; resources are unchanged.', 502); }
+    if (!response.ok) throw new BuilderError('The development health endpoint is not healthy. Inspect Render logs; no resources were recreated.', 502);
+    let health;
+    try { health = await response.json(); } catch { throw new BuilderError('The development health response could not be read.', 502); }
+    if (health.status !== 'ok' || health.database !== 'connected') throw new BuilderError('The starter did not confirm database connectivity. Inspect Render logs.', 502);
+    return { state: 'ready', message: 'Starter is live and its database health check passed. Sign-in, permissions and application behaviour still require acceptance testing.',
+      appUrl: origin, deployId: deployment.id || '', commit: deployment.commit.id };
+  }
+
+  return { configuration, preflight, setupStatus, repository, scaffold: (project, settings) => scaffold(project, settings), upgrade: (project, settings) => scaffold(project, settings, true), database, service, verify };
 }
 
 module.exports = { BuilderError, createBuilderProviders };

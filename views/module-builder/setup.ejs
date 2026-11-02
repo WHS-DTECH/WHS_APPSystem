@@ -1,0 +1,39 @@
+<%- include('../partials/header') %>
+<link rel="stylesheet" href="/module-builder.css">
+<section class="page-title"><p class="eyebrow">Core Administration</p><h1><%= project.name %> &mdash; Development Setup</h1></section>
+<section class="panel">
+  <p>Approved <%= new Date(project.new_app_setup.approvedAt).toLocaleString('en-NZ') %>. Oregon, lowest paid Web Service and connected separate database.
+    <strong>Development only; not production approval.</strong></p>
+  <ol>
+    <li>Private repository: <%= project.repository || 'Not created' %></li>
+    <li>WHS framework: <%= project.framework_commit ? 'Installed' : 'Not installed' %></li>
+    <li>Separate database: <%= environment.config.databaseId || 'Not created' %></li>
+    <li>Connected Web Service: <%= environment.config.serviceId || 'Not created' %></li>
+    <li>Deployment/database health and named tester access: <%= project.new_app_setup.readyAt ? 'Passed at ' + new Date(project.new_app_setup.readyAt).toLocaleString('en-NZ') : 'Not yet completed' %></li>
+  </ol>
+  <p id="setup-status" role="status" aria-live="polite"><%= project.active_operation ? 'An operation needs to finish or be inspected before resuming. Use technical details.' : 'Start or resume the approved setup below. Completed resources will not be recreated.' %></p>
+  <form id="development-setup" action="/module-builder/<%= project.id %>/setup/step" method="post" class="mb-actions">
+    <input type="hidden" name="csrf" value="<%= csrf %>">
+    <button class="button button-primary" type="submit"<%= project.active_operation ? ' disabled' : '' %>><%= project.new_app_setup.readyAt ? 'Recheck development starter' : 'Start / Resume approved setup' %></button>
+  </form>
+  <p>Keep this page open while running. Setup stops on an error, uncertain provider result, changed approved settings or after 15 minutes.
+    Reload and resume for slow deployments. Do not register another app to retry. Already-created resources remain billable.</p>
+  <div class="mb-actions">
+    <a class="button" href="/module-builder/<%= project.id %>">Technical details / inspect and reconcile</a>
+    <a class="button" href="/module-builder">All development apps</a>
+    <% if (project.repository) { %><a class="button" href="https://github.com/<%= project.repository %>">Open repository</a><% } %>
+    <% if (environment.config.serviceId) { %><a class="button" href="https://dashboard.render.com/web/<%= environment.config.serviceId %>">Open Render service</a><% } %>
+    <% if (environment.config.databaseId) { %><a class="button" href="https://dashboard.render.com/d/<%= environment.config.databaseId %>">Open Render database</a><% } %>
+    <% if (environment.config.appUrl) { %><a class="button" href="<%= environment.config.appUrl %>">Open development app</a><% } %>
+  </div>
+</section>
+<section class="panel">
+  <h2>Before wider access or integration</h2>
+  <p>Sign in as an administrator and a selected tester; confirm unassigned users are denied. Test saving/reloading real app features in this separate development database,
+    accessibility, error handling and backups. The automatic check confirms only the starter deployment and database connection, not sign-in, application readiness or the complete Advisory.</p>
+  <h2>Recorded operations</h2>
+  <% if (!history.length) { %><p>No provider operations started yet.</p><% } %>
+  <% history.forEach(operation => { %><p><strong><%= actions[operation.kind] || operation.kind %>: <%= operation.status %></strong><br><%= operation.message || '' %></p><% }) %>
+</section>
+<script src="/new-development-app.js" defer></script>
+<%- include('../partials/footer') %>

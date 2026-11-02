@@ -278,7 +278,46 @@ new private repositories. The wizard does not create that connection or Google
 OAuth clients. Without credentials, records/navigation work but provider actions
 show an explicit setup error. Do not paste credentials into project forms.
 
-### Confirmed development provisioning
+### New Development App (guided)
+
+Open **Core Administration > New Development App** (`/module-builder/new`).
+Enter a name and purpose; optionally select active named testers. Access defaults
+to Global ADMIN only. Selected testers receive this app's existing hub-wide
+Teacher role, not a global role or access to other apps. No school-wide/public
+access or Launchpad integration is automatically enabled.
+
+Review the generated unique key, private repository, shared WHS Node/Express
+starter, Oregon plans and minimum USD 13/month compute estimate (storage,
+subscriptions, usage and tax additional/unknown). Provider credentials and the
+module-safe shared group are checked read-only before approval; this cannot
+guarantee repository creation/workflow permission, private-repository access from
+Render or billing eligibility. Approve costs/access and type the app key.
+Approval is persisted on the project; review forms expire after 30 minutes.
+
+On its progress page, choose **Start / Resume approved setup**. The browser
+requests one durable step at a time: repository, starter commit, separate paid
+database, wait for availability, connected paid Web Service, wait for deployment,
+then verify the shared group link and database health and grant approved testers.
+The recorded service origin registers its Global Control identity automatically.
+Keep the page open; closing it pauses further steps, not an already-sent provider
+operation. The page pauses after 15 minutes; reload/resume slow deployments.
+Provider errors stop the workflow. Uncertain outcomes remain locked until inspected
+and reconciled through technical details. No resources are deleted or recreated
+automatically, and created resources remain billable even if later steps fail.
+Changing reviewed settings stops guided provisioning; use the existing technical
+workflow to review each subsequent action separately.
+
+The final automatic check verifies the recorded workspace, Oregon paid resources,
+starter commit, live deployment, shared group link and unauthenticated `/health`
+response (`status: ok`, `database: connected`). Health requests go only to a
+provider-returned default HTTPS `*.onrender.com` origin, without credentials or
+redirects. Rechecks do not restore subsequently revoked tester grants. This is
+**not** an authentication, application, backup, accessibility or full Advisory
+acceptance test, nor approval to release or migrate existing data.
+Test administrator/tester sign-in, unassigned-user denial, saving/reloading and
+the app's other required behaviours before wider access or integration.
+
+### Confirmed development provisioning (technical workflow)
 
 1. Register a project with a unique key and intended embedded/independent hosting.
 2. Record an existing repository **or** review/confirm creation of a private one.
@@ -300,14 +339,16 @@ show an explicit setup error. Do not paste credentials into project forms.
    The group workspace and contents are checked before any service is created.
    Service IDs are persisted before linking; a failed/unconfirmed link locks the
    operation for inspection/reconciliation instead of creating a duplicate.
-   Linking happens after service creation: if the first deployment began before
-   linking, manually deploy the latest commit after checking the link. Existing
-   services are not retroactively linked.
+   The same validated `GLOBAL_CONTROL_URL` is also supplied at service creation
+   so the first deployment does not race the group link. If the Core origin later
+   changes, update this service-level value as well as the group. Existing services
+   are not retroactively linked or changed.
 7. Verify provider records, then test authentication, ownership, saving, migrations,
    backups and any print/export flows before staging/production approval.
 
-Every external mutation needs a CSRF-protected review, typed project-key
-confirmation and cost/access acknowledgement. Render may start a first deployment
+External mutations require CSRF-protected approval, typed project-key
+confirmation and cost/access acknowledgement: once for the fixed guided plan,
+or per action in the technical workflow. Render may start a first deployment
 on service creation; new development services auto-deploy each push to their
 recorded GitHub branch (`autoDeployTrigger: commit`), without waiting for CI checks.
 This default does not modify existing services or configure staging/production.

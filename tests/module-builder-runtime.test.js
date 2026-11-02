@@ -22,7 +22,9 @@ test('wizard database, admin forms, confirmations, durable operations and sideba
   const query = (sql, values) => pool.query(sql, values);
   let server;
   try {
-    for (const migration of ['001_init.sql', '002_roles_and_module_assignments.sql', '026_module_builder.sql', '027_module_identity.sql']) {
+    for (const migration of ['001_init.sql', '002_roles_and_module_assignments.sql', '005_technology_hub.sql',
+      '006_sewing_hub.sql', '007_hub_roles_and_permissions.sql', '016_hub_roles_base.sql', '018_student_apps.sql',
+      '026_module_builder.sql', '027_module_identity.sql', '041_infrastructure_costs.sql', '042_new_development_app.sql']) {
       await query(await fs.readFile(path.join(__dirname, '..', 'migrations', migration), 'utf8'));
     }
     // The pilot is idempotent and environment creation is atomic with registration.
