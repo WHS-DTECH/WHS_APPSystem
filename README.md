@@ -184,6 +184,60 @@ its registry destination. Notify assigned users only after acceptance testing.
 
 ## Module Builder / Module Wizard
 
+### GitHub and Render cost reporting
+
+Global ADMINs can open **Core Administration > GitHub & Render Costs**
+(`/admin/infrastructure-costs`). Use **Refresh provider costs & exchange rate**
+to read every service/PostgreSQL database and workspace visible to the Render key,
+and accounts, organisations and repositories visible to the GitHub token. The report
+is not limited to Module Builder projects. Pagination includes Render previews
+and database replicas, with duplicate IDs counted once. Provider access defines
+the scope: resources outside the configured credentials' permissions cannot appear.
+
+Optional `INFRA_COST_GITHUB_TOKEN` and `INFRA_COST_RENDER_API_KEY` provide reporting
+access; otherwise the existing Module Builder credentials are reused. Prefer
+dedicated read-only access where supported. GitHub account plans, organisation
+seats and billing usage require appropriate owner/billing access; repository
+access alone does not provide it. Missing credentials and permission failures
+are shown explicitly, never as zero costs.
+
+USD full-month compute estimates and GitHub subscriptions use a published-price
+catalogue checked on 2 November 2026 ([Render](https://render.com/pricing),
+[GitHub](https://github.com/pricing)). These prices are not automatically updated.
+GitHub subscription fees are counted per account, not per repository.
+Organisation month-to-date metered usage is requested separately through GitHub's
+billing usage summary endpoint, when permitted; it is not added to monthly
+subscription estimates. Actual invoices and personal GitHub metered usage are
+not imported. Render workspace subscriptions, database storage, persistent disks,
+Key Value, cron, bandwidth/build usage, tax, proration and discounts are excluded
+or marked Unknown. This is a **partial planning subtotal, not the total bill**.
+High-availability and unrecognised database plans are not given invented prices.
+Suspended resources retain a full-month compute estimate, not an actual charge.
+
+Indicative NZD conversions use ExchangeRate-API's public USD rate with its source
+date and attribution. Rates older than seven days or failed refreshes disable
+conversion rather than silently using an old rate. No account data or credentials
+are sent to the exchange-rate provider. Read-only refreshes persist only allowlisted
+inventory/cost metadata in Core's `infrastructure_cost_report`; no environment
+values, database connection strings or provider response bodies are stored.
+Last-successful data is retained and labelled stale when a provider refresh fails.
+Refresh requires Global ADMIN access and a CSRF-protected POST.
+
+### New development resource policy
+
+Newly provisioned apps must be Docker **Web Services** with a connected, separate
+PostgreSQL database. Both resources must be in **Oregon**, using the lowest paid
+tiers: `0.5c-512mb` Web Service (USD 7/month per instance) and `0.1c-256mb`
+database (USD 6/month compute), plus storage and other provider charges.
+Legacy names `starter` and `basic_256mb` are accepted for those equivalent tiers.
+Provisioning rejects other regions and free/higher plans before creating resources,
+and checks the actual database's region/workspace/paid tier before connecting it.
+New project environment rows default to this policy. Existing records and live
+services/databases are not moved, resized or reconnected; older draft settings
+must be saved with the policy values before new resources can be provisioned.
+Existing non-policy infrastructure can still be recorded without altering it.
+No GitHub subscription upgrade is performed automatically.
+
 Global ADMIN can open **Modules > Module Builder** (`/module-builder`). The
 dashboard registers development projects and records separate development,
 staging and production infrastructure without executing their code in Core.

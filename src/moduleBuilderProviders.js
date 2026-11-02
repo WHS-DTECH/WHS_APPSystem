@@ -1,6 +1,7 @@
 const fs = require('fs/promises');
 const path = require('path');
 const crypto = require('crypto');
+const { developmentPolicyError } = require('./developmentPolicy');
 
 class BuilderError extends Error {
   constructor(message, status = 400, uncertain = false) {
@@ -119,6 +120,8 @@ function createBuilderProviders({ env = process.env, fetchImpl = fetch } = {}) {
 
   async function database(project, settings) {
     if (!ownerId) throw new BuilderError('Render workspace ID is not configured.', 503);
+    const policyError = developmentPolicyError(settings);
+    if (policyError) throw new BuilderError(policyError);
     const result = await api('Render', '/postgres', 'POST', {
       name: settings.databaseName, ownerId, plan: settings.databasePlan,
       region: settings.region, version: '17', ipAllowList: [],
@@ -129,6 +132,8 @@ function createBuilderProviders({ env = process.env, fetchImpl = fetch } = {}) {
   }
 
   async function service(project, settings, checkpoint = async () => {}) {
+    const policyError = developmentPolicyError(settings);
+    if (policyError) throw new BuilderError(policyError);
     if (!settings.databaseId) throw new BuilderError('Create or record a separate development database first.');
     if (!project.repository) throw new BuilderError('Register a GitHub repository first.');
     if (project.repository_managed && !project.framework_commit) throw new BuilderError('Install the framework before creating its web service.');
@@ -145,6 +150,7 @@ function createBuilderProviders({ env = process.env, fetchImpl = fetch } = {}) {
     }
     const db = await api('Render', `/postgres/${settings.databaseId}`);
     if (db.owner?.id !== ownerId || db.region !== settings.region) throw new BuilderError('Database must belong to the configured Render workspace and selected region.');
+    if (!['basic_256mb', '0.1c-256mb'].includes(db.plan)) throw new BuilderError('The connected development database must use the lowest paid plan. Check its actual plan in Render before creating a service.');
     const connection = await api('Render', `/postgres/${settings.databaseId}/connection-info`);
     const databaseUrl = connection.internalConnectionString;
     if (!databaseUrl || databaseUrl === env.DATABASE_URL) throw new BuilderError('A separate module database connection is required.', 409);

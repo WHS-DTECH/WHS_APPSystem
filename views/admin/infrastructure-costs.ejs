@@ -1,0 +1,108 @@
+<%- include('../partials/header') %>
+<section class="page-title">
+  <p class="eyebrow"><a href="/admin">Core Administration</a></p>
+  <h1>GitHub &amp; Render Costs</h1>
+  <p>All resources visible to the configured reporting accounts, including apps outside Module Builder.</p>
+</section>
+<section class="panel">
+  <h2>Monthly planning estimate</h2>
+  <p><strong>Known subscription and compute subtotal: <%= money(summary.usd) %> / month</strong>
+    · indicative <%= nzd(summary.usd) %> / month</p>
+  <p><%= summary.known %> priced resources/accounts; <%= summary.unknown %> unknown resource/account costs;
+    <%= summary.workspaces %> Render workspace subscriptions not priced.
+    <strong>This is a partial estimate, not the total bill or an invoice.</strong></p>
+  <p>Estimates assume a full month at the observed plan and instance count. Storage, usage extras,
+    discounts, tax, proration and currency conversion fees are excluded. Unknown costs are never treated as Free.
+    Failed refreshes retain older data clearly marked below; this subtotal can include stale observations.</p>
+  <p>Published USD price catalogue checked <%= priceChecked %>:
+    <a href="<%= sources.render %>" target="_blank" rel="noopener noreferrer">Render pricing</a> ·
+    <a href="<%= sources.github %>" target="_blank" rel="noopener noreferrer">GitHub pricing</a>.
+    Prices may change; provider billing is authoritative.</p>
+  <% if (rate) { %>
+    <p>Indicative USD 1 = NZD <%= rate.toFixed(4) %>.
+      Rate dated <%= new Date(snapshot.exchange.data.updatedAt).toLocaleString('en-NZ') %> from
+      <a href="<%= sources.exchange %>" target="_blank" rel="noopener noreferrer">ExchangeRate-API</a>.
+      This is not a bank or card settlement rate.</p>
+  <% } else { %><p role="status">NZD conversion unavailable. Refresh to obtain a valid rate; USD estimates are still shown.</p><% } %>
+  <% if (snapshot.exchange?.error) { %><p role="alert"><%= snapshot.exchange.error %></p><% } %>
+  <form action="/admin/infrastructure-costs/refresh" method="post">
+    <input type="hidden" name="csrf" value="<%= csrf %>">
+    <button class="button button-primary" type="submit">Refresh provider costs &amp; exchange rate</button>
+  </form>
+  <p>Refresh makes read-only provider requests. It does not create, upgrade, delete or reconnect any resources.
+    No credentials, connection strings or environment-variable values are saved in this report.</p>
+</section>
+<% for (const [key, title] of [['render', 'Render'], ['github', 'GitHub']]) { const section = snapshot[key]; %>
+<section class="panel">
+  <h2><%= title %></h2>
+  <% if (!section) { %><p>Not checked yet. Use Refresh above to load the provider inventory.</p><% } %>
+  <% if (section?.error) { %>
+    <p role="alert"><strong>Refresh failed<%= section.data ? ' — showing stale data' : ' — no inventory available' %>:</strong> <%= section.error %></p>
+    <p>Last attempted: <%= new Date(section.attemptedAt).toLocaleString('en-NZ') %></p>
+  <% } %>
+  <% if (section?.data) { const data = section.data; %>
+    <p>Last successful check: <%= new Date(data.checkedAt).toLocaleString('en-NZ') %></p>
+    <p><%= data.warning %></p>
+    <% if (key === 'render') { %>
+      <h3>Web services and other services / PostgreSQL databases</h3>
+      <% if (!data.resources.length) { %><p>No services or PostgreSQL databases were returned for this key.</p><% } %>
+      <div class="user-role-table-wrap">
+      <table>
+        <caption>Render full-month compute estimates (USD and indicative NZD)</caption>
+        <thead><tr><th>Resource / workspace</th><th>Type / region</th><th>Plan / status</th><th>Monthly USD</th><th>Indicative NZD</th><th>Coverage</th></tr></thead>
+        <tbody>
+        <% data.resources.forEach(resource => { %>
+          <tr><td><strong><%= resource.name %></strong><br><code><%= resource.id %></code><br><%= data.workspaces.find(w => w.id === resource.owner)?.name || resource.owner %></td>
+            <td><%= resource.type %><br><%= resource.region %></td>
+            <td><%= resource.plan %><br><%= resource.status %><% if (resource.instances !== null) { %><br><%= resource.instances %> instance(s)<% } %></td>
+            <td><%= money(resource.monthlyUsd) %></td><td><%= nzd(resource.monthlyUsd) %></td>
+            <td><%= resource.note %><% if (resource.storageGb !== null) { %><br>Provisioned DB storage: <%= resource.storageGb %> GB (cost excluded).<% } %></td></tr>
+        <% }) %>
+        </tbody>
+      </table>
+      </div>
+      <h3>Workspace subscription costs — Unknown</h3>
+      <ul><% data.workspaces.forEach(workspace => { %><li><%= workspace.name %> (<%= workspace.id %>): check Render billing; not counted per app.</li><% }) %></ul>
+      <a class="button" href="https://dashboard.render.com" target="_blank" rel="noopener noreferrer">Open Render for actual invoices</a>
+    <% } else { %>
+      <h3>Account subscriptions</h3>
+      <div class="user-role-table-wrap">
+      <table>
+        <caption>GitHub subscriptions are counted per account, not per repository</caption>
+        <thead><tr><th>Account</th><th>Plan / seats</th><th>Visible repositories</th><th>Monthly USD</th><th>Indicative NZD</th><th>Coverage</th></tr></thead>
+        <tbody>
+        <% data.accounts.forEach(account => { %>
+          <tr><td><%= account.login %><br><%= account.type %></td><td><%= account.plan %><br>Seats: <%= account.seats === null ? 'Unknown' : account.seats %></td>
+            <td><%= account.repositoryCount %></td><td><%= money(account.monthlyUsd) %></td><td><%= nzd(account.monthlyUsd) %></td><td><%= account.note %></td></tr>
+        <% }) %>
+        </tbody>
+      </table>
+      </div>
+      <h3>Provider-reported metered usage (not an invoice)</h3>
+      <p>Month-to-date organisation usage is shown separately and is not added to the monthly subscription estimate.
+        These are different periods and may overlap with included allowances. Personal-account usage is unavailable.</p>
+      <ul><% data.accounts.forEach(account => { %>
+        <li><strong><%= account.login %>:</strong>
+          <% if (Number.isFinite(account.reportedUsageUsd)) { %>
+            <%= money(account.reportedUsageUsd) %> / indicative <%= nzd(account.reportedUsageUsd) %> — <%= account.usagePeriod %> month-to-date (UTC).
+          <% } else { %>Unavailable. <%= account.usageError || 'Billing access or supported usage reporting is not available for this account.' %><% } %>
+        </li>
+      <% }) %></ul>
+      <details><summary>Visible repository inventory (<%= data.repositories.length %>)</summary>
+        <ul><% data.repositories.forEach(repository => { %><li><%= repository.name %> — <%= repository.private ? 'Private' : 'Public' %>; no separate repository subscription assumed.</li><% }) %></ul>
+      </details>
+      <a class="button" href="https://github.com/settings/billing" target="_blank" rel="noopener noreferrer">Open GitHub personal billing</a>
+      <p>For organisations, open that organisation's Settings → Billing. Repository access alone does not grant billing access.</p>
+    <% } %>
+  <% } %>
+</section>
+<% } %>
+<section class="panel">
+  <h2>New development app policy</h2>
+  <p>Each newly provisioned app must be a Render Web Service with its own connected PostgreSQL database,
+    both in Oregon. The lowest paid compute tiers are 0.5c-512mb and 0.1c-256mb:
+    USD 13/month compute-only per app, plus database storage and any account/workspace or usage charges.
+    GitHub subscription fees are account-level, not a new subscription for each app.</p>
+  <a class="button" href="/module-builder">Open Module Builder</a>
+</section>
+<%- include('../partials/footer') %>

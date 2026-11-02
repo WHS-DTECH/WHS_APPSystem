@@ -28,6 +28,7 @@ const studentApps = require('./studentApps');
 const { injectGlobalNav, navData, safeNext, readCookie, NEXT_COOKIE } = require('./globalNav');
 const { describeModules } = require('./moduleDocs');
 const { createModuleBuilderRouter } = require('./moduleBuilder');
+const { createInfrastructureCostsRouter } = require('./infrastructureCosts');
 const { createModuleIdentityRouter } = require('./moduleIdentity');
 const { createContactRouter } = require('./contact');
 const { createAdminUsersRouter } = require('./adminUsers');
@@ -309,6 +310,7 @@ app.get('/admin', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, nex
 });
 
 app.use('/admin/users', createAdminUsersRouter());
+app.use('/admin/infrastructure-costs', createInfrastructureCostsRouter());
 app.use('/admin/launchpad', createLaunchpadAdminRouter());
 app.use('/admin/maintenance-notifications', maintenanceNotifications.createMaintenanceRouter());
 

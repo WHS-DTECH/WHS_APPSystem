@@ -15,7 +15,9 @@
     <dt>Region</dt><dd><%= plan.settings.region %></dd>
     <dt>Health path</dt><dd><%= plan.settings.healthPath %></dd>
   </dl>
-  <p class="mb-warning">Render resources may be billable, and free tiers may expire or be unavailable.
+  <p class="mb-warning">New Render resources use the lowest paid compute tiers in Oregon: USD 7/month per Web Service instance
+    plus USD 6/month database compute, before database storage, taxes and other charges (published prices checked 2 November 2026).
+    <a href="/admin/infrastructure-costs">Review the cost report</a>.
     Check current pricing and workspace eligibility in Render before confirming. The wizard cannot guarantee a price.</p>
   <p>Repository creation is private. Framework installation/update only targets an otherwise unmodified wizard-created repository.
     Web service creation sends only its separate database URL and a new session secret directly to Render;

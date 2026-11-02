@@ -3,6 +3,7 @@ const express = require('express');
 const { query } = require('./db');
 const { BuilderError, createBuilderProviders } = require('./moduleBuilderProviders');
 const { httpsAppUrl } = require('./appAddresses');
+const { developmentPolicyError } = require('./developmentPolicy');
 
 const ROOT = '/module-builder';
 const KINDS = ['development', 'staging', 'production'];
@@ -109,6 +110,10 @@ function createModuleBuilderRouter({ dbQuery = query, providers = createBuilderP
     option(action, Object.keys(ACTIONS), 'provisioning action');
     if (project.stage === 'archived' || project.stage === 'released') throw new BuilderError('Archived/released projects cannot be provisioned by the development wizard.');
     const settings = environment.config;
+    if (['database', 'service'].includes(action)) {
+      const policyError = developmentPolicyError(settings);
+      if (policyError) throw new BuilderError(policyError);
+    }
     if (action === 'repository' && project.repository) throw new BuilderError('A repository is already registered. It will not be replaced.', 409);
     if (action === 'scaffold' && (!project.repository_managed || project.framework_commit)) throw new BuilderError('Framework installation is only for new wizard-created repositories.');
     if (action === 'upgrade' && (!project.repository_managed || !project.framework_commit)) throw new BuilderError('Framework updates require an untouched wizard-created framework.');

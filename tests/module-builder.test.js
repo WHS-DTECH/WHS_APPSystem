@@ -43,7 +43,7 @@ const env = {
 const project = { slug: 'example-module', repository: 'WHS-DTECH/example-module', branch: 'main', mount_path: '/example-module/', repository_managed: true };
 const settings = {
   serviceName: 'example-module-dev', databaseName: 'example-module-dev-db',
-  servicePlan: 'free', databasePlan: 'free', region: 'singapore',
+  servicePlan: '0.5c-512mb', databasePlan: '0.1c-256mb', region: 'oregon',
   healthPath: '/health', dockerfilePath: './Dockerfile', databaseId: 'dpg-fixture-a'
 };
 const reply = (body, status = 200) => ({ ok: status < 400, status, json: async () => body });
@@ -192,7 +192,7 @@ test('Render web service receives its separate DB and fresh secret and auto-depl
       ownerId: 'tea-fixture', envVars: [{ key: 'GLOBAL_CONTROL_URL', value: 'https://core.example.test' }], secretFiles: []
     });
     if (url.endsWith('/connection-info')) return reply({ internalConnectionString: 'postgresql://module-development' });
-    if (url.includes('/postgres/')) return reply({ owner: { id: 'tea-fixture' }, region: 'singapore' });
+    if (url.includes('/postgres/')) return reply({ owner: { id: 'tea-fixture' }, region: 'oregon', plan: '0.1c-256mb' });
     return reply({ service: { id: 'srv-fixture', serviceDetails: { url: 'https://example.onrender.com' } }, deployId: 'dep-fixture' }, 201);
   } });
   const result = await providers.service({ ...project, framework_commit: 'framework' }, settings, async (created) => {
@@ -234,7 +234,7 @@ test('failed group linking preserves the created service checkpoint and reports 
   const providers = createBuilderProviders({env,fetchImpl:async(url)=>{
     if(url.endsWith('/env-groups/evg-fixture'))return reply({ownerId:'tea-fixture',envVars:[{key:'GLOBAL_CONTROL_URL',value:'https://core.example.test'}],secretFiles:[]});
     if(url.endsWith('/connection-info'))return reply({internalConnectionString:'postgresql://separate'});
-    if(url.includes('/postgres/'))return reply({owner:{id:'tea-fixture'},region:'singapore'});
+    if(url.includes('/postgres/'))return reply({owner:{id:'tea-fixture'},region:'oregon',plan:'0.1c-256mb'});
     if(url.endsWith('/services'))return reply({service:{id:'srv-created',serviceDetails:{url:'https://created.onrender.com'}}});
     return reply({},500);
   }});

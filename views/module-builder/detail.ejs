@@ -27,6 +27,10 @@
 </section>
 <section class="panel">
   <h2>Development setup wizard</h2>
+  <p><strong>New app policy:</strong> a Web Service and its connected separate database, both in Oregon,
+    on the lowest paid tiers (0.5c-512mb and 0.1c-256mb). Other regions/free plans cannot be newly provisioned.
+    Existing recorded/live resources are not moved or upgraded.
+    <a href="/admin/infrastructure-costs">View GitHub &amp; Render cost report</a>.</p>
   <p>Follow these steps in order. Each button opens a review screen, not immediate provisioning.</p>
   <ol>
     <li>Register an existing repository, or create a new private repository.</li>
@@ -82,7 +86,8 @@
     <label>Database plan<select name="databasePlan"><% databasePlans.forEach((value) => { %><option value="<%= value %>" <%= config.databasePlan === value ? 'selected' : '' %>><%= value %></option><% }) %></select></label>
     <label>Health path<input name="healthPath" value="<%= config.healthPath || '/health' %>" required></label>
     <p>Runtime: Docker · Dockerfile: <code>./Dockerfile</code> · branch: <%= project.branch %>.
-      Free-tier eligibility/expiry and current prices must be checked in Render. No fixed price is promised.</p>
+      New provisioning requires Oregon and the lowest paid service/database tiers. Other options are for recording existing infrastructure only.
+      Current prices must be checked in Render. No fixed price is promised.</p>
     <label class="mb-wide">Environment checklist — names and purpose only, never values
       <textarea name="environmentVariables" rows="9" maxlength="5000"><%= (config.environmentVariables || []).map((item) => `${item.name} | ${item.required ? 'required' : 'optional'} | ${item.purpose}`).join('\n') %></textarea>
     </label>
