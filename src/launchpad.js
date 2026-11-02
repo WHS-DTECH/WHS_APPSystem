@@ -69,7 +69,12 @@ function createLaunchpad({ dbQuery = query } = {}) {
           url: `/launchpad/apps/${encodeURIComponent(module.module_key)}`
         };
       }).sort((a, b) => a.sort_order - b.sort_order || a.title.localeCompare(b.title));
+      const origin = value => { try { return new URL(value).origin; } catch { return null; } };
+      const shownNames = new Set(cards.map(card => card.title.trim().toLowerCase())
+        .concat(modules.map(module => String(module.display_name || '').trim().toLowerCase())));
+      const shownOrigins = new Set(modules.map(module => origin(module.path)).filter(Boolean));
       for (const project of await developmentProjects(req.user, dbQuery)) {
+        if (shownNames.has(project.name.trim().toLowerCase()) || shownOrigins.has(origin(project.app_url))) continue;
         cards.push({
           title: project.name, icon: 'hub', is_visible: true, development: true,
           description: project.description || (project.app_url

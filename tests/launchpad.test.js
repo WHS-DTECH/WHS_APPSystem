@@ -113,7 +113,9 @@ test('authenticated Launchpad, admin cards, stable launch routes and direct modu
   const dbQuery = async (sql, params = []) => {
     if (sql.includes('FROM module_builder_projects')) return { rows: [
       { id: 'b0000000-0000-4000-8000-000000000002', name: 'Tracker <Dev>', description: null, app_url: 'https://tracker-development.onrender.com/' },
-      { id: 'b0000000-0000-4000-8000-000000000003', name: 'Undeployed Dev', description: null, app_url: null }
+      { id: 'b0000000-0000-4000-8000-000000000003', name: 'Undeployed Dev', description: null, app_url: null },
+      { id: 'b0000000-0000-4000-8000-000000000004', name: 'International (renamed)', description: null, app_url: 'https://whs-international.onrender.com/' },
+      { id: 'b0000000-0000-4000-8000-000000000005', name: 'Example App', description: null, app_url: 'https://other.onrender.com/' }
     ] };
     if (sql.includes('FROM modules m')) return { rows: modules.map(module => ({
       ...module, has_access: Boolean(user && user.is_active !== false && (user.roles.includes('ADMIN') || assigned.has(module.module_key)))
@@ -224,6 +226,7 @@ test('authenticated Launchpad, admin cards, stable launch routes and direct modu
     assert.match(output, /In development · ADMIN only<\/span><h3>Tracker &lt;Dev&gt;<\/h3>/);
     assert.match(output, /href="https:\/\/tracker-development\.onrender\.com\/"/);
     assert.match(output, /href="\/module-builder\/b0000000-0000-4000-8000-000000000003\/setup"/);
+    assert.equal((output.match(/class="app app-dev"/g) || []).length, 2, 'apps that already have a Launchpad card are not duplicated');
     const launch = '/launchpad/apps/example-module';
     assert.equal((await call(launch)).headers.get('location'), '/example/');
     modules[0].path = '/moved-example/';
