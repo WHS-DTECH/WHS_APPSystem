@@ -114,3 +114,68 @@ test('Drive consent is opt-in and reconnect retains previously granted scopes', 
   assert.equal(new URL(result.url).searchParams.get('scope').includes(DRIVE_SCOPE), true);
   assert.equal((await (await fetch(base)).json()).attendanceDriveEnabled, true);
 });
+test('Drive consent and token exchange use the same callback for standalone and embedded Planner', async t => {
+  for (const prefix of ['', '/teacher-planner']) {
+    await t.test(prefix || 'standalone', async t => {
+      const env = {
+        GOOGLE_CALENDAR_CLIENT_ID: 'synthetic-calendar-client', GOOGLE_CALENDAR_CLIENT_SECRET: 'synthetic-secret',
+        GOOGLE_CALENDAR_TOKEN_KEY: Buffer.alloc(32, 7).toString('base64'),
+        APP_BASE_URL: 'https://school.example.test', TEACHER_PLANNER_BASE_PATH: prefix
+      };
+      const route = prefix + '/api/planner/google-calendar';
+      const redirectUri = env.APP_BASE_URL + route + '/callback';
+      let stored = null, exchanges = 0;
+      const app = express();
+      app.use(express.json(), session({ secret: 'synthetic-drive-callback', resave: false, saveUninitialized: false }));
+      app.use((req, _res, next) => { req.user = { id: owner }; next(); });
+      app.use(route, createGoogleCalendarRouter({
+        env, query: async (sql, values) => {
+          if (sql.startsWith('INSERT INTO google_calendar_connections')) {
+            stored = { owner_id: owner, encrypted_tokens: values[4], selected_calendars: [] };
+            return { rows: [] };
+          }
+          assert.match(sql, /^SELECT \* FROM google_calendar_connections/);
+          return { rows: stored ? [stored] : [] };
+        },
+        fetchImpl: async (target, options) => {
+          const url = new URL(target);
+          if (url.pathname === '/token') {
+            const params = new URLSearchParams(options.body);
+            assert.equal(params.get('client_id'), env.GOOGLE_CALENDAR_CLIENT_ID);
+            assert.equal(params.get('redirect_uri'), redirectUri);
+            assert.equal(params.get('grant_type'), 'authorization_code');
+            assert.ok(params.get('code_verifier'));
+            exchanges++;
+            return Response.json({ access_token: 'synthetic-access', refresh_token: 'synthetic-refresh',
+              expires_in: 3600, scope: [...SCOPES, DRIVE_SCOPE].join(' ') });
+          }
+          if (url.pathname.endsWith('/userinfo')) return Response.json({
+            id: 'synthetic-google-user', email: 'synthetic@example.test', verified_email: true
+          });
+          assert.equal(url.pathname, '/calendar/v3/users/me/calendarList');
+          return Response.json({ items: [] });
+        }
+      }));
+      const server = app.listen(0, '127.0.0.1');
+      await new Promise(resolve => server.once('listening', resolve));
+      t.after(() => new Promise(resolve => server.close(resolve)));
+      const base = 'http://127.0.0.1:' + server.address().port + route;
+      const response = await fetch(base + '/connect', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ includeAttendanceDrive: true })
+      });
+      assert.equal(response.status, 200);
+      const oauth = new URL((await response.json()).url);
+      assert.equal(oauth.searchParams.get('redirect_uri'), redirectUri);
+      assert.equal(oauth.searchParams.get('client_id'), env.GOOGLE_CALENDAR_CLIENT_ID);
+      assert.ok(oauth.searchParams.get('scope').split(' ').includes(DRIVE_SCOPE));
+      const callback = await fetch(base + '/callback?' + new URLSearchParams({
+        state: oauth.searchParams.get('state'), code: 'synthetic-code'
+      }), { headers: { cookie: response.headers.get('set-cookie').split(';')[0] } });
+      assert.equal(callback.status, 200);
+      assert.match(await callback.text(), /read-only Drive attendance access/);
+      assert.equal(exchanges, 1);
+      assert.equal((await (await fetch(base)).json()).attendanceDriveEnabled, true);
+    });
+  }
+});

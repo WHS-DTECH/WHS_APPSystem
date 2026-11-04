@@ -42,7 +42,7 @@ test('automatic class matching strips upload teacher/room labels and matches exa
   assert.throws(() => scheduledPeriods({ classes: [] }, entries), /Choose school classes/);
 });
 function browser() {
-  const context = { structuredClone, crypto, TextEncoder, confirm: () => true };
+  const context = { structuredClone, crypto, TextEncoder, URL, confirm: () => true };
   vm.runInNewContext(fs.readFileSync(require.resolve('./public/attendance.js'), 'utf8'), context);
   return context.plannerAttendance;
 }
@@ -299,6 +299,10 @@ test('disabled Drive sync does not read Drive or change marks', async () => {
 });
 test('Drive setup authorises only on click and saves the chosen private folder before sync', async () => {
   const options = importFixture(), host = element('section'), writes = [];
+  const redirectUri = 'https://school.example.test/teacher-planner/api/planner/google-calendar/callback';
+  const oauth = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+  oauth.searchParams.set('client_id', 'synthetic-calendar-client');
+  oauth.searchParams.set('redirect_uri', redirectUri);
   let syncs = 0;
   await browser().mount(host, {
     el: element, ...options, overview: true,
@@ -306,7 +310,7 @@ test('Drive setup authorises only on click and saves the chosen private folder b
       path.endsWith('/drive-sync') ? { enabled: false, folderId: '', processed: {} } : { imports: {}, markedWeeks: [] },
     mutate: async (path, body, method) => {
       writes.push([path, body, method]);
-      return { url: 'https://accounts.google.com/o/oauth2/v2/auth?synthetic=true' };
+      return { url: oauth.href };
     },
     syncNow: async () => { syncs++; }
   });
@@ -315,12 +319,21 @@ test('Drive setup authorises only on click and saves the chosen private folder b
   await nodes.find(node => node.textContent === 'Authorise read-only Google Drive').events.click();
   assert.deepEqual(JSON.parse(JSON.stringify(writes[0])), ['google-calendar/connect', { includeAttendanceDrive: true }, 'POST']);
   assert.ok(descendants(host).some(node => node.tag === 'a' && node.attrs.target === '_blank'));
+  nodes = descendants(host);
+  assert.ok(nodes.some(node => node.tag === 'code' && node.textContent === redirectUri));
+  assert.ok(nodes.some(node => node.tag === 'code' && node.textContent === 'synthetic-calendar-client'));
+  assert.ok(nodes.some(node => /not JavaScript origins/.test(node.textContent)));
+  const troubleshooting = nodes.find(node => node.tag === 'details' &&
+    node.children.some(child => /redirect_uri_mismatch/.test(child.textContent)));
+  assert.equal(troubleshooting.hidden, false);
+  await nodes.find(node => node.textContent === 'Authorise read-only Google Drive').events.click();
+  assert.equal(troubleshooting.children.filter(node => node.tag === 'code').length, 2, 'retry replaces setup details');
   nodes.find(node => node.attrs['aria-label'] === 'Attendance Google Drive folder URL').value =
     'https://drive.google.com/drive/folders/synthetic_folder_123';
   nodes.find(node => node.attrs['aria-label'] === 'Automatically sync Drive attendance on planner open').checked = true;
   await nodes.find(node => node.textContent === 'Save folder and sync').events.click();
-  assert.equal(writes[1][0], 'attendance/2026/drive-sync');
-  assert.equal(writes[1][1].enabled, true);
+  assert.equal(writes[2][0], 'attendance/2026/drive-sync');
+  assert.equal(writes[2][1].enabled, true);
   assert.equal(syncs, 1);
 });
 test('planner-opening Drive sync protects navigation and shows explicit success or failure', async () => {

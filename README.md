@@ -1292,6 +1292,19 @@ Keep the original development callback authorised. Add
 authorised JavaScript origins and the Drive browser key's allowed referrers.
 Use the future `APP_BASE_URL` origin instead when hosting/domain changes.
 
+If **Two-Week Attendance → Authorise read-only Google Drive** shows
+`Error 400: redirect_uri_mismatch`, open **Google Auth Platform → Clients** in
+Google Cloud Console. Select the **Web application** client whose ID matches
+`GOOGLE_CALENDAR_CLIENT_ID` in the service's linked environment group, not the
+Drive Picker client (`GOOGLE_DRIVE_CLIENT_ID`) or a different Core login client.
+Add the callback above under **Authorised redirect URIs**, save, then retry
+authorisation. Adding a JavaScript origin alone does not authorise a callback.
+After clicking Authorise, the attendance panel's **Google sign-in blocked?**
+details show the exact client ID and redirect URI sent to Google, including
+the current host. Keep existing callbacks and credentials; do not rotate
+`GOOGLE_CALENDAR_TOKEN_KEY`. A Git push or Render redeploy cannot change
+Google's registered redirect URIs.
+
 The Moderation **Marking Confirmation & Feedback** and **WHS Coversheet** contents
 tabs label and open each record's respective form, independently of its marking
 schedule. Existing record titles and linked Drive documents are not renamed by
