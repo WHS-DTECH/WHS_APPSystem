@@ -4,6 +4,7 @@ const express = require('express');
 const session = require('express-session');
 const { folderId, DRIVE_SCOPE, createAttendanceDriveRouter } = require('./attendanceDrive');
 const { createGoogleCalendarRouter, configuration, encryptTokens, SCOPES } = require('./googleCalendar');
+const { AttendancePdfError } = require('./attendanceImport');
 const owner = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const folder = 'synthetic_folder_123';
 const file = { id: 'synthetic_file_123', name: 'Attendance.pdf', mimeType: 'application/pdf', trashed: false,
@@ -32,7 +33,13 @@ test('Drive provider enforces selected folder, permissions, pagination, file ver
     ensureConnected: async () => row, access: async () => 'synthetic-token',
     hasScope: (_row, scope) => { assert.equal(scope, DRIVE_SCOPE); return granted; },
     unchanged: async () => { if (mode === 'account-change') throw new DriveError('Google connection changed', 409); },
-    parsePdf: async buffer => { parsed++; assert.ok(buffer.length <= 5 * 1024 * 1024); return { weeks: ['2026-10-26', '2026-11-02'], rows: [] }; },
+    parsePdf: async buffer => {
+      parsed++;
+      assert.ok(buffer.length <= 5 * 1024 * 1024);
+      if (mode === 'layout') throw new AttendancePdfError('The PDF day columns have changed. No marks were imported.');
+      if (mode === 'decoder') throw new Error('private decoder internals');
+      return { weeks: ['2026-10-26', '2026-11-02'], rows: [] };
+    },
     ErrorType: DriveError,
     fetchImpl: async (urlString, options) => {
       const url = new URL(urlString);
@@ -70,6 +77,15 @@ test('Drive provider enforces selected folder, permissions, pagination, file ver
   result = await (await fetch(base + '/' + file.id)).json();
   assert.equal(result.accountId, 'google-test');
   assert.equal(parsed, 1);
+  for (const value of ['layout', 'decoder']) {
+    mode = value;
+    const response = await fetch(base + '/' + file.id);
+    assert.equal(response.status, 422);
+    const { error } = await response.json();
+    assert.match(error, value === 'layout' ? /PDF day columns have changed/ : /PDF could not be decoded/);
+    assert.match(error, /No marks from this PDF were imported/);
+    assert.doesNotMatch(error, /private decoder internals/);
+  }
   for (const [value, status] of [['wrong-folder', 422], ['oversized-header', 422], ['oversized-stream', 422],
     ['file-change', 409], ['forbidden', 403], ['missing', 404], ['account-change', 409]]) {
     mode = value; metadataReads = 0;

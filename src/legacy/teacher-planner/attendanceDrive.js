@@ -1,5 +1,5 @@
 const express = require('express');
-const { importAttendancePdf } = require('./attendanceImport');
+const { AttendancePdfError, importAttendancePdf } = require('./attendanceImport');
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
 const DRIVE_ID = /^[A-Za-z0-9_-]{10,200}$/;
 const MAX_PDF = 5 * 1024 * 1024;
@@ -116,7 +116,11 @@ function createAttendanceDriveRouter({ query, ensureConnected, access, unchanged
     } finally { reader.releaseLock(); }
     let pdf;
     try { pdf = await parsePdf(Buffer.concat(chunks)); }
-    catch { throw new ErrorType('A Drive PDF is not a supported KAMAR Two Week Overview. Use manual import to check it, or move it out of the sync folder.', 422); }
+    catch (error) {
+      const reason = error instanceof AttendancePdfError ? error.message :
+        'The PDF could not be decoded. Export it again from KAMAR rather than printing or scanning it.';
+      throw new ErrorType('Attendance PDF rejected: ' + reason + ' No marks from this PDF were imported.', 422);
+    }
     const after = await (await google(path + fields, token)).json();
     if (!validFile(after, folder) || fileVersion(after) !== fileVersion(file)) throw new ErrorType('The Drive PDF changed while being read. Retry sync.', 409);
     await unchanged(row);

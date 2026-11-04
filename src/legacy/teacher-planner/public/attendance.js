@@ -247,7 +247,12 @@
         result.replaceChildren();
         const selectedFile = file.files?.[0];
         if (!selectedFile || selectedFile.size > 5 * 1024 * 1024) throw new Error('Choose a KAMAR attendance PDF no larger than 5 MB.');
-        const pdf = await uploadPdf(selectedFile);
+        let pdf;
+        try { pdf = await uploadPdf(selectedFile); }
+        catch (error) {
+          result.append(el('p', error.message, { class: 'duty-roster-feedback', role: 'alert' }));
+          throw error;
+        }
         const directory = await request('attendance/classes/' + year);
         const schedules = {}, savedMarks = [];
         for (const week of pdf.weeks) {

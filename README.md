@@ -1304,6 +1304,12 @@ page. Keep existing callbacks and credentials; do not rotate
 `GOOGLE_CALENDAR_TOKEN_KEY`. A Git push or Render redeploy cannot change
 Google's registered redirect URIs.
 
+Attendance PDF validation failures are shown beside the manual preview controls.
+Drive sync reports the specific recognised layout check that failed, or a safe
+decode-error message, and does not mark the rejected file as processed. Export
+the original **Student Attendance - Two Week Overview** PDF from KAMAR; do not
+print, scan or convert it. A rejected file saves no marks from that PDF.
+
 The Moderation **Marking Confirmation & Feedback** and **WHS Coversheet** contents
 tabs label and open each record's respective form, independently of its marking
 schedule. Existing record titles and linked Drive documents are not renamed by

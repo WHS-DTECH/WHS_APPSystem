@@ -190,6 +190,24 @@ test('all-class import ignores display filters, deduplicates shared marks and re
   assert.equal(history.entries.length, 4);
   assert.deepEqual(new Set(history.entries.map(item => item.groupId)), new Set([options.group.id, second.id]));
 });
+test('failed PDF preview displays its error beside the preview controls and never saves marks', async () => {
+  const options = importFixture(), host = element('section');
+  const message = 'The attendance PDF could not be read. The PDF day columns have changed.';
+  await browser().mount(host, {
+    el: element, ...options, overview: true,
+    request: async path => path.endsWith('/groups') ? { revision: 1, content: { groups: [options.group] } } :
+      { imports: {}, markedWeeks: [] },
+    loadSchedule: async () => { throw new Error('Failed preview must not load schedules'); },
+    uploadPdf: async () => { throw new Error(message); },
+    mutate: async () => { assert.fail('Failed preview must not save marks'); }
+  });
+  const panel = descendants(host).find(node => node.tag === 'details' &&
+    node.children.some(child => child.textContent.startsWith('Load Two-Week Attendance PDF')));
+  descendants(panel).find(node => node.attrs.type === 'file').files = [{ size: 100 }];
+  await descendants(panel).find(node => node.textContent === 'Preview PDF import').events.click();
+  assert.ok(descendants(panel).some(node => node.attrs.role === 'alert' && node.textContent === message));
+  assert.equal(descendants(panel).some(node => node.textContent.startsWith('Fill ')), false);
+});
 test('an already populated PDF can record import history without rewriting any marks', async () => {
   const options = importFixture(), host = element('section'), writes = [];
   const plan = browser().planImport(options);
