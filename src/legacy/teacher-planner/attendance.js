@@ -1,4 +1,5 @@
 const express = require('express');
+const { importAttendancePdf } = require('./attendanceImport');
 const UUID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 const STUDENT = /^(?:k:[A-Za-z0-9_-]{1,60}|m:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$/;
 const PERIODS = ['p1', 'p2', 'p3', 'p4', 'p5'];
@@ -59,6 +60,18 @@ function createAttendanceRouter({ query, loadClasses }) {
     if (!UUID.test(req.user.id)) return next(new Error('Verified attendance owner is invalid.'));
     req.attendanceYear = year; next();
   });
+  router.post('/:year/import-preview', express.raw({ type: 'application/pdf', limit: '5mb' }), async (req, res) => {
+    try {
+      const result = await importAttendancePdf(req.body);
+      if (!result.rows[0].days.some(day => Number(day.date.slice(0, 4)) === req.attendanceYear)) {
+        return reject(res, 'The PDF dates do not match this attendance year.');
+      }
+      res.json(result);
+    } catch (error) {
+      console.warn('Attendance PDF preview rejected:', error.message);
+      res.status(400).json({ error: 'The attendance PDF could not be read. ' + error.message });
+    }
+  });
   router.get('/:year/groups', async (req, res, next) => {
     try {
       const result = await query('SELECT content,revision FROM planner_attendance_groups WHERE owner_id=$1 AND year=$2',
@@ -97,8 +110,9 @@ function createAttendanceRouter({ query, loadClasses }) {
   });
   router.put('/:year/mark', async (req, res, next) => {
     const value = req.body;
-    if (!keys(value, ['studentId', 'date', 'period', 'mark', 'revision']) || typeof value.studentId !== 'string' ||
+    if (!keys(value, ['studentId', 'date', 'period', 'mark', 'revision', 'fillOnly']) || typeof value.studentId !== 'string' ||
       !STUDENT.test(value.studentId) || !validDay(value.date, req.attendanceYear) || !PERIODS.includes(value.period) ||
+      (value.fillOnly !== undefined && value.fillOnly !== true) ||
       !['', 'P', 'A', 'L'].includes(value.mark) || !Number.isInteger(value.revision) || value.revision < 0) {
       return reject(res, 'Choose a valid student, school day, period and blank/P/A/L mark.');
     }
@@ -116,7 +130,7 @@ function createAttendanceRouter({ query, loadClasses }) {
         await query(`INSERT INTO planner_attendance_marks(owner_id,year,student_id,lesson_date,period,mark,student_name)
           VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT DO NOTHING RETURNING revision`, values) :
         await query(`UPDATE planner_attendance_marks SET mark=$6,student_name=$7,revision=revision+1,updated_at=NOW()
-          WHERE owner_id=$1 AND year=$2 AND student_id=$3 AND lesson_date=$4 AND period=$5 AND revision=$8 RETURNING revision`,
+          WHERE owner_id=$1 AND year=$2 AND student_id=$3 AND lesson_date=$4 AND period=$5 AND revision=$8${value.fillOnly ? " AND mark=''" : ''} RETURNING revision`,
         [...values, value.revision]);
       if (!result.rows.length) return reject(res, 'This attendance mark changed in another window. Note your intended mark, then reload the week before retrying.', 409);
       res.json(result.rows[0]);

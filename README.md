@@ -93,6 +93,29 @@ with a persistent warning to check dates before recording marks. Known public
 holidays and school closures are still excluded. If the entire government
 calendar is unavailable, Attendance uses published Planner Setup term dates;
 term dates must still be configured before a register can be displayed.
+Attendance class tabs with automatic timetable matching offer **Import KAMAR
+attendance PDF into this class tab**. Upload the landscape **Student Attendance -
+Two Week Overview** PDF (maximum 5 MB / 30 pages), review the preview, then confirm
+**Fill blank marks**. Each student is matched by a unique full name to a saved
+school student ID; their current school class memberships and the timetable for
+each PDF week determine which teaching periods are eligible. Manual students,
+ambiguous/unmatched names, future dates, known closures/holidays and dates outside
+configured terms are skipped. Combined tabs do not import another class's periods
+for students who are not members of that class.
+
+The PDF's eight slot positions are preserved, including blank break positions.
+Monday/Tuesday/Thursday/Friday use slots 2, 3, 5, 6, 8 for P1-P5; Wednesday uses
+1, 2, 5, 6, 8. Whanau/Assembly and breaks are ignored. `*` becomes P, `L` becomes L,
+and every other recorded code (including `?`) becomes A; genuine blanks stay
+unrecorded. Existing nonblank marks are never overwritten, conflicts are shown,
+and identical marks are skipped. Blank-only saves use revision checks and an
+atomic database condition, so concurrent edits cannot be overwritten. If saving
+stops part-way, the count is reported; preview the PDF again to safely continue.
+The signed-in, CSRF-protected preview endpoint
+`POST /api/planner/attendance/:year/import-preview` accepts `application/pdf`,
+does not save the upload or write marks, and returns private, non-cacheable data.
+Uploads are parsed locally on the application server without external services;
+neither the source PDF nor its original detailed absence codes are retained.
 Source failures return 502 rather than an empty success, and unsupported years
 are explicitly marked unavailable. Module deployment is separate from Core.
 

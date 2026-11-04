@@ -66,6 +66,116 @@ function element(tag, text = '', attrs = {}) {
   return node;
 }
 const descendants = node => [node, ...node.children.flatMap(descendants)];
+function importFixture() {
+  const automatic = { ...group, name: 'Synthetic class', scheduleMode: 'auto', classes: ['VP-TEST-CW', 'VP-OTHER-CW'],
+    students: [{ id: 'k:100', name: 'Alex Example' }] };
+  return {
+    pdf: { weeks: ['2026-10-26', '2026-11-02'], rows: [{ name: 'Example, Alex', days: [
+      { date: '2026-10-27', slots: ['L', 'P', 'A', '', 'P', 'L', '', 'A'] },
+      { date: '2026-10-28', slots: ['A', 'L', 'P', '', 'P', 'L', '', 'A'] },
+      { date: '2026-11-05', slots: ['P', 'P', '', '', '', '', '', ''] }
+    ] }] },
+    group: automatic,
+    directory: { classes: [
+      { code: 'VP-TEST-CW', students: automatic.students },
+      { code: 'VP-OTHER-CW', students: [{ id: 'k:200', name: 'Other Student' }] }
+    ] },
+    schedules: { '2026-10-26': {
+      'p1:1': [{ title: 'TEST' }], 'p2:1': [{ title: 'OTHER' }], 'p3:1': [{ title: 'TEST' }],
+      'p1:2': [{ title: 'TEST' }], 'p2:2': [{ title: 'TEST' }], 'p5:2': [{ title: 'TEST' }]
+    }, '2026-11-02': { 'p1:3': [{ title: 'TEST' }], 'p2:3': [{ title: 'TEST' }] } },
+    savedMarks: [
+      { student_id: 'k:100', date: '2026-10-27', period: 'p3', mark: 'A', revision: 1 },
+      { student_id: 'k:100', date: '2026-10-28', period: 'p1', mark: 'A', revision: 1 },
+      { student_id: 'k:100', date: '2026-10-28', period: 'p2', mark: '', revision: 2 }
+    ],
+    year: 2026, today: '2026-11-05', ranges: [{ term: '4', startDate: '2026-10-12', endDate: '2026-12-18' }],
+    school: {}, calendar: {}
+  };
+}
+test('import matches unique roster names, maps Wednesday slots and selects each student timetable', () => {
+  const options = importFixture();
+  const plan = browser().planImport(options);
+  assert.equal(plan.matched, 1);
+  assert.equal(plan.conflicts.length, 1);
+  assert.equal(plan.conflicts[0].existing, 'A');
+  assert.equal(plan.conflicts[0].mark, 'P');
+  assert.equal(plan.unchanged, 1);
+  assert.deepEqual(JSON.parse(JSON.stringify(plan.fills.map(value => [value.date, value.period, value.mark, value.revision]))), [
+    ['2026-10-27', 'p1', 'P', 0],
+    ['2026-10-28', 'p2', 'L', 2],
+    ['2026-10-28', 'p5', 'A', 0],
+    ['2026-11-05', 'p1', 'P', 0]
+  ]);
+  assert.equal(plan.fills.some(value => value.date === '2026-10-27' && value.period === 'p2'), false,
+    'a student in TEST must not import OTHER periods from the combined tab');
+});
+test('import excludes closures, known holidays, future dates and dates outside configured terms', () => {
+  const options = importFixture();
+  options.calendar.publicHolidays = [{ date: '2026-10-27' }];
+  options.school.events = [{ date: '2026-10-28', kind: 'teacherOnly' }];
+  options.today = '2026-11-04';
+  let plan = browser().planImport(options);
+  assert.equal(plan.fills.length + plan.conflicts.length, 0);
+  options.today = '2026-11-06';
+  options.ranges = [{ startDate: '2026-11-06', endDate: '2026-12-18' }];
+  plan = browser().planImport(options);
+  assert.equal(plan.fills.length, 0);
+});
+test('import refuses duplicate, unmatched and manual identities rather than guessing', () => {
+  for (const change of [
+    options => options.pdf.rows.push(options.pdf.rows[0]),
+    options => options.group.students.push({ id: 'k:200', name: 'Example, Alex' }),
+    options => { options.pdf.rows[0].name = 'Different Person'; },
+    options => { options.group.students[0].id = 'm:' + crypto.randomUUID(); },
+    options => { options.directory.classes = []; }
+  ]) {
+    const options = importFixture(); change(options);
+    const plan = browser().planImport(options);
+    assert.equal(plan.fills.length, 0);
+    assert.ok(plan.warnings.length);
+  }
+});
+test('PDF preview saves nothing until confirmation and sends only blank fills with atomic protection', async () => {
+  const options = importFixture(), host = element('section'), saved = [];
+  const context = browser();
+  await context.mount(host, {
+    el: element, ...options,
+    request: async path => path.includes('/classes/') ? options.directory :
+      path.endsWith('/groups') ? { revision: 1, content: { groups: [options.group] } } : { marks: options.savedMarks },
+    loadSchedule: async week => options.schedules[week],
+    uploadPdf: async () => options.pdf,
+    mutate: async (path, body) => { saved.push([path, body]); return { revision: 3 }; }
+  });
+  let nodes = descendants(host);
+  nodes.find(node => node.attrs.type === 'file').files = [{ size: 100 }];
+  await nodes.find(node => node.textContent === 'Preview PDF import').events.click();
+  assert.equal(saved.length, 0);
+  nodes = descendants(host);
+  assert.ok(nodes.some(node => node.textContent === 'Keep saved A (conflict)'));
+  await nodes.find(node => node.textContent === 'Fill 4 blank marks').events.click();
+  assert.equal(saved.length, 4);
+  assert.ok(saved.every(([path, body]) => path === 'attendance/2026/mark' && body.fillOnly === true && !Object.hasOwn(body, 'name')));
+  assert.equal(saved.some(([, body]) => body.date === '2026-10-27' && body.period === 'p3'), false);
+  assert.ok(descendants(host).some(node => node.textContent.includes('4 blank marks filled from the PDF')));
+});
+test('a failed import stops with an explicit partial-save count and allows safe re-preview', async () => {
+  const options = importFixture(), host = element('section');
+  let attempts = 0;
+  await browser().mount(host, {
+    el: element, ...options,
+    request: async path => path.includes('/classes/') ? options.directory :
+      path.endsWith('/groups') ? { revision: 1, content: { groups: [options.group] } } : { marks: options.savedMarks },
+    loadSchedule: async week => options.schedules[week], uploadPdf: async () => options.pdf,
+    mutate: async () => { if (++attempts === 2) throw new Error('Mark changed in another window'); return { revision: 1 }; }
+  });
+  descendants(host).find(node => node.attrs.type === 'file').files = [{ size: 100 }];
+  await descendants(host).find(node => node.textContent === 'Preview PDF import').events.click();
+  await descendants(host).find(node => node.textContent === 'Fill 4 blank marks').events.click();
+  assert.equal(attempts, 2);
+  assert.ok(descendants(host).some(node => node.attrs.role === 'alert' && node.textContent.includes('1 of 4 marks saved')));
+  assert.equal(host.attrs['data-preferences-busy'], undefined);
+});
 test('class picker identifies the matched signed-in staff code and shows only supplied teacher classes', async () => {
   const host = element('section');
   await browser().mount(host, {
@@ -253,7 +363,8 @@ test('attendance API requires sign-in, CSRF, ownership and revisions without cha
     }
     if (sql.startsWith('SELECT')) return { rows: [...marks.values()].filter(item => item.owner === params[0]) };
     const markKey = key + ':' + params[2] + ':' + params[3] + ':' + params[4], old = marks.get(markKey);
-    if (sql.startsWith('INSERT') && old || sql.startsWith('UPDATE') && old?.revision !== params[7]) return { rows: [] };
+    if (sql.startsWith('INSERT') && old || sql.startsWith('UPDATE') &&
+        (old?.revision !== params[7] || sql.includes("AND mark=''") && old?.mark !== '')) return { rows: [] };
     const value = { owner: params[0], student_id: params[2], date: params[3], period: params[4], mark: params[5],
       student_name: params[6], revision: (old?.revision || 0) + 1 };
     marks.set(markKey, value); return { rows: [{ revision: value.revision }] };
@@ -272,7 +383,12 @@ test('attendance API requires sign-in, CSRF, ownership and revisions without cha
   assert.equal((await put('mark', { ...mark, owner_id: other })).status, 400);
   assert.equal((await put('mark', mark)).status, 200);
   assert.equal((await put('mark', mark)).status, 409);
+  assert.equal((await put('mark', { ...mark, revision: 1, mark: 'A', fillOnly: true })).status, 409,
+    'fill-only cannot overwrite a nonblank mark even with the current revision');
   assert.equal((await put('mark', { ...mark, revision: 1, mark: '' })).status, 200, 'blank explicitly clears a saved mark');
+  assert.equal((await put('mark', { ...mark, revision: 2, fillOnly: true })).status, 200, 'fill-only can fill a saved blank');
+  assert.equal((await put('mark', { ...mark, revision: 3, mark: '', fillOnly: false })).status, 400);
+  assert.equal((await put('mark', { ...mark, revision: 3, mark: '' })).status, 200);
   assert.equal((await put('mark', { ...mark, mark: 'E' })).status, 400);
   const response = await fetch(base + 'attendance/2026/week/2026-10-26', { headers });
   assert.equal(response.headers.get('cache-control'), 'no-store');
@@ -307,8 +423,11 @@ test('PostgreSQL persists private attendance and rejects stale cell revisions', 
   assert.equal((await put('mark', value)).status, 200);
   assert.equal((await put('mark', value)).status, 409);
   assert.equal((await put('mark', { ...value, revision: 1, mark: 'A' })).status, 200);
+  assert.equal((await put('mark', { ...value, revision: 2, fillOnly: true })).status, 409);
   const stored = await (await fetch(base + 'attendance/2026/week/2026-10-26', { headers })).json();
   assert.deepEqual(stored.marks, [{ student_id: 'k:100', student_name: 'Synthetic Student', date: '2026-10-29', period: 'p3', mark: 'A', revision: 2 }]);
+  assert.equal((await put('mark', { ...value, revision: 2, mark: '' })).status, 200);
+  assert.equal((await put('mark', { ...value, revision: 3, fillOnly: true })).status, 200);
   assert.equal((await put('groups', { revision: 1, content: { groups: [] } })).status, 200);
   assert.equal((await (await fetch(base + 'attendance/2026/week/2026-10-26', { headers })).json()).marks.length, 1, 'removing a tab never deletes attendance');
 });

@@ -2537,6 +2537,11 @@
         content.append(host);
         await globalThis.plannerAttendance.mount(host, {
           el, year, ranges: termRanges(settings.content, calendar.terms || []), school: settings.content, calendar, today: localDate,
+          uploadPdf: async file => {
+            await refreshSession();
+            return request(api + 'attendance/' + year + '/import-preview', { method: 'POST',
+              headers: { 'Content-Type': 'application/pdf', 'x-planner-csrf': csrf }, body: file });
+          },
           loadSchedule: async selectedWeek => {
             const months = new Set(Array.from({ length: 5 }, (_, i) => {
               const day = date(selectedWeek); day.setUTCDate(day.getUTCDate() + i);

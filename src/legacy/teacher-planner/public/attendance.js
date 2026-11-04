@@ -29,7 +29,65 @@
     return Array.from({ length: 5 }, (_, day) => periods.filter(period =>
       (entries[period + ':' + day] || []).some(entry => codes.has(classCode(entry.title)))));
   }
-  async function mount(host, { el, request, mutate, loadSchedule, year, ranges, school, calendar, today }) {
+  function closedDay(value, range, year, school, calendar) {
+    return value < range.startDate || value > range.endDate || !value.startsWith(year + '-') ||
+      school.events?.some(event => event.date === value && ['closure', 'teacherOnly'].includes(event.kind)) ||
+      calendar.publicHolidays?.some(event => event.date === value);
+  }
+  function attendanceName(value) {
+    const parts = value.normalize('NFKC').trim().split(',');
+    return (parts.length === 2 ? parts[1] + ' ' + parts[0] : value).normalize('NFKC')
+      .replace(/[\u2018\u2019]/g, "'").replace(/\s+/g, ' ').trim().toLowerCase();
+  }
+  function planImport({ pdf, group, directory, schedules, savedMarks, year, ranges, school, calendar, today }) {
+    const fills = [], conflicts = [], warnings = [];
+    let unchanged = 0, matched = 0;
+    const pdfNames = new Map(), rosterNames = new Map();
+    for (const row of pdf.rows) {
+      const key = attendanceName(row.name);
+      pdfNames.set(key, [...(pdfNames.get(key) || []), row]);
+    }
+    for (const student of group.students) {
+      const key = attendanceName(student.name);
+      rosterNames.set(key, [...(rosterNames.get(key) || []), student]);
+    }
+    const saved = new Map(savedMarks.map(mark => [mark.student_id + '|' + mark.date + '|' + mark.period, mark]));
+    for (const student of group.students) {
+      const name = attendanceName(student.name), rows = pdfNames.get(name) || [];
+      if (!student.id.startsWith('k:') || rows.length !== 1 || rosterNames.get(name).length !== 1) {
+        warnings.push(student.name + ': ' + (!student.id.startsWith('k:') ? 'manual student; no school identity match.' :
+          rows.length === 0 ? 'not found in the PDF.' : 'ambiguous name; not imported.'));
+        continue;
+      }
+      const classes = directory.classes.filter(item => group.classes.includes(item.code) &&
+        item.students.some(member => member.id === student.id)).map(item => item.code);
+      if (!classes.length) { warnings.push(student.name + ': no matching school class membership; not imported.'); continue; }
+      matched++;
+      for (const day of rows[0].days) {
+        const range = ranges.find(item => item.startDate && item.endDate && day.date >= item.startDate && day.date <= item.endDate);
+        if (!range || day.date > today || closedDay(day.date, range, year, school, calendar)) continue;
+        const weekday = date(day.date).getUTCDay();
+        if (weekday < 1 || weekday > 5) continue;
+        const monday = date(day.date); monday.setUTCDate(monday.getUTCDate() - weekday + 1);
+        const entries = schedules[iso(monday)];
+        if (!entries) throw new Error('A PDF week has no loaded timetable. No marks were imported.');
+        const teaching = scheduledPeriods({ classes }, entries)[weekday - 1];
+        const slots = weekday === 3 ? [0, 1, 4, 5, 7] : [1, 2, 4, 5, 7];
+        for (const period of teaching) {
+          const mark = day.slots[slots[periods.indexOf(period)]];
+          if (!mark) continue;
+          const old = saved.get(student.id + '|' + day.date + '|' + period);
+          const value = { studentId: student.id, name: student.name, date: day.date, period, mark, revision: old?.revision || 0 };
+          if (!old?.mark) fills.push(value);
+          else if (old.mark !== mark) conflicts.push({ ...value, existing: old.mark });
+          else unchanged++;
+        }
+      }
+    }
+    const outside = pdf.rows.filter(row => !rosterNames.has(attendanceName(row.name))).length;
+    return { fills, conflicts, warnings, unchanged, matched, outside };
+  }
+  async function mount(host, { el, request, mutate, uploadPdf, loadSchedule, year, ranges, school, calendar, today }) {
     host.setAttribute('data-planner-navigation', '');
     host.classList.add('attendance-page');
     const feedback = el('p', '', { class: 'duty-roster-feedback', role: 'status', 'aria-live': 'polite' });
@@ -84,6 +142,83 @@
       }
       if (selected) sheet.setAttribute('aria-labelledby', 'attendance-tab-' + selected);
       else sheet.removeAttribute('aria-labelledby');
+    }
+    function renderImport(group) {
+      const panel = el('details', '', { class: 'attendance-import' });
+      panel.append(el('summary', 'Import KAMAR attendance PDF into this class tab'));
+      panel.append(el('p', 'Only this tab is filled, using each student’s school class membership and timetable. Existing marks are never overwritten. * = P; L = L; all other codes (including ?) = A. Blank slots stay unrecorded. Whanau, Assembly and breaks are ignored.'));
+      if (!uploadPdf || !loadSchedule || group.scheduleMode === 'manual' || !group.classes.length) {
+        panel.append(el('p', 'To import, connect school classes and enable automatic timetable matching in Edit class tab / students.', { role: 'status' }));
+        return panel;
+      }
+      const file = el('input', '', { type: 'file', accept: '.pdf,application/pdf', 'aria-label': 'KAMAR two-week attendance PDF' });
+      const preview = el('button', 'Preview PDF import', { type: 'button' });
+      const result = el('section', '', { 'aria-label': 'Attendance import preview' });
+      file.addEventListener('change', () => result.replaceChildren());
+      preview.addEventListener('click', () => act(async () => {
+        result.replaceChildren();
+        const selectedFile = file.files?.[0];
+        if (!selectedFile || selectedFile.size > 5 * 1024 * 1024) throw new Error('Choose a KAMAR attendance PDF no larger than 5 MB.');
+        const pdf = await uploadPdf(selectedFile);
+        const directory = await request('attendance/classes/' + year);
+        const schedules = {}, savedMarks = [];
+        for (const week of pdf.weeks) {
+          schedules[week] = await loadSchedule(week);
+          const saved = await request('attendance/' + year + '/week/' + week);
+          savedMarks.push(...saved.marks);
+        }
+        const plan = planImport({ pdf, group, directory, schedules, savedMarks, year, ranges, school, calendar, today });
+        result.append(el('h4', group.name + ' - PDF weeks ' + pdf.weeks.join(' and ')),
+          el('p', plan.matched + ' students matched; ' + plan.fills.length + ' blank marks to fill; ' +
+            plan.conflicts.length + ' conflicts left unchanged; ' + plan.unchanged + ' identical marks skipped. ' +
+            plan.outside + ' PDF students outside this tab ignored.', { role: 'status' }));
+        if (plan.warnings.length) {
+          const list = el('ul');
+          plan.warnings.forEach(warning => list.append(el('li', warning)));
+          result.append(el('h4', 'Students not imported'), list);
+        }
+        if (plan.fills.length || plan.conflicts.length) {
+          const scroll = el('div', '', { class: 'attendance-scroll', tabindex: '0' });
+          const table = el('table', '', { class: 'attendance-table' }), head = el('tr'), body = el('tbody');
+          table.append(el('caption', 'Proposed attendance changes - ' + group.name));
+          ['Student', 'Date', 'Period', 'PDF mark', 'Action'].forEach(label => head.append(el('th', label, { scope: 'col' })));
+          const thead = el('thead'); thead.append(head); table.append(thead, body);
+          for (const value of [...plan.fills, ...plan.conflicts]) {
+            const row = el('tr');
+            [value.name, value.date, value.period.toUpperCase(), value.mark,
+              value.existing ? 'Keep saved ' + value.existing + ' (conflict)' : 'Fill blank'].forEach(text => row.append(el('td', text)));
+            body.append(row);
+          }
+          scroll.append(table); result.append(scroll);
+        }
+        if (!plan.fills.length) {
+          result.append(el('p', 'No blank marks to fill. Check student matches, term dates and timetable if you expected marks.', { role: 'status' }));
+          return;
+        }
+        const apply = el('button', 'Fill ' + plan.fills.length + ' blank marks', { type: 'button' });
+        apply.addEventListener('click', () => act(async () => {
+          if (!confirm('Fill ' + plan.fills.length + ' blank marks in ' + group.name + '? Existing marks will not be overwritten.')) return;
+          apply.disabled = true;
+          let count = 0;
+          say('Importing ' + plan.fills.length + ' blank marks. Keep this page open until saving finishes.');
+          try {
+            for (const { name, ...value } of plan.fills) {
+              await mutate('attendance/' + year + '/mark', { ...value, fillOnly: true });
+              count++;
+              say('Importing: ' + count + ' of ' + plan.fills.length + ' blank marks saved. Keep this page open.');
+            }
+          } catch (error) {
+            throw new Error(count + ' of ' + plan.fills.length + ' marks saved. Import stopped: ' + error.message +
+              ' Reload the saved week, then preview the PDF again to continue safely.');
+          }
+          await loadSheet();
+          say(count + ' blank marks filled from the PDF. Existing marks and conflicts were left unchanged.');
+        }));
+        result.append(apply);
+        say('PDF preview ready. Nothing has been saved yet.');
+      }));
+      panel.append(file, preview, result);
+      return panel;
     }
     function editGroup(group) {
       if (!guard()) return;
@@ -204,6 +339,7 @@
       reload.addEventListener('click', () => { if (guard()) act(loadSheet); });
       sheet.append(el('h3', group.name), termLabel, edit, remove, reload, weekTabs,
         el('p', 'Week beginning ' + selectedWeek + ' · Term ' + selectedTerm + '. Mark only periods when this class meets. No totals are calculated.'));
+      sheet.append(renderImport(group));
       const result = await request('attendance/' + year + '/week/' + selectedWeek);
       marks = new Map(result.marks.map(item => [item.student_id + '|' + item.date + '|' + item.period, item]));
       const automatic = group.scheduleMode !== 'manual' && group.classes.length > 0;
@@ -218,9 +354,7 @@
       const head = el('thead'), daysRow = el('tr'), periodsRow = el('tr'), body = el('tbody');
       daysRow.append(el('th', 'Student', { scope: 'col', rowspan: '2' }));
       const days = Array.from({ length: 5 }, (_, i) => iso(new Date(date(selectedWeek).getTime() + i * 86400000)));
-      const closed = value => value < range.startDate || value > range.endDate || !value.startsWith(year + '-') ||
-        school.events?.some(event => event.date === value && ['closure', 'teacherOnly'].includes(event.kind)) ||
-        calendar.publicHolidays?.some(event => event.date === value);
+      const closed = value => closedDay(value, range, year, school, calendar);
       for (const [index, value] of days.entries()) {
         const dayPeriods = schedule[index];
         const dayLabel = new Intl.DateTimeFormat('en-NZ', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(date(value));
@@ -280,5 +414,5 @@
       renderTabs(); await loadSheet(); say('Attendance loaded. Class setup uses Save class tab; each P/A/L mark saves immediately.');
     });
   }
-  globalThis.plannerAttendance = { mount, termWeeks, combinedStudents, scheduledPeriods, classCode };
+  globalThis.plannerAttendance = { mount, termWeeks, combinedStudents, scheduledPeriods, classCode, planImport };
 })();
