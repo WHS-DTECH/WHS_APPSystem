@@ -3,6 +3,7 @@ const express = require('express');
 const { DOCUMENT_ID, DOCS_SCOPE, documentRanges, parseDocumentEvents } = require('./googleDocEvents');
 const { validYearTerm, parseDutyDocument, dutyEvents, canManage } = require('./dutyRoster');
 const { TASKS_SCOPE, createGoogleTasksRouter } = require('./googleTasks');
+const { DRIVE_SCOPE, createAttendanceDriveRouter } = require('./attendanceDrive');
 
 const SCOPES = [
   'https://www.googleapis.com/auth/userinfo.email',
@@ -158,12 +159,14 @@ function createGoogleCalendarRouter({ query, env = process.env, fetchImpl = fetc
     res.json({ configured: true, connected: Boolean(row), ...(row ? {
       connectionId: row.connection_id, email: row.email, selectedCalendars: row.selected_calendars,
       docsEnabled: (decryptTokens(row.encrypted_tokens, config.key, req.user.id).scopes || []).includes(DOCS_SCOPE),
-      tasksEnabled: (decryptTokens(row.encrypted_tokens, config.key, req.user.id).scopes || []).includes(TASKS_SCOPE)
+      tasksEnabled: (decryptTokens(row.encrypted_tokens, config.key, req.user.id).scopes || []).includes(TASKS_SCOPE),
+      attendanceDriveEnabled: (decryptTokens(row.encrypted_tokens, config.key, req.user.id).scopes || []).includes(DRIVE_SCOPE)
     } : {}) });
   }));
   router.post('/connect', wrap(async (req, res) => {
     if (req.body?.includeDocs !== undefined && typeof req.body.includeDocs !== 'boolean') throw new CalendarError('Choose whether to enable Google Docs access.', 400);
     if (req.body?.includeTasks !== undefined && typeof req.body.includeTasks !== 'boolean') throw new CalendarError('Choose whether to enable Google Tasks access.', 400);
+    if (req.body?.includeAttendanceDrive !== undefined && typeof req.body.includeAttendanceDrive !== 'boolean') throw new CalendarError('Choose whether to enable read-only Drive attendance access.', 400);
     const state = crypto.randomBytes(32).toString('base64url');
     const verifier = crypto.randomBytes(32).toString('base64url');
     const connection = await read(req.user.id);
@@ -171,12 +174,14 @@ function createGoogleCalendarRouter({ query, env = process.env, fetchImpl = fetc
       Boolean(connection && decryptTokens(connection.encrypted_tokens, config.key, req.user.id).scopes?.includes(DOCS_SCOPE));
     const includeTasks = req.body?.includeTasks === true ||
       Boolean(connection && decryptTokens(connection.encrypted_tokens, config.key, req.user.id).scopes?.includes(TASKS_SCOPE));
-    req.session.googleCalendar = { state, verifier, owner: req.user.id, started: Date.now(), includeDocs, includeTasks };
+    const includeAttendanceDrive = req.body?.includeAttendanceDrive === true ||
+      Boolean(connection && decryptTokens(connection.encrypted_tokens, config.key, req.user.id).scopes?.includes(DRIVE_SCOPE));
+    req.session.googleCalendar = { state, verifier, owner: req.user.id, started: Date.now(), includeDocs, includeTasks, includeAttendanceDrive };
     await saveSession(req);
     const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     for (const [name, value] of Object.entries({
       client_id: config.clientId, redirect_uri: config.redirectUri, response_type: 'code',
-      scope: [...SCOPES, ...(includeDocs ? [DOCS_SCOPE] : []), ...(includeTasks ? [TASKS_SCOPE] : [])].join(' '), state, access_type: 'offline', prompt: 'consent select_account',
+      scope: [...SCOPES, ...(includeDocs ? [DOCS_SCOPE] : []), ...(includeTasks ? [TASKS_SCOPE] : []), ...(includeAttendanceDrive ? [DRIVE_SCOPE] : [])].join(' '), state, access_type: 'offline', prompt: 'consent select_account',
       code_challenge: crypto.createHash('sha256').update(verifier).digest('base64url'), code_challenge_method: 'S256'
     })) url.searchParams.set(name, value);
     res.json({ url: url.href });
@@ -193,7 +198,7 @@ function createGoogleCalendarRouter({ query, env = process.env, fetchImpl = fetc
     if (typeof req.query.code !== 'string' || !req.query.code || req.query.code.length > 4096) throw new CalendarError('Google returned no valid authorisation code.', 400);
     const result = await tokenRequest({ code: req.query.code, code_verifier: pending.verifier, redirect_uri: config.redirectUri, grant_type: 'authorization_code' });
     const granted = new Set((result.scope || '').split(' '));
-    if (![...SCOPES, ...(pending.includeDocs ? [DOCS_SCOPE] : []), ...(pending.includeTasks ? [TASKS_SCOPE] : [])].every(scope => granted.has(scope)) || typeof result.access_token !== 'string' ||
+    if (![...SCOPES, ...(pending.includeDocs ? [DOCS_SCOPE] : []), ...(pending.includeTasks ? [TASKS_SCOPE] : []), ...(pending.includeAttendanceDrive ? [DRIVE_SCOPE] : [])].every(scope => granted.has(scope)) || typeof result.access_token !== 'string' ||
         typeof result.refresh_token !== 'string' || !Number.isFinite(result.expires_in) || result.expires_in <= 0) {
       throw new CalendarError('Google did not grant all requested permissions or offline access. Reconnect and allow each requested permission.', 403);
     }
@@ -212,7 +217,12 @@ function createGoogleCalendarRouter({ query, env = process.env, fetchImpl = fetc
       selected_calendars=EXCLUDED.selected_calendars,updated_at=NOW()`,
     [req.user.id, crypto.randomUUID(), profile.id, profile.email, tokens, JSON.stringify(selected)]);
     res.type('text').send('Google connected for read-only Calendar' + (pending.includeDocs ? ' and Docs' : '') +
-      (pending.includeTasks ? ', plus Google Tasks management' : '') + '. Close this tab and return to your planner. Your planner edits have not been changed.');
+      (pending.includeTasks ? ', plus Google Tasks management' : '') +
+      (pending.includeAttendanceDrive ? ', plus read-only Drive attendance access' : '') + '. Close this tab and return to your planner. Your planner edits have not been changed.');
+  }));
+  router.use('/attendance-drive', createAttendanceDriveRouter({
+    query, ensureConnected, access, unchanged, fetchImpl, ErrorType: CalendarError,
+    hasScope: (row, scope) => (decryptTokens(row.encrypted_tokens, config.key, row.owner_id).scopes || []).includes(scope)
   }));
   router.use('/tasks', createGoogleTasksRouter({
     ensureConnected, access, unchanged, fetchImpl, ErrorType: CalendarError,

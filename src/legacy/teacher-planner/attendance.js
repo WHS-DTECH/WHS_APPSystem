@@ -1,5 +1,6 @@
 const express = require('express');
 const { importAttendancePdf } = require('./attendanceImport');
+const { folderId } = require('./attendanceDrive');
 const UUID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 const STUDENT = /^(?:k:[A-Za-z0-9_-]{1,60}|m:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$/;
 const PERIODS = ['p1', 'p2', 'p3', 'p4', 'p5'];
@@ -87,6 +88,50 @@ function createAttendanceRouter({ query, loadClasses }) {
       res.json({ imports: groups.rows[0]?.content.imports || {}, markedWeeks: marks.rows });
     } catch (error) { next(error); }
   });
+  router.get('/:year/drive-sync', async (req, res, next) => {
+    try {
+      const saved = (await query('SELECT content,revision FROM planner_attendance_groups WHERE owner_id=$1 AND year=$2',
+        [req.user.id, req.attendanceYear])).rows[0];
+      res.json({ enabled: false, folderId: '', processed: {}, ...saved?.content.driveSync, revision: saved?.revision || 0 });
+    } catch (error) { next(error); }
+  });
+  router.put('/:year/drive-sync', async (req, res, next) => {
+    const id = folderId(req.body.folder);
+    if (!keys(req.body, ['folder', 'enabled']) || !id || typeof req.body.enabled !== 'boolean') {
+      return reject(res, 'Choose a Google Drive folder URL and whether to enable attendance sync.');
+    }
+    try {
+      const saved = await query(`UPDATE planner_attendance_groups SET content=jsonb_set(content,'{driveSync}',
+        CASE WHEN content->'driveSync'->>'folderId'=$3 THEN content->'driveSync'
+        ELSE '{"processed":{}}'::jsonb END || jsonb_build_object('folderId',$3::text,'enabled',$4::boolean)),updated_at=NOW()
+        WHERE owner_id=$1 AND year=$2 RETURNING revision`, [req.user.id, req.attendanceYear, id, req.body.enabled]);
+      if (!saved.rows.length) return reject(res, 'Save your Attendance class tabs before enabling Drive sync.');
+      res.json({ folderId: id, enabled: req.body.enabled });
+    } catch (error) { next(error); }
+  });
+  router.put('/:year/drive-sync/file', async (req, res, next) => {
+    const value = req.body;
+    if (!keys(value, ['folderId', 'fileId', 'version', 'accountId', 'revision', 'retryOn', 'contextKey']) ||
+        folderId(value.folderId) !== value.folderId || folderId(value.fileId) !== value.fileId ||
+        !text(value.version, 500) || !value.version.startsWith(value.fileId + ':') ||
+        !text(value.accountId, 200) || !Number.isInteger(value.revision) || value.revision < 1 ||
+        typeof value.contextKey !== 'string' || !/^[a-f0-9]{64}$/.test(value.contextKey) ||
+        (value.retryOn !== null && !validDay(value.retryOn, req.attendanceYear))) {
+      return reject(res, 'Invalid Drive attendance file checkpoint.');
+    }
+    try {
+      const saved = await query(`UPDATE planner_attendance_groups SET content=jsonb_set(content,
+        ARRAY['driveSync','processed',$3::text],$4::jsonb),updated_at=NOW()
+        WHERE owner_id=$1 AND year=$2 AND revision=$5 AND content->'driveSync'->>'folderId'=$6
+        AND content->'driveSync'->>'enabled'='true' RETURNING revision`,
+      [req.user.id, req.attendanceYear, value.fileId, JSON.stringify({
+        version: value.version, accountId: value.accountId, revision: value.revision,
+        retryOn: value.retryOn, contextKey: value.contextKey, completedAt: new Date().toISOString()
+      }), value.revision, value.folderId]);
+      if (!saved.rows.length) return reject(res, 'Attendance classes or sync folder changed. Retry Drive sync.', 409);
+      res.json({ completed: true });
+    } catch (error) { next(error); }
+  });
   router.put('/:year/imports', async (req, res, next) => {
     const entries = req.body.entries;
     if (!keys(req.body, ['entries']) || !Array.isArray(entries) || !entries.length || entries.length > 60 ||
@@ -128,7 +173,10 @@ function createAttendanceRouter({ query, loadClasses }) {
       const result = req.body.revision === 0 ?
         await query(`INSERT INTO planner_attendance_groups(owner_id,year,content) VALUES ($1,$2,$3)
           ON CONFLICT DO NOTHING RETURNING revision`, values) :
-        await query(`UPDATE planner_attendance_groups SET content=$3::jsonb || jsonb_build_object('imports',COALESCE(content->'imports','{}'::jsonb)),revision=revision+1,updated_at=NOW()
+        await query(`UPDATE planner_attendance_groups SET content=$3::jsonb ||
+          jsonb_build_object('imports',COALESCE(content->'imports','{}'::jsonb)) ||
+          CASE WHEN content ? 'driveSync' THEN jsonb_build_object('driveSync',content->'driveSync') ELSE '{}'::jsonb END,
+          revision=revision+1,updated_at=NOW()
           WHERE owner_id=$1 AND year=$2 AND revision=$4 RETURNING revision`, [...values, req.body.revision]);
       if (!result.rows.length) return reject(res, 'Attendance tabs changed in another window. Copy your edits, then reload before saving.', 409);
       res.json(result.rows[0]);

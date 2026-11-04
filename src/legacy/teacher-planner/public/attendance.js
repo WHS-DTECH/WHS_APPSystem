@@ -41,6 +41,7 @@
   }
   function planImport({ pdf, group, directory, schedules, savedMarks, year, ranges, school, calendar, today }) {
     const fills = [], conflicts = [], warnings = [];
+    let retryOn = null;
     const coverage = Object.fromEntries(pdf.weeks.map(week => [week, { groupId: group.id, week, expected: 0, recorded: 0, conflicts: 0 }]));
     let unchanged = 0, matched = 0;
     const pdfNames = new Map(), rosterNames = new Map();
@@ -78,7 +79,8 @@
           const week = coverage[iso(monday)];
           week.expected++;
           const mark = day.slots[slots[periods.indexOf(period)]];
-          if (!mark || day.date > today) continue;
+          if (!mark) continue;
+          if (day.date > today) { if (!retryOn || day.date < retryOn) retryOn = day.date; continue; }
           week.recorded++;
           const old = saved.get(student.id + '|' + day.date + '|' + period);
           const value = { studentId: student.id, name: student.name, date: day.date, period, mark, revision: old?.revision || 0 };
@@ -89,8 +91,77 @@
       }
     }
     const outside = pdf.rows.filter(row => !rosterNames.has(attendanceName(row.name))).length;
-    return { fills, conflicts, warnings, unchanged, matched, outside,
+    return { fills, conflicts, warnings, unchanged, matched, outside, retryOn,
       coverage: Object.values(coverage).filter(item => item.recorded > 0).map(item => ({ ...item, unresolved: warnings.length > 0 })) };
+  }
+  function mergePlans(plans) {
+    const unique = values => [...new Map(values.map(value => [value.studentId + '|' + value.date + '|' + value.period, value])).values()];
+    return {
+      fills: unique(plans.flatMap(item => item.plan.fills)), conflicts: unique(plans.flatMap(item => item.plan.conflicts)),
+      warnings: plans.flatMap(item => item.plan.warnings.map(message => item.group.name + ': ' + message)),
+      matched: plans.reduce((sum, item) => sum + item.plan.matched, 0),
+      unchanged: plans.reduce((sum, item) => sum + item.plan.unchanged, 0)
+    };
+  }
+  async function syncDrive({ request, mutate, loadSchedule, year, ranges, school, calendar, today, onProgress = () => {} }) {
+    const settings = await request('attendance/' + year + '/drive-sync');
+    if (!settings.enabled) return { enabled: false };
+    const setup = await request('attendance/' + year + '/groups');
+    const groups = setup.content.groups.filter(group => group.scheduleMode !== 'manual' && group.classes.length);
+    if (!groups.length) throw new Error('Drive attendance sync needs saved automatic school-class tabs.');
+    const directory = await request('attendance/classes/' + year);
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify({
+      ranges, events: school.events || [], holidays: calendar.publicHolidays || [], classes: directory.classes
+    })));
+    const contextKey = Array.from(new Uint8Array(digest), value => value.toString(16).padStart(2, '0')).join('');
+    const listing = await request('google-calendar/attendance-drive/' + year + '/files');
+    const summary = { enabled: true, files: 0, marks: 0, conflicts: 0, warnings: 0, skipped: 0 };
+    for (const file of listing.files) {
+      const previous = settings.processed[file.id];
+      if (previous?.version === file.version && previous.accountId === listing.accountId &&
+          previous.contextKey === contextKey && previous.revision === setup.revision &&
+          (!previous.retryOn || previous.retryOn > today)) { summary.skipped++; continue; }
+      onProgress('Reading attendance PDF ' + (summary.files + 1) + ': ' + file.name);
+      let savedCount = 0;
+      try {
+        const result = await request('google-calendar/attendance-drive/' + year + '/files/' + file.id);
+        if (result.version !== file.version || result.accountId !== listing.accountId || result.connectionId !== listing.connectionId) {
+          throw new Error('The Drive file or connected Google account changed. Retry sync.');
+        }
+        const pdf = result.pdf;
+        const schedules = {}, savedMarks = [];
+        for (const week of pdf.weeks) {
+          if (!pdf.rows[0].days.some(day => day.date.startsWith(year + '-') &&
+            day.date >= week && day.date < iso(new Date(date(week).getTime() + 5 * 86400000)))) continue;
+          schedules[week] = await loadSchedule(week);
+          savedMarks.push(...(await request('attendance/' + year + '/week/' + week)).marks);
+        }
+        const plans = Object.keys(schedules).length ? groups.map(group => ({ group,
+          plan: planImport({ pdf, group, directory, schedules, savedMarks, year, ranges, school, calendar, today }) })) : [];
+        const plan = mergePlans(plans);
+        for (const { name, ...value } of plan.fills) {
+          await mutate('attendance/' + year + '/mark', { ...value, fillOnly: true });
+          savedCount++;
+          onProgress('Drive attendance: ' + savedCount + '/' + plan.fills.length + ' blank marks saved for this PDF. Keep this page open.');
+        }
+        const entries = plans.flatMap(item => item.plan.coverage);
+        if (entries.length) await mutate('attendance/' + year + '/imports', { entries });
+        const retryOn = plans.map(item => item.plan.retryOn).filter(Boolean).sort()[0] || null;
+        await mutate('attendance/' + year + '/drive-sync/file', {
+          folderId: settings.folderId, fileId: file.id, version: result.version,
+          accountId: listing.accountId, revision: setup.revision, retryOn, contextKey
+        });
+        summary.files++;
+        summary.marks += savedCount;
+        summary.conflicts += plan.conflicts.length;
+        summary.warnings += plan.warnings.length;
+      } catch (error) {
+        throw new Error('Drive attendance sync stopped at "' + file.name + '". ' +
+          (summary.marks + savedCount) + ' marks saved so far; existing marks were not overwritten. ' +
+          error.message + ' Retry sync to safely continue; this PDF was not marked processed.');
+      }
+    }
+    return summary;
   }
   function weekStatus(entry, hasMarks) {
     if (!entry) return hasMarks ? 'Marks present - import status unknown' : 'Not loaded';
@@ -99,7 +170,7 @@
       (entry.conflicts ? '; ' + entry.conflicts + ' conflicts kept' : '') +
       (entry.unresolved ? '; unmatched students' : '');
   }
-  async function mount(host, { el, request, mutate, uploadPdf, loadSchedule, year, ranges, school, calendar, today, overview = false }) {
+  async function mount(host, { el, request, mutate, uploadPdf, loadSchedule, syncNow, year, ranges, school, calendar, today, overview = false }) {
     host.setAttribute('data-planner-navigation', '');
     host.classList.add('attendance-page');
     const feedback = el('p', '', { class: 'duty-roster-feedback', role: 'status', 'aria-live': 'polite' });
@@ -186,14 +257,7 @@
         }
         const targets = (all ? groups : [group]).filter(item => item.scheduleMode !== 'manual' && item.classes.length);
         const plans = targets.map(group => ({ group, plan: planImport({ pdf, group, directory, schedules, savedMarks, year, ranges, school, calendar, today }) }));
-        const unique = values => [...new Map(values.map(value => [value.studentId + '|' + value.date + '|' + value.period, value])).values()];
-        const plan = {
-          fills: unique(plans.flatMap(item => item.plan.fills)), conflicts: unique(plans.flatMap(item => item.plan.conflicts)),
-          warnings: plans.flatMap(item => item.plan.warnings.map(message => item.group.name + ': ' + message)),
-          matched: plans.reduce((sum, item) => sum + item.plan.matched, 0),
-          unchanged: plans.reduce((sum, item) => sum + item.plan.unchanged, 0),
-          outside: all ? 0 : plans[0].plan.outside
-        };
+        const plan = { ...mergePlans(plans), outside: all ? 0 : plans[0].plan.outside };
         const entries = plans.flatMap(item => item.plan.coverage);
         result.append(el('h4', title + ' - PDF weeks ' + pdf.weeks.join(' and ')),
           el('p', plan.matched + (all ? ' student/class matches; ' : ' students matched; ') + plan.fills.length + ' blank marks to fill; ' +
@@ -485,7 +549,42 @@
         body.append(row);
       }
       const scroll = el('div', '', { class: 'attendance-scroll', tabindex: '0' });
-      scroll.append(table); sheet.append(scroll, renderImport(null));
+      scroll.append(table); sheet.append(scroll);
+      if (syncNow) sheet.append(await renderDriveSync());
+      sheet.append(renderImport(null));
+    }
+    async function renderDriveSync() {
+      const settings = await request('attendance/' + year + '/drive-sync');
+      const panel = el('details', '', { class: 'attendance-import' });
+      panel.open = settings.enabled;
+      panel.append(el('summary', 'Google Drive attendance folder sync'),
+        el('p', 'One-time setup: paste your private Drive folder link, authorise read-only Drive access, then enable automatic sync. New or updated PDFs are checked when Teacher Planner opens after sign-in. Only blank marks in matching saved class tabs are filled; conflicts are kept. Keep the planner open until sync finishes. Nothing is written to Drive.'));
+      const folder = el('input', '', { type: 'url', 'aria-label': 'Attendance Google Drive folder URL', placeholder: 'https://drive.google.com/drive/folders/...' });
+      folder.value = settings.folderId ? 'https://drive.google.com/drive/folders/' + settings.folderId : '';
+      const enabled = el('input', '', { type: 'checkbox', 'aria-label': 'Automatically sync Drive attendance on planner open' });
+      enabled.checked = settings.enabled;
+      const label = el('label', 'Automatically sync on planner open '); label.append(enabled);
+      const authorise = el('button', 'Authorise read-only Google Drive', { type: 'button' });
+      const link = el('p');
+      authorise.addEventListener('click', () => act(async () => {
+        const result = await mutate('google-calendar/connect', { includeAttendanceDrive: true }, 'POST');
+        link.replaceChildren(el('a', 'Open Google authorisation (then return here)', {
+          href: result.url, target: '_blank', rel: 'noopener noreferrer'
+        }));
+        say('Open the Google authorisation link, approve read-only Drive access, then return and Save folder and sync.');
+      }));
+      const save = el('button', 'Save folder and sync', { type: 'button' });
+      save.addEventListener('click', () => act(async () => {
+        await mutate('attendance/' + year + '/drive-sync', { folder: folder.value, enabled: enabled.checked });
+        if (enabled.checked) await syncNow(host);
+        await loadSheet();
+        say(enabled.checked ? 'Drive sync finished. Review the sync result and weekly history.' : 'Automatic Drive attendance sync disabled.');
+      }));
+      const run = el('button', 'Sync Drive attendance now', { type: 'button' });
+      run.addEventListener('click', () => act(async () => { await syncNow(host); await loadSheet(); }));
+      panel.append(folder, label, authorise, link, save, run,
+        el('p', settings.enabled ? 'Automatic sync is enabled for this planner year.' : 'Automatic sync is off for this planner year.', { role: 'status' }));
+      return panel;
     }
     add.addEventListener('click', () => editGroup());
     await act(async () => {
@@ -495,5 +594,5 @@
         'Attendance loaded. Class setup uses Save class tab; each P/A/L mark saves immediately.');
     });
   }
-  globalThis.plannerAttendance = { mount, termWeeks, combinedStudents, scheduledPeriods, classCode, planImport, weekStatus };
+  globalThis.plannerAttendance = { mount, termWeeks, combinedStudents, scheduledPeriods, classCode, planImport, weekStatus, syncDrive };
 })();

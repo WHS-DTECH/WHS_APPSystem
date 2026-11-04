@@ -42,7 +42,7 @@ test('automatic class matching strips upload teacher/room labels and matches exa
   assert.throws(() => scheduledPeriods({ classes: [] }, entries), /Choose school classes/);
 });
 function browser() {
-  const context = { structuredClone, crypto, confirm: () => true };
+  const context = { structuredClone, crypto, TextEncoder, confirm: () => true };
   vm.runInNewContext(fs.readFileSync(require.resolve('./public/attendance.js'), 'utf8'), context);
   return context.plannerAttendance;
 }
@@ -207,6 +207,153 @@ test('an already populated PDF can record import history without rewriting any m
   await descendants(host).find(node => node.textContent === 'Record import status (no mark changes)').events.click();
   assert.equal(writes.length, 1);
   assert.equal(writes[0][0], 'attendance/2026/imports');
+});
+function driveFixture() {
+  const options = importFixture(), writes = [], processed = {}, files = [
+    { id: 'synthetic_pdf_123', name: 'Attendance one.pdf', version: 'version-one' },
+    { id: 'synthetic_pdf_456', name: 'Attendance two.pdf', version: 'version-two' }
+  ];
+  let revision = 1, failMark = 0, attempts = 0;
+  const savedMarks = structuredClone(options.savedMarks);
+  return {
+    options, writes, processed, files,
+    setRevision(value) { revision = value; }, failOnMark(value) { failMark = value; attempts = 0; },
+    helpers: {
+      ...options,
+      request: async path => {
+        if (path.endsWith('/drive-sync')) return { enabled: true, folderId: 'synthetic_folder_123', processed };
+        if (path.endsWith('/groups')) return { revision, content: { groups: [options.group] } };
+        if (path.includes('/classes/')) return options.directory;
+        if (path.endsWith('/files')) return { files, accountId: 'synthetic-account', connectionId: 'connection-test' };
+        if (path.includes('/files/')) {
+          const file = files.find(item => path.endsWith(item.id));
+          return { pdf: options.pdf, version: file.version, accountId: 'synthetic-account', connectionId: 'connection-test' };
+        }
+        return { marks: savedMarks };
+      },
+      loadSchedule: async week => options.schedules[week],
+      mutate: async (path, body) => {
+        if (path.endsWith('/mark') && ++attempts === failMark) throw new Error('Concurrent mark edit');
+        writes.push([path, body]);
+        if (path.endsWith('/mark')) {
+          const old = savedMarks.find(item => item.student_id === body.studentId && item.date === body.date && item.period === body.period);
+          if (old) { old.mark = body.mark; old.revision++; }
+          else savedMarks.push({ student_id: body.studentId, ...body });
+        } else if (path.endsWith('/file')) processed[body.fileId] = { ...body };
+        return {};
+      }
+    }
+  };
+}
+test('Drive sync fills matching blanks, checkpoints successful PDFs and skips unchanged versions', async () => {
+  const fixture = driveFixture(), api = browser();
+  let result = await api.syncDrive(fixture.helpers);
+  assert.equal(result.files, 2);
+  assert.equal(result.marks, 4, 'overlapping PDFs do not duplicate or overwrite marks');
+  assert.equal(result.conflicts, 2);
+  assert.equal(Object.keys(fixture.processed).length, 2);
+  assert.ok(fixture.writes.filter(([path]) => path.endsWith('/mark')).every(([, value]) => value.fillOnly));
+  const count = fixture.writes.length;
+  result = await api.syncDrive(fixture.helpers);
+  assert.equal(result.files, 0);
+  assert.equal(result.skipped, 2);
+  assert.equal(fixture.writes.length, count);
+  fixture.files[0].version = 'updated-version';
+  result = await api.syncDrive(fixture.helpers);
+  assert.equal(result.files, 1);
+  assert.equal(result.marks, 0);
+  assert.equal(fixture.processed[fixture.files[0].id].version, 'updated-version');
+  fixture.setRevision(2);
+  result = await api.syncDrive(fixture.helpers);
+  assert.equal(result.files, 2, 'changed saved classes trigger rematching of old PDFs');
+  fixture.options.ranges[0].startDate = '2026-10-19';
+  result = await api.syncDrive(fixture.helpers);
+  assert.equal(result.files, 2, 'published term/calendar/roster context changes trigger rematching');
+});
+test('Drive sync never checkpoints a failed PDF and retry resumes without overwriting prior fills', async () => {
+  const fixture = driveFixture(), api = browser();
+  fixture.failOnMark(2);
+  await assert.rejects(api.syncDrive(fixture.helpers), /1 marks saved so far.*not marked processed/);
+  assert.equal(Object.keys(fixture.processed).length, 0);
+  fixture.failOnMark(0);
+  const result = await api.syncDrive(fixture.helpers);
+  assert.equal(result.marks, 3);
+  assert.equal(result.files, 2);
+});
+test('Drive sync retries previously deferred future marks when their date arrives', async () => {
+  const fixture = driveFixture(), api = browser();
+  fixture.options.pdf.rows[0].days[2].slots[2] = 'A';
+  let result = await api.syncDrive({ ...fixture.helpers, today: '2026-10-29' });
+  assert.equal(result.files, 2);
+  assert.equal(fixture.processed[fixture.files[0].id].retryOn, '2026-11-05');
+  result = await api.syncDrive({ ...fixture.helpers, today: '2026-11-05' });
+  assert.equal(result.files, 2);
+  assert.equal(result.marks, 2);
+});
+test('disabled Drive sync does not read Drive or change marks', async () => {
+  const calls = [];
+  const result = await browser().syncDrive({ year: 2026,
+    request: async path => { calls.push(path); return { enabled: false }; } });
+  assert.equal(result.enabled, false);
+  assert.deepEqual(calls, ['attendance/2026/drive-sync']);
+});
+test('Drive setup authorises only on click and saves the chosen private folder before sync', async () => {
+  const options = importFixture(), host = element('section'), writes = [];
+  let syncs = 0;
+  await browser().mount(host, {
+    el: element, ...options, overview: true,
+    request: async path => path.endsWith('/groups') ? { revision: 1, content: { groups: [options.group] } } :
+      path.endsWith('/drive-sync') ? { enabled: false, folderId: '', processed: {} } : { imports: {}, markedWeeks: [] },
+    mutate: async (path, body, method) => {
+      writes.push([path, body, method]);
+      return { url: 'https://accounts.google.com/o/oauth2/v2/auth?synthetic=true' };
+    },
+    syncNow: async () => { syncs++; }
+  });
+  assert.equal(writes.length, 0);
+  let nodes = descendants(host);
+  await nodes.find(node => node.textContent === 'Authorise read-only Google Drive').events.click();
+  assert.deepEqual(JSON.parse(JSON.stringify(writes[0])), ['google-calendar/connect', { includeAttendanceDrive: true }, 'POST']);
+  assert.ok(descendants(host).some(node => node.tag === 'a' && node.attrs.target === '_blank'));
+  nodes.find(node => node.attrs['aria-label'] === 'Attendance Google Drive folder URL').value =
+    'https://drive.google.com/drive/folders/synthetic_folder_123';
+  nodes.find(node => node.attrs['aria-label'] === 'Automatically sync Drive attendance on planner open').checked = true;
+  await nodes.find(node => node.textContent === 'Save folder and sync').events.click();
+  assert.equal(writes[1][0], 'attendance/2026/drive-sync');
+  assert.equal(writes[1][1].enabled, true);
+  assert.equal(syncs, 1);
+});
+test('planner-opening Drive sync protects navigation and shows explicit success or failure', async () => {
+  const source = fs.readFileSync(require.resolve('./public/planner.js'), 'utf8');
+  const helpers = source.slice(source.indexOf('  let attendanceSyncRunning = false;'), source.indexOf('  async function load()'));
+  const termHelpers = source.slice(source.indexOf('  function termRanges('), source.indexOf('  async function loadTermDates('));
+  for (const fail of [false, true]) {
+    const host = element('main');
+    let active = false;
+    const context = {
+      content: host, year: 2026, api: '/api/planner/', localDate: '2026-11-05', el: element, csrf: 'synthetic',
+      refreshSession: async () => {},
+      request: async path => path.endsWith('/drive-sync') ? { enabled: true } :
+        path.includes('school-settings') ? { content: { term4Start: '2026-10-12', term4End: '2026-12-18' } } : { terms: [] },
+      plannerAttendance: { syncDrive: async options => {
+        active = true;
+        assert.equal(host.children[0].attrs['data-preferences-busy'], 'true');
+        assert.equal(options.ranges[3].startDate, '2026-10-12');
+        if (fail) throw new Error('Drive permission required');
+        return { enabled: true, files: 1, marks: 4, conflicts: 1, warnings: 0, skipped: 2 };
+      } }
+    };
+    vm.runInNewContext(termHelpers + helpers, context);
+    if (fail) {
+      await assert.rejects(context.runAttendanceDriveSync(), /permission required/);
+      assert.equal(host.children[0].attrs.role, 'alert');
+    } else {
+      await context.runAttendanceDriveSync();
+      assert.match(host.children[0].textContent, /4 blank marks filled/);
+    }
+    assert.equal(active, true);
+    assert.equal(host.children[0].attrs['data-preferences-busy'], undefined);
+  }
 });
 test('import refuses duplicate, unmatched and manual identities rather than guessing', () => {
   for (const change of [
@@ -552,6 +699,58 @@ test('import history is private, validates class ownership and persists across c
   const otherResult = await (await fetch(base + 'attendance/2026/imports', { headers: otherHeaders })).json();
   assert.deepEqual(otherResult, { imports: {}, markedWeeks: [] });
 });
+test('Drive settings and processed-file checkpoints require CSRF, owner identity and unchanged setup', async t => {
+  const records = new Map();
+  const { base, login } = await fixture(t, async (sql, params) => {
+    const key = params[0] + ':' + params[1], record = records.get(key);
+    if (sql.startsWith('SELECT')) return { rows: record ? [record] : [] };
+    if (sql.includes("'{driveSync}'")) {
+      if (!record) return { rows: [] };
+      record.content.driveSync = { ...(record.content.driveSync?.folderId === params[2] ? record.content.driveSync : { processed: {} }),
+        folderId: params[2], enabled: params[3] };
+      return { rows: [{ revision: record.revision }] };
+    }
+    if (sql.includes("ARRAY['driveSync','processed'")) {
+      if (!record || record.revision !== params[4] || record.content.driveSync?.folderId !== params[5] || !record.content.driveSync.enabled) {
+        return { rows: [] };
+      }
+      record.content.driveSync.processed[params[2]] = JSON.parse(params[3]);
+      return { rows: [{ revision: record.revision }] };
+    }
+    records.set(key, { content: { ...JSON.parse(params[2]), ...(record?.content.driveSync ? { driveSync: record.content.driveSync } : {}) },
+      revision: (record?.revision || 0) + 1 });
+    return { rows: [{ revision: records.get(key).revision }] };
+  });
+  const headers = await login(owner), otherHeaders = await login(other);
+  const put = (path, body, auth = headers) => fetch(base + 'attendance/2026/' + path,
+    { method: 'PUT', headers: auth, body: JSON.stringify(body) });
+  const read = auth => fetch(base + 'attendance/2026/drive-sync', { headers: auth || headers }).then(response => response.json());
+  const settings = { folder: 'https://drive.google.com/drive/folders/synthetic_folder_123', enabled: true };
+  assert.equal((await read()).enabled, false);
+  assert.equal((await put('drive-sync', settings)).status, 400, 'class tabs must exist before enabling');
+  await put('groups', { revision: 0, content });
+  assert.equal((await put('drive-sync', settings, { ...headers, 'x-planner-csrf': 'bad' })).status, 403);
+  assert.equal((await put('drive-sync', { ...settings, folder: 'https://evil.test/folder' })).status, 400);
+  assert.equal((await put('drive-sync', settings)).status, 200);
+  let state = await read();
+  assert.equal(state.folderId, 'synthetic_folder_123');
+  assert.equal((await read(otherHeaders)).enabled, false);
+  const checkpoint = { folderId: state.folderId, fileId: 'synthetic_file_123',
+    version: 'synthetic_file_123:2026-11-05:a', accountId: 'synthetic-google', revision: 1, retryOn: null, contextKey: 'a'.repeat(64) };
+  assert.equal((await put('drive-sync/file', checkpoint, otherHeaders)).status, 409);
+  assert.equal((await put('drive-sync/file', { ...checkpoint, revision: 99 })).status, 409);
+  assert.equal((await put('drive-sync/file', checkpoint)).status, 200);
+  await put('groups', { revision: 1, content });
+  state = await read();
+  assert.equal(state.revision, 2);
+  assert.equal(state.processed[checkpoint.fileId].accountId, checkpoint.accountId, 'class edits preserve existing checkpoints');
+  assert.equal((await put('drive-sync/file', checkpoint)).status, 409, 'an old in-flight sync cannot checkpoint against changed classes');
+  assert.equal((await put('drive-sync', { ...settings, enabled: false })).status, 200);
+  assert.equal((await put('drive-sync/file', { ...checkpoint, revision: 2 })).status, 409);
+  assert.ok((await read()).processed[checkpoint.fileId], 'disabling preserves prior processed versions');
+  await put('drive-sync', { ...settings, folder: 'synthetic_new_folder_123' });
+  assert.deepEqual((await read()).processed, {}, 'changing the folder clears processed versions');
+});
 test('PostgreSQL persists private attendance and rejects stale cell revisions', {
   skip: !process.env.PLANNER_TEST_DATABASE_URL
 }, async t => {
@@ -578,7 +777,14 @@ test('PostgreSQL persists private attendance and rejects stale cell revisions', 
   assert.equal((await put('mark', { ...value, revision: 3, fillOnly: true })).status, 200);
   const historyEntry = { groupId: group.id, week: '2026-10-26', expected: 10, recorded: 5, conflicts: 0, unresolved: false };
   assert.equal((await put('imports', { entries: [historyEntry] })).status, 200);
+  assert.equal((await put('drive-sync', { folder: 'synthetic_folder_123', enabled: true })).status, 200);
+  const checkpoint = { folderId: 'synthetic_folder_123', fileId: 'synthetic_file_123',
+    version: 'synthetic_file_123:2026-11-05:a', accountId: 'synthetic-google', revision: 1, retryOn: null, contextKey: 'a'.repeat(64) };
+  assert.equal((await put('drive-sync/file', checkpoint)).status, 200);
   assert.equal((await put('groups', { revision: 1, content })).status, 200);
+  const drive = await (await fetch(base + 'attendance/2026/drive-sync', { headers })).json();
+  assert.equal(drive.processed[checkpoint.fileId].version, checkpoint.version);
+  assert.equal((await put('drive-sync/file', checkpoint)).status, 409);
   const history = await (await fetch(base + 'attendance/2026/imports', { headers })).json();
   assert.equal(history.imports[group.id + ':2026-10-26'].recorded, 5);
   assert.equal(history.markedWeeks[0].week, '2026-10-26');

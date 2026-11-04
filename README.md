@@ -135,6 +135,47 @@ server timestamp; `GET` reads those summaries and weeks containing saved marks.
 Class setup edits atomically preserve this metadata without altering import
 timestamps or using import history as the class-edit revision. No schema migration
 or separate database is needed.
+
+**Google Drive attendance sync** is optional and configured privately for each
+teacher/planner year in **Two-Week Attendance → Google Drive attendance folder
+sync**. Paste the Drive folder link, click **Authorise read-only Google Drive**,
+open the generated Google authorisation link, approve access and return. Check
+**Automatically sync on planner open**, then **Save folder and sync**. Enable
+Google Drive API and permit `https://www.googleapis.com/auth/drive.readonly` on
+the existing Calendar OAuth project/consent screen; school administrator approval
+may be required. This read-only scope permits broader Drive reading at Google,
+but the application lists/downloads only direct PDF children of the configured
+folder. It never writes/deletes Drive files, exposes tokens to the browser or
+makes a folder public. Existing Calendar/Docs/Tasks grants are preserved when
+requesting the additional permission.
+
+Place new exports in the **Drive folder**, not only a local downloads/OneDrive
+folder. Automatic checks run when the Teacher Planner page finishes opening
+after sign-in, for its selected planner year; they are not a background server
+watcher or a check on unrelated Core logins. Keep the planner open until sync
+finishes. **Sync Drive attendance now** retries without another login.
+The folder is paginated up to 1,000 PDFs, with the same 5 MB/30-page limits as
+manual import. Subfolders, shortcuts and non-PDF files are not followed.
+Each new/updated PDF fills only eligible blank marks in all saved automatic
+class tabs, retains conflicts and updates weekly history. Overlapping PDFs
+are read in modified-time order and cannot overwrite earlier nonblank marks.
+The visible sync result reports fills, conflicts and student/class match warnings;
+manual preview can identify individual unmatched students.
+
+File ID, modified time and checksum identify each Drive version. Processed
+checkpoints are saved under `content.driveSync.processed` only after all fills
+and history updates succeed, scoped to Google account, class-setup revision and
+a hash of the current term dates, closures/holidays and school-class roster.
+Changed files, saved classes or matching context are rechecked; deferred future recorded marks
+are rechecked when their date arrives. Failures report the partial save count
+and leave the PDF retryable. Disabling sync retains checkpoints; changing folders
+clears them. Folder settings/checkpoints use owner-scoped, CSRF-protected
+`PUT /api/planner/attendance/:year/drive-sync` and `/drive-sync/file`; `GET
+/drive-sync` reads settings. Read-only Google provider routes live under
+`/api/planner/google-calendar/attendance-drive/:year/files`. Downloads validate
+folder membership and version before/after parsing, enforce streamed size limits,
+and report permission/API failures explicitly. No source PDFs or detailed KAMAR
+absence codes are retained or added to Git.
 The signed-in, CSRF-protected preview endpoint
 `POST /api/planner/attendance/:year/import-preview` accepts `application/pdf`,
 does not save the upload or write marks, and returns private, non-cacheable data.

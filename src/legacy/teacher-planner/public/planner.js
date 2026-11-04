@@ -2487,6 +2487,60 @@
       });
     } else content.append(grid);
   }
+  async function loadAttendanceSchedule(selectedWeek) {
+    const months = new Set(Array.from({ length: 5 }, (_, i) => {
+      const day = date(selectedWeek); day.setUTCDate(day.getUTCDate() + i);
+      return day.getUTCFullYear() + '/' + (day.getUTCMonth() + 1);
+    }));
+    const feeds = await Promise.all([...months].map(month => request(api + 'kamar-timetable/' + month)));
+    return weeklyTimetableEntries(feeds.flatMap(feed => feed.events), selectedWeek, Infinity);
+  }
+  let attendanceSyncRunning = false;
+  async function runAttendanceDriveSync(host = content) {
+    if (attendanceSyncRunning) throw new Error('Attendance Drive sync is already running. Wait until it finishes.');
+    await refreshSession();
+    const settings = await request(api + 'attendance/' + year + '/drive-sync');
+    if (!settings.enabled) return;
+    if (attendanceSyncRunning) throw new Error('Attendance Drive sync is already running. Wait until it finishes.');
+    attendanceSyncRunning = true;
+    const note = el('p', 'Checking Google Drive for new attendance PDFs...', {
+      class: 'duty-roster-feedback', role: 'status', 'aria-live': 'polite', 'data-preferences-busy': 'true'
+    });
+    host.append(note);
+    try {
+      const school = (await request(api + 'school-settings/' + year)).content;
+      let calendar;
+      try { calendar = await request(api.replace(/planner\/$/, '') + 'school-calendar/' + year); }
+      catch (error) { calendar = { publicHolidays: [], publicHolidaysError: error.message }; }
+      const ranges = termRanges(school, calendar.terms || []);
+      if (!ranges.some(range => range.startDate && range.endDate)) throw new Error('Publish term dates in Planner Setup before syncing attendance.');
+      const result = await globalThis.plannerAttendance.syncDrive({
+        year, school, calendar, ranges, today: localDate,
+        request: async path => { await refreshSession(); return request(api + path); },
+        mutate: async (path, body) => {
+          await refreshSession();
+          return request(api + path, { method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'x-planner-csrf': csrf }, body: JSON.stringify(body) });
+        },
+        loadSchedule: selectedWeek => loadAttendanceSchedule(selectedWeek),
+        onProgress: message => { note.textContent = message; }
+      });
+      if (!result.enabled) { note.textContent = 'Automatic Drive attendance sync is disabled.'; return; }
+      note.textContent = 'Drive attendance sync: ' + result.files + ' new/updated PDFs processed; ' +
+        result.marks + ' blank marks filled; ' + result.conflicts + ' conflicts kept; ' +
+        result.warnings + ' student/class match warnings; ' + result.skipped + ' unchanged PDFs skipped.' +
+        (result.warnings ? ' Re-preview affected PDFs in Two-Week Attendance to review unmatched students.' : '') +
+        (calendar.publicHolidaysError ? ' Public holiday dates unavailable: check the imported dates.' : '');
+      return { note };
+    } catch (error) {
+      note.setAttribute('role', 'alert');
+      note.textContent = error.message + ' Open Two-Week Attendance to check the folder, authorise Google Drive or retry sync.';
+      throw error;
+    } finally {
+      attendanceSyncRunning = false;
+      note.removeAttribute('data-preferences-busy');
+    }
+  }
   async function load() {
     const dutyRefresh = document.getElementById?.('refresh-weekly-duties');
     if (dutyRefresh) { dutyRefresh.hidden = true; dutyRefresh.onclick = null; }
@@ -2538,24 +2592,18 @@
         content.append(host);
         await globalThis.plannerAttendance.mount(host, {
           overview: section === 'attendanceImport',
+          syncNow: node => runAttendanceDriveSync(node),
           el, year, ranges: termRanges(settings.content, calendar.terms || []), school: settings.content, calendar, today: localDate,
           uploadPdf: async file => {
             await refreshSession();
             return request(api + 'attendance/' + year + '/import-preview', { method: 'POST',
               headers: { 'Content-Type': 'application/pdf', 'x-planner-csrf': csrf }, body: file });
           },
-          loadSchedule: async selectedWeek => {
-            const months = new Set(Array.from({ length: 5 }, (_, i) => {
-              const day = date(selectedWeek); day.setUTCDate(day.getUTCDate() + i);
-              return day.getUTCFullYear() + '/' + (day.getUTCMonth() + 1);
-            }));
-            const feeds = await Promise.all([...months].map(month => request(api + 'kamar-timetable/' + month)));
-            return weeklyTimetableEntries(feeds.flatMap(feed => feed.events), selectedWeek, Infinity);
-          },
+          loadSchedule: selectedWeek => loadAttendanceSchedule(selectedWeek),
           request: async path => { await refreshSession(); return request(api + path); },
-          mutate: async (path, body) => {
+          mutate: async (path, body, method = 'PUT') => {
             await refreshSession();
-            return request(api + path, { method: 'PUT',
+            return request(api + path, { method,
               headers: { 'Content-Type': 'application/json', 'x-planner-csrf': csrf }, body: JSON.stringify(body) });
           }
         });
@@ -2675,7 +2723,17 @@
     if (!canLeave()) return;
     section = button.dataset.section;
     if (section === 'moderation') { moderationRecord = ''; moderationPage = 'overview'; }
-    load();
+    load().then(async () => {
+      if (!loaded) return;
+      try {
+        const result = await runAttendanceDriveSync();
+        if (result && ['attendance', 'attendanceImport'].includes(section)) {
+          await load();
+          content.append(result.note);
+        }
+      }
+      catch (error) { console.error('Automatic attendance Drive sync failed.'); notice(error.message + ' Open Two-Week Attendance to authorise Drive or retry sync.', true); }
+    });
   }));
   document.getElementById('open-year').addEventListener('click', () => {
     const value = Number(yearInput.value);
