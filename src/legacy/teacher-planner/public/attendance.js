@@ -41,6 +41,7 @@
   }
   function planImport({ pdf, group, directory, schedules, savedMarks, year, ranges, school, calendar, today }) {
     const fills = [], conflicts = [], warnings = [];
+    const coverage = Object.fromEntries(pdf.weeks.map(week => [week, { groupId: group.id, week, expected: 0, recorded: 0, conflicts: 0 }]));
     let unchanged = 0, matched = 0;
     const pdfNames = new Map(), rosterNames = new Map();
     for (const row of pdf.rows) {
@@ -65,7 +66,7 @@
       matched++;
       for (const day of rows[0].days) {
         const range = ranges.find(item => item.startDate && item.endDate && day.date >= item.startDate && day.date <= item.endDate);
-        if (!range || day.date > today || closedDay(day.date, range, year, school, calendar)) continue;
+        if (!range || closedDay(day.date, range, year, school, calendar)) continue;
         const weekday = date(day.date).getUTCDay();
         if (weekday < 1 || weekday > 5) continue;
         const monday = date(day.date); monday.setUTCDate(monday.getUTCDate() - weekday + 1);
@@ -74,25 +75,36 @@
         const teaching = scheduledPeriods({ classes }, entries)[weekday - 1];
         const slots = weekday === 3 ? [0, 1, 4, 5, 7] : [1, 2, 4, 5, 7];
         for (const period of teaching) {
+          const week = coverage[iso(monday)];
+          week.expected++;
           const mark = day.slots[slots[periods.indexOf(period)]];
-          if (!mark) continue;
+          if (!mark || day.date > today) continue;
+          week.recorded++;
           const old = saved.get(student.id + '|' + day.date + '|' + period);
           const value = { studentId: student.id, name: student.name, date: day.date, period, mark, revision: old?.revision || 0 };
           if (!old?.mark) fills.push(value);
-          else if (old.mark !== mark) conflicts.push({ ...value, existing: old.mark });
+          else if (old.mark !== mark) { conflicts.push({ ...value, existing: old.mark }); week.conflicts++; }
           else unchanged++;
         }
       }
     }
     const outside = pdf.rows.filter(row => !rosterNames.has(attendanceName(row.name))).length;
-    return { fills, conflicts, warnings, unchanged, matched, outside };
+    return { fills, conflicts, warnings, unchanged, matched, outside,
+      coverage: Object.values(coverage).filter(item => item.recorded > 0).map(item => ({ ...item, unresolved: warnings.length > 0 })) };
   }
-  async function mount(host, { el, request, mutate, uploadPdf, loadSchedule, year, ranges, school, calendar, today }) {
+  function weekStatus(entry, hasMarks) {
+    if (!entry) return hasMarks ? 'Marks present - import status unknown' : 'Not loaded';
+    return (entry.recorded === entry.expected && !entry.unresolved ? 'Loaded' : 'Partial') +
+      ' - ' + entry.recorded + '/' + entry.expected + ' scheduled marks in PDF' +
+      (entry.conflicts ? '; ' + entry.conflicts + ' conflicts kept' : '') +
+      (entry.unresolved ? '; unmatched students' : '');
+  }
+  async function mount(host, { el, request, mutate, uploadPdf, loadSchedule, year, ranges, school, calendar, today, overview = false }) {
     host.setAttribute('data-planner-navigation', '');
     host.classList.add('attendance-page');
     const feedback = el('p', '', { class: 'duty-roster-feedback', role: 'status', 'aria-live': 'polite' });
     const controls = el('fieldset', '', { class: 'attendance-controls' });
-    host.append(el('h2', 'Attendance daily log — ' + year, { class: 'paper-heading' }),
+    host.append(el('h2', (overview ? 'Two-Week Attendance — ' : 'Attendance daily log — ') + year, { class: 'paper-heading' }),
       el('p', 'Private teaching log, not the official KAMAR register. Blank = not recorded; P = present; A = absent; L = late. Marks save individually and can be used by your future report-writing module.'));
     if (calendar.publicHolidaysError || calendar.publicHolidaysAvailable === false) {
       host.append(el('p', (calendar.publicHolidaysError || 'Government public holiday dates are unavailable for this year.') +
@@ -107,6 +119,7 @@
     const editor = el('section', '', { class: 'attendance-editor' });
     const sheet = el('section', '', { class: 'attendance-sheet', role: 'tabpanel', id: 'attendance-sheet' });
     controls.append(tabs, add, editor, sheet);
+    if (overview) { tabs.hidden = true; add.hidden = true; }
     function say(message, error = false) { feedback.textContent = message; feedback.setAttribute('role', error ? 'alert' : 'status'); }
     function guard() {
       if (pending) return false;
@@ -144,10 +157,14 @@
       else sheet.removeAttribute('aria-labelledby');
     }
     function renderImport(group) {
+      const all = !group;
+      const title = all ? 'all matching saved class tabs' : group.name;
       const panel = el('details', '', { class: 'attendance-import' });
-      panel.append(el('summary', 'Import KAMAR attendance PDF into this class tab'));
-      panel.append(el('p', 'Only this tab is filled, using each student’s school class membership and timetable. Existing marks are never overwritten. * = P; L = L; all other codes (including ?) = A. Blank slots stay unrecorded. Whanau, Assembly and breaks are ignored.'));
-      if (!uploadPdf || !loadSchedule || group.scheduleMode === 'manual' || !group.classes.length) {
+      if (all) panel.open = true;
+      panel.append(el('summary', all ? 'Load Two-Week Attendance PDF - all matching class tabs' : 'Import KAMAR attendance PDF into this class tab'));
+      panel.append(el('p', (all ? 'All matching saved automatic class tabs are filled, regardless of the term/class display filters. Matching uses' : 'Only this tab is filled, using') +
+        ' each student’s school class membership and timetable. Existing marks are never overwritten. * = P; L = L; all other codes (including ?) = A. Blank slots stay unrecorded. Whanau, Assembly and breaks are ignored.'));
+      if (!uploadPdf || !loadSchedule || !all && (group.scheduleMode === 'manual' || !group.classes.length)) {
         panel.append(el('p', 'To import, connect school classes and enable automatic timetable matching in Edit class tab / students.', { role: 'status' }));
         return panel;
       }
@@ -167,11 +184,26 @@
           const saved = await request('attendance/' + year + '/week/' + week);
           savedMarks.push(...saved.marks);
         }
-        const plan = planImport({ pdf, group, directory, schedules, savedMarks, year, ranges, school, calendar, today });
-        result.append(el('h4', group.name + ' - PDF weeks ' + pdf.weeks.join(' and ')),
-          el('p', plan.matched + ' students matched; ' + plan.fills.length + ' blank marks to fill; ' +
-            plan.conflicts.length + ' conflicts left unchanged; ' + plan.unchanged + ' identical marks skipped. ' +
-            plan.outside + ' PDF students outside this tab ignored.', { role: 'status' }));
+        const targets = (all ? groups : [group]).filter(item => item.scheduleMode !== 'manual' && item.classes.length);
+        const plans = targets.map(group => ({ group, plan: planImport({ pdf, group, directory, schedules, savedMarks, year, ranges, school, calendar, today }) }));
+        const unique = values => [...new Map(values.map(value => [value.studentId + '|' + value.date + '|' + value.period, value])).values()];
+        const plan = {
+          fills: unique(plans.flatMap(item => item.plan.fills)), conflicts: unique(plans.flatMap(item => item.plan.conflicts)),
+          warnings: plans.flatMap(item => item.plan.warnings.map(message => item.group.name + ': ' + message)),
+          matched: plans.reduce((sum, item) => sum + item.plan.matched, 0),
+          unchanged: plans.reduce((sum, item) => sum + item.plan.unchanged, 0),
+          outside: all ? 0 : plans[0].plan.outside
+        };
+        const entries = plans.flatMap(item => item.plan.coverage);
+        result.append(el('h4', title + ' - PDF weeks ' + pdf.weeks.join(' and ')),
+          el('p', plan.matched + (all ? ' student/class matches; ' : ' students matched; ') + plan.fills.length + ' blank marks to fill; ' +
+            plan.conflicts.length + ' conflicts left unchanged; ' + plan.unchanged + ' identical marks skipped.' +
+            (all ? ' Shared student/period marks are saved only once.' : ' ' + plan.outside + ' PDF students outside this tab ignored.'), { role: 'status' }));
+        if (all) for (const item of plans) result.append(el('p', item.group.name + ': ' + item.plan.fills.length +
+          ' blank marks; ' + item.plan.conflicts.length + ' conflicts; ' + item.plan.matched + ' students matched.'));
+        if (all) for (const item of groups.filter(group => !targets.includes(group))) {
+          result.append(el('p', item.name + ': skipped - enable automatic school-class matching.', { role: 'status' }));
+        }
         if (plan.warnings.length) {
           const list = el('ul');
           plan.warnings.forEach(warning => list.append(el('li', warning)));
@@ -180,7 +212,7 @@
         if (plan.fills.length || plan.conflicts.length) {
           const scroll = el('div', '', { class: 'attendance-scroll', tabindex: '0' });
           const table = el('table', '', { class: 'attendance-table' }), head = el('tr'), body = el('tbody');
-          table.append(el('caption', 'Proposed attendance changes - ' + group.name));
+          table.append(el('caption', 'Proposed attendance changes - ' + title));
           ['Student', 'Date', 'Period', 'PDF mark', 'Action'].forEach(label => head.append(el('th', label, { scope: 'col' })));
           const thead = el('thead'); thead.append(head); table.append(thead, body);
           for (const value of [...plan.fills, ...plan.conflicts]) {
@@ -193,11 +225,11 @@
         }
         if (!plan.fills.length) {
           result.append(el('p', 'No blank marks to fill. Check student matches, term dates and timetable if you expected marks.', { role: 'status' }));
-          return;
+          if (!entries.length) return;
         }
-        const apply = el('button', 'Fill ' + plan.fills.length + ' blank marks', { type: 'button' });
+        const apply = el('button', plan.fills.length ? 'Fill ' + plan.fills.length + ' blank marks' : 'Record import status (no mark changes)', { type: 'button' });
         apply.addEventListener('click', () => act(async () => {
-          if (!confirm('Fill ' + plan.fills.length + ' blank marks in ' + group.name + '? Existing marks will not be overwritten.')) return;
+          if (!confirm('Fill ' + plan.fills.length + ' blank marks in ' + title + ' and record import status? Existing marks will not be overwritten.')) return;
           apply.disabled = true;
           let count = 0;
           say('Importing ' + plan.fills.length + ' blank marks. Keep this page open until saving finishes.');
@@ -207,6 +239,7 @@
               count++;
               say('Importing: ' + count + ' of ' + plan.fills.length + ' blank marks saved. Keep this page open.');
             }
+            if (entries.length) await mutate('attendance/' + year + '/imports', { entries });
           } catch (error) {
             throw new Error(count + ' of ' + plan.fills.length + ' marks saved. Import stopped: ' + error.message +
               ' Reload the saved week, then preview the PDF again to continue safely.');
@@ -307,6 +340,7 @@
     }
     async function loadSheet() {
       sheet.replaceChildren();
+      if (overview) { await loadOverview(); return; }
       const group = groups.find(item => item.id === selected);
       if (!group) { sheet.append(el('p', 'Create a class tab to start your attendance log.')); return; }
       const available = ranges.filter(range => range.startDate && range.endDate);
@@ -407,12 +441,59 @@
       }
       if (!group.students.length) sheet.append(el('p', 'No students yet. Use Edit class tab / students to add a school class or manual student.'));
     }
+    async function loadOverview() {
+      sheet.removeAttribute('role');
+      sheet.removeAttribute('aria-labelledby');
+      const available = ranges.filter(range => range.startDate && range.endDate);
+      if (!available.length) throw new Error('Term dates are unavailable. Publish dates in Planner Setup before using Attendance.');
+      if (!available.some(range => range.term === selectedTerm)) {
+        selectedTerm = available.find(range => range.startDate <= today && range.endDate >= today)?.term || available[0].term;
+      }
+      const terms = el('select', '', { 'aria-label': 'Two-week attendance term' });
+      for (const range of available) terms.append(el('option', 'Term ' + range.term, { value: range.term }));
+      terms.value = selectedTerm;
+      terms.addEventListener('change', () => { selectedTerm = terms.value; act(loadSheet); });
+      const classes = el('select', '', { 'aria-label': 'Two-week attendance class' });
+      for (const group of groups) classes.append(el('option', group.name, { value: group.id }));
+      classes.value = selected;
+      classes.addEventListener('change', () => { selected = classes.value; act(loadSheet); });
+      const termLabel = el('label', 'Term '), classLabel = el('label', 'Class ');
+      termLabel.append(terms); classLabel.append(classes);
+      const refresh = el('button', 'Refresh loaded status', { type: 'button' });
+      refresh.addEventListener('click', () => act(loadSheet));
+      sheet.append(termLabel, classLabel, refresh, el('p', 'Filters show one class and term. PDF uploads below populate all matching saved automatic class tabs. Loaded means every scheduled mark for matched students was present in the PDF; it does not mean conflicts were overwritten. Partial includes missing marks, future lessons or unmatched students.'));
+      if (!groups.length) {
+        sheet.append(el('p', 'Create your class tabs on the Attendance page first.', { role: 'status' }));
+        return;
+      }
+      const history = await request('attendance/' + year + '/imports');
+      const group = groups.find(item => item.id === selected) || groups[0];
+      const range = available.find(item => item.term === selectedTerm);
+      const table = el('table', '', { class: 'attendance-table' });
+      table.append(el('caption', group.name + ' - Term ' + selectedTerm + ' import history'));
+      const head = el('thead'), headings = el('tr'), body = el('tbody');
+      ['Term week', 'Week beginning', 'PDF status', 'Last imported'].forEach(label => headings.append(el('th', label, { scope: 'col' })));
+      head.append(headings); table.append(head, body);
+      for (const [index, week] of termWeeks(range.startDate, range.endDate).entries()) {
+        const entry = history.imports[group.id + ':' + week];
+        const hasMarks = history.markedWeeks.some(item => item.week === week && group.students.some(student => student.id === item.student_id));
+        const row = el('tr');
+        row.append(el('th', 'Week ' + (index + 1), { scope: 'row' }),
+          el('td', week), el('td', weekStatus(entry, hasMarks), { 'data-import-status': entry ?
+            entry.recorded === entry.expected && !entry.unresolved ? 'loaded' : 'partial' : hasMarks ? 'unknown' : 'empty' }),
+          el('td', entry ? new Date(entry.importedAt).toLocaleString('en-NZ', { timeZone: 'Pacific/Auckland' }) : 'Never recorded'));
+        body.append(row);
+      }
+      const scroll = el('div', '', { class: 'attendance-scroll', tabindex: '0' });
+      scroll.append(table); sheet.append(scroll, renderImport(null));
+    }
     add.addEventListener('click', () => editGroup());
     await act(async () => {
       const result = await request('attendance/' + year + '/groups');
       groups = result.content.groups; revision = result.revision; selected = groups[0]?.id || '';
-      renderTabs(); await loadSheet(); say('Attendance loaded. Class setup uses Save class tab; each P/A/L mark saves immediately.');
+      renderTabs(); await loadSheet(); say(overview ? 'Two-Week Attendance loaded. Preview a PDF before filling blank marks in all matching class tabs.' :
+        'Attendance loaded. Class setup uses Save class tab; each P/A/L mark saves immediately.');
     });
   }
-  globalThis.plannerAttendance = { mount, termWeeks, combinedStudents, scheduledPeriods, classCode, planImport };
+  globalThis.plannerAttendance = { mount, termWeeks, combinedStudents, scheduledPeriods, classCode, planImport, weekStatus };
 })();

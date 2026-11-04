@@ -111,6 +111,30 @@ unrecorded. Existing nonblank marks are never overwritten, conflicts are shown,
 and identical marks are skipped. Blank-only saves use revision checks and an
 atomic database condition, so concurrent edits cannot be overwritten. If saving
 stops part-way, the count is reported; preview the PDF again to safely continue.
+The **Two-Week Attendance** button beside **Weekly planner** opens an import
+dashboard with term and saved-class selectors, one row per term week, and
+**Loaded**, **Partial**, **Not loaded**, or **Marks present - import status unknown**
+indicators. Each tracked week shows the last import time in New Zealand time.
+The selectors filter the history display only: uploading here previews and fills
+all matching saved automatic class tabs, deduplicating shared student/period
+marks. Manual tabs are explicitly skipped. Per-tab importing on **Attendance**
+remains available.
+
+History records the latest confirmed PDF coverage for each class/week: all
+scheduled marks for matched students must be present to show **Loaded**; missing
+or future marks and unresolved students show **Partial**. Conflicts are counted
+separately and kept unchanged. These are PDF-coverage indicators, not a guarantee
+that every saved mark agrees with KAMAR. Earlier marks do not imply a known PDF
+import; re-preview their PDF and use **Record import status** to establish history
+without changing marks. History is recorded only after the confirmed fills
+finish; any failure stops with an explicit count and can be safely re-previewed.
+History lives under `content.imports` in the existing owner/year attendance-groups
+record, keyed by class UUID and Monday date. The private, CSRF-protected
+`PUT /api/planner/attendance/:year/imports` records bounded coverage summaries and a
+server timestamp; `GET` reads those summaries and weeks containing saved marks.
+Class setup edits atomically preserve this metadata without altering import
+timestamps or using import history as the class-edit revision. No schema migration
+or separate database is needed.
 The signed-in, CSRF-protected preview endpoint
 `POST /api/planner/attendance/:year/import-preview` accepts `application/pdf`,
 does not save the upload or write marks, and returns private, non-cacheable data.

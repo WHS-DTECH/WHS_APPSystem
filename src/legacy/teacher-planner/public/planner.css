@@ -222,6 +222,8 @@
 .attendance-table [data-mark="P"] { background: #e7f3e9; color: #204e35; }
 .attendance-table [data-mark="A"] { background: #fff0ef; color: #842420; }
 .attendance-table [data-mark="L"] { background: #fff1d2; color: #513900; }
+.attendance-table [data-import-status="loaded"] { background: #e7f3e9; color: #204e35; }
+.attendance-table [data-import-status="partial"], .attendance-table [data-import-status="unknown"] { background: #fff1d2; color: #513900; }
 @media print {
   .attendance-page button, .attendance-editor, .attendance-import, .attendance-page > .duty-roster-feedback { display: none; }
   .attendance-scroll { overflow: visible; }

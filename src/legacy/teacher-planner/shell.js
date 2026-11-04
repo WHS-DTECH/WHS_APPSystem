@@ -20,7 +20,7 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
 <link rel="icon" type="image/png" href="${asset('whs-logo.png')}">
 <link rel="stylesheet" href="${asset('account-controls.css')}">
 <link rel="stylesheet" href="${asset('module-shell.css')}">
-<link rel="stylesheet" href="${asset('planner.css?v=attendance-import-21')}">
+<link rel="stylesheet" href="${asset('planner.css?v=attendance-history-22')}">
 </head><body class="whs-module-shell whs-planner" data-api="${escape(baseUrl)}api/planner/" data-assets="${escape(baseUrl)}framework/" data-planner-name="${escape(displayName)}" data-user-id="${escape(userId)}" data-user-email="${escape(userEmail)}" data-core-url="${escape(coreUrl)}">
 <main class="planner-main" aria-label="${escape(title)}">
 <header class="planner-heading">
@@ -40,6 +40,7 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
     <button type="button" data-section="year">Year overview</button>
     <button type="button" data-section="term">Term plan</button>
     <button type="button" data-section="week">Weekly planner</button>
+    <button type="button" data-section="attendanceImport">Two-Week Attendance</button>
     <div class="planner-tabs-secondary">
       <div class="planner-tabs-secondary-row">
       <button type="button" data-section="goals">Goals and reflection</button>
@@ -91,13 +92,13 @@ ${standalone ? `<script src="${asset('global-nav.js')}" defer></script>` : ''}
 <script src="${asset('google-calendar.js')}" defer></script>
 <script src="${asset('google-doc-sync.js')}" defer></script>
 <script src="${asset('duty-roster.js?v=weekly-term-duties-4')}" defer></script>
-<script src="${asset('attendance.js?v=pdf-import-5')}" defer></script>
+<script src="${asset('attendance.js?v=import-history-6')}" defer></script>
 <script src="${asset('google-tasks.js')}" defer></script>
 <script src="${asset('google-drive.js?v=moderation-resource-files-1')}" defer></script>
 <script src="${asset('moderation-schema.js?v=requirement-cleanup-2')}" defer></script>
 <script src="${asset('moderation.js?v=nzqa-version-8')}" defer></script>
 <script src="${asset('textarea-autosize.js')}" defer></script>
-<script src="${asset('planner.js?v=attendance-pdf-import-21')}" defer></script>
+<script src="${asset('planner.js?v=attendance-history-22')}" defer></script>
 </body></html>`;
 }
 

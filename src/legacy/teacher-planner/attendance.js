@@ -28,6 +28,12 @@ function validDay(value, year) {
   return Number.isFinite(day.getTime()) && day.toISOString().slice(0, 10) === value &&
     day.getUTCDay() >= 1 && day.getUTCDay() <= 5;
 }
+function validWeek(value, year) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const day = new Date(value + 'T00:00:00Z');
+  return Number.isFinite(day.getTime()) && day.toISOString().slice(0, 10) === value && day.getUTCDay() === 1 &&
+    [day.getUTCFullYear(), new Date(day.getTime() + 4 * 86400000).getUTCFullYear()].includes(year);
+}
 function createAttendanceRouter({ query, loadClasses }) {
   const router = express.Router();
   function reject(res, message, status = 400) {
@@ -72,6 +78,40 @@ function createAttendanceRouter({ query, loadClasses }) {
       res.status(400).json({ error: 'The attendance PDF could not be read. ' + error.message });
     }
   });
+  router.get('/:year/imports', async (req, res, next) => {
+    try {
+      const groups = await query('SELECT content FROM planner_attendance_groups WHERE owner_id=$1 AND year=$2',
+        [req.user.id, req.attendanceYear]);
+      const marks = await query(`SELECT DISTINCT student_id,to_char(date_trunc('week',lesson_date),'YYYY-MM-DD') AS week
+        FROM planner_attendance_marks WHERE owner_id=$1 AND year=$2 AND mark<>''`, [req.user.id, req.attendanceYear]);
+      res.json({ imports: groups.rows[0]?.content.imports || {}, markedWeeks: marks.rows });
+    } catch (error) { next(error); }
+  });
+  router.put('/:year/imports', async (req, res, next) => {
+    const entries = req.body.entries;
+    if (!keys(req.body, ['entries']) || !Array.isArray(entries) || !entries.length || entries.length > 60 ||
+        !entries.every(item => keys(item, ['groupId', 'week', 'expected', 'recorded', 'conflicts', 'unresolved']) &&
+          typeof item.groupId === 'string' && UUID.test(item.groupId) && validWeek(item.week, req.attendanceYear) &&
+          Number.isInteger(item.expected) && item.expected > 0 && item.expected <= 5000 &&
+          Number.isInteger(item.recorded) && item.recorded > 0 && item.recorded <= item.expected &&
+          Number.isInteger(item.conflicts) && item.conflicts >= 0 && item.conflicts <= item.recorded &&
+          typeof item.unresolved === 'boolean')) return reject(res, 'Invalid attendance import history.');
+    try {
+      const groups = await query('SELECT content FROM planner_attendance_groups WHERE owner_id=$1 AND year=$2',
+        [req.user.id, req.attendanceYear]);
+      if (!entries.every(item => groups.rows[0]?.content.groups.some(group => group.id === item.groupId))) {
+        return reject(res, 'Import history must belong to your saved class tabs.');
+      }
+      const importedAt = new Date().toISOString();
+      const history = Object.fromEntries(entries.map(item => [item.groupId + ':' + item.week, { ...item, importedAt }]));
+      // Metadata is independent of class revisions; class edits preserve it atomically.
+      const saved = await query(`UPDATE planner_attendance_groups
+        SET content=jsonb_set(content,'{imports}',COALESCE(content->'imports','{}'::jsonb) || $3::jsonb),updated_at=NOW()
+        WHERE owner_id=$1 AND year=$2 RETURNING revision`, [req.user.id, req.attendanceYear, JSON.stringify(history)]);
+      if (!saved.rows.length) return reject(res, 'Class tabs changed. Reload before recording import history.', 409);
+      res.json({ importedAt });
+    } catch (error) { next(error); }
+  });
   router.get('/:year/groups', async (req, res, next) => {
     try {
       const result = await query('SELECT content,revision FROM planner_attendance_groups WHERE owner_id=$1 AND year=$2',
@@ -88,17 +128,15 @@ function createAttendanceRouter({ query, loadClasses }) {
       const result = req.body.revision === 0 ?
         await query(`INSERT INTO planner_attendance_groups(owner_id,year,content) VALUES ($1,$2,$3)
           ON CONFLICT DO NOTHING RETURNING revision`, values) :
-        await query(`UPDATE planner_attendance_groups SET content=$3,revision=revision+1,updated_at=NOW()
+        await query(`UPDATE planner_attendance_groups SET content=$3::jsonb || jsonb_build_object('imports',COALESCE(content->'imports','{}'::jsonb)),revision=revision+1,updated_at=NOW()
           WHERE owner_id=$1 AND year=$2 AND revision=$4 RETURNING revision`, [...values, req.body.revision]);
       if (!result.rows.length) return reject(res, 'Attendance tabs changed in another window. Copy your edits, then reload before saving.', 409);
       res.json(result.rows[0]);
     } catch (error) { next(error); }
   });
   router.get('/:year/week/:week', async (req, res, next) => {
-    const week = req.params.week, day = new Date(week + 'T00:00:00Z');
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(week) || !Number.isFinite(day.getTime()) ||
-      day.toISOString().slice(0, 10) !== week || day.getUTCDay() !== 1 ||
-      ![day.getUTCFullYear(), new Date(day.getTime() + 4 * 86400000).getUTCFullYear()].includes(req.attendanceYear)) {
+    const week = req.params.week;
+    if (!validWeek(week, req.attendanceYear)) {
       return reject(res, 'Choose a valid Monday in this attendance year.');
     }
     try {

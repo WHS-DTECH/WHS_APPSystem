@@ -34,6 +34,7 @@
     standards: [],
     assessmentSetup: [],
     attendance: [],
+    attendanceImport: [],
     moderation: [],
     setup: [],
     learning: [['entries', 'Professional learning log', '', 'Record dates, learning activities, evidence links, reflections and next steps.']]
@@ -2514,7 +2515,7 @@
       }
       renderSelectors();
       history.replaceState(null, '', '#' + viewFragment());
-      document.querySelector('.planner-save').hidden = ['cover', 'attendance'].includes(section);
+      document.querySelector('.planner-save').hidden = ['cover', 'attendance', 'attendanceImport'].includes(section);
       save.textContent = section === 'setup' ? 'Save school-wide setup' : 'Save changes';
       document.getElementById('save-note').textContent = section === 'setup' ? 'These settings are shared by all planners for this year.' :
         'Private Planner edits autosave. Wait for Autosaved before closing.';
@@ -2524,7 +2525,7 @@
       }
       if (section === 'cover') { render({}); loaded = true; notice(openingNote || 'Your planner, familiar pages. Open the cover or choose a section above.'); return; }
       await refreshSession();
-      if (section === 'attendance') {
+      if (section === 'attendance' || section === 'attendanceImport') {
         const settings = await request(api + 'school-settings/' + year);
         let calendar;
         try {
@@ -2536,6 +2537,7 @@
         const host = el('section');
         content.append(host);
         await globalThis.plannerAttendance.mount(host, {
+          overview: section === 'attendanceImport',
           el, year, ranges: termRanges(settings.content, calendar.terms || []), school: settings.content, calendar, today: localDate,
           uploadPdf: async file => {
             await refreshSession();
@@ -2558,7 +2560,8 @@
           }
         });
         loaded = true;
-        notice('Private attendance log. Class setup and individual marks save separately from planner notes.');
+        notice(section === 'attendanceImport' ? 'Load Two-Week Attendance PDFs for all matching class tabs. Select a term and class to see weekly import status.' :
+          'Private attendance log. Class setup and individual marks save separately from planner notes.');
         return;
       }
       const data = await request(address());
@@ -2667,7 +2670,7 @@
     if (busy || !loaded) return false;
     return dirty ? await saveEntry() : true;
   }
-  form.addEventListener('submit', event => { event.preventDefault(); if (section !== 'attendance') saveEntry(); });
+  form.addEventListener('submit', event => { event.preventDefault(); if (!['attendance', 'attendanceImport'].includes(section)) saveEntry(); });
   document.querySelectorAll('[data-section]').forEach((button) => button.addEventListener('click', () => {
     if (!canLeave()) return;
     section = button.dataset.section;

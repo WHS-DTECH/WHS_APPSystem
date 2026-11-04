@@ -122,6 +122,92 @@ test('import excludes closures, known holidays, future dates and dates outside c
   plan = browser().planImport(options);
   assert.equal(plan.fills.length, 0);
 });
+test('weekly coverage distinguishes complete PDFs from missing/future slots and unresolved names', () => {
+  const options = importFixture(), api = browser();
+  let plan = api.planImport(options);
+  assert.equal(plan.coverage[0].expected, 5);
+  assert.equal(plan.coverage[0].recorded, 5);
+  assert.equal(plan.coverage[0].conflicts, 1);
+  assert.match(api.weekStatus(plan.coverage[0], true), /^Loaded.*1 conflicts kept/);
+  assert.equal(plan.coverage[1].expected, 2);
+  assert.equal(plan.coverage[1].recorded, 1);
+  assert.match(api.weekStatus(plan.coverage[1], true), /^Partial/);
+  assert.equal(api.weekStatus(undefined, true), 'Marks present - import status unknown');
+  assert.equal(api.weekStatus(undefined, false), 'Not loaded');
+  options.today = '2026-10-27';
+  plan = api.planImport(options);
+  assert.equal(plan.coverage[0].recorded, 2);
+  assert.equal(plan.coverage[0].expected, 5, 'future teaching periods count towards complete-week coverage');
+  options.group.students.push({ id: 'k:300', name: 'Unmatched Student' });
+  plan = api.planImport(options);
+  assert.equal(plan.coverage[0].unresolved, true);
+});
+test('two-week page filters term/class, displays every week and distinguishes legacy and tracked imports', async () => {
+  const options = importFixture(), host = element('section');
+  const second = { ...options.group, id: crypto.randomUUID(), name: 'Second class', students: [] };
+  const entry = { ...browser().planImport(options).coverage[0], importedAt: '2026-11-05T00:00:00Z' };
+  await browser().mount(host, {
+    el: element, ...options, overview: true,
+    ranges: [{ term: '3', startDate: '2026-07-20', endDate: '2026-09-25' }, ...options.ranges],
+    request: async path => path.endsWith('/groups') ? { revision: 1, content: { groups: [options.group, second] } } :
+      { imports: { [options.group.id + ':2026-10-26']: entry }, markedWeeks: [{ student_id: 'k:100', week: '2026-11-02' }] }
+  });
+  let nodes = descendants(host);
+  assert.equal(nodes.filter(node => node.attrs.scope === 'row').length, 10);
+  assert.ok(nodes.some(node => node.textContent === 'Week 10'));
+  assert.ok(nodes.some(node => node.textContent.startsWith('Loaded - 5/5')));
+  assert.ok(nodes.some(node => node.textContent === 'Marks present - import status unknown'));
+  const classes = nodes.find(node => node.attrs['aria-label'] === 'Two-week attendance class');
+  classes.value = second.id; classes.events.change(); await new Promise(resolve => setImmediate(resolve));
+  nodes = descendants(host);
+  assert.equal(nodes.filter(node => node.attrs['data-import-status'] === 'empty').length, 10);
+  const terms = nodes.find(node => node.attrs['aria-label'] === 'Two-week attendance term');
+  terms.value = '3'; terms.events.change(); await new Promise(resolve => setImmediate(resolve));
+  nodes = descendants(host);
+  assert.ok(nodes.some(node => node.textContent === '2026-07-20'));
+  assert.ok(nodes.some(node => node.textContent === 'Second class - Term 3 import history'));
+});
+test('all-class import ignores display filters, deduplicates shared marks and records each class week', async () => {
+  const options = importFixture(), host = element('section'), saved = [];
+  const second = { ...options.group, id: crypto.randomUUID(), name: 'Second class' };
+  const manual = { ...options.group, id: crypto.randomUUID(), name: 'Manual class', scheduleMode: 'manual' };
+  await browser().mount(host, {
+    el: element, ...options, overview: true,
+    request: async path => path.endsWith('/groups') ? { revision: 1, content: { groups: [options.group, second, manual] } } :
+      path.endsWith('/imports') ? { imports: {}, markedWeeks: [] } :
+        path.includes('/classes/') ? options.directory : { marks: options.savedMarks },
+    loadSchedule: async week => options.schedules[week], uploadPdf: async () => options.pdf,
+    mutate: async (path, body) => { saved.push([path, body]); return { revision: 1 }; }
+  });
+  descendants(host).find(node => node.attrs.type === 'file').files = [{ size: 100 }];
+  await descendants(host).find(node => node.textContent === 'Preview PDF import').events.click();
+  const nodes = descendants(host);
+  assert.ok(nodes.some(node => node.textContent.startsWith('Second class: 4 blank marks')));
+  assert.ok(nodes.some(node => node.textContent.startsWith('Manual class: skipped')));
+  await nodes.find(node => node.textContent === 'Fill 4 blank marks').events.click();
+  assert.equal(saved.filter(([path]) => path.endsWith('/mark')).length, 4, 'shared marks are not saved twice');
+  const history = saved.find(([path]) => path.endsWith('/imports'))[1];
+  assert.equal(history.entries.length, 4);
+  assert.deepEqual(new Set(history.entries.map(item => item.groupId)), new Set([options.group.id, second.id]));
+});
+test('an already populated PDF can record import history without rewriting any marks', async () => {
+  const options = importFixture(), host = element('section'), writes = [];
+  const plan = browser().planImport(options);
+  options.savedMarks.push(...plan.fills.map(value => ({ student_id: value.studentId, ...value })));
+  await browser().mount(host, {
+    el: element, ...options, overview: true,
+    request: async path => path.endsWith('/groups') ? { revision: 1, content: { groups: [options.group] } } :
+      path.endsWith('/imports') ? { imports: {}, markedWeeks: [] } :
+        path.includes('/classes/') ? options.directory : { marks: options.savedMarks },
+    loadSchedule: async week => options.schedules[week], uploadPdf: async () => options.pdf,
+    mutate: async (path, body) => { writes.push([path, body]); return {}; }
+  });
+  descendants(host).find(node => node.attrs.type === 'file').files = [{ size: 100 }];
+  await descendants(host).find(node => node.textContent === 'Preview PDF import').events.click();
+  await descendants(host).find(node => node.textContent === 'Record import status (no mark changes)').events.click();
+  assert.equal(writes.length, 1);
+  assert.equal(writes[0][0], 'attendance/2026/imports');
+});
 test('import refuses duplicate, unmatched and manual identities rather than guessing', () => {
   for (const change of [
     options => options.pdf.rows.push(options.pdf.rows[0]),
@@ -154,8 +240,10 @@ test('PDF preview saves nothing until confirmation and sends only blank fills wi
   nodes = descendants(host);
   assert.ok(nodes.some(node => node.textContent === 'Keep saved A (conflict)'));
   await nodes.find(node => node.textContent === 'Fill 4 blank marks').events.click();
-  assert.equal(saved.length, 4);
-  assert.ok(saved.every(([path, body]) => path === 'attendance/2026/mark' && body.fillOnly === true && !Object.hasOwn(body, 'name')));
+  assert.equal(saved.length, 5);
+  assert.ok(saved.slice(0, 4).every(([path, body]) => path === 'attendance/2026/mark' && body.fillOnly === true && !Object.hasOwn(body, 'name')));
+  assert.equal(saved[4][0], 'attendance/2026/imports');
+  assert.equal(saved[4][1].entries.length, 2);
   assert.equal(saved.some(([, body]) => body.date === '2026-10-27' && body.period === 'p3'), false);
   assert.ok(descendants(host).some(node => node.textContent.includes('4 blank marks filled from the PDF')));
 });
@@ -280,7 +368,7 @@ test('opening Attendance tolerates a failed government calendar request using pu
     } }
   };
   const helpers = source.slice(source.indexOf('  function termRanges('), source.indexOf('  async function loadTermDates('));
-  const branch = source.slice(source.indexOf("      if (section === 'attendance') {"), source.indexOf('      const data = await request(address());'));
+  const branch = source.slice(source.indexOf("      if (section === 'attendance' || section === 'attendanceImport') {"), source.indexOf('      const data = await request(address());'));
   await vm.runInNewContext(helpers + '(async () => {' + branch + '})()', context);
   assert.deepEqual(requests, ['/api/planner/school-settings/2026', '/api/school-calendar/2026']);
   assert.equal(context.loaded, true);
@@ -296,6 +384,24 @@ test('missing term dates still report an explicit error during a holiday outage'
   });
   assert.ok(descendants(host).some(node => node.attrs.role === 'alert' && node.textContent.includes('Term dates are unavailable')));
   assert.equal(descendants(host).some(node => node.attrs['aria-label']?.startsWith('Synthetic Student,')), false);
+});
+test('the new planner section mounts the import dashboard with shared upload and save connections', async () => {
+  const source = fs.readFileSync(require.resolve('./public/planner.js'), 'utf8');
+  let mounted;
+  const context = {
+    section: 'attendanceImport', year: 2026, api: '/api/planner/', localDate: '2026-11-05', csrf: 'test',
+    content: element('main'), el: element, refreshSession: async () => {}, notice() {},
+    request: async path => path.includes('school-settings') ? { content: { term4Start: '2026-10-12', term4End: '2026-12-18' } } : { terms: [] },
+    plannerAttendance: { mount: async (_host, options) => { mounted = options; } }
+  };
+  const helpers = source.slice(source.indexOf('  function termRanges('), source.indexOf('  async function loadTermDates('));
+  const branch = source.slice(source.indexOf("      if (section === 'attendance' || section === 'attendanceImport') {"), source.indexOf('      const data = await request(address());'));
+  await vm.runInNewContext(helpers + '(async () => {' + branch + '})()', context);
+  assert.equal(mounted.overview, true);
+  assert.equal(typeof mounted.uploadPdf, 'function');
+  assert.equal(typeof mounted.mutate, 'function');
+  assert.equal(mounted.ranges[3].startDate, '2026-10-12');
+  assert.equal(context.loaded, true);
 });
 test('automatic attendance renders only scheduled periods and preserves saved marks outside changed schedules', async () => {
     const host = element('section'), saved = [];
@@ -404,6 +510,48 @@ test('attendance API requires sign-in, CSRF, ownership and revisions without cha
   failDirectory();
   assert.equal((await fetch(base + 'attendance/classes/2026', { headers })).status, 502);
 });
+test('import history is private, validates class ownership and persists across class setup saves', async t => {
+  const records = new Map();
+  const { base, login } = await fixture(t, async (sql, params) => {
+    const key = params[0] + ':' + params[1];
+    if (sql.includes('planner_attendance_marks')) {
+      return { rows: params[0] === owner ? [{ student_id: 'k:100', week: '2026-10-26' }] : [] };
+    }
+    const previous = records.get(key);
+    if (sql.startsWith('SELECT')) return { rows: previous ? [previous] : [] };
+    if (sql.includes("SET content=jsonb_set")) {
+      if (!previous) return { rows: [] };
+      previous.content.imports = { ...previous.content.imports, ...JSON.parse(params[2]) };
+      return { rows: [{ revision: previous.revision }] };
+    }
+    const content = { ...JSON.parse(params[2]), imports: previous?.content.imports || {} };
+    const revision = (previous?.revision || 0) + 1;
+    records.set(key, { content, revision });
+    return { rows: [{ revision }] };
+  });
+  const headers = await login(owner), otherHeaders = await login(other);
+  const put = (path, body, auth = headers) => fetch(base + 'attendance/2026/' + path,
+    { method: 'PUT', headers: auth, body: JSON.stringify(body) });
+  await put('groups', { content, revision: 0 });
+  const entry = { groupId: group.id, week: '2026-10-26', expected: 10, recorded: 5, conflicts: 1, unresolved: false };
+  assert.equal((await put('imports', { entries: [entry] }, { ...headers, 'x-planner-csrf': 'bad' })).status, 403);
+  assert.equal((await put('imports', { entries: [entry] }, otherHeaders)).status, 400);
+  for (const invalid of [{ ...entry, recorded: 11 }, { ...entry, groupId: crypto.randomUUID() },
+    { ...entry, week: '2026-10-27' }, { ...entry, expected: 0 }, { ...entry, importedAt: 'fake' }]) {
+    assert.equal((await put('imports', { entries: [invalid] })).status, 400);
+  }
+  assert.equal((await put('imports', { entries: [entry] })).status, 200);
+  await put('groups', { content, revision: 1 });
+  let result = await (await fetch(base + 'attendance/2026/imports', { headers })).json();
+  assert.equal(result.imports[group.id + ':' + entry.week].recorded, 5);
+  assert.ok(Number.isFinite(Date.parse(result.imports[group.id + ':' + entry.week].importedAt)));
+  assert.equal(result.markedWeeks.length, 1);
+  assert.equal((await put('imports', { entries: [{ ...entry, recorded: 10 }] })).status, 200);
+  result = await (await fetch(base + 'attendance/2026/imports', { headers })).json();
+  assert.equal(result.imports[group.id + ':' + entry.week].recorded, 10);
+  const otherResult = await (await fetch(base + 'attendance/2026/imports', { headers: otherHeaders })).json();
+  assert.deepEqual(otherResult, { imports: {}, markedWeeks: [] });
+});
 test('PostgreSQL persists private attendance and rejects stale cell revisions', {
   skip: !process.env.PLANNER_TEST_DATABASE_URL
 }, async t => {
@@ -428,6 +576,12 @@ test('PostgreSQL persists private attendance and rejects stale cell revisions', 
   assert.deepEqual(stored.marks, [{ student_id: 'k:100', student_name: 'Synthetic Student', date: '2026-10-29', period: 'p3', mark: 'A', revision: 2 }]);
   assert.equal((await put('mark', { ...value, revision: 2, mark: '' })).status, 200);
   assert.equal((await put('mark', { ...value, revision: 3, fillOnly: true })).status, 200);
-  assert.equal((await put('groups', { revision: 1, content: { groups: [] } })).status, 200);
+  const historyEntry = { groupId: group.id, week: '2026-10-26', expected: 10, recorded: 5, conflicts: 0, unresolved: false };
+  assert.equal((await put('imports', { entries: [historyEntry] })).status, 200);
+  assert.equal((await put('groups', { revision: 1, content })).status, 200);
+  const history = await (await fetch(base + 'attendance/2026/imports', { headers })).json();
+  assert.equal(history.imports[group.id + ':2026-10-26'].recorded, 5);
+  assert.equal(history.markedWeeks[0].week, '2026-10-26');
+  assert.equal((await put('groups', { revision: 2, content: { groups: [] } })).status, 200);
   assert.equal((await (await fetch(base + 'attendance/2026/week/2026-10-26', { headers })).json()).marks.length, 1, 'removing a tab never deletes attendance');
 });
