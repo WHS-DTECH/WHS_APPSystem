@@ -2507,7 +2507,7 @@
   async function runAttendanceDriveSync(host = content) {
     if (attendanceSyncRunning) throw new Error('Attendance Drive sync is already running. Wait until it finishes.');
     attendanceSyncRunning = true;
-    const note = el('p', 'Checking Google Drive for new attendance PDFs...', {
+    const note = el('div', 'Checking Google Drive for new attendance PDFs...', {
       class: 'duty-roster-feedback', role: 'status', 'aria-live': 'polite', 'data-preferences-busy': 'true'
     });
     attendanceSyncNote = note;
@@ -2515,6 +2515,27 @@
     const target = host.querySelector('[data-attendance-drive-feedback]') || host;
     if (target === content) target.append(note);
     else target.replaceChildren(note);
+    let documents = [];
+    function show(message) {
+      note.replaceChildren();
+      note.textContent = message;
+      for (const [status, title] of [
+        ['synced', 'Successfully synced documents'],
+        ['error', 'Document errors - not fully synced'],
+        ['unchanged', 'Already synced - unchanged documents']
+      ]) {
+        const matching = documents.filter(document => document.status === status);
+        if (!matching.length) continue;
+        const list = el('ul');
+        for (const document of matching) {
+          list.append(el('li', document.name + ': ' + (status === 'error' ? document.error :
+            status === 'unchanged' ? 'Previously synced; unchanged.' :
+              document.marks + ' blank marks saved; ' + document.conflicts + ' conflicts kept; ' +
+                document.warnings + ' student/class match warnings.')));
+        }
+        note.append(el('h4', title), list);
+      }
+    }
     try {
       await refreshSession();
       const settings = await request(api + 'attendance/' + year + '/drive-sync');
@@ -2534,22 +2555,31 @@
             headers: { 'Content-Type': 'application/json', 'x-planner-csrf': csrf }, body: JSON.stringify(body) });
         },
         loadSchedule: selectedWeek => loadAttendanceSchedule(selectedWeek),
-        onProgress: message => { note.textContent = message; }
+        onProgress: show,
+        onDocument: document => {
+          documents.push(document);
+          if (document.status === 'error') note.setAttribute('role', 'alert');
+          show('Document finished: ' + document.name + '. Continuing to the next PDF. Keep this page open.');
+        }
       });
       if (!result.enabled) { note.textContent = 'Automatic Drive attendance sync is disabled.'; return; }
-      note.textContent = 'Drive attendance sync completed successfully at ' +
+      documents = result.documents || documents;
+      note.setAttribute('role', result.failed ? 'alert' : 'status');
+      show((result.failed ? 'Drive attendance sync completed with document errors at ' : 'Drive attendance sync completed successfully at ') +
         new Date().toLocaleString('en-NZ', { timeZone: 'Pacific/Auckland' }) + ': ' +
         result.files + ' new/updated PDFs processed; ' +
         result.marks + ' blank marks filled; ' + result.conflicts + ' conflicts kept; ' +
-        result.warnings + ' student/class match warnings; ' + result.skipped + ' unchanged PDFs skipped.' +
-        (!result.files && !result.skipped ? ' No PDFs found in the selected folder.' : '') +
-        (!result.files && result.skipped ? ' Already up to date; no new or changed PDFs.' : '') +
+        result.warnings + ' student/class match warnings; ' + result.skipped + ' unchanged PDFs skipped; ' +
+        (result.failed || 0) + ' document errors.' +
+        (!result.files && !result.skipped && !result.failed ? ' No PDFs found in the selected folder.' : '') +
+        (!result.files && result.skipped && !result.failed ? ' Already up to date; no new or changed PDFs.' : '') +
+        (result.failed ? ' Successfully synced documents are saved. Correct or remove rejected PDFs, then retry; completed documents will not be duplicated.' : '') +
         (result.warnings ? ' Re-preview affected PDFs in Two-Week Attendance to review unmatched students.' : '') +
-        (calendar.publicHolidaysError ? ' Public holiday dates unavailable: check the imported dates.' : '');
+        (calendar.publicHolidaysError ? ' Public holiday dates unavailable: check the imported dates.' : ''));
       return { note };
     } catch (error) {
       note.setAttribute('role', 'alert');
-      note.textContent = error.message + ' Open Two-Week Attendance to check the folder, authorise Google Drive or retry sync.';
+      show(error.message + ' Open Two-Week Attendance to check the folder, authorise Google Drive or retry sync.');
       throw error;
     } finally {
       attendanceSyncRunning = false;

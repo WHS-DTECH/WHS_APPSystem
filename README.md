@@ -1309,9 +1309,13 @@ Drive sync reports the specific recognised layout check that failed, or a safe
 decode-error message, and does not mark the rejected file as processed. Export
 the original **Student Attendance - Two Week Overview** PDF from KAMAR; do not
 print, scan or convert it. A rejected file saves no marks from that PDF.
+Half Days attendance statistics PDFs contain summary rates rather than daily
+period marks and cannot be imported as Two-Week Attendance; sync reports this
+explicitly and continues with the remaining documents.
 The standard KAMAR `Students: N` page total beneath the final student row is
 recognised as a footer, not attendance. Attendance column/slot validation remains
-strict; footer recognition requires the expected position and matching row count.
+strict; footer recognition requires the expected position and a student count at
+least as large as the page's row count (continued classes show a whole-class total).
 
 The **Google Drive attendance folder sync** card shows authorisation/setup errors,
 live sync progress and the latest result. A successful check displays
@@ -1321,6 +1325,19 @@ PDFs, saved blank marks, conflicts kept, match warnings and unchanged PDFs skipp
 means the connected folder was checked but contained no PDFs. Merely enabling
 automatic sync does not confirm that a sync has succeeded. Results remain visible
 inside the card when weekly history refreshes during the current page session.
+Each PDF's marks, import history and processed-file checkpoint are saved before
+starting the next PDF. The card updates **Successfully synced documents**,
+**Document errors - not fully synced** and **Already synced - unchanged documents**
+as files finish, with filenames and individual results. If any document fails,
+the final status says **completed with document errors**, not success. Other PDFs
+continue syncing. Errors include the cause and any marks already saved from that
+PDF; partial saves are retained and the failed PDF is not checkpointed. Retry
+skips completed unchanged documents and only fills remaining blanks, never
+overwriting saved marks. Correct or remove unsupported PDFs to clear their errors.
+Oversized PDFs are reported individually without blocking other documents; the
+5 MB download/import limit still applies to every PDF.
+Per-document reports remain visible for the current page session; durable
+processed-file checkpoints and weekly import history are stored in the database.
 
 The Moderation **Marking Confirmation & Feedback** and **WHS Coversheet** contents
 tabs label and open each record's respective form, independently of its marking

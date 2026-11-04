@@ -103,7 +103,8 @@
       unchanged: plans.reduce((sum, item) => sum + item.plan.unchanged, 0)
     };
   }
-  async function syncDrive({ request, mutate, loadSchedule, year, ranges, school, calendar, today, onProgress = () => {} }) {
+  async function syncDrive({ request, mutate, loadSchedule, year, ranges, school, calendar, today,
+    onProgress = () => {}, onDocument = () => {} }) {
     const settings = await request('attendance/' + year + '/drive-sync');
     if (!settings.enabled) return { enabled: false };
     const setup = await request('attendance/' + year + '/groups');
@@ -115,14 +116,24 @@
     })));
     const contextKey = Array.from(new Uint8Array(digest), value => value.toString(16).padStart(2, '0')).join('');
     const listing = await request('google-calendar/attendance-drive/' + year + '/files');
-    const summary = { enabled: true, files: 0, marks: 0, conflicts: 0, warnings: 0, skipped: 0 };
+    const summary = { enabled: true, files: 0, marks: 0, conflicts: 0, warnings: 0, skipped: 0, failed: 0, documents: [] };
+    function report(file, details) {
+      const document = { id: file.id, name: file.name, ...details };
+      summary.documents.push(document);
+      onDocument(document);
+    }
     for (const file of listing.files) {
       const previous = settings.processed[file.id];
       if (previous?.version === file.version && previous.accountId === listing.accountId &&
           previous.contextKey === contextKey && previous.revision === setup.revision &&
-          (!previous.retryOn || previous.retryOn > today)) { summary.skipped++; continue; }
-      onProgress('Reading attendance PDF ' + (summary.files + 1) + ': ' + file.name);
+          (!previous.retryOn || previous.retryOn > today)) {
+        summary.skipped++;
+        report(file, { status: 'unchanged', marks: 0 });
+        continue;
+      }
+      onProgress('Reading attendance PDF ' + (summary.documents.length + 1) + ' of ' + listing.files.length + ': ' + file.name);
       let savedCount = 0;
+      let outcome;
       try {
         const result = await request('google-calendar/attendance-drive/' + year + '/files/' + file.id);
         if (result.version !== file.version || result.accountId !== listing.accountId || result.connectionId !== listing.connectionId) {
@@ -155,11 +166,16 @@
         summary.marks += savedCount;
         summary.conflicts += plan.conflicts.length;
         summary.warnings += plan.warnings.length;
+        outcome = { status: 'synced', marks: savedCount, conflicts: plan.conflicts.length, warnings: plan.warnings.length };
       } catch (error) {
-        throw new Error('Drive attendance sync stopped at "' + file.name + '". ' +
-          (summary.marks + savedCount) + ' marks saved so far; existing marks were not overwritten. ' +
-          error.message + ' Retry sync to safely continue; this PDF was not marked processed.');
+        console.error('Attendance Drive document sync failed.');
+        summary.failed++;
+        summary.marks += savedCount;
+        outcome = { status: 'error', marks: savedCount,
+          error: error.message + ' ' + savedCount + ' blank marks saved from this PDF before the error. ' +
+            'Existing marks were not overwritten. This PDF was not marked processed; retry to safely continue.' };
       }
+      report(file, outcome);
     }
     return summary;
   }

@@ -295,12 +295,77 @@ test('Drive sync fills matching blanks, checkpoints successful PDFs and skips un
 test('Drive sync never checkpoints a failed PDF and retry resumes without overwriting prior fills', async () => {
   const fixture = driveFixture(), api = browser();
   fixture.failOnMark(2);
-  await assert.rejects(api.syncDrive(fixture.helpers), /1 marks saved so far.*not marked processed/);
-  assert.equal(Object.keys(fixture.processed).length, 0);
+  const first = await api.syncDrive(fixture.helpers);
+  assert.equal(first.failed, 1);
+  assert.equal(first.files, 1, 'later PDF completes even after a partial mark-write failure');
+  assert.equal(first.marks, 4, 'total includes the failed PDF partial save without double counting');
+  assert.equal(first.documents[0].marks, 1);
+  assert.match(first.documents[0].error, /1 blank marks saved.*not marked processed/);
+  assert.equal(Object.keys(fixture.processed).length, 1);
+  assert.equal(fixture.processed[fixture.files[0].id], undefined);
   fixture.failOnMark(0);
   const result = await api.syncDrive(fixture.helpers);
-  assert.equal(result.marks, 3);
-  assert.equal(result.files, 2);
+  assert.equal(result.marks, 0);
+  assert.equal(result.files, 1);
+  assert.equal(result.skipped, 1);
+  assert.equal(result.failed, 0);
+});
+test('Drive sync completes and reports each document before reading the next, continuing past rejected PDFs', async () => {
+  for (const failedIndex of [0, 1, 2]) {
+    const fixture = driveFixture(), reports = [], reads = [];
+    fixture.files.push({ id: 'synthetic_pdf_789', name: '<img src=x> Invalid statistics.pdf', version: 'version-three' });
+    const rejected = fixture.files[failedIndex];
+    const helpers = { ...fixture.helpers,
+      request: async path => {
+        if (path.includes('/files/')) {
+          assert.equal(reports.length, reads.length, 'previous PDF was reported before next download');
+          reads.push(path);
+          if (path.endsWith(rejected.id)) throw new Error('Half Days statistics report has no daily period marks.');
+        }
+        return fixture.helpers.request(path);
+      },
+      onDocument: document => {
+        reports.push(document);
+        assert.equal(Boolean(fixture.processed[document.id]), document.status === 'synced');
+        if (document.status === 'synced') assert.ok(fixture.writes.some(([path]) => path.endsWith('/imports')));
+      }
+    };
+    const result = await browser().syncDrive(helpers);
+    assert.equal(result.files, 2);
+    assert.equal(result.failed, 1);
+    assert.equal(result.marks, 4);
+    assert.equal(result.documents.length, 3);
+    assert.equal(reports.length, 3);
+    assert.equal(result.documents[failedIndex].name, rejected.name);
+    assert.match(result.documents[failedIndex].error, /Half Days statistics.*0 blank marks saved.*not marked processed/);
+    const retry = await browser().syncDrive({ ...helpers, onDocument: () => {} });
+    assert.equal(retry.files, 0);
+    assert.equal(retry.failed, 1);
+    assert.equal(retry.skipped, 2);
+  }
+});
+test('Drive history or checkpoint errors leave the PDF retryable but do not prevent later documents syncing', async () => {
+  for (const stage of ['/imports', '/drive-sync/file']) {
+    const fixture = driveFixture();
+    let failed = false;
+    const result = await browser().syncDrive({ ...fixture.helpers,
+      mutate: async (path, body) => {
+        if (!failed && path.endsWith(stage)) { failed = true; throw new Error('Synthetic completion failure'); }
+        return fixture.helpers.mutate(path, body);
+      }
+    });
+    assert.equal(result.files, 1);
+    assert.equal(result.failed, 1);
+    assert.equal(result.marks, 4);
+    assert.equal(result.documents[0].marks, 4);
+    assert.match(result.documents[0].error, /Synthetic completion failure/);
+    assert.equal(fixture.processed[fixture.files[0].id], undefined);
+    assert.ok(fixture.processed[fixture.files[1].id]);
+    const retry = await browser().syncDrive(fixture.helpers);
+    assert.equal(retry.files, 1);
+    assert.equal(retry.skipped, 1);
+    assert.equal(retry.marks, 0);
+  }
 });
 test('Drive sync retries previously deferred future marks when their date arrives', async () => {
   const fixture = driveFixture(), api = browser();
@@ -416,7 +481,7 @@ test('automatic Drive feedback uses the card and survives remount without stale 
   const source = fs.readFileSync(require.resolve('./public/planner.js'), 'utf8');
   const helpers = source.slice(source.indexOf('  let attendanceSyncRunning = false;'), source.indexOf('  async function load()'));
   const termHelpers = source.slice(source.indexOf('  function termRanges('), source.indexOf('  async function loadTermDates('));
-  for (const mode of ['processed', 'unchanged', 'empty', 'settings-failure', 'sync-failure', 'disabled']) {
+  for (const mode of ['processed', 'unchanged', 'empty', 'mixed', 'all-rejected', 'settings-failure', 'sync-failure', 'disabled']) {
     const host = element('main'), unrelated = element('h2', 'Keep page contents');
     const card = element('details'), target = element('div', '', { 'data-attendance-drive-feedback': '' });
     card.append(target); host.append(unrelated, card);
@@ -433,6 +498,18 @@ test('automatic Drive feedback uses the card and survives remount without stale 
         options.onProgress('Reading attendance PDF');
         assert.equal(target.children[0].textContent, 'Reading attendance PDF');
         if (mode === 'sync-failure') throw new Error('PDF headings not recognised');
+        if (['mixed', 'all-rejected'].includes(mode)) {
+          const documents = [
+            ...(mode === 'mixed' ? [{ id: 'one', name: 'Good.pdf', status: 'synced', marks: 4, conflicts: 1, warnings: 0 }] : []),
+            { id: 'two', name: '<img src=x> Statistics.pdf', status: 'error', marks: 0, error: 'Half Days statistics report; not marked processed.' }
+          ];
+          for (const document of documents) options.onDocument(document);
+          options.onProgress('Reading next PDF');
+          assert.ok(descendants(target).some(node => node.tag === 'li' && /Half Days statistics/.test(node.textContent)),
+            'document error remains visible while progress continues');
+          return { enabled: true, files: mode === 'mixed' ? 1 : 0, marks: mode === 'mixed' ? 4 : 0,
+            conflicts: mode === 'mixed' ? 1 : 0, warnings: 0, skipped: 0, failed: 1, documents };
+        }
         return { enabled: true, files: mode === 'processed' ? 1 : 0, marks: mode === 'processed' ? 4 : 0,
           conflicts: 0, warnings: 0, skipped: mode === 'unchanged' ? 2 : 0 };
       } }
@@ -441,6 +518,17 @@ test('automatic Drive feedback uses the card and survives remount without stale 
     if (mode.endsWith('failure')) {
       await assert.rejects(context.runAttendanceDriveSync());
       assert.equal(target.children[0].attrs.role, 'alert');
+    } else if (['mixed', 'all-rejected'].includes(mode)) {
+      await context.runAttendanceDriveSync();
+      assert.equal(target.children[0].attrs.role, 'alert');
+      assert.match(target.children[0].textContent, /completed with document errors/);
+      assert.doesNotMatch(target.children[0].textContent, /completed successfully|No PDFs found|Already up to date/);
+      assert.ok(descendants(target).some(node => node.tag === 'li' &&
+        node.textContent === '<img src=x> Statistics.pdf: Half Days statistics report; not marked processed.'));
+      if (mode === 'mixed') {
+        assert.ok(descendants(target).some(node => node.textContent === 'Successfully synced documents'));
+        assert.ok(descendants(target).some(node => node.tag === 'li' && /Good.pdf: 4 blank marks saved/.test(node.textContent)));
+      }
     } else {
       await context.runAttendanceDriveSync();
       assert.equal(target.children[0].attrs.role, 'status');

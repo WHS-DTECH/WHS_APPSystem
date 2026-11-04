@@ -17,6 +17,10 @@ function headerDate(value) {
   return valueIso;
 }
 function parseAttendancePage(items, view) {
+  if (items.some(item => /^Attendance Rates for \d{4} from\s+term \d, week \d+\s+to\s+term \d, week \d+$/.test(item.str))) {
+    throw new AttendancePdfError('This is a Half Days attendance statistics report, not a Two Week Overview. ' +
+      'It contains summary rates, not daily period marks. Export Student Attendance - Two Week Overview for attendance sync, or move this statistics PDF out of the sync folder.');
+  }
   if (Math.abs(view[2] - 842) > 2 || Math.abs(view[3] - 595) > 2 ||
       !items.some(item => item.str === 'Student Attendance - Two Week Overview')) {
     throw new AttendancePdfError('Choose a landscape KAMAR Student Attendance - Two Week Overview PDF.');
@@ -43,7 +47,9 @@ function parseAttendancePage(items, view) {
   const lastRowY = Math.min(...rows.map(row => row.y));
   for (const item of items.filter(item => item.transform[4] >= 198 && item.transform[4] < 790 &&
       item.transform[5] < 500 && item.transform[5] > 70)) {
-    if (item.str === 'Students: ' + rows.length && Math.abs(item.transform[4] - 648) < 1 &&
+    const total = /^Students: ([1-9]\d*)$/.exec(item.str);
+    // Continued class lists show the whole-class total on their final page.
+    if (total && Number(total[1]) >= rows.length && Math.abs(item.transform[4] - 648) < 1 &&
         Math.abs(item.transform[5] - (lastRowY - 19)) < 1) continue;
     const rowIndex = rows.findIndex(row => Math.abs(row.y - 1 - item.transform[5]) < 0.5);
     const column = columns.findIndex(x => Math.abs(x - item.transform[4]) < 0.5);

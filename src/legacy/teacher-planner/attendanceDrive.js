@@ -53,12 +53,12 @@ function createAttendanceDriveRouter({ query, ensureConnected, access, unchanged
     if (!response.ok) throw new ErrorType('Google Drive is temporarily unavailable or its request limit was reached. Retry sync.');
     return response;
   }
-  function validFile(file, folder) {
+  function validFile(file, folder, checkSize = true) {
     return file && DRIVE_ID.test(file.id) && file.mimeType === 'application/pdf' && file.trashed === false &&
       file.parents?.includes(folder) && typeof file.name === 'string' && file.name.length <= 500 &&
       typeof file.modifiedTime === 'string' && Number.isFinite(Date.parse(file.modifiedTime)) &&
       typeof file.md5Checksum === 'string' && /^[a-f0-9]{32}$/i.test(file.md5Checksum) &&
-      /^\d+$/.test(file.size) && Number(file.size) <= MAX_PDF;
+      /^\d+$/.test(file.size) && (!checkSize || Number(file.size) <= MAX_PDF);
   }
   router.get('/:year/files', wrap(async (req, res) => {
     const { row, folder, token } = await connection(req, Number(req.params.year));
@@ -76,8 +76,8 @@ function createAttendanceDriveRouter({ query, ensureConnected, access, unchanged
         ...(pageToken ? { pageToken } : {})
       });
       const result = await (await google('files?' + params, token)).json();
-      if (!Array.isArray(result.files) || result.files.some(file => !validFile(file, folder))) {
-        throw new ErrorType('Drive returned an unreadable or oversized PDF (maximum 5 MB per file). Check the folder before syncing.', 422);
+      if (!Array.isArray(result.files) || result.files.some(file => !validFile(file, folder, false))) {
+        throw new ErrorType('Drive returned unreadable PDF metadata. Check the folder before syncing.', 422);
       }
       files.push(...result.files.map(file => ({ id: file.id, name: file.name, version: fileVersion(file) })));
       pageToken = result.nextPageToken;

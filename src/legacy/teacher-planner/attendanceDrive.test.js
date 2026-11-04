@@ -60,7 +60,8 @@ test('Drive provider enforces selected folder, permissions, pagination, file ver
         return new Response('%PDF-test', { headers: mode === 'oversized-header' ? { 'content-length': String(6 * 1024 * 1024) } : {} });
       }
       metadataReads++;
-      return Response.json(mode === 'wrong-folder' ? { ...file, parents: ['different_folder'] } :
+      return Response.json(mode === 'oversized-list' ? { ...file, size: String(6 * 1024 * 1024) } :
+        mode === 'wrong-folder' ? { ...file, parents: ['different_folder'] } :
         mode === 'file-change' && metadataReads > 1 ? { ...file, modifiedTime: '2026-11-06T00:00:00Z' } : file);
     }
   }));
@@ -91,10 +92,11 @@ test('Drive provider enforces selected folder, permissions, pagination, file ver
     mode = value; metadataReads = 0;
     assert.equal((await fetch(base + '/' + file.id)).status, status, value);
   }
-  for (const value of ['oversized-list', 'too-many']) {
-    mode = value;
-    assert.equal((await fetch(base)).status, 422, value);
-  }
+  mode = 'oversized-list';
+  assert.equal((await fetch(base)).status, 200, 'oversized PDFs are listed so batch sync can report their individual errors');
+  assert.equal((await fetch(base + '/' + file.id)).status, 422, 'oversized PDFs still cannot be downloaded or parsed');
+  mode = 'too-many';
+  assert.equal((await fetch(base)).status, 422);
   mode = ''; granted = false;
   assert.equal((await fetch(base)).status, 409);
   granted = true; enabled = false;

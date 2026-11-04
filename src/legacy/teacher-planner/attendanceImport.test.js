@@ -80,8 +80,11 @@ test('KAMAR student-count footer is not attendance and preserves every row and s
     const footer = { str: 'Students: ' + count, transform: [8, 0, 0, 8, 648, 490 - (count - 1) * 16 - 19], width: 40.584 };
     items.push(footer);
     assert.deepEqual(await importAttendancePdf(pdfBuffer(items)), expected);
+    assert.deepEqual(await importAttendancePdf(pdfBuffer([...items.slice(0, -1), {
+      ...footer, str: 'Students: ' + (count + 25)
+    }])), expected, 'continued class footer can include students on an earlier page');
     for (const changed of [
-      { ...footer, str: 'Students: ' + (count + 1) },
+      { ...footer, str: 'Students: ' + (count - 1) },
       { ...footer, str: 'Unknown footer' },
       { ...footer, transform: [8, 0, 0, 8, 199, footer.transform[5]] },
       { ...footer, transform: [8, 0, 0, 8, 648, 489] }
@@ -89,6 +92,11 @@ test('KAMAR student-count footer is not attendance and preserves every row and s
       await assert.rejects(importAttendancePdf(pdfBuffer([...items.slice(0, -1), changed])), /attendance positions/);
     }
   }
+});
+test('Half Days statistics report is explicitly rejected rather than inventing period marks', async () => {
+  const items = fixture();
+  items[0].str = 'Attendance Rates for 2026 from    term 4, week 3   to   term 4, week 3';
+  await assert.rejects(importAttendancePdf(pdfBuffer(items)), /Half Days attendance statistics report.*summary rates, not daily period marks/);
 });
 test('PDF preview requires teacher sign-in and CSRF, validates year, and never writes to the database', async t => {
   const app = express();
