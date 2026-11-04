@@ -1309,6 +1309,9 @@ Drive sync reports the specific recognised layout check that failed, or a safe
 decode-error message, and does not mark the rejected file as processed. Export
 the original **Student Attendance - Two Week Overview** PDF from KAMAR; do not
 print, scan or convert it. A rejected file saves no marks from that PDF.
+The standard KAMAR `Students: N` page total beneath the final student row is
+recognised as a footer, not attendance. Attendance column/slot validation remains
+strict; footer recognition requires the expected position and matching row count.
 
 The **Google Drive attendance folder sync** card shows authorisation/setup errors,
 live sync progress and the latest result. A successful check displays

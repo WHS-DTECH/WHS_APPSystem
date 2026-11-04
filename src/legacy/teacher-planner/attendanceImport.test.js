@@ -68,6 +68,28 @@ test('changed layouts, break codes, malformed headings and non-PDF input are rej
   changed[0].str = 'Other report';
   await assert.rejects(importAttendancePdf(pdfBuffer(changed)), /landscape KAMAR/);
 });
+test('KAMAR student-count footer is not attendance and preserves every row and slot', async () => {
+  for (const count of [1, 2, 7]) {
+    const items = fixture();
+    for (let index = 1; index < count; index++) {
+      const y = 490 - index * 16;
+      items.push({ str: 'Synthetic, Student ' + index, transform: [9, 0, 0, 9, 33, y], width: 100 },
+        { str: '*L* ** *', transform: [9, 0, 0, 9, 199, y - 1], width: 43.2 });
+    }
+    const expected = await importAttendancePdf(pdfBuffer(items));
+    const footer = { str: 'Students: ' + count, transform: [8, 0, 0, 8, 648, 490 - (count - 1) * 16 - 19], width: 40.584 };
+    items.push(footer);
+    assert.deepEqual(await importAttendancePdf(pdfBuffer(items)), expected);
+    for (const changed of [
+      { ...footer, str: 'Students: ' + (count + 1) },
+      { ...footer, str: 'Unknown footer' },
+      { ...footer, transform: [8, 0, 0, 8, 199, footer.transform[5]] },
+      { ...footer, transform: [8, 0, 0, 8, 648, 489] }
+    ]) {
+      await assert.rejects(importAttendancePdf(pdfBuffer([...items.slice(0, -1), changed])), /attendance positions/);
+    }
+  }
+});
 test('PDF preview requires teacher sign-in and CSRF, validates year, and never writes to the database', async t => {
   const app = express();
   app.use(session({ secret: 'synthetic-import-session', resave: false, saveUninitialized: false }));

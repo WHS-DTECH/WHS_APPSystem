@@ -40,8 +40,11 @@ function parseAttendancePage(items, view) {
       return { date: iso(day), slots: Array(8).fill('') };
     }) }));
   const seen = new Set();
+  const lastRowY = Math.min(...rows.map(row => row.y));
   for (const item of items.filter(item => item.transform[4] >= 198 && item.transform[4] < 790 &&
       item.transform[5] < 500 && item.transform[5] > 70)) {
+    if (item.str === 'Students: ' + rows.length && Math.abs(item.transform[4] - 648) < 1 &&
+        Math.abs(item.transform[5] - (lastRowY - 19)) < 1) continue;
     const rowIndex = rows.findIndex(row => Math.abs(row.y - 1 - item.transform[5]) < 0.5);
     const column = columns.findIndex(x => Math.abs(x - item.transform[4]) < 0.5);
     if (rowIndex < 0 || column < 0 || !/^[*A-Z? ]{1,8}$/.test(item.str) ||
