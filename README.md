@@ -1299,9 +1299,8 @@ Google Cloud Console. Select the **Web application** client whose ID matches
 Drive Picker client (`GOOGLE_DRIVE_CLIENT_ID`) or a different Core login client.
 Add the callback above under **Authorised redirect URIs**, save, then retry
 authorisation. Adding a JavaScript origin alone does not authorise a callback.
-After clicking Authorise, the attendance panel's **Google sign-in blocked?**
-details show the exact client ID and redirect URI sent to Google, including
-the current host. Keep existing callbacks and credentials; do not rotate
+These administrator setup instructions are kept here, not in the attendance
+page. Keep existing callbacks and credentials; do not rotate
 `GOOGLE_CALENDAR_TOKEN_KEY`. A Git push or Render redeploy cannot change
 Google's registered redirect URIs.
 

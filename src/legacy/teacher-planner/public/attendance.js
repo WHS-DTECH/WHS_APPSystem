@@ -566,23 +566,11 @@
       const label = el('label', 'Automatically sync on planner open '); label.append(enabled);
       const authorise = el('button', 'Authorise read-only Google Drive', { type: 'button' });
       const link = el('p');
-      const troubleshooting = el('details');
-      troubleshooting.hidden = true;
       authorise.addEventListener('click', () => act(async () => {
         const result = await mutate('google-calendar/connect', { includeAttendanceDrive: true }, 'POST');
-        const oauth = new URL(result.url);
         link.replaceChildren(el('a', 'Open Google authorisation (then return here)', {
           href: result.url, target: '_blank', rel: 'noopener noreferrer'
         }));
-        troubleshooting.replaceChildren(
-          el('summary', 'Google sign-in blocked? Error 400: redirect_uri_mismatch'),
-          el('p', 'Ask your Google Cloud administrator to open Google Auth Platform > Clients and select the Web application OAuth client with this client ID:'),
-          el('code', oauth.searchParams.get('client_id')),
-          el('p', 'Add this exact URL under Authorised redirect URIs (not JavaScript origins), save, then retry authorisation:'),
-          el('code', oauth.searchParams.get('redirect_uri')),
-          el('p', 'Attendance Drive sync uses the existing Calendar OAuth client, not the Drive Picker browser client. Keep existing redirect URIs and the stored-token encryption key unchanged. This Google Cloud setting cannot be fixed by redeploying the app.')
-        );
-        troubleshooting.hidden = false;
         say('Open the Google authorisation link, approve read-only Drive access, then return and Save folder and sync.');
       }));
       const save = el('button', 'Save folder and sync', { type: 'button' });
@@ -594,7 +582,7 @@
       }));
       const run = el('button', 'Sync Drive attendance now', { type: 'button' });
       run.addEventListener('click', () => act(async () => { await syncNow(host); await loadSheet(); }));
-      panel.append(folder, label, authorise, link, troubleshooting, save, run,
+      panel.append(folder, label, authorise, link, save, run,
         el('p', settings.enabled ? 'Automatic sync is enabled for this planner year.' : 'Automatic sync is off for this planner year.', { role: 'status' }));
       return panel;
     }

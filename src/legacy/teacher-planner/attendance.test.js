@@ -320,14 +320,12 @@ test('Drive setup authorises only on click and saves the chosen private folder b
   assert.deepEqual(JSON.parse(JSON.stringify(writes[0])), ['google-calendar/connect', { includeAttendanceDrive: true }, 'POST']);
   assert.ok(descendants(host).some(node => node.tag === 'a' && node.attrs.target === '_blank'));
   nodes = descendants(host);
-  assert.ok(nodes.some(node => node.tag === 'code' && node.textContent === redirectUri));
-  assert.ok(nodes.some(node => node.tag === 'code' && node.textContent === 'synthetic-calendar-client'));
-  assert.ok(nodes.some(node => /not JavaScript origins/.test(node.textContent)));
-  const troubleshooting = nodes.find(node => node.tag === 'details' &&
-    node.children.some(child => /redirect_uri_mismatch/.test(child.textContent)));
-  assert.equal(troubleshooting.hidden, false);
+  assert.equal(nodes.some(node => /redirect_uri_mismatch|Google Cloud administrator|Authorised redirect URIs/.test(node.textContent)), false);
+  assert.equal(nodes.some(node => node.tag === 'code' &&
+    [redirectUri, 'synthetic-calendar-client'].includes(node.textContent)), false);
+  assert.equal(nodes.find(node => node.tag === 'a' && node.attrs.target === '_blank').attrs.href, oauth.href);
   await nodes.find(node => node.textContent === 'Authorise read-only Google Drive').events.click();
-  assert.equal(troubleshooting.children.filter(node => node.tag === 'code').length, 2, 'retry replaces setup details');
+  assert.equal(descendants(host).filter(node => node.tag === 'a' && node.attrs.target === '_blank').length, 1, 'retry replaces the authorisation link');
   nodes.find(node => node.attrs['aria-label'] === 'Attendance Google Drive folder URL').value =
     'https://drive.google.com/drive/folders/synthetic_folder_123';
   nodes.find(node => node.attrs['aria-label'] === 'Automatically sync Drive attendance on planner open').checked = true;
