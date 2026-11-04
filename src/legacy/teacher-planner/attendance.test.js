@@ -62,6 +62,10 @@ function element(tag, text = '', attrs = {}) {
   const node = { tag, textContent: text, attrs, children: [], events: {}, dataset: {}, value: '', checked: false,
     classList: { add() {} }, append(...items) { this.children.push(...items); },
     replaceChildren(...items) { this.children = items; }, setAttribute(key, value) { this.attrs[key] = value; },
+    querySelector(selector) {
+      return descendants(this).slice(1).find(child => selector === '[data-attendance-drive-feedback]' &&
+        Object.hasOwn(child.attrs, 'data-attendance-drive-feedback')) || null;
+    },
     removeAttribute(key) { delete this.attrs[key]; }, addEventListener(event, callback) { this.events[event] = callback; } };
   return node;
 }
@@ -330,7 +334,11 @@ test('Drive setup authorises only on click and saves the chosen private folder b
       writes.push([path, body, method]);
       return { url: oauth.href };
     },
-    syncNow: async () => { syncs++; }
+    syncNow: async target => {
+      syncs++;
+      assert.equal(target, descendants(host).find(node => Object.hasOwn(node.attrs, 'data-attendance-drive-feedback')));
+      target.replaceChildren(element('p', 'Drive attendance sync completed successfully: 4 blank marks filled.', { role: 'status' }));
+    }
   });
   assert.equal(writes.length, 0);
   let nodes = descendants(host);
@@ -351,6 +359,10 @@ test('Drive setup authorises only on click and saves the chosen private folder b
   assert.equal(writes[2][0], 'attendance/2026/drive-sync');
   assert.equal(writes[2][1].enabled, true);
   assert.equal(syncs, 1);
+  const card = descendants(host).find(node => node.tag === 'details' &&
+    node.children.some(child => child.textContent === 'Google Drive attendance folder sync'));
+  assert.ok(descendants(card).some(node => /completed successfully: 4 blank marks filled/.test(node.textContent)),
+    'sync result stays in the Drive card after weekly history reloads');
 });
 test('planner-opening Drive sync protects navigation and shows explicit success or failure', async () => {
   const source = fs.readFileSync(require.resolve('./public/planner.js'), 'utf8');
@@ -382,6 +394,71 @@ test('planner-opening Drive sync protects navigation and shows explicit success 
     }
     assert.equal(active, true);
     assert.equal(host.children[0].attrs['data-preferences-busy'], undefined);
+  }
+});
+test('Drive settings and authorisation failures are displayed inside the Drive card', async () => {
+  for (const action of ['Authorise read-only Google Drive', 'Save folder and sync', 'Sync Drive attendance now']) {
+    const options = importFixture(), host = element('section');
+    await browser().mount(host, {
+      el: element, ...options, overview: true,
+      request: async path => path.endsWith('/groups') ? { revision: 1, content: { groups: [options.group] } } :
+        path.endsWith('/drive-sync') ? { enabled: true, folderId: 'synthetic_folder_123' } : { imports: {}, markedWeeks: [] },
+      mutate: async () => { throw new Error('Synthetic Drive settings error'); },
+      syncNow: async () => { throw new Error('Synthetic Drive sync error'); }
+    });
+    const card = descendants(host).find(node => node.tag === 'details' &&
+      node.children.some(child => child.textContent === 'Google Drive attendance folder sync'));
+    await descendants(card).find(node => node.textContent === action).events.click();
+    assert.ok(descendants(card).some(node => node.attrs.role === 'alert' && /^Synthetic Drive/.test(node.textContent)), action);
+  }
+});
+test('automatic Drive feedback uses the card and survives remount without stale year results', async () => {
+  const source = fs.readFileSync(require.resolve('./public/planner.js'), 'utf8');
+  const helpers = source.slice(source.indexOf('  let attendanceSyncRunning = false;'), source.indexOf('  async function load()'));
+  const termHelpers = source.slice(source.indexOf('  function termRanges('), source.indexOf('  async function loadTermDates('));
+  for (const mode of ['processed', 'unchanged', 'empty', 'settings-failure', 'sync-failure', 'disabled']) {
+    const host = element('main'), unrelated = element('h2', 'Keep page contents');
+    const card = element('details'), target = element('div', '', { 'data-attendance-drive-feedback': '' });
+    card.append(target); host.append(unrelated, card);
+    const context = {
+      content: host, year: 2026, api: '/api/planner/', localDate: '2026-11-05', el: element, csrf: 'synthetic',
+      refreshSession: async () => {},
+      request: async path => {
+        if (mode === 'settings-failure') throw new Error('Folder settings unavailable');
+        return path.endsWith('/drive-sync') ? { enabled: mode !== 'disabled' } :
+          path.includes('school-settings') ? { content: { term4Start: '2026-10-12', term4End: '2026-12-18' } } : { terms: [] };
+      },
+      plannerAttendance: { syncDrive: async options => {
+        assert.equal(target.children[0].attrs['data-preferences-busy'], 'true');
+        options.onProgress('Reading attendance PDF');
+        assert.equal(target.children[0].textContent, 'Reading attendance PDF');
+        if (mode === 'sync-failure') throw new Error('PDF headings not recognised');
+        return { enabled: true, files: mode === 'processed' ? 1 : 0, marks: mode === 'processed' ? 4 : 0,
+          conflicts: 0, warnings: 0, skipped: mode === 'unchanged' ? 2 : 0 };
+      } }
+    };
+    vm.runInNewContext(termHelpers + helpers, context);
+    if (mode.endsWith('failure')) {
+      await assert.rejects(context.runAttendanceDriveSync());
+      assert.equal(target.children[0].attrs.role, 'alert');
+    } else {
+      await context.runAttendanceDriveSync();
+      assert.equal(target.children[0].attrs.role, 'status');
+      assert.match(target.children[0].textContent, mode === 'disabled' ? /disabled/ : /completed successfully at/);
+      if (mode === 'unchanged') assert.match(target.children[0].textContent, /Already up to date/);
+      if (mode === 'empty') assert.match(target.children[0].textContent, /No PDFs found/);
+    }
+    assert.equal(target.children[0].attrs['data-preferences-busy'], undefined);
+    assert.equal(host.children.length, 2, 'no messages appended outside card');
+    const note = target.children[0];
+    target.replaceChildren();
+    context.placeAttendanceDriveNote();
+    assert.equal(target.children[0], note);
+    target.replaceChildren();
+    context.year = 2027;
+    context.placeAttendanceDriveNote();
+    assert.equal(target.children.length, 0, 'old-year result is not shown for another year');
+    assert.equal(host.children[0], unrelated);
   }
 });
 test('import refuses duplicate, unmatched and manual identities rather than guessing', () => {

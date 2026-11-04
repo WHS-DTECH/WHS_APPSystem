@@ -1310,6 +1310,15 @@ decode-error message, and does not mark the rejected file as processed. Export
 the original **Student Attendance - Two Week Overview** PDF from KAMAR; do not
 print, scan or convert it. A rejected file saves no marks from that PDF.
 
+The **Google Drive attendance folder sync** card shows authorisation/setup errors,
+live sync progress and the latest result. A successful check displays
+**Drive attendance sync completed successfully** with an NZ timestamp, processed
+PDFs, saved blank marks, conflicts kept, match warnings and unchanged PDFs skipped.
+**Already up to date** means nothing new needed importing; **No PDFs found**
+means the connected folder was checked but contained no PDFs. Merely enabling
+automatic sync does not confirm that a sync has succeeded. Results remain visible
+inside the card when weekly history refreshes during the current page session.
+
 The Moderation **Marking Confirmation & Feedback** and **WHS Coversheet** contents
 tabs label and open each record's respective form, independently of its marking
 schedule. Existing record titles and linked Drive documents are not renamed by

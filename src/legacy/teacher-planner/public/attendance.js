@@ -185,6 +185,12 @@
     host.append(feedback, controls);
     let revision = 0, groups = [], selected = '', selectedTerm = '', selectedWeek = '', marks = new Map();
     let pending = false, draft = false, directory;
+    const driveFeedback = el('div', '', { 'data-attendance-drive-feedback': '' });
+    function driveSay(message, error = false) {
+      driveFeedback.replaceChildren(el('p', message, {
+        class: 'duty-roster-feedback', role: error ? 'alert' : 'status', 'aria-live': 'polite'
+      }));
+    }
     const tabs = el('div', '', { class: 'attendance-class-tabs', role: 'tablist', 'aria-label': 'Attendance class lists' });
     const add = el('button', '+ Class tab', { type: 'button' });
     const editor = el('section', '', { class: 'attendance-editor' });
@@ -198,11 +204,11 @@
       draft = false; host.removeAttribute('data-preferences-busy'); editor.replaceChildren(); return true;
     }
     function edited() { draft = true; host.setAttribute('data-preferences-busy', 'true'); }
-    async function act(callback) {
+    async function act(callback, report = say) {
       if (pending) return;
       pending = true; controls.disabled = true; host.setAttribute('data-preferences-busy', 'true');
       try { await callback(); }
-      catch (error) { say(error.message, true); }
+      catch (error) { report(error.message, true); }
       finally {
         pending = false; controls.disabled = false;
         if (!draft) host.removeAttribute('data-preferences-busy');
@@ -576,19 +582,21 @@
         link.replaceChildren(el('a', 'Open Google authorisation (then return here)', {
           href: result.url, target: '_blank', rel: 'noopener noreferrer'
         }));
-        say('Open the Google authorisation link, approve read-only Drive access, then return and Save folder and sync.');
-      }));
+        driveSay('Open the Google authorisation link, approve read-only Drive access, then return and Save folder and sync.');
+      }, driveSay));
       const save = el('button', 'Save folder and sync', { type: 'button' });
       save.addEventListener('click', () => act(async () => {
+        driveSay('Saving Google Drive folder settings...');
         await mutate('attendance/' + year + '/drive-sync', { folder: folder.value, enabled: enabled.checked });
-        if (enabled.checked) await syncNow(host);
+        if (enabled.checked) await syncNow(driveFeedback);
+        else driveSay('Automatic Drive attendance sync disabled.');
         await loadSheet();
-        say(enabled.checked ? 'Drive sync finished. Review the sync result and weekly history.' : 'Automatic Drive attendance sync disabled.');
-      }));
+      }, driveSay));
       const run = el('button', 'Sync Drive attendance now', { type: 'button' });
-      run.addEventListener('click', () => act(async () => { await syncNow(host); await loadSheet(); }));
+      run.addEventListener('click', () => act(async () => { await syncNow(driveFeedback); await loadSheet(); }, driveSay));
       panel.append(folder, label, authorise, link, save, run,
-        el('p', settings.enabled ? 'Automatic sync is enabled for this planner year.' : 'Automatic sync is off for this planner year.', { role: 'status' }));
+        el('p', settings.enabled ? 'Automatic sync is enabled for this planner year.' : 'Automatic sync is off for this planner year.', { role: 'status' }),
+        driveFeedback);
       return panel;
     }
     add.addEventListener('click', () => editGroup());

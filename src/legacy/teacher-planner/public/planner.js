@@ -2496,18 +2496,29 @@
     return weeklyTimetableEntries(feeds.flatMap(feed => feed.events), selectedWeek, Infinity);
   }
   let attendanceSyncRunning = false;
+  let attendanceSyncNote = null;
+  let attendanceSyncYear = null;
+  function placeAttendanceDriveNote(host = content) {
+    if (!attendanceSyncNote || attendanceSyncYear !== year) return;
+    const target = host.querySelector('[data-attendance-drive-feedback]') || host;
+    if (target === content) target.append(attendanceSyncNote);
+    else target.replaceChildren(attendanceSyncNote);
+  }
   async function runAttendanceDriveSync(host = content) {
-    if (attendanceSyncRunning) throw new Error('Attendance Drive sync is already running. Wait until it finishes.');
-    await refreshSession();
-    const settings = await request(api + 'attendance/' + year + '/drive-sync');
-    if (!settings.enabled) return;
     if (attendanceSyncRunning) throw new Error('Attendance Drive sync is already running. Wait until it finishes.');
     attendanceSyncRunning = true;
     const note = el('p', 'Checking Google Drive for new attendance PDFs...', {
       class: 'duty-roster-feedback', role: 'status', 'aria-live': 'polite', 'data-preferences-busy': 'true'
     });
-    host.append(note);
+    attendanceSyncNote = note;
+    attendanceSyncYear = year;
+    const target = host.querySelector('[data-attendance-drive-feedback]') || host;
+    if (target === content) target.append(note);
+    else target.replaceChildren(note);
     try {
+      await refreshSession();
+      const settings = await request(api + 'attendance/' + year + '/drive-sync');
+      if (!settings.enabled) { note.textContent = 'Automatic Drive attendance sync is disabled. Save and enable a folder before syncing.'; return; }
       const school = (await request(api + 'school-settings/' + year)).content;
       let calendar;
       try { calendar = await request(api.replace(/planner\/$/, '') + 'school-calendar/' + year); }
@@ -2526,9 +2537,13 @@
         onProgress: message => { note.textContent = message; }
       });
       if (!result.enabled) { note.textContent = 'Automatic Drive attendance sync is disabled.'; return; }
-      note.textContent = 'Drive attendance sync: ' + result.files + ' new/updated PDFs processed; ' +
+      note.textContent = 'Drive attendance sync completed successfully at ' +
+        new Date().toLocaleString('en-NZ', { timeZone: 'Pacific/Auckland' }) + ': ' +
+        result.files + ' new/updated PDFs processed; ' +
         result.marks + ' blank marks filled; ' + result.conflicts + ' conflicts kept; ' +
         result.warnings + ' student/class match warnings; ' + result.skipped + ' unchanged PDFs skipped.' +
+        (!result.files && !result.skipped ? ' No PDFs found in the selected folder.' : '') +
+        (!result.files && result.skipped ? ' Already up to date; no new or changed PDFs.' : '') +
         (result.warnings ? ' Re-preview affected PDFs in Two-Week Attendance to review unmatched students.' : '') +
         (calendar.publicHolidaysError ? ' Public holiday dates unavailable: check the imported dates.' : '');
       return { note };
@@ -2607,6 +2622,8 @@
               headers: { 'Content-Type': 'application/json', 'x-planner-csrf': csrf }, body: JSON.stringify(body) });
           }
         });
+        const driveTarget = content.querySelector('[data-attendance-drive-feedback]');
+        if (driveTarget) placeAttendanceDriveNote(driveTarget);
         loaded = true;
         notice(section === 'attendanceImport' ? 'Load Two-Week Attendance PDFs for all matching class tabs. Select a term and class to see weekly import status.' :
           'Private attendance log. Class setup and individual marks save separately from planner notes.');
@@ -2729,10 +2746,13 @@
         const result = await runAttendanceDriveSync();
         if (result && ['attendance', 'attendanceImport'].includes(section)) {
           await load();
-          content.append(result.note);
+          placeAttendanceDriveNote();
         }
       }
-      catch (error) { console.error('Automatic attendance Drive sync failed.'); notice(error.message + ' Open Two-Week Attendance to authorise Drive or retry sync.', true); }
+      catch (error) {
+        console.error('Automatic attendance Drive sync failed.');
+        if (!content.querySelector('[data-attendance-drive-feedback]')) notice(error.message + ' Open Two-Week Attendance to authorise Drive or retry sync.', true);
+      }
     });
   }));
   document.getElementById('open-year').addEventListener('click', () => {
