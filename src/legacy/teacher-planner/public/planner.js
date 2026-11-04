@@ -2525,12 +2525,18 @@
       if (section === 'cover') { render({}); loaded = true; notice(openingNote || 'Your planner, familiar pages. Open the cover or choose a section above.'); return; }
       await refreshSession();
       if (section === 'attendance') {
-        const dates = await loadTermDates(year);
-        const calendar = dates.calendar || await request(api.replace(/planner\/$/, '') + 'school-calendar/' + year);
+        const settings = await request(api + 'school-settings/' + year);
+        let calendar;
+        try {
+          calendar = await request(api.replace(/planner\/$/, '') + 'school-calendar/' + year);
+        } catch (error) {
+          calendar = { publicHolidaysAvailable: false, publicHolidays: [],
+            publicHolidaysError: 'Government calendar dates could not be loaded. ' + error.message };
+        }
         const host = el('section');
         content.append(host);
         await globalThis.plannerAttendance.mount(host, {
-          el, year, ranges: dates.ranges, school: dates.settings.content, calendar, today: localDate,
+          el, year, ranges: termRanges(settings.content, calendar.terms || []), school: settings.content, calendar, today: localDate,
           loadSchedule: async selectedWeek => {
             const months = new Set(Array.from({ length: 5 }, (_, i) => {
               const day = date(selectedWeek); day.setUTCDate(day.getUTCDate() + i);

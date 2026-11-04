@@ -664,9 +664,9 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(html, /<div class="planner-tabs-secondary-row">\s*<button type="button" data-section="attendance">Attendance<\/button>\s*<button type="button" disabled title="Page coming soon">Behaviour Management<\/button>\s*<button type="button" disabled title="Page coming soon">Student Tracker<\/button>\s*<\/div>\s*<div class="planner-tabs-secondary-row">\s*<button type="button" disabled title="Page coming soon">Lesson<\/button>\s*<button type="button" disabled title="Page coming soon">Assessment<\/button>\s*<button type="button" disabled title="Page coming soon">Reporting<\/button>\s*<button type="button" data-section="moderation">Moderation<\/button>/);
   assert.deepEqual([...html.matchAll(/data-section="([^"]+)"/g)].map((match) => match[1]),
     ['cover', 'assessmentSetup', 'year', 'term', 'week', 'goals', 'standards', 'learning', 'attendance', 'moderation']);
-  assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=week-navigation-19"'));
-  assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=week-navigation-19"'));
-  assert.match(html, /src="\/planner\/framework\/attendance\.js\?v=staff-class-match-3"/);
+  assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=attendance-holiday-outage-20"'));
+  assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=attendance-holiday-outage-20"'));
+  assert.match(html, /src="\/planner\/framework\/attendance\.js\?v=holiday-outage-4"/);
   assert.match(html, /Setup Assessment<\/button>\s*<button type="button" id="refresh-weekly-duties" hidden>Refresh duties<\/button>/);
   assert.match(html, /id="planner-signin-link"/);
   assert.match(html, /href="https:\/\/core.example.test\/contact"/);
@@ -721,7 +721,7 @@ test('module denies anonymous/student access and accepts a supplied teacher iden
     assert.match(html, /Last Updated:/);
     assert.match(html, /id="planner-year"[^>]*value="2026"/);
     assert.match(html, /data-api="\/module\/api\/planner\/"/);
-    assert.match(html, /src="\/module\/framework\/planner\.js\?v=week-navigation-19"/);
+    assert.match(html, /src="\/module\/framework\/planner\.js\?v=attendance-holiday-outage-20"/);
     assert.match(html, /Weekly planner/);
     assert.match(html, /Professional learning/);
     assert.ok(!html.includes('name="whs-global-control"'));

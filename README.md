@@ -88,6 +88,11 @@ anniversary from govt.nz, retaining both actual and observed dates. Dates are
 read from visible table text rather than potentially inconsistent HTML datetime
 attributes. Public-holiday fetch failures are explicitly reported separately
 so Ministry school breaks can still be displayed.
+Attendance remains usable when government holiday dates cannot be loaded,
+with a persistent warning to check dates before recording marks. Known public
+holidays and school closures are still excluded. If the entire government
+calendar is unavailable, Attendance uses published Planner Setup term dates;
+term dates must still be configured before a register can be displayed.
 Source failures return 502 rather than an empty success, and unsupported years
 are explicitly marked unavailable. Module deployment is separate from Core.
 

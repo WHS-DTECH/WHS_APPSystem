@@ -113,6 +113,80 @@ test('attendance UI leaves blanks unrecorded, skips closed days and saves indivi
   assert.equal(cell.value, 'P');
   assert.ok(descendants(host).some(node => node.attrs.role === 'alert' && node.textContent.includes('NOT saved')));
 });
+test('holiday outages warn without blocking saved attendance, navigation or individual marks', async () => {
+  for (const publicHolidaysError of ['Public holiday dates could not be loaded from govt.nz.', '']) {
+    const host = element('section'), saved = [];
+    await browser().mount(host, {
+      el: element, year: 2026, today: '2026-10-29',
+      ranges: [{ term: '4', startDate: '2026-10-12', endDate: '2026-12-18' }],
+      school: { events: [{ date: '2026-10-28', kind: 'teacherOnly' }] },
+      calendar: { publicHolidaysAvailable: false, publicHolidaysError, publicHolidays: [{ date: '2026-10-26' }] },
+      request: async path => path.endsWith('/groups') ? { revision: 1, content } :
+        { marks: [{ student_id: 'k:100', date: '2026-10-29', period: 'p3', mark: 'L', revision: 2 }] },
+      mutate: async (path, body) => { saved.push([path, body]); return { revision: 3 }; }
+    });
+    const nodes = descendants(host);
+    const warning = nodes.find(node => node.attrs.role === 'alert' && node.textContent.includes('Attendance remains available'));
+    assert.ok(warning);
+    assert.match(warning.textContent, /check dates before recording marks/);
+    const cell = nodes.find(node => node.attrs['aria-label'] === 'Synthetic Student, 2026-10-29, P3');
+    assert.equal(cell.value, 'L', 'saved marks remain visible during an outage');
+    assert.equal(saved.length, 0, 'loading during an outage never changes marks');
+    for (const closed of ['2026-10-26', '2026-10-28']) {
+      assert.equal(nodes.some(node => node.attrs['aria-label'] === 'Synthetic Student, ' + closed + ', P3'), false);
+    }
+    cell.value = 'P'; await cell.events.change();
+    assert.equal(saved[0][1].mark, 'P');
+    assert.equal(saved[0][1].revision, 2);
+    assert.equal(warning.attrs.role, 'alert', 'save feedback must not replace the outage warning');
+    nodes.find(node => node.textContent === 'Week 4').events.click();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.ok(descendants(host).some(node => node.attrs['aria-label'] === 'Synthetic Student, 2026-11-02, P3'));
+    assert.ok(descendants(host).includes(warning));
+  }
+});
+test('opening Attendance tolerates a failed government calendar request using published school term dates', async () => {
+  const source = fs.readFileSync(require.resolve('./public/planner.js'), 'utf8');
+  const settings = { term4Start: '2026-10-12', term4End: '2026-12-18' };
+  const host = element('main');
+  const requests = [];
+  const context = {
+    section: 'attendance', year: 2026, api: '/api/planner/', localDate: '2026-10-29',
+    content: host, el: element, refreshSession: async () => {}, notice() {},
+    request: async path => {
+      requests.push(path);
+      if (path.includes('school-settings/')) return { content: settings };
+      throw new Error('Calendar source returned 502');
+    },
+    plannerAttendance: { mount: (node, options) => {
+      assert.equal(node, host.children[0]);
+      assert.equal(options.school, settings);
+      assert.equal(options.ranges[3].startDate, '2026-10-12');
+      assert.equal(options.calendar.publicHolidaysAvailable, false);
+      assert.match(options.calendar.publicHolidaysError, /502/);
+      return browser().mount(node, { ...options,
+        request: async path => path.endsWith('/groups') ? { revision: 1, content } : { marks: [] }
+      });
+    } }
+  };
+  const helpers = source.slice(source.indexOf('  function termRanges('), source.indexOf('  async function loadTermDates('));
+  const branch = source.slice(source.indexOf("      if (section === 'attendance') {"), source.indexOf('      const data = await request(address());'));
+  await vm.runInNewContext(helpers + '(async () => {' + branch + '})()', context);
+  assert.deepEqual(requests, ['/api/planner/school-settings/2026', '/api/school-calendar/2026']);
+  assert.equal(context.loaded, true);
+  assert.ok(descendants(host).some(node => node.attrs['aria-label'] === 'Synthetic Student, 2026-10-29, P3'));
+  assert.ok(descendants(host).some(node => node.attrs.role === 'alert' && node.textContent.includes('502')));
+});
+test('missing term dates still report an explicit error during a holiday outage', async () => {
+  const host = element('section');
+  await browser().mount(host, {
+    el: element, year: 2026, today: '2026-10-29', ranges: [], school: {},
+    calendar: { publicHolidaysAvailable: false, publicHolidays: [] },
+    request: async () => ({ revision: 1, content })
+  });
+  assert.ok(descendants(host).some(node => node.attrs.role === 'alert' && node.textContent.includes('Term dates are unavailable')));
+  assert.equal(descendants(host).some(node => node.attrs['aria-label']?.startsWith('Synthetic Student,')), false);
+});
 test('automatic attendance renders only scheduled periods and preserves saved marks outside changed schedules', async () => {
     const host = element('section'), saved = [];
     const automatic = { ...group, scheduleMode: 'auto', classes: ['VP-PIDTECH-CW'], periods: ['p1'] };

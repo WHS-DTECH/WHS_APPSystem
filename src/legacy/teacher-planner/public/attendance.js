@@ -35,8 +35,13 @@
     const feedback = el('p', '', { class: 'duty-roster-feedback', role: 'status', 'aria-live': 'polite' });
     const controls = el('fieldset', '', { class: 'attendance-controls' });
     host.append(el('h2', 'Attendance daily log — ' + year, { class: 'paper-heading' }),
-      el('p', 'Private teaching log, not the official KAMAR register. Blank = not recorded; P = present; A = absent; L = late. Marks save individually and can be used by your future report-writing module.'),
-      feedback, controls);
+      el('p', 'Private teaching log, not the official KAMAR register. Blank = not recorded; P = present; A = absent; L = late. Marks save individually and can be used by your future report-writing module.'));
+    if (calendar.publicHolidaysError || calendar.publicHolidaysAvailable === false) {
+      host.append(el('p', (calendar.publicHolidaysError || 'Government public holiday dates are unavailable for this year.') +
+        ' Attendance remains available. Some public holidays may be missing; check dates before recording marks. Known holidays and school closures still apply.',
+      { class: 'duty-roster-feedback', role: 'alert' }));
+    }
+    host.append(feedback, controls);
     let revision = 0, groups = [], selected = '', selectedTerm = '', selectedWeek = '', marks = new Map();
     let pending = false, draft = false, directory;
     const tabs = el('div', '', { class: 'attendance-class-tabs', role: 'tablist', 'aria-label': 'Attendance class lists' });
@@ -167,7 +172,6 @@
     }
     async function loadSheet() {
       sheet.replaceChildren();
-      if (calendar.publicHolidaysError) throw new Error(calendar.publicHolidaysError + ' Retry loading Attendance before recording marks.');
       const group = groups.find(item => item.id === selected);
       if (!group) { sheet.append(el('p', 'Create a class tab to start your attendance log.')); return; }
       const available = ranges.filter(range => range.startDate && range.endDate);
