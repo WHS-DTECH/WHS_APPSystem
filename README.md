@@ -8,6 +8,10 @@ Unified Westland High School app shell for one Render Web Service and one Google
 
 The request contains only `studentEmail` and the Typing Kit Monday `startDate`; callers cannot choose a different register owner. The connector matches one current KAMAR student ID and the owner's saved automatic DTECH class tabs, then reads scheduled lessons from the private teacher timetable and saved attendance marks. School closures/holidays are excluded. Missing or ambiguous identity, timetable, class mapping or holiday data produces an explicit unavailable response rather than invented absences. Responses contain only that student's dated lesson marks, seven date-keyed weeks and a fetch timestamp, not student names, absence reasons or the private timetable URL. No records are written.
 
+For unavailable reads, check the `[typing-attendance] Read failed:` code in the service logs. Codes distinguish owner identity/access, student identity, school calendar, DTECH class mapping and teacher timetable configuration without logging private source URLs or student details.
+
+The shared school calendar validates public holidays against govt.nz, with the official Employment New Zealand published tables as a fallback when the first source is unavailable. Both sources must provide a complete national/Westland date set for the requested year; unconfirmed dates still block attendance exemptions.
+
 DTECH-HUB activates its one-test-per-attended-week requirement only once its server connection is configured, starting at **Typing Kit Week 5**. Fully absent weeks are excused without catch-up. Confirm the connection and student-visible marks before using these exemptions. These are private Teacher Planner records, not the official KAMAR register.
 
 ## What is included
