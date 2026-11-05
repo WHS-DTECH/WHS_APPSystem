@@ -1338,6 +1338,10 @@ Oversized PDFs are reported individually without blocking other documents; the
 5 MB download/import limit still applies to every PDF.
 Per-document reports remain visible for the current page session; durable
 processed-file checkpoints and weekly import history are stored in the database.
+Sync setup, progress and document reports are displayed only in the Google Drive
+card on **Two-Week Attendance**, not beneath the daily Attendance Planner register.
+Automatic syncing still runs on other planner pages and retains its latest report
+for display when Two-Week Attendance is opened.
 Below the Drive results, **Term attendance sync status** provides a term-number
 filter and lists each term week, its Monday date and **Synced** or **Not synced**.
 A week is **Synced** when saved PDF import history exists for any automatic class

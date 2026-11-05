@@ -2501,8 +2501,9 @@
   function placeAttendanceDriveNote(host = content) {
     if (!attendanceSyncNote || attendanceSyncYear !== year) return;
     const target = host.querySelector('[data-attendance-drive-feedback]') || host;
-    if (target === content) target.append(attendanceSyncNote);
-    else target.replaceChildren(attendanceSyncNote);
+    if (target === content) return;
+    attendanceSyncNote.hidden = false;
+    target.replaceChildren(attendanceSyncNote);
   }
   async function runAttendanceDriveSync(host = content) {
     if (attendanceSyncRunning) throw new Error('Attendance Drive sync is already running. Wait until it finishes.');
@@ -2513,6 +2514,7 @@
     attendanceSyncNote = note;
     attendanceSyncYear = year;
     const target = host.querySelector('[data-attendance-drive-feedback]') || host;
+    note.hidden = target === content;
     if (target === content) target.append(note);
     else target.replaceChildren(note);
     let documents = [];
@@ -2781,7 +2783,6 @@
       }
       catch (error) {
         console.error('Automatic attendance Drive sync failed.');
-        if (!content.querySelector('[data-attendance-drive-feedback]')) notice(error.message + ' Open Two-Week Attendance to authorise Drive or retry sync.', true);
       }
     });
   }));

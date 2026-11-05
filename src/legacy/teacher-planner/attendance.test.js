@@ -503,6 +503,12 @@ test('planner-opening Drive sync protects navigation and shows explicit success 
     }
     assert.equal(active, true);
     assert.equal(host.children[0].attrs['data-preferences-busy'], undefined);
+    assert.equal(host.children[0].hidden, true, 'sync report is not displayed on daily attendance or other planner pages');
+    const card = element('div', '', { 'data-attendance-drive-feedback': '' });
+    host.replaceChildren(card);
+    context.placeAttendanceDriveNote();
+    assert.equal(card.children[0].hidden, false, 'stored report becomes visible on Two-Week Attendance');
+    assert.match(card.children[0].textContent, fail ? /permission required/ : /4 blank marks filled/);
   }
 });
 test('Drive settings and authorisation failures are displayed inside the Drive card', async () => {
