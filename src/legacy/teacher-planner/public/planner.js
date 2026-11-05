@@ -220,7 +220,7 @@
     selectors.replaceChildren();
     const controls = el('div', '', { class: 'week-controls' });
     if (['week', 'term'].includes(section)) {
-      const label = el('label', 'Term', { class: 'planner-term-control' });
+      const label = el('label', '', { class: 'planner-term-control' });
       const select = el('select', '', { 'aria-label': 'Term', class: 'planner-term-badge',
         title: section === 'week' ? 'Open a Term Plan' : 'Choose planner term' });
       if (section === 'week') select.append(el('option', '-', { value: '', disabled: '' }));
@@ -230,7 +230,7 @@
         if (!canLeave()) { select.value = select.dataset.displayedTerm ?? term; return; }
         term = select.value; termSelectionPending = false; section = 'term'; load();
       });
-      label.append(select); controls.append(label);
+      label.append(select, el('span', 'Term', { class: 'planner-term-caption', 'aria-hidden': 'true' })); controls.append(label);
     }
     if (section === 'week') {
       const label = el('label', 'Week containing');

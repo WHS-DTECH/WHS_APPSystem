@@ -1450,8 +1450,8 @@ heading and term dates. Goals retain their existing private yearly record and
 navigation/unsaved-edit checks. The Google Calendar sits below both panels at
 full width, with an event-detail panel and a minimum readable week-grid width
 (horizontal scrolling on smaller screens). The existing term selector stays
-above the page, styled as a circular badge showing only the number under the
-**Term** label; it still opens the native 1-4
+above the page, styled as a circular badge with a prominent 42px number and a
+small **Term** label inside the circle, like the year badge; it still opens the native 1-4
 dropdown. Print actions are unchanged; a printing redesign remains deferred.
 Without an explicit term in a planner link or a manual selection, Term Plan uses
 the current term from WHS school dates (Ministry dates fill unpublished ranges);

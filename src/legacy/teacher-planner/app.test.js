@@ -330,6 +330,7 @@ test('term circles display numbers and weekly timetable notes stay readable with
     vm.runInNewContext(selector,context);
     context.renderSelectors();
     const select=nodes.find(node=>node.tag==='select');
+    assert.equal(nodes.find(node=>node.attrs.class==='planner-term-caption').text,'Term');
     assert.deepEqual(select.children.map(node=>node.text),['1','2','3','4']);
     assert.deepEqual(select.children.map(node=>node.attrs['aria-label']),['Term 1','Term 2','Term 3','Term 4']);
     select.value='2';select.change();
@@ -338,6 +339,8 @@ test('term circles display numbers and weekly timetable notes stay readable with
     assert.equal(select.value,allowed?'2':'4');
   }
   const css=await fs.readFile(path.join(__dirname,'public','planner.css'),'utf8');
+  assert.match(css,/\.planner-term-badge \{[^}]*font-size: 42px/);
+  assert.match(css,/\.planner-term-caption \{[^}]*pointer-events: none/);
   assert.match(css,/\.planner-week textarea \{[^}]*font-size: 16px/);
   assert.doesNotMatch(css,/\.planner-week textarea \{[^}]*font-size: 11px/);
   assert.match(css,/@media print \{[\s\S]*?\.planner-week textarea \{[^}]*font-size: 9px/);
@@ -757,9 +760,9 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(groups[1][2], />Setup<\/h2>/);
   assert.match(groups[2][2], />Section Modules<\/h2>/);
   assert.equal([...groups[2][2].matchAll(/disabled title="Page coming soon"/g)].length, 5);
-  assert.match(html, /planner\.css\?v=readable-week-30/);
-  assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=term-number-28"'));
-  assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=term-number-28"'));
+  assert.match(html, /planner\.css\?v=term-circle-31/);
+  assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=term-circle-29"'));
+  assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=term-circle-29"'));
   const heading = html.match(/<header class="planner-heading">([\s\S]*?)<\/header>/)[1];
   for (const id of ['planner-year', 'open-year', 'print-planner']) {
     assert.match(heading, new RegExp('id="' + id + '"'));
@@ -822,7 +825,7 @@ test('module denies anonymous/student access and accepts a supplied teacher iden
     assert.match(html, /Last Updated:/);
     assert.match(html, /id="planner-year"[^>]*value="2026"/);
     assert.match(html, /data-api="\/module\/api\/planner\/"/);
-    assert.match(html, /src="\/module\/framework\/planner\.js\?v=term-number-28"/);
+    assert.match(html, /src="\/module\/framework\/planner\.js\?v=term-circle-29"/);
     assert.match(html, /Weekly planner/);
     assert.match(html, /Professional learning/);
     assert.ok(!html.includes('name="whs-global-control"'));
