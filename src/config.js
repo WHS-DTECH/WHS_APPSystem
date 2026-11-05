@@ -3,7 +3,8 @@ require('dotenv').config();
 const required = ['DATABASE_URL', 'SESSION_SECRET', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'];
 
 function getConfig() {
-  const baseUrl = process.env.APP_BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
+  const baseUrl = process.env.APP_BASE_URL?.trim() || process.env.RENDER_EXTERNAL_URL?.trim() ||
+    `http://localhost:${process.env.PORT || 3000}`;
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
   const gmailClientId = process.env.GOOGLE_GMAIL_CLIENT_ID;

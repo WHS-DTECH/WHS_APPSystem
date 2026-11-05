@@ -1273,6 +1273,14 @@ them from the WHS Launchpad.
 Completion links use `/launchpad` and explain school Google sign-in and the
 **Report a fault** option if an app is missing or will not open. Updated completion
 wording requires a fresh successful test email before staff delivery.
+Core uses `APP_BASE_URL`, falling back to Render's `RENDER_EXTERNAL_URL`, for
+the public website address. On the current deployment this is
+`https://whs-appsystem.onrender.com`; completion links open
+`https://whs-appsystem.onrender.com/launchpad`. Completion email generation rejects
+localhost/loopback and non-HTTPS destinations rather than sending unusable links.
+Changing the public destination requires a fresh successful completion test email.
+Previously delivered emails cannot be changed; send a corrected notice to replace
+any localhost link.
 Both tabs show their test and staff-delivery history, including failures, from Email Service.
 Warnings are sent 14 days before the scheduled start (or at the next scheduler run
 when scheduled less than 14 days ahead).

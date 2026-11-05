@@ -6,6 +6,10 @@ const path = require('node:path');
 const fs = require('node:fs/promises');
 const crypto = require('node:crypto');
 const { Pool } = require('pg');
+const config = require('../src/config');
+const originalBaseUrl = config.appBaseUrl;
+test.before(() => { config.appBaseUrl = 'https://whs-appsystem.onrender.com'; });
+test.after(() => { config.appBaseUrl = originalBaseUrl; });
 const {
   createMaintenanceRouter,
   formatDate,
@@ -45,13 +49,29 @@ test('maintenance resumption email includes optional staff update', () => {
   assert.match(content.subject, /^\[Maintenance Completed\]/);
   assert.match(content.subject, /Maintenance work completed: Teacher Planner$/);
   assert.match(content.text, /Some reports may take a few minutes to refresh\./);
-  assert.match(content.text, /WHS Launchpad: http:\/\/localhost:3000\/launchpad/);
-  assert.match(content.html, /<a href="http:\/\/localhost:3000\/launchpad">WHS Launchpad<\/a>/);
+  assert.match(content.text, /WHS Launchpad: https:\/\/whs-appsystem\.onrender\.com\/launchpad/);
+  assert.match(content.html, /<a href="https:\/\/whs-appsystem\.onrender\.com\/launchpad">WHS Launchpad<\/a>/);
   assert.match(content.text, /school Google account/);
   assert.match(content.html, /Report a fault on the Launchpad/);
   assert.match(content.text, /following app\(s\) are available again:\r?\nTeacher Planner/);
   assert.match(content.html, /<p>Teacher Planner<\/p>/);
   assert.equal(noticeEmail({ module_name: 'Teacher Planner' }, 'resumed').text.match(/available again/g).length, 1);
+});
+
+test('maintenance completion refuses local or insecure destinations and supports a public custom domain', () => {
+  const previous = config.appBaseUrl;
+  try {
+    for (const address of ['http://localhost:10000', 'https://localhost', 'https://127.0.0.1',
+      'https://[::1]', 'https://preview.localhost', 'http://school.example', 'https://user:password@school.example']) {
+      config.appBaseUrl = address;
+      assert.throws(() => noticeEmail({ module_name: 'Teacher Planner' }, 'resumed'), /public HTTPS website address/);
+    }
+    config.appBaseUrl = 'https://apps.school.example/';
+    const email = noticeEmail({ module_name: 'Teacher Planner' }, 'resumed');
+    assert.ok(email.text.includes('https://apps.school.example/launchpad'));
+    assert.ok(email.html.includes('href="https://apps.school.example/launchpad"'));
+    assert.doesNotMatch(email.text + email.html, /localhost/);
+  } finally { config.appBaseUrl = previous; }
 });
 
 test('active app role holders are recipients even without a current KAMAR staff record', async () => {
@@ -388,13 +408,27 @@ test('maintenance request and completion notifications require test emails and l
     assert.equal(mailed.bcc, undefined);
     assert.match(mailed.subject, /^\[Maintenance Completed\] \[TEST\]/);
     assert.match(mailed.text, /following app\(s\) are available again:\nTeacher Planner/);
-    assert.match(mailed.text, /WHS Launchpad: http:\/\/localhost:3000\/launchpad/);
+    assert.match(mailed.text, /WHS Launchpad: https:\/\/whs-appsystem\.onrender\.com\/launchpad/);
     assert.match(mailed.subject, /Maintenance work completed: Teacher Planner$/);
     assert.match(mailed.text, /The maintenance work has completed as planned\./);
 
     const completedDraftPage = await getPage(completedUrl.search);
     assert.match(await completedDraftPage.text(), /Confirm and email selected app users/);
     assert.equal(emails.length, 2);
+    const changedDestinationId = crypto.randomUUID();
+    drafts.set(changedDestinationId, { ...completedDraft, id: changedDestinationId });
+    const testedBaseUrl = config.appBaseUrl;
+    try {
+      config.appBaseUrl = 'https://new-school.example';
+      const stale = await fetch(base + `/send-completed/${changedDestinationId}`, {
+        method: 'POST', redirect: 'manual',
+        headers: { cookie, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ csrf: completedCsrf })
+      });
+      assert.equal(stale.status, 409);
+      assert.equal(drafts.get(changedDestinationId).status, 'test_failed');
+      assert.equal(emails.length, 2, 'changing the public website must require a fresh test before staff delivery');
+    } finally { config.appBaseUrl = testedBaseUrl; }
     const sendCompleted = await fetch(base + `/send-completed/${completedDraftId}`, {
       method: 'POST', redirect: 'manual',
       headers: { cookie, 'Content-Type': 'application/x-www-form-urlencoded' },

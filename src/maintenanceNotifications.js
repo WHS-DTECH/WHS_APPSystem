@@ -40,6 +40,16 @@ function moduleSelection(value) {
   return [...new Set(values)];
 }
 
+function launchpadAddress() {
+  const url = new URL('/launchpad', config.appBaseUrl);
+  if (url.protocol !== 'https:' || url.username || url.password ||
+      url.hostname === 'localhost' || url.hostname.endsWith('.localhost') ||
+      url.hostname === '[::1]' || /^(127\.|0\.)/.test(url.hostname)) {
+    throw new Error("Maintenance email not sent: set APP_BASE_URL to the public HTTPS website address (or use Render's RENDER_EXTERNAL_URL), not localhost. Then send a new completion test email.");
+  }
+  return url.href;
+}
+
 function noticeEmail(notice, kind, notes = '') {
   const resumed = kind === 'resumed';
   const appNames = notice.module_name || 'Selected apps';
@@ -47,7 +57,7 @@ function noticeEmail(notice, kind, notes = '') {
   const subject = resumed
     ? `[${source}] [WHS APPSystem] Maintenance work completed: ${appNames}`
     : `[${source}] [WHS APPSystem] ${notice.module_name} maintenance planned`;
-  const launchpadUrl = new URL('/launchpad', config.appBaseUrl).href;
+  const launchpadUrl = resumed ? launchpadAddress() : '';
   const completionUpdate = String(notes || '').trim();
   const text = resumed
     ? [
@@ -81,12 +91,13 @@ function emailTestSubject(content) {
   return match ? `[${match[1]}] [TEST] ${content.subject.slice(match[0].length)}` : `[TEST] ${content.subject}`;
 }
 
-const TEMPLATE_VERSIONS = { completed: 3 };
+const TEMPLATE_VERSIONS = { completed: 4 };
 
 function contentHash(kind, moduleKeys, payload) {
   const templateVersion = TEMPLATE_VERSIONS[kind];
   return crypto.createHash('sha256')
-    .update(JSON.stringify({ kind, moduleKeys: [...moduleKeys].sort(), payload, ...(templateVersion ? { templateVersion } : {}) }))
+    .update(JSON.stringify({ kind, moduleKeys: [...moduleKeys].sort(), payload,
+      ...(templateVersion ? { templateVersion, publicBaseUrl: config.appBaseUrl } : {}) }))
     .digest('hex');
 }
 
