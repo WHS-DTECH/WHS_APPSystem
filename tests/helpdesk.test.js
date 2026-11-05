@@ -157,7 +157,7 @@ test('fault module catalogue uses current active assignments and lists only name
     return { rows };
   });
   assert.deepEqual(modules.map(module => module.key), ['launchpad', 'teacher-planner', 'external']);
-  assert.ok(modules[1].pages.some(page => page.name === 'Two-Week Attendance' && page.url === '/teacher-planner/#section=attendanceImport'));
+  assert.ok(modules[1].pages.some(page => page.name === 'Two-Week Attendance' && page.url === '/teacher-planner/#section=setup&setupTab=6'));
   assert.deepEqual(modules[2].pages, [{ name: 'Module home', url: 'https://app.example.test/' }]);
   assert.ok(!modules[0].pages.some(page => page.url.startsWith('/admin')));
 });

@@ -125,7 +125,7 @@
 .cover-band { position: relative; padding: 0 20px 20px; text-align: center; color: #fff; background: #729bbb; }
 .cover-band h2 { font-size: 16px; margin: 20px 0 0; }
 .cover-band > p:not(.cover-name) { font-size: 13px; font-weight: 700; margin-bottom: 0; }
-.cover-band .cover-name { position: relative; margin: -34px 0 0 auto; padding: 22px 18px; width: 70%; box-sizing: border-box; border-radius: 60px; border: 1px solid #a4c3d9; background: #fff; color: #315f86; font-weight: 700; overflow-wrap: anywhere; }
+.cover-band .cover-name { position: relative; margin: -34px auto 0; padding: 22px 18px; width: 70%; box-sizing: border-box; border-radius: 60px; border: 1px solid #a4c3d9; background: #fff; color: #315f86; font-weight: 700; overflow-wrap: anywhere; text-align: center; }
 .planner-cover .open-book { display: block; margin: 0 auto 20px; border: 0; font-weight: 600; }
 .term-spread .planner-cover { max-width: none; width: 100%; margin: 0; align-self: start; }
 .term-spread .cover-band { background: #006765; }
@@ -283,7 +283,7 @@
 .attendance-table [data-import-status="loaded"] { background: #e7f3e9; color: #204e35; }
 .attendance-table [data-import-status="partial"], .attendance-table [data-import-status="unknown"] { background: #fff1d2; color: #513900; }
 @media print {
-  .attendance-page button, .attendance-editor, .attendance-import, .attendance-page > .duty-roster-feedback { display: none; }
+  .attendance-page button, .attendance-editor, .attendance-import, .attendance-page > .duty-roster-feedback, .attendance-timetable-feedback { display: none; }
   .attendance-scroll { overflow: visible; }
   .attendance-workspace { display: block; }
   .attendance-student-panel { display: none; }

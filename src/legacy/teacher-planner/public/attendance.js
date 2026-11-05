@@ -29,6 +29,71 @@
     return Array.from({ length: 5 }, (_, day) => periods.filter(period =>
       (entries[period + ':' + day] || []).some(entry => codes.has(classCode(entry.title)))));
   }
+  function timetableGroups(existing, directory) {
+    if (!directory.classes.length) throw new Error('No timetable classes were found for your staff code. Saved tabs are unchanged; check the current KAMAR upload.');
+    if (directory.classes.some(item => !Array.isArray(item.slots) || !item.slots.length)) {
+      throw new Error('Timetable class slots are unavailable. Update the school class-list connection, then retry. Saved tabs are unchanged.');
+    }
+    const buckets = [];
+    for (const item of directory.classes) {
+      const name = classCode(item.code, true);
+      let bucket = buckets.find(bucket => bucket.names.includes(name));
+      if (!bucket) { bucket = { names: [name], classes: [], slots: new Set() }; buckets.push(bucket); }
+      bucket.classes.push(item);
+      item.slots.forEach(slot => bucket.slots.add(slot));
+    }
+    const senior = name => /^((?:11|12|13)(?:\/(?:11|12|13))*)\s*([A-Z][A-Z0-9]*)$/.exec(name);
+    for (let i = 0; i < buckets.length; i++) {
+      const subject = senior(buckets[i].names[0])?.[2];
+      if (!subject) continue;
+      for (let j = i + 1; j < buckets.length; j++) {
+        if (senior(buckets[j].names[0])?.[2] !== subject ||
+            ![...buckets[j].slots].some(slot => buckets[i].slots.has(slot))) continue;
+        buckets[i].names.push(...buckets[j].names);
+        buckets[i].classes.push(...buckets[j].classes);
+        buckets[j].slots.forEach(slot => buckets[i].slots.add(slot));
+        buckets.splice(j--, 1);
+        j = i;
+      }
+    }
+    const schoolIds = new Set(directory.classes.flatMap(item => item.students.map(student => student.id)));
+    const knownCodes = new Set(directory.classes.map(item => classCode(item.code, true)));
+    const automatic = existing.filter(group => group.classes.length);
+    const retained = existing.flatMap(group => {
+      if (!automatic.includes(group)) return [group];
+      const classes = group.classes.filter(code => !knownCodes.has(classCode(code, true)));
+      const students = group.students.filter(student => !schoolIds.has(student.id));
+      if (!classes.length && !students.length) return [];
+      if (classes.length === group.classes.length) return [group];
+      return [{ ...group, name: group.name.slice(0, 89) + ' (retained)', classes, students,
+        scheduleMode: classes.length ? group.scheduleMode : 'manual' }];
+    });
+    const used = new Set(retained.map(group => group.id));
+    const next = buckets.map(bucket => {
+      const codes = new Set(bucket.names);
+      const related = automatic.filter(group => group.classes.some(code => codes.has(classCode(code, true))));
+      const ids = new Set(bucket.classes.flatMap(item => item.students.map(student => student.id)));
+      const classKeys = new Set(bucket.classes.map(item => item.code));
+      // Changed membership needs a fresh coverage identity; marks are keyed by student/date/period.
+      const previous = related.find(group => !used.has(group.id) &&
+        group.scheduleMode !== 'manual' && group.classes.length === classKeys.size &&
+        group.classes.every(code => classKeys.has(code)) && group.students.length === ids.size &&
+        group.students.every(student => ids.has(student.id)));
+      const id = previous?.id || crypto.randomUUID();
+      used.add(id);
+      const names = [...new Set(bucket.names)].sort((a, b) => a.localeCompare(b));
+      const name = names.length > 1 && names.every(value => senior(value)) ?
+        [...new Set(names.flatMap(value => senior(value)[1].split('/')))].sort().join('/') + senior(names[0])[2] : names[0];
+      return { id, name, classes: bucket.classes.map(item => item.code).sort(),
+        students: combinedStudents(related.flatMap(group => group.students.filter(student => ids.has(student.id))), bucket.classes),
+        periods: [...periods], scheduleMode: 'auto' };
+    });
+    const result = [...next, ...retained];
+    if (result.length > 30 || result.some(group => group.students.length > 200 || group.classes.length > 30)) {
+      throw new Error('Timetable tabs exceed the attendance class/roster limit. Saved tabs are unchanged; review the class lists.');
+    }
+    return result;
+  }
   function closedDay(value, range, year, school, calendar) {
     return value < range.startDate || value > range.endDate || !value.startsWith(year + '-') ||
       school.events?.some(event => event.date === value && ['closure', 'teacherOnly'].includes(event.kind)) ||
@@ -104,13 +169,21 @@
     };
   }
   async function syncDrive({ request, mutate, loadSchedule, year, ranges, school, calendar, today,
-    onProgress = () => {}, onDocument = () => {} }) {
+    automaticTabs = false, onProgress = () => {}, onDocument = () => {} }) {
     const settings = await request('attendance/' + year + '/drive-sync');
     if (!settings.enabled) return { enabled: false };
     const setup = await request('attendance/' + year + '/groups');
+    const directory = await request('attendance/classes/' + year);
+    if (automaticTabs) {
+      onProgress('Updating attendance class tabs from your timetable...');
+      const next = timetableGroups(setup.content.groups, directory);
+      if (JSON.stringify(next) !== JSON.stringify(setup.content.groups)) {
+        const saved = await mutate('attendance/' + year + '/groups', { revision: setup.revision, content: { groups: next } });
+        setup.content.groups = next; setup.revision = saved.revision;
+      }
+    }
     const groups = setup.content.groups.filter(group => group.scheduleMode !== 'manual' && group.classes.length);
     if (!groups.length) throw new Error('Drive attendance sync needs saved automatic school-class tabs.');
-    const directory = await request('attendance/classes/' + year);
     const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify({
       ranges, events: school.events || [], holidays: calendar.publicHolidays || [], classes: directory.classes
     })));
@@ -183,7 +256,7 @@
     return entry ? 'Synced' : 'Not synced';
   }
   async function mount(host, { el, request, mutate, uploadPdf, loadSchedule, syncNow, bindSyncState,
-    year, ranges, school, calendar, today, overview = false }) {
+    year, ranges, school, calendar, today, overview = false, automaticTabs = false }) {
     host.setAttribute('data-planner-navigation', '');
     host.classList.add('attendance-page');
     const feedback = el('p', '', { class: 'duty-roster-feedback', role: 'status', 'aria-live': 'polite' });
@@ -208,6 +281,9 @@
     }
     const tabs = el('div', '', { class: 'attendance-class-tabs', role: 'tablist', 'aria-label': 'Attendance class lists' });
     const add = el('button', '+ Class tab', { type: 'button' });
+    const refreshTabs = el('button', 'Refresh timetable class tabs', { type: 'button' });
+    refreshTabs.hidden = !automaticTabs;
+    const timetableFeedback = el('p', '', { class: 'duty-roster-feedback attendance-timetable-feedback', role: 'status', 'aria-live': 'polite', hidden: '' });
     const editor = el('section', '', { class: 'attendance-editor' });
     const sheet = el('section', '', { class: 'attendance-sheet', role: 'tabpanel', id: 'attendance-sheet' });
     const studentPanel = el('section', '', { class: 'attendance-student-panel', 'aria-label': 'Individual student term attendance' });
@@ -216,7 +292,7 @@
     let renderStudentRows = () => {};
     const workspace = el('div', '', { class: 'attendance-workspace' });
     workspace.append(sheet, studentPanel);
-    controls.append(tabs, add, editor, overview ? sheet : workspace);
+    controls.append(tabs, add, refreshTabs, timetableFeedback, editor, overview ? sheet : workspace);
     if (overview) { tabs.hidden = true; add.hidden = true; }
     function say(message, error = false) { feedback.textContent = message; feedback.setAttribute('role', error ? 'alert' : 'status'); }
     function guard() {
@@ -239,6 +315,23 @@
       const saved = await mutate('attendance/' + year + '/groups', { revision, content: { groups: next } });
       revision = saved.revision; groups = next; draft = false; editor.replaceChildren();
       say('Class tabs saved. Attendance marks are unchanged.');
+    }
+    async function refreshTimetableTabs() {
+      timetableFeedback.hidden = false;
+      timetableFeedback.setAttribute('role', 'status');
+      timetableFeedback.textContent = 'Creating class tabs from your timetable...';
+      try {
+        const current = await request('attendance/classes/' + year);
+        const next = timetableGroups(groups, current);
+        if (JSON.stringify(next) !== JSON.stringify(groups)) await saveGroups(next);
+        directory = current;
+        selected = groups.some(group => group.id === selected) ? selected : groups[0]?.id || '';
+        timetableFeedback.textContent = 'Timetable class tabs are up to date. Senior classes sharing a subject and timetable slot are combined. Saved attendance and retained/manual students are unchanged.';
+      } catch (error) {
+        console.error('Attendance timetable tabs could not be updated:', error.message);
+        timetableFeedback.setAttribute('role', 'alert');
+        timetableFeedback.textContent = error.message + ' Use Refresh timetable class tabs to retry.';
+      }
     }
     function renderTabs() {
       tabs.replaceChildren();
@@ -821,12 +914,17 @@
       return panel;
     }
     add.addEventListener('click', () => editGroup());
+    refreshTabs.addEventListener('click', () => {
+      if (!guard()) return;
+      return act(async () => { await refreshTimetableTabs(); renderTabs(); await loadSheet(); });
+    });
     await act(async () => {
       const result = await request('attendance/' + year + '/groups');
       groups = result.content.groups; revision = result.revision; selected = groups[0]?.id || '';
+      if (automaticTabs) await refreshTimetableTabs();
       renderTabs(); await loadSheet(); say(overview ? 'Two-Week Attendance loaded. Preview a PDF before filling blank marks in all matching class tabs.' :
         'Attendance loaded. Class setup uses Save class tab; each P/A/L mark saves immediately.');
     });
   }
-  globalThis.plannerAttendance = { mount, termWeeks, combinedStudents, scheduledPeriods, classCode, planImport, weekStatus, syncDrive };
+  globalThis.plannerAttendance = { mount, termWeeks, combinedStudents, scheduledPeriods, classCode, timetableGroups, planImport, weekStatus, syncDrive };
 })();

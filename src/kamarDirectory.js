@@ -54,17 +54,21 @@ async function attendanceClasses(user, year, directoryQuery = query) {
         AND NULLIF(TRIM(id_number),'') IS NOT NULL AND NULLIF(TRIM(student_name),'') IS NOT NULL
         ORDER BY lower(student_name),id_number`, [year]);
   const classes = new Map();
+  const classSlots = new Map();
   for (const student of rows) {
-    for (const code of new Set(columns.map(key => student[key]?.trim()).filter(Boolean))) {
+    for (const key of columns) {
+      const code = student[key]?.trim();
+      if (!code) continue;
       const separator = code.indexOf('-');
       if (separator < 1 || !code.slice(0, separator).toUpperCase().split('/').map(value => value.trim()).includes(staffCode)) continue;
-      if (!classes.has(code)) classes.set(code, new Map());
+      if (!classes.has(code)) { classes.set(code, new Map()); classSlots.set(code, new Set()); }
+      classSlots.get(code).add(key);
       classes.get(code).set(student.id_number, { id: 'k:' + student.id_number.trim(), name: student.student_name.trim(),
         yearLevel: String(student.year_level || '').trim(), whanau: String(student.form_class || '').trim() });
     }
   }
   return { staffCode, classes: [...classes].sort(([a], [b]) => a.localeCompare(b))
-    .map(([code, students]) => ({ code, students: [...students.values()] })) };
+    .map(([code, students]) => ({ code, students: [...students.values()], slots: [...classSlots.get(code)].sort() })) };
 }
 
 module.exports = { currentDirectory, classifyPeople, staffDirectory, attendanceClasses };

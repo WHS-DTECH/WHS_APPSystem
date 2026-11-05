@@ -88,8 +88,8 @@ test('staff bridge validates module identity before returning minimal current Ka
   assert.equal(classResponse.status, 200);
   assert.equal(classResponse.headers.get('cache-control'), 'no-store');
   assert.deepEqual(await classResponse.json(), { staffCode: 'TST', classes: [
-    { code: 'AA/TST-12TEST-05', students: [{ id: 'k:100', name: 'Synthetic Student' }, { id: 'k:200', name: 'Another Student' }] },
-    { code: 'TST-11TEST-CW', students: [{ id: 'k:100', name: 'Synthetic Student' }] }
+    { code: 'AA/TST-12TEST-05', students: [{ id: 'k:100', name: 'Synthetic Student', yearLevel: '', whanau: '' }, { id: 'k:200', name: 'Another Student', yearLevel: '', whanau: '' }], slots: ['thu_p3'] },
+    { code: 'TST-11TEST-CW', students: [{ id: 'k:100', name: 'Synthetic Student', yearLevel: '', whanau: '' }], slots: ['mon_p1_1', 'mon_p1_2'] }
   ] });
   staffCodes = []; calls.length = 0;
   assert.equal((await classes(token)).status, 409);

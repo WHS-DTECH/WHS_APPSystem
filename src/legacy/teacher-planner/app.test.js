@@ -132,7 +132,7 @@ test('normal opening resolves a term before loading its private entry, while dir
   const source=await fs.readFile(path.join(__dirname,'public','planner.js'),'utf8');
   const helper=source.slice(source.indexOf('  function defaultTerm('),source.indexOf('  async function loadTermDates('));
   const loader=source.slice(source.indexOf('  async function load()'),source.indexOf('  function expandTermArea('));
-  for(const mode of ['current','holiday','january','direct','term-default','term-explicit','unavailable','failure']){
+  for(const mode of ['current','holiday','january','direct','term-default','term-explicit','legacy-attendance','unavailable','failure']){
     const ranges=[
       {term:'1',startDate:'2026-01-26',endDate:'2026-04-02'},
       {term:'2',startDate:'2026-04-20',endDate:'2026-07-03'},
@@ -143,9 +143,9 @@ test('normal opening resolves a term before loading its private entry, while dir
     const requested=[],rendered=[],years=[],navigationBusy=[];
     const context={
       clearTimeout,autosaveTimer:undefined,scheduleAutosave(){},
-      openingTermPending:!['direct','term-default','term-explicit'].includes(mode),
+      openingTermPending:!['direct','term-default','term-explicit','legacy-attendance'].includes(mode),
       termSelectionPending:mode!=='term-explicit',
-      section:mode.startsWith('term-')?'term':mode==='direct'?'goals':'cover',year:2026,term:'1',
+      section:mode.startsWith('term-')?'term':mode==='direct'?'goals':mode==='legacy-attendance'?'attendanceImport':'cover',year:2026,term:'1',
       localDate:mode==='holiday'?'2026-10-01':mode==='january'?'2026-01-05':'2026-10-18',
       save:{},retry:{},signin:{hidden:true},content:{replaceChildren(){}},yearInput:{},
       document:{querySelector:()=>({}),querySelectorAll:()=>[],getElementById:id=>nodes[id]||(nodes[id]={})},
@@ -167,6 +167,10 @@ test('normal opening resolves a term before loading its private entry, while dir
       assert.equal(context.openingTermPending,true);
       assert.equal(context.retry.hidden,false);
       assert.equal(requested.length,0);
+    }else if(mode==='legacy-attendance'){
+      assert.equal(context.section,'setup');
+      assert.equal(context.setupTab,6);
+      assert.equal(requested[0],'2026/setup/1');
     }else if(mode==='direct' || mode==='term-explicit'){
       assert.equal(years.length,0);
       assert.equal(requested[0],mode==='direct'?'2026/goals/1':'2026/term/1');
@@ -262,11 +266,11 @@ test('setup folder switches accessible right-side sheets without recreating unsa
   const source = await fs.readFile(path.join(__dirname,'public','planner.js'),'utf8');
   const helper = source.slice(source.indexOf('  function setupFolder('),source.indexOf('  function renderSetup('));
   const el = (tag,text='',attrs={})=>({
-    tag,text,attrs,children:[],hidden:false,
+    tag,text,attrs,children:[],hidden:false,dataset:{},
     append(...nodes){this.children.push(...nodes);},
     setAttribute(key,value){this.attrs[key]=value;},
     addEventListener(event,handler){this[event]=handler;},
-    focus(){this.focused=true;}
+    focus(){this.focused=true;},querySelector(){return null;}
   });
   const saveRow = {hidden:false};
   const page = el('section');
@@ -274,7 +278,7 @@ test('setup folder switches accessible right-side sheets without recreating unsa
   let calendarLoads=0;
   let teacherLoads=0;
   let tasksLoads=0;
-  const context = {el,year:2026,setupTab:0,document:{querySelector:()=>saveRow},page,renderKamarCalendar(){calendarLoads++;},renderTeacherTimetable(){teacherLoads++;},
+  const context = {el,year:2026,setupTab:0,attendanceSyncRunning:false,history:{replaceState(){}},viewFragment:()=>'',document:{querySelector:()=>saveRow},page,renderKamarCalendar(){calendarLoads++;},renderTeacherTimetable(){teacherLoads++;},
     mountGoogleTasks(host,setup){assert.equal(setup,true);tasksLoads++;}};
   const folder = vm.runInNewContext(helper+'\nsetupFolder(page);',context);
   const [tabs, planner, kamar] = folder.children;
@@ -299,7 +303,7 @@ test('setup folder switches accessible right-side sheets without recreating unsa
   assert.equal(planner.children[0].value,'Unsaved school date');
   tabs.children[1].click();
   assert.equal(calendarLoads,1);
-  assert.equal(tabs.children.length,6);
+  assert.equal(tabs.children.length,7);
   assert.equal(tasksLoads,0);
   tabs.children[1].keydown({key:'ArrowDown',preventDefault(){}});
   assert.equal(tasksLoads,1);
@@ -527,7 +531,41 @@ test('year overview keeps school-break and named public-holiday markers together
   assert.equal(content.children[0].children[0].text,'Hint: School terms & public holidays');
 });
 
-test('cover action opens Setup My Planner instead of the weekly page', async () => {
+test('attendance setup tab mounts once, preserves drafts and blocks leaving during sync or attendance edits', async () => {
+  const source = await fs.readFile(path.join(__dirname,'public','planner.js'),'utf8');
+  const helper = source.slice(source.indexOf('  function setupFolder('),source.indexOf('  function renderSetup('));
+  const el = (tag,text='',attrs={}) => ({
+    tag,text,attrs,children:[],dataset:{},isConnected:true,hidden:false,
+    append(...nodes){this.children.push(...nodes);}, replaceChildren(...nodes){this.children=nodes;},
+    setAttribute(key,value){this.attrs[key]=value;}, addEventListener(event,handler){this[event]=handler;},
+    querySelector(){return this.pending?{}:null;}, focus(){this.focused=true;}
+  });
+  const page = el('section'), saveRow={}, messages=[], mounts=[];
+  page.append({value:'Unsaved school date'});
+  let finish;
+  const context = {el,page,year:2026,setupTab:0,attendanceSyncRunning:false,
+    document:{querySelector:()=>saveRow},history:{replaceState(){}},viewFragment:()=>'',notice:message=>messages.push(message),
+    mountAttendancePage:(host,overview)=>{mounts.push({host,overview});return new Promise(resolve=>{finish=resolve;});}};
+  const folder = vm.runInNewContext(helper+'\nsetupFolder(page);',context);
+  const tabs=folder.children[0], attendance=folder.children[7];
+  assert.equal(tabs.children[6].text,'Two-Week Attendance');
+  tabs.children[6].click();
+  assert.equal(mounts.length,1);assert.equal(mounts[0].overview,true);
+  assert.equal(mounts[0].host,attendance);assert.equal(saveRow.hidden,true);
+  tabs.children[0].click();assert.equal(context.setupTab,6,'loading cannot be interrupted');
+  finish();await context.setupAttendanceReady;
+  attendance.pending=true;tabs.children[0].click();assert.equal(context.setupTab,6);
+  attendance.pending=false;context.attendanceSyncRunning=true;
+  let prevented=false;
+  tabs.children[6].keydown({key:'Home',preventDefault(){prevented=true;}});
+  assert.equal(prevented,true);assert.equal(context.setupTab,6);assert.equal(tabs.children[0].focused,undefined);
+  context.attendanceSyncRunning=false;tabs.children[0].click();
+  assert.equal(saveRow.hidden,false);assert.equal(page.children[0].value,'Unsaved school date');
+  tabs.children[6].click();assert.equal(mounts.length,1,'tab state is retained without remount');
+  assert.equal(messages.length,3);
+});
+
+test('cover no longer duplicates Setup My Planner, which is first in shared Setup navigation', async () => {
   const source = await fs.readFile(path.join(__dirname,'public','planner.js'),'utf8');
   const renderer = source.slice(source.indexOf('  function render(data)'), source.indexOf('  async function load()'));
   const el = (tag,text = '',attrs = {}) => ({
@@ -540,11 +578,26 @@ test('cover action opens Setup My Planner instead of the weekly page', async () 
   let loads = 0;
   const context = {content,section:'cover',el,coverPage:()=>el('section'),canLeave:()=>true,load:()=>loads++};
   vm.runInNewContext(renderer + '\nrender({});', context);
-  const button = content.children[0].children[0];
-  assert.equal(button.text,'Setup My Planner');
-  button.click();
-  assert.equal(context.section,'setup');
-  assert.equal(loads,1);
+  assert.equal(content.children[0].children.length,0);
+  assert.equal(loads,0);
+  const shell = renderShell({baseUrl:'/planner/',coreUrl:'',standalone:false});
+  const setup = shell.match(/aria-labelledby="planner-nav-setup"[\s\S]*?<\/section>/)[0];
+  assert.ok(setup.indexOf('data-section="setup"') < setup.indexOf('data-section="assessmentSetup"'));
+  assert.doesNotMatch(setup, /attendanceImport/);
+});
+
+test('integration tab form submissions never save shared school settings', async () => {
+  const source = await fs.readFile(path.join(__dirname,'public','planner.js'),'utf8');
+  const listener = source.slice(source.indexOf("  form.addEventListener('submit'"), source.indexOf("  document.querySelectorAll('[data-section]')"));
+  for (const section of ['setup','attendance','attendanceImport','week']) {
+    for (let setupTab = 0; setupTab <= 6; setupTab++) {
+      let handler, saves = 0, prevented = false;
+      vm.runInNewContext(listener, { section, setupTab, form:{addEventListener(event, fn){handler=fn;}},saveEntry(){saves++;} });
+      handler({preventDefault(){prevented=true;}});
+      assert.equal(prevented,true);
+      assert.equal(saves,section==='week' || section==='setup' && setupTab===0 ? 1 : 0);
+    }
+  }
 });
 
 test('goals annual plan retains saved goals and renders independent date and priority fields', async () => {
@@ -662,12 +715,12 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.ok(!html.includes('<script>alert(1)</script>'));
   assert.match(html, /data-section="cover" aria-current="page"/);
   assert.deepEqual([...html.matchAll(/data-section="([^"]+)"/g)].map((match) => match[1]),
-    ['cover', 'year', 'term', 'week', 'assessmentSetup', 'attendanceImport', 'attendance', 'moderation', 'standards', 'learning']);
+    ['cover', 'year', 'term', 'week', 'setup', 'assessmentSetup', 'attendance', 'moderation', 'standards', 'learning']);
   const groups = [...html.matchAll(/<section class="planner-nav-group [^"]+" aria-labelledby="([^"]+)">([\s\S]*?)<\/section>/g)];
   assert.equal(groups.length, 3);
   for (const [index, expected] of [
     ['cover', 'year', 'term', 'week'],
-    ['assessmentSetup', 'attendanceImport'], ['attendance', 'moderation', 'standards', 'learning']
+    ['setup', 'assessmentSetup'], ['attendance', 'moderation', 'standards', 'learning']
   ].entries()) {
     assert.match(groups[index][2], new RegExp('<h2 id="' + groups[index][1] + '">'));
     assert.deepEqual([...groups[index][2].matchAll(/data-section="([^"]+)"/g)].map(match => match[1]), expected);
@@ -676,9 +729,9 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(groups[1][2], />Setup<\/h2>/);
   assert.match(groups[2][2], />Section Modules<\/h2>/);
   assert.equal([...groups[2][2].matchAll(/disabled title="Page coming soon"/g)].length, 5);
-  assert.match(html, /planner\.css\?v=term-navigation-28/);
-  assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=term-navigation-26"'));
-  assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=term-navigation-26"'));
+  assert.match(html, /planner\.css\?v=setup-attendance-29/);
+  assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=setup-attendance-27"'));
+  assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=setup-attendance-27"'));
   const heading = html.match(/<header class="planner-heading">([\s\S]*?)<\/header>/)[1];
   for (const id of ['planner-year', 'open-year', 'print-planner']) {
     assert.match(heading, new RegExp('id="' + id + '"'));
@@ -686,7 +739,7 @@ test('paper planner shell retains nested assets, private identity escaping and a
   }
   assert.match(heading, /class="planner-year-badge" aria-label="Open planner year 2026"/);
   assert.match(heading, /id="planner-year-badge-value">2026<\/span>/);
-  assert.match(html, /src="\/planner\/framework\/attendance\.js\?v=student-term-8"/);
+  assert.match(html, /src="\/planner\/framework\/attendance\.js\?v=timetable-tabs-9"/);
   assert.match(groups[1][2], /id="refresh-weekly-duties" hidden>Refresh duties<\/button>/);
   assert.match(html, /id="planner-signin-link"/);
   assert.match(html, /href="https:\/\/core.example.test\/contact"/);
@@ -741,7 +794,7 @@ test('module denies anonymous/student access and accepts a supplied teacher iden
     assert.match(html, /Last Updated:/);
     assert.match(html, /id="planner-year"[^>]*value="2026"/);
     assert.match(html, /data-api="\/module\/api\/planner\/"/);
-    assert.match(html, /src="\/module\/framework\/planner\.js\?v=term-navigation-26"/);
+    assert.match(html, /src="\/module\/framework\/planner\.js\?v=setup-attendance-27"/);
     assert.match(html, /Weekly planner/);
     assert.match(html, /Professional learning/);
     assert.ok(!html.includes('name="whs-global-control"'));

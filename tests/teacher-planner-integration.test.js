@@ -142,7 +142,7 @@ test('embedded staff and attendance readers use live Kamar and preserve verified
   const classes = await call('/api/planner/attendance/classes/2026?staffCode=OTHER');
   assert.equal(classes.status, 200);
   assert.deepEqual(await classes.json(), { staffCode: 'TST',
-    classes: [{ code: 'TST-11TEST-CW', students: [{ id: 'k:100', name: 'Current Student' }] }] });
+    classes: [{ code: 'TST-11TEST-CW', students: [{ id: 'k:100', name: 'Current Student', yearLevel: '', whanau: '' }], slots: ['mon_p1_1'] }] });
   assert.ok(state.directoryCalls.some(({ sql }) => sql.includes('FROM student_upload')));
 });
 

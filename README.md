@@ -111,18 +111,17 @@ unrecorded. Existing nonblank marks are never overwritten, conflicts are shown,
 and identical marks are skipped. Blank-only saves use revision checks and an
 atomic database condition, so concurrent edits cannot be overwritten. If saving
 stops part-way, the count is reported; preview the PDF again to safely continue.
-The **Two-Week Attendance** button beside **Weekly planner** opens an import
+**Setup My Planner → Two-Week Attendance** opens an import
 dashboard with term and saved-class selectors, one row per term week, and
-**Loaded**, **Partial**, **Not loaded**, or **Marks present - import status unknown**
-indicators. Each tracked week shows the last import time in New Zealand time.
+**Synced** or **Not synced** indicators.
 The selectors filter the history display only: uploading here previews and fills
 all matching saved automatic class tabs, deduplicating shared student/period
 marks. Manual tabs are explicitly skipped. Per-tab importing on **Attendance**
 remains available.
 
 History records the latest confirmed PDF coverage for each class/week: all
-scheduled marks for matched students must be present to show **Loaded**; missing
-or future marks and unresolved students show **Partial**. Conflicts are counted
+scheduled marks for matched students must be present to show **Synced**; missing
+or future marks and unresolved students show **Not synced**. Conflicts are counted
 separately and kept unchanged. These are PDF-coverage indicators, not a guarantee
 that every saved mark agrees with KAMAR. Earlier marks do not imply a known PDF
 import; re-preview their PDF and use **Record import status** to establish history
@@ -135,6 +134,28 @@ server timestamp; `GET` reads those summaries and weeks containing saved marks.
 Class setup edits atomically preserve this metadata without altering import
 timestamps or using import history as the class-edit revision. No schema migration
 or separate database is needed.
+
+Attendance and its Two-Week Attendance setup tab automatically create and refresh
+class tabs from the current year's uploaded KAMAR student timetable, restricted
+to the signed-in teacher's matched staff code (including shared-teacher classes).
+No personal timetable subscription is needed to create tabs; the subscription is
+still required for date-specific attendance/import scheduling. Teacher/room labels
+are removed from tab names. Senior classes of the same subject sharing an uploaded
+day/period slot are combined: `11DTECH` and `12DTECH` become `11/12DTECH`;
+other subjects and junior classes stay separate. Split P1 slots remain distinct.
+**Refresh timetable class tabs** retries or applies a newer upload without reopening.
+Enabled Google Drive attendance sync also updates these tabs before processing PDFs,
+even when the teacher opens a different Planner section.
+
+Existing school-linked tabs are regrouped and renamed automatically, retaining
+stable tab IDs for unchanged memberships and all saved marks (which belong to the teacher,
+student, date and period, not the tab). Manual-only tabs stay unchanged.
+Students or class links no longer in the current upload remain in retained tabs;
+manual students are never discarded. Class saves retain import history and Drive
+settings. Changed class/roster memberships get a new tab UUID, so a merged or
+expanded class never inherits a smaller class's **Synced** status; re-sync its PDF
+to record coverage without overwriting marks. Failed/missing uploads and revision conflicts display an explicit error
+and leave saved tabs unchanged. No new database table or migration is needed.
 
 **Google Drive attendance sync** is optional and configured privately for each
 teacher/planner year in **Two-Week Attendance → Google Drive attendance folder
@@ -1407,10 +1428,18 @@ saved PDF import history rather than timetable completeness. Detailed Drive
 results are collapsed under the **View sync report** pill; the current sync state
 and controls remain visible outside the report.
 Teacher Planner navigation is grouped into **Planning** (cover and year/term/week
-plans), **Setup** (Assessment setup and Two-Week Attendance imports/sync), and
+plans), **Setup** (Setup My Planner first, followed by Assessment setup), and
 **Section Modules** (daily Attendance, Moderation, Teaching Standards,
 Professional learning and upcoming modules). Groups use labelled, colour-accented panels and wrapping
 pill buttons; existing section routes and disabled upcoming modules are unchanged.
+Two-Week Attendance imports, Google Drive sync, reports and term/week status live
+in their own stacked **Two-Week Attendance** tab inside Setup My Planner. All
+personal attendance controls remain available to teachers who cannot edit shared
+school dates. Switching setup tabs preserves mounted attendance state and is
+blocked during attendance loading/sync or unsaved attendance edits. Old
+`#section=attendanceImport` links still open the new setup tab; its canonical link
+is `#section=setup&setupTab=6`. Daily Attendance remains a separate Section Module.
+The cover name pill is centred; Setup My Planner is no longer duplicated on the cover.
 Year and print controls sit on the right of the Teacher Planner heading. The
 circular year badge opens the year selected in the adjacent Planner year field;
 its number and accessible label follow that field and restored planner links.

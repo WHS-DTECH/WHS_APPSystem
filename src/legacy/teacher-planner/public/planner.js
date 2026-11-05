@@ -55,6 +55,7 @@
   let activityRecord = '';
   let canManageSchoolSettings = false;
   let setupTab = 0;
+  let setupAttendanceReady;
   let moderationRecord = '', moderationPage = 'overview';
   const setupDates = [
     ['teacherFirstDay', 'Teacher first day'], ['studentFirstDay', 'First student start date (earliest cohort)'],
@@ -76,6 +77,7 @@
   }
   let week = monday(localDate.startsWith('2026') ? localDate : '2026-01-05');
   const restored = new URLSearchParams(location.hash.slice(1));
+  if (/^[0-6]$/.test(restored.get('setupTab') || '')) setupTab = Number(restored.get('setupTab'));
   if (/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(restored.get('activity') || '')) activityRecord = restored.get('activity');
   let openingTermPending = !['cover', ...Object.keys(fields)].includes(restored.get('section'));
   if (openingTermPending) year = Number(localDate.slice(0, 4));
@@ -125,6 +127,7 @@
     api + (['period', 'activity'].includes(section) ? periodDate.slice(0, 4) : year) + '/' + section + '/' + key(); }
   function viewFragment(overrides = {}) {
     return new URLSearchParams({ section, year, week, term, day: selectedDay,
+      ...(section === 'setup' ? { setupTab } : {}),
       ...(['period', 'activity'].includes(section) ? { date: periodDate, slot: periodSlot } : {}),
       ...(section === 'activity' ? { activity: activityRecord } : {}),
       ...(section === 'moderation' ? { record: moderationRecord, page: moderationPage } : {}), ...overrides }).toString();
@@ -168,7 +171,7 @@
     signin.hidden = true;
   }
   function hasUnsavedChanges() { return dirty || Boolean(content.querySelector('[data-timetable-dirty="true"]')); }
-  function canLeave() { return !busy && !content.querySelector('[data-timetable-busy="true"],[data-moderation-busy="true"],[data-preferences-busy="true"],[data-activity-busy="true"]') && (!hasUnsavedChanges() || confirm('Discard unsaved changes in this view?')); }
+  function canLeave() { return !busy && !content.querySelector('[data-timetable-busy="true"],[data-moderation-busy="true"],[data-preferences-busy="true"],[data-activity-busy="true"],[data-attendance-loading="true"]') && (!hasUnsavedChanges() || confirm('Discard unsaved changes in this view?')); }
   function inputField(name, label, value, type = '', hint = '', cell = false) {
     const wrapper = el('div', '', { class: 'planner-field' });
     const id = 'field-' + name.replace(':', '-');
@@ -191,15 +194,25 @@
     if (section === 'moderation') { moderationRecord = ''; moderationPage = 'overview'; }
     return load().then(async () => {
       if (!loaded) return;
+      if (section === 'setup' && setupTab === 6) await setupAttendanceReady;
       try {
         const result = await runAttendanceDriveSync();
-        if (result && ['attendance', 'attendanceImport'].includes(section)) {
+        if (result && section === 'attendance') {
           await load();
           placeAttendanceDriveNote();
         }
+        else if (result && section === 'setup' && setupTab === 6) {
+          const host = content.querySelector('.attendance-setup-page');
+          if (host) {
+            host.dataset.attendanceLoading = 'true';
+            try { host.replaceChildren(); await mountAttendancePage(host, true); }
+            finally { host.dataset.attendanceLoading = 'false'; }
+          }
+        }
       }
       catch (error) {
-        console.error('Automatic attendance Drive sync failed.');
+        console.error('Automatic attendance Drive sync or refresh failed:', error.message);
+        notice(error.message, true);
       }
     });
   }
@@ -1866,8 +1879,10 @@
     let holidaysLoaded = false;
     const duties = el('section', '', { class: 'paper-page setup-page duty-roster-setup' });
     let dutiesLoaded = false;
-    const pages = [page, kamar, tasks, drive, holidays, duties];
-    const buttons = ['Planner Setup', 'Kamar Calendar Setup', 'Google Tasks Setup', 'Google Drive Setup', 'Public Holidays Setup', 'Duty Roster'].map((label, index) => {
+    const attendance = el('section', '', { class: 'paper-page setup-page attendance-setup-page', 'data-planner-navigation': '' });
+    let attendanceLoaded = false;
+    const pages = [page, kamar, tasks, drive, holidays, duties, attendance];
+    const buttons = ['Planner Setup', 'Kamar Calendar Setup', 'Google Tasks Setup', 'Google Drive Setup', 'Public Holidays Setup', 'Duty Roster', 'Two-Week Attendance'].map((label, index) => {
       const button = el('button', label, { type: 'button', role: 'tab', id: 'setup-tab-' + index, 'aria-controls': 'setup-sheet-' + index });
       pages[index].id = 'setup-sheet-' + index;
       pages[index].setAttribute('role', 'tabpanel');
@@ -1877,7 +1892,10 @@
     });
     function activate(index) {
       if (setupTab === 5 && index !== 5 && duties.querySelector('[data-preferences-busy="true"]')) {
-        notice('Save or reload your duty setup changes before switching tabs.', true); return;
+        notice('Save or reload your duty setup changes before switching tabs.', true); return false;
+      }
+      if (setupTab === 6 && index !== 6 && (attendanceSyncRunning || attendance.dataset.attendanceLoading === 'true' || attendance.querySelector('[data-preferences-busy="true"]'))) {
+        notice('Finish the attendance sync or save/reload attendance changes before switching tabs.', true); return false;
       }
       setupTab = index;
       pages.forEach((sheet, i) => { sheet.hidden = i !== index; });
@@ -1886,6 +1904,7 @@
         button.tabIndex = i === index ? 0 : -1;
       });
       document.querySelector('.planner-save').hidden = index !== 0;
+      history.replaceState(null, '', '#' + viewFragment());
       if (index === 1 && !calendarLoaded) {
         calendarLoaded = true;
         renderKamarCalendar(calendar);
@@ -1921,13 +1940,27 @@
           }
         });
       }
+      if (index === 6 && !attendanceLoaded) {
+        attendanceLoaded = true;
+        attendance.dataset.attendanceLoading = 'true';
+        setupAttendanceReady = mountAttendancePage(attendance, true).catch(error => {
+          if (!attendance.isConnected) return;
+          console.error('Two-Week Attendance setup could not be loaded:', error);
+          attendanceLoaded = false;
+          attendance.replaceChildren(el('p', error.message, { role: 'alert' }));
+          const retryAttendance = el('button', 'Retry Two-Week Attendance', { type: 'button' });
+          retryAttendance.addEventListener('click', () => { attendance.replaceChildren(); activate(6); });
+          attendance.append(retryAttendance);
+        }).finally(() => { attendance.dataset.attendanceLoading = 'false'; });
+      }
+      return true;
     }
     buttons.forEach((button, index) => {
       button.addEventListener('click', () => activate(index));
       button.addEventListener('keydown', event => {
         const target = { ArrowDown: (index + 1) % pages.length, ArrowUp: (index + pages.length - 1) % pages.length, Home: 0, End: pages.length - 1 }[event.key];
         if (target === undefined) return;
-        event.preventDefault(); activate(target); buttons[target].focus();
+        event.preventDefault(); if (activate(target) !== false) buttons[target].focus();
       });
       tabs.append(button);
     });
@@ -2394,7 +2427,7 @@
               'Ministry term dates are unavailable for this year. Add WHS term dates in Setup My Planner or choose the weekly term manually.'));
         }
       }
-      if (!settings.revision) box.append(el('p', 'School-wide dates have not been published for this year. Use Setup My Planner on the cover to configure them.'));
+      if (!settings.revision) box.append(el('p', 'School-wide dates have not been published for this year. Use Setup My Planner in the Setup bar to configure them.'));
       const list = el('ul');
       const firstDays = ['teacherFirstDay', 'studentFirstDay'].filter(name => data[name]);
       if (section !== 'week') {
@@ -2450,9 +2483,7 @@
     if (['period', 'activity'].includes(section)) { renderPeriod(data); return; }
     if (section === 'cover') {
       const cover = coverPage('cover-kokako', '');
-      const open = el('button', 'Setup My Planner', { type: 'button', class: 'open-book' });
-      open.addEventListener('click', () => { if (!canLeave()) return; section = 'setup'; load(); });
-      cover.append(open); content.append(cover); return;
+      content.append(cover); return;
     }
     if (section === 'week') { renderWeek(data); return; }
     if (section === 'standards') { renderStandards(data); return; }
@@ -2533,6 +2564,35 @@
       });
     } else content.append(grid);
   }
+  async function mountAttendancePage(host, overview) {
+    await refreshSession();
+    const settings = await request(api + 'school-settings/' + year);
+    let calendar;
+    try { calendar = await request(api.replace(/planner\/$/, '') + 'school-calendar/' + year); }
+    catch (error) {
+      calendar = { publicHolidaysAvailable: false, publicHolidays: [],
+        publicHolidaysError: 'Government calendar dates could not be loaded. ' + error.message };
+    }
+    if (!host.isConnected) return;
+    await globalThis.plannerAttendance.mount(host, {
+      overview, automaticTabs: true, syncNow: node => runAttendanceDriveSync(node), bindSyncState: bindAttendanceSyncState,
+      el, year, ranges: termRanges(settings.content, calendar.terms || []), school: settings.content, calendar, today: localDate,
+      uploadPdf: async file => {
+        await refreshSession();
+        return request(api + 'attendance/' + year + '/import-preview', { method: 'POST',
+          headers: { 'Content-Type': 'application/pdf', 'x-planner-csrf': csrf }, body: file });
+      },
+      loadSchedule: selectedWeek => loadAttendanceSchedule(selectedWeek),
+      request: async path => { await refreshSession(); return request(api + path); },
+      mutate: async (path, body, method = 'PUT') => {
+        await refreshSession();
+        return request(api + path, { method,
+          headers: { 'Content-Type': 'application/json', 'x-planner-csrf': csrf }, body: JSON.stringify(body) });
+      }
+    });
+    const driveTarget = host.querySelector('[data-attendance-drive-feedback]');
+    if (driveTarget) placeAttendanceDriveNote(driveTarget);
+  }
   async function loadAttendanceSchedule(selectedWeek) {
     const months = new Set(Array.from({ length: 5 }, (_, i) => {
       const day = date(selectedWeek); day.setUTCDate(day.getUTCDate() + i);
@@ -2602,7 +2662,7 @@
       const ranges = termRanges(school, calendar.terms || []);
       if (!ranges.some(range => range.startDate && range.endDate)) throw new Error('Publish term dates in Planner Setup before syncing attendance.');
       const result = await globalThis.plannerAttendance.syncDrive({
-        year, school, calendar, ranges, today: localDate,
+        year, school, calendar, ranges, today: localDate, automaticTabs: true,
         request: async path => { await refreshSession(); return request(api + path); },
         mutate: async (path, body) => {
           await refreshSession();
@@ -2643,6 +2703,8 @@
     }
   }
   async function load() {
+    setupAttendanceReady = undefined;
+    if (section === 'attendanceImport') { section = 'setup'; setupTab = 6; }
     attendanceSyncStateListener = null;
     const dutyRefresh = document.getElementById?.('refresh-weekly-duties');
     if (dutyRefresh) { dutyRefresh.hidden = true; dutyRefresh.onclick = null; }
@@ -2690,40 +2752,12 @@
       }
       if (section === 'cover') { render({}); loaded = true; notice(openingNote || 'Your planner, familiar pages. Open the cover or choose a section above.'); return; }
       await refreshSession();
-      if (section === 'attendance' || section === 'attendanceImport') {
-        const settings = await request(api + 'school-settings/' + year);
-        let calendar;
-        try {
-          calendar = await request(api.replace(/planner\/$/, '') + 'school-calendar/' + year);
-        } catch (error) {
-          calendar = { publicHolidaysAvailable: false, publicHolidays: [],
-            publicHolidaysError: 'Government calendar dates could not be loaded. ' + error.message };
-        }
+      if (section === 'attendance') {
         const host = el('section');
         content.append(host);
-        await globalThis.plannerAttendance.mount(host, {
-          overview: section === 'attendanceImport',
-          syncNow: node => runAttendanceDriveSync(node),
-          bindSyncState: bindAttendanceSyncState,
-          el, year, ranges: termRanges(settings.content, calendar.terms || []), school: settings.content, calendar, today: localDate,
-          uploadPdf: async file => {
-            await refreshSession();
-            return request(api + 'attendance/' + year + '/import-preview', { method: 'POST',
-              headers: { 'Content-Type': 'application/pdf', 'x-planner-csrf': csrf }, body: file });
-          },
-          loadSchedule: selectedWeek => loadAttendanceSchedule(selectedWeek),
-          request: async path => { await refreshSession(); return request(api + path); },
-          mutate: async (path, body, method = 'PUT') => {
-            await refreshSession();
-            return request(api + path, { method,
-              headers: { 'Content-Type': 'application/json', 'x-planner-csrf': csrf }, body: JSON.stringify(body) });
-          }
-        });
-        const driveTarget = content.querySelector('[data-attendance-drive-feedback]');
-        if (driveTarget) placeAttendanceDriveNote(driveTarget);
+        await mountAttendancePage(host, false);
         loaded = true;
-        notice(section === 'attendanceImport' ? 'Load Two-Week Attendance PDFs for all matching class tabs. Select a term and class to see weekly import status.' :
-          'Private attendance log. Class setup and individual marks save separately from planner notes.');
+        notice('Private attendance log. Class setup and individual marks save separately from planner notes.');
         return;
       }
       const data = await request(address());
@@ -2832,7 +2866,10 @@
     if (busy || !loaded) return false;
     return dirty ? await saveEntry() : true;
   }
-  form.addEventListener('submit', event => { event.preventDefault(); if (!['attendance', 'attendanceImport'].includes(section)) saveEntry(); });
+  form.addEventListener('submit', event => {
+    event.preventDefault();
+    if (!['attendance', 'attendanceImport'].includes(section) && !(section === 'setup' && setupTab !== 0)) saveEntry();
+  });
   document.querySelectorAll('[data-section]').forEach((button) => button.addEventListener('click', () => {
     return navigatePlannerSection(button.dataset.section);
   }));

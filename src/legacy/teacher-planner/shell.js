@@ -20,7 +20,7 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
 <link rel="icon" type="image/png" href="${asset('whs-logo.png')}">
 <link rel="stylesheet" href="${asset('account-controls.css')}">
 <link rel="stylesheet" href="${asset('module-shell.css')}">
-<link rel="stylesheet" href="${asset('planner.css?v=term-navigation-28')}">
+<link rel="stylesheet" href="${asset('planner.css?v=setup-attendance-29')}">
 </head><body class="whs-module-shell whs-planner" data-api="${escape(baseUrl)}api/planner/" data-assets="${escape(baseUrl)}framework/" data-planner-name="${escape(displayName)}" data-user-id="${escape(userId)}" data-user-email="${escape(userEmail)}" data-core-url="${escape(coreUrl)}">
 <main class="planner-main" aria-label="${escape(title)}">
 <header class="planner-heading">
@@ -49,8 +49,8 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
   <section class="planner-nav-group planner-nav-setup" aria-labelledby="planner-nav-setup">
     <h2 id="planner-nav-setup">Setup</h2>
     <div class="planner-nav-buttons">
+      <button type="button" data-section="setup">Setup My Planner</button>
       <button type="button" data-section="assessmentSetup">Setup Assessment</button>
-      <button type="button" data-section="attendanceImport">Two-Week Attendance</button>
       <button type="button" id="refresh-weekly-duties" hidden>Refresh duties</button>
     </div>
   </section>
@@ -100,13 +100,13 @@ ${standalone ? `<script src="${asset('global-nav.js')}" defer></script>` : ''}
 <script src="${asset('google-calendar.js')}" defer></script>
 <script src="${asset('google-doc-sync.js')}" defer></script>
 <script src="${asset('duty-roster.js?v=weekly-term-duties-4')}" defer></script>
-<script src="${asset('attendance.js?v=student-term-8')}" defer></script>
+<script src="${asset('attendance.js?v=timetable-tabs-9')}" defer></script>
 <script src="${asset('google-tasks.js')}" defer></script>
 <script src="${asset('google-drive.js?v=moderation-resource-files-1')}" defer></script>
 <script src="${asset('moderation-schema.js?v=requirement-cleanup-2')}" defer></script>
 <script src="${asset('moderation.js?v=nzqa-version-8')}" defer></script>
 <script src="${asset('textarea-autosize.js')}" defer></script>
-<script src="${asset('planner.js?v=term-navigation-26')}" defer></script>
+<script src="${asset('planner.js?v=setup-attendance-27')}" defer></script>
 </body></html>`;
 }
 

@@ -4,7 +4,7 @@ const { appDestination } = require('./appAddresses');
 const plannerPages = [
   ['cover', 'Planner cover'], ['year', 'Year overview'], ['term', 'Term plan'],
   ['week', 'Weekly planner'], ['goals', 'Goals and reflection'],
-  ['assessmentSetup', 'Setup Assessment'], ['attendanceImport', 'Two-Week Attendance'],
+  ['setup', 'Setup My Planner'], ['assessmentSetup', 'Setup Assessment'], ['setup&setupTab=6', 'Two-Week Attendance'],
   ['attendance', 'Attendance'], ['moderation', 'Moderation'],
   ['standards', 'Teaching Standards'], ['learning', 'Professional learning']
 ];

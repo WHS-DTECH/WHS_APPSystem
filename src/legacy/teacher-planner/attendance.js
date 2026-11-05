@@ -55,8 +55,10 @@ function createAttendanceRouter({ query, loadClasses }) {
         throw new Error('The school class-list connection has no matched staff code. Deploy the updated Global Control staff matching bridge, then retry.');
       }
       if (!keys(directory, ['classes', 'staffCode']) || !Array.isArray(directory.classes) ||
-        !directory.classes.every(group => keys(group, ['code', 'students']) && text(group.code, 120) &&
-          Array.isArray(group.students) && group.students.every(directoryStudent))) {
+        !directory.classes.every(group => keys(group, ['code', 'students', 'slots']) && text(group.code, 120) &&
+          Array.isArray(group.students) && group.students.every(directoryStudent) &&
+          (group.slots === undefined || Array.isArray(group.slots) && unique(group.slots) &&
+            group.slots.every(slot => /^(mon|tue|wed|thu|fri)_p(1_[12]|[2-5])$/.test(slot))))) {
         throw new Error('The school class list returned invalid data.');
       }
       res.json(directory);

@@ -46,6 +46,120 @@ function browser() {
   vm.runInNewContext(fs.readFileSync(require.resolve('./public/attendance.js'), 'utf8'), context);
   return context.plannerAttendance;
 }
+test('timetable tabs combine only same-subject senior classes sharing uploaded slots', () => {
+  const { timetableGroups } = browser();
+  const item = (code, slots, id) => ({ code: 'TEST-' + code + '-CW', slots,
+    students: [{ id: 'k:' + id, name: 'Student ' + id }] });
+  const directory = { classes: [
+    item('11DTECH', ['mon_p2'], 100), item('12DTECH', ['mon_p2', 'tue_p3'], 200),
+    item('13DTECH', ['tue_p3'], 300), item('11TEXT', ['mon_p2'], 400),
+    item('12TEXT', ['fri_p5'], 500), item('PIDTECH', ['mon_p2'], 600),
+    item('SRDTECH', ['mon_p2'], 700), item('11ART', ['wed_p1_1'], 800),
+    item('12ART', ['wed_p1_2'], 900)
+  ] };
+  const next = Array.from(timetableGroups([], directory));
+  assert.deepEqual(next.map(group => group.name), ['11/12/13DTECH', '11TEXT', '12TEXT', 'PIDTECH', 'SRDTECH', '11ART', '12ART']);
+  assert.deepEqual(Array.from(next[0].students, student => student.id), ['k:100', 'k:200', 'k:300']);
+  assert.equal(next[0].classes.length, 3);
+  assert.equal(validGroups({ groups: next }), true);
+  assert.equal(JSON.stringify(timetableGroups(next, directory)), JSON.stringify(next), 'repeat openings are idempotent');
+  const combined = timetableGroups([], { classes: [item('11/12DTECH', ['mon_p2'], 100), item('13DTECH', ['mon_p2'], 200)] });
+  assert.equal(combined[0].name, '11/12/13DTECH');
+  assert.throws(() => timetableGroups([], { classes: [] }), /No timetable classes/);
+  assert.throws(() => timetableGroups([], { classes: [{ code: 'TEST-11DTECH-CW', students: [] }] }), /slots are unavailable/);
+});
+test('regrouping preserves names, stable identities and retained/manual rosters without duplicating tabs', () => {
+  const { timetableGroups } = browser();
+  const classes = ['11DTECH', '12DTECH'].map((code, i) => ({
+    code: 'TEST-' + code + '-CW', slots: ['mon_p2'],
+    students: [{ id: 'k:' + (100 + i), name: 'Current ' + i }]
+  }));
+  const old = classes.map((item, i) => ({ id: crypto.randomUUID(), name: 'Old ' + i, classes: [item.code],
+    students: item.students.map(student => ({ ...student, name: 'Teacher spelling ' + i })),
+    periods: ['p1'], scheduleMode: 'manual' }));
+  const manual = { ...group, id: crypto.randomUUID(), name: 'Manual-only tab', classes: [] };
+  let next = Array.from(timetableGroups([...old, manual], { classes }));
+  assert.equal(next.length, 2);
+  assert.ok(old.every(group => group.id !== next[0].id), 'merged class coverage must not inherit a smaller tab’s synced status');
+  assert.equal(next[0].name, '11/12DTECH');
+  assert.equal(next[0].scheduleMode, 'auto');
+  assert.deepEqual(Array.from(next[0].students, student => student.name), ['Teacher spelling 0', 'Teacher spelling 1']);
+  assert.deepEqual(next[1], manual);
+  old[0].students.push({ id: 'm:' + crypto.randomUUID(), name: 'Manual addition' }, { id: 'k:999', name: 'Former student' });
+  next = Array.from(timetableGroups([...old, manual], { classes }));
+  const retained = next.find(item => item.id === old[0].id);
+  assert.equal(retained.name, 'Old 0 (retained)');
+  assert.equal(retained.scheduleMode, 'manual');
+  assert.equal(retained.students.length, 2);
+  assert.notEqual(next[0].id, retained.id);
+  assert.equal(JSON.stringify(timetableGroups(next, { classes })), JSON.stringify(next));
+  assert.equal(validGroups({ groups: next }), true);
+  const separated = classes.map((item, i) => ({ ...item, slots: [i ? 'tue_p3' : 'mon_p2'] }));
+  const split = Array.from(timetableGroups([{ ...next[0], name: 'Combined' }], { classes: separated }));
+  assert.deepEqual(split.map(item => item.name), ['11DTECH', '12DTECH']);
+  assert.equal(split[0].students.length, 1);assert.equal(split[1].students.length, 1);
+});
+test('automatic tab creation persists once with revisions and shows errors without losing saved tabs', async () => {
+  for (const fail of [false, true]) {
+    const host = element('section'), writes = [];
+    const current = { ...group, scheduleMode: 'auto', classes: ['TEST-11TEST-CW'] };
+    await browser().mount(host, {
+      el: element, year: 2026, today: '2026-10-15', automaticTabs: true, overview: true,
+      ranges: [{ term: '4', startDate: '2026-10-12', endDate: '2026-10-23' }], school: {}, calendar: {},
+      request: async path => {
+        if (path.endsWith('/groups')) return { revision: 7, content: { groups: [current] } };
+        if (path.includes('/classes/')) return { staffCode: 'TEST', classes: [{ code: 'TEST-11TEST-CW', slots: ['mon_p2'], students: current.students }] };
+        if (path.endsWith('/drive-sync')) return { enabled: false };
+        if (path.endsWith('/imports')) return { imports: {}, markedWeeks: [] };
+        if (path === 'google-calendar/') return { configured: true, connected: false };
+        throw new Error('Unexpected request: ' + path);
+      },
+      mutate: async (path, body) => {
+        writes.push({ path, body });
+        if (fail) throw new Error('Attendance tabs changed in another window.');
+        return { revision: 8 };
+      }
+    });
+    assert.equal(writes.length, 1);
+    assert.equal(writes[0].body.revision, 7);
+    assert.equal(writes[0].body.content.groups[0].id, current.id);
+    assert.equal(writes[0].body.content.groups[0].name, '11TEST');
+    const nodes = descendants(host);
+    assert.ok(nodes.some(node => node.textContent === 'Refresh timetable class tabs'));
+    if (fail) {
+      assert.ok(nodes.some(node => node.attrs.role === 'alert' && /another window/.test(node.textContent)));
+      assert.ok(nodes.some(node => node.tag === 'option' && node.textContent === current.name));
+    } else assert.ok(nodes.some(node => node.tag === 'option' && node.textContent === '11TEST'));
+  }
+});
+test('Drive sync refreshes timetable tabs before reading PDFs, including from other Planner sections', async () => {
+  const writes = [], calls = [];
+  const directory = { staffCode: 'TEST', classes: [
+    { code: 'TEST-11DTECH-CW', slots: ['mon_p2'], students: [{ id: 'k:100', name: 'Synthetic One' }] },
+    { code: 'TEST-12DTECH-CW', slots: ['mon_p2'], students: [{ id: 'k:200', name: 'Synthetic Two' }] }
+  ] };
+  const result = await browser().syncDrive({
+    year: 2026, automaticTabs: true, school: {}, calendar: {}, ranges: [], today: '2026-10-15',
+    request: async path => {
+      calls.push(path);
+      if (path.endsWith('/drive-sync')) return { enabled: true, processed: {} };
+      if (path.endsWith('/groups')) return { revision: 4, content: { groups: [] } };
+      if (path.includes('/classes/')) return directory;
+      if (path.endsWith('/files')) {
+        assert.equal(writes.length, 1, 'tabs must be saved before checking Drive files');
+        return { files: [] };
+      }
+      throw new Error('Unexpected path ' + path);
+    },
+    mutate: async (path, body) => { writes.push({ path, body }); return { revision: 5 }; }
+  });
+  assert.equal(writes[0].path,'attendance/2026/groups');
+  assert.equal(writes[0].body.revision,4);
+  assert.equal(writes[0].body.content.groups[0].name,'11/12DTECH');
+  assert.equal(result.failed,0);
+  assert.equal(result.marks,0);
+});
+
 test('term grids include partial first/last weeks and combined rosters deduplicate stable school IDs', () => {
   const { termWeeks, combinedStudents } = browser();
   assert.deepEqual(Array.from(termWeeks('2026-10-14', '2026-10-23')), ['2026-10-12', '2026-10-19']);
@@ -928,10 +1042,11 @@ test('opening Attendance tolerates a failed government calendar request using pu
     } }
   };
   const helpers = source.slice(source.indexOf('  function termRanges('), source.indexOf('  async function loadTermDates('));
-  const branch = source.slice(source.indexOf("      if (section === 'attendance' || section === 'attendanceImport') {"), source.indexOf('      const data = await request(address());'));
-  await vm.runInNewContext(helpers + '(async () => {' + branch + '})()', context);
+  const mounting = source.slice(source.indexOf('  async function mountAttendancePage('), source.indexOf('  async function loadAttendanceSchedule('));
+  host.append(element('section'));
+  host.children[0].isConnected = true;
+  await vm.runInNewContext(helpers + mounting + '\nmountAttendancePage(content.children[0], false);', context);
   assert.deepEqual(requests, ['/api/planner/school-settings/2026', '/api/school-calendar/2026']);
-  assert.equal(context.loaded, true);
   assert.ok(descendants(host).some(node => node.attrs['aria-label'] === 'Synthetic Student, 2026-10-29, P3'));
   assert.ok(descendants(host).some(node => node.attrs.role === 'alert' && node.textContent.includes('502')));
 });
@@ -945,7 +1060,7 @@ test('missing term dates still report an explicit error during a holiday outage'
   assert.ok(descendants(host).some(node => node.attrs.role === 'alert' && node.textContent.includes('Term dates are unavailable')));
   assert.equal(descendants(host).some(node => node.attrs['aria-label']?.startsWith('Synthetic Student,')), false);
 });
-test('the new planner section mounts the import dashboard with shared upload and save connections', async () => {
+test('the setup attendance tab mounts the import dashboard with shared upload and save connections', async () => {
   const source = fs.readFileSync(require.resolve('./public/planner.js'), 'utf8');
   let mounted;
   const context = {
@@ -955,13 +1070,13 @@ test('the new planner section mounts the import dashboard with shared upload and
     plannerAttendance: { mount: async (_host, options) => { mounted = options; } }
   };
   const helpers = source.slice(source.indexOf('  function termRanges('), source.indexOf('  async function loadTermDates('));
-  const branch = source.slice(source.indexOf("      if (section === 'attendance' || section === 'attendanceImport') {"), source.indexOf('      const data = await request(address());'));
-  await vm.runInNewContext(helpers + '(async () => {' + branch + '})()', context);
+  const mounting = source.slice(source.indexOf('  async function mountAttendancePage('), source.indexOf('  async function loadAttendanceSchedule('));
+  context.content.isConnected = true;
+  await vm.runInNewContext(helpers + mounting + '\nmountAttendancePage(content, true);', context);
   assert.equal(mounted.overview, true);
   assert.equal(typeof mounted.uploadPdf, 'function');
   assert.equal(typeof mounted.mutate, 'function');
   assert.equal(mounted.ranges[3].startDate, '2026-10-12');
-  assert.equal(context.loaded, true);
 });
 test('automatic attendance renders only scheduled periods and preserves saved marks outside changed schedules', async () => {
     const host = element('section'), saved = [];
@@ -1061,7 +1176,8 @@ test('teacher class directory exposes year and whanau only for matching teacher 
     ] };
   });
   assert.deepEqual(result, { staffCode: 'TEST', classes: [{ code: 'TEST/SHARED-11TEST-CW',
-    students: [{ id: 'k:100', name: 'Synthetic Student', yearLevel: '9', whanau: 'W1' }] }] });
+    students: [{ id: 'k:100', name: 'Synthetic Student', yearLevel: '9', whanau: 'W1' }],
+    slots: ['mon_p2'] }] });
 });
 test('attendance API requires sign-in, CSRF, ownership and revisions without changing planner notes', async t => {
   const saved = new Map(), marks = new Map();
@@ -1096,6 +1212,10 @@ test('attendance API requires sign-in, CSRF, ownership and revisions without cha
   assert.equal((await put('mark', mark, otherHeaders)).status, 400, 'another teacher cannot mark an unowned register');
   assert.equal((await put('mark', { ...mark, owner_id: other })).status, 400);
   assert.equal((await put('mark', mark)).status, 200);
+  assert.equal((await put('groups', { revision: 1, content: { groups: [{ ...group,
+    name: '11/12TEST', scheduleMode: 'auto', periods: ['p1', 'p2', 'p3', 'p4', 'p5'] }] } })).status, 200);
+  assert.equal((await (await fetch(base + 'attendance/2026/week/2026-10-26', { headers })).json()).marks[0].mark, 'P',
+    'regrouping/renaming class tabs never changes saved attendance marks');
   assert.equal((await put('mark', mark)).status, 409);
   assert.equal((await put('mark', { ...mark, revision: 1, mark: 'A', fillOnly: true })).status, 409,
     'fill-only cannot overwrite a nonblank mark even with the current revision');
@@ -1110,7 +1230,7 @@ test('attendance API requires sign-in, CSRF, ownership and revisions without cha
   assert.equal((await (await fetch(base + 'attendance/2026/week/2026-10-26', { headers: otherHeaders })).json()).marks.length, 0);
   assert.equal((await fetch(base + 'attendance/2026/week/2026-10-27', { headers })).status, 400);
   assert.equal((await fetch(base + 'attendance/classes/2026', { headers })).status, 200);
-  assert.equal((await put('groups', { revision: 1, content: {
+  assert.equal((await put('groups', { revision: 2, content: {
     groups: [{ ...group, scheduleMode: 'auto', periods: ['p1'] }]
   } })).status, 200);
   assert.equal((await put('mark', { ...mark, period: 'p5' })).status, 200,
