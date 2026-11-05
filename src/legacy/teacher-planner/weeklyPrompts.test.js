@@ -98,6 +98,7 @@ test('async school-date fill makes new defaults saveable but leaves existing ent
   const changes = [], errors = [];
   Object.assign(context, {
     year: 2026, section: 'week', week: '2026-10-19',
+    selectors: { querySelector: () => null },
     api: '/api/planner/', setupDates: [], eventKinds: {},
     el: () => ({ isConnected: true, children: [], append(...items) { this.children.push(...items); }, addEventListener() {} }),
     request: async () => ({ revision: 1, content: settings }),

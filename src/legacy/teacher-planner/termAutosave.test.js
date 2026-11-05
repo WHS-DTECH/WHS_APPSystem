@@ -184,29 +184,33 @@ test('term workspace places goals before the heading and dates, with a separate 
   assert.deepEqual(selected, ['goals']);
 });
 
-test('circular term selector keeps all four choices and restores the old selection when navigation is blocked', async () => {
+for (const section of ['term', 'week']) {
+test(section + ' circular term selector stays first, retains four choices and opens the Term Plan with leave guards', async () => {
   const source = await fs.readFile(path.join(__dirname, 'public', 'planner.js'), 'utf8');
   function el(tag, text = '', attrs = {}) {
-    return { tag, textContent: text, attrs, children: [], events: {}, value: '',
+    return { tag, textContent: text, attrs, children: [], events: {}, value: '', dataset: {},
       append(...items) { this.children.push(...items); }, replaceChildren(...items) { this.children = items; },
       addEventListener(event, handler) { this.events[event] = handler; }
     };
   }
   let permitted = false, loads = 0;
-  const context = { el, selectors: el('section'), section: 'term', term: '4',
-    canLeave: () => permitted, load: () => loads++, updateWeekNavigation() {} };
+  const context = { el, selectors: el('section'), section, term: '4', termSelectionPending: true,
+    week: '2026-11-02', canLeave: () => permitted, load: () => loads++, updateWeekNavigation() {} };
   vm.runInNewContext(source.slice(source.indexOf('  function renderSelectors('), source.indexOf('  function setCalendarEvents(')), context);
   context.renderSelectors();
   const label = context.selectors.children[0].children[0], select = label.children[0];
   assert.equal(label.attrs.class, 'planner-term-control');
   assert.equal(select.attrs.class, 'planner-term-badge');
-  assert.deepEqual(select.children.map(item => item.attrs.value), ['1', '2', '3', '4']);
+  assert.deepEqual(select.children.filter(item => item.attrs.value).map(item => item.attrs.value), ['1', '2', '3', '4']);
   assert.equal(select.value, '4');
   select.value = '3'; select.events.change();
   assert.equal(select.value, '4'); assert.equal(context.term, '4'); assert.equal(loads, 0);
   permitted = true; select.value = '3'; select.events.change();
   assert.equal(context.term, '3'); assert.equal(loads, 1);
+  assert.equal(context.section, 'term');
+  assert.equal(context.termSelectionPending, false);
 });
+}
 
 test('term Goals navigation preserves existing leave guards and automatic sync orchestration', async () => {
   const source = await fs.readFile(path.join(__dirname, 'public', 'planner.js'), 'utf8');

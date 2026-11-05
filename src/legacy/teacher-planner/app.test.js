@@ -66,7 +66,7 @@ test('weekly controls show loading state and move forwards/backwards across mont
   const selectors = el('div'), messages = [], loadedWeeks = [];
   selectors.querySelectorAll = () => walk(selectors).filter(node => ['input', 'button'].includes(node.tag));
   const context = {
-    el, selectors, section: 'week', year: 2026, week: '2026-10-26', busy: true,
+    el, selectors, section: 'week', term: '4', year: 2026, week: '2026-10-26', busy: true,
     date: value => new Date(value + 'T00:00:00Z'), iso: value => value.toISOString().slice(0, 10),
     canLeave: () => !context.busy, notice: message => messages.push(message),
     load: () => loadedWeeks.push(context.week)
@@ -132,7 +132,7 @@ test('normal opening resolves a term before loading its private entry, while dir
   const source=await fs.readFile(path.join(__dirname,'public','planner.js'),'utf8');
   const helper=source.slice(source.indexOf('  function defaultTerm('),source.indexOf('  async function loadTermDates('));
   const loader=source.slice(source.indexOf('  async function load()'),source.indexOf('  function expandTermArea('));
-  for(const mode of ['current','holiday','january','direct','unavailable','failure']){
+  for(const mode of ['current','holiday','january','direct','term-default','term-explicit','unavailable','failure']){
     const ranges=[
       {term:'1',startDate:'2026-01-26',endDate:'2026-04-02'},
       {term:'2',startDate:'2026-04-20',endDate:'2026-07-03'},
@@ -143,11 +143,13 @@ test('normal opening resolves a term before loading its private entry, while dir
     const requested=[],rendered=[],years=[],navigationBusy=[];
     const context={
       clearTimeout,autosaveTimer:undefined,scheduleAutosave(){},
-      openingTermPending:mode!=='direct',section:mode==='direct'?'goals':'cover',year:2026,term:'1',
+      openingTermPending:!['direct','term-default','term-explicit'].includes(mode),
+      termSelectionPending:mode!=='term-explicit',
+      section:mode.startsWith('term-')?'term':mode==='direct'?'goals':'cover',year:2026,term:'1',
       localDate:mode==='holiday'?'2026-10-01':mode==='january'?'2026-01-05':'2026-10-18',
       save:{},retry:{},signin:{hidden:true},content:{replaceChildren(){}},yearInput:{},
       document:{querySelector:()=>({}),querySelectorAll:()=>[],getElementById:id=>nodes[id]||(nodes[id]={})},
-      renderSelectors(){},history:{replaceState(){}},viewFragment:()=>'',notice(){},refreshSession:async()=>{},console:{error(){}},
+      renderSelectors(){},updateYearBadge(){},history:{replaceState(){}},viewFragment:()=>'',notice(){},refreshSession:async()=>{},console:{error(){}},
       updateWeekNavigation(){navigationBusy.push(context.busy);},
       loadTermDates:async year=>{
         years.push(year);
@@ -165,9 +167,9 @@ test('normal opening resolves a term before loading its private entry, while dir
       assert.equal(context.openingTermPending,true);
       assert.equal(context.retry.hidden,false);
       assert.equal(requested.length,0);
-    }else if(mode==='direct'){
+    }else if(mode==='direct' || mode==='term-explicit'){
       assert.equal(years.length,0);
-      assert.equal(requested[0],'2026/goals/1');
+      assert.equal(requested[0],mode==='direct'?'2026/goals/1':'2026/term/1');
     }else if(mode==='unavailable'){
       assert.equal(rendered[0],'cover');
       assert.equal(requested.length,0);
@@ -379,10 +381,11 @@ test('weekly auto-term loads Ministry dates but preserves saved and manually cha
       tag,text,attrs,children:[],isConnected:true,append(...nodes){this.children.push(...nodes);},addEventListener(){}
     });
     const select = {dataset:{autoTerm:'false'},value:'2'};
-    const termNumber = {value:''}, yearNumber = {value:''}, help = {};
+    const termNumber = {value:''}, yearNumber = {value:''}, help = {}, badge = {value:'1',dataset:{}};
     const nodes = {'#week-term':select,'#term-week-number':termNumber,'#school-year-week-number':yearNumber,'#week-number-help':help};
     const context = {
       year:2026,section:'week',week:'2026-10-19',el,api:'/api/planner/',setupDates:[],
+      selectors:{querySelector:()=>badge},
       content:{prepend(){},querySelector:selector=>nodes[selector],querySelectorAll:()=>[]},
       date:value=>new Date(value+'T00:00:00Z'),iso:value=>value.toISOString().slice(0,10),console:{error(){}},
       request:async url=>url.includes('school-settings') ? {revision:1,content:{
@@ -393,6 +396,7 @@ test('weekly auto-term loads Ministry dates but preserves saved and manually cha
     };
     await vm.runInNewContext(renderer+'\nloadSharedDates();',context);
     assert.equal(select.value,'2');
+    assert.equal(badge.value,'4', 'navigation badge follows actual week dates, not the saved editable term field');
     assert.equal(termNumber.value,'2');
     assert.equal(yearNumber.value,'33');
     assert.ok(help.textContent.includes('Teaching weeks only'));
@@ -407,6 +411,7 @@ test('weekly auto-term loads Ministry dates but preserves saved and manually cha
     let calendarRequests=0;
     const context = {
       year:2026,section:'week',week:'2026-10-19',el,api:'/api/planner/',
+      selectors:{querySelector:()=>null},
       setupDates:[],content:{prepend(){},querySelector:selector=>selector==='#week-term'?select:null,querySelectorAll:()=>[]},
       date:value=>new Date(value+'T00:00:00Z'),iso:value=>value.toISOString().slice(0,10),
       console:{error(){}},
@@ -671,9 +676,9 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(groups[1][2], />Setup<\/h2>/);
   assert.match(groups[2][2], />Section Modules<\/h2>/);
   assert.equal([...groups[2][2].matchAll(/disabled title="Page coming soon"/g)].length, 5);
-  assert.match(html, /planner\.css\?v=term-workspace-27/);
-  assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=term-workspace-25"'));
-  assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=term-workspace-25"'));
+  assert.match(html, /planner\.css\?v=term-navigation-28/);
+  assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=term-navigation-26"'));
+  assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=term-navigation-26"'));
   const heading = html.match(/<header class="planner-heading">([\s\S]*?)<\/header>/)[1];
   for (const id of ['planner-year', 'open-year', 'print-planner']) {
     assert.match(heading, new RegExp('id="' + id + '"'));
@@ -736,7 +741,7 @@ test('module denies anonymous/student access and accepts a supplied teacher iden
     assert.match(html, /Last Updated:/);
     assert.match(html, /id="planner-year"[^>]*value="2026"/);
     assert.match(html, /data-api="\/module\/api\/planner\/"/);
-    assert.match(html, /src="\/module\/framework\/planner\.js\?v=attendance-drive-sync-23"/);
+    assert.match(html, /src="\/module\/framework\/planner\.js\?v=term-navigation-26"/);
     assert.match(html, /Weekly planner/);
     assert.match(html, /Professional learning/);
     assert.ok(!html.includes('name="whs-global-control"'));

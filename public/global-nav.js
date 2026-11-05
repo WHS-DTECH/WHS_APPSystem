@@ -215,7 +215,11 @@
       document.body.appendChild(header);
     }
     header.replaceChildren();
+    var fault = el('a', { 'class': 'whs-report-fault', href: coreOrigin + '/faults/new' });
+    fault.appendChild(el('span', { 'class': 'whs-fault-invitation' }, 'Something not working? '));
+    fault.appendChild(el('span', {}, 'Report a fault'));
     if (!data || data.error) {
+      header.appendChild(fault);
       header.appendChild(el('span', { role: data ? 'alert' : 'status' }, data ? 'School account could not be loaded.' : 'Loading school account...'));
       if (data) {
         var retry = el('button', { type: 'button', 'class': 'whs-account-retry' }, 'Retry');
@@ -225,6 +229,7 @@
       return;
     }
     if (!data.signedIn) {
+      header.appendChild(fault);
       var login = el('a', { 'class': 'whs-google-signin', href: '/auth/google?next=' + encodeURIComponent(location.pathname + location.search) });
       login.appendChild(el('span', { 'class': 'whs-google-mark', 'aria-hidden': 'true' }, 'G'));
       login.appendChild(el('span', {}, 'Sign in with Google'));
@@ -264,6 +269,7 @@
       Array.prototype.forEach.call(header.querySelectorAll('button[aria-expanded]'), function (button) { button.setAttribute('aria-expanded', 'false'); });
     }
     var status = el('p', { 'class': 'whs-signout-status', role: 'status', id: 'whs-signout-status' });
+    header.appendChild(fault);
     var signOut = el('button', { type: 'button', 'class': 'whs-signout-pill', 'aria-describedby': 'whs-signout-status' }, 'Sign out');
     signOut.addEventListener('click', function () { signOutAccount(signOut, status); });
     header.appendChild(signOut);

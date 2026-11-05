@@ -315,6 +315,10 @@ limited to five per IP per 15 minutes. Inactive users cannot report or manage.
 The fault router precedes registered app guards so incorrect app assignments
 cannot block reporting. Existing Contact Web Master email remains unchanged.
 Shared navigation includes **Launchpad** between Dashboard and Profile.
+The gold **Report a fault** pill sits in the shared top account bar beside Google
+sign-in or sign-out/profile controls, including public pages and account-load
+errors. It replaces the Launchpad-only masthead button. On smaller screens the
+invitation text is shortened to keep account controls visible.
 
 ## Module Builder / Module Wizard
 
@@ -1419,6 +1423,16 @@ full width, with an event-detail panel and a minimum readable week-grid width
 (horizontal scrolling on smaller screens). The existing term selector stays
 above the page, styled as a circular badge; it still opens the native Term 1-4
 dropdown. Print actions are unchanged; a printing redesign remains deferred.
+Without an explicit term in a planner link or a manual selection, Term Plan uses
+the current term from WHS school dates (Ministry dates fill unpublished ranges);
+holidays use the most recently started term. Explicit selections and saved private
+notes remain intact. The notes panel stretches to match the cover on widescreens,
+adding writable rows; longer notes still expand rather than being clipped.
+Weekly Planner has the same term circle in the left selector position, before
+the week date/navigation. Its displayed term follows that week's actual dates,
+independently of the editable saved weekly term field. Selecting a term opens
+that Term Plan after the existing unsaved-change guard. Holiday weeks show the
+neutral **Term** choice rather than assigning an incorrect term.
 Daily Attendance places the editable class register on the left and a read-only
 individual student term view on the right (stacked on smaller screens). Search
 the selected saved class tab by name, student year level and whānau/form class,

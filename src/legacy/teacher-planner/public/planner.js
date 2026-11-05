@@ -82,6 +82,7 @@
   if (['cover', ...Object.keys(fields)].includes(restored.get('section'))) section = restored.get('section');
   if (/^\d{4}$/.test(restored.get('year') || '') && Number(restored.get('year')) >= 2000 && Number(restored.get('year')) <= 2100) year = Number(restored.get('year'));
   if (/^[1-4]$/.test(restored.get('term') || '')) term = restored.get('term');
+  let termSelectionPending = !/^[1-4]$/.test(restored.get('term') || '');
   if (/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(restored.get('record') || '')) moderationRecord = restored.get('record');
   if (['overview', 'internal', 'schedule', 'feedback', 'coversheet'].includes(restored.get('page'))) moderationPage = restored.get('page');
   const restoredPeriod = restored.get('date') || '';
@@ -181,7 +182,7 @@
   }
   function updateWeekNavigation() {
     if (section !== 'week') return;
-    for (const control of selectors.querySelectorAll('input,button')) control.disabled = busy;
+    for (const control of selectors.querySelectorAll('input,button,select')) control.disabled = busy;
     selectors.setAttribute('aria-busy', String(busy));
   }
   function navigatePlannerSection(target) {
@@ -205,6 +206,19 @@
   function renderSelectors() {
     selectors.replaceChildren();
     const controls = el('div', '', { class: 'week-controls' });
+    if (['week', 'term'].includes(section)) {
+      const label = el('label', 'Term', { class: 'planner-term-control' });
+      const select = el('select', '', { 'aria-label': 'Term', class: 'planner-term-badge',
+        title: section === 'week' ? 'Open a Term Plan' : 'Choose planner term' });
+      if (section === 'week') select.append(el('option', 'Term', { value: '', disabled: '' }));
+      for (let i = 1; i <= 4; i++) select.append(el('option', 'Term ' + i, { value: String(i) }));
+      select.value = term;
+      select.addEventListener('change', () => {
+        if (!canLeave()) { select.value = select.dataset.displayedTerm ?? term; return; }
+        term = select.value; termSelectionPending = false; section = 'term'; load();
+      });
+      label.append(select); controls.append(label);
+    }
     if (section === 'week') {
       const label = el('label', 'Week containing');
       const picker = el('input', '', { type: 'date', value: week, 'aria-label': 'Week containing' });
@@ -228,13 +242,6 @@
           week = iso(next); load();
         }); controls.append(button);
       }
-    } else if (section === 'term') {
-      const label = el('label', 'Term', { class: 'planner-term-control' });
-      const select = el('select', '', { 'aria-label': 'Term', class: 'planner-term-badge', title: 'Choose planner term' });
-      for (let i = 1; i <= 4; i++) select.append(el('option', 'Term ' + i, { value: String(i) }));
-      select.value = term;
-      select.addEventListener('change', () => { if (!canLeave()) { select.value = term; return; } term = select.value; load(); });
-      label.append(select); controls.append(label);
     }
     selectors.append(controls);
     updateWeekNavigation();
@@ -2363,6 +2370,10 @@
           const complete = [1, 2, 3, 4].every(number => data['term' + number + 'Start'] && data['term' + number + 'End']);
           const calendar = complete ? null : await request(api.replace(/planner\/$/, '') + 'school-calendar/' + selectedYear);
           if (!box.isConnected) return;
+          const matchedTerm = weeklyTerm(data, calendar?.terms || [], week);
+          if (matchedTerm) term = matchedTerm;
+          const badge = selectors.querySelector('.planner-term-badge');
+          if (badge) { badge.value = matchedTerm; badge.dataset.displayedTerm = matchedTerm; }
           if (select.dataset.autoTerm === 'true') select.value = weeklyTerm(data, calendar?.terms || [], week);
           const numbers = weeklyNumbers(data, calendar?.terms || [], week);
           if (termNumber) termNumber.value = numbers.termWeek;
@@ -2658,6 +2669,14 @@
         openingTermPending = false;
         yearInput.value = year;
         updateYearBadge();
+      }
+      if (section === 'term' && termSelectionPending) {
+        await refreshSession();
+        termDates ||= await loadTermDates(year);
+        const selected = defaultTerm(termDates.ranges, localDate);
+        if (!selected) throw new Error('No current or finished term can be determined. Open Year overview to check the school dates.');
+        term = selected;
+        termSelectionPending = false;
       }
       renderSelectors();
       history.replaceState(null, '', '#' + viewFragment());

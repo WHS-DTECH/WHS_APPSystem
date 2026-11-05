@@ -13,6 +13,32 @@ test('both shared navigation scripts place Launchpad between Dashboard and Profi
   assert.match(nav, /link\(nav, 'Dashboard', '\/dashboard'\);\s+link\(nav, 'Launchpad', '\/launchpad'\);\s+link\(nav, 'Profile', '\/profile'\)/);
 });
 
+test('shared account header includes fault reporting next to login/sign-out, even while loading or unavailable', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'global-nav.js'), 'utf8');
+  const fragment = source.slice(source.indexOf('  function buildAccount('), source.indexOf('  function buildSearch('));
+  const node = (tag, attrs = {}, text = '') => ({
+    tag, attrs, text, children: [], appendChild(child) { this.children.push(child); return child; },
+    replaceChildren() { this.children = []; }, addEventListener() {},
+    querySelectorAll() { return []; }
+  });
+  for (const data of [null, { error: true }, { signedIn: false }, { signedIn: true, name: 'Synthetic Teacher' }]) {
+    const header = node('header');
+    const document = { getElementById: () => header, addEventListener() {} };
+    const build = new Function('document', 'el', 'coreOrigin', 'location', 'init', 'buildSearch', 'link', 'signOutAccount', 'moduleShell',
+      fragment + '\nreturn buildAccount;')(document, node, 'https://core.example.test', { pathname: '/page', search: '' },
+      () => {}, () => {}, () => {}, () => {}, true);
+    build(data);
+    const faults = header.children.filter(child => child.attrs.class === 'whs-report-fault');
+    assert.equal(faults.length, 1);
+    assert.equal(faults[0].attrs.href, 'https://core.example.test/faults/new');
+    assert.equal(faults[0].children.map(child => child.text).join(''), 'Something not working? Report a fault');
+    const account = header.children.find(child => ['whs-google-signin', 'whs-signout-pill'].includes(child.attrs.class));
+    if (account) assert.ok(header.children.indexOf(faults[0]) < header.children.indexOf(account));
+  }
+  const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'account-controls.css'), 'utf8');
+  assert.equal(css, fs.readFileSync(path.join(__dirname, '..', 'src', 'legacy', 'teacher-planner', 'public', 'account-controls.css'), 'utf8'));
+});
+
 test('existing development apps have deployed links only in the ADMIN sidebar', async () => {
   const projects = [
     { id: 'international', name: 'International App', app_url: 'https://whs-international.onrender.com' },

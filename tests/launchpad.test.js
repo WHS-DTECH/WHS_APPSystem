@@ -23,7 +23,7 @@ test('Launchpad template retains responsive and keyboard-accessible presentation
   assert.equal(fs.existsSync(path.join(__dirname, '..', 'public', 'images', 'whs logo circular reo .png')), true);
   assert.doesNotMatch(html, /target="_blank"/);
   assert.equal([...html.matchAll(/<h1\b/g)].length, 1);
-  assert.match(html, /class="fault-link" href="\/faults\/new">Something not working\? Report a fault/);
+  assert.doesNotMatch(html, /class="fault-link"/);
   assert.doesNotMatch(html, />School website<\/a>/);
   assert.equal(fs.existsSync(path.join(__dirname, '..', 'public', 'launchpad.html')), false);
 });
