@@ -18,7 +18,7 @@
   <div class="helpdesk-scroll" tabindex="0" aria-label="Fault reports, scroll for all columns">
     <table>
       <caption><%= manage ? 'Helpdesk fault reports' : 'Your fault reports' %></caption>
-      <thead><tr><th scope="col">Ticket</th><th scope="col">Summary</th><th scope="col">App/service</th><th scope="col">Status</th><% if (manage) { %><th scope="col">Reporter</th><% } %><th scope="col">Reported (NZ)</th></tr></thead>
+      <thead><tr><th scope="col">Ticket</th><th scope="col">Summary</th><th scope="col">Module</th><th scope="col">Status</th><% if (manage) { %><th scope="col">Reporter</th><% } %><th scope="col">Reported (NZ)</th></tr></thead>
       <tbody>
         <% tickets.forEach(ticket => { %>
         <tr>

@@ -6,6 +6,13 @@ const os = require('os');
 const path = require('path');
 const { injectGlobalNav, navData, safeNext, setLoginReturn, NEXT_COOKIE } = require('../src/globalNav');
 
+test('both shared navigation scripts place Launchpad between Dashboard and Profile', () => {
+  const nav = fs.readFileSync(path.join(__dirname, '..', 'public', 'global-nav.js'), 'utf8');
+  const plannerNav = fs.readFileSync(path.join(__dirname, '..', 'src', 'legacy', 'teacher-planner', 'public', 'global-nav.js'), 'utf8');
+  assert.equal(plannerNav, nav);
+  assert.match(nav, /link\(nav, 'Dashboard', '\/dashboard'\);\s+link\(nav, 'Launchpad', '\/launchpad'\);\s+link\(nav, 'Profile', '\/profile'\)/);
+});
+
 test('existing development apps have deployed links only in the ADMIN sidebar', async () => {
   const projects = [
     { id: 'international', name: 'International App', app_url: 'https://whs-international.onrender.com' },

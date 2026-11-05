@@ -7,15 +7,16 @@ const fs = require('node:fs');
 const crypto = require('node:crypto');
 const { Pool } = require('pg');
 const { createHelpdeskRouters, faultInput } = require('../src/helpdesk');
+const { faultModules } = require('../src/faultPages');
 
 const owner = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const other = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const admin = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const body = { subject: 'Launchpad will not open', appName: 'Launchpad',
-  pageUrl: '/launchpad?token=private#details', description: 'Clicked the completion email link. The page did not open.' };
+  moduleKey: 'launchpad', pageUrl: '/launchpad', description: 'Clicked the completion email link. The page did not open.' };
 
-async function fixture(t, queryOverride) {
-  const tickets = new Map(), calls = [];
+async function fixture(t, queryOverride, options = {}) {
+  const tickets = new Map(), calls = [], emails = [];
   let failed = false;
   const dbQuery = async (sql, params) => {
     calls.push({ sql, params });
@@ -26,7 +27,7 @@ async function fixture(t, queryOverride) {
         revision: 1, created_at: new Date('2026-11-05T01:00:00Z'), updated_at: new Date('2026-11-05T01:00:00Z'),
         reporter_name: 'Synthetic Teacher', reporter_email: 'teacher@example.test' };
       tickets.set(ticket.id, ticket);
-      return { rows: [{ id: ticket.id }] };
+      return { rows: [{ id: ticket.id, ticket_number: ticket.ticket_number }] };
     }
     if (sql.startsWith('UPDATE')) {
       assert.match(sql, /WHERE id=\$1 AND revision=\$5/);
@@ -57,7 +58,12 @@ async function fixture(t, queryOverride) {
     res.locals.activeRole = id === admin ? 'ADMIN' : 'Teacher';
     next();
   });
-  const routers = createHelpdeskRouters({ dbQuery: queryOverride || dbQuery });
+  const routers = createHelpdeskRouters({ dbQuery: queryOverride || dbQuery,
+    modulesForUser: async user => faultModules(user, async () => ({ rows: [
+      { module_key: 'teacher-planner', display_name: 'Teacher Planner', path: '/teacher-planner/',
+        is_active: true, has_access: true }
+    ] })),
+    deliver: async email => { emails.push(email); return { ok: true }; }, ...options });
   app.use('/faults', routers.faults);
   app.use('/admin/helpdesk', routers.helpdesk);
   app.use((error, _req, res, _next) => res.status(500).send(error.message));
@@ -74,11 +80,11 @@ async function fixture(t, queryOverride) {
   const post = (url, values, auth) => fetch(base + url, { method: 'POST', redirect: 'manual',
     headers: { ...auth.headers, 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ csrf: auth.csrf, ...values }) });
-  return { get, post, login, tickets, calls, fail() { failed = true; } };
+  return { get, post, login, tickets, calls, emails, fail() { failed = true; } };
 }
 
 test('fault input validates fields and strips page query strings and fragments without allowing credentials', () => {
-  assert.equal(faultInput(body).pageUrl, '/launchpad');
+  assert.equal(faultInput({ ...body, pageUrl: '/launchpad?token=private#details' }).pageUrl, '/launchpad');
   assert.equal(faultInput({ ...body, pageUrl: 'https://app.example.test/page?q=secret#private' }).pageUrl, 'https://app.example.test/page');
   assert.equal(faultInput({ ...body, pageUrl: '' }).pageUrl, '');
   for (const change of [
@@ -97,6 +103,13 @@ test('fault reporting saves verified identity, escapes reports and allows only o
   assert.equal(ticket.reporter_id, owner);
   assert.equal(ticket.status, 'open');
   assert.equal(ticket.page_url, '/launchpad');
+  assert.equal(f.emails.length, 1);
+  assert.deepEqual(f.emails[0].to, ['tech@westlandhigh.school.nz']);
+  assert.equal(f.emails[0].replyTo, 'teacher@example.test');
+  assert.match(f.emails[0].subject, /\[Helpdesk\] Fault #1/);
+  assert.match(f.emails[0].text, /Summary: Launchpad will not open/);
+  assert.match(f.emails[0].text, /Manage ticket: .*\/admin\/helpdesk\//);
+  assert.doesNotMatch(f.emails[0].html, /<script>/);
   assert.match(await (await f.get(created.headers.get('location'), auth)).text(), /Your fault report has been saved to Helpdesk/);
   const page = await f.get('/faults/' + ticket.id, auth);
   assert.equal(page.headers.get('cache-control'), 'no-store');
@@ -129,6 +142,108 @@ test('fault reporting saves verified identity, escapes reports and allows only o
   }, adminAuth)).status, 303);
   assert.match(await (await f.get('/admin/helpdesk?status=resolved', adminAuth)).text(), /Launchpad will not open/);
   assert.doesNotMatch(await (await f.get('/admin/helpdesk?status=open', adminAuth)).text(), /Launchpad will not open/);
+});
+
+test('fault module catalogue uses current active assignments and lists only named pages, including planner sections', async () => {
+  const rows = [
+    { module_key: 'teacher-planner', display_name: 'Teacher Planner', path: '/teacher-planner/', is_active: true, has_access: true },
+    { module_key: 'restricted', display_name: 'Restricted', path: '/restricted/', is_active: true, has_access: false },
+    { module_key: 'inactive', display_name: 'Inactive', path: '/inactive/', is_active: false, has_access: true },
+    { module_key: 'external', display_name: 'External', path: 'https://app.example.test/', is_active: true, has_access: true }
+  ];
+  const modules = await faultModules({ id: owner, roles: ['Teacher'] }, async (sql, params) => {
+    assert.match(sql, /teacher_module_assignments/);
+    assert.deepEqual(params, [owner]);
+    return { rows };
+  });
+  assert.deepEqual(modules.map(module => module.key), ['launchpad', 'teacher-planner', 'external']);
+  assert.ok(modules[1].pages.some(page => page.name === 'Two-Week Attendance' && page.url === '/teacher-planner/#section=attendanceImport'));
+  assert.deepEqual(modules[2].pages, [{ name: 'Module home', url: 'https://app.example.test/' }]);
+  assert.ok(!modules[0].pages.some(page => page.url.startsWith('/admin')));
+});
+
+test('fault form offers module/page dropdowns and server rejects inaccessible modules or mismatched pages', async t => {
+  const f = await fixture(t), auth = await f.login(owner);
+  const html = await (await f.get('/faults/new', auth)).text();
+  assert.match(html, /<select id="fault-app" name="moduleKey" required/);
+  assert.match(html, /<select id="fault-url" name="pageUrl"/);
+  assert.match(html, /Two-Week Attendance/);
+  assert.doesNotMatch(html, /name="appName"|<input id="fault-url"/);
+  for (const change of [
+    { moduleKey: 'restricted' }, { moduleKey: 'teacher-planner', pageUrl: '/launchpad' },
+    { pageUrl: '/launchpad?private=1' }, { pageUrl: 'https://outside.example.test/' }
+  ]) assert.equal((await f.post('/faults', { ...body, ...change }, auth)).status, 400);
+  assert.equal(f.tickets.size, 0);
+  assert.equal(f.emails.length, 0);
+});
+
+test('faults preserve approved planner section links and derive module name on the server', async t => {
+  const f = await fixture(t), auth = await f.login(owner);
+  const response = await f.post('/faults', { ...body, moduleKey: 'teacher-planner',
+    appName: 'Forged name', pageUrl: '/teacher-planner/#section=attendance' }, auth);
+  assert.equal(response.status, 303);
+  const ticket = [...f.tickets.values()][0];
+  assert.equal(ticket.app_name, 'Teacher Planner');
+  assert.equal(ticket.page_url, '/teacher-planner/#section=attendance');
+  assert.match(f.emails[0].text, /Module: Teacher Planner/);
+  const saved = await (await f.get(response.headers.get('location'), auth)).text();
+  assert.match(saved, /Fault details were emailed to tech@westlandhigh.school.nz/);
+});
+
+test('fault dropdown choices survive validation/save errors and an unspecified page is allowed', async t => {
+  t.mock.method(console, 'error', () => {});
+  const f = await fixture(t), auth = await f.login(owner);
+  const values = { ...body, moduleKey: 'teacher-planner', pageUrl: '/teacher-planner/#section=week' };
+  const invalid = await f.post('/faults', { ...values, subject: '', description: '<retained>' }, auth);
+  assert.equal(invalid.status, 400);
+  const invalidHtml = await invalid.text();
+  assert.match(invalidHtml, /value="teacher-planner" selected/);
+  assert.match(invalidHtml, /value="\/teacher-planner\/#section=week" selected/);
+  assert.match(invalidHtml, /&lt;retained&gt;/);
+  const unspecified = await f.post('/faults', { ...values, pageUrl: '' }, auth);
+  assert.equal(unspecified.status, 303);
+  assert.equal([...f.tickets.values()][0].page_url, '');
+  f.fail();
+  const failed = await f.post('/faults', values, auth);
+  assert.equal(failed.status, 503);
+  const failedHtml = await failed.text();
+  assert.match(failedHtml, /value="teacher-planner" selected/);
+  assert.match(failedHtml, /value="\/teacher-planner\/#section=week" selected/);
+  assert.equal(f.emails.length, 1);
+});
+
+test('failed or thrown email delivery leaves one durable ticket and explicitly warns without suggesting resubmission', async t => {
+  t.mock.method(console, 'error', () => {});
+  for (const deliver of [async () => ({ ok: false, skipped: true }), async () => { throw new Error('Synthetic email failure'); }]) {
+    const f = await fixture(t, undefined, { deliver }), auth = await f.login(owner);
+    const response = await f.post('/faults', body, auth);
+    assert.equal(response.status, 303);
+    assert.equal(f.tickets.size, 1);
+    const html = await (await f.get(response.headers.get('location'), auth)).text();
+    assert.match(html, /saved to Helpdesk/);
+    assert.match(html, /notification email could NOT be sent/);
+    assert.match(html, /do not submit it again/);
+    assert.doesNotMatch(html, /Fault details were emailed/);
+  }
+});
+
+test('unavailable module list explicitly blocks submission and retains fault draft', async t => {
+  t.mock.method(console, 'error', () => {});
+  let unavailable = false;
+  const f = await fixture(t, undefined, { modulesForUser: async () => {
+    if (unavailable) throw new Error('Synthetic registry failure');
+    return [{ key: 'launchpad', name: 'Launchpad', pages: [{ name: 'Launchpad', url: '/launchpad' }] }];
+  } });
+  const auth = await f.login(owner);
+  unavailable = true;
+  const response = await f.post('/faults', { ...body, description: '<retain draft>' }, auth);
+  assert.equal(response.status, 503);
+  const html = await response.text();
+  assert.match(html, /module list could not be loaded/);
+  assert.match(html, /&lt;retain draft&gt;/);
+  assert.match(html, /type="submit" disabled/);
+  assert.equal(f.tickets.size, 0);
+  assert.equal(f.emails.length, 0);
 });
 
 test('faults reject anonymous, inactive, CSRF and invalid requests without writes', async t => {

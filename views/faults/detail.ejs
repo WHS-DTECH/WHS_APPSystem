@@ -5,8 +5,8 @@
   <% if (message) { %><p role="status"><%= message %></p><% } %>
   <p><span class="fault-status fault-status-<%= ticket.status %>"><%= statuses[ticket.status] %></span></p>
   <dl>
-    <dt>App/service</dt><dd><%= ticket.app_name %></dd>
-    <% if (ticket.page_url) { %><dt>Page address</dt><dd><%= ticket.page_url %></dd><% } %>
+    <dt>Module</dt><dd><%= ticket.app_name %></dd>
+    <% if (ticket.page_url) { %><dt>Page</dt><dd><%= ticket.page_url %></dd><% } %>
     <% if (manage) { %><dt>Reporter</dt><dd><%= ticket.reporter_name %> (<%= ticket.reporter_email %>)</dd><% } %>
     <dt>Reported (NZ)</dt><dd><%= formatDate(ticket.created_at) %></dd>
     <dt>Last updated (NZ)</dt><dd><%= formatDate(ticket.updated_at) %></dd>

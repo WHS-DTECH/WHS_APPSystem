@@ -99,6 +99,7 @@
       user.appendChild(el('span', { 'class': 'gn-badge' }, data.role || ''));
       nav.appendChild(user);
       link(nav, 'Dashboard', '/dashboard');
+      link(nav, 'Launchpad', '/launchpad');
       link(nav, 'Profile', '/profile');
       link(nav, 'Report a fault', '/faults/new');
       link(nav, 'My fault reports', '/faults');

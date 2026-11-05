@@ -3,6 +3,14 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { query } = require('./db');
 const { ensureRole } = require('./middleware');
+const { faultModules } = require('./faultPages');
+const { sendEmail } = require('./email');
+const config = require('./config');
+
+const RECIPIENT = 'tech@westlandhigh.school.nz';
+const escapeHtml = value => value.replace(/[&<>"']/g, char => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+}[char]));
 
 const UUID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 const statuses = { open: 'Open', 'in-progress': 'In progress', resolved: 'Resolved' };
@@ -30,7 +38,7 @@ function faultInput(body) {
   return values;
 }
 
-function createHelpdeskRouters({ dbQuery = query } = {}) {
+function createHelpdeskRouters({ dbQuery = query, modulesForUser = faultModules, deliver = sendEmail } = {}) {
   const faults = express.Router();
   const helpdesk = express.Router();
   function authenticated(req, res, next) {
@@ -58,9 +66,16 @@ function createHelpdeskRouters({ dbQuery = query } = {}) {
   const formatDate = value => new Intl.DateTimeFormat('en-NZ', {
     dateStyle: 'medium', timeStyle: 'short', timeZone: 'Pacific/Auckland'
   }).format(new Date(value));
-  function renderForm(req, res, code = 200, message = '', values = {}) {
+  async function renderForm(req, res, code = 200, message = '', values = {}) {
+    let modules = [];
+    try { modules = await modulesForUser(req.user, dbQuery); }
+    catch (error) {
+      console.error('[helpdesk] Module list could not be loaded:', error.message);
+      code = 503;
+      message += ' The module list could not be loaded. Your draft has not been submitted. Please reload or email ' + RECIPIENT + ' directly.';
+    }
     return res.status(code).render('faults/new', {
-      title: 'Report a fault', csrf: req.session.faultCsrf, message, values, sender: req.user.email
+      title: 'Report a fault', csrf: req.session.faultCsrf, message, values, modules, sender: req.user.email
     });
   }
   function list(manage) {
@@ -96,9 +111,12 @@ function createHelpdeskRouters({ dbQuery = query } = {}) {
         if (!result.rows.length) {
           return res.status(404).render('error', { title: 'Ticket not found', message: 'This fault report was not found or is not available to your account.' });
         }
+        const notification = !manage && req.session.faultNotification?.id === req.params.id
+          ? req.session.faultNotification : null;
+        if (notification) delete req.session.faultNotification;
         res.render('faults/detail', { title: 'Fault #' + result.rows[0].ticket_number, ticket: result.rows[0], manage,
           csrf: req.session.faultCsrf, statuses, formatDate,
-          message: req.query.created === '1' ? 'Your fault report has been saved to Helpdesk.' :
+          message: notification ? notification.message : req.query.created === '1' ? 'Your fault report has been saved to Helpdesk.' :
             req.query.saved === '1' && manage ? 'Ticket updated.' : '' });
       } catch (error) { next(error); }
     };
@@ -112,24 +130,58 @@ function createHelpdeskRouters({ dbQuery = query } = {}) {
       renderForm(req, res, 429, 'Too many fault reports. Please wait 15 minutes before trying again.');
     }
   }), token, async (req, res) => {
+    let modules;
+    try { modules = await modulesForUser(req.user, dbQuery); }
+    catch (error) {
+      console.error('[helpdesk] Fault module access could not be checked:', error.message);
+      return renderForm(req, res, 503, 'Your fault report was NOT saved.', req.body);
+    }
     let values;
-    try { values = faultInput(req.body); }
+    try {
+      const module = modules.find(item => item.key === req.body.moduleKey);
+      const page = module?.pages.find(item => item.url === req.body.pageUrl);
+      if (!module || req.body.pageUrl && !page) throw new Error('Choose an accessible module and one of its listed pages.');
+      values = faultInput({ ...req.body, appName: module.name });
+      // Only catalogue links can retain a section fragment or routing query.
+      values.pageUrl = page?.url || '';
+    }
     catch (error) {
       console.warn('[helpdesk] Invalid fault form.');
-      const retained = Object.fromEntries(['subject', 'appName', 'pageUrl', 'description'].map(key =>
+      const retained = Object.fromEntries(['subject', 'moduleKey', 'pageUrl', 'description'].map(key =>
         [key, typeof req.body[key] === 'string' ? req.body[key].slice(0, key === 'description' ? 10000 : 2048) : '']));
       return renderForm(req, res, 400, error.message, retained);
     }
+    if (typeof req.user.email !== 'string' || !/^[^\s<>@,;]+@[^\s<>@,;]+$/.test(req.user.email)) {
+      console.warn('[helpdesk] Invalid signed-in email address.');
+      return renderForm(req, res, 403, 'Your school email could not be verified. Please sign in again. Your report was NOT saved.', req.body);
+    }
+    let ticket;
     try {
       const result = await dbQuery(`INSERT INTO helpdesk_faults(id,reporter_id,subject,app_name,page_url,description)
-        VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+        VALUES ($1,$2,$3,$4,$5,$6) RETURNING id,ticket_number`,
       [crypto.randomUUID(), req.user.id, values.subject, values.appName, values.pageUrl, values.description]);
       if (!result.rows.length) throw new Error('Fault insert returned no ticket.');
-      res.redirect(303, '/faults/' + result.rows[0].id + '?created=1');
+      ticket = result.rows[0];
     } catch (error) {
       console.error('[helpdesk] Fault report could not be saved:', error.message);
-      return renderForm(req, res, 503, 'Your fault report was NOT saved. Please retry or email tech@westlandhigh.school.nz directly.', values);
+      return renderForm(req, res, 503, 'Your fault report was NOT saved. Please retry or email tech@westlandhigh.school.nz directly.', { ...values, moduleKey: req.body.moduleKey });
     }
+    const ticketUrl = config.appBaseUrl + '/admin/helpdesk/' + ticket.id;
+    const text = [`Fault #${ticket.ticket_number}`, `Reporter: ${req.user.email}`,
+      `Summary: ${values.subject}`, `Module: ${values.appName}`, `Page: ${values.pageUrl || 'Not selected'}`,
+      '', values.description, '', `Manage ticket: ${ticketUrl}`].join('\n');
+    let emailed = false;
+    try {
+      const result = await deliver({ to: [RECIPIENT], replyTo: req.user.email,
+        subject: `[Helpdesk] Fault #${ticket.ticket_number}: ${values.subject}`,
+        text, html: `<pre>${escapeHtml(text)}</pre>` });
+      emailed = result.ok === true;
+      if (!emailed) console.error('[helpdesk] Fault notification email was not sent.');
+    } catch (error) { console.error('[helpdesk] Fault notification email failed:', error.message); }
+    req.session.faultNotification = { id: ticket.id, message: 'Your fault report has been saved to Helpdesk. ' +
+      (emailed ? 'Fault details were emailed to ' + RECIPIENT + '.' :
+        'The notification email could NOT be sent. Helpdesk still has your ticket; do not submit it again.') };
+    res.redirect(303, '/faults/' + ticket.id + '?created=1');
   });
   faults.get('/:id', detail(false));
   helpdesk.get('/', list(true));

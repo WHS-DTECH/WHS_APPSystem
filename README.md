@@ -286,11 +286,24 @@ its registry destination. Notify assigned users only after acceptance testing.
 Migration 051 creates `helpdesk_faults` in Core `DATABASE_URL`. Active signed-in
 users can report a fault without a module assignment, including when an app is
 missing from Launchpad. The separate form records the authenticated reporter,
-summary, app/service, optional page address and fault details. Page query strings,
-fragments and embedded credentials are not stored. Do not include student records
+summary, module, optional named page and fault details. The module dropdown uses
+the signed-in user's active module assignments/permissions; Launchpad / school
+account is always available for account or missing-app problems. The Page dropdown
+updates for the selected module and lists curated main pages/sections, not private
+records or documents. Modules without a maintained page catalogue (including
+external apps) offer their registered Module home. Use **Not sure / whole module**
+if the exact page is not listed. Module names and page links are validated against
+current access on submission, not trusted from the browser. Only curated routing
+queries/section fragments may be stored; users do not paste URLs. Do not include student records
 or secrets. No screenshots or attachments are collected.
 
 Reports are saved directly to the database, not dependent on email delivery.
+After saving, Global Control's shared Gmail service emails the ticket number,
+verified reporter, summary, module, selected page, fault details and an ADMIN
+Helpdesk link to `tech@westlandhigh.school.nz`, with the reporter as Reply-To.
+Delivery is recorded in the existing Email Service log. The submission confirmation
+states whether email was sent; if delivery fails or Gmail is unconfigured, the
+saved ticket remains available and users are warned not to submit a duplicate.
 After submission, users receive a ticket number and can view only their own
 reports and Helpdesk replies under `/faults` (**My fault reports**).
 Global ADMINs manage all reports at `/admin/helpdesk` (**Administrator Dashboard >
@@ -301,6 +314,7 @@ paginated at 25 tickets. Forms require session CSRF tokens; submissions are
 limited to five per IP per 15 minutes. Inactive users cannot report or manage.
 The fault router precedes registered app guards so incorrect app assignments
 cannot block reporting. Existing Contact Web Master email remains unchanged.
+Shared navigation includes **Launchpad** between Dashboard and Profile.
 
 ## Module Builder / Module Wizard
 
