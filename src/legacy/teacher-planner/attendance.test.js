@@ -183,6 +183,48 @@ test('all-class import ignores display filters, deduplicates shared marks and re
     loadSchedule: async week => options.schedules[week], uploadPdf: async () => options.pdf,
     mutate: async (path, body) => { saved.push([path, body]); return { revision: 1 }; }
   });
+  test('Drive card term list shows aggregate weekly coverage, filters terms and refreshes saved history', async () => {
+    const options = importFixture(), host = element('section');
+    const second = { ...options.group, id: crypto.randomUUID(), name: 'Second automatic class' };
+    const manual = { ...options.group, id: crypto.randomUUID(), scheduleMode: 'manual' };
+    const imports = {};
+    const complete = { expected: 5, recorded: 5, unresolved: false, importedAt: '2026-11-05T00:00:00Z' };
+    imports[options.group.id + ':2026-10-26'] = complete;
+    imports[second.id + ':2026-10-26'] = complete;
+    imports[options.group.id + ':2026-11-02'] = { ...complete, unresolved: true };
+    await browser().mount(host, {
+      el: element, ...options, overview: true,
+      ranges: [{ term: '3', startDate: '2026-07-20', endDate: '2026-09-25' }, ...options.ranges],
+      request: async path => path.endsWith('/groups') ? { revision: 1, content: { groups: [options.group, second, manual] } } :
+        path.endsWith('/drive-sync') ? { enabled: true, folderId: 'synthetic_folder_123' } :
+          { imports, markedWeeks: [{ student_id: 'k:100', week: '2026-10-19' }] },
+      syncNow: async () => {}
+    });
+    const coverage = () => descendants(host).find(node => node.attrs['aria-label'] === 'Term attendance sync coverage');
+    let nodes = descendants(coverage());
+    const rows = nodes.filter(node => node.tag === 'tr' && node.children.some(child => child.attrs.scope === 'row'));
+    assert.equal(rows.length, 10);
+    assert.equal(rows[0].children[0].textContent, 'Week 1');
+    assert.equal(rows[0].children[1].textContent, '2026-10-12');
+    assert.match(rows[0].children[2].textContent, /^Not synced - 0\/2/);
+    assert.match(rows[1].children[2].textContent, /sync status unknown/);
+    assert.match(rows[2].children[2].textContent, /^Synced - 2\/2/);
+    assert.match(rows[3].children[2].textContent, /^Partially synced - 0\/2/);
+    const select = nodes.find(node => node.attrs['aria-label'] === 'Drive sync term number');
+    select.value = '3'; select.events.change();
+    assert.ok(descendants(coverage()).some(node => node.textContent === '2026-07-20'));
+    await descendants(coverage()).find(node => node.textContent === 'Refresh weekly sync status').events.click();
+    assert.equal(descendants(coverage()).find(node => node.attrs['aria-label'] === 'Drive sync term number').value, '3');
+    const current = descendants(coverage()).find(node => node.attrs['aria-label'] === 'Drive sync term number');
+    current.value = '4'; current.events.change();
+    imports[options.group.id + ':2026-11-02'] = complete;
+    imports[second.id + ':2026-11-02'] = complete;
+    await descendants(coverage()).find(node => node.textContent === 'Refresh weekly sync status').events.click();
+    assert.equal(descendants(coverage()).filter(node => node.attrs['data-week-sync-status'] === 'Synced').length, 2);
+    const card = descendants(host).find(node => node.tag === 'details' &&
+      node.children.some(child => child.textContent === 'Google Drive attendance folder sync'));
+    assert.ok(descendants(card).includes(coverage()));
+  });
   descendants(host).find(node => node.attrs.type === 'file').files = [{ size: 100 }];
   await descendants(host).find(node => node.textContent === 'Preview PDF import').events.click();
   const nodes = descendants(host);

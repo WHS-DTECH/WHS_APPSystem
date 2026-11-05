@@ -201,6 +201,7 @@
     host.append(feedback, controls);
     let revision = 0, groups = [], selected = '', selectedTerm = '', selectedWeek = '', marks = new Map();
     let pending = false, draft = false, directory;
+    let driveTerm = '';
     const driveFeedback = el('div', '', { 'data-attendance-drive-feedback': '' });
     function driveSay(message, error = false) {
       driveFeedback.replaceChildren(el('p', message, {
@@ -577,10 +578,10 @@
       }
       const scroll = el('div', '', { class: 'attendance-scroll', tabindex: '0' });
       scroll.append(table); sheet.append(scroll);
-      if (syncNow) sheet.append(await renderDriveSync());
+      if (syncNow) sheet.append(await renderDriveSync(history));
       sheet.append(renderImport(null));
     }
-    async function renderDriveSync() {
+    async function renderDriveSync(history) {
       const settings = await request('attendance/' + year + '/drive-sync');
       const panel = el('details', '', { class: 'attendance-import' });
       panel.open = settings.enabled;
@@ -613,6 +614,49 @@
       panel.append(folder, label, authorise, link, save, run,
         el('p', settings.enabled ? 'Automatic sync is enabled for this planner year.' : 'Automatic sync is off for this planner year.', { role: 'status' }),
         driveFeedback);
+      const coverage = el('section', '', { 'aria-label': 'Term attendance sync coverage' });
+      coverage.append(el('h3', 'Term attendance sync coverage'),
+        el('p', 'Saved PDF import coverage across all automatic class tabs, including manual PDF uploads. Synced means every tab has complete recorded PDF coverage for that week. Partial includes missing marks or unmatched students; existing conflicts are kept. This is not confirmation that every document synced successfully. Refresh after sync to see updated coverage.'));
+      const terms = el('select', '', { 'aria-label': 'Drive sync term number' });
+      const available = ranges.filter(range => range.startDate && range.endDate);
+      for (const range of available) terms.append(el('option', 'Term ' + range.term, { value: range.term }));
+      if (!available.some(range => range.term === driveTerm)) driveTerm = selectedTerm;
+      terms.value = driveTerm;
+      const termLabel = el('label', 'Term number '); termLabel.append(terms);
+      const refresh = el('button', 'Refresh weekly sync status', { type: 'button' });
+      refresh.addEventListener('click', () => act(loadSheet, driveSay));
+      const scroll = el('div', '', { class: 'attendance-scroll', tabindex: '0' });
+      function renderCoverage() {
+        scroll.replaceChildren();
+        const range = available.find(range => range.term === driveTerm);
+        if (!range) return;
+        const automatic = groups.filter(group => group.scheduleMode !== 'manual' && group.classes.length);
+        const table = el('table', '', { class: 'attendance-table' });
+        table.append(el('caption', 'Term ' + driveTerm + ' - weekly attendance sync status'));
+        const head = el('thead'), headings = el('tr'), body = el('tbody');
+        ['Term week', 'Week beginning', 'Sync status'].forEach(label => headings.append(el('th', label, { scope: 'col' })));
+        head.append(headings); table.append(head, body);
+        for (const [index, week] of termWeeks(range.startDate, range.endDate).entries()) {
+          const entries = automatic.map(group => history.imports[group.id + ':' + week]);
+          const complete = entries.filter(entry => entry && entry.recorded === entry.expected && !entry.unresolved).length;
+          const imported = entries.filter(Boolean).length;
+          const hasMarks = history.markedWeeks.some(item => item.week === week &&
+            automatic.some(group => group.students.some(student => student.id === item.student_id)));
+          const status = !automatic.length ? 'No automatic class tabs' :
+            complete === automatic.length ? 'Synced' : imported ? 'Partially synced' :
+              hasMarks ? 'Marks present - sync status unknown' : 'Not synced';
+          const row = el('tr');
+          row.append(el('th', 'Week ' + (index + 1), { scope: 'row' }), el('td', week),
+            el('td', status + (automatic.length ? ' - ' + complete + '/' + automatic.length + ' class tabs complete' : ''),
+              { 'data-week-sync-status': status }));
+          body.append(row);
+        }
+        scroll.append(table);
+      }
+      terms.addEventListener('change', () => { driveTerm = terms.value; renderCoverage(); });
+      coverage.append(termLabel, refresh, scroll);
+      renderCoverage();
+      panel.append(coverage);
       return panel;
     }
     add.addEventListener('click', () => editGroup());
