@@ -88,9 +88,13 @@ test('unconfigured, unauthorised and invalid requests never read private records
 });
 
 test('ambiguous identity, denied owner and unavailable holiday calendar fail explicitly', async t => {
-  for (const options of [{ ambiguous: true }, { denied: true }, { calendarUnavailable: true }]) {
+  const logs = [];
+  t.mock.method(console, 'error', (...args) => logs.push(args));
+  for (const [options, code] of [[{ ambiguous: true }, 'student-not-unique'],
+    [{ denied: true }, 'owner-access-unavailable'], [{ calendarUnavailable: true }, 'school-calendar-unavailable']]) {
     const f = await fixture(t, options);
     assert.equal((await f.call()).status, 502);
+    assert.deepEqual(logs.at(-1), ['[typing-attendance] Read failed:', code]);
   }
 });
 

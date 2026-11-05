@@ -17,6 +17,7 @@ const addDays = (start, days) => {
   return date.toISOString().slice(0, 10);
 };
 const periodTimes = { p1: [540, 600], p2: [600, 660], p3: [680, 740], p4: [740, 800], p5: [840, 900] };
+const sourceError = code => Object.assign(new Error('Planner attendance source needs confirmation.'), { code });
 function lessonEntries(events, weekStart) {
   const entries = {};
   const minutes = value => {
@@ -74,12 +75,12 @@ function createTypingAttendanceRouter({ env = process.env, dbQuery = coreQuery, 
     try {
       const ownerRows = (await dbQuery('SELECT id FROM users WHERE lower(email)=lower($1) AND is_active=true',
         [env.DTECH_TYPING_ATTENDANCE_OWNER_EMAIL])).rows;
-      if (ownerRows.length !== 1) throw new Error('The configured Planner owner is not uniquely matched.');
+      if (ownerRows.length !== 1) throw sourceError('owner-not-unique');
       const owner = await authorize(ownerRows[0].id, 'teacher-planner', dbQuery);
-      if (!owner) throw new Error('The configured teacher no longer has Planner access.');
+      if (!owner) throw sourceError('owner-access-unavailable');
       const ids = (await directoryQuery(`SELECT DISTINCT trim(id_number) AS id FROM student_details_upload
         WHERE status='Current' AND lower(trim(email_school))=$1 AND NULLIF(trim(id_number),'') IS NOT NULL`, [studentEmail])).rows;
-      if (ids.length !== 1) throw new Error('School student identity needs confirmation.');
+      if (ids.length !== 1) throw sourceError('student-not-unique');
       const studentId = 'k:' + ids[0].id;
       const preferences = (await query("SELECT content FROM planner_sections WHERE owner_id=$1 AND year=2000 AND section='preferences' AND entry_key='main'", [owner.id])).rows[0]?.content;
       const years = [...new Set([Number(startDate.slice(0, 4)), Number(addDays(startDate, 48).slice(0, 4))])];
@@ -93,13 +94,14 @@ function createTypingAttendanceRouter({ env = process.env, dbQuery = coreQuery, 
           query('SELECT subscription_url FROM teacher_calendar_settings WHERE owner_id=$1', [owner.id])
         ]);
         const dates = selectRegionalHolidays(rawDates, preferences?.anniversaryRegion || 'Westland');
-        if (dates.publicHolidaysAvailable === false || dates.available === false) throw new Error('Planner school calendar needs confirmation.');
+        if (dates.publicHolidaysAvailable === false || dates.available === false) throw sourceError('school-calendar-unavailable');
         const saved = (groups.rows[0]?.content.groups || []).filter(group => /DTECH/i.test(group.name) &&
           group.scheduleMode !== 'manual' && group.students.some(student => student.id === studentId));
         const codes = new Set(saved.flatMap(group => group.classes));
         const studentClasses = directory.classes.filter(group => codes.has(group.code) &&
           group.students.some(student => student.id === studentId));
-        if (!studentClasses.length || !subscription.rows[0]?.subscription_url) throw new Error('Student DTECH class or teacher timetable needs confirmation.');
+        if (!studentClasses.length) throw sourceError('student-dtech-class-unavailable');
+        if (!subscription.rows[0]?.subscription_url) throw sourceError('teacher-timetable-unavailable');
         contexts[year] = { codes: studentClasses.map(group => group.code), school: school.rows[0]?.content || {},
           dates, subscription: subscription.rows[0].subscription_url };
       }
