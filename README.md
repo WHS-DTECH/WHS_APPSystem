@@ -1354,6 +1354,10 @@ tab that week, regardless of blank PDF slots or unmatched students. Manual PDF
 uploads also count; manually entered marks alone do not. Per-document errors
 remain in the Drive results above. Use **Refresh weekly sync status** to reload
 saved status; completing a sync also refreshes it. Manual-mode tabs are excluded.
+The class-specific term table also uses **Synced** or **Not synced**, based on
+saved PDF import history rather than timetable completeness. Detailed Drive
+results are collapsed under the **View sync report** pill; the current sync state
+and controls remain visible outside the report.
 
 The Moderation **Marking Confirmation & Feedback** and **WHS Coversheet** contents
 tabs label and open each record's respective form, independently of its marking

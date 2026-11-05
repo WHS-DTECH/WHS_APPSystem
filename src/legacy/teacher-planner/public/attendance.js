@@ -179,12 +179,8 @@
     }
     return summary;
   }
-  function weekStatus(entry, hasMarks) {
-    if (!entry) return hasMarks ? 'Marks present - import status unknown' : 'Not loaded';
-    return (entry.recorded === entry.expected && !entry.unresolved ? 'Loaded' : 'Partial') +
-      ' - ' + entry.recorded + '/' + entry.expected + ' scheduled marks in PDF' +
-      (entry.conflicts ? '; ' + entry.conflicts + ' conflicts kept' : '') +
-      (entry.unresolved ? '; unmatched students' : '');
+  function weekStatus(entry) {
+    return entry ? 'Synced' : 'Not synced';
   }
   async function mount(host, { el, request, mutate, uploadPdf, loadSchedule, syncNow, bindSyncState,
     year, ranges, school, calendar, today, overview = false }) {
@@ -553,9 +549,9 @@
       classes.addEventListener('change', () => { selected = classes.value; act(loadSheet); });
       const termLabel = el('label', 'Term '), classLabel = el('label', 'Class ');
       termLabel.append(terms); classLabel.append(classes);
-      const refresh = el('button', 'Refresh loaded status', { type: 'button' });
+      const refresh = el('button', 'Refresh sync status', { type: 'button' });
       refresh.addEventListener('click', () => act(loadSheet));
-      sheet.append(termLabel, classLabel, refresh, el('p', 'Filters show one class and term. PDF uploads below populate all matching saved automatic class tabs. Loaded means every scheduled mark for matched students was present in the PDF; it does not mean conflicts were overwritten. Partial includes missing marks, future lessons or unmatched students.'));
+      sheet.append(termLabel, classLabel, refresh);
       if (!groups.length) {
         sheet.append(el('p', 'Create your class tabs on the Attendance page first.', { role: 'status' }));
         return;
@@ -566,15 +562,13 @@
       const table = el('table', '', { class: 'attendance-table' });
       table.append(el('caption', group.name + ' - Term ' + selectedTerm + ' import history'));
       const head = el('thead'), headings = el('tr'), body = el('tbody');
-      ['Term week', 'Week beginning', 'PDF status', 'Last imported'].forEach(label => headings.append(el('th', label, { scope: 'col' })));
+      ['Term week', 'Week beginning', 'Sync status', 'Last synced'].forEach(label => headings.append(el('th', label, { scope: 'col' })));
       head.append(headings); table.append(head, body);
       for (const [index, week] of termWeeks(range.startDate, range.endDate).entries()) {
         const entry = history.imports[group.id + ':' + week];
-        const hasMarks = history.markedWeeks.some(item => item.week === week && group.students.some(student => student.id === item.student_id));
         const row = el('tr');
         row.append(el('th', 'Week ' + (index + 1), { scope: 'row' }),
-          el('td', week), el('td', weekStatus(entry, hasMarks), { 'data-import-status': entry ?
-            entry.recorded === entry.expected && !entry.unresolved ? 'loaded' : 'partial' : hasMarks ? 'unknown' : 'empty' }),
+          el('td', week), el('td', weekStatus(entry), { 'data-import-status': entry ? 'synced' : 'empty' }),
           el('td', entry ? new Date(entry.importedAt).toLocaleString('en-NZ', { timeZone: 'Pacific/Auckland' }) : 'Never recorded'));
         body.append(row);
       }
@@ -621,9 +615,11 @@
           'Sync idle - check the latest result below, or start a new sync.';
         driveFeedback.setAttribute('aria-busy', String(running));
       }, driveFeedback);
+      const report = el('details', '', { class: 'planner-hint' });
+      report.append(el('summary', 'View sync report'), driveFeedback);
       panel.append(folder, label, authorise, link, save, run,
         el('p', settings.enabled ? 'Automatic sync is enabled for this planner year.' : 'Automatic sync is off for this planner year.', { role: 'status' }),
-        syncState, driveFeedback);
+        syncState, report);
       const coverage = el('section', '', { 'aria-label': 'Term attendance sync coverage' });
       coverage.append(el('h3', 'Term attendance sync status'));
       const terms = el('select', '', { 'aria-label': 'Drive sync term number' });

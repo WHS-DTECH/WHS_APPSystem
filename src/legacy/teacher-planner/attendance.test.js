@@ -132,12 +132,12 @@ test('weekly coverage distinguishes complete PDFs from missing/future slots and 
   assert.equal(plan.coverage[0].expected, 5);
   assert.equal(plan.coverage[0].recorded, 5);
   assert.equal(plan.coverage[0].conflicts, 1);
-  assert.match(api.weekStatus(plan.coverage[0], true), /^Loaded.*1 conflicts kept/);
+  assert.equal(api.weekStatus(plan.coverage[0]), 'Synced');
   assert.equal(plan.coverage[1].expected, 2);
   assert.equal(plan.coverage[1].recorded, 1);
-  assert.match(api.weekStatus(plan.coverage[1], true), /^Partial/);
-  assert.equal(api.weekStatus(undefined, true), 'Marks present - import status unknown');
-  assert.equal(api.weekStatus(undefined, false), 'Not loaded');
+  assert.equal(api.weekStatus(plan.coverage[1]), 'Synced');
+  assert.equal(api.weekStatus(undefined, true), 'Not synced');
+  assert.equal(api.weekStatus(undefined, false), 'Not synced');
   options.today = '2026-10-27';
   plan = api.planImport(options);
   assert.equal(plan.coverage[0].recorded, 2);
@@ -159,8 +159,9 @@ test('two-week page filters term/class, displays every week and distinguishes le
   let nodes = descendants(host);
   assert.equal(nodes.filter(node => node.attrs.scope === 'row').length, 10);
   assert.ok(nodes.some(node => node.textContent === 'Week 10'));
-  assert.ok(nodes.some(node => node.textContent.startsWith('Loaded - 5/5')));
-  assert.ok(nodes.some(node => node.textContent === 'Marks present - import status unknown'));
+  assert.ok(nodes.some(node => node.textContent === 'Synced'));
+  assert.ok(nodes.some(node => node.textContent === 'Not synced'));
+  assert.equal(nodes.some(node => /Loaded means|Partial includes|scheduled marks in PDF/.test(node.textContent)), false);
   const classes = nodes.find(node => node.attrs['aria-label'] === 'Two-week attendance class');
   classes.value = second.id; classes.events.change(); await new Promise(resolve => setImmediate(resolve));
   nodes = descendants(host);
@@ -472,6 +473,12 @@ test('Drive setup authorises only on click and saves the chosen private folder b
     node.children.some(child => child.textContent === 'Google Drive attendance folder sync'));
   assert.ok(descendants(card).some(node => /completed successfully: 4 blank marks filled/.test(node.textContent)),
     'sync result stays in the Drive card after weekly history reloads');
+  const report = descendants(card).find(node => node.tag === 'details' &&
+    node.children.some(child => child.textContent === 'View sync report'));
+  assert.ok(report);
+  assert.ok(!report.open, 'detailed sync report is collapsed by default');
+  assert.equal(report.attrs.class, 'planner-hint', 'report uses existing pill-style disclosure');
+  assert.ok(descendants(report).some(node => /completed successfully: 4 blank marks filled/.test(node.textContent)));
 });
 test('planner-opening Drive sync protects navigation and shows explicit success or failure', async () => {
   const source = fs.readFileSync(require.resolve('./public/planner.js'), 'utf8');
