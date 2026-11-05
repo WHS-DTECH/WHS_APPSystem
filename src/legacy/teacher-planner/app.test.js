@@ -343,6 +343,28 @@ test('setup folder switches accessible right-side sheets without recreating unsa
   assert.equal(tasksLoads,1);
 });
 
+test('term covers use the selected term pill and prominent year while the main cover retains the teacher name', async () => {
+  const source=await fs.readFile(path.join(__dirname,'public','planner.js'),'utf8');
+  const helper=source.slice(source.indexOf('  function coverPage('),source.indexOf('  function field('));
+  const el=(tag,text='',attrs={})=>({tag,text,attrs,children:[],append(...nodes){this.children.push(...nodes);}});
+  const context={el,artwork:()=>el('img'),document:{body:{dataset:{plannerName:'Synthetic Teacher'}}},year:2027,term:'1'};
+  vm.runInNewContext(helper,context);
+  for(let term=1;term<=4;term++){
+    context.term=String(term);
+    const page=context.coverPage('term-'+term+'-bird',String(context.year));
+    const band=page.children[1];
+    assert.equal(band.children[0].text,'Term '+term);
+    assert.equal(band.children[1].text,'PUKAPUKA WHAKAMAHERE | PLANNER');
+    assert.equal(band.children[2].text,'2027');
+    assert.equal(band.children[2].attrs.class,'cover-year');
+  }
+  const band=context.coverPage('cover-kokako','').children[1];
+  assert.equal(band.children[0].text,'Synthetic Teacher');
+  assert.equal(band.children[1].text,'2027 PUKAPUKA WHAKAMAHERE | PLANNER');
+  assert.equal(band.children.length,2);
+  assert.match(source,/coverPage\(files\[Number\(term\) - 1\], String\(year\)\)/);
+});
+
 test('term circles display numbers and weekly timetable notes stay readable without changing print size', async () => {
   const source = await fs.readFile(path.join(__dirname,'public','planner.js'),'utf8');
   const selector = source.slice(source.indexOf('  function renderSelectors()'),source.indexOf("    if (section === 'week') {",source.indexOf('  function renderSelectors()'))) + '\n  }';
@@ -368,6 +390,7 @@ test('term circles display numbers and weekly timetable notes stay readable with
   }
   const css=await fs.readFile(path.join(__dirname,'public','planner.css'),'utf8');
   assert.match(css,/\.planner-term-badge \{[^}]*font-size: 42px/);
+  assert.match(css,/\.planner-term-badge \{[^}]*text-align-last: center; appearance: none/);
   assert.match(css,/\.planner-term-caption \{[^}]*pointer-events: none/);
   assert.match(css,/\.planner-week textarea \{[^}]*font-size: 16px/);
   assert.doesNotMatch(css,/\.planner-week textarea \{[^}]*font-size: 11px/);
@@ -788,9 +811,9 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(groups[1][2], />Setup<\/h2>/);
   assert.match(groups[2][2], />Section Modules<\/h2>/);
   assert.equal([...groups[2][2].matchAll(/disabled title="Page coming soon"/g)].length, 5);
-  assert.match(html, /planner\.css\?v=term-caption-32/);
-  assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=setup-navigation-30"'));
-  assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=setup-navigation-30"'));
+  assert.match(html, /planner\.css\?v=term-cover-33/);
+  assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=term-cover-31"'));
+  assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=term-cover-31"'));
   const heading = html.match(/<header class="planner-heading">([\s\S]*?)<\/header>/)[1];
   for (const id of ['planner-year', 'open-year', 'print-planner']) {
     assert.match(heading, new RegExp('id="' + id + '"'));
@@ -853,7 +876,7 @@ test('module denies anonymous/student access and accepts a supplied teacher iden
     assert.match(html, /Last Updated:/);
     assert.match(html, /id="planner-year"[^>]*value="2026"/);
     assert.match(html, /data-api="\/module\/api\/planner\/"/);
-    assert.match(html, /src="\/module\/framework\/planner\.js\?v=setup-navigation-30"/);
+    assert.match(html, /src="\/module\/framework\/planner\.js\?v=term-cover-31"/);
     assert.match(html, /Weekly planner/);
     assert.match(html, /Professional learning/);
     assert.ok(!html.includes('name="whs-global-control"'));

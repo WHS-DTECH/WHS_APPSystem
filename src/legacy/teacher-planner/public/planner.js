@@ -452,6 +452,7 @@
     return el('img', '', { src: assets + 'artwork/' + file + '.webp', alt, loading: 'lazy' });
   }
   function coverPage(file, subtitle) {
+    const isTermCover = file.startsWith('term-');
     const page = el('section', '', { class: 'planner-cover paper-page' });
     const descriptions = {
       'cover-kokako': 'Kōkako among native flowers: original planner cover artwork',
@@ -462,9 +463,9 @@
     };
     page.append(artwork(file, descriptions[file]));
     const band = el('div', '', { class: 'cover-band' });
-    band.append(el('p', document.body.dataset.plannerName, { class: 'cover-name' }));
-    band.append(el('h2', year + ' PUKAPUKA WHAKAMAHERE | PLANNER'));
-    if (subtitle) band.append(el('p', subtitle));
+    band.append(el('p', isTermCover ? 'Term ' + term : document.body.dataset.plannerName, { class: 'cover-name' }));
+    band.append(el('h2', (isTermCover ? '' : year + ' ') + 'PUKAPUKA WHAKAMAHERE | PLANNER'));
+    if (subtitle) band.append(el('p', subtitle, isTermCover ? { class: 'cover-year' } : {}));
     page.append(band);
     return page;
   }
@@ -2552,7 +2553,7 @@
     if (section === 'term') {
       const files = ['term-1-takahe', 'term-2-bird', 'term-3-kakapo', 'term-4-kiwi'];
       const spread = el('div', '', { class: 'planner-spread term-spread' });
-      spread.append(coverPage(files[Number(term) - 1], 'TERM ' + term + ' | ' + year), grid);
+      spread.append(coverPage(files[Number(term) - 1], String(year)), grid);
       content.append(spread);
       for (const area of grid.querySelectorAll('textarea')) {
         area.classList.add('term-auto-expand');

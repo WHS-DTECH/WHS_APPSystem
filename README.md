@@ -1455,8 +1455,12 @@ navigation/unsaved-edit checks. The Google Calendar sits below both panels at
 full width, with an event-detail panel and a minimum readable week-grid width
 (horizontal scrolling on smaller screens). The existing term selector stays
 above the page, styled as a circular badge with a prominent 42px number and a
-small **Term** label above the number inside the circle; it still opens the native 1-4
+small **Term** label above the horizontally centred number inside the circle; a
+separate decorative arrow does not offset the number. It still opens the native 1-4
 dropdown. Print actions are unchanged; a printing redesign remains deferred.
+Term covers show the selected **Term 1–4** in the white pill instead of the teacher
+name, with the selected planner year large and centred beneath the planner title.
+The main planner cover still displays the teacher name.
 Without an explicit term in a planner link or a manual selection, Term Plan uses
 the current term from WHS school dates (Ministry dates fill unpublished ranges);
 holidays use the most recently started term. Explicit selections and saved private
