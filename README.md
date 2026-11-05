@@ -229,10 +229,16 @@ The WHS_APPSystem root (`/`) is the Launchpad. `/launchpad` and the former
 `/launchpad.html` address use the same authenticated handler. Signed-out visitors
 see Google sign-in, not app cards; successful sign-in returns to the Launchpad
 unless an app-specific return path was requested. Inactive accounts are denied.
+Each new sign-in overwrites the previous return-address cookie; a sign-in without
+an app destination returns to Launchpad rather than an abandoned earlier app.
+The Launchpad sign-in link explicitly requests that return, and failed sign-in
+shows retry guidance instead of silently displaying the same welcome page.
 The template is private at [`views/launchpad.html`](views/launchpad.html), not a
 public static file. Standalone downloads are retired (HTTP 410).
 The Launchpad masthead uses the shared circular school logo, identical to the
 original Kamar Uploader asset.
+Its prominent **Something not working? Report a fault** button opens `/faults/new`,
+replacing the School website link. Signed-out users sign in and return to the form.
 
 The existing `modules` registry owns app destinations and active status.
 Non-admin users see only individually assigned active modules: existing
@@ -274,6 +280,27 @@ Before moving each app, verify its deployed source, database restore, identity
 mapping, files, background jobs and integration behaviour using isolated test
 data. Preserve its individual database and plan cutover/rollback before changing
 its registry destination. Notify assigned users only after acceptance testing.
+
+### Fault reporting and Helpdesk
+
+Migration 051 creates `helpdesk_faults` in Core `DATABASE_URL`. Active signed-in
+users can report a fault without a module assignment, including when an app is
+missing from Launchpad. The separate form records the authenticated reporter,
+summary, app/service, optional page address and fault details. Page query strings,
+fragments and embedded credentials are not stored. Do not include student records
+or secrets. No screenshots or attachments are collected.
+
+Reports are saved directly to the database, not dependent on email delivery.
+After submission, users receive a ticket number and can view only their own
+reports and Helpdesk replies under `/faults` (**My fault reports**).
+Global ADMINs manage all reports at `/admin/helpdesk` (**Administrator Dashboard >
+Helpdesk**, also in shared navigation), filter by **Open**, **In progress** or
+**Resolved**, and save a reply visible to the reporter. Updates use revision
+checks to prevent one administrator overwriting another's changes. Lists are
+paginated at 25 tickets. Forms require session CSRF tokens; submissions are
+limited to five per IP per 15 minutes. Inactive users cannot report or manage.
+The fault router precedes registered app guards so incorrect app assignments
+cannot block reporting. Existing Contact Web Master email remains unchanged.
 
 ## Module Builder / Module Wizard
 
@@ -1203,8 +1230,11 @@ prepared it. A maintenance request must be tested before it can be scheduled, an
 the scheduler only sends warnings linked to a successful test. A completion
 notification has its own test-and-send workflow; it names the selected app(s) in
 the subject and body, then uses generic wording that directs recipients to access
-them from the WHS Launchpad. Both tabs show
-their test and staff-delivery history, including failures, from Email Service.
+them from the WHS Launchpad.
+Completion links use `/launchpad` and explain school Google sign-in and the
+**Report a fault** option if an app is missing or will not open. Updated completion
+wording requires a fresh successful test email before staff delivery.
+Both tabs show their test and staff-delivery history, including failures, from Email Service.
 Warnings are sent 14 days before the scheduled start (or at the next scheduler run
 when scheduled less than 14 days ahead).
 

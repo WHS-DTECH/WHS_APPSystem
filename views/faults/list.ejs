@@ -1,0 +1,42 @@
+<%- include('../partials/header') %>
+<link rel="stylesheet" href="/helpdesk.css">
+<section class="panel whs-helpdesk">
+  <h1><%= title %></h1>
+  <p><%= manage ? 'Review reported faults, update their status and leave replies for the reporter.' : 'Only your own reports are shown. Open a ticket to read Helpdesk replies.' %></p>
+  <p><a class="button button-primary" href="/faults/new">Report a fault</a> <a href="/launchpad">Launchpad</a></p>
+  <form method="get" class="helpdesk-filters">
+    <label for="fault-status">Status</label>
+    <select id="fault-status" name="status">
+      <option value="">All statuses</option>
+      <% for (const [key, label] of Object.entries(statuses)) { %>
+        <option value="<%= key %>" <%= selectedStatus === key ? 'selected' : '' %>><%= label %></option>
+      <% } %>
+    </select>
+    <button class="button" type="submit">Filter tickets</button>
+  </form>
+  <% if (!tickets.length) { %><p role="status">No fault reports match this view.</p><% } else { %>
+  <div class="helpdesk-scroll" tabindex="0" aria-label="Fault reports, scroll for all columns">
+    <table>
+      <caption><%= manage ? 'Helpdesk fault reports' : 'Your fault reports' %></caption>
+      <thead><tr><th scope="col">Ticket</th><th scope="col">Summary</th><th scope="col">App/service</th><th scope="col">Status</th><% if (manage) { %><th scope="col">Reporter</th><% } %><th scope="col">Reported (NZ)</th></tr></thead>
+      <tbody>
+        <% tickets.forEach(ticket => { %>
+        <tr>
+          <th scope="row"><a href="<%= manage ? '/admin/helpdesk/' : '/faults/' %><%= ticket.id %>">#<%= ticket.ticket_number %></a></th>
+          <td><%= ticket.subject %></td><td><%= ticket.app_name %></td>
+          <td><span class="fault-status fault-status-<%= ticket.status %>"><%= statuses[ticket.status] %></span></td>
+          <% if (manage) { %><td><%= ticket.reporter_name %></td><% } %>
+          <td><%= formatDate(ticket.created_at) %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+  <nav aria-label="Ticket pages" class="helpdesk-pages">
+    <% if (page > 1) { %><a href="?page=<%= page - 1 %>&amp;status=<%= encodeURIComponent(selectedStatus) %>">Previous page</a><% } %>
+    <span>Page <%= page %></span>
+    <% if (more) { %><a href="?page=<%= page + 1 %>&amp;status=<%= encodeURIComponent(selectedStatus) %>">Next page</a><% } %>
+  </nav>
+</section>
+<%- include('../partials/footer') %>

@@ -1,0 +1,11 @@
+<%- include('../partials/header') %>
+<link rel="stylesheet" href="/helpdesk.css">
+<section class="panel whs-helpdesk">
+  <h1>Ticket changed</h1>
+  <p role="alert">Your update was NOT saved. This ticket changed or was removed. Copy your reply below, then reload the ticket and review the latest update before trying again.</p>
+  <p>Your proposed status: <strong><%= status %></strong></p>
+  <label for="unsaved-reply">Your unsaved reply</label>
+  <textarea id="unsaved-reply" rows="8" readonly><%= reply %></textarea>
+  <p><a class="button button-primary" href="/admin/helpdesk/<%= id %>">Reload ticket</a></p>
+</section>
+<%- include('../partials/footer') %>

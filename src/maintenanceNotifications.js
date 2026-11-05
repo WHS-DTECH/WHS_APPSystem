@@ -47,7 +47,7 @@ function noticeEmail(notice, kind, notes = '') {
   const subject = resumed
     ? `[${source}] [WHS APPSystem] Maintenance work completed: ${appNames}`
     : `[${source}] [WHS APPSystem] ${notice.module_name} maintenance planned`;
-  const launchpadUrl = new URL('/', config.appBaseUrl).href;
+  const launchpadUrl = new URL('/launchpad', config.appBaseUrl).href;
   const completionUpdate = String(notes || '').trim();
   const text = resumed
     ? [
@@ -56,6 +56,7 @@ function noticeEmail(notice, kind, notes = '') {
       '',
       ...(completionUpdate ? [completionUpdate, ''] : []),
       `Please access the app(s) covered by this notice from the WHS Launchpad: ${launchpadUrl}`,
+      'If asked, sign in with your school Google account. If the app is missing or will not open, use Report a fault on the Launchpad.',
       '',
       'Thank you for your patience.'
     ].join('\n')
@@ -70,7 +71,7 @@ function noticeEmail(notice, kind, notes = '') {
       'A further email will be sent when the service is available again.'
     ].filter(Boolean).join('\n');
   const html = resumed
-    ? `<p><strong>The maintenance work is complete and the following app(s) are available again:</strong></p><p>${escapeHtml(appNames)}</p>${completionUpdate ? `<p>${escapeHtml(completionUpdate).replace(/\n/g, '<br>')}</p>` : ''}<p>Please access the app(s) covered by this notice from the <a href="${escapeHtml(launchpadUrl)}">WHS Launchpad</a>.</p><p>Thank you for your patience.</p>`
+    ? `<p><strong>The maintenance work is complete and the following app(s) are available again:</strong></p><p>${escapeHtml(appNames)}</p>${completionUpdate ? `<p>${escapeHtml(completionUpdate).replace(/\n/g, '<br>')}</p>` : ''}<p>Please access the app(s) covered by this notice from the <a href="${escapeHtml(launchpadUrl)}">WHS Launchpad</a>.</p><p>If asked, sign in with your school Google account. If the app is missing or will not open, use Report a fault on the Launchpad.</p><p>Thank you for your patience.</p>`
     : `<p><strong>Planned maintenance for ${escapeHtml(notice.module_name)}</strong></p><p><strong>When:</strong> ${escapeHtml(formatDate(notice.scheduled_at))} (New Zealand time)</p>${notice.expected_duration ? `<p><strong>Expected duration:</strong> ${escapeHtml(notice.expected_duration)}</p>` : ''}<p><strong>What to expect:</strong><br>${escapeHtml(notice.impact).replace(/\n/g, '<br>')}</p>${notice.details ? `<p><strong>Additional information:</strong><br>${escapeHtml(notice.details).replace(/\n/g, '<br>')}</p>` : ''}<p>A further email will be sent when the service is available again.</p>`;
   return { subject, text, html };
 }
@@ -80,7 +81,7 @@ function emailTestSubject(content) {
   return match ? `[${match[1]}] [TEST] ${content.subject.slice(match[0].length)}` : `[TEST] ${content.subject}`;
 }
 
-const TEMPLATE_VERSIONS = { completed: 2 };
+const TEMPLATE_VERSIONS = { completed: 3 };
 
 function contentHash(kind, moduleKeys, payload) {
   const templateVersion = TEMPLATE_VERSIONS[kind];

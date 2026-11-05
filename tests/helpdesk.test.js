@@ -1,0 +1,235 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const express = require('express');
+const session = require('express-session');
+const path = require('node:path');
+const fs = require('node:fs');
+const crypto = require('node:crypto');
+const { Pool } = require('pg');
+const { createHelpdeskRouters, faultInput } = require('../src/helpdesk');
+
+const owner = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const other = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const admin = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+const body = { subject: 'Launchpad will not open', appName: 'Launchpad',
+  pageUrl: '/launchpad?token=private#details', description: 'Clicked the completion email link. The page did not open.' };
+
+async function fixture(t, queryOverride) {
+  const tickets = new Map(), calls = [];
+  let failed = false;
+  const dbQuery = async (sql, params) => {
+    calls.push({ sql, params });
+    if (failed) throw new Error('Synthetic database unavailable');
+    if (sql.startsWith('INSERT')) {
+      const ticket = { id: params[0], reporter_id: params[1], subject: params[2], app_name: params[3],
+        page_url: params[4], description: params[5], ticket_number: String(tickets.size + 1), status: 'open', reply: '',
+        revision: 1, created_at: new Date('2026-11-05T01:00:00Z'), updated_at: new Date('2026-11-05T01:00:00Z'),
+        reporter_name: 'Synthetic Teacher', reporter_email: 'teacher@example.test' };
+      tickets.set(ticket.id, ticket);
+      return { rows: [{ id: ticket.id }] };
+    }
+    if (sql.startsWith('UPDATE')) {
+      assert.match(sql, /WHERE id=\$1 AND revision=\$5/);
+      const ticket = tickets.get(params[0]);
+      if (!ticket || ticket.revision !== params[4]) return { rows: [] };
+      Object.assign(ticket, { status: params[1], reply: params[2], updated_by: params[3], revision: ticket.revision + 1 });
+      return { rows: [{ id: ticket.id }] };
+    }
+    if (sql.includes('WHERE f.id=$1')) {
+      assert.match(sql, /\$2::uuid IS NULL OR f.reporter_id=\$2/);
+      const ticket = tickets.get(params[0]);
+      return { rows: ticket && (params[1] === null || ticket.reporter_id === params[1]) ? [ticket] : [] };
+    }
+    assert.match(sql, /\$1::uuid IS NULL OR f.reporter_id=\$1/);
+    assert.match(sql, /LIMIT 26 OFFSET \$3/);
+    return { rows: [...tickets.values()].filter(ticket => (!params[0] || ticket.reporter_id === params[0]) &&
+      (!params[1] || ticket.status === params[1])).slice(params[2], params[2] + 26) };
+  };
+  const app = express();
+  app.set('view engine', 'ejs');
+  app.set('views', path.join(__dirname, '..', 'views'));
+  app.use(express.urlencoded({ extended: false }));
+  app.use(session({ secret: 'synthetic-helpdesk-session', resave: false, saveUninitialized: false }));
+  app.use((req, res, next) => {
+    const id = req.get('x-user');
+    req.user = id ? { id, email: 'teacher@example.test', roles: id === admin ? ['ADMIN'] : ['Teacher'],
+      is_active: req.get('x-inactive') !== 'true' } : null;
+    res.locals.activeRole = id === admin ? 'ADMIN' : 'Teacher';
+    next();
+  });
+  const routers = createHelpdeskRouters({ dbQuery: queryOverride || dbQuery });
+  app.use('/faults', routers.faults);
+  app.use('/admin/helpdesk', routers.helpdesk);
+  app.use((error, _req, res, _next) => res.status(500).send(error.message));
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const base = 'http://127.0.0.1:' + server.address().port;
+  async function login(id) {
+    const page = await fetch(base + '/faults/new', { headers: { 'x-user': id } });
+    return { headers: { 'x-user': id, cookie: page.headers.get('set-cookie').split(';')[0] },
+      csrf: (await page.text()).match(/name="csrf" value="([^"]+)"/)[1] };
+  }
+  const get = (url, auth = {}) => fetch(base + url, { headers: auth.headers || {}, redirect: 'manual' });
+  const post = (url, values, auth) => fetch(base + url, { method: 'POST', redirect: 'manual',
+    headers: { ...auth.headers, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ csrf: auth.csrf, ...values }) });
+  return { get, post, login, tickets, calls, fail() { failed = true; } };
+}
+
+test('fault input validates fields and strips page query strings and fragments without allowing credentials', () => {
+  assert.equal(faultInput(body).pageUrl, '/launchpad');
+  assert.equal(faultInput({ ...body, pageUrl: 'https://app.example.test/page?q=secret#private' }).pageUrl, 'https://app.example.test/page');
+  assert.equal(faultInput({ ...body, pageUrl: '' }).pageUrl, '');
+  for (const change of [
+    { subject: '' }, { subject: 'x'.repeat(151) }, { subject: 'bad\nsummary' }, { appName: '' },
+    { description: '' }, { description: 'x'.repeat(10001) }, { pageUrl: 'javascript:alert(1)' },
+    { pageUrl: '//outside.example.test' }, { pageUrl: '/\\outside.example.test' },
+    { pageUrl: 'https://user:password@example.test/' }, { pageUrl: 'not a url' }
+  ]) assert.throws(() => faultInput({ ...body, ...change }));
+});
+
+test('fault reporting saves verified identity, escapes reports and allows only owner views; ADMIN triages separately', async t => {
+  const f = await fixture(t), auth = await f.login(owner), otherAuth = await f.login(other), adminAuth = await f.login(admin);
+  const created = await f.post('/faults', { ...body, reporter_id: other, status: 'resolved', description: '<script>private fault</script>' }, auth);
+  assert.equal(created.status, 303);
+  const ticket = [...f.tickets.values()][0];
+  assert.equal(ticket.reporter_id, owner);
+  assert.equal(ticket.status, 'open');
+  assert.equal(ticket.page_url, '/launchpad');
+  assert.match(await (await f.get(created.headers.get('location'), auth)).text(), /Your fault report has been saved to Helpdesk/);
+  const page = await f.get('/faults/' + ticket.id, auth);
+  assert.equal(page.headers.get('cache-control'), 'no-store');
+  const html = await page.text();
+  assert.match(html, /&lt;script&gt;private fault&lt;\/script&gt;/);
+  assert.doesNotMatch(html, /<script>private|Save ticket update|reporter_email/);
+  assert.match(await (await f.get('/faults', auth)).text(), /Launchpad will not open/);
+  assert.doesNotMatch(await (await f.get('/faults', otherAuth)).text(), /Launchpad will not open/);
+  assert.equal((await f.get('/faults/' + ticket.id, otherAuth)).status, 404);
+  assert.equal((await f.get('/faults/' + crypto.randomUUID(), auth)).status, 404);
+  assert.equal((await f.get('/admin/helpdesk', auth)).status, 403);
+  assert.equal((await f.post('/admin/helpdesk/' + ticket.id, { status: 'resolved', revision: 1, reply: 'forged' }, auth)).status, 403);
+  const adminPage = await (await f.get('/admin/helpdesk/' + ticket.id, adminAuth)).text();
+  assert.match(adminPage, /teacher@example.test/);
+  assert.match(adminPage, /Save ticket update/);
+  assert.equal((await f.post('/admin/helpdesk/' + ticket.id, {
+    status: 'in-progress', revision: 1, reply: 'Investigating <test>'
+  }, adminAuth)).status, 303);
+  assert.equal(ticket.status, 'in-progress');
+  assert.equal(ticket.updated_by, admin);
+  assert.match(await (await f.get('/faults/' + ticket.id, auth)).text(), /Investigating &lt;test&gt;/);
+  const conflict = await f.post('/admin/helpdesk/' + ticket.id, {
+    status: 'resolved', revision: 1, reply: 'Old revision'
+  }, adminAuth);
+  assert.equal(conflict.status, 409);
+  assert.match(await conflict.text(), /readonly>Old revision<\/textarea>/);
+  assert.equal(ticket.reply, 'Investigating <test>');
+  assert.equal((await f.post('/admin/helpdesk/' + ticket.id, {
+    status: 'resolved', revision: 2, reply: 'Fixed'
+  }, adminAuth)).status, 303);
+  assert.match(await (await f.get('/admin/helpdesk?status=resolved', adminAuth)).text(), /Launchpad will not open/);
+  assert.doesNotMatch(await (await f.get('/admin/helpdesk?status=open', adminAuth)).text(), /Launchpad will not open/);
+});
+
+test('faults reject anonymous, inactive, CSRF and invalid requests without writes', async t => {
+  const f = await fixture(t), auth = await f.login(owner), adminAuth = await f.login(admin);
+  assert.equal((await f.get('/faults/new')).headers.get('location'), '/auth/google?next=%2Ffaults%2Fnew');
+  assert.equal((await f.post('/faults', body, { headers: {}, csrf: 'forged' })).status, 302);
+  const inactive = { ...auth, headers: { ...auth.headers, 'x-inactive': 'true' } };
+  assert.equal((await f.get('/faults/new', inactive)).status, 403);
+  assert.equal((await f.post('/faults', body, inactive)).status, 403);
+  assert.equal((await f.post('/faults', { ...body, csrf: 'forged' }, auth)).status, 403);
+  assert.equal((await f.post('/faults', { ...body, subject: '', description: '<keep my draft>' }, auth)).status, 400);
+  assert.equal((await f.get('/faults?status=bad', auth)).status, 400);
+  assert.equal((await f.get('/faults?page=0', auth)).status, 400);
+  assert.equal((await f.get('/faults/not-a-ticket', auth)).status, 400);
+  const id = crypto.randomUUID();
+  assert.equal((await f.post('/admin/helpdesk/' + id, { status: 'resolved', revision: 1, reply: '', csrf: 'bad' }, adminAuth)).status, 403);
+  assert.equal((await f.post('/admin/helpdesk/' + id, { status: 'bad', revision: 1, reply: '' }, adminAuth)).status, 400);
+  assert.equal(f.calls.length, 0);
+});
+
+test('fault submission failure explicitly retains draft, never claims success, and repeated submissions are bounded', async t => {
+  const logged = t.mock.method(console, 'error', () => {});
+  const f = await fixture(t), auth = await f.login(owner);
+  f.fail();
+  const failed = await f.post('/faults', { ...body, description: '<retain this>' }, auth);
+  assert.equal(failed.status, 503);
+  const html = await failed.text();
+  assert.match(html, /Your fault report was NOT saved/);
+  assert.match(html, /&lt;retain this&gt;/);
+  assert.equal(logged.mock.calls.length, 1);
+  for (let i = 0; i < 4; i++) assert.equal((await f.post('/faults', body, auth)).status, 503);
+  assert.equal((await f.post('/faults', body, auth)).status, 429);
+  assert.equal(f.tickets.size, 0);
+});
+
+test('Helpdesk paginates and filters without exposing other reporters; reporting is mounted before module access guards', async t => {
+  const f = await fixture(t), auth = await f.login(owner);
+  for (let i = 0; i < 27; i++) {
+    const id = crypto.randomUUID();
+    f.tickets.set(id, { id, ticket_number: i + 1, reporter_id: i === 26 ? other : owner,
+      subject: 'Synthetic fault ' + i, app_name: 'Planner', status: 'open', created_at: new Date(), reporter_name: 'Teacher' });
+  }
+  const first = await (await f.get('/faults', auth)).text();
+  assert.match(first, /Next page/);
+  assert.doesNotMatch(first, /Synthetic fault 25/);
+  const second = await (await f.get('/faults?page=2', auth)).text();
+  assert.match(second, /Synthetic fault 25/);
+  assert.doesNotMatch(second, /Synthetic fault 26/);
+  assert.doesNotMatch(second, /Next page/);
+  const server = fs.readFileSync(path.join(__dirname, '..', 'src', 'server.js'), 'utf8');
+  assert.ok(server.indexOf("app.use('/faults', faultReports)") < server.indexOf('app.use(createModuleAccessGuard())'));
+  assert.match(server, /app\.use\('\/admin\/helpdesk', helpdesk\)/);
+  const nav = fs.readFileSync(path.join(__dirname, '..', 'public', 'global-nav.js'), 'utf8');
+  assert.match(nav, /link\(nav, 'My fault reports', '\/faults'\)/);
+  assert.match(nav, /if \(data\.isAdmin\) \{[\s\S]*?link\(nav, 'Helpdesk', '\/admin\/helpdesk'\)/);
+});
+
+test('Helpdesk migration and complete report/status workflow persist in PostgreSQL', {
+  skip: !process.env.MODULE_BUILDER_TEST_DATABASE_URL
+}, async t => {
+  const pool = new Pool({ connectionString: process.env.MODULE_BUILDER_TEST_DATABASE_URL, ssl: false });
+  const client = await pool.connect();
+  const schema = 'helpdesk_' + crypto.randomBytes(8).toString('hex');
+  try {
+    await client.query(`CREATE SCHEMA "${schema}"`);
+    await client.query(`SET search_path TO "${schema}",public`);
+    await client.query('CREATE TABLE users(id uuid PRIMARY KEY,display_name text,email text)');
+    for (const id of [owner, other, admin]) {
+      await client.query('INSERT INTO users(id,display_name,email) VALUES($1,$2,$3)', [id, 'Synthetic User', 'synthetic@example.test']);
+    }
+    const migration = fs.readFileSync(path.join(__dirname, '..', 'migrations', '051_helpdesk_faults.sql'), 'utf8');
+    await client.query(migration);
+    await client.query(migration);
+    const f = await fixture(t, (sql, params) => client.query(sql, params));
+    const auth = await f.login(owner), otherAuth = await f.login(other), adminAuth = await f.login(admin);
+    const response = await f.post('/faults', body, auth);
+    assert.equal(response.status, 303);
+    const [ticket] = (await client.query('SELECT * FROM helpdesk_faults')).rows;
+    assert.equal(ticket.reporter_id, owner);
+    assert.equal(ticket.page_url, '/launchpad');
+    assert.equal(ticket.ticket_number, '1');
+    assert.equal((await f.get('/faults/' + ticket.id, otherAuth)).status, 404);
+    assert.doesNotMatch(await (await f.get('/faults', otherAuth)).text(), /Launchpad will not open/);
+    assert.match(await (await f.get('/admin/helpdesk', adminAuth)).text(), /Launchpad will not open/);
+    assert.equal((await f.post('/admin/helpdesk/' + ticket.id, {
+      revision: 1, status: 'resolved', reply: 'Please try again.'
+    }, adminAuth)).status, 303);
+    assert.equal((await f.post('/admin/helpdesk/' + ticket.id, {
+      revision: 1, status: 'open', reply: 'Outdated update'
+    }, adminAuth)).status, 409);
+    const [updated] = (await client.query('SELECT * FROM helpdesk_faults')).rows;
+    assert.equal(updated.status, 'resolved');
+    assert.equal(updated.reply, 'Please try again.');
+    assert.equal(updated.revision, 2);
+    assert.equal(updated.updated_by, admin);
+    assert.match(await (await f.get('/faults/' + ticket.id, auth)).text(), /Please try again/);
+    assert.match(await (await f.get('/admin/helpdesk?status=open', adminAuth)).text(), /No fault reports match/);
+    await assert.rejects(client.query("UPDATE helpdesk_faults SET status='invalid'"), /check constraint/);
+  } finally {
+    await client.query(`DROP SCHEMA "${schema}" CASCADE`);
+    client.release();
+    await pool.end();
+  }
+});

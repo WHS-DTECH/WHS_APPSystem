@@ -25,12 +25,13 @@ const hubRoles = require('./hubRoles');
 const assessmentStandards = require('./assessmentStandards');
 const emailPreferences = require('./emailPreferences');
 const studentApps = require('./studentApps');
-const { injectGlobalNav, navData, safeNext, readCookie, NEXT_COOKIE } = require('./globalNav');
+const { injectGlobalNav, navData, safeNext, readCookie, NEXT_COOKIE, setLoginReturn } = require('./globalNav');
 const { describeModules } = require('./moduleDocs');
 const { createModuleBuilderRouter } = require('./moduleBuilder');
 const { createInfrastructureCostsRouter } = require('./infrastructureCosts');
 const { createModuleIdentityRouter } = require('./moduleIdentity');
 const { createContactRouter } = require('./contact');
+const { createHelpdeskRouters } = require('./helpdesk');
 const { createAdminUsersRouter } = require('./adminUsers');
 const { createStudentBuildersRouter } = require('./studentBuilders');
 const maintenanceNotifications = require('./maintenanceNotifications');
@@ -89,6 +90,8 @@ app.use((req, res, next) => {
 
 app.get(['/', '/launchpad', '/launchpad.html'], createLaunchpad());
 app.get('/launchpad/apps/:moduleKey', createLaunchApp());
+const { faults: faultReports, helpdesk } = createHelpdeskRouters();
+app.use('/faults', faultReports);
 app.use(createModuleAccessGuard());
 app.use('/teacher-planner', createTeacherPlannerRouter());
 
@@ -222,8 +225,7 @@ app.get('/auth/google', (req, res, next) => {
     });
   }
 
-  const next_ = safeNext(req.query.next);
-  if (next_) res.cookie(NEXT_COOKIE, next_, { maxAge: 10 * 60 * 1000, httpOnly: true, sameSite: 'lax', secure: req.secure });
+  setLoginReturn(req, res);
 
   return passport.authenticate('google', {
     hd: config.google.hostedDomain,
@@ -317,6 +319,7 @@ app.get('/admin', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, nex
 app.use('/admin/users', createAdminUsersRouter());
 app.use('/admin/infrastructure-costs', createInfrastructureCostsRouter());
 app.use('/admin/launchpad', createLaunchpadAdminRouter());
+app.use('/admin/helpdesk', helpdesk);
 app.use('/admin/student-builders', ensureAuthenticated, createStudentBuildersRouter());
 app.use('/admin/maintenance-notifications', maintenanceNotifications.createMaintenanceRouter());
 

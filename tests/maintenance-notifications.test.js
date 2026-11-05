@@ -45,8 +45,10 @@ test('maintenance resumption email includes optional staff update', () => {
   assert.match(content.subject, /^\[Maintenance Completed\]/);
   assert.match(content.subject, /Maintenance work completed: Teacher Planner$/);
   assert.match(content.text, /Some reports may take a few minutes to refresh\./);
-  assert.match(content.text, /WHS Launchpad: http:\/\/localhost:3000\//);
-  assert.match(content.html, /<a href="http:\/\/localhost:3000\/">WHS Launchpad<\/a>/);
+  assert.match(content.text, /WHS Launchpad: http:\/\/localhost:3000\/launchpad/);
+  assert.match(content.html, /<a href="http:\/\/localhost:3000\/launchpad">WHS Launchpad<\/a>/);
+  assert.match(content.text, /school Google account/);
+  assert.match(content.html, /Report a fault on the Launchpad/);
   assert.match(content.text, /following app\(s\) are available again:\r?\nTeacher Planner/);
   assert.match(content.html, /<p>Teacher Planner<\/p>/);
   assert.equal(noticeEmail({ module_name: 'Teacher Planner' }, 'resumed').text.match(/available again/g).length, 1);
@@ -386,7 +388,7 @@ test('maintenance request and completion notifications require test emails and l
     assert.equal(mailed.bcc, undefined);
     assert.match(mailed.subject, /^\[Maintenance Completed\] \[TEST\]/);
     assert.match(mailed.text, /following app\(s\) are available again:\nTeacher Planner/);
-    assert.match(mailed.text, /WHS Launchpad: http:\/\/localhost:3000\//);
+    assert.match(mailed.text, /WHS Launchpad: http:\/\/localhost:3000\/launchpad/);
     assert.match(mailed.subject, /Maintenance work completed: Teacher Planner$/);
     assert.match(mailed.text, /The maintenance work has completed as planned\./);
 

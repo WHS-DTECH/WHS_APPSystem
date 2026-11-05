@@ -205,6 +205,11 @@ function navData(query, canManageHubRoles, datasetManagerUrl, canManageCourses =
 
 const NEXT_COOKIE = 'whs_next';
 
+function setLoginReturn(req, res) {
+  const target = safeNext(req.query.next) || '/';
+  res.cookie(NEXT_COOKIE, target, { maxAge: 10 * 60 * 1000, httpOnly: true, sameSite: 'lax', secure: req.secure });
+}
+
 // Only same-site relative paths are accepted, so login can't be used as an open redirect.
 function safeNext(value) {
   const next = String(value || '');
@@ -217,4 +222,4 @@ function readCookie(req, name) {
   return match ? decodeURIComponent(match.slice(name.length + 1)) : null;
 }
 
-module.exports = { injectGlobalNav, navData, safeNext, readCookie, NEXT_COOKIE };
+module.exports = { injectGlobalNav, navData, safeNext, readCookie, NEXT_COOKIE, setLoginReturn };

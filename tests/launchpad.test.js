@@ -23,6 +23,8 @@ test('Launchpad template retains responsive and keyboard-accessible presentation
   assert.equal(fs.existsSync(path.join(__dirname, '..', 'public', 'images', 'whs logo circular reo .png')), true);
   assert.doesNotMatch(html, /target="_blank"/);
   assert.equal([...html.matchAll(/<h1\b/g)].length, 1);
+  assert.match(html, /class="fault-link" href="\/faults\/new">Something not working\? Report a fault/);
+  assert.doesNotMatch(html, />School website<\/a>/);
   assert.equal(fs.existsSync(path.join(__dirname, '..', 'public', 'launchpad.html')), false);
 });
 
@@ -68,14 +70,17 @@ test('rendered Launchpad escapes text, excludes hidden cards and uses relative l
 
 test('Launchpad surfaces database failures rather than serving default service links', async t => {
   const logged = t.mock.method(console, 'error', () => {});
-  let status, message;
+  let status, message, view;
   const response = {
     set() { return this; }, status(code) { status = code; return this; },
-    type() { return this; }, send(body) { message = body; }
+    render(template, locals) { view = template; message = locals.title; return this; }
   };
   await createLaunchpad({ dbQuery: async () => { throw new Error('Database unavailable'); } })({ user: { id: 'fixture' } }, response);
   assert.equal(status, 503);
   assert.match(message, /temporarily unavailable/);
+  assert.equal(view, 'launchpad-unavailable');
+  const failurePage = fs.readFileSync(path.join(__dirname, '..', 'views', 'launchpad-unavailable.ejs'), 'utf8');
+  assert.match(failurePage, /href="\/faults\/new">Report a fault/);
   assert.equal(logged.mock.calls.length, 1);
 });
 
@@ -176,9 +181,12 @@ test('authenticated Launchpad, admin cards, stable launch routes and direct modu
       const response = await call(route);
       const output = await response.text();
       assert.match(output, /Sign in with Google/);
+      assert.match(output, /href="\/auth\/google\?next=%2F"/);
       assert.doesNotMatch(output, /whs-international|class="app"/);
       assert.equal(response.headers.get('cache-control'), 'no-store');
     }
+    const failed = await (await call('/launchpad?login=failed')).text();
+    assert.match(failed, /role="alert">School sign-in did not complete/);
     assert.equal((await call('/launchpad/apps/example-module')).headers.get('location'), '/auth/google?next=%2Flaunchpad%2Fapps%2Fexample-module');
     assert.equal((await call('/example/')).status, 302);
     assert.equal((await call('/admin/launchpad')).status, 302);

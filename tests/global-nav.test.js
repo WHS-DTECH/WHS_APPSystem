@@ -4,7 +4,7 @@ const express = require('express');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { injectGlobalNav, navData, safeNext } = require('../src/globalNav');
+const { injectGlobalNav, navData, safeNext, setLoginReturn, NEXT_COOKIE } = require('../src/globalNav');
 
 test('existing development apps have deployed links only in the ADMIN sidebar', async () => {
   const projects = [
@@ -425,6 +425,23 @@ test('Guidance navigation assets cover app pages, setup and role settings only o
 test('login return path only accepts same-site relative paths', () => {
   assert.equal(safeNext('/food-room/index.html?a=1'), '/food-room/index.html?a=1');
   for (const bad of ['//evil.com', 'https://evil.com', '/\\evil.com', 'food-room', '', null]) assert.equal(safeNext(bad), null);
+});
+
+test('new sign-in replaces stale app return cookies even when no destination is supplied', () => {
+  const calls = [];
+  const res = { cookie(...args) { calls.push(args); } };
+  setLoginReturn({ query: { next: '/teacher-planner/' }, secure: true }, res);
+  setLoginReturn({ query: {}, secure: true }, res);
+  setLoginReturn({ query: { next: 'https://outside.example.test' }, secure: false }, res);
+  setLoginReturn({ query: { next: '/faults/new' }, secure: true }, res);
+  assert.deepEqual(calls.map(([name, target]) => [name, target]), [
+    [NEXT_COOKIE, '/teacher-planner/'], [NEXT_COOKIE, '/'], [NEXT_COOKIE, '/'], [NEXT_COOKIE, '/faults/new']
+  ]);
+  assert.equal(calls[1][2].httpOnly, true);
+  assert.equal(calls[1][2].sameSite, 'lax');
+  assert.equal(calls[1][2].secure, true);
+  const server = fs.readFileSync(path.join(__dirname, '..', 'src', 'server.js'), 'utf8');
+  assert.match(server.slice(server.indexOf("app.get('/auth/google',"), server.indexOf("app.get('/auth/google/callback'")), /setLoginReturn\(req, res\)/);
 });
 
 test('hosted student app pages receive a centred footer with persisted dates and a reserved viewport', async () => {

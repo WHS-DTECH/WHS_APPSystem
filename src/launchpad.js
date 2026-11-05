@@ -55,7 +55,7 @@ function createLaunchpad({ dbQuery = query } = {}) {
   return async (req, res, next) => {
     try {
       res.set('Cache-Control', 'no-store');
-      if (!req.user) return res.render('home', { title: 'WHS Launchpad', modules: [] });
+      if (!req.user) return res.render('home', { title: 'WHS Launchpad', modules: [], loginFailed: req.query.login === 'failed' });
       if (req.user.is_active === false) {
         return res.status(403).render('error', { title: 'Access denied', message: 'This school account is inactive.' });
       }
@@ -86,7 +86,7 @@ function createLaunchpad({ dbQuery = query } = {}) {
       res.type('html').send(renderLaunchpad(cards));
     } catch (error) {
       console.error('[launchpad] Could not load assigned apps:', error);
-      res.status(503).type('text').send('The school Launchpad is temporarily unavailable. Please try again later or contact tech@westlandhigh.school.nz.');
+      res.status(503).render('launchpad-unavailable', { title: 'Launchpad temporarily unavailable' });
     }
   };
 }

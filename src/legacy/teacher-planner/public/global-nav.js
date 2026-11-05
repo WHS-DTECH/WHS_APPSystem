@@ -100,8 +100,11 @@
       nav.appendChild(user);
       link(nav, 'Dashboard', '/dashboard');
       link(nav, 'Profile', '/profile');
+      link(nav, 'Report a fault', '/faults/new');
+      link(nav, 'My fault reports', '/faults');
       if (data.isAdmin) {
         link(nav, 'Admin', '/admin');
+        link(nav, 'Helpdesk', '/admin/helpdesk');
       }
       if (data.roleViews && data.roleViews.length) {
         nav.appendChild(el('div', { 'class': 'gn-head' }, data.roleViewModule + ' Views'));

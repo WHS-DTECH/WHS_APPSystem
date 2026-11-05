@@ -1,0 +1,17 @@
+.whs-helpdesk { max-width: 1100px; margin: 24px auto; overflow-wrap: anywhere; }
+.whs-helpdesk form { display: grid; gap: 12px; }
+.whs-helpdesk .helpdesk-filters { display: flex; align-items: center; flex-wrap: wrap; margin: 20px 0; }
+.whs-helpdesk input, .whs-helpdesk select, .whs-helpdesk textarea { padding: 10px; font: inherit; max-width: 100%; }
+.whs-helpdesk textarea { box-sizing: border-box; width: 100%; resize: vertical; }
+.helpdesk-scroll { overflow-x: auto; }
+.whs-helpdesk table { width: 100%; border-collapse: collapse; }
+.whs-helpdesk th, .whs-helpdesk td { padding: 12px; border-bottom: 1px solid #dce3dd; text-align: left; }
+.whs-helpdesk dt { font-weight: 700; margin-top: 12px; }
+.whs-helpdesk dd { margin-left: 0; }
+.fault-text { white-space: pre-wrap; }
+.fault-status { display: inline-block; border-radius: 999px; padding: 4px 12px; font-weight: 700; white-space: nowrap; }
+.fault-status-open { background: #fff1d2; color: #513900; }
+.fault-status-in-progress { background: #e2f5fc; color: #245f85; }
+.fault-status-resolved { background: #e7f3e9; color: #204e35; }
+.helpdesk-pages { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 20px; }
+.whs-helpdesk [role="status"] { padding: 12px; background: #e7f3e9; color: #204e35; }

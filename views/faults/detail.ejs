@@ -1,0 +1,35 @@
+<%- include('../partials/header') %>
+<link rel="stylesheet" href="/helpdesk.css">
+<section class="panel whs-helpdesk">
+  <h1>Fault #<%= ticket.ticket_number %>: <%= ticket.subject %></h1>
+  <% if (message) { %><p role="status"><%= message %></p><% } %>
+  <p><span class="fault-status fault-status-<%= ticket.status %>"><%= statuses[ticket.status] %></span></p>
+  <dl>
+    <dt>App/service</dt><dd><%= ticket.app_name %></dd>
+    <% if (ticket.page_url) { %><dt>Page address</dt><dd><%= ticket.page_url %></dd><% } %>
+    <% if (manage) { %><dt>Reporter</dt><dd><%= ticket.reporter_name %> (<%= ticket.reporter_email %>)</dd><% } %>
+    <dt>Reported (NZ)</dt><dd><%= formatDate(ticket.created_at) %></dd>
+    <dt>Last updated (NZ)</dt><dd><%= formatDate(ticket.updated_at) %></dd>
+  </dl>
+  <h2>Fault details</h2>
+  <p class="fault-text"><%= ticket.description %></p>
+  <h2>Helpdesk reply</h2>
+  <p class="fault-text"><%= ticket.reply || 'No reply yet. Check this ticket for updates.' %></p>
+  <% if (manage) { %>
+  <form action="/admin/helpdesk/<%= ticket.id %>" method="post">
+    <input type="hidden" name="csrf" value="<%= csrf %>">
+    <input type="hidden" name="revision" value="<%= ticket.revision %>">
+    <label for="ticket-status">Status</label>
+    <select id="ticket-status" name="status">
+      <% for (const [key, label] of Object.entries(statuses)) { %>
+      <option value="<%= key %>" <%= ticket.status === key ? 'selected' : '' %>><%= label %></option>
+      <% } %>
+    </select>
+    <label for="ticket-reply">Reply (visible to the reporter)</label>
+    <textarea id="ticket-reply" name="reply" rows="6" maxlength="4000"><%= ticket.reply %></textarea>
+    <button class="button button-primary" type="submit">Save ticket update</button>
+  </form>
+  <% } %>
+  <p><a href="<%= manage ? '/admin/helpdesk' : '/faults' %>">Back to <%= manage ? 'Helpdesk' : 'my fault reports' %></a> &middot; <a href="/launchpad">Launchpad</a></p>
+</section>
+<%- include('../partials/footer') %>
