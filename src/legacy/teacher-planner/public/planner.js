@@ -2535,7 +2535,7 @@
       ]) {
         const matching = documents.filter(document => document.status === status);
         if (!matching.length) continue;
-        const list = el('ul');
+        const list = el('ol');
         for (const document of matching) {
           list.append(el('li', document.name + ': ' + (status === 'error' ? document.error :
             status === 'unchanged' ? 'Previously synced; unchanged.' :

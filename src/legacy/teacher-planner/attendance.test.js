@@ -619,6 +619,8 @@ test('automatic Drive feedback uses the card and survives remount without stale 
       assert.doesNotMatch(target.children[0].textContent, /completed successfully|No PDFs found|Already up to date/);
       assert.ok(descendants(target).some(node => node.tag === 'li' &&
         node.textContent === '<img src=x> Statistics.pdf: Half Days statistics report; not marked processed.'));
+      assert.equal(descendants(target).filter(node => node.tag === 'ol').length, mode === 'mixed' ? 2 : 1);
+      assert.equal(descendants(target).some(node => node.tag === 'ul'), false, 'document reports use numbered lists');
       if (mode === 'mixed') {
         assert.ok(descendants(target).some(node => node.textContent === 'Successfully synced documents'));
         assert.ok(descendants(target).some(node => node.tag === 'li' && /Good.pdf: 4 blank marks saved/.test(node.textContent)));
