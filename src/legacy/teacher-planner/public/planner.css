@@ -235,7 +235,7 @@
 .week-date { display: block; margin-top: 6px; font-size: 18px; font-weight: 700; }
 .week-left .planner-week th:first-child { width: 62px; }
 .slot-time { display: block; margin-top: 5px; }
-.planner-week textarea { min-height: 93px; height: 93px; border: 0; border-radius: 0; padding: 2px; font-size: 12px; background: transparent; }
+.planner-week textarea { min-height: 93px; height: 93px; border: 0; border-radius: 0; padding: 2px; font-size: 16px; background: transparent; }
 .planner-week .planner-field { gap: 0; }
 .weekly-classes:empty { display: none; }
 .weekly-classes { padding: 3px 2px 6px; color: #31586c; overflow-wrap: anywhere; }
@@ -465,7 +465,7 @@
   .planner-heading img { width: 45px; height: 45px; } .planner-grid { grid-template-columns: minmax(0,1fr); }
   .paper-page { padding: 10px; } .planner-cover { padding: 0; }
   .planner-week th, .planner-week td { padding: 2px; } .week-left .planner-week th:first-child { width: 44px; font-size: 9px; }
-  .planner-week textarea { font-size: 11px; } .week-right-body { grid-template-columns: minmax(0,1fr); }
+  .week-right-body { grid-template-columns: minmax(0,1fr); }
   .week-sidebar { grid-template-columns: minmax(0,1fr); grid-template-rows: auto; } .week-sidebar textarea { min-height: 170px; }
   .week-sidebar .planner-field + .planner-field { border-top: 0; border-left: 1px solid #adb3b6; }
 }

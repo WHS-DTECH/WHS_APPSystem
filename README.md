@@ -1450,7 +1450,8 @@ heading and term dates. Goals retain their existing private yearly record and
 navigation/unsaved-edit checks. The Google Calendar sits below both panels at
 full width, with an event-detail panel and a minimum readable week-grid width
 (horizontal scrolling on smaller screens). The existing term selector stays
-above the page, styled as a circular badge; it still opens the native Term 1-4
+above the page, styled as a circular badge showing only the number under the
+**Term** label; it still opens the native 1-4
 dropdown. Print actions are unchanged; a printing redesign remains deferred.
 Without an explicit term in a planner link or a manual selection, Term Plan uses
 the current term from WHS school dates (Ministry dates fill unpublished ranges);
@@ -1461,7 +1462,9 @@ Weekly Planner has the same term circle in the left selector position, before
 the week date/navigation. Its displayed term follows that week's actual dates,
 independently of the editable saved weekly term field. Selecting a term opens
 that Term Plan after the existing unsaved-change guard. Holiday weeks show the
-neutral **Term** choice rather than assigning an incorrect term.
+neutral **-** choice rather than assigning an incorrect term.
+Weekly timetable notes use 16px text on desktop and mobile; autosizing, autosave
+and the existing compact print text remain unchanged.
 Daily Attendance places the editable class register on the left and a read-only
 individual student term view on the right (stacked on smaller screens). Search
 the selected saved class tab by name, student year level and whānau/form class,

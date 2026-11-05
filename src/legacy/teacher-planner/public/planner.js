@@ -223,8 +223,8 @@
       const label = el('label', 'Term', { class: 'planner-term-control' });
       const select = el('select', '', { 'aria-label': 'Term', class: 'planner-term-badge',
         title: section === 'week' ? 'Open a Term Plan' : 'Choose planner term' });
-      if (section === 'week') select.append(el('option', 'Term', { value: '', disabled: '' }));
-      for (let i = 1; i <= 4; i++) select.append(el('option', 'Term ' + i, { value: String(i) }));
+      if (section === 'week') select.append(el('option', '-', { value: '', disabled: '' }));
+      for (let i = 1; i <= 4; i++) select.append(el('option', String(i), { value: String(i), 'aria-label': 'Term ' + i }));
       select.value = term;
       select.addEventListener('change', () => {
         if (!canLeave()) { select.value = select.dataset.displayedTerm ?? term; return; }
