@@ -9,6 +9,14 @@
   const save = document.getElementById('save-planner');
   const retry = document.getElementById('retry-planner');
   const yearInput = document.getElementById('planner-year');
+  const openYear = document.getElementById('open-year');
+  function updateYearBadge() {
+    const value = Number(yearInput.value);
+    const displayed = Number.isInteger(value) && value >= 2000 && value <= 2100 ? value : year;
+    document.getElementById('planner-year-badge-value').textContent = displayed;
+    openYear.setAttribute('aria-label', 'Open planner year ' + displayed);
+    openYear.setAttribute('title', 'Open planner year ' + displayed);
+  }
   const signin = document.getElementById('planner-signin');
   const signinLink = document.getElementById('planner-signin-link');
   const ownerId = document.body.dataset.userId;
@@ -99,6 +107,8 @@
     selectedDay = (date(periodDate).getUTCDay() + 6) % 7;
   }
   yearInput.value = year;
+  updateYearBadge();
+  yearInput.addEventListener('input', updateYearBadge);
   const el = (tag, text, attrs = {}) => {
     const node = document.createElement(tag);
     if (text) node.textContent = text;
@@ -2622,6 +2632,7 @@
         else { section = 'cover'; openingNote = 'No current or finished term can be determined from the available dates. Open Year overview or Setup My Planner to check the calendar.'; }
         openingTermPending = false;
         yearInput.value = year;
+        updateYearBadge();
       }
       renderSelectors();
       history.replaceState(null, '', '#' + viewFragment());
@@ -2796,10 +2807,10 @@
       }
     });
   }));
-  document.getElementById('open-year').addEventListener('click', () => {
+  openYear.addEventListener('click', () => {
     const value = Number(yearInput.value);
     if (!Number.isInteger(value) || value < 2000 || value > 2100) { notice('Enter a year between 2000 and 2100.', true); return; }
-    if (!canLeave()) { yearInput.value = year; return; }
+    if (!canLeave()) { yearInput.value = year; updateYearBadge(); return; }
     year = value; week = monday(`${year}-01-04`);
     if (['period', 'activity'].includes(section)) section = 'week';
     if (section === 'moderation') { moderationRecord = ''; moderationPage = 'overview'; }

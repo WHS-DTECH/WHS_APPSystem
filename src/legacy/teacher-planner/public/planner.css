@@ -4,6 +4,7 @@
 .planner-heading h1 { margin: 0 0 6px; font-size: 26px; color: #376783; }
 .planner-heading p { margin: 0; color: #52675f; }
 .planner-heading img { flex-shrink: 0; }
+.planner-heading-copy { min-width: 0; }
 .whs-planner button { border: 1px solid #b3c4cb; border-radius: 5px; background: #fff; color: #31586c; padding: 9px 13px; cursor: pointer; font: inherit; }
 .whs-planner button:disabled { opacity: .55; cursor: wait; }
 .whs-planner [hidden] { display: none !important; }
@@ -11,6 +12,19 @@
 .planner-toolbar, .planner-tabs, .week-controls, .planner-save { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
 .planner-toolbar label, .week-controls label { display: grid; gap: 5px; }
 .planner-toolbar input { max-width: 110px; }
+.planner-heading .planner-toolbar { margin: 0 0 0 auto; flex-wrap: nowrap; align-items: center; flex-shrink: 0; gap: 14px; }
+.planner-year-actions { display: grid; gap: 8px; }
+.planner-year-actions label { font-size: 13px; font-weight: 600; }
+.planner-year-actions input { width: 100%; }
+.whs-planner .planner-year-badge { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; width: 104px; height: 104px; padding: 8px; border-radius: 50%; border: 3px solid #376783; background: #e2f5fc; color: #245f85; box-shadow: 0 0 0 4px #fff; }
+#planner-year-badge-value { font-size: 30px; line-height: 1.1; font-weight: 700; }
+.planner-year-badge-action { font-size: 12px; }
+.whs-planner .planner-year-badge:hover { background: #376783; color: #fff; }
+@media (max-width: 950px) {
+  .planner-heading { flex-wrap: wrap; }
+  .planner-heading-copy { flex: 1; }
+  .planner-heading .planner-toolbar { margin-left: auto; }
+}
 .planner-tabs { display: grid; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid #b9c4c9; }
 .planner-nav-group { min-width: 0; padding: 12px 14px; border: 1px solid #bdccc6; border-left: 5px solid var(--nav-colour); border-radius: 8px; background: #fff; }
 .planner-nav-planning { --nav-colour: #245f85; --nav-selected: #143c56; }

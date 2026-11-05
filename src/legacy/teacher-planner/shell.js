@@ -20,18 +20,22 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
 <link rel="icon" type="image/png" href="${asset('whs-logo.png')}">
 <link rel="stylesheet" href="${asset('account-controls.css')}">
 <link rel="stylesheet" href="${asset('module-shell.css')}">
-<link rel="stylesheet" href="${asset('planner.css?v=student-attendance-25')}">
+<link rel="stylesheet" href="${asset('planner.css?v=year-badge-26')}">
 </head><body class="whs-module-shell whs-planner" data-api="${escape(baseUrl)}api/planner/" data-assets="${escape(baseUrl)}framework/" data-planner-name="${escape(displayName)}" data-user-id="${escape(userId)}" data-user-email="${escape(userEmail)}" data-core-url="${escape(coreUrl)}">
 <main class="planner-main" aria-label="${escape(title)}">
 <header class="planner-heading">
   <img src="${asset('whs-logo.png')}" alt="Westland High School" width="64" height="64">
-  <div><h1>Pukapuka whakamahere | Teacher Planner</h1><p>Your private teaching, reflection and professional learning space.</p></div>
+  <div class="planner-heading-copy"><h1>Pukapuka whakamahere | Teacher Planner</h1><p>Your private teaching, reflection and professional learning space.</p></div>
+  <div class="planner-toolbar" role="group" aria-label="Planner year and printing">
+    <button type="button" id="open-year" class="planner-year-badge" aria-label="Open planner year 2026" title="Open planner year 2026">
+      <span id="planner-year-badge-value">2026</span><span class="planner-year-badge-action">Open year</span>
+    </button>
+    <div class="planner-year-actions">
+      <label>Planner year <input id="planner-year" type="number" min="2000" max="2100" value="2026"></label>
+      <button type="button" id="print-planner">Print current view</button>
+    </div>
+  </div>
 </header>
-<div class="planner-toolbar">
-  <label>Planner year <input id="planner-year" type="number" min="2000" max="2100" value="2026"></label>
-  <button type="button" id="open-year">Open year</button>
-  <button type="button" id="print-planner">Print current view</button>
-</div>
 <nav class="planner-tabs" aria-label="Planner sections">
   <section class="planner-nav-group planner-nav-planning" aria-labelledby="planner-nav-planning">
     <h2 id="planner-nav-planning">Planning</h2>
@@ -103,7 +107,7 @@ ${standalone ? `<script src="${asset('global-nav.js')}" defer></script>` : ''}
 <script src="${asset('moderation-schema.js?v=requirement-cleanup-2')}" defer></script>
 <script src="${asset('moderation.js?v=nzqa-version-8')}" defer></script>
 <script src="${asset('textarea-autosize.js')}" defer></script>
-<script src="${asset('planner.js?v=attendance-drive-sync-23')}" defer></script>
+<script src="${asset('planner.js?v=year-badge-24')}" defer></script>
 </body></html>`;
 }
 

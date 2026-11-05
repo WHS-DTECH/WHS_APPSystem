@@ -1363,6 +1363,10 @@ plans and professional reflection), **Setup** (Assessment setup and Two-Week
 Attendance imports/sync), and **Section Modules** (daily Attendance, Moderation
 and upcoming modules). Groups use labelled, colour-accented panels and wrapping
 pill buttons; existing section routes and disabled upcoming modules are unchanged.
+Year and print controls sit on the right of the Teacher Planner heading. The
+circular year badge opens the year selected in the adjacent Planner year field;
+its number and accessible label follow that field and restored planner links.
+Print current view retains its existing behaviour.
 Daily Attendance places the editable class register on the left and a read-only
 individual student term view on the right (stacked on smaller screens). Search
 the selected saved class tab by name, student year level and whānau/form class,
