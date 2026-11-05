@@ -171,7 +171,7 @@ test('two-week page filters term/class, displays every week and distinguishes le
   assert.ok(nodes.some(node => node.textContent === '2026-07-20'));
   assert.ok(nodes.some(node => node.textContent === 'Second class - Term 3 import history'));
 });
-test('all-class import ignores display filters, deduplicates shared marks and records each class week', async () => {
+test('all-class import ignores display filters, deduplicates shared marks and records each class week', async t => {
   const options = importFixture(), host = element('section'), saved = [];
   const second = { ...options.group, id: crypto.randomUUID(), name: 'Second class' };
   const manual = { ...options.group, id: crypto.randomUUID(), name: 'Manual class', scheduleMode: 'manual' };
@@ -183,7 +183,7 @@ test('all-class import ignores display filters, deduplicates shared marks and re
     loadSchedule: async week => options.schedules[week], uploadPdf: async () => options.pdf,
     mutate: async (path, body) => { saved.push([path, body]); return { revision: 1 }; }
   });
-  test('Drive card term list shows aggregate weekly coverage, filters terms and refreshes saved history', async () => {
+  await t.test('Drive card term list uses binary PDF import status, filters terms and refreshes saved history', async () => {
     const options = importFixture(), host = element('section');
     const second = { ...options.group, id: crypto.randomUUID(), name: 'Second automatic class' };
     const manual = { ...options.group, id: crypto.randomUUID(), scheduleMode: 'manual' };
@@ -191,7 +191,7 @@ test('all-class import ignores display filters, deduplicates shared marks and re
     const complete = { expected: 5, recorded: 5, unresolved: false, importedAt: '2026-11-05T00:00:00Z' };
     imports[options.group.id + ':2026-10-26'] = complete;
     imports[second.id + ':2026-10-26'] = complete;
-    imports[options.group.id + ':2026-11-02'] = { ...complete, unresolved: true };
+    imports[options.group.id + ':2026-11-02'] = { ...complete, recorded: 2, unresolved: true };
     await browser().mount(host, {
       el: element, ...options, overview: true,
       ranges: [{ term: '3', startDate: '2026-07-20', endDate: '2026-09-25' }, ...options.ranges],
@@ -206,10 +206,13 @@ test('all-class import ignores display filters, deduplicates shared marks and re
     assert.equal(rows.length, 10);
     assert.equal(rows[0].children[0].textContent, 'Week 1');
     assert.equal(rows[0].children[1].textContent, '2026-10-12');
-    assert.match(rows[0].children[2].textContent, /^Not synced - 0\/2/);
-    assert.match(rows[1].children[2].textContent, /sync status unknown/);
-    assert.match(rows[2].children[2].textContent, /^Synced - 2\/2/);
-    assert.match(rows[3].children[2].textContent, /^Partially synced - 0\/2/);
+    assert.equal(rows[0].children[2].textContent, 'Not synced');
+    assert.equal(rows[1].children[2].textContent, 'Not synced', 'manual marks alone do not indicate a PDF import');
+    assert.equal(rows[2].children[2].textContent, 'Synced');
+    assert.equal(rows[3].children[2].textContent, 'Synced', 'PDF import counts regardless of blank slots or unmatched students');
+    assert.ok(nodes.filter(node => Object.hasOwn(node.attrs, 'data-week-sync-status'))
+      .every(node => ['Synced', 'Not synced'].includes(node.textContent)));
+    assert.equal(nodes.some(node => node.tag === 'p'), false, 'explanation is removed');
     const select = nodes.find(node => node.attrs['aria-label'] === 'Drive sync term number');
     select.value = '3'; select.events.change();
     assert.ok(descendants(coverage()).some(node => node.textContent === '2026-07-20'));
@@ -217,10 +220,9 @@ test('all-class import ignores display filters, deduplicates shared marks and re
     assert.equal(descendants(coverage()).find(node => node.attrs['aria-label'] === 'Drive sync term number').value, '3');
     const current = descendants(coverage()).find(node => node.attrs['aria-label'] === 'Drive sync term number');
     current.value = '4'; current.events.change();
-    imports[options.group.id + ':2026-11-02'] = complete;
-    imports[second.id + ':2026-11-02'] = complete;
+    imports[options.group.id + ':2026-11-09'] = complete;
     await descendants(coverage()).find(node => node.textContent === 'Refresh weekly sync status').events.click();
-    assert.equal(descendants(coverage()).filter(node => node.attrs['data-week-sync-status'] === 'Synced').length, 2);
+    assert.equal(descendants(coverage()).filter(node => node.attrs['data-week-sync-status'] === 'Synced').length, 3);
     const card = descendants(host).find(node => node.tag === 'details' &&
       node.children.some(child => child.textContent === 'Google Drive attendance folder sync'));
     assert.ok(descendants(card).includes(coverage()));

@@ -1338,13 +1338,13 @@ Oversized PDFs are reported individually without blocking other documents; the
 5 MB download/import limit still applies to every PDF.
 Per-document reports remain visible for the current page session; durable
 processed-file checkpoints and weekly import history are stored in the database.
-Below the Drive results, **Term attendance sync coverage** provides a term-number
-filter and lists each term week, its Monday date and saved PDF coverage across all
-automatic class tabs. **Synced** requires complete coverage for every automatic
-tab; **Partially synced**, **Not synced** and unknown legacy-mark status are shown
-separately. Manual PDF uploads also count toward this coverage; it is not proof
-that every Drive document succeeded. Use **Refresh weekly sync status** to reload
-saved coverage; completing a sync also refreshes it. Manual-mode tabs are excluded.
+Below the Drive results, **Term attendance sync status** provides a term-number
+filter and lists each term week, its Monday date and **Synced** or **Not synced**.
+A week is **Synced** when saved PDF import history exists for any automatic class
+tab that week, regardless of blank PDF slots or unmatched students. Manual PDF
+uploads also count; manually entered marks alone do not. Per-document errors
+remain in the Drive results above. Use **Refresh weekly sync status** to reload
+saved status; completing a sync also refreshes it. Manual-mode tabs are excluded.
 
 The Moderation **Marking Confirmation & Feedback** and **WHS Coversheet** contents
 tabs label and open each record's respective form, independently of its marking

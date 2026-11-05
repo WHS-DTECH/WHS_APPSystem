@@ -615,8 +615,7 @@
         el('p', settings.enabled ? 'Automatic sync is enabled for this planner year.' : 'Automatic sync is off for this planner year.', { role: 'status' }),
         driveFeedback);
       const coverage = el('section', '', { 'aria-label': 'Term attendance sync coverage' });
-      coverage.append(el('h3', 'Term attendance sync coverage'),
-        el('p', 'Saved PDF import coverage across all automatic class tabs, including manual PDF uploads. Synced means every tab has complete recorded PDF coverage for that week. Partial includes missing marks or unmatched students; existing conflicts are kept. This is not confirmation that every document synced successfully. Refresh after sync to see updated coverage.'));
+      coverage.append(el('h3', 'Term attendance sync status'));
       const terms = el('select', '', { 'aria-label': 'Drive sync term number' });
       const available = ranges.filter(range => range.startDate && range.endDate);
       for (const range of available) terms.append(el('option', 'Term ' + range.term, { value: range.term }));
@@ -638,17 +637,10 @@
         head.append(headings); table.append(head, body);
         for (const [index, week] of termWeeks(range.startDate, range.endDate).entries()) {
           const entries = automatic.map(group => history.imports[group.id + ':' + week]);
-          const complete = entries.filter(entry => entry && entry.recorded === entry.expected && !entry.unresolved).length;
-          const imported = entries.filter(Boolean).length;
-          const hasMarks = history.markedWeeks.some(item => item.week === week &&
-            automatic.some(group => group.students.some(student => student.id === item.student_id)));
-          const status = !automatic.length ? 'No automatic class tabs' :
-            complete === automatic.length ? 'Synced' : imported ? 'Partially synced' :
-              hasMarks ? 'Marks present - sync status unknown' : 'Not synced';
+          const status = entries.some(Boolean) ? 'Synced' : 'Not synced';
           const row = el('tr');
           row.append(el('th', 'Week ' + (index + 1), { scope: 'row' }), el('td', week),
-            el('td', status + (automatic.length ? ' - ' + complete + '/' + automatic.length + ' class tabs complete' : ''),
-              { 'data-week-sync-status': status }));
+            el('td', status, { 'data-week-sync-status': status }));
           body.append(row);
         }
         scroll.append(table);
