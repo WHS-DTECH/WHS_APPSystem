@@ -1358,6 +1358,11 @@ The class-specific term table also uses **Synced** or **Not synced**, based on
 saved PDF import history rather than timetable completeness. Detailed Drive
 results are collapsed under the **View sync report** pill; the current sync state
 and controls remain visible outside the report.
+Teacher Planner navigation is grouped into **Planning** (cover, year/term/week
+plans and professional reflection), **Setup** (Assessment setup and Two-Week
+Attendance imports/sync), and **Section Modules** (daily Attendance, Moderation
+and upcoming modules). Groups use labelled, colour-accented panels and wrapping
+pill buttons; existing section routes and disabled upcoming modules are unchanged.
 
 The Moderation **Marking Confirmation & Feedback** and **WHS Coversheet** contents
 tabs label and open each record's respective form, independently of its marking

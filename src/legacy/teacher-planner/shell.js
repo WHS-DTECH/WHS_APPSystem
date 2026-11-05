@@ -20,7 +20,7 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
 <link rel="icon" type="image/png" href="${asset('whs-logo.png')}">
 <link rel="stylesheet" href="${asset('account-controls.css')}">
 <link rel="stylesheet" href="${asset('module-shell.css')}">
-<link rel="stylesheet" href="${asset('planner.css?v=attendance-history-22')}">
+<link rel="stylesheet" href="${asset('planner.css?v=grouped-navigation-24')}">
 </head><body class="whs-module-shell whs-planner" data-api="${escape(baseUrl)}api/planner/" data-assets="${escape(baseUrl)}framework/" data-planner-name="${escape(displayName)}" data-user-id="${escape(userId)}" data-user-email="${escape(userEmail)}" data-core-url="${escape(coreUrl)}">
 <main class="planner-main" aria-label="${escape(title)}">
 <header class="planner-heading">
@@ -33,33 +33,38 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
   <button type="button" id="print-planner">Print current view</button>
 </div>
 <nav class="planner-tabs" aria-label="Planner sections">
+  <section class="planner-nav-group planner-nav-planning" aria-labelledby="planner-nav-planning">
+    <h2 id="planner-nav-planning">Planning</h2>
+    <div class="planner-nav-buttons">
   <button type="button" data-section="cover" aria-current="page">Planner cover</button>
-  <button type="button" data-section="assessmentSetup">Setup Assessment</button>
-  <button type="button" id="refresh-weekly-duties" hidden>Refresh duties</button>
-  <div class="planner-tabs-row">
     <button type="button" data-section="year">Year overview</button>
     <button type="button" data-section="term">Term plan</button>
     <button type="button" data-section="week">Weekly planner</button>
-    <button type="button" data-section="attendanceImport">Two-Week Attendance</button>
-    <div class="planner-tabs-secondary">
-      <div class="planner-tabs-secondary-row">
       <button type="button" data-section="goals">Goals and reflection</button>
       <button type="button" data-section="standards">Teaching Standards</button>
       <button type="button" data-section="learning">Professional learning</button>
-      </div>
-      <div class="planner-tabs-secondary-row">
+    </div>
+  </section>
+  <section class="planner-nav-group planner-nav-setup" aria-labelledby="planner-nav-setup">
+    <h2 id="planner-nav-setup">Setup</h2>
+    <div class="planner-nav-buttons">
+      <button type="button" data-section="assessmentSetup">Setup Assessment</button>
+      <button type="button" data-section="attendanceImport">Two-Week Attendance</button>
+      <button type="button" id="refresh-weekly-duties" hidden>Refresh duties</button>
+    </div>
+  </section>
+  <section class="planner-nav-group planner-nav-modules" aria-labelledby="planner-nav-modules">
+    <h2 id="planner-nav-modules">Section Modules</h2>
+    <div class="planner-nav-buttons">
       <button type="button" data-section="attendance">Attendance</button>
+      <button type="button" data-section="moderation">Moderation</button>
       <button type="button" disabled title="Page coming soon">Behaviour Management</button>
       <button type="button" disabled title="Page coming soon">Student Tracker</button>
-      </div>
-      <div class="planner-tabs-secondary-row">
       <button type="button" disabled title="Page coming soon">Lesson</button>
       <button type="button" disabled title="Page coming soon">Assessment</button>
       <button type="button" disabled title="Page coming soon">Reporting</button>
-      <button type="button" data-section="moderation">Moderation</button>
-      </div>
     </div>
-  </div>
+  </section>
 </nav>
 <div class="planner-page-controls">
 <div id="planner-selectors"></div>
