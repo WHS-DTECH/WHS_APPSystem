@@ -2498,6 +2498,12 @@
   let attendanceSyncRunning = false;
   let attendanceSyncNote = null;
   let attendanceSyncYear = null;
+  let attendanceSyncStateListener = null;
+  function bindAttendanceSyncState(listener, target) {
+    attendanceSyncStateListener = listener;
+    listener(attendanceSyncRunning);
+    placeAttendanceDriveNote(target);
+  }
   function placeAttendanceDriveNote(host = content) {
     if (!attendanceSyncNote || attendanceSyncYear !== year) return;
     const target = host.querySelector('[data-attendance-drive-feedback]') || host;
@@ -2517,6 +2523,7 @@
     note.hidden = target === content;
     if (target === content) target.append(note);
     else target.replaceChildren(note);
+    attendanceSyncStateListener?.(true);
     let documents = [];
     function show(message) {
       note.replaceChildren();
@@ -2586,9 +2593,11 @@
     } finally {
       attendanceSyncRunning = false;
       note.removeAttribute('data-preferences-busy');
+      attendanceSyncStateListener?.(false);
     }
   }
   async function load() {
+    attendanceSyncStateListener = null;
     const dutyRefresh = document.getElementById?.('refresh-weekly-duties');
     if (dutyRefresh) { dutyRefresh.hidden = true; dutyRefresh.onclick = null; }
     clearTimeout(autosaveTimer);
@@ -2640,6 +2649,7 @@
         await globalThis.plannerAttendance.mount(host, {
           overview: section === 'attendanceImport',
           syncNow: node => runAttendanceDriveSync(node),
+          bindSyncState: bindAttendanceSyncState,
           el, year, ranges: termRanges(settings.content, calendar.terms || []), school: settings.content, calendar, today: localDate,
           uploadPdf: async file => {
             await refreshSession();

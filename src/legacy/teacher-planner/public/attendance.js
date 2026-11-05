@@ -186,7 +186,8 @@
       (entry.conflicts ? '; ' + entry.conflicts + ' conflicts kept' : '') +
       (entry.unresolved ? '; unmatched students' : '');
   }
-  async function mount(host, { el, request, mutate, uploadPdf, loadSchedule, syncNow, year, ranges, school, calendar, today, overview = false }) {
+  async function mount(host, { el, request, mutate, uploadPdf, loadSchedule, syncNow, bindSyncState,
+    year, ranges, school, calendar, today, overview = false }) {
     host.setAttribute('data-planner-navigation', '');
     host.classList.add('attendance-page');
     const feedback = el('p', '', { class: 'duty-roster-feedback', role: 'status', 'aria-live': 'polite' });
@@ -203,6 +204,7 @@
     let pending = false, draft = false, directory;
     let driveTerm = '';
     const driveFeedback = el('div', '', { 'data-attendance-drive-feedback': '' });
+    const refreshFeedback = el('p', '', { class: 'duty-roster-feedback', role: 'status', 'aria-live': 'polite' });
     function driveSay(message, error = false) {
       driveFeedback.replaceChildren(el('p', message, {
         class: 'duty-roster-feedback', role: error ? 'alert' : 'status', 'aria-live': 'polite'
@@ -611,9 +613,17 @@
       }, driveSay));
       const run = el('button', 'Sync Drive attendance now', { type: 'button' });
       run.addEventListener('click', () => act(async () => { await syncNow(driveFeedback); await loadSheet(); }, driveSay));
+      const syncState = el('p', 'Sync idle - ready to check Google Drive.', { role: 'status', 'aria-live': 'polite' });
+      bindSyncState?.((running) => {
+        for (const input of [folder, enabled, authorise, save, run]) input.disabled = running;
+        run.textContent = running ? 'Syncing Google Drive...' : 'Sync Drive attendance now';
+        syncState.textContent = running ? 'Sync in progress - PDFs are being checked and saved. Keep this page open.' :
+          'Sync idle - check the latest result below, or start a new sync.';
+        driveFeedback.setAttribute('aria-busy', String(running));
+      }, driveFeedback);
       panel.append(folder, label, authorise, link, save, run,
         el('p', settings.enabled ? 'Automatic sync is enabled for this planner year.' : 'Automatic sync is off for this planner year.', { role: 'status' }),
-        driveFeedback);
+        syncState, driveFeedback);
       const coverage = el('section', '', { 'aria-label': 'Term attendance sync coverage' });
       coverage.append(el('h3', 'Term attendance sync status'));
       const terms = el('select', '', { 'aria-label': 'Drive sync term number' });
@@ -623,7 +633,23 @@
       terms.value = driveTerm;
       const termLabel = el('label', 'Term number '); termLabel.append(terms);
       const refresh = el('button', 'Refresh weekly sync status', { type: 'button' });
-      refresh.addEventListener('click', () => act(loadSheet, driveSay));
+      refresh.addEventListener('click', () => act(async () => {
+        refresh.textContent = 'Refreshing weekly status...';
+        refresh.disabled = true;
+        refreshFeedback.textContent = 'Refreshing saved weekly status... This does not start a Google Drive sync.';
+        refreshFeedback.setAttribute('role', 'status');
+        try {
+          history = await request('attendance/' + year + '/imports');
+          renderCoverage();
+          refreshFeedback.textContent = 'Weekly status refreshed. This refresh did not start a Google Drive sync.';
+        } finally {
+          refresh.textContent = 'Refresh weekly sync status';
+          refresh.disabled = false;
+        }
+      }, (message) => {
+        refreshFeedback.textContent = message;
+        refreshFeedback.setAttribute('role', 'alert');
+      }));
       const scroll = el('div', '', { class: 'attendance-scroll', tabindex: '0' });
       function renderCoverage() {
         scroll.replaceChildren();
@@ -646,7 +672,7 @@
         scroll.append(table);
       }
       terms.addEventListener('change', () => { driveTerm = terms.value; renderCoverage(); });
-      coverage.append(termLabel, refresh, scroll);
+      coverage.append(termLabel, refresh, refreshFeedback, scroll);
       renderCoverage();
       panel.append(coverage);
       return panel;

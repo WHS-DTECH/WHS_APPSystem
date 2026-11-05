@@ -212,7 +212,7 @@ test('all-class import ignores display filters, deduplicates shared marks and re
     assert.equal(rows[3].children[2].textContent, 'Synced', 'PDF import counts regardless of blank slots or unmatched students');
     assert.ok(nodes.filter(node => Object.hasOwn(node.attrs, 'data-week-sync-status'))
       .every(node => ['Synced', 'Not synced'].includes(node.textContent)));
-    assert.equal(nodes.some(node => node.tag === 'p'), false, 'explanation is removed');
+    assert.equal(nodes.some(node => /Saved PDF import coverage/.test(node.textContent)), false, 'explanation is removed');
     const select = nodes.find(node => node.attrs['aria-label'] === 'Drive sync term number');
     select.value = '3'; select.events.change();
     assert.ok(descendants(coverage()).some(node => node.textContent === '2026-07-20'));
@@ -511,6 +511,43 @@ test('planner-opening Drive sync protects navigation and shows explicit success 
     assert.match(card.children[0].textContent, fail ? /permission required/ : /4 blank marks filled/);
   }
 });
+test('weekly refresh shows immediate progress and completion without losing active sync state', async () => {
+  const options = importFixture(), host = element('section');
+  let listener, target, release, hold = false;
+  const syncNote = element('div', 'Reading PDF 2 of 6...');
+  await browser().mount(host, {
+    el: element, ...options, overview: true,
+    request: async path => {
+      if (hold && path.endsWith('/imports')) await new Promise(resolve => { release = resolve; });
+      return path.endsWith('/groups') ? { revision: 1, content: { groups: [options.group] } } :
+        path.endsWith('/drive-sync') ? { enabled: true, folderId: 'synthetic_folder_123' } : { imports: {}, markedWeeks: [] };
+    },
+    syncNow: async () => { assert.fail('Refreshing status must not start a sync'); },
+    bindSyncState: (callback, feedback) => {
+      listener = callback; target = feedback;
+      callback(true); feedback.replaceChildren(syncNote);
+    }
+  });
+  let nodes = descendants(host);
+  assert.ok(nodes.some(node => node.textContent === 'Syncing Google Drive...' && node.disabled));
+  assert.equal(target.attrs['aria-busy'], 'true');
+  hold = true;
+  const button = nodes.find(node => node.textContent === 'Refresh weekly sync status');
+  const refreshing = button.events.click();
+  assert.equal(button.textContent, 'Refreshing weekly status...');
+  assert.equal(button.disabled, true);
+  assert.ok(descendants(host).some(node => /Refreshing saved weekly status/.test(node.textContent)));
+  await new Promise(resolve => setImmediate(resolve));
+  release(); hold = false;
+  await refreshing;
+  nodes = descendants(host);
+  assert.ok(nodes.some(node => /Weekly status refreshed/.test(node.textContent)));
+  assert.ok(nodes.includes(syncNote), 'active PDF progress survives card rebuild');
+  assert.ok(nodes.some(node => node.textContent === 'Syncing Google Drive...' && node.disabled));
+  listener(false);
+  assert.equal(target.attrs['aria-busy'], 'false');
+  assert.ok(descendants(host).some(node => node.textContent === 'Sync Drive attendance now' && !node.disabled));
+});
 test('Drive settings and authorisation failures are displayed inside the Drive card', async () => {
   for (const action of ['Authorise read-only Google Drive', 'Save folder and sync', 'Sync Drive attendance now']) {
     const options = importFixture(), host = element('section');
@@ -741,7 +778,7 @@ test('opening Attendance tolerates a failed government calendar request using pu
   const requests = [];
   const context = {
     section: 'attendance', year: 2026, api: '/api/planner/', localDate: '2026-10-29',
-    content: host, el: element, refreshSession: async () => {}, notice() {},
+    content: host, el: element, refreshSession: async () => {}, notice() {}, bindAttendanceSyncState() {},
     request: async path => {
       requests.push(path);
       if (path.includes('school-settings/')) return { content: settings };
@@ -781,7 +818,7 @@ test('the new planner section mounts the import dashboard with shared upload and
   let mounted;
   const context = {
     section: 'attendanceImport', year: 2026, api: '/api/planner/', localDate: '2026-11-05', csrf: 'test',
-    content: element('main'), el: element, refreshSession: async () => {}, notice() {},
+    content: element('main'), el: element, refreshSession: async () => {}, notice() {}, bindAttendanceSyncState() {},
     request: async path => path.includes('school-settings') ? { content: { term4Start: '2026-10-12', term4End: '2026-12-18' } } : { terms: [] },
     plannerAttendance: { mount: async (_host, options) => { mounted = options; } }
   };

@@ -1342,6 +1342,11 @@ Sync setup, progress and document reports are displayed only in the Google Drive
 card on **Two-Week Attendance**, not beneath the daily Attendance Planner register.
 Automatic syncing still runs on other planner pages and retains its latest report
 for display when Two-Week Attendance is opened.
+The Drive card explicitly shows idle or syncing state and disables folder,
+authorisation and sync actions during automatic or manual sync. Refreshing weekly
+status shows immediate progress and completion beside that button; it reloads
+saved history only, not Google Drive. Refresh preserves active PDF progress and
+does not enable a second sync while the first is still running.
 Below the Drive results, **Term attendance sync status** provides a term-number
 filter and lists each term week, its Monday date and **Synced** or **Not synced**.
 A week is **Synced** when saved PDF import history exists for any automatic class
