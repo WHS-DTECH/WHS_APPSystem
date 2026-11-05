@@ -62,6 +62,7 @@ function element(tag, text = '', attrs = {}) {
   const node = { tag, textContent: text, attrs, children: [], events: {}, dataset: {}, value: '', checked: false,
     classList: { add() {} }, append(...items) { this.children.push(...items); },
     replaceChildren(...items) { this.children = items; }, setAttribute(key, value) { this.attrs[key] = value; },
+    getAttribute(key) { return this.attrs[key] ?? null; },
     querySelector(selector) {
       return descendants(this).slice(1).find(child => selector === '[data-attendance-drive-feedback]' &&
         Object.hasOwn(child.attrs, 'data-attendance-drive-feedback')) || null;
@@ -70,6 +71,128 @@ function element(tag, text = '', attrs = {}) {
   return node;
 }
 const descendants = node => [node, ...node.children.flatMap(descendants)];
+test('student panel filters only the selected roster by name, year and whanau and shows complete term weeks', async () => {
+  const host = element('section'), paths = [];
+  const students = [
+    { id: 'k:100', name: 'Indy Example' }, { id: 'k:200', name: 'Indy Another' },
+    { id: 'm:cccccccc-cccc-4ccc-8ccc-cccccccccccc', name: 'Manual Student' }
+  ];
+  const current = { ...group, students };
+  await browser().mount(host, {
+    el: element, year: 2026, today: '2026-10-15',
+    ranges: [{ term: '4', startDate: '2026-10-14', endDate: '2026-10-23' },
+      { term: '3', startDate: '2026-07-20', endDate: '2026-07-24' }],
+    school: { events: [{ date: '2026-10-16', kind: 'teacherOnly' }] }, calendar: {},
+    request: async path => {
+      paths.push(path);
+      if (path.endsWith('/groups')) return { revision: 1, content: { groups: [current] } };
+      if (path.includes('/classes/')) return { staffCode: 'TEST', classes: [{ code: '11TEST', students: [
+        { ...students[0], yearLevel: '9', whanau: 'W1' }, { ...students[1], yearLevel: '10', whanau: 'W2' },
+        { id: 'k:999', name: 'Indy Outside', yearLevel: '9', whanau: 'W1' }
+      ] }] };
+      return { marks: [{ student_id: 'k:100', date: '2026-10-15', period: 'p1', mark: 'P', revision: 1 },
+        { student_id: 'k:200', date: '2026-10-15', period: 'p1', mark: 'A', revision: 1 }] };
+    },
+    mutate: async () => ({ revision: 2 })
+  });
+  const find = label => descendants(host).find(node => node.attrs['aria-label'] === label);
+  const picker = find('Select student');
+  assert.deepEqual(picker.children.map(node => node.attrs.value), students.map(student => student.id));
+  const name = find('Search student name'); name.value = 'indy'; name.events.input();
+  assert.equal(picker.children.length, 2);
+  const years = find('Student year level'); years.value = '9'; years.events.change();
+  assert.deepEqual(picker.children.map(node => node.attrs.value), ['k:100']);
+  const whanau = find('Whānau'); whanau.value = 'W2'; whanau.events.change();
+  assert.equal(picker.children.length, 0);
+  years.value = ''; years.events.change();
+  assert.deepEqual(picker.children.map(node => node.attrs.value), ['k:200']);
+  whanau.value = 'W1'; whanau.events.change();
+  picker.value = 'k:100'; await picker.events.change();
+  const table = () => descendants(host).find(node => node.attrs.class === 'attendance-table attendance-student-table');
+  const rows = table().children.find(node => node.tag === 'tbody').children;
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].children[0].textContent, 'Week 1');
+  assert.equal(rows[0].children[1].textContent, '2026-10-12');
+  assert.equal(rows[0].children[2].textContent, 'No school', 'partial first week stays outside the term');
+  assert.equal(rows[0].children[6].textContent, 'No school', 'school closure is not an absence');
+  assert.ok(descendants(table()).some(node => node.textContent === 'P1: P'));
+  assert.ok(descendants(table()).some(node => node.textContent === 'P3: Not recorded'));
+  assert.ok(!descendants(table()).some(node => node.textContent === 'P1: A'), 'same-name/other IDs never supply marks');
+  assert.ok(paths.some(path => path.includes('/student/k%3A100?groupId=' + current.id) &&
+    path.endsWith('&start=2026-10-14&end=2026-10-23')));
+  const cell = find('Indy Example, 2026-10-15, P1');
+  cell.value = 'L'; await cell.events.change();
+  assert.ok(descendants(table()).some(node => node.textContent === 'P1: L'), 'successful daily edit updates the term view');
+  const terms = find('Student attendance term'); terms.value = '3'; await terms.events.change();
+  assert.equal(table().children.find(node => node.tag === 'tbody').children.length, 1);
+  assert.ok(paths.some(path => path.endsWith('&start=2026-07-20&end=2026-07-24')));
+  name.value = 'manual'; name.events.input(); whanau.value = ''; whanau.events.change();
+  assert.deepEqual(picker.children.map(node => node.attrs.value), [students[2].id]);
+  assert.equal(table(), undefined, 'filtering out the selected student clears previous attendance');
+});
+test('student term attendance uses individual class membership and reports load failures explicitly', async () => {
+  const host = element('section'), current = { ...group, scheduleMode: 'auto', classes: ['VP-TEST-CW', 'VP-OTHER-CW'] };
+  let fail = false;
+  await browser().mount(host, {
+    el: element, year: 2026, today: '2026-10-15',
+    ranges: [{ term: '4', startDate: '2026-10-12', endDate: '2026-10-16' }], school: {}, calendar: {},
+    request: async path => {
+      if (path.endsWith('/groups')) return { revision: 1, content: { groups: [current] } };
+      if (path.includes('/classes/')) return { classes: [
+        { code: 'VP-TEST-CW', students: current.students },
+        { code: 'VP-OTHER-CW', students: [{ id: 'k:200', name: 'Other Student' }] }
+      ] };
+      if (path.includes('/student/') && fail) throw new Error('Database unavailable');
+      return { marks: [{ student_id: 'k:100', date: '2026-10-12', period: 'p2', mark: 'A', revision: 1 }] };
+    },
+    loadSchedule: async () => ({ 'p1:0': [{ title: 'TEST' }], 'p2:0': [{ title: 'OTHER' }] })
+  });
+  const picker = descendants(host).find(node => node.attrs['aria-label'] === 'Select student');
+  picker.value = 'k:100'; await picker.events.change();
+  const result = descendants(host).find(node => node.attrs.class === 'attendance-table attendance-student-table');
+  assert.ok(descendants(result).some(node => node.textContent === 'P1: Not recorded'));
+  assert.ok(!descendants(result).some(node => node.textContent.startsWith('P2:')), 'other combined class periods are excluded');
+  assert.ok(descendants(result).some(node => node.textContent === 'No lesson'));
+  fail = true;
+  await descendants(host).find(node => node.textContent === 'Refresh student attendance').events.click();
+  assert.ok(descendants(host).some(node => node.attrs.role === 'alert' &&
+    node.textContent.includes('Student attendance could not be loaded. Database unavailable')));
+  assert.ok(!descendants(host).some(node => node.attrs.class === 'attendance-table attendance-student-table'),
+    'failed refresh does not present stale marks as current data');
+});
+test('directory metadata does not leak into saved class roster shape', () => {
+  const result = browser().combinedStudents([], [{ students: [
+    { id: 'k:100', name: 'Synthetic Student', yearLevel: '9', whanau: 'W1' }
+  ] }]);
+  assert.equal(validGroups({ groups: [{ ...group, students: Array.from(result) }] }), true);
+  assert.deepEqual(Object.keys(result[0]), ['id', 'name']);
+});
+test('student search resets on class change and missing directory details leave manual name search usable', async () => {
+  const host = element('section');
+  const second = { ...group, id: other, name: 'Other class',
+    students: [{ id: 'm:cccccccc-cccc-4ccc-8ccc-cccccccccccc', name: 'Manual Student' }] };
+  await browser().mount(host, {
+    el: element, year: 2026, today: '2026-10-15',
+    ranges: [{ term: '4', startDate: '2026-10-12', endDate: '2026-10-16' }], school: {}, calendar: {},
+    request: async path => {
+      if (path.endsWith('/groups')) return { revision: 1, content: { groups: [group, second] } };
+      if (path.includes('/classes/')) throw new Error('Directory unavailable');
+      return { marks: [] };
+    }
+  });
+  let name = descendants(host).find(node => node.attrs['aria-label'] === 'Search student name');
+  name.value = 'Synthetic'; name.events.input();
+  await descendants(host).find(node => node.attrs.role === 'tab' && node.textContent === 'Other class').events.click();
+  name = descendants(host).find(node => node.attrs['aria-label'] === 'Search student name');
+  assert.equal(name.value, '');
+  const picker = descendants(host).find(node => node.attrs['aria-label'] === 'Select student');
+  assert.deepEqual(picker.children.map(node => node.attrs.value), [second.students[0].id]);
+  assert.equal(picker.value, '');
+  assert.ok(descendants(host).some(node => node.attrs.role === 'alert' &&
+    node.textContent.includes('Directory unavailable') && node.textContent.includes('Name search remains available')));
+  picker.value = second.students[0].id; await picker.events.change();
+  assert.ok(descendants(host).some(node => node.tag === 'caption' && node.textContent === 'Manual Student - Term 4 - Other class'));
+});
 function importFixture() {
   const automatic = { ...group, name: 'Synthetic class', scheduleMode: 'auto', classes: ['VP-TEST-CW', 'VP-OTHER-CW'],
     students: [{ id: 'k:100', name: 'Alex Example' }] };
@@ -892,6 +1015,54 @@ async function fixture(t, query) {
   }
   return { base, login, failDirectory() { directoryFails = true; } };
 }
+test('student term API bounds dates and isolates owner, selected roster and student ID', async t => {
+  const calls = [];
+  const { base, login } = await fixture(t, async (sql, params) => {
+    calls.push([sql, params]);
+    if (sql.includes('planner_attendance_groups')) return { rows: params[0] === owner ? [{ content }] : [] };
+    assert.match(sql, /owner_id=\$1 AND year=\$2 AND student_id=\$3/);
+    assert.match(sql, /lesson_date >= \$4::date AND lesson_date <= \$5::date/);
+    assert.deepEqual(params, [owner, 2026, 'k:100', '2026-10-12', '2026-12-18']);
+    return { rows: [{ student_id: 'k:100', date: '2026-10-29', period: 'p1', mark: 'P', revision: 1 }] };
+  });
+  const headers = await login(owner), otherHeaders = await login(other);
+  const path = base + 'attendance/2026/student/k%3A100?groupId=' + group.id + '&start=2026-10-12&end=2026-12-18';
+  const response = await fetch(path, { headers });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  assert.equal((await response.json()).marks[0].mark, 'P');
+  assert.equal((await fetch(path)).status, 401);
+  assert.equal((await fetch(path, { headers: { 'x-user': owner, 'x-role': 'Student' } })).status, 403);
+  assert.equal((await fetch(path, { headers: otherHeaders })).status, 403);
+  assert.equal((await fetch(path.replace('k%3A100', 'k%3A200'), { headers })).status, 403);
+  assert.equal((await fetch(path.replace(group.id, other), { headers })).status, 403);
+  for (const invalid of [
+    path.replace('2026-10-12', '2026-02-30'), path.replace('2026-10-12', '2025-10-12'),
+    path.replace('2026-10-12', '2026-12-21'), path.replace('2026-10-12', '2026-01-01'),
+    path.replace('k%3A100', 'forged'), path.replace(group.id, 'bad')
+  ]) assert.equal((await fetch(invalid, { headers })).status, 400);
+  assert.equal(calls.filter(([sql]) => sql.includes('planner_attendance_marks')).length, 1,
+    'invalid or unowned roster requests never query marks');
+});
+test('teacher class directory exposes year and whanau only for matching teacher class memberships', async () => {
+  const { attendanceClasses } = require('../../kamarDirectory');
+  const result = await attendanceClasses({ email: 'synthetic@example.test' }, 2026, async (sql, params) => {
+    if (sql.includes('staff_upload')) {
+      assert.deepEqual(params, ['synthetic@example.test']);
+      return { rows: [{ code: 'TEST' }] };
+    }
+    assert.match(sql, /SELECT id_number,student_name,year_level,form_class/);
+    assert.deepEqual(params, [2026]);
+    return { rows: [
+      { id_number: '100', student_name: 'Synthetic Student', year_level: '9', form_class: 'W1',
+        mon_p2: 'TEST/SHARED-11TEST-CW', tue_p3: 'OTHER-12TEST-CW' },
+      { id_number: '200', student_name: 'Other Teacher Student', year_level: '10', form_class: 'W2',
+        mon_p2: 'OTHER-12TEST-CW' }
+    ] };
+  });
+  assert.deepEqual(result, { staffCode: 'TEST', classes: [{ code: 'TEST/SHARED-11TEST-CW',
+    students: [{ id: 'k:100', name: 'Synthetic Student', yearLevel: '9', whanau: 'W1' }] }] });
+});
 test('attendance API requires sign-in, CSRF, ownership and revisions without changing planner notes', async t => {
   const saved = new Map(), marks = new Map();
   const { base, login, failDirectory } = await fixture(t, async (sql, params) => {

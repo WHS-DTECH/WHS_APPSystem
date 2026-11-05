@@ -49,7 +49,7 @@ async function attendanceClasses(user, year, directoryQuery = query) {
       'Your school sign-in email has no current Staff List code. Ask an administrator to check your school email and staff code.'), { status: 409 });
   }
   const staffCode = staff.rows[0].code;
-  const { rows } = await directoryQuery(`SELECT id_number,student_name,${columns.join(',')}
+  const { rows } = await directoryQuery(`SELECT id_number,student_name,year_level,form_class,${columns.join(',')}
         FROM student_upload WHERE status='Current' AND upload_year=$1
         AND NULLIF(TRIM(id_number),'') IS NOT NULL AND NULLIF(TRIM(student_name),'') IS NOT NULL
         ORDER BY lower(student_name),id_number`, [year]);
@@ -59,7 +59,8 @@ async function attendanceClasses(user, year, directoryQuery = query) {
       const separator = code.indexOf('-');
       if (separator < 1 || !code.slice(0, separator).toUpperCase().split('/').map(value => value.trim()).includes(staffCode)) continue;
       if (!classes.has(code)) classes.set(code, new Map());
-      classes.get(code).set(student.id_number, { id: 'k:' + student.id_number.trim(), name: student.student_name.trim() });
+      classes.get(code).set(student.id_number, { id: 'k:' + student.id_number.trim(), name: student.student_name.trim(),
+        yearLevel: String(student.year_level || '').trim(), whanau: String(student.form_class || '').trim() });
     }
   }
   return { staffCode, classes: [...classes].sort(([a], [b]) => a.localeCompare(b))

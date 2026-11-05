@@ -15,7 +15,7 @@
   }
   function combinedStudents(existing, classes) {
     const result = new Map(existing.map(student => [student.id, { ...student }]));
-    for (const group of classes) for (const student of group.students) if (!result.has(student.id)) result.set(student.id, { ...student });
+    for (const group of classes) for (const student of group.students) if (!result.has(student.id)) result.set(student.id, { id: student.id, name: student.name });
     return [...result.values()].sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
   }
   function classCode(value, uploaded = false) {
@@ -210,7 +210,13 @@
     const add = el('button', '+ Class tab', { type: 'button' });
     const editor = el('section', '', { class: 'attendance-editor' });
     const sheet = el('section', '', { class: 'attendance-sheet', role: 'tabpanel', id: 'attendance-sheet' });
-    controls.append(tabs, add, editor, sheet);
+    const studentPanel = el('section', '', { class: 'attendance-student-panel', 'aria-label': 'Individual student term attendance' });
+    let studentGroup = '', studentId = '', studentTerm = '', searchName = '', searchYear = '', searchWhanau = '';
+    let studentMarks = new Map(), studentSchedules = {}, studentRange;
+    let renderStudentRows = () => {};
+    const workspace = el('div', '', { class: 'attendance-workspace' });
+    workspace.append(sheet, studentPanel);
+    controls.append(tabs, add, editor, overview ? sheet : workspace);
     if (overview) { tabs.hidden = true; add.hidden = true; }
     function say(message, error = false) { feedback.textContent = message; feedback.setAttribute('role', error ? 'alert' : 'status'); }
     function guard() {
@@ -241,7 +247,7 @@
           'aria-controls': 'attendance-sheet', 'aria-selected': String(selected === group.id) });
         button.addEventListener('click', () => {
           if (!guard()) return;
-          selected = group.id; renderTabs(); act(loadSheet);
+          selected = group.id; renderTabs(); return act(loadSheet);
         });
         tabs.append(button);
       }
@@ -428,11 +434,150 @@
         roster, manual, save, cancel);
       renderRoster();
     }
+    async function renderStudentPanel(group, available) {
+      studentPanel.replaceChildren();
+      renderStudentRows = () => {};
+      if (studentGroup !== group.id) {
+        studentGroup = group.id; studentId = ''; searchName = ''; searchYear = ''; searchWhanau = '';
+      }
+      studentPanel.append(el('h3', 'Individual student attendance'), el('p', group.name + ' - selected class only'));
+      const status = el('p', '', { role: 'status', 'aria-live': 'polite', class: 'duty-roster-feedback' });
+      studentPanel.append(status);
+      if (!directory) {
+        status.textContent = 'Loading student filters...';
+        try {
+          const result = await request('attendance/classes/' + year);
+          if (!Array.isArray(result.classes)) throw new Error('School student details are unavailable.');
+          directory = result;
+          status.textContent = '';
+        } catch (error) {
+          status.textContent = error.message + ' Name search remains available; reload to retry year and whānau filters.';
+          status.setAttribute('role', 'alert');
+        }
+      }
+      const details = new Map((directory?.classes || []).filter(item => group.classes.includes(item.code))
+        .flatMap(item => item.students.map(student => [student.id, student])));
+      const name = el('input', '', { type: 'search', 'aria-label': 'Search student name', placeholder: 'Student name' });
+      name.value = searchName;
+      function filterSelect(label, key, value) {
+        const wrapper = el('label', label + ' ');
+        const select = el('select', '', { 'aria-label': label });
+        select.append(el('option', 'All', { value: '' }));
+        const values = [...new Set(group.students.map(student => details.get(student.id)?.[key]).filter(Boolean))]
+          .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+        values.forEach(value => select.append(el('option', value, { value })));
+        select.value = values.includes(value) ? value : '';
+        wrapper.append(select); studentPanel.append(wrapper);
+        return select;
+      }
+      const nameLabel = el('label', 'Name '); nameLabel.append(name); studentPanel.append(nameLabel);
+      const years = filterSelect('Student year level', 'yearLevel', searchYear);
+      const whanau = filterSelect('Whānau', 'whanau', searchWhanau);
+      const pickerLabel = el('label', 'Student ');
+      const picker = el('select', '', { 'aria-label': 'Select student', size: '6', class: 'attendance-student-picker' });
+      pickerLabel.append(picker); studentPanel.append(pickerLabel);
+      const count = el('p', '', { role: 'status', 'aria-live': 'polite' });
+      const termLabel = el('label', 'Term ');
+      const terms = el('select', '', { 'aria-label': 'Student attendance term' });
+      available.forEach(item => terms.append(el('option', 'Term ' + item.term, { value: item.term })));
+      if (!available.some(item => item.term === studentTerm)) studentTerm = selectedTerm;
+      terms.value = studentTerm; termLabel.append(terms);
+      const refresh = el('button', 'Refresh student attendance', { type: 'button' });
+      const result = el('div', '', { class: 'attendance-scroll', tabindex: '0', 'aria-label': 'Student term attendance, scroll for all days' });
+      studentPanel.append(count, termLabel, refresh, result);
+      function filterStudents() {
+        searchName = name.value; searchYear = years.value; searchWhanau = whanau.value;
+        const matches = group.students.filter(student => attendanceName(student.name).includes(attendanceName(searchName)) &&
+          (!searchYear || details.get(student.id)?.yearLevel === searchYear) &&
+          (!searchWhanau || details.get(student.id)?.whanau === searchWhanau));
+        picker.replaceChildren();
+        matches.forEach(student => {
+          const info = details.get(student.id);
+          picker.append(el('option', [student.name, info?.yearLevel && 'Year ' + info.yearLevel, info?.whanau].filter(Boolean).join(' · '),
+            { value: student.id }));
+        });
+        if (!matches.some(student => student.id === studentId)) {
+          studentId = ''; result.replaceChildren(); renderStudentRows = () => {};
+          if (status.getAttribute('role') !== 'alert') status.textContent = '';
+        }
+        picker.value = studentId;
+        refresh.disabled = !studentId;
+        count.textContent = matches.length ? matches.length + (matches.length === 1 ? ' student found.' : ' students found.') +
+          ' Select a student to view their term.' : 'No matching students in this class.';
+      }
+      async function loadStudent() {
+        result.replaceChildren(); renderStudentRows = () => {};
+        if (!studentId) return;
+        status.setAttribute('role', 'status'); status.textContent = 'Loading term attendance...';
+        try {
+          const student = group.students.find(item => item.id === studentId);
+          studentRange = available.find(item => item.term === studentTerm);
+          const weeks = termWeeks(studentRange.startDate, studentRange.endDate);
+          let classes = group.classes;
+          if (group.scheduleMode !== 'manual') {
+            if (!directory || !loadSchedule) throw new Error('School class details and timetable are required to show this student’s class attendance.');
+            classes = directory.classes.filter(item => group.classes.includes(item.code) &&
+              item.students.some(member => member.id === studentId)).map(item => item.code);
+            if (!classes.length) throw new Error('No current school class membership found for this student in this tab.');
+          }
+          const [saved, schedules] = await Promise.all([
+            request('attendance/' + year + '/student/' + encodeURIComponent(studentId) + '?groupId=' +
+              encodeURIComponent(group.id) + '&start=' + studentRange.startDate + '&end=' + studentRange.endDate),
+            Promise.all(weeks.map(async week => [week, group.scheduleMode === 'manual' ?
+              Array.from({ length: 5 }, () => group.periods) : scheduledPeriods({ classes }, await loadSchedule(week))]))
+          ]);
+          studentMarks = new Map(saved.marks.map(mark => [mark.student_id + '|' + mark.date + '|' + mark.period, mark]));
+          studentSchedules = Object.fromEntries(schedules);
+          renderStudentRows = () => {
+            const table = el('table', '', { class: 'attendance-table attendance-student-table' });
+            table.append(el('caption', student.name + ' - Term ' + studentTerm + ' - ' + group.name));
+            const head = el('thead'), header = el('tr'), body = el('tbody');
+            ['Week', 'Week beginning', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].forEach(label =>
+              header.append(el('th', label, { scope: 'col' })));
+            head.append(header); table.append(head, body);
+            weeks.forEach((week, index) => {
+              const row = el('tr'); row.append(el('th', 'Week ' + (index + 1), { scope: 'row' }), el('td', week));
+              for (let day = 0; day < 5; day++) {
+                const value = iso(new Date(date(week).getTime() + day * 86400000));
+                const cell = el('td');
+                if (closedDay(value, studentRange, year, school, calendar)) cell.textContent = 'No school';
+                else if (!studentSchedules[week][day].length) cell.textContent = 'No lesson';
+                else for (const period of studentSchedules[week][day]) {
+                  const mark = studentMarks.get(studentId + '|' + value + '|' + period)?.mark || '';
+                  cell.append(el('div', period.toUpperCase() + ': ' + (mark || 'Not recorded'), { 'data-mark': mark }));
+                }
+                row.append(cell);
+              }
+              body.append(row);
+            });
+            result.replaceChildren(table);
+          };
+          renderStudentRows();
+          status.textContent = 'Term ' + studentTerm + ' attendance loaded for ' + student.name + '.';
+        } catch (error) {
+          status.textContent = 'Student attendance could not be loaded. ' + error.message;
+          status.setAttribute('role', 'alert');
+        }
+      }
+      name.addEventListener('input', filterStudents);
+      years.addEventListener('change', filterStudents);
+      whanau.addEventListener('change', filterStudents);
+      picker.addEventListener('change', () => {
+        studentId = picker.value; refresh.disabled = !studentId; return act(loadStudent);
+      });
+      terms.addEventListener('change', () => { studentTerm = terms.value; return act(loadStudent); });
+      refresh.addEventListener('click', () => act(loadStudent));
+      filterStudents();
+      if (studentId) await loadStudent();
+    }
     async function loadSheet() {
       sheet.replaceChildren();
+      studentPanel.replaceChildren(); renderStudentRows = () => {};
+      studentPanel.hidden = true;
       if (overview) { await loadOverview(); return; }
       const group = groups.find(item => item.id === selected);
       if (!group) { sheet.append(el('p', 'Create a class tab to start your attendance log.')); return; }
+      studentPanel.hidden = false;
       const available = ranges.filter(range => range.startDate && range.endDate);
       if (!available.length) throw new Error('Term dates are unavailable. Publish dates in Planner Setup before using Attendance.');
       if (!available.some(range => range.term === selectedTerm)) {
@@ -509,6 +654,7 @@
                   const saved = await mutate('attendance/' + year + '/mark', { studentId: student.id, date: value, period,
                     mark: chosen, revision: previous?.revision || 0 });
                   marks.set(key, { student_id: student.id, date: value, period, mark: chosen, revision: saved.revision });
+                  studentMarks.set(key, marks.get(key)); renderStudentRows();
                   input.dataset.mark = chosen; say('Saved ' + student.name + ' · ' + value + ' · ' + period.toUpperCase() + ': ' + (chosen || 'not recorded') + '.');
                 } catch (error) {
                   input.value = previous?.mark || '';
@@ -530,6 +676,7 @@
         { role: schedule.some(day => day.length) ? 'status' : 'alert' }));
       }
       if (!group.students.length) sheet.append(el('p', 'No students yet. Use Edit class tab / students to add a school class or manual student.'));
+      await renderStudentPanel(group, available);
     }
     async function loadOverview() {
       sheet.removeAttribute('role');

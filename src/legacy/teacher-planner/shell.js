@@ -20,7 +20,7 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
 <link rel="icon" type="image/png" href="${asset('whs-logo.png')}">
 <link rel="stylesheet" href="${asset('account-controls.css')}">
 <link rel="stylesheet" href="${asset('module-shell.css')}">
-<link rel="stylesheet" href="${asset('planner.css?v=grouped-navigation-24')}">
+<link rel="stylesheet" href="${asset('planner.css?v=student-attendance-25')}">
 </head><body class="whs-module-shell whs-planner" data-api="${escape(baseUrl)}api/planner/" data-assets="${escape(baseUrl)}framework/" data-planner-name="${escape(displayName)}" data-user-id="${escape(userId)}" data-user-email="${escape(userEmail)}" data-core-url="${escape(coreUrl)}">
 <main class="planner-main" aria-label="${escape(title)}">
 <header class="planner-heading">
@@ -97,7 +97,7 @@ ${standalone ? `<script src="${asset('global-nav.js')}" defer></script>` : ''}
 <script src="${asset('google-calendar.js')}" defer></script>
 <script src="${asset('google-doc-sync.js')}" defer></script>
 <script src="${asset('duty-roster.js?v=weekly-term-duties-4')}" defer></script>
-<script src="${asset('attendance.js?v=drive-sync-7')}" defer></script>
+<script src="${asset('attendance.js?v=student-term-8')}" defer></script>
 <script src="${asset('google-tasks.js')}" defer></script>
 <script src="${asset('google-drive.js?v=moderation-resource-files-1')}" defer></script>
 <script src="${asset('moderation-schema.js?v=requirement-cleanup-2')}" defer></script>

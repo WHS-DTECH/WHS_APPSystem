@@ -10,6 +10,10 @@ const keys = (value, allowed) => value && typeof value === 'object' && !Array.is
 const unique = values => new Set(values).size === values.length;
 const student = item => keys(item, ['id', 'name']) && typeof item.id === 'string' &&
   STUDENT.test(item.id) && text(item.name, 160);
+const directoryStudent = item => keys(item, ['id', 'name', 'yearLevel', 'whanau']) &&
+  student({ id: item.id, name: item.name }) &&
+  ['yearLevel', 'whanau'].every(key => item[key] === undefined ||
+    typeof item[key] === 'string' && item[key].length <= 120);
 function validGroups(content) {
   return keys(content, ['groups']) && Buffer.byteLength(JSON.stringify(content)) <= 300000 &&
     Array.isArray(content.groups) && content.groups.length <= 30 &&
@@ -52,7 +56,7 @@ function createAttendanceRouter({ query, loadClasses }) {
       }
       if (!keys(directory, ['classes', 'staffCode']) || !Array.isArray(directory.classes) ||
         !directory.classes.every(group => keys(group, ['code', 'students']) && text(group.code, 120) &&
-          Array.isArray(group.students) && group.students.every(student))) {
+          Array.isArray(group.students) && group.students.every(directoryStudent))) {
         throw new Error('The school class list returned invalid data.');
       }
       res.json(directory);
@@ -180,6 +184,31 @@ function createAttendanceRouter({ query, loadClasses }) {
           WHERE owner_id=$1 AND year=$2 AND revision=$4 RETURNING revision`, [...values, req.body.revision]);
       if (!result.rows.length) return reject(res, 'Attendance tabs changed in another window. Copy your edits, then reload before saving.', 409);
       res.json(result.rows[0]);
+    } catch (error) { next(error); }
+  });
+  router.get('/:year/student/:studentId', async (req, res, next) => {
+    const { studentId } = req.params;
+    const { groupId, start, end } = req.query;
+    const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+      value.startsWith(req.attendanceYear + '-') && Number.isFinite(Date.parse(value + 'T00:00:00Z')) &&
+      new Date(value + 'T00:00:00Z').toISOString().slice(0, 10) === value;
+    if (!STUDENT.test(studentId) || typeof groupId !== 'string' || !UUID.test(groupId) ||
+      !validDate(start) || !validDate(end) || start > end ||
+      (Date.parse(end) - Date.parse(start)) / 86400000 > 150) {
+      return reject(res, 'Choose a saved class student and valid term dates in this attendance year.');
+    }
+    try {
+      const saved = await query('SELECT content FROM planner_attendance_groups WHERE owner_id=$1 AND year=$2',
+        [req.user.id, req.attendanceYear]);
+      if (!saved.rows[0]?.content.groups.some(group => group.id === groupId &&
+        group.students.some(item => item.id === studentId))) {
+        return reject(res, 'This student is not in your selected saved class tab.', 403);
+      }
+      const result = await query(`SELECT student_id,to_char(lesson_date,'YYYY-MM-DD') AS date,period,mark,revision
+        FROM planner_attendance_marks WHERE owner_id=$1 AND year=$2 AND student_id=$3
+        AND lesson_date >= $4::date AND lesson_date <= $5::date ORDER BY lesson_date,period`,
+      [req.user.id, req.attendanceYear, studentId, start, end]);
+      res.json({ marks: result.rows });
     } catch (error) { next(error); }
   });
   router.get('/:year/week/:week', async (req, res, next) => {

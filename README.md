@@ -1363,6 +1363,16 @@ plans and professional reflection), **Setup** (Assessment setup and Two-Week
 Attendance imports/sync), and **Section Modules** (daily Attendance, Moderation
 and upcoming modules). Groups use labelled, colour-accented panels and wrapping
 pill buttons; existing section routes and disabled upcoming modules are unchanged.
+Daily Attendance places the editable class register on the left and a read-only
+individual student term view on the right (stacked on smaller screens). Search
+the selected saved class tab by name, student year level and whānau/form class,
+then select a student and term. Year and whānau come from the teacher's current
+KAMAR class lists; manual students remain searchable by name. Each term week is
+a row with weekday period marks, using only that student's matching classes and
+timetable (or the tab's manual periods). Blank marks show **Not recorded**,
+never an assumed absence; closures and unscheduled days are labelled separately.
+Marks remain private to the signed-in Planner owner. Daily edits update the
+student view immediately; **Refresh student attendance** reloads saved term data.
 
 The Moderation **Marking Confirmation & Feedback** and **WHS Coversheet** contents
 tabs label and open each record's respective form, independently of its marking
