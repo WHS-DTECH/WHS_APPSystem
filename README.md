@@ -1388,15 +1388,23 @@ The class-specific term table also uses **Synced** or **Not synced**, based on
 saved PDF import history rather than timetable completeness. Detailed Drive
 results are collapsed under the **View sync report** pill; the current sync state
 and controls remain visible outside the report.
-Teacher Planner navigation is grouped into **Planning** (cover, year/term/week
-plans and professional reflection), **Setup** (Assessment setup and Two-Week
-Attendance imports/sync), and **Section Modules** (daily Attendance, Moderation
-and upcoming modules). Groups use labelled, colour-accented panels and wrapping
+Teacher Planner navigation is grouped into **Planning** (cover and year/term/week
+plans), **Setup** (Assessment setup and Two-Week Attendance imports/sync), and
+**Section Modules** (daily Attendance, Moderation, Teaching Standards,
+Professional learning and upcoming modules). Groups use labelled, colour-accented panels and wrapping
 pill buttons; existing section routes and disabled upcoming modules are unchanged.
 Year and print controls sit on the right of the Teacher Planner heading. The
 circular year badge opens the year selected in the adjacent Planner year field;
 its number and accessible label follow that field and restored planner links.
 Print current view retains its existing behaviour.
+The Term page uses the full available screen width: a smaller cover sits beside
+a highlighted **Start of term** panel, with **Goals and reflection** above its
+heading and term dates. Goals retain their existing private yearly record and
+navigation/unsaved-edit checks. The Google Calendar sits below both panels at
+full width, with an event-detail panel and a minimum readable week-grid width
+(horizontal scrolling on smaller screens). The existing term selector stays
+above the page, styled as a circular badge; it still opens the native Term 1-4
+dropdown. Print actions are unchanged; a printing redesign remains deferred.
 Daily Attendance places the editable class register on the left and a read-only
 individual student term view on the right (stacked on smaller screens). Search
 the selected saved class tab by name, student year level and whānau/form class,

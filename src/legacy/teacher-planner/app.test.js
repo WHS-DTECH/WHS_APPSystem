@@ -657,12 +657,12 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.ok(!html.includes('<script>alert(1)</script>'));
   assert.match(html, /data-section="cover" aria-current="page"/);
   assert.deepEqual([...html.matchAll(/data-section="([^"]+)"/g)].map((match) => match[1]),
-    ['cover', 'year', 'term', 'week', 'goals', 'standards', 'learning', 'assessmentSetup', 'attendanceImport', 'attendance', 'moderation']);
+    ['cover', 'year', 'term', 'week', 'assessmentSetup', 'attendanceImport', 'attendance', 'moderation', 'standards', 'learning']);
   const groups = [...html.matchAll(/<section class="planner-nav-group [^"]+" aria-labelledby="([^"]+)">([\s\S]*?)<\/section>/g)];
   assert.equal(groups.length, 3);
   for (const [index, expected] of [
-    ['cover', 'year', 'term', 'week', 'goals', 'standards', 'learning'],
-    ['assessmentSetup', 'attendanceImport'], ['attendance', 'moderation']
+    ['cover', 'year', 'term', 'week'],
+    ['assessmentSetup', 'attendanceImport'], ['attendance', 'moderation', 'standards', 'learning']
   ].entries()) {
     assert.match(groups[index][2], new RegExp('<h2 id="' + groups[index][1] + '">'));
     assert.deepEqual([...groups[index][2].matchAll(/data-section="([^"]+)"/g)].map(match => match[1]), expected);
@@ -671,9 +671,9 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(groups[1][2], />Setup<\/h2>/);
   assert.match(groups[2][2], />Section Modules<\/h2>/);
   assert.equal([...groups[2][2].matchAll(/disabled title="Page coming soon"/g)].length, 5);
-  assert.match(html, /planner\.css\?v=year-badge-26/);
-  assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=year-badge-24"'));
-  assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=year-badge-24"'));
+  assert.match(html, /planner\.css\?v=term-workspace-27/);
+  assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=term-workspace-25"'));
+  assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=term-workspace-25"'));
   const heading = html.match(/<header class="planner-heading">([\s\S]*?)<\/header>/)[1];
   for (const id of ['planner-year', 'open-year', 'print-planner']) {
     assert.match(heading, new RegExp('id="' + id + '"'));

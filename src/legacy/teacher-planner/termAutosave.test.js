@@ -140,3 +140,83 @@ test('term rendering hides reflection without removing its supported saved field
   const css = await fs.readFile(path.join(__dirname, 'public', 'planner.css'), 'utf8');
   assert.match(css, /\.term-spread \.term-auto-expand \{ overflow: hidden; resize: none; \}/);
 });
+
+test('term workspace places goals before the heading and dates, with a separate full-width calendar and preserved inputs', async () => {
+  const source = await fs.readFile(path.join(__dirname, 'public', 'planner.js'), 'utf8');
+  const descendants = node => [node, ...node.children.flatMap(descendants)];
+  function el(tag, text = '', attrs = {}) {
+    const node = { tag, textContent: text, attrs, dataset: {}, children: [], events: {}, value: '', style: {}, scrollHeight: 350,
+      append(...items) { this.children.push(...items); }, replaceChildren(...items) { this.children = items; },
+      setAttribute(key, value) { this.attrs[key] = value; }, addEventListener(event, callback) { this.events[event] = callback; },
+      querySelector(selector) { return descendants(this).find(item => item.tag === selector); },
+      querySelectorAll(selector) { return descendants(this).filter(item => item.tag === selector); },
+      classList: { add() {} }
+    };
+    return node;
+  }
+  const content = el('main'), selected = [], mounts = [];
+  const context = { content, el, section: 'term', term: '4', year: 2026,
+    fields: { term: [['startDate', 'Term start date', 'date'], ['endDate', 'Term end date', 'date'],
+      ['information', 'Start-of-term information'], ['priorities', 'Term priorities'], ['reflection', 'Term reflection']] },
+    coverPage: () => el('section', '', { class: 'planner-cover paper-page' }), expandTermArea: area => { area.style.height = area.scrollHeight + 'px'; },
+    navigatePlannerSection: target => selected.push(target), refreshSession: async () => {}, request() {}, api: '/api/planner/',
+    renderKamarWeek() {}, kamarSunday() {}, kamarToday() {}, kamarWeekDates() {}, kamarEventsForDay() {},
+    kamarHourEvents() {}, kamarHourLabel() {}, date() {}, iso() {},
+    plannerGoogleCalendar: { mount: (...args) => mounts.push(args) }
+  };
+  vm.runInNewContext(
+    source.slice(source.indexOf('  function inputField('), source.indexOf('  function updateWeekNavigation(')) +
+    source.slice(source.indexOf('  function render(data)'), source.indexOf('  async function loadAttendanceSchedule(')), context);
+  context.render({ startDate: '2026-10-12', endDate: '2026-12-18', information: 'Synthetic start notes', priorities: 'Synthetic priorities' });
+  const spread = content.children[0], panel = spread.children[1], calendar = spread.children[2];
+  assert.equal(spread.attrs.class, 'planner-spread term-spread');
+  assert.match(panel.attrs.class, /term-start-panel/);
+  assert.equal(panel.children[0].attrs['data-planner-navigation'], '');
+  assert.equal(panel.children[0].children[0].textContent, 'Goals and reflection');
+  assert.equal(panel.children[1].tag, 'h2');
+  assert.equal(panel.children[2].querySelector('input').attrs.name, 'startDate');
+  assert.equal(panel.children[3].querySelector('input').attrs.name, 'endDate');
+  assert.deepEqual(panel.querySelectorAll('textarea').map(item => [item.attrs.name, item.value, item.style.height]),
+    [['information', 'Synthetic start notes', '350px'], ['priorities', 'Synthetic priorities', '350px']]);
+  assert.equal(calendar.attrs.class, 'paper-page term-calendar-panel');
+  assert.equal(mounts[0][0], calendar.children[0]);
+  panel.children[0].children[0].events.click();
+  assert.deepEqual(selected, ['goals']);
+});
+
+test('circular term selector keeps all four choices and restores the old selection when navigation is blocked', async () => {
+  const source = await fs.readFile(path.join(__dirname, 'public', 'planner.js'), 'utf8');
+  function el(tag, text = '', attrs = {}) {
+    return { tag, textContent: text, attrs, children: [], events: {}, value: '',
+      append(...items) { this.children.push(...items); }, replaceChildren(...items) { this.children = items; },
+      addEventListener(event, handler) { this.events[event] = handler; }
+    };
+  }
+  let permitted = false, loads = 0;
+  const context = { el, selectors: el('section'), section: 'term', term: '4',
+    canLeave: () => permitted, load: () => loads++, updateWeekNavigation() {} };
+  vm.runInNewContext(source.slice(source.indexOf('  function renderSelectors('), source.indexOf('  function setCalendarEvents(')), context);
+  context.renderSelectors();
+  const label = context.selectors.children[0].children[0], select = label.children[0];
+  assert.equal(label.attrs.class, 'planner-term-control');
+  assert.equal(select.attrs.class, 'planner-term-badge');
+  assert.deepEqual(select.children.map(item => item.attrs.value), ['1', '2', '3', '4']);
+  assert.equal(select.value, '4');
+  select.value = '3'; select.events.change();
+  assert.equal(select.value, '4'); assert.equal(context.term, '4'); assert.equal(loads, 0);
+  permitted = true; select.value = '3'; select.events.change();
+  assert.equal(context.term, '3'); assert.equal(loads, 1);
+});
+
+test('term Goals navigation preserves existing leave guards and automatic sync orchestration', async () => {
+  const source = await fs.readFile(path.join(__dirname, 'public', 'planner.js'), 'utf8');
+  let permitted = false, loads = 0, syncs = 0;
+  const context = { section: 'term', loaded: true, canLeave: () => permitted,
+    load: async () => loads++, runAttendanceDriveSync: async () => { syncs++; }, console };
+  vm.runInNewContext(source.slice(source.indexOf('  function navigatePlannerSection('), source.indexOf('  function renderSelectors(')), context);
+  await context.navigatePlannerSection('goals');
+  assert.equal(context.section, 'term'); assert.equal(loads, 0);
+  permitted = true;
+  await context.navigatePlannerSection('goals');
+  assert.equal(context.section, 'goals'); assert.equal(loads, 1); assert.equal(syncs, 1);
+});

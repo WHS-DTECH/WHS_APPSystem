@@ -147,6 +147,40 @@
 .ruled-page { align-content: start; }
 .ruled-page textarea { min-height: 240px; line-height: 28px; padding: 0 8px; border: 1px solid #e2c0b3; border-radius: 0; background: repeating-linear-gradient(to bottom,#fff 0,#fff 27px,#eed2c6 27px,#eed2c6 28px); }
 .term-spread .term-auto-expand { overflow: hidden; resize: none; }
+.term-panel-navigation { grid-column: 1 / -1; }
+.term-panel-navigation button { border-radius: 999px; color: #245f85; border-color: #245f85; }
+.term-calendar-panel { grid-column: 1 / -1; min-width: 0; }
+@media screen {
+  .planner-main:has(.term-spread) { width: 100%; }
+  .planner-spread.term-spread { grid-template-columns: clamp(240px, 24vw, 380px) minmax(0, 1fr); align-items: start; max-width: none; margin: 0; gap: 24px; }
+  .planner-spread.term-spread .planner-cover { max-width: none; margin: 0; }
+  .term-spread .cover-name { font-size: 22px; }
+  .term-start-panel { padding: 28px; border: 2px solid #376783; border-top: 7px solid #376783; border-radius: 10px; background: #f4f9fc; gap: 20px; }
+  .term-start-panel > .paper-heading { font-size: clamp(22px, 2vw, 30px); margin: 0; }
+  .term-start-panel .planner-field label { font-size: 15px; font-weight: 700; }
+  .term-start-panel textarea { min-height: 300px; }
+  .term-calendar-panel { border-radius: 10px; padding: 24px; }
+  .term-calendar-panel .google-calendar { margin-top: 0; padding-top: 0; border-top: 0; }
+  .term-calendar-panel .google-calendar > h3 { font-size: 24px; color: #376783; }
+  .term-calendar-panel .google-week-layout { grid-template-columns: minmax(0, 1fr) 300px; }
+  .term-calendar-panel .google-calendar .kamar-week-scroll { overflow-x: auto; }
+  .term-calendar-panel .kamar-week { min-width: 900px; grid-template-columns: 65px repeat(7, minmax(0, 1fr)); }
+  .term-calendar-panel .kamar-week .kamar-week-heading { font-size: 14px; padding: 8px; }
+  .term-calendar-panel .kamar-week .kamar-week-hour { font-size: 13px; height: 100px; }
+  .term-calendar-panel .kamar-week-extra button { font-size: 13px; }
+  .term-calendar-panel .kamar-day-details { font-size: 14px; }
+  .planner-main .planner-term-control { text-align: center; font-weight: 700; color: #245f85; }
+  .planner-main .planner-term-badge { width: 96px; height: 96px; border: 3px solid #376783; border-radius: 50%; background: #e2f5fc; color: #245f85; font-size: 21px; font-weight: 700; padding: 8px; text-align: center; cursor: pointer; box-shadow: 0 0 0 4px #fff; }
+}
+@media screen and (max-width: 1400px) {
+  .term-calendar-panel .google-week-layout { grid-template-columns: minmax(0, 1fr); }
+}
+@media screen and (max-width: 850px) {
+  .planner-spread.term-spread { grid-template-columns: minmax(0, 1fr); }
+  .planner-spread.term-spread .planner-cover { width: min(320px, 100%); margin: 0 auto; }
+  .term-start-panel, .term-calendar-panel { padding: 18px; }
+  .term-start-panel { grid-template-columns: minmax(0, 1fr); }
+}
 .ruled-page .planner-field label { color: #376783; }
 .standards-page h2 { color: #376783; font-size: 20px; }
 .standards-page img { width: 100%; height: auto; margin: 20px 0; }
@@ -444,6 +478,7 @@
   .kamar-week { min-width: 835px; }
 }
 @media print {
+  .term-panel-navigation { display: none; }
   .week-day-controls, .period-plan-status, .period-planner > button, .period-drive-controls { display: none; }
   .google-calendar-actions, .google-calendar-choices, .google-calendar .kamar-calendar-controls button { display: none; }
   .kamar-week-layout { display: block; }

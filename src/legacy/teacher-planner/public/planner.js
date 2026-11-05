@@ -184,6 +184,24 @@
     for (const control of selectors.querySelectorAll('input,button')) control.disabled = busy;
     selectors.setAttribute('aria-busy', String(busy));
   }
+  function navigatePlannerSection(target) {
+    if (!canLeave()) return;
+    section = target;
+    if (section === 'moderation') { moderationRecord = ''; moderationPage = 'overview'; }
+    return load().then(async () => {
+      if (!loaded) return;
+      try {
+        const result = await runAttendanceDriveSync();
+        if (result && ['attendance', 'attendanceImport'].includes(section)) {
+          await load();
+          placeAttendanceDriveNote();
+        }
+      }
+      catch (error) {
+        console.error('Automatic attendance Drive sync failed.');
+      }
+    });
+  }
   function renderSelectors() {
     selectors.replaceChildren();
     const controls = el('div', '', { class: 'week-controls' });
@@ -211,8 +229,8 @@
         }); controls.append(button);
       }
     } else if (section === 'term') {
-      const label = el('label', 'Term');
-      const select = el('select', '', { 'aria-label': 'Term' });
+      const label = el('label', 'Term', { class: 'planner-term-control' });
+      const select = el('select', '', { 'aria-label': 'Term', class: 'planner-term-badge', title: 'Choose planner term' });
       for (let i = 1; i <= 4; i++) select.append(el('option', 'Term ' + i, { value: String(i) }));
       select.value = term;
       select.addEventListener('change', () => { if (!canLeave()) { select.value = term; return; } term = select.value; load(); });
@@ -2457,8 +2475,14 @@
       return;
     }
     if (section === 'year') renderCalendar();
-    const grid = el('div', '', { class: 'planner-grid paper-page ruled-page' });
+    const grid = el('div', '', { class: 'planner-grid paper-page ruled-page' + (section === 'term' ? ' term-start-panel' : '') });
     const headings = {year:'Whakamahere Tau | Annual Plan',term:'Ngā kōrero mo te tīmatanga o te wāhanga | Start of term',goals:'Whāinga | Goals and reflection',learning:'Rātaka Akoranga Ngaiotanga | Professional Learning Log'};
+    if (section === 'term') {
+      const navigation = el('div', '', { class: 'term-panel-navigation', 'data-planner-navigation': '' });
+      const goals = el('button', 'Goals and reflection', { type: 'button', 'data-section': 'goals' });
+      goals.addEventListener('click', () => navigatePlannerSection('goals'));
+      navigation.append(goals); grid.append(navigation);
+    }
     grid.append(el('h2', headings[section], { class: 'paper-heading' }));
     for (const [name, label, type, hint] of fields[section]) {
       if (section === 'term' && name === 'reflection') continue;
@@ -2481,8 +2505,9 @@
         area.addEventListener('input', () => expandTermArea(area));
         expandTermArea(area);
       }
+      const calendarPanel = el('section', '', { class: 'paper-page term-calendar-panel', 'aria-label': 'Term planner Google Calendar' });
       const calendar = el('section');
-      grid.append(calendar);
+      calendarPanel.append(calendar); spread.append(calendarPanel);
       globalThis.plannerGoogleCalendar.mount(calendar, {
         el, request: async path => { await refreshSession(); return request(api + path); },
         mutate: async (path, method, body) => {
@@ -2790,22 +2815,7 @@
   }
   form.addEventListener('submit', event => { event.preventDefault(); if (!['attendance', 'attendanceImport'].includes(section)) saveEntry(); });
   document.querySelectorAll('[data-section]').forEach((button) => button.addEventListener('click', () => {
-    if (!canLeave()) return;
-    section = button.dataset.section;
-    if (section === 'moderation') { moderationRecord = ''; moderationPage = 'overview'; }
-    load().then(async () => {
-      if (!loaded) return;
-      try {
-        const result = await runAttendanceDriveSync();
-        if (result && ['attendance', 'attendanceImport'].includes(section)) {
-          await load();
-          placeAttendanceDriveNote();
-        }
-      }
-      catch (error) {
-        console.error('Automatic attendance Drive sync failed.');
-      }
-    });
+    return navigatePlannerSection(button.dataset.section);
   }));
   openYear.addEventListener('click', () => {
     const value = Number(yearInput.value);

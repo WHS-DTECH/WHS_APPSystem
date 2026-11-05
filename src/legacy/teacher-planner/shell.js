@@ -20,7 +20,7 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
 <link rel="icon" type="image/png" href="${asset('whs-logo.png')}">
 <link rel="stylesheet" href="${asset('account-controls.css')}">
 <link rel="stylesheet" href="${asset('module-shell.css')}">
-<link rel="stylesheet" href="${asset('planner.css?v=year-badge-26')}">
+<link rel="stylesheet" href="${asset('planner.css?v=term-workspace-27')}">
 </head><body class="whs-module-shell whs-planner" data-api="${escape(baseUrl)}api/planner/" data-assets="${escape(baseUrl)}framework/" data-planner-name="${escape(displayName)}" data-user-id="${escape(userId)}" data-user-email="${escape(userEmail)}" data-core-url="${escape(coreUrl)}">
 <main class="planner-main" aria-label="${escape(title)}">
 <header class="planner-heading">
@@ -44,9 +44,6 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
     <button type="button" data-section="year">Year overview</button>
     <button type="button" data-section="term">Term plan</button>
     <button type="button" data-section="week">Weekly planner</button>
-      <button type="button" data-section="goals">Goals and reflection</button>
-      <button type="button" data-section="standards">Teaching Standards</button>
-      <button type="button" data-section="learning">Professional learning</button>
     </div>
   </section>
   <section class="planner-nav-group planner-nav-setup" aria-labelledby="planner-nav-setup">
@@ -62,6 +59,8 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
     <div class="planner-nav-buttons">
       <button type="button" data-section="attendance">Attendance</button>
       <button type="button" data-section="moderation">Moderation</button>
+      <button type="button" data-section="standards">Teaching Standards</button>
+      <button type="button" data-section="learning">Professional learning</button>
       <button type="button" disabled title="Page coming soon">Behaviour Management</button>
       <button type="button" disabled title="Page coming soon">Student Tracker</button>
       <button type="button" disabled title="Page coming soon">Lesson</button>
@@ -107,7 +106,7 @@ ${standalone ? `<script src="${asset('global-nav.js')}" defer></script>` : ''}
 <script src="${asset('moderation-schema.js?v=requirement-cleanup-2')}" defer></script>
 <script src="${asset('moderation.js?v=nzqa-version-8')}" defer></script>
 <script src="${asset('textarea-autosize.js')}" defer></script>
-<script src="${asset('planner.js?v=year-badge-24')}" defer></script>
+<script src="${asset('planner.js?v=term-workspace-25')}" defer></script>
 </body></html>`;
 }
 
