@@ -926,5 +926,7 @@
         'Attendance loaded. Class setup uses Save class tab; each P/A/L mark saves immediately.');
     });
   }
-  globalThis.plannerAttendance = { mount, termWeeks, combinedStudents, scheduledPeriods, classCode, timetableGroups, planImport, weekStatus, syncDrive };
+  const api = { mount, termWeeks, combinedStudents, scheduledPeriods, classCode, timetableGroups, planImport, weekStatus, syncDrive };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else globalThis.plannerAttendance = api;
 })();

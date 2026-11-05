@@ -2,6 +2,14 @@
 
 Unified Westland High School app shell for one Render Web Service and one Google Login configuration. Core data uses the shared Postgres database; DTECH keeps its existing separate legacy database.
 
+## Private DTECH typing attendance connection
+
+`POST /integrations/typing-attendance` is a read-only server-to-server endpoint for the DTECH-HUB Typing Kit. Configure a dedicated random `DTECH_TYPING_ATTENDANCE_KEY` (at least 32 characters) and `DTECH_TYPING_ATTENDANCE_OWNER_EMAIL` in Render. The owner must have active Teacher Planner access. The same key belongs only in DTECH-HUB's server-side `TYPING_ATTENDANCE_KEY`; its `TYPING_ATTENDANCE_URL` is `https://whs-appsystem.onrender.com/integrations/typing-attendance`. Do not commit real values or share database credentials.
+
+The request contains only `studentEmail` and the Typing Kit Monday `startDate`; callers cannot choose a different register owner. The connector matches one current KAMAR student ID and the owner's saved automatic DTECH class tabs, then reads scheduled lessons from the private teacher timetable and saved attendance marks. School closures/holidays are excluded. Missing or ambiguous identity, timetable, class mapping or holiday data produces an explicit unavailable response rather than invented absences. Responses contain only that student's dated lesson marks, seven date-keyed weeks and a fetch timestamp, not student names, absence reasons or the private timetable URL. No records are written.
+
+DTECH-HUB activates its one-test-per-attended-week requirement only once its server connection is configured, starting at **Typing Kit Week 5**. Fully absent weeks are excused without catch-up. Confirm the connection and student-visible marks before using these exemptions. These are private Teacher Planner records, not the official KAMAR register.
+
 ## What is included
 
 - Google OAuth login using shared Render environment variables.

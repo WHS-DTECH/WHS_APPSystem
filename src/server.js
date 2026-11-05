@@ -39,6 +39,7 @@ const { createLaunchpad, createLaunchApp, createLaunchpadAdminRouter } = require
 const { accessibleModules, createModuleAccessGuard } = require('./moduleAccess');
 const { appDestination } = require('./appAddresses');
 const { createTeacherPlannerRouter } = require('./modules/teacherPlanner');
+const { createTypingAttendanceRouter } = require('./modules/typingAttendance');
 const { createBusControllerRouter, renderFirebaseUsers } = require('./busController');
 
 const app = express();
@@ -50,6 +51,7 @@ app.set('trust proxy', 1);
 app.get('/favicon.ico', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'images', 'favicon.ico')));
 
 app.use(helmet({ contentSecurityPolicy: false }));
+app.use('/integrations/typing-attendance', rateLimit({ windowMs: 60000, limit: 120 }), createTypingAttendanceRouter());
 // Interactive legacy apps make frequent API calls and use their own access/form guards.
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, skip: (req) => req.path.startsWith('/food-room/') || req.path.startsWith('/dtech-hub/') || req.path.startsWith('/teacher-planner/') || req.path === '/nav-data' }));
 // Hosted Flask apps receive their request bodies untouched, including training uploads.
