@@ -1439,6 +1439,10 @@ school dates. Switching setup tabs preserves mounted attendance state and is
 blocked during attendance loading/sync or unsaved attendance edits. Old
 `#section=attendanceImport` links still open the new setup tab; its canonical link
 is `#section=setup&setupTab=6`. Daily Attendance remains a separate Section Module.
+Section navigation, including Setup My Planner, remains available during a
+background attendance Drive sync; it does not start a duplicate sync. Changing
+the planner year/dates remains blocked until sync finishes. Loading/saving or
+unsaved integration changes still prevent unsafe navigation, with explicit feedback.
 The cover name pill is centred; Setup My Planner is no longer duplicated on the cover.
 Year and print controls sit on the right of the Teacher Planner heading. The
 circular year badge opens the year selected in the adjacent Planner year field;
@@ -1451,7 +1455,7 @@ navigation/unsaved-edit checks. The Google Calendar sits below both panels at
 full width, with an event-detail panel and a minimum readable week-grid width
 (horizontal scrolling on smaller screens). The existing term selector stays
 above the page, styled as a circular badge with a prominent 42px number and a
-small **Term** label inside the circle, like the year badge; it still opens the native 1-4
+small **Term** label above the number inside the circle; it still opens the native 1-4
 dropdown. Print actions are unchanged; a printing redesign remains deferred.
 Without an explicit term in a planner link or a manual selection, Term Plan uses
 the current term from WHS school dates (Ministry dates fill unpublished ranges);

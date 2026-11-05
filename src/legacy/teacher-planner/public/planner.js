@@ -171,7 +171,16 @@
     signin.hidden = true;
   }
   function hasUnsavedChanges() { return dirty || Boolean(content.querySelector('[data-timetable-dirty="true"]')); }
-  function canLeave() { return !busy && !content.querySelector('[data-timetable-busy="true"],[data-moderation-busy="true"],[data-preferences-busy="true"],[data-activity-busy="true"],[data-attendance-loading="true"]') && (!hasUnsavedChanges() || confirm('Discard unsaved changes in this view?')); }
+  function canLeave(allowAttendanceSync = false) {
+    if (busy) { notice('The Planner is loading or saving. Please wait, then try again.', true); return false; }
+    if (attendanceSyncRunning && !allowAttendanceSync) {
+      notice('Attendance is syncing with Google Drive. Wait until sync finishes before changing the planner year or dates.', true); return false;
+    }
+    const pending = [...content.querySelectorAll('[data-timetable-busy="true"],[data-moderation-busy="true"],[data-preferences-busy="true"],[data-activity-busy="true"],[data-attendance-loading="true"]')]
+      .find(node => !allowAttendanceSync || node !== attendanceSyncNote);
+    if (pending) { notice('Finish loading, syncing or saving this section’s changes before leaving it.', true); return false; }
+    return !hasUnsavedChanges() || confirm('Discard unsaved changes in this view?');
+  }
   function inputField(name, label, value, type = '', hint = '', cell = false) {
     const wrapper = el('div', '', { class: 'planner-field' });
     const id = 'field-' + name.replace(':', '-');
@@ -189,14 +198,17 @@
     selectors.setAttribute('aria-busy', String(busy));
   }
   function navigatePlannerSection(target) {
-    if (!canLeave()) return;
+    if (!canLeave(true)) return;
     section = target;
+    const destination = section;
     if (section === 'moderation') { moderationRecord = ''; moderationPage = 'overview'; }
     return load().then(async () => {
-      if (!loaded) return;
+      if (!loaded || section !== destination) return;
       if (section === 'setup' && setupTab === 6) await setupAttendanceReady;
+      if (attendanceSyncRunning || section !== destination) return;
       try {
         const result = await runAttendanceDriveSync();
+        if (section !== destination) return;
         if (result && section === 'attendance') {
           await load();
           placeAttendanceDriveNote();
@@ -2620,11 +2632,12 @@
   async function runAttendanceDriveSync(host = content) {
     if (attendanceSyncRunning) throw new Error('Attendance Drive sync is already running. Wait until it finishes.');
     attendanceSyncRunning = true;
+    const syncYear = year;
     const note = el('div', 'Checking Google Drive for new attendance PDFs...', {
       class: 'duty-roster-feedback', role: 'status', 'aria-live': 'polite', 'data-preferences-busy': 'true'
     });
     attendanceSyncNote = note;
-    attendanceSyncYear = year;
+    attendanceSyncYear = syncYear;
     const target = host.querySelector('[data-attendance-drive-feedback]') || host;
     note.hidden = target === content;
     if (target === content) target.append(note);
@@ -2653,16 +2666,16 @@
     }
     try {
       await refreshSession();
-      const settings = await request(api + 'attendance/' + year + '/drive-sync');
+      const settings = await request(api + 'attendance/' + syncYear + '/drive-sync');
       if (!settings.enabled) { note.textContent = 'Automatic Drive attendance sync is disabled. Save and enable a folder before syncing.'; return; }
-      const school = (await request(api + 'school-settings/' + year)).content;
+      const school = (await request(api + 'school-settings/' + syncYear)).content;
       let calendar;
-      try { calendar = await request(api.replace(/planner\/$/, '') + 'school-calendar/' + year); }
+      try { calendar = await request(api.replace(/planner\/$/, '') + 'school-calendar/' + syncYear); }
       catch (error) { calendar = { publicHolidays: [], publicHolidaysError: error.message }; }
       const ranges = termRanges(school, calendar.terms || []);
       if (!ranges.some(range => range.startDate && range.endDate)) throw new Error('Publish term dates in Planner Setup before syncing attendance.');
       const result = await globalThis.plannerAttendance.syncDrive({
-        year, school, calendar, ranges, today: localDate, automaticTabs: true,
+        year: syncYear, school, calendar, ranges, today: localDate, automaticTabs: true,
         request: async path => { await refreshSession(); return request(api + path); },
         mutate: async (path, body) => {
           await refreshSession();
@@ -2893,7 +2906,7 @@
     if (dirty && loaded) form.requestSubmit();
     else load();
   });
-  window.addEventListener('beforeunload', (event) => { if (hasUnsavedChanges() || busy || content.querySelector('[data-timetable-busy="true"],[data-moderation-busy="true"],[data-preferences-busy="true"],[data-activity-busy="true"]')) { event.preventDefault(); event.returnValue = ''; } });
+  window.addEventListener('beforeunload', (event) => { if (hasUnsavedChanges() || busy || attendanceSyncRunning || content.querySelector('[data-timetable-busy="true"],[data-moderation-busy="true"],[data-preferences-busy="true"],[data-activity-busy="true"]')) { event.preventDefault(); event.returnValue = ''; } });
   document.getElementById('print-planner').addEventListener('click', () => {
     if (!loaded || busy) return;
     pendingPrint = true;

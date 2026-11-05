@@ -171,8 +171,8 @@
   .term-calendar-panel .kamar-week-extra button { font-size: 13px; }
   .term-calendar-panel .kamar-day-details { font-size: 14px; }
   .planner-main .planner-term-control { position: relative; text-align: center; font-weight: 700; color: #245f85; }
-  .planner-main .planner-term-badge { width: 96px; height: 96px; border: 3px solid #376783; border-radius: 50%; background: #e2f5fc; color: #245f85; font-size: 42px; font-weight: 700; padding: 0 6px 20px; text-align: center; cursor: pointer; box-shadow: 0 0 0 4px #fff; }
-  .planner-term-caption { position: absolute; bottom: 17px; left: 0; width: 100%; font-size: 13px; line-height: 16px; pointer-events: none; }
+  .planner-main .planner-term-badge { width: 96px; height: 96px; border: 3px solid #376783; border-radius: 50%; background: #e2f5fc; color: #245f85; font-size: 42px; font-weight: 700; padding: 20px 6px 0; text-align: center; cursor: pointer; box-shadow: 0 0 0 4px #fff; }
+  .planner-term-caption { position: absolute; top: 17px; left: 0; width: 100%; font-size: 13px; line-height: 16px; pointer-events: none; }
   .planner-main .planner-term-badge option { font-size: 18px; }
 }
 @media screen and (max-width: 1400px) {

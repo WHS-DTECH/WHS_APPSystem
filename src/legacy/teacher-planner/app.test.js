@@ -31,6 +31,34 @@ test('shared save and feedback are above every page and external save targets th
   assert.match(html,/<button type="submit" form="planner-form" id="save-planner"/);
   assert.equal([...html.matchAll(/id="save-planner"/g)].length,1);
 });
+test('hidden attendance sync does not block Setup navigation or restart sync, while unsafe changes remain guarded', async () => {
+  const source=await fs.readFile(path.join(__dirname,'public','planner.js'),'utf8');
+  const guard=source.slice(source.indexOf('  function hasUnsavedChanges()'),source.indexOf('  function inputField('));
+  const navigation=source.slice(source.indexOf('  function navigatePlannerSection('),source.indexOf('  function renderSelectors('));
+  const note={},messages=[],loads=[];
+  const context={busy:false,dirty:false,attendanceSyncRunning:true,attendanceSyncNote:note,
+    content:{querySelector:()=>null,querySelectorAll:()=>[note]},notice:message=>messages.push(message),
+    confirm:()=>true,section:'term',setupTab:0,loaded:true,
+    load:async()=>{loads.push(context.section);},runAttendanceDriveSync:async()=>{throw new Error('Must not start a second sync');}};
+  vm.runInNewContext(guard+navigation,context);
+  assert.equal(context.canLeave(),false,'year/date changes remain blocked during sync');
+  await context.navigatePlannerSection('setup');
+  assert.equal(context.section,'setup');
+  assert.deepEqual(loads,['setup']);
+  assert.match(messages[0],/Attendance is syncing/);
+  context.busy=true;
+  await context.navigatePlannerSection('term');
+  assert.equal(context.section,'setup');
+  assert.match(messages.at(-1),/loading or saving/);
+  context.busy=false;
+  context.content.querySelectorAll=()=>[note,{}];
+  await context.navigatePlannerSection('term');
+  assert.equal(context.section,'setup','independent integration drafts/saves still block leaving');
+  assert.match(messages.at(-1),/before leaving/);
+  context.content.querySelectorAll=()=>[];
+  assert.equal(context.canLeave(),false,'year changes stay guarded after the sync note is detached');
+});
+
 test('default term uses current term and most recently finished term during holidays', async () => {
   const source=await fs.readFile(path.join(__dirname,'public','planner.js'),'utf8');
   const helper=source.slice(source.indexOf('  function termRanges('),source.indexOf('  async function loadTermDates('));
@@ -760,9 +788,9 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(groups[1][2], />Setup<\/h2>/);
   assert.match(groups[2][2], />Section Modules<\/h2>/);
   assert.equal([...groups[2][2].matchAll(/disabled title="Page coming soon"/g)].length, 5);
-  assert.match(html, /planner\.css\?v=term-circle-31/);
-  assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=term-circle-29"'));
-  assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=term-circle-29"'));
+  assert.match(html, /planner\.css\?v=term-caption-32/);
+  assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=setup-navigation-30"'));
+  assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=setup-navigation-30"'));
   const heading = html.match(/<header class="planner-heading">([\s\S]*?)<\/header>/)[1];
   for (const id of ['planner-year', 'open-year', 'print-planner']) {
     assert.match(heading, new RegExp('id="' + id + '"'));
@@ -825,7 +853,7 @@ test('module denies anonymous/student access and accepts a supplied teacher iden
     assert.match(html, /Last Updated:/);
     assert.match(html, /id="planner-year"[^>]*value="2026"/);
     assert.match(html, /data-api="\/module\/api\/planner\/"/);
-    assert.match(html, /src="\/module\/framework\/planner\.js\?v=term-circle-29"/);
+    assert.match(html, /src="\/module\/framework\/planner\.js\?v=setup-navigation-30"/);
     assert.match(html, /Weekly planner/);
     assert.match(html, /Professional learning/);
     assert.ok(!html.includes('name="whs-global-control"'));
