@@ -36,6 +36,31 @@ function lessonEntries(events, weekStart) {
   return entries;
 }
 
+function attendanceWeeks(startDate, contexts, codes, events, marks) {
+  return Array.from({ length: 7 }, (_, index) => {
+    const weekStart = addDays(startDate, index * 7);
+    const schedules = scheduledPeriods({ classes: codes[Number(weekStart.slice(0, 4))] }, lessonEntries(events, weekStart));
+    const lessons = [];
+    let confirmed = true;
+    for (let day = 0; day < 5; day++) {
+      const date = addDays(weekStart, day), context = contexts[Number(date.slice(0, 4))];
+      const terms = Array.from({ length: 4 }, (_, index) => {
+        const fallback = context.dates.terms?.find(term => term.term === index + 1);
+        return { start: context.school['term' + (index + 1) + 'Start'] || fallback?.startDate,
+          end: context.school['term' + (index + 1) + 'End'] || fallback?.endDate };
+      });
+      if (!terms.some(term => term.start && term.end && date >= term.start && date <= term.end)) { confirmed = false; continue; }
+      if (context.school.events?.some(event => event.date === date && ['closure', 'teacherOnly'].includes(event.kind)) ||
+        context.dates.publicHolidays?.some(event => event.date === date)) continue;
+      for (const period of schedules[day]) {
+        const found = marks.filter(mark => mark.date === date && mark.period === period);
+        lessons.push({ date, period, mark: found.length === 1 && ['P', 'A', 'L'].includes(found[0].mark) ? found[0].mark : '' });
+      }
+    }
+    return { weekStart, confirmed: confirmed && lessons.length > 0, lessons };
+  });
+}
+
 function createTypingAttendanceRouter({ env = process.env, dbQuery = coreQuery, directoryQuery = kamarQuery,
   plannerQuery, calendar = loadSchoolCalendar, timetable = loadTimetable, classes = attendanceClasses,
   authorize = authorisedModuleUser, now = () => new Date() } = {}) {
@@ -113,32 +138,81 @@ function createTypingAttendanceRouter({ env = process.env, dbQuery = coreQuery, 
         WHERE owner_id=$1 AND student_id=$2 AND lesson_date >= $3::date AND lesson_date <= $4::date
         AND year = ANY($5::int[])`,
       [owner.id, studentId, startDate, addDays(startDate, 48), years])).rows;
-      const weeks = Array.from({ length: 7 }, (_, index) => {
-        const weekStart = addDays(startDate, index * 7);
-        const schedules = scheduledPeriods({ classes: contexts[Number(weekStart.slice(0, 4))].codes }, lessonEntries(events, weekStart));
-        const lessons = [];
-        let confirmed = true;
-        for (let day = 0; day < 5; day++) {
-          const date = addDays(weekStart, day), context = contexts[Number(date.slice(0, 4))];
-          const terms = Array.from({ length: 4 }, (_, index) => {
-            const fallback = context.dates.terms?.find(term => term.term === index + 1);
-            return { start: context.school['term' + (index + 1) + 'Start'] || fallback?.startDate,
-              end: context.school['term' + (index + 1) + 'End'] || fallback?.endDate };
-          });
-          const term = terms.find(term => term.start && term.end && date >= term.start && date <= term.end);
-          if (!term) { confirmed = false; continue; }
-          if (context.school.events?.some(event => event.date === date && ['closure', 'teacherOnly'].includes(event.kind)) ||
-            context.dates.publicHolidays?.some(event => event.date === date)) continue;
-          for (const period of schedules[day]) {
-            const matches = marks.filter(mark => mark.date === date && mark.period === period);
-            lessons.push({ date, period, mark: matches.length === 1 && ['P', 'A', 'L'].includes(matches[0].mark) ? matches[0].mark : '' });
-          }
-        }
-        return { weekStart, confirmed: confirmed && lessons.length > 0, lessons };
-      });
+      const codes = Object.fromEntries(years.map(year => [year, contexts[year].codes]));
+      const weeks = attendanceWeeks(startDate, contexts, codes, events, marks);
       res.json({ version: 1, studentEmail, startDate, fetchedAt: now().toISOString(), weeks });
     } catch (error) {
       console.error('[typing-attendance] Read failed:', error.code || 'source-unavailable');
+      res.status(502).json({ error: 'Teacher Planner attendance is unavailable or needs confirmation. No attendance or typing records have been changed.' });
+    }
+  });
+  router.post('/batch', express.json({ limit: '8kb' }), async (req, res) => {
+    const { studentEmails, startDate } = req.body || {};
+    const start = typeof startDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(startDate) ? new Date(startDate + 'T00:00:00Z') : null;
+    if (!req.body || Object.keys(req.body).some(key => !['studentEmails', 'startDate'].includes(key)) ||
+      !Array.isArray(studentEmails) || !studentEmails.length || studentEmails.length > 20 ||
+      new Set(studentEmails).size !== studentEmails.length || studentEmails.some(email => typeof email !== 'string' ||
+        email.length > 254 || !/^[^@\s]+@westlandhigh\.school\.nz$/.test(email)) ||
+      !start || !Number.isFinite(start.getTime()) || start.toISOString().slice(0, 10) !== startDate ||
+      start.getUTCDay() !== 1 || startDate < '2000-01-03' || startDate > '2100-12-27') {
+      return res.status(400).json({ error: 'Provide up to 20 distinct school student emails and a valid Typing Kit Monday.' });
+    }
+    try {
+      const ownerRows = (await dbQuery('SELECT id FROM users WHERE lower(email)=lower($1) AND is_active=true',
+        [env.DTECH_TYPING_ATTENDANCE_OWNER_EMAIL])).rows;
+      if (ownerRows.length !== 1) throw sourceError('owner-not-unique');
+      const owner = await authorize(ownerRows[0].id, 'teacher-planner', dbQuery);
+      if (!owner) throw sourceError('owner-access-unavailable');
+      const ids = (await directoryQuery(`SELECT DISTINCT lower(trim(email_school)) AS email,trim(id_number) AS id
+        FROM student_details_upload WHERE status='Current' AND lower(trim(email_school))=ANY($1::text[])
+        AND NULLIF(trim(id_number),'') IS NOT NULL`, [studentEmails])).rows;
+      const preferences = (await query("SELECT content FROM planner_sections WHERE owner_id=$1 AND year=2000 AND section='preferences' AND entry_key='main'", [owner.id])).rows[0]?.content;
+      const years = [...new Set([Number(startDate.slice(0, 4)), Number(addDays(startDate, 48).slice(0, 4))])];
+      const contexts = {};
+      for (const year of years) {
+        const [directory, groups, school, rawDates, subscription] = await Promise.all([
+          classes(owner, year, directoryQuery),
+          query('SELECT content FROM planner_attendance_groups WHERE owner_id=$1 AND year=$2', [owner.id, year]),
+          query('SELECT content FROM school_planner_settings WHERE year=$1', [year]),
+          calendar(year),
+          query('SELECT subscription_url FROM teacher_calendar_settings WHERE owner_id=$1', [owner.id])
+        ]);
+        const dates = selectRegionalHolidays(rawDates, preferences?.anniversaryRegion || 'Westland');
+        if (dates.publicHolidaysAvailable === false || dates.available === false) throw sourceError('school-calendar-unavailable');
+        if (!subscription.rows[0]?.subscription_url) throw sourceError('teacher-timetable-unavailable');
+        contexts[year] = { directory, groups: groups.rows[0]?.content.groups || [],
+          school: school.rows[0]?.content || {}, dates, subscription: subscription.rows[0].subscription_url };
+      }
+      const months = [...new Set(Array.from({ length: 49 }, (_, day) => addDays(startDate, day).slice(0, 7)))];
+      const feeds = await Promise.all(months.map(month => timetable(contexts[Number(month.slice(0, 4))].subscription,
+        Number(month.slice(0, 4)), Number(month.slice(5, 7)))));
+      const events = feeds.flatMap(feed => feed.events);
+      const studentIds = ids.map(row => 'k:' + row.id);
+      const marks = studentIds.length ? (await query(`SELECT student_id,to_char(lesson_date,'YYYY-MM-DD') AS date,period,mark
+        FROM planner_attendance_marks WHERE owner_id=$1 AND student_id=ANY($2::text[])
+        AND lesson_date >= $3::date AND lesson_date <= $4::date AND year = ANY($5::int[])`,
+      [owner.id, studentIds, startDate, addDays(startDate, 48), years])).rows : [];
+      const fetchedAt = now().toISOString();
+      const students = studentEmails.map(studentEmail => {
+        const matches = ids.filter(row => row.email === studentEmail);
+        if (matches.length !== 1) return { studentEmail, error: 'Student identity could not be confirmed.' };
+        const studentId = 'k:' + matches[0].id, codes = {};
+        for (const year of years) {
+          const context = contexts[year];
+          const saved = context.groups.filter(group => /DTECH/i.test(group.name) &&
+            group.scheduleMode !== 'manual' && group.students.some(student => student.id === studentId));
+          const keys = new Set(saved.flatMap(group => group.classes));
+          codes[year] = context.directory.classes.filter(group => keys.has(group.code) &&
+            group.students.some(student => student.id === studentId)).map(group => group.code);
+          if (!codes[year].length) return { studentEmail, error: 'Student DTECH class membership could not be confirmed.' };
+        }
+        const ownMarks = marks.filter(mark => mark.student_id === studentId);
+        const weeks = attendanceWeeks(startDate, contexts, codes, events, ownMarks);
+        return { version: 1, studentEmail, startDate, fetchedAt, weeks };
+      });
+      res.json({ students });
+    } catch (error) {
+      console.error('[typing-attendance] Batch read failed:', error.code || 'source-unavailable');
       res.status(502).json({ error: 'Teacher Planner attendance is unavailable or needs confirmation. No attendance or typing records have been changed.' });
     }
   });

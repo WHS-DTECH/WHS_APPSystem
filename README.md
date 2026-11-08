@@ -8,7 +8,9 @@ Unified Westland High School app shell for one Render Web Service and one Google
 
 The request contains only `studentEmail` and the Typing Kit Monday `startDate`; callers cannot choose a different register owner. The connector matches one current KAMAR student ID and the owner's saved automatic DTECH class tabs, then reads scheduled lessons from the private teacher timetable and saved attendance marks. School closures/holidays are excluded. Missing or ambiguous identity, timetable, class mapping or holiday data produces an explicit unavailable response rather than invented absences. Responses contain only that student's dated lesson marks, seven date-keyed weeks and a fetch timestamp, not student names, absence reasons or the private timetable URL. No records are written.
 
-For unavailable reads, check the `[typing-attendance] Read failed:` code in the service logs. Codes distinguish owner identity/access, student identity, school calendar, DTECH class mapping and teacher timetable configuration without logging private source URLs or student details.
+`POST /integrations/typing-attendance/batch` accepts `studentEmails` (up to 20 distinct school emails) and `startDate`, with the same authentication and owner. It shares the class, calendar, timetable and mark reads across the requested students. Identity or class membership failures are reported per student; shared-source failures make the batch unavailable. DTECH-HUB first shows saved typing results and book signatures, then adds attendance when it is ready. Deploy this endpoint before the DTECH-HUB batch client; the client temporarily uses individual reads if the endpoint returns 404.
+
+For unavailable reads, check the `[typing-attendance] Read failed:` or `Batch read failed:` code in the service logs. Codes distinguish owner identity/access, student identity, school calendar, DTECH class mapping and teacher timetable configuration without logging private source URLs or student details.
 
 The shared school calendar validates public holidays against govt.nz, with the official Employment New Zealand published tables as a fallback when the first source is unavailable. Both sources must provide a complete national/Westland date set for the requested year; unconfirmed dates still block attendance exemptions.
 
@@ -207,7 +209,8 @@ checkpoints are saved under `content.driveSync.processed` only after all fills
 and history updates succeed, scoped to Google account, class-setup revision and
 a hash of the current term dates, closures/holidays and school-class roster.
 Changed files, saved classes or matching context are rechecked; deferred future recorded marks
-are rechecked when their date arrives. Failures report the partial save count
+are rechecked when their date arrives. An unchanged, checkpointed PDF is not reprocessed
+just because a saved mark is later cleared. Failures report the partial save count
 and leave the PDF retryable. Disabling sync retains checkpoints; changing folders
 clears them. Folder settings/checkpoints use owner-scoped, CSRF-protected
 `PUT /api/planner/attendance/:year/drive-sync` and `/drive-sync/file`; `GET
