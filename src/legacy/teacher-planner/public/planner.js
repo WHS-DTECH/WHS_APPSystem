@@ -174,7 +174,7 @@
   function canLeave(allowAttendanceSync = false) {
     if (busy) { notice('The Planner is loading or saving. Please wait, then try again.', true); return false; }
     if (attendanceSyncRunning && !allowAttendanceSync) {
-      notice('Attendance is syncing with Google Drive. Wait until sync finishes before changing the planner year or dates.', true); return false;
+      notice('Attendance is syncing with Google Drive. Wait until sync finishes before changing the planner year.', true); return false;
     }
     const pending = [...content.querySelectorAll('[data-timetable-busy="true"],[data-moderation-busy="true"],[data-preferences-busy="true"],[data-activity-busy="true"],[data-attendance-loading="true"]')]
       .find(node => !allowAttendanceSync || node !== attendanceSyncNote);
@@ -239,7 +239,7 @@
       for (let i = 1; i <= 4; i++) select.append(el('option', String(i), { value: String(i), 'aria-label': 'Term ' + i }));
       select.value = term;
       select.addEventListener('change', () => {
-        if (!canLeave()) { select.value = select.dataset.displayedTerm ?? term; return; }
+        if (!canLeave(true)) { select.value = select.dataset.displayedTerm ?? term; return; }
         term = select.value; termSelectionPending = false; section = 'term'; load();
       });
       label.append(select, el('span', 'Term', { class: 'planner-term-caption', 'aria-hidden': 'true' })); controls.append(label);
@@ -248,7 +248,7 @@
       const label = el('label', 'Week containing');
       const picker = el('input', '', { type: 'date', value: week, 'aria-label': 'Week containing' });
       picker.addEventListener('change', () => {
-        if (!picker.value || !canLeave()) { picker.value = week; return; }
+        if (!picker.value || !canLeave(true)) { picker.value = week; return; }
         const chosen = monday(picker.value);
         const last = date(chosen); last.setUTCDate(last.getUTCDate() + 6);
         if (Number(chosen.slice(0, 4)) !== year && last.getUTCFullYear() !== year) {
@@ -260,7 +260,7 @@
       for (const [text, offset] of [['Previous week', -7], ['Next week', 7]]) {
         const button = el('button', text, { type: 'button' });
         button.addEventListener('click', () => {
-          if (!canLeave()) return;
+          if (!canLeave(true)) return;
           const next = date(week); next.setUTCDate(next.getUTCDate() + offset);
           const last = new Date(next); last.setUTCDate(last.getUTCDate() + 6);
           if (next.getUTCFullYear() !== year && last.getUTCFullYear() !== year) { notice('Open the adjacent year to continue.', true); return; }
@@ -303,7 +303,7 @@
       panel.append(entry);
     }
     const open = el('button', 'Open this week', { type: 'button' });
-    open.addEventListener('click', () => { if (!canLeave()) return; week = monday(value); section = 'week'; load(); });
+    open.addEventListener('click', () => { if (!canLeave(true)) return; week = monday(value); section = 'week'; load(); });
     panel.append(open);
     for (const button of content.querySelectorAll('.annual-calendar button')) {
       button.setAttribute('aria-pressed', String(button.dataset.date === value));
@@ -477,7 +477,7 @@
     if (busy && saveInFlight && !await saveInFlight) return;
     if (busy) { notice('Your planner is still loading or saving. Please try again when it finishes.'); return; }
     if (dirty) { await saveEntry(); if (dirty) return; }
-    if (!canLeave()) return;
+    if (!canLeave(true)) return;
     selectedDay = (date(value).getUTCDay() + 6) % 7;
     periodDate = value; periodSlot = slot; activityRecord = activity; section = activity ? 'activity' : 'period';
     await load();
@@ -786,7 +786,7 @@
         const open = el('button', name, { type: 'button', 'aria-label': 'Open activity: ' + name });
         open.addEventListener('click', () => act(async () => {
           tools.removeAttribute('data-activity-busy');
-          if (!canLeave()) throw new Error('The Planner is busy. Please retry when saving finishes.');
+          if (!canLeave(true)) throw new Error('The Planner is busy. Please retry when saving finishes.');
           activityRecord = link.id; section = 'activity'; await load();
         }));
         const remove = el('button', 'Remove', { type: 'button', class: 'period-activity-remove', 'aria-label': 'Unlink activity: ' + name });
@@ -912,7 +912,7 @@
       if (busy && saveInFlight && !await saveInFlight) return;
       if (busy) { notice('Your planner is still loading or saving. Please try again when it finishes.'); return; }
       if (dirty) { await saveEntry(); if (dirty) return; }
-      if (!canLeave()) return;
+      if (!canLeave(true)) return;
       section = activity ? 'period' : 'week'; await load();
     });
     const slot = slots.find(item => item[0] === periodSlot);
@@ -972,7 +972,7 @@
     globalThis.plannerGoogleDrive.mount(drive, {
       el, resources,
       openSetup: () => {
-        if (!canLeave()) return;
+        if (!canLeave(true)) return;
         setupTab = 3; section = 'setup'; load();
       },
       request: async () => { await refreshSession(); return request(api + 'google-drive/config'); }
@@ -2606,12 +2606,21 @@
     const driveTarget = host.querySelector('[data-attendance-drive-feedback]');
     if (driveTarget) placeAttendanceDriveNote(driveTarget);
   }
-  async function loadAttendanceSchedule(selectedWeek) {
+  async function loadAttendanceSchedule(selectedWeek, feedCache) {
     const months = new Set(Array.from({ length: 5 }, (_, i) => {
       const day = date(selectedWeek); day.setUTCDate(day.getUTCDate() + i);
       return day.getUTCFullYear() + '/' + (day.getUTCMonth() + 1);
     }));
-    const feeds = await Promise.all([...months].map(month => request(api + 'kamar-timetable/' + month)));
+    const feeds = await Promise.all([...months].map(month => {
+      if (!feedCache) return request(api + 'kamar-timetable/' + month);
+      if (!feedCache.has(month)) {
+        feedCache.set(month, request(api + 'kamar-timetable/' + month).catch(error => {
+          feedCache.delete(month);
+          throw error;
+        }));
+      }
+      return feedCache.get(month);
+    }));
     return weeklyTimetableEntries(feeds.flatMap(feed => feed.events), selectedWeek, Infinity);
   }
   let attendanceSyncRunning = false;
@@ -2675,6 +2684,7 @@
       catch (error) { calendar = { publicHolidays: [], publicHolidaysError: error.message }; }
       const ranges = termRanges(school, calendar.terms || []);
       if (!ranges.some(range => range.startDate && range.endDate)) throw new Error('Publish term dates in Planner Setup before syncing attendance.');
+      const feedCache = new Map();
       const result = await globalThis.plannerAttendance.syncDrive({
         year: syncYear, school, calendar, ranges, today: localDate, automaticTabs: true,
         request: async path => { await refreshSession(); return request(api + path); },
@@ -2683,7 +2693,7 @@
           return request(api + path, { method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'x-planner-csrf': csrf }, body: JSON.stringify(body) });
         },
-        loadSchedule: selectedWeek => loadAttendanceSchedule(selectedWeek),
+        loadSchedule: selectedWeek => loadAttendanceSchedule(selectedWeek, feedCache),
         onProgress: show,
         onDocument: document => {
           documents.push(document);

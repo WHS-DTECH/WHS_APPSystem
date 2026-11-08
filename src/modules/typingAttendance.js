@@ -110,8 +110,9 @@ function createTypingAttendanceRouter({ env = process.env, dbQuery = coreQuery, 
         Number(month.slice(0, 4)), Number(month.slice(5, 7)))));
       const events = feeds.flatMap(feed => feed.events);
       const marks = (await query(`SELECT to_char(lesson_date,'YYYY-MM-DD') AS date,period,mark FROM planner_attendance_marks
-        WHERE owner_id=$1 AND student_id=$2 AND lesson_date >= $3::date AND lesson_date <= $4::date`,
-      [owner.id, studentId, startDate, addDays(startDate, 48)])).rows;
+        WHERE owner_id=$1 AND student_id=$2 AND lesson_date >= $3::date AND lesson_date <= $4::date
+        AND year = ANY($5::int[])`,
+      [owner.id, studentId, startDate, addDays(startDate, 48), years])).rows;
       const weeks = Array.from({ length: 7 }, (_, index) => {
         const weekStart = addDays(startDate, index * 7);
         const schedules = scheduledPeriods({ classes: contexts[Number(weekStart.slice(0, 4))].codes }, lessonEntries(events, weekStart));

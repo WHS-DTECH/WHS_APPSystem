@@ -225,6 +225,47 @@ function createAttendanceRouter({ query, loadClasses }) {
       res.json({ marks: result.rows });
     } catch (error) { next(error); }
   });
+  router.put('/:year/import-marks', async (req, res, next) => {
+    const values = req.body?.marks;
+    if (!keys(req.body, ['marks']) || !Array.isArray(values) || !values.length || values.length > 200 ||
+      !values.every(value => keys(value, ['studentId', 'date', 'period', 'mark', 'revision']) &&
+        typeof value.studentId === 'string' && STUDENT.test(value.studentId) &&
+        validDay(value.date, req.attendanceYear) && PERIODS.includes(value.period) &&
+        ['P', 'A', 'L'].includes(value.mark) && Number.isInteger(value.revision) && value.revision >= 0) ||
+      !unique(values.map(value => [value.studentId, value.date, value.period].join('|')))) {
+      return reject(res, 'Choose up to 200 distinct valid blank attendance marks to import.');
+    }
+    try {
+      const groups = await query('SELECT content,revision FROM planner_attendance_groups WHERE owner_id=$1 AND year=$2',
+        [req.user.id, req.attendanceYear]);
+      const named = values.map(value => {
+        const group = groups.rows[0]?.content.groups.find(group => group.students.some(item => item.id === value.studentId) &&
+          (group.periods.includes(value.period) || group.scheduleMode !== 'manual' && group.classes.length > 0));
+        return group && { ...value, name: group.students.find(item => item.id === value.studentId).name };
+      });
+      if (named.some(value => !value)) return reject(res, 'This student and period are not in your saved class tabs. Save class setup first.');
+      const result = await query(`WITH input AS (
+          SELECT * FROM jsonb_to_recordset($3::jsonb)
+            AS x("studentId" text, date date, period text, mark text, revision integer, name text)
+        ), inserted AS (
+          INSERT INTO planner_attendance_marks(owner_id,year,student_id,lesson_date,period,mark,student_name)
+          SELECT $1,$2,"studentId",date,period,mark,name FROM input WHERE revision=0
+          ON CONFLICT DO NOTHING RETURNING 1
+        ), updated AS (
+          UPDATE planner_attendance_marks AS m SET mark=i.mark,student_name=i.name,
+            revision=m.revision+1,updated_at=NOW()
+          FROM input AS i WHERE i.revision>0 AND m.owner_id=$1 AND m.year=$2
+            AND m.student_id=i."studentId" AND m.lesson_date=i.date AND m.period=i.period
+            AND m.revision=i.revision AND m.mark='' RETURNING 1
+        )
+        SELECT (SELECT count(*) FROM inserted) + (SELECT count(*) FROM updated) AS saved`,
+      [req.user.id, req.attendanceYear, JSON.stringify(named)]);
+      const saved = Number(result.rows[0].saved);
+      if (saved !== values.length) return reject(res, saved + ' of ' + values.length +
+        ' marks in this batch were saved; other marks changed in another window. Re-preview the PDF to retry safely.', 409);
+      res.json({ saved });
+    } catch (error) { next(error); }
+  });
   router.put('/:year/mark', async (req, res, next) => {
     const value = req.body;
     if (!keys(value, ['studentId', 'date', 'period', 'mark', 'revision', 'fillOnly']) || typeof value.studentId !== 'string' ||

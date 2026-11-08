@@ -122,7 +122,9 @@ and every other recorded code (including `?`) becomes A; genuine blanks stay
 unrecorded. Existing nonblank marks are never overwritten, conflicts are shown,
 and identical marks are skipped. Blank-only saves use revision checks and an
 atomic database condition, so concurrent edits cannot be overwritten. If saving
-stops part-way, the count is reported; preview the PDF again to safely continue.
+stops part-way, completed-batch and any reported partial-batch counts are shown;
+preview the PDF again to safely continue. Imports save up to 200 marks per
+request instead of sending a separate request for each mark.
 **Setup My Planner → Two-Week Attendance** opens an import
 dashboard with term and saved-class selectors, one row per term week, and
 **Synced** or **Not synced** indicators.
@@ -187,6 +189,11 @@ folder. Automatic checks run when the Teacher Planner page finishes opening
 after sign-in, for its selected planner year; they are not a background server
 watcher or a check on unrelated Core logins. Keep the planner open until sync
 finishes. **Sync Drive attendance now** retries without another login.
+Other Planner sections and week/term navigation remain usable during sync;
+changing the planner year and conflicting attendance setup edits remain guarded.
+Each sync reuses monthly timetable responses, and simultaneous requests for the
+same private timetable share an in-flight download. Completed feeds are not
+retained by that download-sharing mechanism.
 The folder is paginated up to 1,000 PDFs, with the same 5 MB/30-page limits as
 manual import. Subfolders, shortcuts and non-PDF files are not followed.
 Each new/updated PDF fills only eligible blank marks in all saved automatic

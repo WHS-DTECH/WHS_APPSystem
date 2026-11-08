@@ -91,12 +91,12 @@ test('weekly controls show loading state and move forwards/backwards across mont
     addEventListener(event, handler) { this[event] = handler; }
   });
   const walk = node => [node, ...node.children.flatMap(walk)];
-  const selectors = el('div'), messages = [], loadedWeeks = [];
+  const selectors = el('div'), messages = [], loadedWeeks = [], guards = [];
   selectors.querySelectorAll = () => walk(selectors).filter(node => ['input', 'button'].includes(node.tag));
   const context = {
     el, selectors, section: 'week', term: '4', year: 2026, week: '2026-10-26', busy: true,
     date: value => new Date(value + 'T00:00:00Z'), iso: value => value.toISOString().slice(0, 10),
-    canLeave: () => !context.busy, notice: message => messages.push(message),
+    canLeave: allowSync => { guards.push(allowSync); return !context.busy; }, notice: message => messages.push(message),
     load: () => loadedWeeks.push(context.week)
   };
   vm.runInNewContext(helpers, context);
@@ -112,6 +112,7 @@ test('weekly controls show loading state and move forwards/backwards across mont
   assert.equal(selectors.attrs['aria-busy'], 'false');
   next.click();
   assert.equal(context.week, '2026-11-02');
+  assert.equal(guards.at(-1), true, 'week navigation is allowed during attendance sync');
   previous.click();
   assert.equal(context.week, '2026-10-26');
   context.week = '2026-01-05';
@@ -812,8 +813,8 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(groups[2][2], />Section Modules<\/h2>/);
   assert.equal([...groups[2][2].matchAll(/disabled title="Page coming soon"/g)].length, 5);
   assert.match(html, /planner\.css\?v=term-cover-33/);
-  assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=term-cover-31"'));
-  assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=term-cover-31"'));
+  assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=attendance-navigation-32"'));
+  assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=attendance-navigation-32"'));
   const heading = html.match(/<header class="planner-heading">([\s\S]*?)<\/header>/)[1];
   for (const id of ['planner-year', 'open-year', 'print-planner']) {
     assert.match(heading, new RegExp('id="' + id + '"'));
@@ -821,7 +822,7 @@ test('paper planner shell retains nested assets, private identity escaping and a
   }
   assert.match(heading, /class="planner-year-badge" aria-label="Open planner year 2026"/);
   assert.match(heading, /id="planner-year-badge-value">2026<\/span>/);
-  assert.match(html, /src="\/planner\/framework\/attendance\.js\?v=timetable-tabs-9"/);
+  assert.match(html, /src="\/planner\/framework\/attendance\.js\?v=import-batches-10"/);
   assert.match(groups[1][2], /id="refresh-weekly-duties" hidden>Refresh duties<\/button>/);
   assert.match(html, /id="planner-signin-link"/);
   assert.match(html, /href="https:\/\/core.example.test\/contact"/);
@@ -876,7 +877,7 @@ test('module denies anonymous/student access and accepts a supplied teacher iden
     assert.match(html, /Last Updated:/);
     assert.match(html, /id="planner-year"[^>]*value="2026"/);
     assert.match(html, /data-api="\/module\/api\/planner\/"/);
-    assert.match(html, /src="\/module\/framework\/planner\.js\?v=term-cover-31"/);
+    assert.match(html, /src="\/module\/framework\/planner\.js\?v=attendance-navigation-32"/);
     assert.match(html, /Weekly planner/);
     assert.match(html, /Professional learning/);
     assert.ok(!html.includes('name="whs-global-control"'));

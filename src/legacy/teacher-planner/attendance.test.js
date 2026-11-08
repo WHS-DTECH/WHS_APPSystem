@@ -471,7 +471,8 @@ test('all-class import ignores display filters, deduplicates shared marks and re
   assert.ok(nodes.some(node => node.textContent.startsWith('Second class: 4 blank marks')));
   assert.ok(nodes.some(node => node.textContent.startsWith('Manual class: skipped')));
   await nodes.find(node => node.textContent === 'Fill 4 blank marks').events.click();
-  assert.equal(saved.filter(([path]) => path.endsWith('/mark')).length, 4, 'shared marks are not saved twice');
+  assert.equal(saved.filter(([path]) => path.endsWith('/import-marks')).length, 1);
+  assert.equal(saved.find(([path]) => path.endsWith('/import-marks'))[1].marks.length, 4, 'shared marks are not saved twice');
   const history = saved.find(([path]) => path.endsWith('/imports'))[1];
   assert.equal(history.entries.length, 4);
   assert.deepEqual(new Set(history.entries.map(item => item.groupId)), new Set([options.group.id, second.id]));
@@ -537,12 +538,14 @@ function driveFixture() {
       },
       loadSchedule: async week => options.schedules[week],
       mutate: async (path, body) => {
-        if (path.endsWith('/mark') && ++attempts === failMark) throw new Error('Concurrent mark edit');
+        if (path.endsWith('/import-marks') && ++attempts === failMark) throw new Error('Concurrent mark edit');
         writes.push([path, body]);
-        if (path.endsWith('/mark')) {
-          const old = savedMarks.find(item => item.student_id === body.studentId && item.date === body.date && item.period === body.period);
-          if (old) { old.mark = body.mark; old.revision++; }
-          else savedMarks.push({ student_id: body.studentId, ...body });
+        if (path.endsWith('/import-marks')) {
+          for (const mark of body.marks) {
+            const old = savedMarks.find(item => item.student_id === mark.studentId && item.date === mark.date && item.period === mark.period);
+            if (old) { old.mark = mark.mark; old.revision++; }
+            else savedMarks.push({ student_id: mark.studentId, ...mark });
+          }
         } else if (path.endsWith('/file')) processed[body.fileId] = { ...body };
         return {};
       }
@@ -556,7 +559,7 @@ test('Drive sync fills matching blanks, checkpoints successful PDFs and skips un
   assert.equal(result.marks, 4, 'overlapping PDFs do not duplicate or overwrite marks');
   assert.equal(result.conflicts, 2);
   assert.equal(Object.keys(fixture.processed).length, 2);
-  assert.ok(fixture.writes.filter(([path]) => path.endsWith('/mark')).every(([, value]) => value.fillOnly));
+  assert.equal(fixture.writes.filter(([path]) => path.endsWith('/import-marks')).length, 1);
   const count = fixture.writes.length;
   result = await api.syncDrive(fixture.helpers);
   assert.equal(result.files, 0);
@@ -576,13 +579,13 @@ test('Drive sync fills matching blanks, checkpoints successful PDFs and skips un
 });
 test('Drive sync never checkpoints a failed PDF and retry resumes without overwriting prior fills', async () => {
   const fixture = driveFixture(), api = browser();
-  fixture.failOnMark(2);
+  fixture.failOnMark(1);
   const first = await api.syncDrive(fixture.helpers);
   assert.equal(first.failed, 1);
   assert.equal(first.files, 1, 'later PDF completes even after a partial mark-write failure');
   assert.equal(first.marks, 4, 'total includes the failed PDF partial save without double counting');
-  assert.equal(first.documents[0].marks, 1);
-  assert.match(first.documents[0].error, /1 blank marks saved.*not marked processed/);
+  assert.equal(first.documents[0].marks, 0);
+  assert.match(first.documents[0].error, /0 blank marks saved.*not marked processed/);
   assert.equal(Object.keys(fixture.processed).length, 1);
   assert.equal(fixture.processed[fixture.files[0].id], undefined);
   fixture.failOnMark(0);
@@ -792,6 +795,32 @@ test('weekly refresh shows immediate progress and completion without losing acti
   assert.equal(target.attrs['aria-busy'], 'false');
   assert.ok(descendants(host).some(node => node.textContent === 'Sync Drive attendance now' && !node.disabled));
 });
+test('one Drive sync reuses monthly timetable feeds and retries failed requests', async () => {
+  const source = fs.readFileSync(require.resolve('./public/planner.js'), 'utf8');
+  const helper = source.slice(source.indexOf('  async function loadAttendanceSchedule('), source.indexOf('  let attendanceSyncRunning'));
+  const requests = [];
+  let fail = false;
+  const context = {
+    api: '/api/planner/',
+    date: value => new Date(value + 'T00:00:00Z'),
+    request: async path => {
+      requests.push(path);
+      if (fail) throw new Error('Timetable unavailable');
+      return { events: [{ title: 'Test' }] };
+    },
+    weeklyTimetableEntries: events => events
+  };
+  vm.runInNewContext(helper, context);
+  const cache = new Map();
+  await context.loadAttendanceSchedule('2026-10-19', cache);
+  await context.loadAttendanceSchedule('2026-10-26', cache);
+  assert.equal(requests.length, 1);
+  fail = true;
+  await assert.rejects(context.loadAttendanceSchedule('2026-11-02', cache), /Timetable unavailable/);
+  fail = false;
+  await context.loadAttendanceSchedule('2026-11-02', cache);
+  assert.equal(requests.length, 3);
+});
 test('Drive settings and authorisation failures are displayed inside the Drive card', async () => {
   for (const action of ['Authorise read-only Google Drive', 'Save folder and sync', 'Sync Drive attendance now']) {
     const options = importFixture(), host = element('section');
@@ -914,11 +943,13 @@ test('PDF preview saves nothing until confirmation and sends only blank fills wi
   nodes = descendants(host);
   assert.ok(nodes.some(node => node.textContent === 'Keep saved A (conflict)'));
   await nodes.find(node => node.textContent === 'Fill 4 blank marks').events.click();
-  assert.equal(saved.length, 5);
-  assert.ok(saved.slice(0, 4).every(([path, body]) => path === 'attendance/2026/mark' && body.fillOnly === true && !Object.hasOwn(body, 'name')));
-  assert.equal(saved[4][0], 'attendance/2026/imports');
-  assert.equal(saved[4][1].entries.length, 2);
-  assert.equal(saved.some(([, body]) => body.date === '2026-10-27' && body.period === 'p3'), false);
+  assert.equal(saved.length, 2);
+  assert.equal(saved[0][0], 'attendance/2026/import-marks');
+  assert.equal(saved[0][1].marks.length, 4);
+  assert.ok(saved[0][1].marks.every(value => !Object.hasOwn(value, 'name')));
+  assert.equal(saved[1][0], 'attendance/2026/imports');
+  assert.equal(saved[1][1].entries.length, 2);
+  assert.equal(saved[0][1].marks.some(value => value.date === '2026-10-27' && value.period === 'p3'), false);
   assert.ok(descendants(host).some(node => node.textContent.includes('4 blank marks filled from the PDF')));
 });
 test('a failed import stops with an explicit partial-save count and allows safe re-preview', async () => {
@@ -929,13 +960,13 @@ test('a failed import stops with an explicit partial-save count and allows safe 
     request: async path => path.includes('/classes/') ? options.directory :
       path.endsWith('/groups') ? { revision: 1, content: { groups: [options.group] } } : { marks: options.savedMarks },
     loadSchedule: async week => options.schedules[week], uploadPdf: async () => options.pdf,
-    mutate: async () => { if (++attempts === 2) throw new Error('Mark changed in another window'); return { revision: 1 }; }
+    mutate: async () => { attempts++; throw new Error('1 of 4 marks in this batch were saved; other marks changed in another window.'); }
   });
   descendants(host).find(node => node.attrs.type === 'file').files = [{ size: 100 }];
   await descendants(host).find(node => node.textContent === 'Preview PDF import').events.click();
   await descendants(host).find(node => node.textContent === 'Fill 4 blank marks').events.click();
-  assert.equal(attempts, 2);
-  assert.ok(descendants(host).some(node => node.attrs.role === 'alert' && node.textContent.includes('1 of 4 marks saved')));
+  assert.equal(attempts, 1);
+  assert.ok(descendants(host).some(node => node.attrs.role === 'alert' && node.textContent.includes('1 of 4 marks in this batch were saved')));
   assert.equal(host.attrs['data-preferences-busy'], undefined);
 });
 test('class picker identifies the matched signed-in staff code and shows only supplied teacher classes', async () => {
@@ -1130,6 +1161,39 @@ async function fixture(t, query) {
   }
   return { base, login, failDirectory() { directoryFails = true; } };
 }
+test('batch imports validate roster and revisions and report partially saved conflicts', async t => {
+  const calls = [];
+  let saved = 2;
+  const { base, login } = await fixture(t, async (sql, params) => {
+    calls.push([sql, params]);
+    if (sql.includes('SELECT content,revision FROM planner_attendance_groups')) return { rows: [{ content }] };
+    assert.match(sql, /ON CONFLICT DO NOTHING/);
+    assert.match(sql, /m\.revision=i\.revision AND m\.mark=''/);
+    return { rows: [{ saved }] };
+  });
+  const headers = await login(owner);
+  const marks = [
+    { studentId: 'k:100', date: '2026-10-29', period: 'p1', mark: 'P', revision: 0 },
+    { studentId: 'k:100', date: '2026-10-30', period: 'p3', mark: 'A', revision: 2 }
+  ];
+  const put = body => fetch(base + 'attendance/2026/import-marks',
+    { method: 'PUT', headers, body: JSON.stringify(body) });
+  let response = await put({ marks });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).saved, 2);
+  const input = JSON.parse(calls.at(-1)[1][2]);
+  assert.equal(input[0].name, 'Synthetic Student');
+  saved = 1;
+  response = await put({ marks });
+  assert.equal(response.status, 409);
+  assert.match((await response.json()).error, /1 of 2 marks in this batch were saved/);
+  const before = calls.length;
+  for (const invalid of [{ marks: [marks[0], marks[0]] }, { marks: [{ ...marks[0], mark: '' }] },
+    { marks: [{ ...marks[0], studentId: 'k:other' }] }, { marks: Array(201).fill(marks[0]) }]) {
+    assert.equal((await put(invalid)).status, 400);
+  }
+  assert.equal(calls.length, before + 1, 'only roster lookup runs for a valid but unowned student');
+});
 test('student term API bounds dates and isolates owner, selected roster and student ID', async t => {
   const calls = [];
   const { base, login } = await fixture(t, async (sql, params) => {
@@ -1356,6 +1420,20 @@ test('PostgreSQL persists private attendance and rejects stale cell revisions', 
   assert.deepEqual(stored.marks, [{ student_id: 'k:100', student_name: 'Synthetic Student', date: '2026-10-29', period: 'p3', mark: 'A', revision: 2 }]);
   assert.equal((await put('mark', { ...value, revision: 2, mark: '' })).status, 200);
   assert.equal((await put('mark', { ...value, revision: 3, fillOnly: true })).status, 200);
+  const blank = { studentId: 'k:100', date: '2026-10-30', period: 'p1', mark: '', revision: 0 };
+  assert.equal((await put('mark', blank)).status, 200);
+  const batch = [
+    { ...blank, mark: 'P', revision: 1 },
+    { ...blank, date: '2026-10-28', mark: 'A', revision: 0 },
+    { ...value, mark: 'P', revision: 4 }
+  ];
+  const partial = await put('import-marks', { marks: batch });
+  assert.equal(partial.status, 409);
+  assert.match((await partial.json()).error, /2 of 3 marks in this batch were saved/);
+  const afterBatch = (await (await fetch(base + 'attendance/2026/week/2026-10-26', { headers })).json()).marks;
+  assert.equal(afterBatch.find(mark => mark.date === '2026-10-29').mark, 'L');
+  assert.equal(afterBatch.find(mark => mark.date === '2026-10-30').mark, 'P');
+  assert.equal(afterBatch.find(mark => mark.date === '2026-10-28').mark, 'A');
   const historyEntry = { groupId: group.id, week: '2026-10-26', expected: 10, recorded: 5, conflicts: 0, unresolved: false };
   assert.equal((await put('imports', { entries: [historyEntry] })).status, 200);
   assert.equal((await put('drive-sync', { folder: 'synthetic_folder_123', enabled: true })).status, 200);
@@ -1370,5 +1448,5 @@ test('PostgreSQL persists private attendance and rejects stale cell revisions', 
   assert.equal(history.imports[group.id + ':2026-10-26'].recorded, 5);
   assert.equal(history.markedWeeks[0].week, '2026-10-26');
   assert.equal((await put('groups', { revision: 2, content: { groups: [] } })).status, 200);
-  assert.equal((await (await fetch(base + 'attendance/2026/week/2026-10-26', { headers })).json()).marks.length, 1, 'removing a tab never deletes attendance');
+  assert.equal((await (await fetch(base + 'attendance/2026/week/2026-10-26', { headers })).json()).marks.length, 3, 'removing a tab never deletes attendance');
 });

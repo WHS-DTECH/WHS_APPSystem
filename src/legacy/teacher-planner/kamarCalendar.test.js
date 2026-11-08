@@ -16,6 +16,30 @@ test('private subscription validation only permits personal KAMAR HTTPS feeds', 
   assert.equal(mock.mock.callCount(),0);
 });
 
+test('simultaneous private timetable reads share only the same in-flight feed and retry failures', async t => {
+  let release, calls = 0, fail = false;
+  t.mock.method(globalThis, 'fetch', async () => {
+    calls++;
+    await new Promise(resolve => { release = resolve; });
+    if (fail) throw new Error('Temporary timetable failure');
+    return { ok: true, text: async () => wrap('') };
+  });
+  const url = 'https://westlandhigh.school.kiwi/ics/TEST-COALESCE.ics';
+  const first = loadTimetable(url, 2026, 10), second = loadTimetable(url, 2026, 11);
+  assert.equal(calls, 1);
+  release();
+  assert.deepEqual((await Promise.all([first, second])).map(value => value.month), [10, 11]);
+  fail = true;
+  const failed = loadTimetable(url, 2026, 10);
+  release();
+  await assert.rejects(failed, /Temporary timetable failure/);
+  fail = false;
+  const retry = loadTimetable(url, 2026, 10);
+  release();
+  await retry;
+  assert.equal(calls, 3, 'completed and failed feeds are not cached');
+});
+
 test('KAMAR parsing handles folded/escaped text, exclusive all-day ends and UTC dates', () => {
   const events = parseCalendar(wrap(`BEGIN:VEVENT
 UID:school-day

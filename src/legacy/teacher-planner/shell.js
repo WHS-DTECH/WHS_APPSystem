@@ -100,13 +100,13 @@ ${standalone ? `<script src="${asset('global-nav.js')}" defer></script>` : ''}
 <script src="${asset('google-calendar.js')}" defer></script>
 <script src="${asset('google-doc-sync.js')}" defer></script>
 <script src="${asset('duty-roster.js?v=weekly-term-duties-4')}" defer></script>
-<script src="${asset('attendance.js?v=timetable-tabs-9')}" defer></script>
+<script src="${asset('attendance.js?v=import-batches-10')}" defer></script>
 <script src="${asset('google-tasks.js')}" defer></script>
 <script src="${asset('google-drive.js?v=moderation-resource-files-1')}" defer></script>
 <script src="${asset('moderation-schema.js?v=requirement-cleanup-2')}" defer></script>
 <script src="${asset('moderation.js?v=nzqa-version-8')}" defer></script>
 <script src="${asset('textarea-autosize.js')}" defer></script>
-<script src="${asset('planner.js?v=term-cover-31')}" defer></script>
+<script src="${asset('planner.js?v=attendance-navigation-32')}" defer></script>
 </body></html>`;
 }
 

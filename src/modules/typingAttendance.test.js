@@ -64,7 +64,7 @@ test('connector returns only the matched student lessons from the fixed owner re
   assert.match(response.cache, /no-store/);
   assert.doesNotMatch(JSON.stringify(response.data), /Not exported|synthetic-private|owner|MATH/);
   const markQuery = f.queries.find(item => item.sql.includes('FROM planner_attendance_marks'));
-  assert.deepEqual(markQuery.params, [ownerId, 'k:synthetic-id', startDate, '2026-12-13']);
+  assert.deepEqual(markQuery.params, [ownerId, 'k:synthetic-id', startDate, '2026-12-13', [2026]]);
   assert.equal(response.data.weeks[0].confirmed, false, 'No scheduled lesson is not invented as an absence');
 });
 

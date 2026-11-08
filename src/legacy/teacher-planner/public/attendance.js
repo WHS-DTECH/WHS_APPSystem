@@ -223,9 +223,10 @@
         const plans = Object.keys(schedules).length ? groups.map(group => ({ group,
           plan: planImport({ pdf, group, directory, schedules, savedMarks, year, ranges, school, calendar, today }) })) : [];
         const plan = mergePlans(plans);
-        for (const { name, ...value } of plan.fills) {
-          await mutate('attendance/' + year + '/mark', { ...value, fillOnly: true });
-          savedCount++;
+        for (let offset = 0; offset < plan.fills.length; offset += 200) {
+          const batch = plan.fills.slice(offset, offset + 200).map(({ name, ...value }) => value);
+          await mutate('attendance/' + year + '/import-marks', { marks: batch });
+          savedCount += batch.length;
           onProgress('Drive attendance: ' + savedCount + '/' + plan.fills.length + ' blank marks saved for this PDF. Keep this page open.');
         }
         const entries = plans.flatMap(item => item.plan.coverage);
@@ -245,7 +246,7 @@
         summary.failed++;
         summary.marks += savedCount;
         outcome = { status: 'error', marks: savedCount,
-          error: error.message + ' ' + savedCount + ' blank marks saved from this PDF before the error. ' +
+          error: error.message + ' ' + savedCount + ' blank marks saved in completed batches before the error. ' +
             'Existing marks were not overwritten. This PDF was not marked processed; retry to safely continue.' };
       }
       report(file, outcome);
@@ -423,14 +424,15 @@
           let count = 0;
           say('Importing ' + plan.fills.length + ' blank marks. Keep this page open until saving finishes.');
           try {
-            for (const { name, ...value } of plan.fills) {
-              await mutate('attendance/' + year + '/mark', { ...value, fillOnly: true });
-              count++;
+            for (let offset = 0; offset < plan.fills.length; offset += 200) {
+              const batch = plan.fills.slice(offset, offset + 200).map(({ name, ...value }) => value);
+              await mutate('attendance/' + year + '/import-marks', { marks: batch });
+              count += batch.length;
               say('Importing: ' + count + ' of ' + plan.fills.length + ' blank marks saved. Keep this page open.');
             }
             if (entries.length) await mutate('attendance/' + year + '/imports', { entries });
           } catch (error) {
-            throw new Error(count + ' of ' + plan.fills.length + ' marks saved. Import stopped: ' + error.message +
+            throw new Error(count + ' of ' + plan.fills.length + ' marks saved in completed batches. Import stopped: ' + error.message +
               ' Reload the saved week, then preview the PDF again to continue safely.');
           }
           await loadSheet();

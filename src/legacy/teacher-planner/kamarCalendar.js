@@ -18,9 +18,21 @@ async function fetchCalendarText(url) {
   if (root.name !== 'vcalendar') throw new Error('KAMAR did not return an iCalendar document.');
   return text;
 }
+const pendingTimetables = new Map();
 async function loadTimetable(url, year, month) {
   if (!url || !validTimetableUrl(url)) throw new Error('Invalid teacher subscription.');
-  const text = await fetchCalendarText(url);
+  let pending = pendingTimetables.get(url);
+  if (!pending) {
+    pending = fetchCalendarText(url).then(text => {
+      pendingTimetables.delete(url);
+      return text;
+    }, error => {
+      pendingTimetables.delete(url);
+      throw error;
+    });
+    pendingTimetables.set(url, pending);
+  }
+  const text = await pending;
   return { year, month, events: parseCalendar(text, year, month), fetchedAt: new Date().toISOString() };
 }
 function calendarTime(time) {
