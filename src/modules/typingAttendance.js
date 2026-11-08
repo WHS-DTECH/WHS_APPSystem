@@ -17,13 +17,14 @@ const addDays = (start, days) => {
   return date.toISOString().slice(0, 10);
 };
 const periodTimes = { p1: [540, 600], p2: [600, 660], p3: [680, 740], p4: [740, 800], p5: [840, 900] };
+const nzTimeFormatter = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Pacific/Auckland', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+});
 const sourceError = code => Object.assign(new Error('Planner attendance source needs confirmation.'), { code });
 function lessonEntries(events, weekStart) {
   const entries = {};
   const minutes = value => {
-    const clock = value.endsWith('Z') ? new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Pacific/Auckland', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
-    }).format(new Date(value)) : value.slice(11, 16);
+    const clock = value.endsWith('Z') ? nzTimeFormatter.format(new Date(value)) : value.slice(11, 16);
     return Number(clock.slice(0, 2)) * 60 + Number(clock.slice(3, 5));
   };
   for (let day = 0; day < 5; day++) {
@@ -36,10 +37,11 @@ function lessonEntries(events, weekStart) {
   return entries;
 }
 
-function attendanceWeeks(startDate, contexts, codes, events, marks) {
+function attendanceWeeks(startDate, contexts, codes, events, marks, weeklyEntries) {
   return Array.from({ length: 7 }, (_, index) => {
     const weekStart = addDays(startDate, index * 7);
-    const schedules = scheduledPeriods({ classes: codes[Number(weekStart.slice(0, 4))] }, lessonEntries(events, weekStart));
+    const schedules = scheduledPeriods({ classes: codes[Number(weekStart.slice(0, 4))] },
+      weeklyEntries ? weeklyEntries.get(weekStart) : lessonEntries(events, weekStart));
     const lessons = [];
     let confirmed = true;
     for (let day = 0; day < 5; day++) {
@@ -59,6 +61,13 @@ function attendanceWeeks(startDate, contexts, codes, events, marks) {
     }
     return { weekStart, confirmed: confirmed && lessons.length > 0, lessons };
   });
+}
+
+function lessonEntriesByWeek(events, startDate) {
+  return new Map(Array.from({ length: 7 }, (_, index) => {
+    const weekStart = addDays(startDate, index * 7);
+    return [weekStart, lessonEntries(events, weekStart)];
+  }));
 }
 
 function createTypingAttendanceRouter({ env = process.env, dbQuery = coreQuery, directoryQuery = kamarQuery,
@@ -200,6 +209,7 @@ function createTypingAttendanceRouter({ env = process.env, dbQuery = coreQuery, 
         Number(month.slice(0, 4)), Number(month.slice(5, 7)))));
       checkpoint('timetable-complete');
       const events = feeds.flatMap(feed => feed.events);
+      const weeklyEntries = lessonEntriesByWeek(events, startDate);
       const studentIds = ids.map(row => 'k:' + row.id);
       const marks = studentIds.length ? (await query(`SELECT student_id,to_char(lesson_date,'YYYY-MM-DD') AS date,period,mark
         FROM planner_attendance_marks WHERE owner_id=$1 AND student_id=ANY($2::text[])
@@ -221,7 +231,7 @@ function createTypingAttendanceRouter({ env = process.env, dbQuery = coreQuery, 
           if (!codes[year].length) return { studentEmail, error: 'Student DTECH class membership could not be confirmed.' };
         }
         const ownMarks = marks.filter(mark => mark.student_id === studentId);
-        const weeks = attendanceWeeks(startDate, contexts, codes, events, ownMarks);
+        const weeks = attendanceWeeks(startDate, contexts, codes, events, ownMarks, weeklyEntries);
         return { version: 1, studentEmail, startDate, fetchedAt, weeks };
       });
       checkpoint('response-ready');
@@ -234,4 +244,4 @@ function createTypingAttendanceRouter({ env = process.env, dbQuery = coreQuery, 
   return router;
 }
 
-module.exports = { createTypingAttendanceRouter, lessonEntries };
+module.exports = { createTypingAttendanceRouter, lessonEntries, lessonEntriesByWeek };

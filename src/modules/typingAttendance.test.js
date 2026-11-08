@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
-const { createTypingAttendanceRouter, lessonEntries } = require('./typingAttendance');
+const { createTypingAttendanceRouter, lessonEntries, lessonEntriesByWeek } = require('./typingAttendance');
 
 const studentEmail = 'synthetic-student@westlandhigh.school.nz';
 const secondEmail = 'synthetic-second@westlandhigh.school.nz';
@@ -58,6 +58,21 @@ async function fixture(t, options = {}) {
   };
   return { call, queries };
 }
+
+test('weekly timetable entries cover all seven weeks using the same period matching', () => {
+  const events = [
+    { title: code, start: '2026-11-24T09:00:00', end: '2026-11-24T10:00:00' },
+    { title: code, start: '2026-11-26T22:20:00Z', end: '2026-11-26T23:20:00Z' },
+    { title: 'Holiday', start: '2026-11-24T00:00:00', end: '2026-11-25T00:00:00', allDay: true }
+  ];
+  const entries = lessonEntriesByWeek(events, startDate);
+  assert.equal(entries.size, 7);
+  for (const [weekStart, weekEntries] of entries) {
+    assert.deepEqual(weekEntries, lessonEntries(events, weekStart));
+  }
+  assert.deepEqual(entries.get('2026-11-23')['p1:1'], [{ title: code }]);
+  assert.deepEqual(entries.get('2026-11-23')['p3:4'], [{ title: code }]);
+});
 
 test('connector returns only the matched student lessons from the fixed owner register', async t => {
   const f = await fixture(t);
