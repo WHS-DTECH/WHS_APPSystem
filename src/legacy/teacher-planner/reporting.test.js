@@ -286,7 +286,7 @@ test('reporting grids preserve student, programme and cycle entries and emit aut
   assert.ok(f.find(node => node.textContent === 'No incomplete students in this class.'));
 });
 
-test('bulk school values overwrite both cycles across all terms while retaining SLOs and comments', async () => {
+test('school value default fills blanks across all terms while retaining choices, SLOs and comments', async () => {
   const previous = { ...row, comment: 'Keep this comment' };
   const hidden = { ...row, studentId: 'k:former', programme: 'middle', coding: '5A', cycle: 'earlier' };
   const f = fixture({ records: JSON.stringify([previous, hidden]) }, false, { request: async (url, directory) => {
@@ -295,11 +295,17 @@ test('bulk school values overwrite both cycles across all terms while retaining 
     return { classes: [{ code: 'TEST-JDTECH', students: [{ id: 'k:old', name: 'Historical Junior', yearLevel: '8' }] }] };
   } });
   await settle();
-  await f.click('Set all school values to Dem');
+  assert.equal(f.find(node => node.tag === 'button' && node.textContent === 'Set all school values to Dem'), undefined);
+  assert.ok(f.find(node => node.textContent.includes('Other teachers’ reports are not changed.')));
+  await f.click('Default school values to Dem');
   assert.deepEqual(f.calls.slice(1).sort(), [1, 2, 3, 4].map(term => 'attendance/classes/2026?term=' + term));
   const saved = JSON.parse(f.find(node => node.attrs.name === 'records').value);
   assert.equal(saved.length, 7);
-  assert.ok(saved.every(entry => entry.kaitiakitanga === 'Dem' && entry.rangatiratanga === 'Dem'));
+  assert.equal(saved.find(entry => entry.studentId === row.studentId && entry.cycle === 'eoy').kaitiakitanga, 'Dev');
+  assert.equal(saved.find(entry => entry.studentId === row.studentId && entry.cycle === 'eoy').rangatiratanga, 'Exe');
+  assert.equal(saved.find(entry => entry.studentId === 'k:former').rangatiratanga, 'Exe');
+  assert.ok(saved.filter(entry => entry.studentId === 'k:old').every(entry =>
+    entry.kaitiakitanga === 'Dem' && entry.rangatiratanga === 'Dem'));
   assert.equal(saved.find(entry => entry.studentId === row.studentId && entry.cycle === 'eoy').coding, '3P');
   assert.equal(saved.find(entry => entry.studentId === row.studentId && entry.cycle === 'eoy').comment, 'Keep this comment');
   assert.equal(saved.find(entry => entry.studentId === 'k:former').coding, '5A');
@@ -397,24 +403,21 @@ test('completion counts use the selected Junior term and both Middle values and 
   assert.ok(f.find(node => node.textContent === 'TEST-MDTECH (1/1)'));
 });
 
-test('failed or cancelled bulk update leaves all existing records and defaults unchanged', async () => {
+test('failed or cancelled school values default leaves all existing records and defaults unchanged', async () => {
   const previous = JSON.stringify([row]);
   const failed = fixture({ records: previous }, false, { request: async (url, directory) => {
     if (url.endsWith('term=2')) throw new Error('Term 2 unavailable');
     return directory;
   } });
   await settle();
-  await failed.click('Set all school values to Dem');
+  await failed.click('Default school values to Dem');
   assert.equal(failed.find(node => node.attrs.name === 'records').value, previous);
   assert.equal(failed.find(node => node.attrs.name === 'valuesDefault').value, '');
   assert.equal(failed.events.length, 0);
   assert.ok(failed.find(node => node.attrs.role === 'alert' && node.textContent.includes('No school values were changed')));
-  await failed.click('Default school values to Dem');
-  assert.equal(failed.find(node => node.attrs.name === 'records').value, previous);
-  assert.equal(failed.events.length, 0);
   const cancelled = fixture({ records: previous }, false, { confirm: () => false });
   await settle();
-  await cancelled.click('Set all school values to Dem');
+  await cancelled.click('Default school values to Dem');
   assert.equal(cancelled.calls.length, 1);
   assert.equal(cancelled.find(node => node.attrs.name === 'records').value, previous);
   assert.equal(cancelled.events.length, 0);

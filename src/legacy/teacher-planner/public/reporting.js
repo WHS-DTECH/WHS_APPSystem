@@ -33,9 +33,8 @@
     const feedback = el('p', 'Loading school classes...', { role: 'status', 'aria-live': 'polite' });
     const defaultsPanel = el('section', '', { 'data-planner-navigation': '', 'aria-label': 'School values defaults' });
     const fill = el('button', 'Default school values to Dem', { type: 'button' });
-    const bulk = el('button', 'Set all school values to Dem', { type: 'button' });
     const bulkStatus = el('p', '', { role: 'status', 'aria-live': 'polite' });
-    defaultsPanel.append(el('p', 'Default school values to Dem fills blank values without changing existing choices and enables defaults for new students. The overwrite action replaces all existing school values. Both actions cover both report cycles and all four term rosters; SLOs and comments are kept.'), fill, bulk, bulkStatus);
+    defaultsPanel.append(el('p', 'For your reports in this planner year, default school values to Dem fills blank values without changing existing choices and enables defaults for new students. It covers both report cycles and all four term rosters; SLOs and comments are kept. Other teachers’ reports are not changed.'), fill, bulkStatus);
     const sloPanel = el('section', '', { 'data-planner-navigation': '', 'aria-label': 'JuniorDTECH SLO defaults' });
     const sloBulk = el('button', 'Set JuniorDTECH SLOs to 3P', { type: 'button' });
     const sloStatus = el('p', '', { role: 'status', 'aria-live': 'polite' });
@@ -71,11 +70,10 @@
       store.value = encoded; defaultStore.value = defaultValue; sloDefaultStore.value = sloDefault;
       store.dispatchEvent(new Event('input', { bubbles: true }));
     }
-    async function setDefaults(overwrite) {
-      if (bulk.disabled || fill.disabled || sloBulk.disabled || !confirm(overwrite ?
-        'Overwrite all school values with Dem for your JuniorDTECH and MiddleDTECH students across all four terms and both report cycles? SLOs and comments remain unchanged.' :
+    async function setDefaults() {
+      if (fill.disabled || sloBulk.disabled || !confirm(
         'Fill blank school values with Dem for your JuniorDTECH and MiddleDTECH students across all four terms and both report cycles? Existing choices, SLOs and comments remain unchanged. New students will also default to Dem.')) return;
-      bulk.disabled = true; fill.disabled = true; sloBulk.disabled = true;
+      fill.disabled = true; sloBulk.disabled = true;
       let applied = false;
       bulkStatus.setAttribute('role', 'status');
       bulkStatus.textContent = 'Checking all four term rosters; no values have been changed yet...';
@@ -85,7 +83,7 @@
         const next = records.map(row => {
           const updated = { ...row };
           const keys = row.programme === 'junior' ? schema.juniorValues.map(([key]) => key) : ['kaitiakitanga', 'rangatiratanga'];
-          for (const key of keys) if (overwrite || !updated[key]) updated[key] = 'Dem';
+          for (const key of keys) if (!updated[key]) updated[key] = 'Dem';
           return updated;
         });
         addNewStudents(next, lists, 'Dem-v2', sloDefaultStore.value);
@@ -99,13 +97,12 @@
         bulkStatus.setAttribute('role', 'alert');
         bulkStatus.textContent = applied ? 'Values were changed on this page; check the Planner save status before leaving. ' + error.message :
           'No school values were changed. All four term rosters must load before this update: ' + error.message;
-      } finally { bulk.disabled = false; fill.disabled = false; sloBulk.disabled = false; }
+      } finally { fill.disabled = false; sloBulk.disabled = false; }
     }
-    fill.addEventListener('click', () => setDefaults(false));
-    bulk.addEventListener('click', () => setDefaults(true));
+    fill.addEventListener('click', setDefaults);
     sloBulk.addEventListener('click', async () => {
       if (sloBulk.disabled || !confirm('Overwrite both JuniorDTECH SLOs with 3P in all your existing drafts and across all four term rosters, for both report cycles? New JuniorDTECH students will also default to 3P. School values, comments and MiddleDTECH reports remain unchanged.')) return;
-      bulk.disabled = true; fill.disabled = true; sloBulk.disabled = true;
+      fill.disabled = true; sloBulk.disabled = true;
       let applied = false;
       sloStatus.setAttribute('role', 'status');
       sloStatus.textContent = 'Checking all four term rosters; no SLOs have been changed yet...';
@@ -124,7 +121,7 @@
         sloStatus.setAttribute('role', 'alert');
         sloStatus.textContent = applied ? 'SLOs were changed on this page; check the Planner save status before leaving. ' + error.message :
           'No SLOs were changed. All four term rosters must load before this update: ' + error.message;
-      } finally { bulk.disabled = false; fill.disabled = false; sloBulk.disabled = false; }
+      } finally { fill.disabled = false; sloBulk.disabled = false; }
     });
     function record(student, create = false) {
       let row = records.find(item => item.studentId === student.id && item.programme === state.programme && item.cycle === state.cycle);

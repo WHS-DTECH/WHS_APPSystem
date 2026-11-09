@@ -1459,12 +1459,10 @@ for newly found JuniorDTECH/MiddleDTECH students in both cycles, including
 hidden class tabs. Existing Dev, Dem and Exe choices are kept. Once enabled,
 students subsequently encountered in a new class get Dem when their roster is
 loaded; later manual choices, including blanks, are never overwritten.
-**Set all school values to Dem** is a separate, explicit overwrite action for
-all school values in existing drafts and students in all four rosters.
-Both actions preserve SLOs and comments. If any term roster fails to load,
+The action preserves SLOs and comments. If any term roster fails to load,
 nothing is changed; import missing snapshots first.
 The change is a normal private Planner edit: wait for the Planner autosave
-confirmation before leaving. These actions do not publish to KAMAR or change
+confirmation before leaving. This action does not publish to KAMAR or change
 another teacher's reports. Earlier saved drafts remain compatible; teachers who
 enabled the previous two-value default can use the new action to fill the
 additional JuniorDTECH values and enable the expanded default.
