@@ -44,6 +44,7 @@
     attendance: [],
     attendanceImport: [],
     moderation: [],
+    reporting: [],
     setup: [],
     learning: [['entries', 'Professional learning log', '', 'Record dates, learning activities, evidence links, reflections and next steps.']]
   };
@@ -2504,6 +2505,13 @@
     if (section === 'goals') { renderGoals(data); return; }
     if (section === 'setup') { renderSetup(data); return; }
     if (section === 'assessmentSetup') { renderAssessmentSetup(data); return; }
+    if (section === 'reporting') {
+      globalThis.plannerReporting.mount(content, {
+        el, data, year,
+        request: async path => { await refreshSession(); return request(api + path); }
+      });
+      return;
+    }
     if (section === 'moderation') {
       globalThis.plannerModeration.mount(content, {
         el, data, year, record: moderationRecord, page: moderationPage, ownerId, notice,
@@ -2806,7 +2814,7 @@
     area.style.height = area.scrollHeight + 'px';
   }
   function autosaves() {
-    return ['week', 'year', 'term', 'goals', 'standards', 'learning', 'period', 'activity', 'assessmentSetup', 'moderation'].includes(section);
+    return ['week', 'year', 'term', 'goals', 'standards', 'learning', 'period', 'activity', 'assessmentSetup', 'moderation', 'reporting'].includes(section);
   }
   function scheduleAutosave(delay = 800) {
     clearTimeout(autosaveTimer);

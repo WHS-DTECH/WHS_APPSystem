@@ -423,7 +423,11 @@ test('real database persists every planner section, isolates users including adm
         ...standards.map((_, index) => ['focus' + (index + 1), 'Private focus ' + index]),
         ...reflectionGroups.flatMap(group => group.questions.map(([id]) => [id, 'Private ' + id]))
       ])],
-      ['2026/learning/main',{entries:'Private log',types:learningTypes.map(([id]) => id),other:'Private details',applications:'Private application'}]
+      ['2026/learning/main',{entries:'Private log',types:learningTypes.map(([id]) => id),other:'Private details',applications:'Private application'}],
+      ['2026/reporting/main',{records:JSON.stringify([
+        {studentId:'k:synthetic',programme:'junior',cycle:'eoy',coding:'3P',design:'4A',kaitiakitanga:'Dev',rangatiratanga:'Exe',comment:''},
+        {studentId:'k:synthetic',programme:'junior',cycle:'earlier',coding:'3B',design:'3P',kaitiakitanga:'Dem',rangatiratanga:'Dev',comment:'Private earlier report'}
+      ])}]
     ]) {
       assert.equal((await put(route,content)).status,200);
       assert.deepEqual((await (await get(route)).json()).content,content);
@@ -434,6 +438,13 @@ test('real database persists every planner section, isolates users including adm
       assert.equal((await put(route,{...content},1)).status,409);
       user=owner;
     }
+    const report = (await (await get('2026/reporting/main')).json()).content;
+    assert.equal((await put('2026/reporting/main', report, 1, 'wrong')).status, 403);
+    assert.equal((await put('2026/reporting/main', report, 0)).status, 409);
+    assert.equal((await put('2026/reporting/main', { records: 'invalid' }, 1)).status, 400);
+    assert.deepEqual((await (await get('2027/reporting/main')).json()).content, {});
+    assert.deepEqual((await (await get('2026/reporting/main')).json()).content, report,
+      'Rejected writes leave EOY and earlier-year judgements intact');
     assert.equal((await put('2026/period/2026-10-12_p1',{title:'Updated plan'},1,'wrong')).status,403);
     assert.equal((await put('2026/period/2026-10-17_p1',{title:'Weekend'})).status,400);
     assert.equal((await put('2026/period/2026-10-12_p2',{title:'a'.repeat(201)})).status,400);

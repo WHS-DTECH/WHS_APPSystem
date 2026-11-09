@@ -1354,6 +1354,39 @@ copied into WHS_APPSystem.
 
 ## Teacher Planner integration
 
+### Reporting
+
+The **Reporting** section provides JuniorDTECH and MiddleDTECH programme tabs,
+then class tabs and three report-part pages. A permanent
+[DTECH Assessment Criteria Google Doc](https://docs.google.com/document/d/1oA7xHQapbqE3myKKFL6T7oUMGxPbrm2BCE1rJQ51-gw/edit?usp=sharing)
+shortcut opens in a new tab.
+
+Both programmes assess **Computational Thinking - Coding** and **Design & Develop
+a Digital Outcome**. Junior choices are UAG, 3B, 3P, 3A, 4B, 4P, 4A; Middle choices
+are UAG, 4P, 4A, 5B, 5P, 5A, 6B. The criteria guide displays Achieved (50%),
+Merit (70%) and Excellence (90%) bands without automatically calculating a grade.
+**Kaitiakitanga** and **Rangatiratanga** each use Dev / Dem / Exe.
+Not entered is separate from UAG and remains incomplete. EOY requires both SLOs
+and both values; the earlier-year cycle additionally requires a report comment.
+Comments are limited to 2,000 characters. These are private drafts, not KAMAR
+publication or automatic grade decisions.
+
+Entries autosave through the existing owner/year-scoped Planner revision checks.
+EOY and earlier-year records remain separate, keyed by stable school student ID
+and programme, so switching class tabs does not duplicate or discard judgements.
+Class completion counts and an incomplete-only filter help find unfinished reports.
+Current staff timetable classes are filtered to DTECH and the programme's year
+levels (7-8 or 9-10). This is not a historical roster: subsequent uploads can
+change the visible students, but do not delete stored report entries. Reporting
+does not wait for attendance marks, PDF imports, or private timetable downloads.
+
+**Deployment:** before saving Reporting entries, run `npm run db:migrate:planner`
+in the service environment with the existing `TEACHER_PLANNER_DATABASE_URL` and
+its SSL setting. This explicitly runs the standalone Planner migration ledger,
+including `013_reporting.sql`, on the separate Planner database; it refuses the
+Core/Kamar connection. Normal embedded requests still perform no schema migration.
+Do not point Core's `db:migrate` command at the Planner database.
+
 Teacher Planner is embedded at `/teacher-planner/`, using the original module
 router and screens from `src/legacy/teacher-planner`. Shared Google sign-in,
 navigation, Search, sign-out and role assignment come from Global Control.

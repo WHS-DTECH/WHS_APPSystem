@@ -1,4 +1,19 @@
 .whs-planner { background: #eeece7; color: #303d42; font-family: "Segoe UI", sans-serif; }
+.reporting-controls { display: grid; gap: 12px; margin: 20px 0; }
+.reporting-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.reporting-tabs button[aria-pressed="true"] { background: #245f85; color: #fff; }
+.reporting-scroll { max-height: 65vh; overflow: auto; border: 1px solid #b3c4cb; }
+.reporting-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.reporting-table th, .reporting-table td { padding: 12px; border-bottom: 1px solid #b3c4cb; text-align: left; background: #fff; }
+.reporting-table thead th { position: sticky; top: 0; z-index: 2; background: #e2f5fc; }
+.reporting-table th:first-child { position: sticky; left: 0; min-width: 180px; z-index: 1; }
+.reporting-table thead th:first-child { z-index: 3; }
+.reporting-table select { min-width: 145px; width: 100%; }
+.reporting-table textarea { min-width: 260px; width: 100%; box-sizing: border-box; }
+@media print {
+  .reporting-scroll { max-height: none; overflow: visible; }
+  .reporting-table th { position: static !important; }
+}
 .planner-main { width: min(1600px,100%); box-sizing: border-box; margin: 0 auto; padding: 24px; flex: 1; }
 .planner-heading { display: flex; align-items: center; gap: 18px; margin-bottom: 20px; }
 .planner-heading h1 { margin: 0 0 6px; font-size: 26px; color: #376783; }

@@ -4,7 +4,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const vm = require('node:vm');
 
-for (const section of ['term', 'week', 'year', 'goals', 'standards', 'learning', 'period', 'assessmentSetup', 'moderation']) {
+for (const section of ['term', 'week', 'year', 'goals', 'standards', 'learning', 'period', 'assessmentSetup', 'moderation', 'reporting']) {
 test(section + ' autosave debounces edits, serialises in-flight typing and pauses on errors', async () => {
   const source = await fs.readFile(path.join(__dirname, 'public', 'planner.js'), 'utf8');
   const saving = source.slice(source.indexOf('  function expandTermArea('), source.indexOf("  document.querySelectorAll('[data-section]')"));

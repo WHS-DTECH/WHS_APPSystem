@@ -2,11 +2,11 @@ const fs = require('fs/promises');
 const path = require('path');
 const { Client } = require('pg');
 
-async function migrate() {
-  if (!process.env.DATABASE_URL) throw new Error('A separate module DATABASE_URL is required.');
+async function migrate({ connectionString = process.env.DATABASE_URL,
+  ssl = process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false } } = {}) {
+  if (!connectionString) throw new Error('A separate module DATABASE_URL is required.');
   const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false }
+    connectionString, ssl
   });
   await client.connect();
   try {

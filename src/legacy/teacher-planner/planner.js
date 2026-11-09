@@ -12,6 +12,7 @@ const { DOCX, renderDocument, importDocument } = require('./moderationDocuments'
 const { documents: moderationDocuments } = require('./public/moderation-schema');
 const holidayRegions = require('./public/holiday-regions');
 const { findNzqaReferences } = require('./nzqaReferences');
+const reporting = require('./public/reporting-schema');
 
 const FIELDS = {
   preferences: ['anniversaryRegion'],
@@ -27,7 +28,8 @@ const FIELDS = {
     ...reflectionGroups.flatMap(group => group.questions.map(question => question[0]))],
   learning: ['entries', 'applications', 'other'],
   assessmentSetup: ['selectedStandards'],
-  moderation: moderationFields
+  moderation: moderationFields,
+  reporting: ['records']
 };
 const SLOTS = ['email', 'whanau', 'p1', 'p2', 'interval', 'p3', 'p4', 'lunch', 'p5', 'meetings', 'away'];
 const canManageSettings = user => user.roles.includes('ADMIN') || user.module_roles?.includes('lead-teacher');
@@ -58,6 +60,7 @@ function validContent(section, content) {
   if (!content || typeof content !== 'object' || Array.isArray(content)) return false;
   const allowed = FIELDS[section];
   if (!allowed) return false;
+  if (section === 'reporting') return reporting.validContent(content) && Buffer.byteLength(JSON.stringify(content)) <= 300000;
   if (section === 'preferences' && content.anniversaryRegion !== undefined && !holidayRegions.includes(content.anniversaryRegion)) return false;
   if (['period', 'activity'].includes(section) && content.title !== undefined &&
       (typeof content.title !== 'string' || content.title.length > 200)) return false;

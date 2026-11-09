@@ -20,7 +20,7 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
 <link rel="icon" type="image/png" href="${asset('whs-logo.png')}">
 <link rel="stylesheet" href="${asset('account-controls.css')}">
 <link rel="stylesheet" href="${asset('module-shell.css')}">
-<link rel="stylesheet" href="${asset('planner.css?v=term-cover-33')}">
+<link rel="stylesheet" href="${asset('planner.css?v=reporting-34')}">
 </head><body class="whs-module-shell whs-planner" data-api="${escape(baseUrl)}api/planner/" data-assets="${escape(baseUrl)}framework/" data-planner-name="${escape(displayName)}" data-user-id="${escape(userId)}" data-user-email="${escape(userEmail)}" data-core-url="${escape(coreUrl)}">
 <main class="planner-main" aria-label="${escape(title)}">
 <header class="planner-heading">
@@ -65,7 +65,7 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
       <button type="button" disabled title="Page coming soon">Student Tracker</button>
       <button type="button" disabled title="Page coming soon">Lesson</button>
       <button type="button" disabled title="Page coming soon">Assessment</button>
-      <button type="button" disabled title="Page coming soon">Reporting</button>
+      <button type="button" data-section="reporting">Reporting</button>
     </div>
   </section>
 </nav>
@@ -106,7 +106,9 @@ ${standalone ? `<script src="${asset('global-nav.js')}" defer></script>` : ''}
 <script src="${asset('moderation-schema.js?v=requirement-cleanup-2')}" defer></script>
 <script src="${asset('moderation.js?v=nzqa-version-8')}" defer></script>
 <script src="${asset('textarea-autosize.js')}" defer></script>
-<script src="${asset('planner.js?v=attendance-navigation-32')}" defer></script>
+<script src="${asset('reporting-schema.js?v=1')}" defer></script>
+<script src="${asset('reporting.js?v=1')}" defer></script>
+<script src="${asset('planner.js?v=reporting-33')}" defer></script>
 </body></html>`;
 }
 
