@@ -29,11 +29,24 @@
       (cycle === 'eoy' || row.comment.trim()));
   }
   function classGroups(directory, programme) {
-    return directory.classes.filter(group => /DTECH/i.test(group.code)).map(group => ({
+    const groups = directory.classes.filter(group => /DTECH/i.test(group.code)).map(group => ({
       code: group.code,
       students: group.students.filter(student => programmes[programme].years.includes(student.yearLevel))
         .sort((a, b) => a.name.localeCompare(b.name))
     })).filter(group => group.students.length);
+    const rooms = groups.filter(group => /^VP-PIDTECH-(?:05|CW)$/i.test(group.code));
+    if (!rooms.some(group => /^VP-PIDTECH-05$/i.test(group.code)) ||
+        !rooms.some(group => /^VP-PIDTECH-CW$/i.test(group.code))) return groups;
+    const students = new Map();
+    for (const group of rooms) for (const student of group.students) {
+      if (!students.has(student.id)) students.set(student.id, student);
+    }
+    const combined = { code: 'VP-PIDTECH', students: [...students.values()].sort((a, b) =>
+      a.name.localeCompare(b.name) || a.id.localeCompare(b.id)) };
+    const first = groups.indexOf(rooms[0]);
+    const remaining = groups.filter(group => !rooms.includes(group));
+    remaining.splice(first, 0, combined);
+    return remaining;
   }
   const schema = { programmes, values, validRecords, validContent, complete, classGroups };
   if (typeof module !== 'undefined' && module.exports) module.exports = schema;

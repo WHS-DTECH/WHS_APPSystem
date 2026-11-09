@@ -73,6 +73,66 @@ function fixture(data = {}, fail = false, options = {}) {
   return { all, find, click, control, enter, calls, events };
 }
 const settle = () => new Promise(resolve => setImmediate(resolve));
+test('Reporting combines only the two VP PIDTECH rooms, retaining distinct students once', () => {
+  const student = (id, name, yearLevel = '7') => ({ id: 'k:' + id, name, yearLevel });
+  const shared = student('shared', 'Shared Student');
+  const directory = { classes: [
+    { code: 'VP-PIDTECH-05', students: [shared, student('a', 'Student A'), student('middle', 'Middle', '9')] },
+    { code: 'VP-PIDTECH-CW', students: [shared, student('b', 'Student B')] },
+    { code: 'VP-SRDTECH-CW', students: [student('c', 'Student C')] },
+    { code: 'OTHER-PIDTECH-CW', students: [student('d', 'Student D')] },
+    { code: 'VP-PIDTECH-OTHER', students: [student('e', 'Student E')] }
+  ] };
+  const junior = schema.classGroups(directory, 'junior');
+  assert.deepEqual(junior.map(group => group.code), ['VP-PIDTECH', 'VP-SRDTECH-CW', 'OTHER-PIDTECH-CW', 'VP-PIDTECH-OTHER']);
+  assert.deepEqual(junior[0].students.map(item => item.id), ['k:shared', 'k:a', 'k:b']);
+  assert.deepEqual(schema.classGroups(directory, 'middle').map(group => group.code), ['VP-PIDTECH-05']);
+  assert.deepEqual(schema.classGroups({ classes: [directory.classes[1]] }, 'junior').map(group => group.code), ['VP-PIDTECH-CW']);
+  assert.deepEqual(schema.classGroups({ classes: [directory.classes[0], directory.classes[0]] }, 'junior')
+    .map(group => group.code), ['VP-PIDTECH-05', 'VP-PIDTECH-05']);
+  assert.deepEqual(directory.classes[0].students.map(item => item.id), ['k:shared', 'k:a', 'k:middle'],
+    'Grouping is display-only and does not mutate the source roster');
+});
+
+test('combined PIDTECH tab shows union and preserves existing judgements without saving on load', async () => {
+  const savedRow = { ...row, comment: 'Existing report comment.' };
+  const f = fixture({ records: JSON.stringify([savedRow]) }, false, { request: async () => ({ classes: [
+    { code: 'VP-PIDTECH-05', students: [{ id: row.studentId, name: 'Synthetic Junior', yearLevel: '7' }] },
+    { code: 'VP-PIDTECH-CW', students: [{ id: row.studentId, name: 'Synthetic Junior', yearLevel: '7' },
+      { id: 'k:new', name: 'Another Junior', yearLevel: '8' }] },
+    { code: 'VP-SRDTECH-CW', students: [{ id: 'k:other', name: 'Other Junior', yearLevel: '7' }] }
+  ] }) });
+  await settle();
+  assert.ok(f.find(node => node.textContent === 'VP-PIDTECH (1/2)'));
+  assert.ok(f.find(node => node.textContent === 'VP-SRDTECH-CW (0/1)'));
+  assert.equal(f.control('Synthetic Junior: Computational Thinking - Coding').value, '3P');
+  assert.equal(f.events.length, 0);
+  f.click('2. School Values');
+  assert.equal(f.control('Synthetic Junior: Kaitiakitanga').value, 'Dev');
+  f.enter('Another Junior: Kaitiakitanga', 'Dem');
+  f.click('3. Report Comments');
+  assert.equal(f.control('Synthetic Junior: Report comment (optional for EOY)').value, savedRow.comment);
+  const saved = JSON.parse(f.find(node => node.attrs.name === 'records').value);
+  assert.deepEqual(saved.find(entry => entry.studentId === row.studentId), savedRow);
+  assert.equal(saved.find(entry => entry.studentId === 'k:new').kaitiakitanga, 'Dem');
+});
+
+test('Dem defaults do not duplicate students present in both PIDTECH rooms', async () => {
+  const shared = { id: row.studentId, name: 'Synthetic Junior', yearLevel: '7' };
+  const f = fixture({ records: JSON.stringify([row]), valuesDefault: 'Dem' }, false, {
+    request: async () => ({ classes: [
+      { code: 'VP-PIDTECH-05', students: [shared] },
+      { code: 'VP-PIDTECH-CW', students: [shared, { id: 'k:new', name: 'Another Junior', yearLevel: '8' }] }
+    ] })
+  });
+  await settle();
+  const saved = JSON.parse(f.find(node => node.attrs.name === 'records').value);
+  assert.equal(saved.length, 4);
+  assert.deepEqual(saved.find(entry => entry.studentId === row.studentId && entry.cycle === 'eoy'), row);
+  assert.equal(saved.find(entry => entry.studentId === 'k:new' && entry.cycle === 'eoy').kaitiakitanga, 'Dem');
+  assert.equal(saved.find(entry => entry.studentId === 'k:new' && entry.cycle === 'earlier').rangatiratanga, 'Dem');
+});
+
 test('reporting grids preserve student, programme and cycle entries and emit autosave edits', async () => {
   const f = fixture();
   await settle();

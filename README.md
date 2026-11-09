@@ -1439,6 +1439,9 @@ and programme, so switching class tabs does not duplicate or discard judgements.
 Class completion counts and an incomplete-only filter help find unfinished reports.
 Choose a term to load its latest preserved KAMAR student timetable; classes are
 filtered to the signed-in teacher, DTECH and programme year levels (7-8 or 9-10).
+A teacher's `VP-PIDTECH-05` and `VP-PIDTECH-CW` entries are shown as one
+`VP-PIDTECH` class when both are present; their students are combined once by
+school ID. Other classes and the underlying KAMAR snapshots are unchanged.
 A missing term snapshot is reported explicitly, never replaced with the current
 roster. A later upload for the selected term can change visible students but does
 not delete report entries. Judgements remain shared across terms within the same
