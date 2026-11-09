@@ -80,7 +80,7 @@ function createTeacherPlannerRouter({ env = process.env, dbQuery = coreQuery, di
       try {
         module = createModuleRouter({ query, env: plannerEnv, loadSchoolCalendar: calendar,
           loadStaff: (req, options) => staffDirectory(req.user, options, directoryQuery, dbQuery),
-          loadClasses: (req, year) => attendanceClasses(req.user, year, directoryQuery) });
+          loadClasses: (req, year, term) => attendanceClasses(req.user, year, directoryQuery, term) });
       } catch (error) {
         throw configurationFailure(error, 'Planner Google integration setup failed. Check APP_BASE_URL and the linked Google Calendar environment group.');
       }

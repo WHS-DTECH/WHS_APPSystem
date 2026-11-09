@@ -2482,7 +2482,7 @@
     if (section === 'assessmentSetup') { renderAssessmentSetup(data); return; }
     if (section === 'reporting') {
       globalThis.plannerReporting.mount(content, {
-        el, data, year,
+        el, data, year, initialTerm: term,
         request: async path => { await refreshSession(); return request(api + path); }
       });
       return;

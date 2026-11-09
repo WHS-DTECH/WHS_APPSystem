@@ -4,6 +4,7 @@ const { query: coreQuery } = require('../../db');
 const store = require('./store');
 const { loadDepartments } = require('./departments');
 const history = require('./history');
+const { STUDENT_PERIOD_KEYS, STUDENT_KEYS, buildStudentHeaderMap, mapStudentRow } = require('./studentTimetable');
 
 // Legacy Kamar Uploader API using its existing database. Data routes are unchanged;
 // the old cookie login and role tables are replaced by the app's Google session roles.
@@ -203,25 +204,6 @@ const STUDENT_DETAILS_FIELDS = {
   email_school: ['studentemailschool', 'student_email_school', 'student email school', 'studentemail', 'emailschool', 'email_school', 'email']
 };
 
-const STUDENT_PERIOD_KEYS = [
-  'mon_p1_1', 'mon_p1_2', 'mon_p2', 'mon_i', 'mon_p3', 'mon_p4', 'mon_l', 'mon_p5',
-  'tue_p1_1', 'tue_p1_2', 'tue_p2', 'tue_i', 'tue_p3', 'tue_p4', 'tue_l', 'tue_p5',
-  'wed_p1_1', 'wed_p1_2', 'wed_p2', 'wed_i', 'wed_p3', 'wed_p4', 'wed_l', 'wed_p5',
-  'thu_p1_1', 'thu_p1_2', 'thu_p2', 'thu_i', 'thu_p3', 'thu_p4', 'thu_l', 'thu_p5',
-  'fri_p1_1', 'fri_p1_2', 'fri_p2', 'fri_i', 'fri_p3', 'fri_p4', 'fri_l', 'fri_p5'
-];
-
-const STUDENT_BASE_KEYS = ['student_name', 'id_number', 'form_class', 'year_level'];
-const STUDENT_KEYS = [...STUDENT_BASE_KEYS, ...STUDENT_PERIOD_KEYS];
-
-const STUDENT_ALIASES = {
-  student_name: ['studentname', 'name'],
-  id_number: ['idnumber', 'studentid', 'id'],
-  form_class: ['formclass', 'form', 'class'],
-  year_level: ['yearlevel', 'year'],
-  email_school: ['studentemailschool', 'studentemail', 'emailschool', 'email', 'schoolemail']
-};
-
 const LEGACY_STUDENT_TABLES = [
   'student_upload',
   'student_timetable_upload',
@@ -282,39 +264,6 @@ function mapStudentDetailsRow(row, indexLookup) {
   });
   mapped.id_number = String(mapped.id_number || '').trim();
   mapped.email_school = String(mapped.email_school || '').trim().toLowerCase();
-  return mapped;
-}
-
-function buildStudentHeaderMap(headers) {
-  const headerToKey = new Map();
-  const normalizedTargets = new Map(STUDENT_KEYS.map((key) => [normalizeKey(key), key]));
-
-  headers.forEach((header, idx) => {
-    const normalized = normalizeKey(header);
-
-    if (normalizedTargets.has(normalized)) {
-      headerToKey.set(idx, normalizedTargets.get(normalized));
-      return;
-    }
-
-    for (const [target, aliases] of Object.entries(STUDENT_ALIASES)) {
-      if (aliases.includes(normalized)) {
-        headerToKey.set(idx, target);
-        return;
-      }
-    }
-  });
-
-  return headerToKey;
-}
-
-function mapStudentRow(row, headerMap) {
-  const mapped = Object.fromEntries(STUDENT_KEYS.map((key) => [key, '']));
-
-  for (const [idx, key] of headerMap.entries()) {
-    mapped[key] = String(row[idx] || '').trim();
-  }
-
   return mapped;
 }
 
@@ -1018,7 +967,12 @@ router.post('/api/student_upload', async (req, res) => {
   const uploadTerm = String(req.body?.uploadTerm || '').trim() || null;
   const uploadDate = parseUploadDate(req.body?.uploadDate);
 
-  const headerMap = buildStudentHeaderMap(headers);
+  let headerMap;
+  try { headerMap = buildStudentHeaderMap(headers); }
+  catch (error) {
+    console.warn('Kamar student timetable header validation failed:', error.message);
+    return res.status(400).json({ success: false, error: error.message + ' No data has been changed.' });
+  }
   const deduped = new Map();
   let skippedNoIdNumber = 0;
   let duplicateIdNumbers = 0;

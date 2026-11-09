@@ -1405,9 +1405,9 @@ ADMIN users can open **Kamar Uploader > Dataset History** at
 dataset as JSON (including original CSV text for archive imports). The
 `/api/kamar-datasets` and `/api/kamar-datasets/:id` endpoints are ADMIN-only,
 uncached and read-only. There is deliberately no restore-over-current button.
-No archive import occurs automatically on deployment. Historical year/term
-roster selection in Teacher Planner Attendance/Reporting is a separate follow-up;
-these pages still use their current class reader.
+No archive import occurs automatically on deployment. Reporting uses the latest
+preserved student timetable for its selected term. Attendance still uses its
+current class reader; term-specific Attendance rosters are a separate follow-up.
 
 History tests: `node --test tests\kamar-history.test.js tests\kamar-live-database.test.js tests\kamar-uploader-legacy.test.js`.
 Set `KAMAR_HISTORY_TEST_DATABASE_URL` only to an isolated local test database to
@@ -1437,10 +1437,13 @@ Entries autosave through the existing owner/year-scoped Planner revision checks.
 EOY and earlier-year records remain separate, keyed by stable school student ID
 and programme, so switching class tabs does not duplicate or discard judgements.
 Class completion counts and an incomplete-only filter help find unfinished reports.
-Current staff timetable classes are filtered to DTECH and the programme's year
-levels (7-8 or 9-10). This is not a historical roster: subsequent uploads can
-change the visible students, but do not delete stored report entries. Reporting
-does not wait for attendance marks, PDF imports, or private timetable downloads.
+Choose a term to load its latest preserved KAMAR student timetable; classes are
+filtered to the signed-in teacher, DTECH and programme year levels (7-8 or 9-10).
+A missing term snapshot is reported explicitly, never replaced with the current
+roster. A later upload for the selected term can change visible students but does
+not delete report entries. Judgements remain shared across terms within the same
+report cycle; they are not term-specific. Reporting does not wait for attendance
+marks, PDF imports, or private timetable downloads.
 
 **Deployment:** before saving Reporting entries, run `npm run db:migrate:planner`
 in the service environment with the existing `TEACHER_PLANNER_DATABASE_URL` and

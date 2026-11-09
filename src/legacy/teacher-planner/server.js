@@ -154,8 +154,8 @@ if (missing.length) {
   }));
   app.use('/', createModuleRouter({
     query: (sql, values) => pool.query(sql, values),
-    loadClasses: async (req, year) => {
-      const response = await coreRequest('attendance-classes', { year }, req.session.moduleToken);
+    loadClasses: async (req, year, term) => {
+      const response = await coreRequest('attendance-classes', { year, ...(term === undefined ? {} : { term }) }, req.session.moduleToken);
       if (!response.ok) {
         if (response.headers.get('content-type')?.includes('application/json')) {
           const result = await response.json();

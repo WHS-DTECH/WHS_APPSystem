@@ -1338,6 +1338,10 @@ test('attendance API requires sign-in, CSRF, ownership and revisions without cha
   assert.equal((await (await fetch(base + 'attendance/2026/week/2026-10-26', { headers: otherHeaders })).json()).marks.length, 0);
   assert.equal((await fetch(base + 'attendance/2026/week/2026-10-27', { headers })).status, 400);
   assert.equal((await fetch(base + 'attendance/classes/2026', { headers })).status, 200);
+  assert.equal((await fetch(base + 'attendance/classes/2026?term=3', { headers })).status, 200);
+  for (const invalid of ['0', '5', '3.0', 'abc']) {
+    assert.equal((await fetch(base + 'attendance/classes/2026?term=' + invalid, { headers })).status, 400);
+  }
   assert.equal((await put('groups', { revision: 2, content: {
     groups: [{ ...group, scheduleMode: 'auto', periods: ['p1'] }]
   } })).status, 200);

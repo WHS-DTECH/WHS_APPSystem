@@ -136,7 +136,8 @@ test('all original upload endpoints accept Terms 1-4, preserve IDs and report ro
     './db': { pool }, './store': { init: async () => {} },
     '../../db': { query: async () => assert.fail('Upload data must never query Core') },
     './departments': require('../src/legacy/kamar-uploader/departments'),
-    './history': require('../src/legacy/kamar-uploader/history')
+    './history': require('../src/legacy/kamar-uploader/history'),
+    './studentTimetable': require('../src/legacy/kamar-uploader/studentTimetable')
   });
   const app = express();
   app.use(express.json());
@@ -190,7 +191,8 @@ test('legacy connection failure is explicit and does not execute upload SQL or r
     './store': { init: async () => { throw new Error('Kamar unavailable'); } },
     '../../db': { query: async () => assert.fail('No Core data fallback') },
     './departments': require('../src/legacy/kamar-uploader/departments'),
-    './history': require('../src/legacy/kamar-uploader/history')
+    './history': require('../src/legacy/kamar-uploader/history'),
+    './studentTimetable': require('../src/legacy/kamar-uploader/studentTimetable')
   });
 
   const app = express();

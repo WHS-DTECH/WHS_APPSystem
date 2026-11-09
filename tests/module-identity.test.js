@@ -18,6 +18,11 @@ test('staff bridge validates module identity before returning minimal current Ka
     if (sql.includes('FROM module_identity_grants')) return { rows: allowed ? [{ user_id: 'user' }] : [] };
     if (sql.includes('FROM users u')) return { rows: [{ id: 'user', email: 'synthetic@example.test', roles: [role], module_roles: moduleRoles }] };
     if (sql.includes('FROM public.department')) return { rows: [] };
+    if (sql.includes('FROM kamar_datasets')) {
+      assert.deepEqual(params, [2026, 3]);
+      return { rows: [{ payload: { headers: ['Student Name', 'ID Number', 'Year Level', 'Mon P1', 'Mon P1'],
+        rows: [['Historical Student', '300', '8', 'TST-JDTECH-A', '']] } }] };
+    }
     if (sql.includes('FROM student_upload')) {
       if (directoryFails) throw new Error('Student upload unavailable');
       assert.deepEqual(params, [2026]);
@@ -52,7 +57,7 @@ test('staff bridge validates module identity before returning minimal current Ka
       return fixtureQuery(sql, params);
     },
     directoryQuery: async (sql, params) => {
-      assert.match(sql, /FROM staff_upload|FROM student_upload/, 'only directory reads belong in the legacy database');
+      assert.match(sql, /FROM staff_upload|FROM student_upload|FROM kamar_datasets/, 'only directory reads belong in the legacy database');
       return fixtureQuery(sql, params);
     }
   }));
@@ -77,9 +82,9 @@ test('staff bridge validates module identity before returning minimal current Ka
   moduleRoles = ['lead-teacher']; role = 'Teacher';
   assert.equal((await post(token, { includeEmails: true })).status, 200);
   moduleRoles = [];
-  const classes = (token, year = 2026) => fetch(`http://127.0.0.1:${server.address().port}/module-auth/attendance-classes`, {
+  const classes = (token, year = 2026, term) => fetch(`http://127.0.0.1:${server.address().port}/module-auth/attendance-classes`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: JSON.stringify({ client_id: 'teacher-planner:development', year, staffCode: 'OTHER', email: 'forged@example.test' })
+    body: JSON.stringify({ client_id: 'teacher-planner:development', year, ...(term === undefined ? {} : { term }), staffCode: 'OTHER', email: 'forged@example.test' })
   });
   calls.length = 0;
   assert.equal((await classes()).status, 401);
@@ -91,6 +96,12 @@ test('staff bridge validates module identity before returning minimal current Ka
     { code: 'AA/TST-12TEST-05', students: [{ id: 'k:100', name: 'Synthetic Student', yearLevel: '', whanau: '' }, { id: 'k:200', name: 'Another Student', yearLevel: '', whanau: '' }], slots: ['thu_p3'] },
     { code: 'TST-11TEST-CW', students: [{ id: 'k:100', name: 'Synthetic Student', yearLevel: '', whanau: '' }], slots: ['mon_p1_1', 'mon_p1_2'] }
   ] });
+  const historical = await classes(token, 2026, 3);
+  assert.equal(historical.status, 200);
+  assert.deepEqual(await historical.json(), { staffCode: 'TST', classes: [{
+    code: 'TST-JDTECH-A', students: [{ id: 'k:300', name: 'Historical Student', yearLevel: '8', whanau: '' }], slots: ['mon_p1_1']
+  }] });
+  assert.equal((await classes(token, 2026, 5)).status, 400);
   staffCodes = []; calls.length = 0;
   assert.equal((await classes(token)).status, 409);
   assert.equal(calls.some(([sql]) => sql.includes('FROM student_upload')), false, 'unmatched identities never read student lists');

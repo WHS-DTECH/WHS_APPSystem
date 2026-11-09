@@ -2,7 +2,7 @@
   'use strict';
   const schema = globalThis.plannerReportingSchema;
   const state = { cycle: 'eoy', programme: 'junior', classCode: '', part: 'slo', incomplete: false };
-  function mount(host, { el, data, year, request }) {
+  function mount(host, { el, data, year, request, initialTerm = '3' }) {
     const records = data.records ? JSON.parse(data.records) : [];
     if (!schema.validRecords(records)) throw new Error('Saved reporting data is invalid. No report records have been changed.');
     const area = el('section', '', { class: 'paper-page reporting-page' });
@@ -14,12 +14,17 @@
       target: '_blank', rel: 'noopener noreferrer'
     });
     area.append(reference, el('p', 'Private draft judgements. These entries do not publish or write to KAMAR. ' +
-      'Class lists reflect the current school timetable upload, not a historical term roster.'));
+      'Class lists use the latest preserved timetable for the selected term. Judgements are shared across terms within the same report cycle.'));
+    const termLabel = el('label', 'Class list term ');
+    const termSelect = el('select', '', { 'aria-label': 'Reporting class list term' });
+    for (let i = 1; i <= 4; i++) termSelect.append(el('option', 'Term ' + i, { value: String(i) }));
+    termSelect.value = /^[1-4]$/.test(String(initialTerm)) ? String(initialTerm) : '3';
+    termLabel.append(termSelect); area.append(termLabel);
     const controls = el('div', '', { 'data-planner-navigation': '', class: 'reporting-controls' });
     const body = el('div');
     const feedback = el('p', 'Loading school classes...', { role: 'status', 'aria-live': 'polite' });
     area.append(controls, feedback, body); host.append(area);
-    let directory;
+    let directory, loadNumber = 0;
     const classButtons = new Map();
     function record(student, create = false) {
       let row = records.find(item => item.studentId === student.id && item.programme === state.programme && item.cycle === state.cycle);
@@ -101,8 +106,8 @@
       filterLabel.prepend(filter); controls.append(filterLabel);
       summary();
       if (!classes.length) {
-        body.append(el('p', 'No current ' + schema.programmes[state.programme].label +
-          ' classes were found for your staff account in this year. Check the school timetable upload and year levels.'));
+        body.append(el('p', 'No ' + schema.programmes[state.programme].label +
+          ' classes were found for your staff account in this term. Check the preserved school timetable and year levels.'));
         return;
       }
       if (state.part === 'slo') {
@@ -142,18 +147,23 @@
       if (!students.length) body.append(el('p', 'No incomplete students in this class.'));
     }
     async function loadClasses() {
-      feedback.textContent = 'Loading school classes...';
+      const currentLoad = ++loadNumber;
+      const selectedTerm = termSelect.value;
+      directory = undefined; controls.replaceChildren(); body.replaceChildren();
+      feedback.setAttribute('role', 'status');
+      feedback.textContent = 'Loading Term ' + selectedTerm + ' school classes...';
       try {
-        const result = await request('attendance/classes/' + year);
-        if (!area.isConnected) return;
+        const result = await request('attendance/classes/' + year + '?term=' + selectedTerm);
+        if (!area.isConnected || currentLoad !== loadNumber) return;
         directory = result; render();
       } catch (error) {
-        if (!area.isConnected) return;
+        if (!area.isConnected || currentLoad !== loadNumber) return;
         console.error('Reporting class list failed:', error.message);
         feedback.setAttribute('role', 'alert'); feedback.textContent = error.message;
         controls.replaceChildren();
         button(controls, 'Retry loading classes', false, loadClasses);
       }
+      termSelect.addEventListener('change', () => { state.classCode = ''; void loadClasses(); });
     }
     void loadClasses();
   }

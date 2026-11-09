@@ -48,9 +48,10 @@ function createAttendanceRouter({ query, loadClasses }) {
   router.get('/classes/:year', async (req, res, next) => {
     const year = Number(req.params.year);
     if (!/^\d{4}$/.test(req.params.year) || year < 2000 || year > 2100) return reject(res, 'Choose a valid attendance year.');
+    if (req.query.term !== undefined && !/^[1-4]$/.test(req.query.term)) return reject(res, 'Choose a valid attendance term.');
     try {
       if (!loadClasses) throw new Error('The school class-list connection is not configured.');
-      const directory = await loadClasses(req, year);
+      const directory = await loadClasses(req, year, req.query.term === undefined ? undefined : Number(req.query.term));
       if (!text(directory?.staffCode, 60)) {
         throw new Error('The school class-list connection has no matched staff code. Deploy the updated Global Control staff matching bridge, then retry.');
       }

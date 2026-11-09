@@ -161,10 +161,13 @@ function createModuleIdentityRouter({ dbQuery = query, directoryQuery = kamarQue
     if (!Number.isInteger(req.body.year) || req.body.year < 2000 || req.body.year > 2100) {
       return deny(res, 'Choose a valid attendance year.', 400);
     }
+    if (req.body.term !== undefined && (!Number.isInteger(req.body.term) || req.body.term < 1 || req.body.term > 4)) {
+      return deny(res, 'Choose a valid attendance term.', 400);
+    }
     try {
-      res.json(await attendanceClasses(user, req.body.year, directoryQuery));
+      res.json(await attendanceClasses(user, req.body.year, directoryQuery, req.body.term));
     } catch (error) {
-      if (error.status === 409) return deny(res, error.message, 409);
+      if ([400, 404, 409].includes(error.status)) return deny(res, error.message, error.status);
       console.error('Attendance class directory load failed.');
       res.status(502).json({ error: 'School class lists could not be loaded. Check the current student timetable upload for this year.' });
     }

@@ -78,7 +78,8 @@ test('history APIs remain admin-only, validate filters and IDs, and missing migr
     writes.push(sql); throw new Error('Unexpected query');
   }, connect: async () => assert.fail('No current-data writes expected') };
   const dependencies = { './db': { pool }, './store': { init: async () => {} }, './history': history,
-    './departments': require('../src/legacy/kamar-uploader/departments'), '../../db': {} };
+    './departments': require('../src/legacy/kamar-uploader/departments'),
+    './studentTimetable': require('../src/legacy/kamar-uploader/studentTimetable'), '../../db': {} };
   const module = { exports: {} };
   vm.runInThisContext('(function(require,module,exports){' + await fs.readFile(file, 'utf8') + '\n})')(
     key => dependencies[key] || require(key), module, module.exports);
@@ -181,7 +182,8 @@ test('PostgreSQL preserves baselines, statuses, snapshots, rollback and immutabi
   const dependencies = { './db': { pool: { query: (...args) => client.query(...args),
     connect: async () => ({ query: (...args) => client.query(...args), release() {} }) } },
     './store': { init: async () => {} }, './history': history,
-    './departments': require('../src/legacy/kamar-uploader/departments'), '../../db': {} };
+    './departments': require('../src/legacy/kamar-uploader/departments'),
+    './studentTimetable': require('../src/legacy/kamar-uploader/studentTimetable'), '../../db': {} };
   const module = { exports: {} };
   const file = path.join(__dirname, '..', 'src', 'legacy', 'kamar-uploader', 'routes.js');
   vm.runInThisContext('(function(require,module,exports){' + await fs.readFile(file, 'utf8') + '\n})')(

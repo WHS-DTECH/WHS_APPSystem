@@ -73,11 +73,16 @@ const settle = () => new Promise(resolve => setImmediate(resolve));
 test('reporting grids preserve student, programme and cycle entries and emit autosave edits', async () => {
   const f = fixture();
   await settle();
-  assert.deepEqual(f.calls, ['attendance/classes/2026'], 'No attendance marks or timetable requests');
+  assert.deepEqual(f.calls, ['attendance/classes/2026?term=3'], 'No attendance marks or timetable requests');
   assert.equal(f.find(node => node.textContent === 'Not DTECH'), undefined);
   const codingLabel = 'Synthetic Junior: Computational Thinking - Coding';
   assert.deepEqual(f.control(codingLabel).children.map(node => node.attrs.value), ['', ...schema.programmes.junior.levels]);
   f.enter(codingLabel, '3P');
+  f.control('Reporting class list term').value = '4';
+  f.control('Reporting class list term').events.change();
+  await settle();
+  assert.equal(f.calls[1], 'attendance/classes/2026?term=4');
+  assert.equal(f.control(codingLabel).value, '3P', 'Report judgements are shared across terms within the same cycle');
   f.enter('Synthetic Junior: Design & Develop a Digital Outcome', '4A');
   f.click('2. School Values');
   f.enter('Synthetic Junior: Kaitiakitanga', 'Dev');
