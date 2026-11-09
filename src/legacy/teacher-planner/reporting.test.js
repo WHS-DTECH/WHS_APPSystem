@@ -27,6 +27,9 @@ test('reporting validates restricted programme scales, distinct blanks and separ
   assert.equal(validContent('reporting', content([{ ...row, whanaungatanga: 'Dem', manaakitanga: 'Exe' }])), true);
   assert.equal(validContent('reporting', content([{ ...row, whanaungatanga: 'invalid' }])), false);
   assert.equal(validContent('reporting', { records: '[]', valuesDefault: 'Dem-v2' }), true);
+  assert.equal(validContent('reporting', { records: '[]', juniorSloDefault: '3P' }), true);
+  assert.equal(validContent('reporting', { records: '[]', juniorSloDefault: '4A' }), false);
+  assert.equal(validContent('reporting', { records: '[]', juniorSloDefault: null }), false);
   assert.equal(schema.complete(row, 'eoy', '3'), true);
   assert.equal(schema.complete(row, 'eoy', '1'), false);
   assert.equal(schema.complete(row, 'earlier', '3'), false);
@@ -81,6 +84,100 @@ function fixture(data = {}, fail = false, options = {}) {
   return { all, find, click, control, enter, calls, events };
 }
 const settle = () => new Promise(resolve => setImmediate(resolve));
+test('Junior SLO overwrite covers all terms and cycles, preserves other fields, and defaults future students', async () => {
+  const old = { ...row, coding: '3A', design: '4A', comment: 'Keep', whanaungatanga: 'Exe' };
+  const former = { ...row, studentId: 'k:former', cycle: 'earlier', coding: 'UAG', design: '', comment: 'Earlier' };
+  const middle = { ...row, studentId: 'k:middle', programme: 'middle', coding: '5A', design: '6B' };
+  let newStudent = false;
+  const request = async (url, directory) => {
+    const classes = [...directory.classes];
+    if (url.endsWith('term=1')) classes.push({ code: 'TEST-HIDDEN-DTECH',
+      students: [{ id: 'k:hidden', name: 'Hidden Junior', yearLevel: '8' }] });
+    if (newStudent) classes.push({ code: 'TEST-NEW-DTECH',
+      students: [{ id: 'k:new', name: 'New Junior', yearLevel: '7' },
+        { id: 'k:newmiddle', name: 'New Middle', yearLevel: '9' }] });
+    return { classes };
+  };
+  const f = fixture({ records: JSON.stringify([old, former, middle]) }, false, { request });
+  await settle();
+  await f.click('Set JuniorDTECH SLOs to 3P');
+  assert.deepEqual(f.calls.slice(1).sort(), [1, 2, 3, 4].map(term => 'attendance/classes/2026?term=' + term));
+  let saved = JSON.parse(f.find(node => node.attrs.name === 'records').value);
+  assert.deepEqual(saved.find(entry => entry.studentId === old.studentId && entry.cycle === 'eoy'),
+    { ...old, coding: '3P', design: '3P' });
+  assert.deepEqual(saved.find(entry => entry.studentId === former.studentId), { ...former, coding: '3P', design: '3P' });
+  assert.deepEqual(saved.find(entry => entry.studentId === middle.studentId), middle);
+  assert.equal(saved.filter(entry => entry.studentId === 'k:hidden').length, 2);
+  assert.ok(saved.filter(entry => entry.studentId === 'k:hidden').every(entry =>
+    entry.coding === '3P' && entry.design === '3P' && entry.kaitiakitanga === '' && entry.rangatiratanga === ''));
+  assert.equal(saved.filter(entry => entry.studentId === 'k:middle').length, 1);
+  assert.equal(f.find(node => node.attrs.name === 'juniorSloDefault').value, '3P');
+  assert.equal(f.find(node => node.attrs.name === 'valuesDefault').value, '');
+  assert.equal(f.events.length, 1);
+  assert.ok(f.find(node => node.textContent.includes('Waiting for Planner autosave')));
+  f.enter('Synthetic Junior: Computational Thinking - Coding', '');
+  f.enter('Synthetic Junior: Design & Develop a Digital Outcome', '4B');
+  newStudent = true;
+  f.control('Reporting class list term').value = '4'; f.control('Reporting class list term').events.change();
+  await settle();
+  saved = JSON.parse(f.find(node => node.attrs.name === 'records').value);
+  assert.equal(saved.find(entry => entry.studentId === old.studentId && entry.cycle === 'eoy').coding, '');
+  assert.equal(saved.find(entry => entry.studentId === old.studentId && entry.cycle === 'eoy').design, '4B');
+  assert.equal(saved.filter(entry => entry.studentId === 'k:new').length, 2);
+  assert.ok(saved.filter(entry => entry.studentId === 'k:new').every(entry => entry.coding === '3P' && entry.design === '3P'));
+  assert.equal(saved.some(entry => entry.studentId === 'k:newmiddle'), false);
+  const restored = fixture({ records: JSON.stringify(saved), juniorSloDefault: '3P' }, false, { request });
+  await settle();
+  assert.equal(restored.control('Synthetic Junior: Computational Thinking - Coding').value, '');
+  assert.equal(restored.control('Synthetic Junior: Design & Develop a Digital Outcome').value, '4B');
+  assert.equal(restored.events.length, 0);
+});
+
+test('Junior SLO and school value defaults work independently and together', async () => {
+  const f = fixture({ valuesDefault: 'Dem-v2' });
+  await settle();
+  await f.click('Set JuniorDTECH SLOs to 3P');
+  const saved = JSON.parse(f.find(node => node.attrs.name === 'records').value);
+  assert.ok(saved.filter(entry => entry.programme === 'junior').every(entry =>
+    entry.coding === '3P' && entry.design === '3P' && entry.whanaungatanga === 'Dem'));
+  assert.ok(saved.filter(entry => entry.programme === 'middle').every(entry =>
+    entry.coding === '' && entry.design === '' && entry.kaitiakitanga === 'Dem'));
+  f.enter('Synthetic Junior: Computational Thinking - Coding', '');
+  await f.click('Default school values to Dem');
+  assert.equal(f.find(node => node.attrs.name === 'juniorSloDefault').value, '3P');
+  const updated = JSON.parse(f.find(node => node.attrs.name === 'records').value);
+  assert.equal(updated.find(entry => entry.studentId === row.studentId && entry.cycle === 'eoy').coding, '');
+  assert.equal(updated.find(entry => entry.studentId === row.studentId && entry.cycle === 'eoy').design, '3P');
+});
+
+test('Junior SLO setup leaves data unchanged when cancelled or a term cannot load', async () => {
+  const initial = JSON.stringify([row]);
+  const cancelled = fixture({ records: initial }, false, { confirm: () => false });
+  await settle();
+  await cancelled.click('Set JuniorDTECH SLOs to 3P');
+  assert.equal(cancelled.calls.length, 1);
+  assert.equal(cancelled.find(node => node.attrs.name === 'records').value, initial);
+  assert.equal(cancelled.events.length, 0);
+  const failed = fixture({ records: initial }, false, { request: async (url, directory) => {
+    if (url.endsWith('term=2')) throw new Error('Term 2 unavailable');
+    return directory;
+  } });
+  await settle();
+  await failed.click('Set JuniorDTECH SLOs to 3P');
+  assert.equal(failed.find(node => node.attrs.name === 'records').value, initial);
+  assert.equal(failed.find(node => node.attrs.name === 'juniorSloDefault').value, '');
+  assert.equal(failed.events.length, 0);
+  assert.ok(failed.find(node => node.attrs.role === 'alert' && node.textContent.includes('No SLOs were changed')));
+  const many = Array.from({ length: 1000 }, (_, index) => ({ ...row, studentId: 'k:limit' + index }));
+  const limited = fixture({ records: JSON.stringify(many) });
+  await settle();
+  await limited.click('Set JuniorDTECH SLOs to 3P');
+  assert.equal(limited.find(node => node.attrs.name === 'records').value, JSON.stringify(many));
+  assert.equal(limited.find(node => node.attrs.name === 'juniorSloDefault').value, '');
+  assert.equal(limited.events.length, 0);
+  assert.ok(limited.find(node => node.attrs.role === 'alert' && node.textContent.includes('storage limit')));
+});
+
 test('Reporting combines only the two VP PIDTECH rooms, retaining distinct students once', () => {
   const student = (id, name, yearLevel = '7') => ({ id: 'k:' + id, name, yearLevel });
   const shared = student('shared', 'Shared Student');

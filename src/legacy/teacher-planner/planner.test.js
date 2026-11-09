@@ -448,7 +448,7 @@ test('real database persists every planner section, isolates users including adm
     const expandedRows = JSON.parse(report.records);
     expandedRows[0].whanaungatanga = 'Dem';
     expandedRows[0].manaakitanga = 'Exe';
-    const withDefault = { records: JSON.stringify(expandedRows), valuesDefault: 'Dem-v2' };
+    const withDefault = { records: JSON.stringify(expandedRows), valuesDefault: 'Dem-v2', juniorSloDefault: '3P' };
     assert.equal((await put('2026/reporting/main', withDefault, 1)).status, 200);
     assert.deepEqual((await (await get('2026/reporting/main')).json()).content, withDefault);
     user=otherAdmin;

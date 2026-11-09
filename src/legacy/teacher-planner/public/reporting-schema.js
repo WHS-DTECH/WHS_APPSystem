@@ -24,8 +24,9 @@
         typeof row.comment === 'string' && row.comment.length <= 2000);
   }
   function validContent(content) {
-    if (!content || Object.keys(content).some(key => !['records', 'valuesDefault'].includes(key)) ||
+    if (!content || Object.keys(content).some(key => !['records', 'valuesDefault', 'juniorSloDefault'].includes(key)) ||
       (content.valuesDefault !== undefined && !['', 'Dem', 'Dem-v2'].includes(content.valuesDefault)) ||
+      (content.juniorSloDefault !== undefined && !['', '3P'].includes(content.juniorSloDefault)) ||
       typeof content.records !== 'string' || content.records.length > 280000) return false;
     try { return validRecords(JSON.parse(content.records)) && new TextEncoder().encode(JSON.stringify(content)).length <= 300000; }
     catch { return false; }

@@ -1469,6 +1469,16 @@ another teacher's reports. Earlier saved drafts remain compatible; teachers who
 enabled the previous two-value default can use the new action to fill the
 additional JuniorDTECH values and enable the expanded default.
 
+The **Set JuniorDTECH SLOs to 3P** action is also opt-in for the signed-in
+teacher and selected planner year. After confirmation it loads all four term
+rosters and overwrites both Coding and Design SLOs in both report cycles for
+all JuniorDTECH drafts, including former students, as well as new students in
+those rosters. School values, comments and MiddleDTECH reports are unchanged.
+Future newly encountered JuniorDTECH students get 3P in both SLOs; subsequent
+manual changes, including blanks, are preserved. The school-values default is
+independent. If any roster fails or validation fails, nothing is changed; wait
+for the Planner autosave confirmation after a successful update.
+
 **Deployment:** before saving Reporting entries, run `npm run db:migrate:planner`
 in the service environment with the existing `TEACHER_PLANNER_DATABASE_URL` and
 its SSL setting. This explicitly runs the standalone Planner migration ledger,

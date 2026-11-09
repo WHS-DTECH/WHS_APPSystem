@@ -10,10 +10,13 @@
     store.value = JSON.stringify(records);
     const defaultStore = el('input', '', { type: 'hidden', name: 'valuesDefault' });
     defaultStore.value = data.valuesDefault || '';
-    if (!schema.validContent({ records: store.value, valuesDefault: defaultStore.value })) {
+    const sloDefaultStore = el('input', '', { type: 'hidden', name: 'juniorSloDefault' });
+    const sloDefault = data.juniorSloDefault === undefined ? '' : data.juniorSloDefault;
+    if (!schema.validContent({ records: store.value, valuesDefault: defaultStore.value, juniorSloDefault: sloDefault })) {
       throw new Error('Saved reporting defaults are invalid. No report records have been changed.');
     }
-    area.append(store, defaultStore, el('h2', 'Reporting - ' + year));
+    sloDefaultStore.value = sloDefault;
+    area.append(store, defaultStore, sloDefaultStore, el('h2', 'Reporting - ' + year));
     const reference = el('a', 'DTECH Assessment Criteria - Google Doc', {
       href: 'https://docs.google.com/document/d/1oA7xHQapbqE3myKKFL6T7oUMGxPbrm2BCE1rJQ51-gw/edit?usp=sharing',
       target: '_blank', rel: 'noopener noreferrer'
@@ -33,40 +36,46 @@
     const bulk = el('button', 'Set all school values to Dem', { type: 'button' });
     const bulkStatus = el('p', '', { role: 'status', 'aria-live': 'polite' });
     defaultsPanel.append(el('p', 'Default school values to Dem fills blank values without changing existing choices and enables defaults for new students. The overwrite action replaces all existing school values. Both actions cover both report cycles and all four term rosters; SLOs and comments are kept.'), fill, bulk, bulkStatus);
-    area.append(defaultsPanel, controls, feedback, body); host.append(area);
+    const sloPanel = el('section', '', { 'data-planner-navigation': '', 'aria-label': 'JuniorDTECH SLO defaults' });
+    const sloBulk = el('button', 'Set JuniorDTECH SLOs to 3P', { type: 'button' });
+    const sloStatus = el('p', '', { role: 'status', 'aria-live': 'polite' });
+    sloPanel.append(el('p', 'Set both JuniorDTECH SLOs to 3P for both report cycles across all four term rosters. This overwrites existing JuniorDTECH SLOs and enables 3P for new JuniorDTECH students; school values, comments and MiddleDTECH reports are kept.'), sloBulk, sloStatus);
+    area.append(defaultsPanel, sloPanel, controls, feedback, body); host.append(area);
     let directory, loadNumber = 0;
     const classButtons = new Map();
-    function defaultRow(studentId, programme, cycle, extended = false) {
-      const row = { studentId, programme, cycle, coding: '', design: '',
-        kaitiakitanga: 'Dem', rangatiratanga: 'Dem', comment: '' };
-      if (programme === 'junior' && extended) { row.whanaungatanga = 'Dem'; row.manaakitanga = 'Dem'; }
+    function defaultRow(studentId, programme, cycle, valuesDefault, sloDefault) {
+      const slo = programme === 'junior' ? sloDefault : '';
+      const value = valuesDefault ? 'Dem' : '';
+      const row = { studentId, programme, cycle, coding: slo, design: slo,
+        kaitiakitanga: value, rangatiratanga: value, comment: '' };
+      if (programme === 'junior' && valuesDefault === 'Dem-v2') { row.whanaungatanga = 'Dem'; row.manaakitanga = 'Dem'; }
       return row;
     }
-    function addNewStudents(next, directories, extended) {
+    function addNewStudents(next, directories, valuesDefault, sloDefault, programmes = Object.keys(schema.programmes)) {
       const known = new Set(next.map(row => JSON.stringify([row.studentId, row.programme, row.cycle])));
-      for (const list of directories) for (const programme of Object.keys(schema.programmes)) {
+      for (const list of directories) for (const programme of programmes) {
         for (const group of schema.classGroups(list, programme)) for (const student of group.students) {
           for (const cycle of ['eoy', 'earlier']) {
             const key = JSON.stringify([student.id, programme, cycle]);
-            if (!known.has(key)) { next.push(defaultRow(student.id, programme, cycle, extended)); known.add(key); }
+            if (!known.has(key)) { next.push(defaultRow(student.id, programme, cycle, valuesDefault, sloDefault)); known.add(key); }
           }
         }
       }
     }
-    function applyRecords(next, defaultValue) {
+    function applyRecords(next, defaultValue, sloDefault = sloDefaultStore.value) {
       const encoded = JSON.stringify(next);
-      if (!schema.validContent({ records: encoded, valuesDefault: defaultValue })) {
-        throw new Error('The reporting storage limit or record validation was exceeded. No school values were changed.');
+      if (!schema.validContent({ records: encoded, valuesDefault: defaultValue, juniorSloDefault: sloDefault })) {
+        throw new Error('The reporting storage limit or record validation was exceeded. No report records were changed.');
       }
       records.splice(0, records.length, ...next);
-      store.value = encoded; defaultStore.value = defaultValue;
+      store.value = encoded; defaultStore.value = defaultValue; sloDefaultStore.value = sloDefault;
       store.dispatchEvent(new Event('input', { bubbles: true }));
     }
     async function setDefaults(overwrite) {
-      if (bulk.disabled || fill.disabled || !confirm(overwrite ?
+      if (bulk.disabled || fill.disabled || sloBulk.disabled || !confirm(overwrite ?
         'Overwrite all school values with Dem for your JuniorDTECH and MiddleDTECH students across all four terms and both report cycles? SLOs and comments remain unchanged.' :
         'Fill blank school values with Dem for your JuniorDTECH and MiddleDTECH students across all four terms and both report cycles? Existing choices, SLOs and comments remain unchanged. New students will also default to Dem.')) return;
-      bulk.disabled = true; fill.disabled = true;
+      bulk.disabled = true; fill.disabled = true; sloBulk.disabled = true;
       let applied = false;
       bulkStatus.setAttribute('role', 'status');
       bulkStatus.textContent = 'Checking all four term rosters; no values have been changed yet...';
@@ -79,7 +88,7 @@
           for (const key of keys) if (overwrite || !updated[key]) updated[key] = 'Dem';
           return updated;
         });
-        addNewStudents(next, lists, true);
+        addNewStudents(next, lists, 'Dem-v2', sloDefaultStore.value);
         applyRecords(next, 'Dem-v2');
         applied = true;
         if (directory) render();
@@ -90,18 +99,37 @@
         bulkStatus.setAttribute('role', 'alert');
         bulkStatus.textContent = applied ? 'Values were changed on this page; check the Planner save status before leaving. ' + error.message :
           'No school values were changed. All four term rosters must load before this update: ' + error.message;
-      } finally { bulk.disabled = false; fill.disabled = false; }
+      } finally { bulk.disabled = false; fill.disabled = false; sloBulk.disabled = false; }
     }
     fill.addEventListener('click', () => setDefaults(false));
     bulk.addEventListener('click', () => setDefaults(true));
+    sloBulk.addEventListener('click', async () => {
+      if (sloBulk.disabled || !confirm('Overwrite both JuniorDTECH SLOs with 3P in all your existing drafts and across all four term rosters, for both report cycles? New JuniorDTECH students will also default to 3P. School values, comments and MiddleDTECH reports remain unchanged.')) return;
+      bulk.disabled = true; fill.disabled = true; sloBulk.disabled = true;
+      let applied = false;
+      sloStatus.setAttribute('role', 'status');
+      sloStatus.textContent = 'Checking all four term rosters; no SLOs have been changed yet...';
+      try {
+        const lists = await Promise.all([1, 2, 3, 4].map(term => request('attendance/classes/' + year + '?term=' + term)));
+        if (!area.isConnected) return;
+        const next = records.map(row => row.programme === 'junior' ? { ...row, coding: '3P', design: '3P' } : { ...row });
+        addNewStudents(next, lists, defaultStore.value, '3P', ['junior']);
+        applyRecords(next, defaultStore.value, '3P');
+        applied = true;
+        if (directory) render();
+        sloStatus.textContent = 'JuniorDTECH SLOs set to 3P across both report cycles. New students default to 3P. Waiting for Planner autosave; confirm the saved message above.';
+      } catch (error) {
+        if (!area.isConnected) return;
+        console.error('Reporting JuniorDTECH SLO update failed:', error.message);
+        sloStatus.setAttribute('role', 'alert');
+        sloStatus.textContent = applied ? 'SLOs were changed on this page; check the Planner save status before leaving. ' + error.message :
+          'No SLOs were changed. All four term rosters must load before this update: ' + error.message;
+      } finally { bulk.disabled = false; fill.disabled = false; sloBulk.disabled = false; }
+    });
     function record(student, create = false) {
       let row = records.find(item => item.studentId === student.id && item.programme === state.programme && item.cycle === state.cycle);
       if (!row && create) {
-        row = { studentId: student.id, programme: state.programme, cycle: state.cycle,
-          coding: '', design: '', kaitiakitanga: defaultStore.value ? 'Dem' : '', rangatiratanga: defaultStore.value ? 'Dem' : '', comment: '' };
-        if (state.programme === 'junior' && defaultStore.value === 'Dem-v2') {
-          row.whanaungatanga = 'Dem'; row.manaakitanga = 'Dem';
-        }
+        row = defaultRow(student.id, state.programme, state.cycle, defaultStore.value, sloDefaultStore.value);
         records.push(row);
       }
       return row;
@@ -111,7 +139,7 @@
       const existing = record(student), row = existing || record(student, true), old = row[field];
       row[field] = value;
       const next = JSON.stringify(records);
-      if (!schema.validContent({ records: next, valuesDefault: defaultStore.value })) {
+      if (!schema.validContent({ records: next, valuesDefault: defaultStore.value, juniorSloDefault: sloDefaultStore.value })) {
         row[field] = old; control.value = old;
         if (!existing) records.splice(records.indexOf(row), 1);
         feedback.setAttribute('role', 'alert');
@@ -228,9 +256,10 @@
       try {
         const result = await request('attendance/classes/' + year + '?term=' + selectedTerm);
         if (!area.isConnected || currentLoad !== loadNumber) return;
-        if (defaultStore.value) {
+        if (defaultStore.value || sloDefaultStore.value) {
           const next = records.map(row => ({ ...row }));
-          addNewStudents(next, [result], defaultStore.value === 'Dem-v2');
+          const programmes = defaultStore.value ? Object.keys(schema.programmes) : ['junior'];
+          addNewStudents(next, [result], defaultStore.value, sloDefaultStore.value, programmes);
           if (next.length !== records.length) applyRecords(next, defaultStore.value);
         }
         directory = result; render();
