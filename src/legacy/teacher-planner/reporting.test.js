@@ -84,6 +84,34 @@ function fixture(data = {}, fail = false, options = {}) {
   return { all, find, click, control, enter, calls, events };
 }
 const settle = () => new Promise(resolve => setImmediate(resolve));
+test('default panels follow the selected report part without changing saved data', async () => {
+  const f = fixture({ records: JSON.stringify([row]) });
+  const values = f.control('School values defaults');
+  const slo = f.control('JuniorDTECH SLO defaults');
+  assert.equal(values.hidden, true);
+  assert.equal(slo.hidden, false);
+  await settle();
+  f.click('2. School Values');
+  assert.equal(values.hidden, false);
+  assert.equal(slo.hidden, true);
+  f.click('MiddleDTECH');
+  assert.equal(values.hidden, false);
+  assert.equal(slo.hidden, true);
+  f.control('Reporting class list term').value = '4';
+  f.control('Reporting class list term').events.change();
+  await settle();
+  assert.equal(values.hidden, false);
+  assert.equal(slo.hidden, true);
+  f.click('3. Report Comments');
+  assert.equal(values.hidden, true);
+  assert.equal(slo.hidden, true);
+  f.click('1. Student Learning Objectives');
+  assert.equal(values.hidden, true);
+  assert.equal(slo.hidden, false);
+  assert.equal(f.find(node => node.attrs.name === 'records').value, JSON.stringify([row]));
+  assert.equal(f.events.length, 0);
+});
+
 test('Junior SLO overwrite covers all terms and cycles, preserves other fields, and defaults future students', async () => {
   const old = { ...row, coding: '3A', design: '4A', comment: 'Keep', whanaungatanga: 'Exe' };
   const former = { ...row, studentId: 'k:former', cycle: 'earlier', coding: 'UAG', design: '', comment: 'Earlier' };

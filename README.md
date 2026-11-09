@@ -1453,7 +1453,8 @@ Reporting does not wait for attendance marks, PDF imports, or private timetable
 downloads.
 
 The **Default school values to Dem** action is a one-time opt-in for the
-signed-in teacher and selected planner year. After confirmation it loads all
+signed-in teacher and selected planner year, shown on the School Values tab.
+After confirmation it loads all
 four term snapshots, fills blank school values in existing drafts, and sets Dem
 for newly found JuniorDTECH/MiddleDTECH students in both cycles, including
 hidden class tabs. Existing Dev, Dem and Exe choices are kept. Once enabled,
@@ -1468,7 +1469,8 @@ enabled the previous two-value default can use the new action to fill the
 additional JuniorDTECH values and enable the expanded default.
 
 The **Set JuniorDTECH SLOs to 3P** action is also opt-in for the signed-in
-teacher and selected planner year. After confirmation it loads all four term
+teacher and selected planner year, shown on the Student Learning Objectives tab.
+After confirmation it loads all four term
 rosters and overwrites both Coding and Design SLOs in both report cycles for
 all JuniorDTECH drafts, including former students, as well as new students in
 those rosters. School values, comments and MiddleDTECH reports are unchanged.

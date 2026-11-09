@@ -39,6 +39,11 @@
     const sloBulk = el('button', 'Set JuniorDTECH SLOs to 3P', { type: 'button' });
     const sloStatus = el('p', '', { role: 'status', 'aria-live': 'polite' });
     sloPanel.append(el('p', 'Set both JuniorDTECH SLOs to 3P for both report cycles across all four term rosters. This overwrites existing JuniorDTECH SLOs and enables 3P for new JuniorDTECH students; school values, comments and MiddleDTECH reports are kept.'), sloBulk, sloStatus);
+    function updateDefaultPanels() {
+      defaultsPanel.hidden = state.part !== 'values';
+      sloPanel.hidden = state.part !== 'slo';
+    }
+    updateDefaultPanels();
     area.append(defaultsPanel, sloPanel, controls, feedback, body); host.append(area);
     let directory, loadNumber = 0;
     const classButtons = new Map();
@@ -169,6 +174,7 @@
         (state.cycle === 'eoy' ? 'Comments are optional for EOY.' : 'An earlier-year comment is required.');
     }
     function render() {
+      updateDefaultPanels();
       controls.replaceChildren(); body.replaceChildren(); classButtons.clear();
       const cycleLabel = el('label', 'Report cycle ');
       const cycle = el('select', '', { 'aria-label': 'Report cycle' });
