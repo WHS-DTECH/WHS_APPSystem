@@ -1427,9 +1427,12 @@ Both programmes assess **Computational Thinking - Coding** and **Design & Develo
 a Digital Outcome**. Junior choices are UAG, 3B, 3P, 3A, 4B, 4P, 4A; Middle choices
 are UAG, 4P, 4A, 5B, 5P, 5A, 6B. The criteria guide displays Achieved (50%),
 Merit (70%) and Excellence (90%) bands without automatically calculating a grade.
-**Kaitiakitanga** and **Rangatiratanga** each use Dev / Dem / Exe.
-Not entered is separate from UAG and remains incomplete. EOY requires both SLOs
-and both values; the earlier-year cycle additionally requires a report comment.
+School values use Dev / Dem / Exe. JuniorDTECH shows one value for the selected
+term: Term 1 Whānaungatanga, Term 2 Manaakitanga, Term 3 Rangatiratanga and
+Term 4 Kaitiakitanga. MiddleDTECH shows both Kaitiakitanga and Rangatiratanga.
+Not entered is separate from UAG and remains incomplete. Completion requires at
+least one SLO and the selected term's value for JuniorDTECH, or both SLOs and
+both values for MiddleDTECH. The earlier-year cycle additionally requires a report comment.
 Comments are limited to 2,000 characters. These are private drafts, not KAMAR
 publication or automatic grade decisions.
 
@@ -1444,22 +1447,27 @@ A teacher's `VP-PIDTECH-05` and `VP-PIDTECH-CW` entries are shown as one
 school ID. Other classes and the underlying KAMAR snapshots are unchanged.
 A missing term snapshot is reported explicitly, never replaced with the current
 roster. A later upload for the selected term can change visible students but does
-not delete report entries. Judgements remain shared across terms within the same
-report cycle; they are not term-specific. Reporting does not wait for attendance
-marks, PDF imports, or private timetable downloads.
+not delete report entries. SLOs and comments remain shared across terms within
+each report cycle; JuniorDTECH has a separate judgement for each term's value.
+Reporting does not wait for attendance marks, PDF imports, or private timetable
+downloads.
 
-The **Set all school values to Dem** action is opt-in for the signed-in teacher
-and selected planner year. After confirmation it loads all four term snapshots
-and sets Kaitiakitanga and Rangatiratanga to Dem in both cycles for every
-JuniorDTECH/MiddleDTECH student found, including hidden class tabs; it also
-overwrites school values in existing reporting drafts, even if a student is
-absent from the selected term. SLOs and comments are preserved. If any term
-roster fails to load, nothing is changed; import missing snapshots first.
+The **Default school values to Dem** action is a one-time opt-in for the
+signed-in teacher and selected planner year. After confirmation it loads all
+four term snapshots, fills blank school values in existing drafts, and sets Dem
+for newly found JuniorDTECH/MiddleDTECH students in both cycles, including
+hidden class tabs. Existing Dev, Dem and Exe choices are kept. Once enabled,
+students subsequently encountered in a new class get Dem when their roster is
+loaded; later manual choices, including blanks, are never overwritten.
+**Set all school values to Dem** is a separate, explicit overwrite action for
+all school values in existing drafts and students in all four rosters.
+Both actions preserve SLOs and comments. If any term roster fails to load,
+nothing is changed; import missing snapshots first.
 The change is a normal private Planner edit: wait for the Planner autosave
-confirmation before leaving. Once enabled, newly seen students get Dem for both
-values in both cycles when their term roster is loaded; subsequent manual
-choices, including blanks, are never overwritten by the ongoing default. This
-does not publish to KAMAR or change another teacher's reports.
+confirmation before leaving. These actions do not publish to KAMAR or change
+another teacher's reports. Earlier saved drafts remain compatible; teachers who
+enabled the previous two-value default can use the new action to fill the
+additional JuniorDTECH values and enable the expanded default.
 
 **Deployment:** before saving Reporting entries, run `npm run db:migrate:planner`
 in the service environment with the existing `TEACHER_PLANNER_DATABASE_URL` and

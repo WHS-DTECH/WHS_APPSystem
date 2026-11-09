@@ -24,12 +24,20 @@ test('reporting validates restricted programme scales, distinct blanks and separ
   assert.equal(validContent('reporting', { records: '[]', valuesDefault: 'Exe' }), false);
   assert.equal(validContent('reporting', { records: '[]', owner_id: 'forged' }), false);
   assert.equal(validContent('reporting', content([{ ...row, programme: 'middle', coding: '6B', design: '5A' }])), true);
-  assert.equal(schema.complete(row, 'eoy'), true);
-  assert.equal(schema.complete(row, 'earlier'), false);
-  assert.equal(schema.complete({ ...row, comment: '   ' }, 'earlier'), false);
-  assert.equal(schema.complete({ ...row, comment: 'Progress and next steps.' }, 'earlier'), true);
-  assert.equal(schema.complete({ ...row, coding: '' }, 'eoy'), false);
-  assert.equal(schema.complete({ ...row, coding: 'UAG' }, 'eoy'), true);
+  assert.equal(validContent('reporting', content([{ ...row, whanaungatanga: 'Dem', manaakitanga: 'Exe' }])), true);
+  assert.equal(validContent('reporting', content([{ ...row, whanaungatanga: 'invalid' }])), false);
+  assert.equal(validContent('reporting', { records: '[]', valuesDefault: 'Dem-v2' }), true);
+  assert.equal(schema.complete(row, 'eoy', '3'), true);
+  assert.equal(schema.complete(row, 'eoy', '1'), false);
+  assert.equal(schema.complete(row, 'earlier', '3'), false);
+  assert.equal(schema.complete({ ...row, comment: '   ' }, 'earlier', '3'), false);
+  assert.equal(schema.complete({ ...row, comment: 'Progress and next steps.' }, 'earlier', '3'), true);
+  assert.equal(schema.complete({ ...row, coding: '' }, 'eoy', '3'), true);
+  assert.equal(schema.complete({ ...row, coding: '', design: '' }, 'eoy', '3'), false);
+  assert.equal(schema.complete({ ...row, coding: 'UAG' }, 'eoy', '3'), true);
+  assert.equal(schema.complete({ ...row, programme: 'middle', coding: '' }, 'eoy', '3'), false);
+  assert.equal(schema.complete({ ...row, programme: 'middle', kaitiakitanga: '' }, 'eoy', '3'), false);
+  assert.equal(schema.complete({ ...row, programme: 'middle' }, 'eoy', '3'), true);
 });
 
 function fixture(data = {}, fail = false, options = {}) {
@@ -108,13 +116,13 @@ test('combined PIDTECH tab shows union and preserves existing judgements without
   assert.equal(f.control('Synthetic Junior: Computational Thinking - Coding').value, '3P');
   assert.equal(f.events.length, 0);
   f.click('2. School Values');
-  assert.equal(f.control('Synthetic Junior: Kaitiakitanga').value, 'Dev');
-  f.enter('Another Junior: Kaitiakitanga', 'Dem');
+  assert.equal(f.control('Synthetic Junior: Rangatiratanga').value, 'Exe');
+  f.enter('Another Junior: Rangatiratanga', 'Dem');
   f.click('3. Report Comments');
   assert.equal(f.control('Synthetic Junior: Report comment (optional for EOY)').value, savedRow.comment);
   const saved = JSON.parse(f.find(node => node.attrs.name === 'records').value);
   assert.deepEqual(saved.find(entry => entry.studentId === row.studentId), savedRow);
-  assert.equal(saved.find(entry => entry.studentId === 'k:new').kaitiakitanga, 'Dem');
+  assert.equal(saved.find(entry => entry.studentId === 'k:new').rangatiratanga, 'Dem');
 });
 
 test('Dem defaults do not duplicate students present in both PIDTECH rooms', async () => {
@@ -149,10 +157,14 @@ test('reporting grids preserve student, programme and cycle entries and emit aut
   f.enter('Synthetic Junior: Design & Develop a Digital Outcome', '4A');
   f.click('2. School Values');
   f.enter('Synthetic Junior: Kaitiakitanga', 'Dev');
+  assert.equal(f.control('Synthetic Junior: Rangatiratanga'), undefined);
+  f.control('Reporting class list term').value = '3';
+  f.control('Reporting class list term').events.change();
+  await settle();
   f.enter('Synthetic Junior: Rangatiratanga', 'Exe');
   assert.ok(f.find(node => node.textContent.startsWith('1 of 1 students complete')));
   const cycle = f.control('Report cycle'); cycle.value = 'earlier'; cycle.events.change();
-  assert.equal(f.control('Synthetic Junior: Kaitiakitanga').value, '');
+  assert.equal(f.control('Synthetic Junior: Rangatiratanga').value, '');
   f.click('3. Report Comments');
   f.enter('Synthetic Junior: Report comment (required)', 'Earlier-year comment.');
   f.control('Report cycle').value = 'eoy'; f.control('Report cycle').events.change();
@@ -195,9 +207,97 @@ test('bulk school values overwrite both cycles across all terms while retaining 
   assert.equal(saved.find(entry => entry.studentId === row.studentId && entry.cycle === 'eoy').comment, 'Keep this comment');
   assert.equal(saved.find(entry => entry.studentId === 'k:former').coding, '5A');
   assert.deepEqual(saved.filter(entry => entry.studentId === 'k:old').map(entry => entry.cycle).sort(), ['earlier', 'eoy']);
-  assert.equal(f.find(node => node.attrs.name === 'valuesDefault').value, 'Dem');
+  assert.ok(saved.filter(entry => entry.programme === 'junior').every(entry =>
+    entry.whanaungatanga === 'Dem' && entry.manaakitanga === 'Dem'));
+  assert.equal(f.find(node => node.attrs.name === 'valuesDefault').value, 'Dem-v2');
   assert.equal(f.events.length, 1, 'The entire change is sent to Planner autosave once');
   assert.ok(f.find(node => node.textContent.includes('Waiting for Planner autosave')));
+});
+
+test('one-time default fills blanks, preserves choices, and defaults future classes without overwriting edits', async () => {
+  const existing = { ...row, kaitiakitanga: '', comment: 'Keep my comment' };
+  const middle = { ...row, studentId: 'k:middle', programme: 'middle', coding: '5A', rangatiratanga: '' };
+  let includeNew = false;
+  const request = async (url, directory) => {
+    if (!includeNew) return directory;
+    return { classes: [...directory.classes, { code: 'TEST-NEW-DTECH',
+      students: [{ id: 'k:new', name: 'New Junior', yearLevel: '8' },
+        { id: 'k:newmiddle', name: 'New Middle', yearLevel: '9' }] }] };
+  };
+  const f = fixture({ records: JSON.stringify([existing, middle]) }, false, { request });
+  await settle();
+  await f.click('Default school values to Dem');
+  assert.deepEqual(f.calls.slice(1).sort(), [1, 2, 3, 4].map(term => 'attendance/classes/2026?term=' + term));
+  let saved = JSON.parse(f.find(node => node.attrs.name === 'records').value);
+  const junior = saved.find(entry => entry.studentId === row.studentId && entry.cycle === 'eoy');
+  assert.deepEqual(junior, { ...existing, kaitiakitanga: 'Dem', whanaungatanga: 'Dem', manaakitanga: 'Dem' });
+  assert.deepEqual(saved.find(entry => entry.studentId === middle.studentId && entry.cycle === 'eoy'),
+    { ...middle, rangatiratanga: 'Dem' });
+  assert.equal(f.find(node => node.attrs.name === 'valuesDefault').value, 'Dem-v2');
+  f.click('2. School Values');
+  f.enter('Synthetic Junior: Rangatiratanga', '');
+  includeNew = true;
+  f.control('Reporting class list term').value = '1';
+  f.control('Reporting class list term').events.change();
+  await settle();
+  assert.equal(f.control('Synthetic Junior: Whānaungatanga').value, 'Dem');
+  f.enter('Synthetic Junior: Whānaungatanga', 'Exe');
+  f.control('Reporting class list term').value = '2';
+  f.control('Reporting class list term').events.change();
+  await settle();
+  assert.equal(f.control('Synthetic Junior: Manaakitanga').value, 'Dem');
+  f.enter('Synthetic Junior: Manaakitanga', 'Dev');
+  f.control('Reporting class list term').value = '3';
+  f.control('Reporting class list term').events.change();
+  await settle();
+  assert.equal(f.control('Synthetic Junior: Rangatiratanga').value, '');
+  f.control('Reporting class list term').value = '4';
+  f.control('Reporting class list term').events.change();
+  await settle();
+  assert.equal(f.control('Synthetic Junior: Kaitiakitanga').value, 'Dem');
+  saved = JSON.parse(f.find(node => node.attrs.name === 'records').value);
+  const updated = saved.find(entry => entry.studentId === row.studentId && entry.cycle === 'eoy');
+  assert.equal(updated.rangatiratanga, '');
+  assert.equal(updated.whanaungatanga, 'Exe');
+  assert.equal(updated.manaakitanga, 'Dev');
+  assert.equal(updated.kaitiakitanga, 'Dem');
+  assert.equal(saved.filter(entry => entry.studentId === 'k:new').length, 2);
+  assert.ok(saved.filter(entry => entry.studentId === 'k:new').every(entry =>
+    schema.juniorValues.every(([key]) => entry[key] === 'Dem')));
+  assert.equal(saved.filter(entry => entry.studentId === 'k:newmiddle').length, 2);
+  assert.ok(saved.filter(entry => entry.studentId === 'k:newmiddle').every(entry =>
+    entry.kaitiakitanga === 'Dem' && entry.rangatiratanga === 'Dem'));
+  const restored = fixture({ records: JSON.stringify(saved), valuesDefault: 'Dem-v2' }, false, { request });
+  await settle();
+  assert.equal(JSON.parse(restored.find(node => node.attrs.name === 'records').value)
+    .find(entry => entry.studentId === row.studentId && entry.cycle === 'eoy').rangatiratanga, '');
+  assert.equal(restored.events.length, 0);
+});
+
+test('completion counts use the selected Junior term and both Middle values and SLOs', async () => {
+  const junior = { ...row, design: '', whanaungatanga: 'Dem', manaakitanga: '', rangatiratanga: 'Exe' };
+  const middle = { ...row, studentId: 'k:middle', programme: 'middle', coding: '5A', design: '' };
+  const f = fixture({ records: JSON.stringify([junior, middle]) });
+  await settle();
+  assert.ok(f.find(node => node.textContent === 'TEST-JDTECH (1/1)'));
+  f.control('Reporting class list term').value = '2';
+  f.control('Reporting class list term').events.change();
+  await settle();
+  assert.ok(f.find(node => node.textContent === 'TEST-JDTECH (0/1)'));
+  f.click('2. School Values');
+  assert.equal(f.control('Synthetic Junior: Manaakitanga').value, '');
+  f.enter('Synthetic Junior: Manaakitanga', 'Dem');
+  assert.ok(f.find(node => node.textContent === 'TEST-JDTECH (1/1)'));
+  f.control('Report cycle').value = 'earlier'; f.control('Report cycle').events.change();
+  assert.ok(f.find(node => node.textContent === 'TEST-JDTECH (0/1)'));
+  f.control('Report cycle').value = 'eoy'; f.control('Report cycle').events.change();
+  f.click('MiddleDTECH');
+  assert.ok(f.find(node => node.textContent === 'TEST-MDTECH (0/1)'));
+  assert.ok(f.control('Synthetic Middle: Kaitiakitanga'));
+  assert.ok(f.control('Synthetic Middle: Rangatiratanga'));
+  f.click('1. Student Learning Objectives');
+  f.enter('Synthetic Middle: Design & Develop a Digital Outcome', '5P');
+  assert.ok(f.find(node => node.textContent === 'TEST-MDTECH (1/1)'));
 });
 
 test('failed or cancelled bulk update leaves all existing records and defaults unchanged', async () => {
@@ -212,6 +312,9 @@ test('failed or cancelled bulk update leaves all existing records and defaults u
   assert.equal(failed.find(node => node.attrs.name === 'valuesDefault').value, '');
   assert.equal(failed.events.length, 0);
   assert.ok(failed.find(node => node.attrs.role === 'alert' && node.textContent.includes('No school values were changed')));
+  await failed.click('Default school values to Dem');
+  assert.equal(failed.find(node => node.attrs.name === 'records').value, previous);
+  assert.equal(failed.events.length, 0);
   const cancelled = fixture({ records: previous }, false, { confirm: () => false });
   await settle();
   await cancelled.click('Set all school values to Dem');
