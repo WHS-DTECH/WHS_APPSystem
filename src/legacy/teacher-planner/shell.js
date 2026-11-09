@@ -100,7 +100,7 @@ ${standalone ? `<script src="${asset('global-nav.js')}" defer></script>` : ''}
 <script src="${asset('google-calendar.js')}" defer></script>
 <script src="${asset('google-doc-sync.js')}" defer></script>
 <script src="${asset('duty-roster.js?v=weekly-term-duties-4')}" defer></script>
-<script src="${asset('attendance.js?v=import-batches-10')}" defer></script>
+<script src="${asset('attendance.js?v=manual-sync-11')}" defer></script>
 <script src="${asset('google-tasks.js')}" defer></script>
 <script src="${asset('google-drive.js?v=moderation-resource-files-1')}" defer></script>
 <script src="${asset('moderation-schema.js?v=requirement-cleanup-2')}" defer></script>
@@ -108,7 +108,7 @@ ${standalone ? `<script src="${asset('global-nav.js')}" defer></script>` : ''}
 <script src="${asset('textarea-autosize.js')}" defer></script>
 <script src="${asset('reporting-schema.js?v=1')}" defer></script>
 <script src="${asset('reporting.js?v=1')}" defer></script>
-<script src="${asset('planner.js?v=reporting-33')}" defer></script>
+<script src="${asset('planner.js?v=manual-sync-34')}" defer></script>
 </body></html>`;
 }
 

@@ -212,7 +212,7 @@ test(section + ' circular term selector stays first, retains four choices and op
 });
 }
 
-test('term Goals navigation preserves existing leave guards and automatic sync orchestration', async () => {
+test('term Goals navigation preserves existing leave guards without starting a sync', async () => {
   const source = await fs.readFile(path.join(__dirname, 'public', 'planner.js'), 'utf8');
   let permitted = false, loads = 0, syncs = 0;
   const context = { section: 'term', loaded: true, attendanceSyncRunning: false, canLeave: () => permitted,
@@ -222,5 +222,5 @@ test('term Goals navigation preserves existing leave guards and automatic sync o
   assert.equal(context.section, 'term'); assert.equal(loads, 0);
   permitted = true;
   await context.navigatePlannerSection('goals');
-  assert.equal(context.section, 'goals'); assert.equal(loads, 1); assert.equal(syncs, 1);
+  assert.equal(context.section, 'goals'); assert.equal(loads, 1); assert.equal(syncs, 0);
 });

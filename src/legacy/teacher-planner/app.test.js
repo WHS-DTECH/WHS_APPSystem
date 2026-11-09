@@ -80,6 +80,27 @@ test('default term uses current term and most recently finished term during holi
   assert.equal(context.defaultTerm([], '2026-10-18'),'');
 });
 
+test('opening Planner sections never starts a Drive attendance sync, including previously enabled folders', async () => {
+  const source = await fs.readFile(path.join(__dirname, 'public', 'planner.js'), 'utf8');
+  const navigation = source.slice(source.indexOf('  function navigatePlannerSection('), source.indexOf('  function renderSelectors('));
+  const loads = [];
+  const context = {
+    canLeave: () => true, section: 'term', moderationRecord: 'old', moderationPage: 'internal',
+    load: async () => { loads.push(context.section); },
+    runAttendanceDriveSync: () => assert.fail('Navigation must never request PDF sync')
+  };
+  vm.runInNewContext(navigation, context);
+  for (const section of ['attendance', 'setup', 'week', 'reporting', 'term', 'moderation']) {
+    await context.navigatePlannerSection(section);
+  }
+  assert.deepEqual(loads, ['attendance', 'setup', 'week', 'reporting', 'term', 'moderation']);
+  assert.equal(context.moderationRecord, '');
+  assert.equal(context.moderationPage, 'overview');
+  assert.equal([...source.matchAll(/runAttendanceDriveSync\(/g)].length, 2,
+    'Only the function definition and the explicit syncNow callback may reference the sync runner');
+  assert.match(source, /\r?\n  load\(\);\r?\n/);
+});
+
 test('weekly controls show loading state and move forwards/backwards across month and year boundaries', async () => {
   const source = await fs.readFile(path.join(__dirname, 'public', 'planner.js'), 'utf8');
   const helpers = source.slice(source.indexOf('  function updateWeekNavigation('), source.indexOf('  function setCalendarEvents('));
@@ -813,8 +834,8 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(groups[2][2], />Section Modules<\/h2>/);
   assert.equal([...groups[2][2].matchAll(/disabled title="Page coming soon"/g)].length, 4);
   assert.match(html, /planner\.css\?v=reporting-34/);
-  assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=reporting-33"'));
-  assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=reporting-33"'));
+  assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=manual-sync-34"'));
+  assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=manual-sync-34"'));
   const heading = html.match(/<header class="planner-heading">([\s\S]*?)<\/header>/)[1];
   for (const id of ['planner-year', 'open-year', 'print-planner']) {
     assert.match(heading, new RegExp('id="' + id + '"'));
@@ -822,7 +843,7 @@ test('paper planner shell retains nested assets, private identity escaping and a
   }
   assert.match(heading, /class="planner-year-badge" aria-label="Open planner year 2026"/);
   assert.match(heading, /id="planner-year-badge-value">2026<\/span>/);
-  assert.match(html, /src="\/planner\/framework\/attendance\.js\?v=import-batches-10"/);
+  assert.match(html, /src="\/planner\/framework\/attendance\.js\?v=manual-sync-11"/);
   assert.match(groups[1][2], /id="refresh-weekly-duties" hidden>Refresh duties<\/button>/);
   assert.match(html, /id="planner-signin-link"/);
   assert.match(html, /href="https:\/\/core.example.test\/contact"/);
@@ -877,7 +898,7 @@ test('module denies anonymous/student access and accepts a supplied teacher iden
     assert.match(html, /Last Updated:/);
     assert.match(html, /id="planner-year"[^>]*value="2026"/);
     assert.match(html, /data-api="\/module\/api\/planner\/"/);
-    assert.match(html, /src="\/module\/framework\/planner\.js\?v=reporting-33"/);
+    assert.match(html, /src="\/module\/framework\/planner\.js\?v=manual-sync-34"/);
     assert.match(html, /Weekly planner/);
     assert.match(html, /Professional learning/);
     assert.ok(!html.includes('name="whs-global-control"'));

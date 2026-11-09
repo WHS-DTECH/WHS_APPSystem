@@ -177,7 +177,8 @@ and leave saved tabs unchanged. No new database table or migration is needed.
 teacher/planner year in **Two-Week Attendance → Google Drive attendance folder
 sync**. Paste the Drive folder link, click **Authorise read-only Google Drive**,
 open the generated Google authorisation link, approve access and return. Check
-**Automatically sync on planner open**, then **Save folder and sync**. Enable
+**Enable manual Drive attendance updates**, then **Save folder settings**.
+Click **Update attendance from Drive** when new PDFs are ready. Enable
 Google Drive API and permit `https://www.googleapis.com/auth/drive.readonly` on
 the existing Calendar OAuth project/consent screen; school administrator approval
 may be required. This read-only scope permits broader Drive reading at Google,
@@ -187,10 +188,13 @@ makes a folder public. Existing Calendar/Docs/Tasks grants are preserved when
 requesting the additional permission.
 
 Place new exports in the **Drive folder**, not only a local downloads/OneDrive
-folder. Automatic checks run when the Teacher Planner page finishes opening
-after sign-in, for its selected planner year; they are not a background server
-watcher or a check on unrelated Core logins. Keep the planner open until sync
-finishes. **Sync Drive attendance now** retries without another login.
+folder. Then click **Update attendance from Drive** on the daily Attendance page
+or the Google Drive card in **Setup My Planner > Two-Week Attendance**.
+Sync is manual only: signing in, opening the Planner, switching pages, and saving
+folder settings never start a PDF sync. Existing saved attendance is used between
+uploads. Keep the planner open until the requested update finishes; the same
+button retries a failed update without another login. The saved `enabled` setting
+now permits manual updates only, including for previously enabled folders.
 Other Planner sections and week/term navigation remain usable during sync;
 changing the planner year and conflicting attendance setup edits remain guarded.
 Each sync reuses monthly timetable responses, and simultaneous requests for the
@@ -1455,7 +1459,7 @@ live sync progress and the latest result. A successful check displays
 PDFs, saved blank marks, conflicts kept, match warnings and unchanged PDFs skipped.
 **Already up to date** means nothing new needed importing; **No PDFs found**
 means the connected folder was checked but contained no PDFs. Merely enabling
-automatic sync does not confirm that a sync has succeeded. Results remain visible
+manual updates does not confirm that a sync has succeeded. Results remain visible
 inside the card when weekly history refreshes during the current page session.
 Each PDF's marks, import history and processed-file checkpoint are saved before
 starting the next PDF. The card updates **Successfully synced documents**,
@@ -1470,12 +1474,12 @@ Oversized PDFs are reported individually without blocking other documents; the
 5 MB download/import limit still applies to every PDF.
 Per-document reports remain visible for the current page session; durable
 processed-file checkpoints and weekly import history are stored in the database.
-Sync setup, progress and document reports are displayed only in the Google Drive
-card on **Two-Week Attendance**, not beneath the daily Attendance Planner register.
-Automatic syncing still runs on other planner pages and retains its latest report
-for display when Two-Week Attendance is opened.
+Sync setup is displayed in the Google Drive card on **Two-Week Attendance**.
+The daily Attendance page also provides the update button and its progress/results.
+Syncing never starts on other planner pages; a requested update retains its latest
+report for display when either attendance view is opened during that page session.
 The Drive card explicitly shows idle or syncing state and disables folder,
-authorisation and sync actions during automatic or manual sync. Refreshing weekly
+authorisation and sync actions during a requested sync. Refreshing weekly
 status shows immediate progress and completion beside that button; it reloads
 saved history only, not Google Drive. Refresh preserves active PDF progress and
 does not enable a second sync while the first is still running.

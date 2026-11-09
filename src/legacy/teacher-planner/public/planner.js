@@ -201,33 +201,8 @@
   function navigatePlannerSection(target) {
     if (!canLeave(true)) return;
     section = target;
-    const destination = section;
     if (section === 'moderation') { moderationRecord = ''; moderationPage = 'overview'; }
-    return load().then(async () => {
-      if (!loaded || section !== destination) return;
-      if (section === 'setup' && setupTab === 6) await setupAttendanceReady;
-      if (attendanceSyncRunning || section !== destination) return;
-      try {
-        const result = await runAttendanceDriveSync();
-        if (section !== destination) return;
-        if (result && section === 'attendance') {
-          await load();
-          placeAttendanceDriveNote();
-        }
-        else if (result && section === 'setup' && setupTab === 6) {
-          const host = content.querySelector('.attendance-setup-page');
-          if (host) {
-            host.dataset.attendanceLoading = 'true';
-            try { host.replaceChildren(); await mountAttendancePage(host, true); }
-            finally { host.dataset.attendanceLoading = 'false'; }
-          }
-        }
-      }
-      catch (error) {
-        console.error('Automatic attendance Drive sync or refresh failed:', error.message);
-        notice(error.message, true);
-      }
-    });
+    return load();
   }
   function renderSelectors() {
     selectors.replaceChildren();
@@ -2685,7 +2660,7 @@
     try {
       await refreshSession();
       const settings = await request(api + 'attendance/' + syncYear + '/drive-sync');
-      if (!settings.enabled) { note.textContent = 'Automatic Drive attendance sync is disabled. Save and enable a folder before syncing.'; return; }
+      if (!settings.enabled) { note.textContent = 'Drive attendance updates are disabled. Open Setup My Planner > Two-Week Attendance to save and enable a folder, then click Update attendance from Drive.'; return; }
       const school = (await request(api + 'school-settings/' + syncYear)).content;
       let calendar;
       try { calendar = await request(api.replace(/planner\/$/, '') + 'school-calendar/' + syncYear); }

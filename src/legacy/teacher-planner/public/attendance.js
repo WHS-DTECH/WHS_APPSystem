@@ -302,6 +302,22 @@
       draft = false; host.removeAttribute('data-preferences-busy'); editor.replaceChildren(); return true;
     }
     function edited() { draft = true; host.setAttribute('data-preferences-busy', 'true'); }
+    if (!overview && syncNow) {
+      const update = el('button', 'Update attendance from Drive', { type: 'button' });
+      const state = el('p', 'Saved attendance is used between uploads. After uploading new PDFs to your configured Drive folder, click Update attendance from Drive. No sync runs when opening pages.', { role: 'status' });
+      update.addEventListener('click', () => {
+        if (!guard()) return;
+        return act(async () => {
+          await syncNow(driveFeedback);
+          await loadSheet();
+        }, driveSay);
+      });
+      controls.prepend(update, state, driveFeedback);
+      bindSyncState?.(running => {
+        update.disabled = running;
+        update.textContent = running ? 'Updating attendance from Drive...' : 'Update attendance from Drive';
+      }, driveFeedback);
+    }
     async function act(callback, report = say) {
       if (pending) return;
       pending = true; controls.disabled = true; host.setAttribute('data-preferences-busy', 'true');
@@ -824,12 +840,12 @@
       const panel = el('details', '', { class: 'attendance-import' });
       panel.open = settings.enabled;
       panel.append(el('summary', 'Google Drive attendance folder sync'),
-        el('p', 'One-time setup: paste your private Drive folder link, authorise read-only Drive access, then enable automatic sync. New or updated PDFs are checked when Teacher Planner opens after sign-in. Only blank marks in matching saved class tabs are filled; conflicts are kept. Keep the planner open until sync finishes. Nothing is written to Drive.'));
+        el('p', 'One-time setup: paste your private Drive folder link, authorise read-only Drive access, then enable Drive updates and save the folder. After uploading new PDFs, click Update attendance from Drive here or on Attendance. Opening pages and saving settings never start a sync. Only blank marks in matching saved class tabs are filled; conflicts are kept. Keep the planner open until your update finishes. Nothing is written to Drive.'));
       const folder = el('input', '', { type: 'url', 'aria-label': 'Attendance Google Drive folder URL', placeholder: 'https://drive.google.com/drive/folders/...' });
       folder.value = settings.folderId ? 'https://drive.google.com/drive/folders/' + settings.folderId : '';
-      const enabled = el('input', '', { type: 'checkbox', 'aria-label': 'Automatically sync Drive attendance on planner open' });
+      const enabled = el('input', '', { type: 'checkbox', 'aria-label': 'Enable manual Drive attendance updates' });
       enabled.checked = settings.enabled;
-      const label = el('label', 'Automatically sync on planner open '); label.append(enabled);
+      const label = el('label', 'Enable manual Drive attendance updates '); label.append(enabled);
       const authorise = el('button', 'Authorise read-only Google Drive', { type: 'button' });
       const link = el('p');
       authorise.addEventListener('click', () => act(async () => {
@@ -837,22 +853,25 @@
         link.replaceChildren(el('a', 'Open Google authorisation (then return here)', {
           href: result.url, target: '_blank', rel: 'noopener noreferrer'
         }));
-        driveSay('Open the Google authorisation link, approve read-only Drive access, then return and Save folder and sync.');
+        driveSay('Open the Google authorisation link, approve read-only Drive access, then return and Save folder settings.');
       }, driveSay));
-      const save = el('button', 'Save folder and sync', { type: 'button' });
+      const save = el('button', 'Save folder settings', { type: 'button' });
       save.addEventListener('click', () => act(async () => {
         driveSay('Saving Google Drive folder settings...');
         await mutate('attendance/' + year + '/drive-sync', { folder: folder.value, enabled: enabled.checked });
-        if (enabled.checked) await syncNow(driveFeedback);
-        else driveSay('Automatic Drive attendance sync disabled.');
+        driveSay(enabled.checked ? 'Folder settings saved. Click Update attendance from Drive after uploading new PDFs.' :
+          'Folder settings saved. Manual Drive attendance updates disabled.');
         await loadSheet();
       }, driveSay));
-      const run = el('button', 'Sync Drive attendance now', { type: 'button' });
-      run.addEventListener('click', () => act(async () => { await syncNow(driveFeedback); await loadSheet(); }, driveSay));
+      const run = el('button', 'Update attendance from Drive', { type: 'button' });
+      run.addEventListener('click', () => {
+        if (!guard()) return;
+        return act(async () => { await syncNow(driveFeedback); await loadSheet(); }, driveSay);
+      });
       const syncState = el('p', 'Sync idle - ready to check Google Drive.', { role: 'status', 'aria-live': 'polite' });
       bindSyncState?.((running) => {
         for (const input of [folder, enabled, authorise, save, run]) input.disabled = running;
-        run.textContent = running ? 'Syncing Google Drive...' : 'Sync Drive attendance now';
+        run.textContent = running ? 'Syncing Google Drive...' : 'Update attendance from Drive';
         syncState.textContent = running ? 'Sync in progress - PDFs are being checked and saved. Keep this page open.' :
           'Sync idle - check the latest result below, or start a new sync.';
         driveFeedback.setAttribute('aria-busy', String(running));
@@ -860,7 +879,8 @@
       const report = el('details', '', { class: 'planner-hint' });
       report.append(el('summary', 'View sync report'), driveFeedback);
       panel.append(folder, label, authorise, link, save, run,
-        el('p', settings.enabled ? 'Automatic sync is enabled for this planner year.' : 'Automatic sync is off for this planner year.', { role: 'status' }),
+        el('p', settings.enabled ? 'Manual Drive updates are enabled. Nothing syncs until you click Update attendance from Drive.' :
+          'Manual Drive updates are disabled for this planner year.', { role: 'status' }),
         syncState, report);
       const coverage = el('section', '', { 'aria-label': 'Term attendance sync coverage' });
       coverage.append(el('h3', 'Term attendance sync status'));

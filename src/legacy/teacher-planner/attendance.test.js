@@ -175,6 +175,7 @@ test('term grids include partial first/last weeks and combined rosters deduplica
 function element(tag, text = '', attrs = {}) {
   const node = { tag, textContent: text, attrs, children: [], events: {}, dataset: {}, value: '', checked: false,
     classList: { add() {} }, append(...items) { this.children.push(...items); },
+    prepend(...items) { this.children.unshift(...items); },
     replaceChildren(...items) { this.children = items; }, setAttribute(key, value) { this.attrs[key] = value; },
     getAttribute(key) { return this.attrs[key] ?? null; },
     querySelector(selector) {
@@ -704,11 +705,13 @@ test('Drive setup authorises only on click and saves the chosen private folder b
   assert.equal(descendants(host).filter(node => node.tag === 'a' && node.attrs.target === '_blank').length, 1, 'retry replaces the authorisation link');
   nodes.find(node => node.attrs['aria-label'] === 'Attendance Google Drive folder URL').value =
     'https://drive.google.com/drive/folders/synthetic_folder_123';
-  nodes.find(node => node.attrs['aria-label'] === 'Automatically sync Drive attendance on planner open').checked = true;
-  await nodes.find(node => node.textContent === 'Save folder and sync').events.click();
+  nodes.find(node => node.attrs['aria-label'] === 'Enable manual Drive attendance updates').checked = true;
+  await nodes.find(node => node.textContent === 'Save folder settings').events.click();
   assert.equal(writes[2][0], 'attendance/2026/drive-sync');
   assert.equal(writes[2][1].enabled, true);
-  assert.equal(syncs, 1);
+  assert.equal(syncs, 0, 'Saving folder settings never starts a sync');
+  await descendants(host).find(node => node.textContent === 'Update attendance from Drive').events.click();
+  assert.equal(syncs, 1, 'Only the explicit update button starts a sync');
   const card = descendants(host).find(node => node.tag === 'details' &&
     node.children.some(child => child.textContent === 'Google Drive attendance folder sync'));
   assert.ok(descendants(card).some(node => /completed successfully: 4 blank marks filled/.test(node.textContent)),
@@ -720,7 +723,48 @@ test('Drive setup authorises only on click and saves the chosen private folder b
   assert.equal(report.attrs.class, 'planner-hint', 'report uses existing pill-style disclosure');
   assert.ok(descendants(report).some(node => /completed successfully: 4 blank marks filled/.test(node.textContent)));
 });
-test('planner-opening Drive sync protects navigation and shows explicit success or failure', async () => {
+test('daily attendance only updates on button click, prevents double requests and reloads saved marks', async () => {
+  const options = importFixture(), host = element('section');
+  let syncs = 0, weekReads = 0, release, fail = false, listener;
+  await browser().mount(host, {
+    el: element, ...options,
+    loadSchedule: async week => options.schedules[week] || {},
+    request: async path => {
+      if (path.includes('/week/')) weekReads++;
+      return path.endsWith('/groups') ? { revision: 1, content: { groups: [options.group] } } :
+        path.includes('/week/') ? { marks: [] } : { imports: {}, markedWeeks: [] };
+    },
+    syncNow: async target => {
+      syncs++; listener(true);
+      try {
+        await new Promise(resolve => { release = resolve; });
+        if (fail) throw new Error('Drive update failed; saved marks retained');
+        target.replaceChildren(element('p', 'New attendance saved', { role: 'status' }));
+      } finally { listener(false); }
+    },
+    bindSyncState: callback => { listener = callback; callback(false); }
+  });
+  assert.equal(syncs, 0, 'Opening daily attendance uses saved marks only');
+  const initialReads = weekReads;
+  const button = descendants(host).find(node => node.textContent === 'Update attendance from Drive');
+  assert.ok(button);
+  const updating = button.events.click();
+  assert.equal(syncs, 1);
+  assert.equal(button.disabled, true);
+  await button.events.click();
+  assert.equal(syncs, 1, 'An update already in progress cannot be started again');
+  release(); await updating;
+  assert.equal(button.disabled, false);
+  assert.ok(weekReads > initialReads, 'Successful update reloads the displayed register from saved data');
+  assert.ok(descendants(host).some(node => node.textContent === 'New attendance saved'));
+  fail = true;
+  const failing = button.events.click();
+  release(); await failing;
+  assert.ok(descendants(host).some(node => node.attrs.role === 'alert' && /Drive update failed/.test(node.textContent)));
+  assert.equal(button.disabled, false, 'Failed update is retryable');
+});
+
+test('requested Drive sync protects navigation and shows explicit success or failure', async () => {
   const source = fs.readFileSync(require.resolve('./public/planner.js'), 'utf8');
   const helpers = source.slice(source.indexOf('  let attendanceSyncRunning = false;'), source.indexOf('  async function load()'));
   const termHelpers = source.slice(source.indexOf('  function termRanges('), source.indexOf('  async function loadTermDates('));
@@ -793,7 +837,7 @@ test('weekly refresh shows immediate progress and completion without losing acti
   assert.ok(nodes.some(node => node.textContent === 'Syncing Google Drive...' && node.disabled));
   listener(false);
   assert.equal(target.attrs['aria-busy'], 'false');
-  assert.ok(descendants(host).some(node => node.textContent === 'Sync Drive attendance now' && !node.disabled));
+  assert.ok(descendants(host).some(node => node.textContent === 'Update attendance from Drive' && !node.disabled));
 });
 test('one Drive sync reuses monthly timetable feeds and retries failed requests', async () => {
   const source = fs.readFileSync(require.resolve('./public/planner.js'), 'utf8');
@@ -822,7 +866,7 @@ test('one Drive sync reuses monthly timetable feeds and retries failed requests'
   assert.equal(requests.length, 3);
 });
 test('Drive settings and authorisation failures are displayed inside the Drive card', async () => {
-  for (const action of ['Authorise read-only Google Drive', 'Save folder and sync', 'Sync Drive attendance now']) {
+  for (const action of ['Authorise read-only Google Drive', 'Save folder settings', 'Update attendance from Drive']) {
     const options = importFixture(), host = element('section');
     await browser().mount(host, {
       el: element, ...options, overview: true,
@@ -1055,7 +1099,7 @@ test('opening Attendance tolerates a failed government calendar request using pu
   const requests = [];
   const context = {
     section: 'attendance', year: 2026, api: '/api/planner/', localDate: '2026-10-29',
-    content: host, el: element, refreshSession: async () => {}, notice() {}, bindAttendanceSyncState() {},
+    content: host, el: element, refreshSession: async () => {}, notice() {}, bindAttendanceSyncState() {}, placeAttendanceDriveNote() {},
     request: async path => {
       requests.push(path);
       if (path.includes('school-settings/')) return { content: settings };
