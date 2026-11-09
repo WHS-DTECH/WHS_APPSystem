@@ -87,6 +87,9 @@ function syntheticPool() {
       return { rows: [] };
     }
     if (statement === 'SELECT 1') return { rows: [{}] };
+    if (statement.includes('FROM kamar_history_migrations')) return { rows: [{}] };
+    if (statement.includes('pg_advisory_xact_lock') || statement.includes('set_config')) return { rows: [] };
+    if (statement.startsWith('INSERT INTO kamar_datasets')) return { rows: [{ id: params[0] }], rowCount: 1 };
     const table = /(?:FROM|INTO|UPDATE)\s+(staff_upload|student_details_upload|student_upload|timetable_upload)\b/i.exec(sql)?.[1];
     if (/^SELECT id FROM staff_upload/.test(statement)) {
       const existing = Object.values(records).find(row => row.table === table && (sql.includes("coalesce(email_school") ? row.email_school : row.code).toLowerCase() === params[0]);
@@ -132,7 +135,8 @@ test('all original upload endpoints accept Terms 1-4, preserve IDs and report ro
   const router = loadWithDependencies('routes.js', {
     './db': { pool }, './store': { init: async () => {} },
     '../../db': { query: async () => assert.fail('Upload data must never query Core') },
-    './departments': require('../src/legacy/kamar-uploader/departments')
+    './departments': require('../src/legacy/kamar-uploader/departments'),
+    './history': require('../src/legacy/kamar-uploader/history')
   });
   const app = express();
   app.use(express.json());
@@ -151,6 +155,7 @@ test('all original upload endpoints accept Terms 1-4, preserve IDs and report ro
         assert.equal(response.status, 200, JSON.stringify(output));
         assert.equal(response.headers.get('cache-control'), 'no-store');
         assert.equal(output.success, true);
+        assert.match(output.dataset_id, /^[0-9a-f-]{36}$/);
         assert.equal(output.processed, 1);
         assert.equal(output.upload_year, 2026);
         assert.equal(output.upload_term, term);
@@ -184,7 +189,8 @@ test('legacy connection failure is explicit and does not execute upload SQL or r
     './db': { pool: { query: async () => assert.fail('No fallback query'), connect: async () => assert.fail('No fallback connection') } },
     './store': { init: async () => { throw new Error('Kamar unavailable'); } },
     '../../db': { query: async () => assert.fail('No Core data fallback') },
-    './departments': require('../src/legacy/kamar-uploader/departments')
+    './departments': require('../src/legacy/kamar-uploader/departments'),
+    './history': require('../src/legacy/kamar-uploader/history')
   });
 
   const app = express();

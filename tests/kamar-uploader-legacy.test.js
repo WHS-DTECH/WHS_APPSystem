@@ -36,7 +36,7 @@ function startApp(roles) {
 test('ADMIN gets the legacy Kamar Uploader pages and session permissions', async () => {
   const { server, base } = await startApp(['ADMIN']);
   try {
-    for (const page of ['', 'staff_upload.html', 'departments.html', 'student_details_upload.html', 'student_upload.html', 'timetable_upload.html']) {
+    for (const page of ['', 'staff_upload.html', 'departments.html', 'student_details_upload.html', 'student_upload.html', 'timetable_upload.html', 'history.html']) {
       const response = await fetch(`${base}/admin/kamar-uploader/${page}`);
       assert.strictEqual(response.status, 200, page);
       const html = await response.text();
@@ -84,12 +84,12 @@ async function renderNavbar(pathname, response, networkError) {
 
 test('every direct Kamar page gets navigation from the school session without a cached local account', async () => {
   const permissions = { homepage: true, staff_upload: true, student_upload: true, student_timetable: true, staff_timetable: true, admin_menu: true };
-  for (const page of ['', 'staff_upload.html', 'student_details_upload.html', 'student_upload.html', 'timetable_upload.html']) {
+  for (const page of ['', 'staff_upload.html', 'student_details_upload.html', 'student_upload.html', 'timetable_upload.html', 'history.html']) {
     const { host, location, errors } = await renderNavbar(`/admin/kamar-uploader/${page}`, {
       status: 200, payload: { success: true, user: { email: 'admin@example.test', role: 'admin', permissions } }
     });
     assert.strictEqual(location.href, undefined);
-    for (const label of ['Home', 'Staff Upload', 'Student Upload', 'Student Timetable', 'Staff Timetable']) {
+    for (const label of ['Home', 'Staff Upload', 'Student Upload', 'Student Timetable', 'Staff Timetable', 'Dataset History']) {
       assert.ok(host.innerHTML.includes(`>${label}</a>`), label);
     }
     assert.ok(!/Sign out|Sign in|top-nav-user|admin@example/.test(host.innerHTML));
@@ -155,6 +155,7 @@ test('Teachers cannot open the uploader or its data APIs', async () => {
   const { server, base } = await startApp(['Teacher']);
   try {
     assert.strictEqual((await fetch(`${base}/admin/kamar-uploader/`)).status, 403);
+    assert.strictEqual((await fetch(`${base}/admin/kamar-uploader/history.html`)).status, 403);
     assert.strictEqual((await fetch(`${base}/api/staff_upload/all`)).status, 403);
     assert.strictEqual((await fetch(`${base}/api/upload_timetable`, { method: 'POST' })).status, 403);
 

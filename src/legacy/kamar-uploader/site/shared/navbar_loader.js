@@ -9,7 +9,8 @@
     { href: base + 'departments.html', label: 'Departments', permission: 'staff_upload' },
     { href: base + 'student_details_upload.html', label: 'Student Upload', permission: 'student_upload' },
     { href: base + 'student_upload.html', label: 'Student Timetable', permission: 'student_timetable' },
-    { href: base + 'timetable_upload.html', label: 'Staff Timetable', permission: 'staff_timetable' }
+    { href: base + 'timetable_upload.html', label: 'Staff Timetable', permission: 'staff_timetable' },
+    { href: base + 'history.html', label: 'Dataset History', permission: 'admin_menu' }
   ];
 
   const pagePermissionMap = {
@@ -17,7 +18,8 @@
     'departments.html': 'staff_upload',
     'student_details_upload.html': 'student_upload',
     'student_upload.html': 'student_timetable',
-    'timetable_upload.html': 'staff_timetable'
+    'timetable_upload.html': 'staff_timetable',
+    'history.html': 'admin_menu'
   };
 
   function hasPermission(user, permission) {

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KAMAR Dataset History</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="home-body">
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+  <main class="home-shell">
+    <section class="panel">
+      <h1>KAMAR Dataset History</h1>
+      <p>Each upload is retained separately. Downloading or viewing history does not replace current staff, students or timetables.</p>
+      <p>Existing current-data tables are working views for live modules. Their previous rows and recorded statuses are retained in the append-only record history whenever changed.</p>
+      <form id="history-filter">
+        <label>Year <input id="history-year" type="number" min="2000" max="2100" required></label>
+        <label>Term <select id="history-term">
+          <option value="">All terms</option>
+          <option value="1">Term 1</option><option value="2">Term 2</option>
+          <option value="3">Term 3</option><option value="4">Term 4</option>
+        </select></label>
+        <button type="submit">Load dataset history</button>
+      </form>
+      <p id="history-status" role="status" aria-live="polite"></p>
+      <div style="overflow:auto" tabindex="0" role="region" aria-label="Archived datasets">
+        <table>
+          <thead><tr><th scope="col">Term</th><th scope="col">Dataset</th><th scope="col">Export date/time</th>
+            <th scope="col">Source</th><th scope="col">Rows</th><th scope="col">Origin</th><th scope="col">Retrieve</th></tr></thead>
+          <tbody id="history-rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script src="history.js"></script>
+</body>
+</html>

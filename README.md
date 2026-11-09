@@ -1334,9 +1334,18 @@ The previous imported Core tables remain untouched but are no longer the source
 for Kamar uploads or shared directories.
 
 All four term upload options and original staff/student/timetable upload pages
-are retained. New uploads update the existing legacy tables (`staff_upload`,
+are retained. Each new upload first saves its complete ordered CSV headers/rows
+as an immutable year/term dataset, in the same transaction as the current-data
+update. The existing legacy tables (`staff_upload`,
 `student_details_upload`, `student_upload`, `timetable_upload`, `app_project_links`)
-using the original transactions, identifiers and Current/Not Current behaviour.
+remain compatibility views for live modules, using the original transactions,
+identifiers and Current/Not Current behaviour. For the four staff/student/
+timetable tables, database triggers preserve every row before and after updates
+and preserve deleted rows, including their recorded status. They also capture
+manual timetable edits and email synchronisation. Historical snapshots and row
+versions reject UPDATE, DELETE and TRUNCATE; current staff/student/timetable
+tables cannot be truncated. Historical imports never update these live tables
+or change staff/student status, accounts, roles, attendance marks or reports.
 Role sync, Global Control user/role directories, Student Apps client selection,
 maintenance recipient eligibility and the Teacher Planner staff/class-list
 bridges read that same live Kamar database. Global accounts, assignments,
@@ -1352,9 +1361,58 @@ existing Term 4 rows against the working legacy service. Then verify directory
 search, Google sign-in and Teacher Planner staff/class lists. Use an isolated
 database copy for destructive upload testing. The original service can remain
 available for rollback; avoid simultaneous uploads from both services.
-There is no new migration for this change and no user notification is sent.
+The history migration below must run before further uploads or manual timetable
+edits; until then writes fail explicitly while existing read-only feeds remain
+available. No user notification is sent.
 Private CSVs, `.env`, `node_modules` and the original project's `.git` are not
 copied into WHS_APPSystem.
+
+### Preserving and rebuilding dataset history
+
+Back up the **separate Kamar database**, configure
+`INTEGRATION_KAMAR_DATABASE_URL`, then run `npm run db:migrate:kamar`.
+Do not run Core migrations against this database. This explicit, repeatable
+migration baselines every existing staff/student/timetable row and installs
+preservation triggers atomically. It briefly locks these four tables; schedule
+it outside uploads. It does not infer a historical term roster from today's rows.
+Normal requests never create or migrate database tables. Do not continue using
+an older uploader that bypasses snapshots after switching to this version.
+
+Dry-run the private source archives (no database connection required):
+
+```powershell
+node src\legacy\kamar-uploader\history-command.js import --root 'LegacySites\KamarUploader\csv\KamarData\2026' --year 2026
+node src\legacy\kamar-uploader\history-command.js import --root 'BuilderFiles (Dont push to GIT)\Term 4 Kamar' --year 2026 --term 4
+```
+
+Review the file inventory, warnings and exclusions, then repeat each command with
+`--apply` to save those snapshots to the configured Kamar database. Alternatively,
+`npm run kamar:archive -- --root <folder> --year 2026` runs the same importer
+where the shell forwards npm arguments unchanged. The importer validates the
+entire selected root before opening its transaction. A failure rolls back that
+root's complete import; rerunning is safe and skips already stored snapshots.
+It preserves raw CSV text, duplicate period headers, row order, source filename,
+export date/time and mid-term exports separately. Files under `Term 1` through
+`Term 4` inherit their folder's term; `--term` supplies the term for a root without
+those folders. Known five-column headerless staff exports are flagged and keep
+their first record. Exports without school email remain separate, not merged.
+Specialised class-list CSVs and PDFs are listed as exclusions, not silently parsed
+as a different dataset; attendance PDFs still use the separate attendance process.
+Neither private source folder should ever be staged or committed.
+
+ADMIN users can open **Kamar Uploader > Dataset History** at
+`/admin/kamar-uploader/history.html`, filter year/term and download each saved
+dataset as JSON (including original CSV text for archive imports). The
+`/api/kamar-datasets` and `/api/kamar-datasets/:id` endpoints are ADMIN-only,
+uncached and read-only. There is deliberately no restore-over-current button.
+No archive import occurs automatically on deployment. Historical year/term
+roster selection in Teacher Planner Attendance/Reporting is a separate follow-up;
+these pages still use their current class reader.
+
+History tests: `node --test tests\kamar-history.test.js tests\kamar-live-database.test.js tests\kamar-uploader-legacy.test.js`.
+Set `KAMAR_HISTORY_TEST_DATABASE_URL` only to an isolated local test database to
+also run the PostgreSQL baseline/immutability/rollback checks. They create and
+remove a uniquely named test schema, never use a live Kamar connection.
 
 ## Teacher Planner integration
 

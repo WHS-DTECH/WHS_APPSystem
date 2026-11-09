@@ -3,6 +3,7 @@ const { pool } = require('./db');
 const { query: coreQuery } = require('../../db');
 const store = require('./store');
 const { loadDepartments } = require('./departments');
+const history = require('./history');
 
 // Legacy Kamar Uploader API using its existing database. Data routes are unchanged;
 // the old cookie login and role tables are replaced by the app's Google session roles.
@@ -83,7 +84,8 @@ const DATA_API_PATHS = [
   '/api/student_details_upload',
   '/api/student_upload',
   '/api/timetable',
-  '/api/upload_timetable'
+  '/api/upload_timetable',
+  '/api/kamar-datasets'
 ];
 
 router.use(DATA_API_PATHS, requireAdminApi);
@@ -96,6 +98,20 @@ router.use(['/api/feed', '/api/projects', ...DATA_API_PATHS], (req, res, next) =
     console.error('Kamar Uploader legacy database validation failed.');
     res.status(503).json({ success: false, error: 'The existing Kamar Uploader database is unavailable. Check its connection and schema; no fallback database is used.' });
   });
+});
+
+router.use(async (req, res, next) => {
+  const mutating = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method);
+  const pathname = req.path.toLowerCase();
+  if (!mutating || !Object.keys(history.ROUTES).some(route => pathname === route || pathname.startsWith(route + '/'))) return next();
+  try {
+    const result = await pool.query("SELECT 1 FROM kamar_history_migrations WHERE name='001_immutable_datasets'");
+    if (!result.rows.length) throw new Error('History migration is not complete.');
+    return next();
+  } catch {
+    console.error('Kamar write blocked: immutable history is unavailable.');
+    return res.status(503).json({ success: false, error: 'Dataset history is not ready. Run npm run db:migrate:kamar against the Kamar database before changing records. Current data has not been changed.' });
+  }
 });
 
 router.get('/api/feed/health', async (_req, res) => {
@@ -594,12 +610,19 @@ function getTimetableTeacherName(rowObj) {
   return '';
 }
 
-async function withTransaction(work) {
+async function withTransaction(work, req) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    let dataset;
+    if (req) {
+      await client.query('SELECT pg_advisory_xact_lock(1377474883)');
+      dataset = await history.saveDataset(client, history.fromRequest(req));
+      await client.query("SELECT set_config('whs.kamar_dataset_id',$1,true)", [dataset.id]);
+    }
     const result = await work(client);
     await client.query('COMMIT');
+    if (dataset) result.dataset_id = dataset.id;
     return result;
   } catch (error) {
     await client.query('ROLLBACK');
@@ -608,6 +631,46 @@ async function withTransaction(work) {
     client.release();
   }
 }
+
+router.post(Object.keys(history.ROUTES), (req, res, next) => {
+  try { history.fromRequest(req); next(); }
+  catch (error) {
+    console.warn('Kamar upload rejected: invalid historical dataset metadata or shape.');
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+router.get('/api/kamar-datasets', async (req, res) => {
+  const year = Number(req.query.year), term = req.query.term === undefined ? null : Number(req.query.term);
+  if (!Number.isInteger(year) || year < 2000 || year > 2100 ||
+      term !== null && (!Number.isInteger(term) || term < 1 || term > 4)) {
+    return res.status(400).json({ error: 'Choose a valid dataset year and optional term (1-4).' });
+  }
+  try {
+    const result = await pool.query(`SELECT id,dataset_type,school_year,term,source_date::text,source_time::text,
+      source_name,row_count,origin,created_at FROM kamar_datasets
+      WHERE school_year=$1 AND ($2::int IS NULL OR term=$2)
+      ORDER BY term,dataset_type,source_date DESC,source_time DESC,created_at DESC,id`, [year, term]);
+    res.json({ datasets: result.rows });
+  } catch {
+    console.error('Kamar dataset history read failed.');
+    res.status(503).json({ error: 'Dataset history is unavailable. Run the Kamar history migration on its separate database, then retry.' });
+  }
+});
+router.get('/api/kamar-datasets/:id', async (req, res) => {
+  if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(req.params.id)) {
+    return res.status(400).json({ error: 'Choose a valid dataset ID.' });
+  }
+  try {
+    const result = await pool.query('SELECT * FROM kamar_datasets WHERE id=$1', [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Dataset not found.' });
+    res.set('Content-Disposition', 'attachment; filename="kamar-dataset-' + req.params.id + '.json"');
+    res.json(result.rows[0]);
+  } catch {
+    console.error('Kamar dataset download failed.');
+    res.status(503).json({ error: 'Dataset could not be retrieved. Retry or check the Kamar history migration.' });
+  }
+});
 
 router.get('/api/staff_upload/all', async (_req, res) => {
   try {
@@ -764,10 +827,11 @@ router.post('/api/staff_upload', async (req, res) => {
       }
 
       return { inserted, updated, markedNotCurrent };
-    });
+    }, req);
 
     res.json({
       success: true,
+      dataset_id: result.dataset_id,
       processed: records.length,
       inserted: result.inserted,
       updated: result.updated,
@@ -902,10 +966,11 @@ router.post('/api/student_details_upload', async (req, res) => {
       }
 
       return { inserted, updated, markedNotCurrent };
-    });
+    }, req);
 
     res.json({
       success: true,
+      dataset_id: result.dataset_id,
       processed: records.length,
       inserted: result.inserted,
       updated: result.updated,
@@ -1059,10 +1124,11 @@ router.post('/api/student_upload', async (req, res) => {
       }
 
       return { inserted, updated, markedNotCurrent };
-    });
+    }, req);
 
     res.json({
       success: true,
+      dataset_id: result.dataset_id,
       processed: records.length,
       inserted: result.inserted,
       updated: result.updated,
@@ -1478,10 +1544,11 @@ router.post('/api/upload_timetable', async (req, res) => {
       }
 
       return { inserted, updated, markedNotCurrent };
-    });
+    }, req);
 
     res.json({
       success: true,
+      dataset_id: result.dataset_id,
       processed: records.length,
       inserted: result.inserted,
       updated: result.updated,
