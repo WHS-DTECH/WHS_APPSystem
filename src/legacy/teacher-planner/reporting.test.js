@@ -20,6 +20,8 @@ test('reporting validates restricted programme scales, distinct blanks and separ
     assert.equal(validContent('reporting', content([{ ...row, ...change }])), false);
   }
   assert.equal(validContent('reporting', { records: 'invalid' }), false);
+  assert.equal(validContent('reporting', { records: '[]', valuesDefault: 'Dem' }), true);
+  assert.equal(validContent('reporting', { records: '[]', valuesDefault: 'Exe' }), false);
   assert.equal(validContent('reporting', { records: '[]', owner_id: 'forged' }), false);
   assert.equal(validContent('reporting', content([{ ...row, programme: 'middle', coding: '6B', design: '5A' }])), true);
   assert.equal(schema.complete(row, 'eoy'), true);
@@ -30,7 +32,7 @@ test('reporting validates restricted programme scales, distinct blanks and separ
   assert.equal(schema.complete({ ...row, coding: 'UAG' }, 'eoy'), true);
 });
 
-function fixture(data = {}, fail = false) {
+function fixture(data = {}, fail = false, options = {}) {
   const events = [];
   function el(tag, text = '', attrs = {}) {
     return {
@@ -49,18 +51,19 @@ function fixture(data = {}, fail = false) {
     { code: 'TEST-MATH', students: [{ id: 'k:math', name: 'Not DTECH', yearLevel: '7' }] }
   ] };
   const host = el('main'), calls = [];
-  const context = vm.createContext({ plannerReportingSchema: schema, Event, console });
+  const context = vm.createContext({ plannerReportingSchema: schema, Event, console, confirm: options.confirm || (() => true) });
   vm.runInContext(fs.readFileSync(path.join(__dirname, 'public', 'reporting.js'), 'utf8'), context);
   context.plannerReporting.mount(host, { el, data, year: 2026, request: async url => {
     calls.push(url);
     if (fail) throw new Error('School directory unavailable');
+    if (options.request) return options.request(url, directory);
     return directory;
   } });
   function all(node = host) { return [node, ...node.children.flatMap(child => all(child))]; }
   const find = predicate => all().find(predicate);
   const click = label => {
     const node = find(node => node.tag === 'button' && node.textContent === label);
-    assert.ok(node, 'Missing button: ' + label); node.events.click();
+    assert.ok(node, 'Missing button: ' + label); return node.events.click();
   };
   const control = label => find(node => node.attrs['aria-label'] === label);
   const enter = (label, value) => {
@@ -112,6 +115,65 @@ test('reporting grids preserve student, programme and cycle entries and emit aut
   filter.checked = true; filter.events.change();
   assert.equal(f.control(codingLabel), undefined);
   assert.ok(f.find(node => node.textContent === 'No incomplete students in this class.'));
+});
+
+test('bulk school values overwrite both cycles across all terms while retaining SLOs and comments', async () => {
+  const previous = { ...row, comment: 'Keep this comment' };
+  const hidden = { ...row, studentId: 'k:former', programme: 'middle', coding: '5A', cycle: 'earlier' };
+  const f = fixture({ records: JSON.stringify([previous, hidden]) }, false, { request: async (url, directory) => {
+    const term = Number(url.slice(-1));
+    if (term !== 1) return directory;
+    return { classes: [{ code: 'TEST-JDTECH', students: [{ id: 'k:old', name: 'Historical Junior', yearLevel: '8' }] }] };
+  } });
+  await settle();
+  await f.click('Set all school values to Dem');
+  assert.deepEqual(f.calls.slice(1).sort(), [1, 2, 3, 4].map(term => 'attendance/classes/2026?term=' + term));
+  const saved = JSON.parse(f.find(node => node.attrs.name === 'records').value);
+  assert.equal(saved.length, 7);
+  assert.ok(saved.every(entry => entry.kaitiakitanga === 'Dem' && entry.rangatiratanga === 'Dem'));
+  assert.equal(saved.find(entry => entry.studentId === row.studentId && entry.cycle === 'eoy').coding, '3P');
+  assert.equal(saved.find(entry => entry.studentId === row.studentId && entry.cycle === 'eoy').comment, 'Keep this comment');
+  assert.equal(saved.find(entry => entry.studentId === 'k:former').coding, '5A');
+  assert.deepEqual(saved.filter(entry => entry.studentId === 'k:old').map(entry => entry.cycle).sort(), ['earlier', 'eoy']);
+  assert.equal(f.find(node => node.attrs.name === 'valuesDefault').value, 'Dem');
+  assert.equal(f.events.length, 1, 'The entire change is sent to Planner autosave once');
+  assert.ok(f.find(node => node.textContent.includes('Waiting for Planner autosave')));
+});
+
+test('failed or cancelled bulk update leaves all existing records and defaults unchanged', async () => {
+  const previous = JSON.stringify([row]);
+  const failed = fixture({ records: previous }, false, { request: async (url, directory) => {
+    if (url.endsWith('term=2')) throw new Error('Term 2 unavailable');
+    return directory;
+  } });
+  await settle();
+  await failed.click('Set all school values to Dem');
+  assert.equal(failed.find(node => node.attrs.name === 'records').value, previous);
+  assert.equal(failed.find(node => node.attrs.name === 'valuesDefault').value, '');
+  assert.equal(failed.events.length, 0);
+  assert.ok(failed.find(node => node.attrs.role === 'alert' && node.textContent.includes('No school values were changed')));
+  const cancelled = fixture({ records: previous }, false, { confirm: () => false });
+  await settle();
+  await cancelled.click('Set all school values to Dem');
+  assert.equal(cancelled.calls.length, 1);
+  assert.equal(cancelled.find(node => node.attrs.name === 'records').value, previous);
+  assert.equal(cancelled.events.length, 0);
+});
+
+test('Dem default adds later students in both cycles but never overwrites later manual values', async () => {
+  const f = fixture({ records: JSON.stringify([{ ...row, kaitiakitanga: 'Exe', rangatiratanga: '' }]), valuesDefault: 'Dem' });
+  await settle();
+  const entries = JSON.parse(f.find(node => node.attrs.name === 'records').value);
+  assert.equal(entries.length, 4);
+  assert.equal(entries.find(entry => entry.studentId === row.studentId && entry.cycle === 'eoy').kaitiakitanga, 'Exe');
+  assert.equal(entries.find(entry => entry.studentId === row.studentId && entry.cycle === 'eoy').rangatiratanga, '');
+  assert.ok(entries.filter(entry => entry.studentId === 'k:middle').every(entry =>
+    entry.kaitiakitanga === 'Dem' && entry.rangatiratanga === 'Dem'));
+  assert.equal(f.events.length, 1);
+  f.control('Reporting class list term').value = '2';
+  f.control('Reporting class list term').events.change();
+  await settle();
+  assert.equal(f.events.length, 1, 'Loading an existing roster does not rewrite it');
 });
 
 test('reporting restores saved entries and reports directory failures with retry', async () => {

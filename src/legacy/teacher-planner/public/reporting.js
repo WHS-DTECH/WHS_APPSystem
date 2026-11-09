@@ -8,7 +8,12 @@
     const area = el('section', '', { class: 'paper-page reporting-page' });
     const store = el('input', '', { type: 'hidden', name: 'records' });
     store.value = JSON.stringify(records);
-    area.append(store, el('h2', 'Reporting - ' + year));
+    const defaultStore = el('input', '', { type: 'hidden', name: 'valuesDefault' });
+    defaultStore.value = data.valuesDefault || '';
+    if (!schema.validContent({ records: store.value, valuesDefault: defaultStore.value })) {
+      throw new Error('Saved reporting defaults are invalid. No report records have been changed.');
+    }
+    area.append(store, defaultStore, el('h2', 'Reporting - ' + year));
     const reference = el('a', 'DTECH Assessment Criteria - Google Doc', {
       href: 'https://docs.google.com/document/d/1oA7xHQapbqE3myKKFL6T7oUMGxPbrm2BCE1rJQ51-gw/edit?usp=sharing',
       target: '_blank', rel: 'noopener noreferrer'
@@ -23,14 +28,65 @@
     const controls = el('div', '', { 'data-planner-navigation': '', class: 'reporting-controls' });
     const body = el('div');
     const feedback = el('p', 'Loading school classes...', { role: 'status', 'aria-live': 'polite' });
-    area.append(controls, feedback, body); host.append(area);
+    const defaultsPanel = el('section', '', { 'data-planner-navigation': '', 'aria-label': 'School values defaults' });
+    const bulk = el('button', 'Set all school values to Dem', { type: 'button' });
+    const bulkStatus = el('p', '', { role: 'status', 'aria-live': 'polite' });
+    defaultsPanel.append(el('p', 'Set both school values to Dem for both report cycles across all four term rosters, including hidden class tabs. Existing values will be overwritten; SLOs and comments are kept. Once enabled, newly seen students also receive Dem.'), bulk, bulkStatus);
+    area.append(defaultsPanel, controls, feedback, body); host.append(area);
     let directory, loadNumber = 0;
     const classButtons = new Map();
+    function defaultRow(studentId, programme, cycle) {
+      return { studentId, programme, cycle, coding: '', design: '',
+        kaitiakitanga: 'Dem', rangatiratanga: 'Dem', comment: '' };
+    }
+    function addNewStudents(next, directories) {
+      const known = new Set(next.map(row => JSON.stringify([row.studentId, row.programme, row.cycle])));
+      for (const list of directories) for (const programme of Object.keys(schema.programmes)) {
+        for (const group of schema.classGroups(list, programme)) for (const student of group.students) {
+          for (const cycle of ['eoy', 'earlier']) {
+            const key = JSON.stringify([student.id, programme, cycle]);
+            if (!known.has(key)) { next.push(defaultRow(student.id, programme, cycle)); known.add(key); }
+          }
+        }
+      }
+    }
+    function applyRecords(next, defaultValue) {
+      const encoded = JSON.stringify(next);
+      if (!schema.validContent({ records: encoded, valuesDefault: defaultValue })) {
+        throw new Error('The reporting storage limit or record validation was exceeded. No school values were changed.');
+      }
+      records.splice(0, records.length, ...next);
+      store.value = encoded; defaultStore.value = defaultValue;
+      store.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    bulk.addEventListener('click', async () => {
+      if (bulk.disabled || !confirm('Overwrite both school values with Dem for all JuniorDTECH and MiddleDTECH students across all four terms and both report cycles? This also sets Dem for new students. SLOs and comments remain unchanged.')) return;
+      bulk.disabled = true;
+      let applied = false;
+      bulkStatus.setAttribute('role', 'status');
+      bulkStatus.textContent = 'Checking all four term rosters; no values have been changed yet...';
+      try {
+        const lists = await Promise.all([1, 2, 3, 4].map(term => request('attendance/classes/' + year + '?term=' + term)));
+        if (!area.isConnected) return;
+        const next = records.map(row => ({ ...row, kaitiakitanga: 'Dem', rangatiratanga: 'Dem' }));
+        addNewStudents(next, lists);
+        applyRecords(next, 'Dem');
+        applied = true;
+        if (directory) render();
+        bulkStatus.textContent = 'Dem set for both values in both report cycles across all terms. New students default to Dem. Waiting for Planner autosave; confirm the saved message above.';
+      } catch (error) {
+        if (!area.isConnected) return;
+        console.error('Reporting school values update failed:', error.message);
+        bulkStatus.setAttribute('role', 'alert');
+        bulkStatus.textContent = applied ? 'Values were changed on this page; check the Planner save status before leaving. ' + error.message :
+          'No school values were changed. All four term rosters must load before this update: ' + error.message;
+      } finally { bulk.disabled = false; }
+    });
     function record(student, create = false) {
       let row = records.find(item => item.studentId === student.id && item.programme === state.programme && item.cycle === state.cycle);
       if (!row && create) {
         row = { studentId: student.id, programme: state.programme, cycle: state.cycle,
-          coding: '', design: '', kaitiakitanga: '', rangatiratanga: '', comment: '' };
+          coding: '', design: '', kaitiakitanga: defaultStore.value, rangatiratanga: defaultStore.value, comment: '' };
         records.push(row);
       }
       return row;
@@ -40,7 +96,7 @@
       const existing = record(student), row = existing || record(student, true), old = row[field];
       row[field] = value;
       const next = JSON.stringify(records);
-      if (!schema.validContent({ records: next })) {
+      if (!schema.validContent({ records: next, valuesDefault: defaultStore.value })) {
         row[field] = old; control.value = old;
         if (!existing) records.splice(records.indexOf(row), 1);
         feedback.setAttribute('role', 'alert');
@@ -155,6 +211,11 @@
       try {
         const result = await request('attendance/classes/' + year + '?term=' + selectedTerm);
         if (!area.isConnected || currentLoad !== loadNumber) return;
+        if (defaultStore.value === 'Dem') {
+          const next = records.map(row => ({ ...row }));
+          addNewStudents(next, [result]);
+          if (next.length !== records.length) applyRecords(next, 'Dem');
+        }
         directory = result; render();
       } catch (error) {
         if (!area.isConnected || currentLoad !== loadNumber) return;
@@ -163,8 +224,8 @@
         controls.replaceChildren();
         button(controls, 'Retry loading classes', false, loadClasses);
       }
-      termSelect.addEventListener('change', () => { state.classCode = ''; void loadClasses(); });
     }
+    termSelect.addEventListener('change', () => { state.classCode = ''; void loadClasses(); });
     void loadClasses();
   }
   globalThis.plannerReporting = { mount };

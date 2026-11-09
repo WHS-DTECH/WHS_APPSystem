@@ -29,7 +29,7 @@ const FIELDS = {
   learning: ['entries', 'applications', 'other'],
   assessmentSetup: ['selectedStandards'],
   moderation: moderationFields,
-  reporting: ['records']
+  reporting: ['records', 'valuesDefault']
 };
 const SLOTS = ['email', 'whanau', 'p1', 'p2', 'interval', 'p3', 'p4', 'lunch', 'p5', 'meetings', 'away'];
 const canManageSettings = user => user.roles.includes('ADMIN') || user.module_roles?.includes('lead-teacher');

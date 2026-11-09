@@ -18,7 +18,8 @@
         typeof row.comment === 'string' && row.comment.length <= 2000);
   }
   function validContent(content) {
-    if (!content || Object.keys(content).some(key => key !== 'records') ||
+    if (!content || Object.keys(content).some(key => !['records', 'valuesDefault'].includes(key)) ||
+      (content.valuesDefault !== undefined && !['', 'Dem'].includes(content.valuesDefault)) ||
       typeof content.records !== 'string' || content.records.length > 280000) return false;
     try { return validRecords(JSON.parse(content.records)) && new TextEncoder().encode(JSON.stringify(content)).length <= 300000; }
     catch { return false; }

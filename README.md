@@ -1445,6 +1445,19 @@ not delete report entries. Judgements remain shared across terms within the same
 report cycle; they are not term-specific. Reporting does not wait for attendance
 marks, PDF imports, or private timetable downloads.
 
+The **Set all school values to Dem** action is opt-in for the signed-in teacher
+and selected planner year. After confirmation it loads all four term snapshots
+and sets Kaitiakitanga and Rangatiratanga to Dem in both cycles for every
+JuniorDTECH/MiddleDTECH student found, including hidden class tabs; it also
+overwrites school values in existing reporting drafts, even if a student is
+absent from the selected term. SLOs and comments are preserved. If any term
+roster fails to load, nothing is changed; import missing snapshots first.
+The change is a normal private Planner edit: wait for the Planner autosave
+confirmation before leaving. Once enabled, newly seen students get Dem for both
+values in both cycles when their term roster is loaded; subsequent manual
+choices, including blanks, are never overwritten by the ongoing default. This
+does not publish to KAMAR or change another teacher's reports.
+
 **Deployment:** before saving Reporting entries, run `npm run db:migrate:planner`
 in the service environment with the existing `TEACHER_PLANNER_DATABASE_URL` and
 its SSL setting. This explicitly runs the standalone Planner migration ledger,

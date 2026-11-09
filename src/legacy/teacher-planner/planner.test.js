@@ -445,6 +445,12 @@ test('real database persists every planner section, isolates users including adm
     assert.deepEqual((await (await get('2027/reporting/main')).json()).content, {});
     assert.deepEqual((await (await get('2026/reporting/main')).json()).content, report,
       'Rejected writes leave EOY and earlier-year judgements intact');
+    const withDefault = { ...report, valuesDefault: 'Dem' };
+    assert.equal((await put('2026/reporting/main', withDefault, 1)).status, 200);
+    assert.deepEqual((await (await get('2026/reporting/main')).json()).content, withDefault);
+    user=otherAdmin;
+    assert.deepEqual((await (await get('2026/reporting/main')).json()).content, {}, 'Default remains private to its owner');
+    user=owner;
     assert.equal((await put('2026/period/2026-10-12_p1',{title:'Updated plan'},1,'wrong')).status,403);
     assert.equal((await put('2026/period/2026-10-17_p1',{title:'Weekend'})).status,400);
     assert.equal((await put('2026/period/2026-10-12_p2',{title:'a'.repeat(201)})).status,400);
