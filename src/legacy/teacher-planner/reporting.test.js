@@ -64,12 +64,14 @@ function fixture(data = {}, fail = false, options = {}) {
   const host = el('main'), calls = [];
   const context = vm.createContext({ plannerReportingSchema: schema, Event, console, confirm: options.confirm || (() => true) });
   vm.runInContext(fs.readFileSync(path.join(__dirname, 'public', 'reporting.js'), 'utf8'), context);
-  context.plannerReporting.mount(host, { el, data, year: 2026, request: async url => {
+  const mountOptions = { el, data, year: 2026, request: async url => {
     calls.push(url);
     if (fail) throw new Error('School directory unavailable');
     if (options.request) return options.request(url, directory);
     return directory;
-  } });
+  } };
+  const remount = () => { host.replaceChildren(); context.plannerReporting.mount(host, mountOptions); };
+  remount();
   function all(node = host) { return [node, ...node.children.flatMap(child => all(child))]; }
   const find = predicate => all().find(predicate);
   const click = label => {
@@ -81,9 +83,107 @@ function fixture(data = {}, fail = false, options = {}) {
     const node = control(label); assert.ok(node, 'Missing control: ' + label);
     node.value = value; (node.events.change || node.events.input)({ stopPropagation() {} });
   };
-  return { all, find, click, control, enter, calls, events };
+  return { all, find, click, control, enter, calls, events, remount };
 }
 const settle = () => new Promise(resolve => setImmediate(resolve));
+test('Junior award guide uses the exact year-level thresholds and ignores missing, UAG and unknown levels', () => {
+  for (const [year, level, expected] of [
+    ['7', '', false], ['7', 'UAG', false], ['7', '3P', false], ['7', '4B', false],
+    ['7', '4P', true], ['7', '4A', true], ['8', '4P', false], ['8', '4A', true],
+    ['8', '6B', false], ['9', '4A', false], ['7', 'invalid', false]
+  ]) assert.equal(schema.juniorAwardMeetsGuide(year, level), expected, year + ' ' + level);
+});
+
+test('Awards shows a read-only deduplicated four-term JuniorDTECH EOY guide', async () => {
+  const students = {
+    one: { id: row.studentId, name: 'Student One', yearLevel: '7' },
+    two: { id: 'k:two', name: 'Student Two', yearLevel: '8' },
+    three: { id: 'k:three', name: 'Student Three', yearLevel: '7' },
+    middle: { id: 'k:middle', name: 'Middle Student', yearLevel: '9' }
+  };
+  const entries = [
+    { ...row, coding: '4P', design: '4B' },
+    { ...row, cycle: 'earlier', coding: '3P', design: '3P' },
+    { ...row, studentId: 'k:two', coding: '4P', design: '4A' },
+    { ...row, studentId: 'k:three', coding: 'UAG', design: '' }
+  ];
+  const f = fixture({ records: JSON.stringify(entries) }, false, { request: async url => {
+    const term = Number(url.slice(-1));
+    return { classes: [
+      { code: 'TEST-JDTECH', students: term === 1 ? [students.one, students.three] : [students.one, students.two] },
+      { code: 'OTHER-DTECH', students: [students.two, term === 1 ? { ...students.middle, yearLevel: '8' } : students.middle] },
+      { code: 'TEST-MATH', students: [{ id: 'k:math', name: 'Math Student', yearLevel: '7' }] }
+    ] };
+  } });
+  await settle();
+  f.click('4. Awards');
+  await settle();
+  assert.deepEqual(f.calls.slice(1).sort(), [1, 2, 3, 4].map(term => 'attendance/classes/2026?term=' + term));
+  assert.ok(f.find(node => node.textContent === '3 JuniorDTECH students across all four terms, without duplicates.'));
+  assert.equal(f.all().filter(node => node.tag === 'th' && node.textContent === 'Student One').length, 1);
+  assert.equal(f.find(node => node.textContent === 'Middle Student'), undefined);
+  assert.equal(f.find(node => node.textContent === 'Math Student'), undefined);
+  assert.equal(f.all().filter(node => node.attrs.class === 'reporting-award-meets').length, 2);
+  assert.ok(f.find(node => node.textContent === '4P - Meets guide'));
+  assert.ok(f.find(node => node.textContent === '4A - Meets guide'));
+  assert.ok(f.find(node => node.textContent === 'UAG'));
+  assert.ok(f.find(node => node.textContent === 'Not entered'));
+  assert.ok(f.find(node => node.textContent.includes('End of Year SLO judgements')));
+  assert.equal(f.find(node => node.attrs['aria-label'] === 'Report cycle'), undefined);
+  assert.equal(f.find(node => node.attrs['aria-label'] === 'Class report entries'), undefined);
+  assert.equal(f.find(node => node.attrs.name === 'records').value, JSON.stringify(entries));
+  assert.equal(f.events.length, 0);
+  f.remount();
+  await settle();
+  await settle();
+  assert.ok(f.control('JuniorDTECH awards achievement guide'), 'Awards reloads after reopening Reporting');
+  assert.equal(f.events.length, 0);
+  f.click('1. Student Learning Objectives');
+  assert.ok(f.control('Report cycle'));
+  assert.equal(f.events.length, 0);
+});
+
+test('Awards reports incomplete rosters and retries, without displaying a partial result', async () => {
+  let broken = true;
+  const f = fixture({}, false, { request: async (url, directory) => {
+    if (broken && url.endsWith('term=2')) throw new Error('Snapshot missing');
+    return directory;
+  } });
+  await settle();
+  f.click('4. Awards');
+  await settle();
+  assert.ok(f.find(node => node.attrs.role === 'alert' && node.textContent.includes('Term 2: Snapshot missing')));
+  assert.equal(f.control('JuniorDTECH awards achievement guide'), undefined);
+  broken = false;
+  f.click('Retry loading awards');
+  await settle();
+  assert.ok(f.control('JuniorDTECH awards achievement guide'));
+  assert.equal(f.events.length, 0);
+});
+
+test('Awards ignores responses after leaving or reopening the view', async () => {
+  let release;
+  let delayed = false;
+  const f = fixture({}, false, { request: async (url, directory) => {
+    if (delayed && url.endsWith('term=2')) return new Promise(resolve => { release = () => resolve(directory); });
+    return directory;
+  } });
+  await settle();
+  delayed = true;
+  f.click('4. Awards');
+  await settle();
+  f.click('1. Student Learning Objectives');
+  release();
+  await settle();
+  assert.ok(f.control('Synthetic Junior: Computational Thinking - Coding'));
+  assert.equal(f.control('JuniorDTECH awards achievement guide'), undefined);
+  delayed = false;
+  f.click('4. Awards');
+  await settle();
+  assert.ok(f.control('JuniorDTECH awards achievement guide'));
+  assert.equal(f.events.length, 0);
+});
+
 test('default panels follow the selected report part without changing saved data', async () => {
   const f = fixture({ records: JSON.stringify([row]) });
   const values = f.control('School values defaults');

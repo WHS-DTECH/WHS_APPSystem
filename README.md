@@ -1419,7 +1419,7 @@ remove a uniquely named test schema, never use a live Kamar connection.
 ### Reporting
 
 The **Reporting** section provides JuniorDTECH and MiddleDTECH programme tabs,
-then class tabs and three report-part pages. A permanent
+then class tabs and report-part pages, plus an Awards view. A permanent
 [DTECH Assessment Criteria Google Doc](https://docs.google.com/document/d/1oA7xHQapbqE3myKKFL6T7oUMGxPbrm2BCE1rJQ51-gw/edit?usp=sharing)
 shortcut opens in a new tab.
 
@@ -1451,6 +1451,17 @@ not delete report entries. SLOs and comments remain shared across terms within
 each report cycle; JuniorDTECH has a separate judgement for each term's value.
 Reporting does not wait for attendance marks, PDF imports, or private timetable
 downloads.
+
+The read-only **Awards** view combines the signed-in teacher's JuniorDTECH
+classes from the latest preserved timetable in each of the four terms,
+deduplicating students by school ID. It uses End of Year SLO judgements and
+highlights individual SLOs at or above the Kaha Mohio achievement guide:
+Year 7 4P and Year 8 4A. When a student appears in multiple terms, the most
+recent term's name and year level are used. Missing or UAG entries are not
+highlighted. The view is a guide for teacher review, not a nomination,
+eligibility decision or award; the Technology-wide 20% selection is separate.
+All four term rosters must load, otherwise the view reports the error and offers
+a retry rather than displaying a partial list. Opening it does not alter reports.
 
 The **Default school values to Dem** action is a one-time opt-in for the
 signed-in teacher and selected planner year, shown on the School Values tab.

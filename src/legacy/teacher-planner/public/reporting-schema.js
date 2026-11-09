@@ -10,6 +10,11 @@
     ['whanaungatanga', 'Whānaungatanga'], ['manaakitanga', 'Manaakitanga'],
     ['rangatiratanga', 'Rangatiratanga'], ['kaitiakitanga', 'Kaitiakitanga']
   ];
+  function juniorAwardMeetsGuide(yearLevel, level) {
+    const threshold = { '7': '4P', '8': '4A' }[yearLevel];
+    const levels = programmes.junior.levels;
+    return Boolean(threshold && level && level !== 'UAG' && levels.indexOf(level) >= levels.indexOf(threshold));
+  }
   function validRecords(records) {
     return Array.isArray(records) && records.length <= 1000 &&
       new Set(records.map(row => JSON.stringify([row?.studentId, row?.programme, row?.cycle]))).size === records.length &&
@@ -59,7 +64,7 @@
     remaining.splice(first, 0, combined);
     return remaining;
   }
-  const schema = { programmes, values, juniorValues, validRecords, validContent, complete, classGroups };
+  const schema = { programmes, values, juniorValues, juniorAwardMeetsGuide, validRecords, validContent, complete, classGroups };
   if (typeof module !== 'undefined' && module.exports) module.exports = schema;
   else root.plannerReportingSchema = schema;
 })(globalThis);

@@ -833,7 +833,7 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(groups[1][2], />Setup<\/h2>/);
   assert.match(groups[2][2], />Section Modules<\/h2>/);
   assert.equal([...groups[2][2].matchAll(/disabled title="Page coming soon"/g)].length, 4);
-  assert.match(html, /planner\.css\?v=reporting-34/);
+  assert.match(html, /planner\.css\?v=reporting-35/);
   assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=manual-sync-34"'));
   assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=manual-sync-34"'));
   const heading = html.match(/<header class="planner-heading">([\s\S]*?)<\/header>/)[1];

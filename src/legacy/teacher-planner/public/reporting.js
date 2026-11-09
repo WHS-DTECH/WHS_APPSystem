@@ -45,7 +45,7 @@
     }
     updateDefaultPanels();
     area.append(defaultsPanel, sloPanel, controls, feedback, body); host.append(area);
-    let directory, loadNumber = 0;
+    let directory, loadNumber = 0, awardsLoadNumber = 0, awardsStudents, awardsError = '';
     const classButtons = new Map();
     function defaultRow(studentId, programme, cycle, valuesDefault, sloDefault) {
       const slo = programme === 'junior' ? sloDefault : '';
@@ -173,22 +173,84 @@
           'MiddleDTECH requires both SLOs and both school values. ') +
         (state.cycle === 'eoy' ? 'Comments are optional for EOY.' : 'An earlier-year comment is required.');
     }
+    async function loadAwards() {
+      const currentLoad = ++awardsLoadNumber;
+      awardsStudents = undefined; awardsError = '';
+      render();
+      try {
+        const lists = await Promise.all([1, 2, 3, 4].map(async term => {
+          try { return await request('attendance/classes/' + year + '?term=' + term); }
+          catch (error) { throw new Error('Term ' + term + ': ' + error.message); }
+        }));
+        if (!area.isConnected || currentLoad !== awardsLoadNumber || state.part !== 'awards') return;
+        const students = new Map();
+        for (const list of lists) for (const group of list.classes) {
+          if (/DTECH/i.test(group.code)) for (const student of group.students) students.set(student.id, student);
+        }
+        awardsStudents = [...students.values()].filter(student => schema.programmes.junior.years.includes(student.yearLevel))
+          .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+      } catch (error) {
+        if (!area.isConnected || currentLoad !== awardsLoadNumber || state.part !== 'awards') return;
+        console.error('Reporting awards rosters failed:', error.message);
+        awardsError = error.message;
+      }
+      render();
+    }
+    function renderAwards() {
+      feedback.setAttribute('role', awardsError ? 'alert' : 'status');
+      if (awardsError) {
+        feedback.textContent = 'Unable to load all four term rosters. No incomplete award list is shown. ' + awardsError;
+        button(body, 'Retry loading awards', false, () => { void loadAwards(); });
+        return;
+      }
+      if (!awardsStudents) {
+        feedback.textContent = 'Loading JuniorDTECH classes from all four terms...';
+        return;
+      }
+      feedback.textContent = awardsStudents.length + ' JuniorDTECH students across all four terms, without duplicates.';
+      body.append(el('h3', 'Kaha Mohio - achievement guide'));
+      body.append(el('p', 'End of Year SLO judgements are shown. Highlighted cells marked “Meets guide” are at or above 4P for Year 7 or 4A for Year 8. This is a guide for teacher review, not a nomination or award decision. The Technology-wide 20% selection is separate.'));
+      if (!awardsStudents.length) {
+        body.append(el('p', 'No JuniorDTECH students were found in your four term rosters.'));
+        return;
+      }
+      const scroll = el('div', '', { class: 'reporting-scroll', tabindex: '0', role: 'region', 'aria-label': 'JuniorDTECH awards achievement guide' });
+      const table = el('table', '', { class: 'reporting-table' }), head = el('tr'), tbody = el('tbody');
+      for (const label of ['Student', 'Year', 'Computational Thinking - Coding', 'Design & Develop a Digital Outcome']) {
+        head.append(el('th', label, { scope: 'col' }));
+      }
+      const thead = el('thead'); thead.append(head); table.append(thead, tbody); scroll.append(table); body.append(scroll);
+      for (const student of awardsStudents) {
+        const entry = records.find(row => row.studentId === student.id && row.programme === 'junior' && row.cycle === 'eoy');
+        const tr = el('tr');
+        tr.append(el('th', student.name, { scope: 'row' }), el('td', student.yearLevel));
+        for (const field of ['coding', 'design']) {
+          const value = entry?.[field] || '';
+          const meets = schema.juniorAwardMeetsGuide(student.yearLevel, value);
+          tr.append(el('td', value ? value + (meets ? ' - Meets guide' : '') : 'Not entered',
+            meets ? { class: 'reporting-award-meets' } : {}));
+        }
+        tbody.append(tr);
+      }
+    }
     function render() {
       updateDefaultPanels();
       controls.replaceChildren(); body.replaceChildren(); classButtons.clear();
+      termLabel.hidden = state.part === 'awards';
       const cycleLabel = el('label', 'Report cycle ');
       const cycle = el('select', '', { 'aria-label': 'Report cycle' });
       for (const [value, label] of [['eoy', 'End of Year'], ['earlier', 'Earlier year']]) cycle.append(el('option', label, { value }));
       cycle.value = state.cycle;
       cycle.addEventListener('change', () => { state.cycle = cycle.value; render(); });
-      cycleLabel.append(cycle); controls.append(cycleLabel);
+      cycleLabel.append(cycle);
+      if (state.part !== 'awards') controls.append(cycleLabel);
       const programmes = el('div', '', { class: 'reporting-tabs', role: 'group', 'aria-label': 'Programme' });
       for (const [key, programme] of Object.entries(schema.programmes)) {
         button(programmes, programme.label, state.programme === key, () => {
           state.programme = key; state.classCode = ''; render();
         });
       }
-      controls.append(programmes);
+      if (state.part !== 'awards') controls.append(programmes);
       const classes = groups();
       if (!classes.some(group => group.code === state.classCode)) state.classCode = classes[0]?.code || '';
       const tabs = el('div', '', { class: 'reporting-tabs', role: 'group', 'aria-label': 'Class' });
@@ -197,12 +259,17 @@
         classButtons.set(group.code, button(tabs, `${group.code} (${done}/${group.students.length})`, group.code === state.classCode,
           () => { state.classCode = group.code; render(); }));
       }
-      controls.append(tabs);
+      if (state.part !== 'awards') controls.append(tabs);
       const parts = el('div', '', { class: 'reporting-tabs', role: 'group', 'aria-label': 'Report part' });
-      for (const [key, label] of [['slo', '1. Student Learning Objectives'], ['values', '2. School Values'], ['comments', '3. Report Comments']]) {
-        button(parts, label, state.part === key, () => { state.part = key; render(); });
+      for (const [key, label] of [['slo', '1. Student Learning Objectives'], ['values', '2. School Values'], ['comments', '3. Report Comments'], ['awards', '4. Awards']]) {
+        button(parts, label, state.part === key, () => {
+          state.part = key;
+          if (key === 'awards') void loadAwards();
+          else { awardsLoadNumber++; render(); }
+        });
       }
       controls.append(parts);
+      if (state.part === 'awards') { renderAwards(); return; }
       const filterLabel = el('label', ' Incomplete students only');
       const filter = el('input', '', { type: 'checkbox' }); filter.checked = state.incomplete;
       filter.addEventListener('change', () => { state.incomplete = filter.checked; render(); });
@@ -265,7 +332,9 @@
           addNewStudents(next, [result], defaultStore.value, sloDefaultStore.value, programmes);
           if (next.length !== records.length) applyRecords(next, defaultStore.value);
         }
-        directory = result; render();
+        directory = result;
+        if (state.part === 'awards') void loadAwards();
+        else render();
       } catch (error) {
         if (!area.isConnected || currentLoad !== loadNumber) return;
         console.error('Reporting class list failed:', error.message);
