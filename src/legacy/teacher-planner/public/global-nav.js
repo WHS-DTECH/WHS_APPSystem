@@ -101,7 +101,7 @@
       link(nav, 'Dashboard', '/dashboard');
       link(nav, 'Launchpad', '/launchpad');
       link(nav, 'Profile', '/profile');
-      link(nav, 'Report a fault', '/faults/new');
+      link(nav, 'Fault / feature request', '/faults/new');
       link(nav, 'My fault reports', '/faults');
       if (data.isAdmin) {
         link(nav, 'Admin', '/admin');
@@ -216,8 +216,8 @@
     }
     header.replaceChildren();
     var fault = el('a', { 'class': 'whs-report-fault', href: coreOrigin + '/faults/new' });
-    fault.appendChild(el('span', { 'class': 'whs-fault-invitation' }, 'Something not working? '));
-    fault.appendChild(el('span', {}, 'Report a fault'));
+    fault.appendChild(el('span', { 'class': 'whs-fault-invitation' }, 'Something not working or have an idea? '));
+    fault.appendChild(el('span', {}, 'Fault / feature request'));
     if (!data || data.error) {
       header.appendChild(fault);
       header.appendChild(el('span', { role: data ? 'alert' : 'status' }, data ? 'School account could not be loaded.' : 'Loading school account...'));

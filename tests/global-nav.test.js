@@ -31,7 +31,8 @@ test('shared account header includes fault reporting next to login/sign-out, eve
     const faults = header.children.filter(child => child.attrs.class === 'whs-report-fault');
     assert.equal(faults.length, 1);
     assert.equal(faults[0].attrs.href, 'https://core.example.test/faults/new');
-    assert.equal(faults[0].children.map(child => child.text).join(''), 'Something not working? Report a fault');
+    assert.equal(faults[0].children.map(child => child.text).join(''),
+      'Something not working or have an idea? Fault / feature request');
     const account = header.children.find(child => ['whs-google-signin', 'whs-signout-pill'].includes(child.attrs.class));
     if (account) assert.ok(header.children.indexOf(faults[0]) < header.children.indexOf(account));
   }
