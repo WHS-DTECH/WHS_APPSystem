@@ -1,12 +1,18 @@
 <%- include('../partials/header') %>
 <link rel="stylesheet" href="/contact.css">
 <section class="panel whs-contact">
-  <h1>Report a fault</h1>
-  <p>Something not working? Save a report for the WHS Helpdesk. You can track its status and replies in <a href="/faults">My fault reports</a>.</p>
+  <h1>Report a fault or request a feature</h1>
+  <p>Save a report for the WHS Helpdesk. You can track its status and replies in <a href="/faults">My fault reports</a>. Feature requests are suggestions for review, not a commitment to implement.</p>
   <p>Reporting as <strong><%= sender %></strong>. Do not include passwords, student records or other sensitive information.</p>
   <% if (message) { %><p role="alert"><%= message %></p><% } %>
   <form action="/faults" method="post">
     <input type="hidden" name="csrf" value="<%= csrf %>">
+    <label for="fault-type">What would you like to report?</label>
+    <select id="fault-type" name="reportType" required aria-describedby="fault-type-help">
+      <option value="fault" <%= !values.reportType || values.reportType === 'fault' ? 'selected' : '' %>>Something is not working</option>
+      <option value="feature" <%= values.reportType === 'feature' ? 'selected' : '' %>>Request a feature</option>
+    </select>
+    <p id="fault-type-help">Choose a fault report for an issue, or a feature request to suggest an improvement.</p>
     <label for="fault-subject">Brief summary</label>
     <input id="fault-subject" name="subject" maxlength="150" required value="<%= values.subject || '' %>">
     <label for="fault-app">Module</label>
@@ -29,10 +35,10 @@
       <% } %>
     </select>
     <p id="fault-url-help" role="status">Choose a module to see its main pages and sections. No URL copying is needed.</p>
-    <label for="fault-description">What went wrong?</label>
+    <label for="fault-description" id="fault-description-label"><%= values.reportType === 'feature' ? 'What would you like to be able to do?' : 'What went wrong?' %></label>
     <textarea id="fault-description" name="description" rows="10" maxlength="10000" required aria-describedby="fault-description-help"><%= values.description || '' %></textarea>
-    <p id="fault-description-help">Include what you clicked, what you expected, what happened instead, any error message, and roughly when it happened.</p>
-    <button class="button button-primary" type="submit" <%= modules.length ? '' : 'disabled' %>>Submit fault report</button>
+    <p id="fault-description-help"><%= values.reportType === 'feature' ? 'Describe the improvement you need and how it would help. Do not include passwords, student records or other sensitive information.' : 'Include what you clicked, what you expected, what happened instead, any error message, and roughly when it happened.' %></p>
+    <button class="button button-primary" type="submit" <%= modules.length ? '' : 'disabled' %>><%= values.reportType === 'feature' ? 'Submit feature request' : 'Submit fault report' %></button>
   </form>
   <p><a href="/launchpad">Back to Launchpad</a></p>
 </section>

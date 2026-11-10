@@ -330,10 +330,12 @@ its registry destination. Notify assigned users only after acceptance testing.
 
 ### Fault reporting and Helpdesk
 
-Migration 051 creates `helpdesk_faults` in Core `DATABASE_URL`. Active signed-in
-users can report a fault without a module assignment, including when an app is
-missing from Launchpad. The separate form records the authenticated reporter,
-summary, module, optional named page and fault details. The module dropdown uses
+Migrations 051-052 create and extend `helpdesk_faults` in Core `DATABASE_URL`.
+Active signed-in users can report a fault or request a feature without a module
+assignment, including when an app is missing from Launchpad. The form records
+the authenticated reporter, report type, summary, module, optional named page
+and details. Feature requests are suggestions for Helpdesk review and do not
+promise implementation. The module dropdown uses
 the signed-in user's active module assignments/permissions; Launchpad / school
 account is always available for account or missing-app problems. The Page dropdown
 updates for the selected module and lists curated main pages/sections, not private
@@ -346,7 +348,7 @@ or secrets. No screenshots or attachments are collected.
 
 Reports are saved directly to the database, not dependent on email delivery.
 After saving, Global Control's shared Gmail service emails the ticket number,
-verified reporter, summary, module, selected page, fault details and an ADMIN
+type, verified reporter, summary, module, selected page, details and an ADMIN
 Helpdesk link to `tech@westlandhigh.school.nz`, with the reporter as Reply-To.
 Delivery is recorded in the existing Email Service log. The submission confirmation
 states whether email was sent; if delivery fails or Gmail is unconfigured, the

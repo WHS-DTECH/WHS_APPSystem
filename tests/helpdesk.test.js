@@ -22,8 +22,8 @@ async function fixture(t, queryOverride, options = {}) {
     calls.push({ sql, params });
     if (failed) throw new Error('Synthetic database unavailable');
     if (sql.startsWith('INSERT')) {
-      const ticket = { id: params[0], reporter_id: params[1], subject: params[2], app_name: params[3],
-        page_url: params[4], description: params[5], ticket_number: String(tickets.size + 1), status: 'open', reply: '',
+      const ticket = { id: params[0], reporter_id: params[1], ticket_type: params[2], subject: params[3], app_name: params[4],
+        page_url: params[5], description: params[6], ticket_number: String(tickets.size + 1), status: 'open', reply: '',
         revision: 1, created_at: new Date('2026-11-05T01:00:00Z'), updated_at: new Date('2026-11-05T01:00:00Z'),
         reporter_name: 'Synthetic Teacher', reporter_email: 'teacher@example.test' };
       tickets.set(ticket.id, ticket);
@@ -84,6 +84,9 @@ async function fixture(t, queryOverride, options = {}) {
 }
 
 test('fault input validates fields and strips page query strings and fragments without allowing credentials', () => {
+  assert.equal(faultInput(body).reportType, 'fault');
+  assert.equal(faultInput({ ...body, reportType: 'feature' }).reportType, 'feature');
+  assert.throws(() => faultInput({ ...body, reportType: 'other' }));
   assert.equal(faultInput({ ...body, pageUrl: '/launchpad?token=private#details' }).pageUrl, '/launchpad');
   assert.equal(faultInput({ ...body, pageUrl: 'https://app.example.test/page?q=secret#private' }).pageUrl, 'https://app.example.test/page');
   assert.equal(faultInput({ ...body, pageUrl: '' }).pageUrl, '');
@@ -101,6 +104,7 @@ test('fault reporting saves verified identity, escapes reports and allows only o
   assert.equal(created.status, 303);
   const ticket = [...f.tickets.values()][0];
   assert.equal(ticket.reporter_id, owner);
+  assert.equal(ticket.ticket_type, 'fault');
   assert.equal(ticket.status, 'open');
   assert.equal(ticket.page_url, '/launchpad');
   assert.equal(f.emails.length, 1);
@@ -167,6 +171,9 @@ test('fault form offers module/page dropdowns and server rejects inaccessible mo
   const html = await (await f.get('/faults/new', auth)).text();
   assert.match(html, /<select id="fault-app" name="moduleKey" required/);
   assert.match(html, /<select id="fault-url" name="pageUrl"/);
+  assert.match(html, /<select id="fault-type" name="reportType" required/);
+  assert.match(html, /Request a feature/);
+  assert.match(html, /Feature requests are suggestions for review, not a commitment to implement/);
   assert.match(html, /Two-Week Attendance/);
   assert.doesNotMatch(html, /name="appName"|<input id="fault-url"/);
   for (const change of [
@@ -175,6 +182,24 @@ test('fault form offers module/page dropdowns and server rejects inaccessible mo
   ]) assert.equal((await f.post('/faults', { ...body, ...change }, auth)).status, 400);
   assert.equal(f.tickets.size, 0);
   assert.equal(f.emails.length, 0);
+});
+
+test('feature requests are saved, labeled, and emailed distinctly from faults', async t => {
+  const f = await fixture(t), auth = await f.login(owner), adminAuth = await f.login(admin);
+  const response = await f.post('/faults', { ...body, reportType: 'feature',
+    subject: 'Add an awards view', description: 'It would help me see progress across the year.' }, auth);
+  assert.equal(response.status, 303);
+  const [ticket] = f.tickets.values();
+  assert.equal(ticket.ticket_type, 'feature');
+  assert.match(f.emails[0].subject, /\[Helpdesk\] Feature request #1: Add an awards view/);
+  assert.match(f.emails[0].text, /Type: Feature request/);
+  const userDetail = await (await f.get(response.headers.get('location'), auth)).text();
+  assert.match(userDetail, /Feature request #1: Add an awards view/);
+  assert.match(userDetail, /Feature request details/);
+  const userList = await (await f.get('/faults', auth)).text();
+  assert.match(userList, /<td>Feature request<\/td>/);
+  const adminDetail = await (await f.get('/admin/helpdesk/' + ticket.id, adminAuth)).text();
+  assert.match(adminDetail, /Feature request #1/);
 });
 
 test('faults preserve approved planner section links and derive module name on the server', async t => {
@@ -187,17 +212,19 @@ test('faults preserve approved planner section links and derive module name on t
   assert.equal(ticket.page_url, '/teacher-planner/#section=attendance');
   assert.match(f.emails[0].text, /Module: Teacher Planner/);
   const saved = await (await f.get(response.headers.get('location'), auth)).text();
-  assert.match(saved, /Fault details were emailed to tech@westlandhigh.school.nz/);
+  assert.match(saved, /Report details were emailed to tech@westlandhigh.school.nz/);
 });
 
 test('fault dropdown choices survive validation/save errors and an unspecified page is allowed', async t => {
   t.mock.method(console, 'error', () => {});
   const f = await fixture(t), auth = await f.login(owner);
-  const values = { ...body, moduleKey: 'teacher-planner', pageUrl: '/teacher-planner/#section=week' };
+  const values = { ...body, reportType: 'feature', moduleKey: 'teacher-planner', pageUrl: '/teacher-planner/#section=week' };
   const invalid = await f.post('/faults', { ...values, subject: '', description: '<retained>' }, auth);
   assert.equal(invalid.status, 400);
   const invalidHtml = await invalid.text();
   assert.match(invalidHtml, /value="teacher-planner" selected/);
+  assert.match(invalidHtml, /value="feature" selected/);
+  assert.match(invalidHtml, /What would you like to be able to do\?/);
   assert.match(invalidHtml, /value="\/teacher-planner\/#section=week" selected/);
   assert.match(invalidHtml, /&lt;retained&gt;/);
   const unspecified = await f.post('/faults', { ...values, pageUrl: '' }, auth);
@@ -314,15 +341,18 @@ test('Helpdesk migration and complete report/status workflow persist in PostgreS
     for (const id of [owner, other, admin]) {
       await client.query('INSERT INTO users(id,display_name,email) VALUES($1,$2,$3)', [id, 'Synthetic User', 'synthetic@example.test']);
     }
-    const migration = fs.readFileSync(path.join(__dirname, '..', 'migrations', '051_helpdesk_faults.sql'), 'utf8');
-    await client.query(migration);
-    await client.query(migration);
+    for (const name of ['051_helpdesk_faults.sql', '052_helpdesk_feature_requests.sql']) {
+      const migration = fs.readFileSync(path.join(__dirname, '..', 'migrations', name), 'utf8');
+      await client.query(migration);
+      await client.query(migration);
+    }
     const f = await fixture(t, (sql, params) => client.query(sql, params));
     const auth = await f.login(owner), otherAuth = await f.login(other), adminAuth = await f.login(admin);
     const response = await f.post('/faults', body, auth);
     assert.equal(response.status, 303);
     const [ticket] = (await client.query('SELECT * FROM helpdesk_faults')).rows;
     assert.equal(ticket.reporter_id, owner);
+    assert.equal(ticket.ticket_type, 'fault');
     assert.equal(ticket.page_url, '/launchpad');
     assert.equal(ticket.ticket_number, '1');
     assert.equal((await f.get('/faults/' + ticket.id, otherAuth)).status, 404);

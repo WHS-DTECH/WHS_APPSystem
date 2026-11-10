@@ -19,7 +19,9 @@ const cleanText = (value, max, required = false) => typeof value === 'string' &&
 
 function faultInput(body) {
   const text = key => typeof body[key] === 'string' ? body[key].trim() : '';
-  const values = { subject: text('subject'), appName: text('appName'), pageUrl: text('pageUrl'), description: text('description') };
+  const reportType = body.reportType === undefined || body.reportType === '' ? 'fault' : body.reportType;
+  const values = { reportType, subject: text('subject'), appName: text('appName'), pageUrl: text('pageUrl'), description: text('description') };
+  if (!['fault', 'feature'].includes(values.reportType)) throw new Error('Choose a fault report or feature request.');
   if (!cleanText(values.subject, 150, true) || /[\r\n]/.test(values.subject) ||
     !cleanText(values.appName, 100, true) || /[\r\n]/.test(values.appName) ||
     !cleanText(values.description, 10000, true) || !cleanText(values.pageUrl, 2048)) {
@@ -75,7 +77,7 @@ function createHelpdeskRouters({ dbQuery = query, modulesForUser = faultModules,
       message += ' The module list could not be loaded. Your draft has not been submitted. Please reload or email ' + RECIPIENT + ' directly.';
     }
     return res.status(code).render('faults/new', {
-      title: 'Report a fault', csrf: req.session.faultCsrf, message, values, modules, sender: req.user.email
+      title: 'Report a fault or request a feature', csrf: req.session.faultCsrf, message, values, modules, sender: req.user.email
     });
   }
   function list(manage) {
@@ -88,7 +90,7 @@ function createHelpdeskRouters({ dbQuery = query, modulesForUser = faultModules,
         return res.status(400).render('error', { title: 'Invalid filter', message: 'Choose a valid ticket status and page.' });
       }
       try {
-        const result = await dbQuery(`SELECT f.id,f.ticket_number,f.subject,f.app_name,f.status,f.created_at,
+        const result = await dbQuery(`SELECT f.id,f.ticket_number,f.ticket_type,f.subject,f.app_name,f.status,f.created_at,
           u.display_name AS reporter_name FROM helpdesk_faults f JOIN users u ON u.id=f.reporter_id
           WHERE ($1::uuid IS NULL OR f.reporter_id=$1) AND ($2::text='' OR f.status=$2)
           ORDER BY f.created_at DESC,f.id LIMIT 26 OFFSET $3`,
@@ -114,9 +116,12 @@ function createHelpdeskRouters({ dbQuery = query, modulesForUser = faultModules,
         const notification = !manage && req.session.faultNotification?.id === req.params.id
           ? req.session.faultNotification : null;
         if (notification) delete req.session.faultNotification;
-        res.render('faults/detail', { title: 'Fault #' + result.rows[0].ticket_number, ticket: result.rows[0], manage,
+        const typeLabel = result.rows[0].ticket_type === 'feature' ? 'Feature request' : 'Fault';
+        const savedMessage = result.rows[0].ticket_type === 'feature' ?
+          'Your feature request has been saved to Helpdesk.' : 'Your fault report has been saved to Helpdesk.';
+        res.render('faults/detail', { title: typeLabel + ' #' + result.rows[0].ticket_number, ticket: result.rows[0], manage,
           csrf: req.session.faultCsrf, statuses, formatDate,
-          message: notification ? notification.message : req.query.created === '1' ? 'Your fault report has been saved to Helpdesk.' :
+          message: notification ? notification.message : req.query.created === '1' ? savedMessage :
             req.query.saved === '1' && manage ? 'Ticket updated.' : '' });
       } catch (error) { next(error); }
     };
@@ -147,7 +152,7 @@ function createHelpdeskRouters({ dbQuery = query, modulesForUser = faultModules,
     }
     catch (error) {
       console.warn('[helpdesk] Invalid fault form.');
-      const retained = Object.fromEntries(['subject', 'moduleKey', 'pageUrl', 'description'].map(key =>
+      const retained = Object.fromEntries(['reportType', 'subject', 'moduleKey', 'pageUrl', 'description'].map(key =>
         [key, typeof req.body[key] === 'string' ? req.body[key].slice(0, key === 'description' ? 10000 : 2048) : '']));
       return renderForm(req, res, 400, error.message, retained);
     }
@@ -157,9 +162,9 @@ function createHelpdeskRouters({ dbQuery = query, modulesForUser = faultModules,
     }
     let ticket;
     try {
-      const result = await dbQuery(`INSERT INTO helpdesk_faults(id,reporter_id,subject,app_name,page_url,description)
-        VALUES ($1,$2,$3,$4,$5,$6) RETURNING id,ticket_number`,
-      [crypto.randomUUID(), req.user.id, values.subject, values.appName, values.pageUrl, values.description]);
+      const result = await dbQuery(`INSERT INTO helpdesk_faults(id,reporter_id,ticket_type,subject,app_name,page_url,description)
+        VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id,ticket_number`,
+      [crypto.randomUUID(), req.user.id, values.reportType, values.subject, values.appName, values.pageUrl, values.description]);
       if (!result.rows.length) throw new Error('Fault insert returned no ticket.');
       ticket = result.rows[0];
     } catch (error) {
@@ -167,19 +172,20 @@ function createHelpdeskRouters({ dbQuery = query, modulesForUser = faultModules,
       return renderForm(req, res, 503, 'Your fault report was NOT saved. Please retry or email tech@westlandhigh.school.nz directly.', { ...values, moduleKey: req.body.moduleKey });
     }
     const ticketUrl = config.appBaseUrl + '/admin/helpdesk/' + ticket.id;
-    const text = [`Fault #${ticket.ticket_number}`, `Reporter: ${req.user.email}`,
+    const typeLabel = values.reportType === 'feature' ? 'Feature request' : 'Fault';
+    const text = [`${typeLabel} #${ticket.ticket_number}`, `Type: ${typeLabel}`, `Reporter: ${req.user.email}`,
       `Summary: ${values.subject}`, `Module: ${values.appName}`, `Page: ${values.pageUrl || 'Not selected'}`,
       '', values.description, '', `Manage ticket: ${ticketUrl}`].join('\n');
     let emailed = false;
     try {
       const result = await deliver({ to: [RECIPIENT], replyTo: req.user.email,
-        subject: `[Helpdesk] Fault #${ticket.ticket_number}: ${values.subject}`,
+        subject: `[Helpdesk] ${typeLabel} #${ticket.ticket_number}: ${values.subject}`,
         text, html: `<pre>${escapeHtml(text)}</pre>` });
       emailed = result.ok === true;
       if (!emailed) console.error('[helpdesk] Fault notification email was not sent.');
     } catch (error) { console.error('[helpdesk] Fault notification email failed:', error.message); }
-    req.session.faultNotification = { id: ticket.id, message: 'Your fault report has been saved to Helpdesk. ' +
-      (emailed ? 'Fault details were emailed to ' + RECIPIENT + '.' :
+    req.session.faultNotification = { id: ticket.id, message: `Your ${values.reportType === 'feature' ? 'feature request' : 'fault report'} has been saved to Helpdesk. ` +
+      (emailed ? 'Report details were emailed to ' + RECIPIENT + '.' :
         'The notification email could NOT be sent. Helpdesk still has your ticket; do not submit it again.') };
     res.redirect(303, '/faults/' + ticket.id + '?created=1');
   });
