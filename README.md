@@ -160,69 +160,51 @@ are removed from tab names. Senior classes of the same subject sharing an upload
 day/period slot are combined: `11DTECH` and `12DTECH` become `11/12DTECH`;
 other subjects and junior classes stay separate. Split P1 slots remain distinct.
 **Refresh timetable class tabs** retries or applies a newer upload without reopening.
-Enabled Google Drive attendance sync also updates these tabs before processing PDFs,
-even when the teacher opens a different Planner section.
+Admin Google Drive imports also refresh the selected teacher's class tabs before
+processing PDFs.
 
 Existing school-linked tabs are regrouped and renamed automatically, retaining
 stable tab IDs for unchanged memberships and all saved marks (which belong to the teacher,
 student, date and period, not the tab). Manual-only tabs stay unchanged.
 Students or class links no longer in the current upload remain in retained tabs;
-manual students are never discarded. Class saves retain import history and Drive
-settings. Changed class/roster memberships get a new tab UUID, so a merged or
+manual students are never discarded. Class saves retain import history; admin
+Drive settings and checkpoints are stored separately. Changed class/roster memberships get a new tab UUID, so a merged or
 expanded class never inherits a smaller class's **Synced** status; re-sync its PDF
 to record coverage without overwriting marks. Failed/missing uploads and revision conflicts display an explicit error
-and leave saved tabs unchanged. No new database table or migration is needed.
+and leave saved tabs unchanged. Admin Drive settings and checkpoints use the
+Teacher Planner database migration `014_admin_attendance_sync.sql`; attendance
+marks remain in the existing owner-scoped Planner tables.
 
-**Google Drive attendance sync** is optional and configured privately for each
-teacher/planner year in **Two-Week Attendance → Google Drive attendance folder
-sync**. Paste the Drive folder link, click **Authorise read-only Google Drive**,
-open the generated Google authorisation link, approve access and return. Check
-**Enable manual Drive attendance updates**, then **Save folder settings**.
-Click **Update attendance from Drive** when new PDFs are ready. Enable
-Google Drive API and permit `https://www.googleapis.com/auth/drive.readonly` on
-the existing Calendar OAuth project/consent screen; school administrator approval
-may be required. This read-only scope permits broader Drive reading at Google,
-but the application lists/downloads only direct PDF children of the configured
-folder. It never writes/deletes Drive files, exposes tokens to the browser or
-makes a folder public. Existing Calendar/Docs/Tasks grants are preserved when
-requesting the additional permission.
+**Administrator Google Drive attendance imports** are managed from the ADMIN-only
+**Attendance Admin** page in Kamar Uploader. Select the Planner year and current
+teacher, configure the admin account's Drive folder, authorise read-only Drive
+access, save/enable the folder and start an import. The connected admin account
+must be able to read the selected folder. The integration lists and downloads
+only direct PDF children of that folder, never writes to Drive, and never exposes
+Google tokens to the browser. The existing Calendar OAuth project and
+authorised redirect URI are reused; Google Drive API and the
+`https://www.googleapis.com/auth/drive.readonly` scope may require school
+administrator approval. Existing Calendar/Docs/Tasks grants are preserved.
 
-Place new exports in the **Drive folder**, not only a local downloads/OneDrive
-folder. Then click **Update attendance from Drive** on the daily Attendance page
-or the Google Drive card in **Setup My Planner > Two-Week Attendance**.
-Sync is manual only: signing in, opening the Planner, switching pages, and saving
-folder settings never start a PDF sync. Existing saved attendance is used between
-uploads. Keep the planner open until the requested update finishes; the same
-button retries a failed update without another login. The saved `enabled` setting
-now permits manual updates only, including for previously enabled folders.
-Other Planner sections and week/term navigation remain usable during sync;
-changing the planner year and conflicting attendance setup edits remain guarded.
-Each sync reuses monthly timetable responses, and simultaneous requests for the
-same private timetable share an in-flight download. Completed feeds are not
-retained by that download-sharing mechanism.
-The folder is paginated up to 1,000 PDFs, with the same 5 MB/30-page limits as
-manual import. Subfolders, shortcuts and non-PDF files are not followed.
-Each new/updated PDF fills only eligible blank marks in all saved automatic
-class tabs, retains conflicts and updates weekly history. Overlapping PDFs
-are read in modified-time order and cannot overwrite earlier nonblank marks.
-The visible sync result reports fills, conflicts and student/class match warnings;
-manual preview can identify individual unmatched students.
+The server resolves the selected teacher's current KAMAR class timetable and
+writes blank marks and import history to that teacher's existing private Planner
+records. Existing marks are never overwritten. Folder settings and resumable PDF
+checkpoints are scoped to the signed-in ADMIN, Planner year and selected teacher
+in the separate Teacher Planner database. The importer accepts up to 1,000 PDFs
+per folder listing and enforces the existing 5 MB PDF limit. Kamar Uploader shows
+per-file counts, conflicts, match warnings and errors, but never returns or
+renders student names, IDs or attendance marks. Teachers continue to view their
+own records in Teacher Planner; the Teacher Planner pages no longer provide Drive
+folder setup or a Drive sync button, while teacher-owned manual PDF preview and
+import remain available.
 
-File ID, modified time and checksum identify each Drive version. Processed
-checkpoints are saved under `content.driveSync.processed` only after all fills
-and history updates succeed, scoped to Google account, class-setup revision and
-a hash of the current term dates, closures/holidays and school-class roster.
-Changed files, saved classes or matching context are rechecked; deferred future recorded marks
-are rechecked when their date arrives. An unchanged, checkpointed PDF is not reprocessed
-just because a saved mark is later cleared. Failures report the partial save count
-and leave the PDF retryable. Disabling sync retains checkpoints; changing folders
-clears them. Folder settings/checkpoints use owner-scoped, CSRF-protected
-`PUT /api/planner/attendance/:year/drive-sync` and `/drive-sync/file`; `GET
-/drive-sync` reads settings. Read-only Google provider routes live under
-`/api/planner/google-calendar/attendance-drive/:year/files`. Downloads validate
-folder membership and version before/after parsing, enforce streamed size limits,
-and report permission/API failures explicitly. No source PDFs or detailed KAMAR
-absence codes are retained or added to Git.
+The CSRF-protected ADMIN API lives under
+`/teacher-planner/api/planner/google-calendar/attendance-admin`. Its role check
+is enforced server-side, independently of the ADMIN-only navigation link. A
+completed week in Teacher Planner indicates that an import-history record exists;
+it does not prove that every student matched. Review the Kamar Uploader file-level
+match warnings when attendance is missing.
+
 The signed-in, CSRF-protected preview endpoint
 `POST /api/planner/attendance/:year/import-preview` accepts `application/pdf`,
 does not save the upload or write marks, and returns private, non-cacheable data.
@@ -1492,12 +1474,13 @@ manual changes, including blanks, are preserved. The school-values default is
 independent. If any roster fails or validation fails, nothing is changed; wait
 for the Planner autosave confirmation after a successful update.
 
-**Deployment:** before saving Reporting entries, run `npm run db:migrate:planner`
+**Deployment:** before using Attendance Admin, run `npm run db:migrate:planner`
 in the service environment with the existing `TEACHER_PLANNER_DATABASE_URL` and
 its SSL setting. This explicitly runs the standalone Planner migration ledger,
-including `013_reporting.sql`, on the separate Planner database; it refuses the
-Core/Kamar connection. Normal embedded requests still perform no schema migration.
-Do not point Core's `db:migrate` command at the Planner database.
+including `014_admin_attendance_sync.sql`, on the separate Planner database; it
+refuses the Core/Kamar connection. Embedded requests check the required schema
+but do not run migrations. Do not point Core's `db:migrate` command at the
+Planner database.
 
 Teacher Planner is embedded at `/teacher-planner/`, using the original module
 router and screens from `src/legacy/teacher-planner`. Shared Google sign-in,
@@ -1536,7 +1519,7 @@ Keep the original development callback authorised. Add
 authorised JavaScript origins and the Drive browser key's allowed referrers.
 Use the future `APP_BASE_URL` origin instead when hosting/domain changes.
 
-If **Two-Week Attendance → Authorise read-only Google Drive** shows
+If **Kamar Uploader → Attendance Admin → Authorise read-only Google Drive** shows
 `Error 400: redirect_uri_mismatch`, open **Google Auth Platform → Clients** in
 Google Cloud Console. Select the **Web application** client whose ID matches
 `GOOGLE_CALENDAR_CLIENT_ID` in the service's linked environment group, not the
@@ -1549,77 +1532,53 @@ page. Keep existing callbacks and credentials; do not rotate
 Google's registered redirect URIs.
 
 Attendance PDF validation failures are shown beside the manual preview controls.
-Drive sync reports the specific recognised layout check that failed, or a safe
-decode-error message, and does not mark the rejected file as processed. Export
+The Kamar Uploader admin report identifies recognised layout failures or a safe
+decode-error message and does not mark a rejected file as processed. Export
 the original **Student Attendance - Two Week Overview** PDF from KAMAR; do not
 print, scan or convert it. A rejected file saves no marks from that PDF.
 Half Days attendance statistics PDFs contain summary rates rather than daily
-period marks and cannot be imported as Two-Week Attendance; sync reports this
-explicitly and continues with the remaining documents.
+period marks and cannot be imported as Two-Week Attendance; the admin report
+identifies this for that file and continues with the remaining documents.
 The standard KAMAR `Students: N` page total beneath the final student row is
 recognised as a footer, not attendance. Attendance column/slot validation remains
 strict; footer recognition requires the expected position and a student count at
 least as large as the page's row count (continued classes show a whole-class total).
 
-The **Google Drive attendance folder sync** card shows authorisation/setup errors,
-live sync progress and the latest result. Completed result details are collapsed
-inside a **Hint: Attendance sync results** pill; open it to view the full report.
-A successful check displays
-**Drive attendance sync completed successfully** with an NZ timestamp, processed
-PDFs, saved blank marks, conflicts kept, match warnings and unchanged PDFs skipped.
-**Already up to date** means nothing new needed importing; **No PDFs found**
-means the connected folder was checked but contained no PDFs. Merely enabling
-manual updates does not confirm that a sync has succeeded. Results remain visible
-inside the card when weekly history refreshes during the current page session.
-Each PDF's marks, import history and processed-file checkpoint are saved before
-starting the next PDF. The card updates **Successfully synced documents**,
-**Document errors - not fully synced** and **Already synced - unchanged documents**
-as files finish, with filenames and individual results. If any document fails,
-the final status says **completed with document errors**, not success. Other PDFs
-continue syncing. Errors include the cause and any marks already saved from that
-PDF; partial saves are retained and the failed PDF is not checkpointed. Retry
-skips completed unchanged documents and only fills remaining blanks, never
-overwriting saved marks. Correct or remove unsupported PDFs to clear their errors.
-Oversized PDFs are reported individually without blocking other documents; the
-5 MB download/import limit still applies to every PDF.
-Per-document reports remain visible for the current page session; durable
-processed-file checkpoints and weekly import history are stored in the database.
-Sync setup is displayed in the Google Drive card on **Two-Week Attendance**.
-The daily Attendance page also provides the update button and its progress/results.
-Syncing never starts on other planner pages; a requested update retains its latest
-report for display when either attendance view is opened during that page session.
-The Drive card explicitly shows idle or syncing state and disables folder,
-authorisation and sync actions during a requested sync. Refreshing weekly
-status shows immediate progress and completion beside that button; it reloads
-saved history only, not Google Drive. Refresh preserves active PDF progress and
-does not enable a second sync while the first is still running.
-Below the Drive results, **Term attendance sync status** provides a term-number
-filter and lists each term week, its Monday date and **Synced** or **Not synced**.
-A week is **Synced** when saved PDF import history exists for any automatic class
-tab that week, regardless of blank PDF slots or unmatched students. Manual PDF
-uploads also count; manually entered marks alone do not. Per-document errors
-remain in the Drive results above. Use **Refresh weekly sync status** to reload
-saved status; completing a sync also refreshes it. Manual-mode tabs are excluded.
-The class-specific term table also uses **Synced** or **Not synced**, based on
-saved PDF import history rather than timetable completeness. Detailed Drive
-results are collapsed under the **View sync report** pill; the current sync state
-and controls remain visible outside the report.
+The Kamar Uploader **Attendance Admin** page displays job progress and the
+latest selected-teacher import totals: PDFs processed, blank marks filled,
+conflicts kept, match warnings, unchanged PDFs and document errors. Its report
+contains file-level outcomes only; student names, IDs and attendance marks are
+not returned to or rendered in the admin browser. A public-holiday-data warning
+is shown when the school calendar cannot be loaded. The admin settings and
+per-teacher/year processed-file checkpoints live in
+`planner_attendance_admin_sync` in the existing Teacher Planner database;
+attendance marks and import history remain scoped to the selected teacher's
+existing Planner records. A failed PDF remains retryable, and saved marks are
+never overwritten by a later import.
+
+The Teacher Planner **Two-Week Attendance** page retains the personal PDF preview
+and term/week import-history view, but no longer offers Drive folder settings,
+Google authorisation or a Drive sync button. The status table displays **Synced**
+when an automatic class tab has an import-history record for that week; it is not
+proof that every student matched. Administrators should review Kamar Uploader's
+file-level match warnings when marks are missing. Daily Attendance continues to
+show and edit the signed-in teacher's own saved records.
+
 Teacher Planner navigation is grouped into **Planning** (cover and year/term/week
 plans), **Setup** (Setup My Planner first, followed by Assessment setup), and
 **Section Modules** (daily Attendance, Moderation, Teaching Standards,
 Professional learning and upcoming modules). Groups use labelled, colour-accented panels and wrapping
 pill buttons; existing section routes and disabled upcoming modules are unchanged.
-Two-Week Attendance imports, Google Drive sync, reports and term/week status live
-in their own stacked **Two-Week Attendance** tab inside Setup My Planner. All
+Two-Week Attendance PDF preview, import history and term/week status live in
+their own stacked **Two-Week Attendance** tab inside Setup My Planner. All
 personal attendance controls remain available to teachers who cannot edit shared
 school dates. Switching setup tabs preserves mounted attendance state and is
-blocked during attendance loading/sync or unsaved attendance edits. Old
+blocked during attendance loading or unsaved attendance edits. Old
 `#section=attendanceImport` links still open the new setup tab; its canonical link
 is `#section=setup&setupTab=6`. Daily Attendance remains a separate Section Module.
-Section navigation, including Setup My Planner, remains available during a
-background attendance Drive sync; it does not start a duplicate sync. Changing
-the planner year/dates remains blocked until sync finishes. Loading/saving or
-unsaved integration changes still prevent unsafe navigation, with explicit feedback.
+Drive imports run from Kamar Uploader and do not block Teacher Planner navigation.
+Loading/saving or unsaved integration changes still prevent unsafe navigation,
+with explicit feedback.
 The cover name pill is centred; Setup My Planner is no longer duplicated on the cover.
 Year and print controls sit on the right of the Teacher Planner heading. The
 circular year badge opens the year selected in the adjacent Planner year field;

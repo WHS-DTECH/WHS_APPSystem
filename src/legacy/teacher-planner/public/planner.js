@@ -172,13 +172,10 @@
     signin.hidden = true;
   }
   function hasUnsavedChanges() { return dirty || Boolean(content.querySelector('[data-timetable-dirty="true"]')); }
-  function canLeave(allowAttendanceSync = false) {
+  function canLeave() {
     if (busy) { notice('The Planner is loading or saving. Please wait, then try again.', true); return false; }
-    if (attendanceSyncRunning && !allowAttendanceSync) {
-      notice('Attendance is syncing with Google Drive. Wait until sync finishes before changing the planner year.', true); return false;
-    }
     const pending = [...content.querySelectorAll('[data-timetable-busy="true"],[data-moderation-busy="true"],[data-preferences-busy="true"],[data-activity-busy="true"],[data-attendance-loading="true"]')]
-      .find(node => !allowAttendanceSync || node !== attendanceSyncNote);
+      .find(Boolean);
     if (pending) { notice('Finish loading, syncing or saving this section’s changes before leaving it.', true); return false; }
     return !hasUnsavedChanges() || confirm('Discard unsaved changes in this view?');
   }
@@ -199,7 +196,7 @@
     selectors.setAttribute('aria-busy', String(busy));
   }
   function navigatePlannerSection(target) {
-    if (!canLeave(true)) return;
+    if (!canLeave()) return;
     section = target;
     if (section === 'moderation') { moderationRecord = ''; moderationPage = 'overview'; }
     return load();
@@ -215,7 +212,7 @@
       for (let i = 1; i <= 4; i++) select.append(el('option', String(i), { value: String(i), 'aria-label': 'Term ' + i }));
       select.value = term;
       select.addEventListener('change', () => {
-        if (!canLeave(true)) { select.value = select.dataset.displayedTerm ?? term; return; }
+        if (!canLeave()) { select.value = select.dataset.displayedTerm ?? term; return; }
         term = select.value; termSelectionPending = false; section = 'term'; load();
       });
       label.append(select, el('span', 'Term', { class: 'planner-term-caption', 'aria-hidden': 'true' })); controls.append(label);
@@ -224,7 +221,7 @@
       const label = el('label', 'Week containing');
       const picker = el('input', '', { type: 'date', value: week, 'aria-label': 'Week containing' });
       picker.addEventListener('change', () => {
-        if (!picker.value || !canLeave(true)) { picker.value = week; return; }
+        if (!picker.value || !canLeave()) { picker.value = week; return; }
         const chosen = monday(picker.value);
         const last = date(chosen); last.setUTCDate(last.getUTCDate() + 6);
         if (Number(chosen.slice(0, 4)) !== year && last.getUTCFullYear() !== year) {
@@ -236,7 +233,7 @@
       for (const [text, offset] of [['Previous week', -7], ['Next week', 7]]) {
         const button = el('button', text, { type: 'button' });
         button.addEventListener('click', () => {
-          if (!canLeave(true)) return;
+          if (!canLeave()) return;
           const next = date(week); next.setUTCDate(next.getUTCDate() + offset);
           const last = new Date(next); last.setUTCDate(last.getUTCDate() + 6);
           if (next.getUTCFullYear() !== year && last.getUTCFullYear() !== year) { notice('Open the adjacent year to continue.', true); return; }
@@ -279,7 +276,7 @@
       panel.append(entry);
     }
     const open = el('button', 'Open this week', { type: 'button' });
-    open.addEventListener('click', () => { if (!canLeave(true)) return; week = monday(value); section = 'week'; load(); });
+    open.addEventListener('click', () => { if (!canLeave()) return; week = monday(value); section = 'week'; load(); });
     panel.append(open);
     for (const button of content.querySelectorAll('.annual-calendar button')) {
       button.setAttribute('aria-pressed', String(button.dataset.date === value));
@@ -453,7 +450,7 @@
     if (busy && saveInFlight && !await saveInFlight) return;
     if (busy) { notice('Your planner is still loading or saving. Please try again when it finishes.'); return; }
     if (dirty) { await saveEntry(); if (dirty) return; }
-    if (!canLeave(true)) return;
+    if (!canLeave()) return;
     selectedDay = (date(value).getUTCDay() + 6) % 7;
     periodDate = value; periodSlot = slot; activityRecord = activity; section = activity ? 'activity' : 'period';
     await load();
@@ -762,7 +759,7 @@
         const open = el('button', name, { type: 'button', 'aria-label': 'Open activity: ' + name });
         open.addEventListener('click', () => act(async () => {
           tools.removeAttribute('data-activity-busy');
-          if (!canLeave(true)) throw new Error('The Planner is busy. Please retry when saving finishes.');
+          if (!canLeave()) throw new Error('The Planner is busy. Please retry when saving finishes.');
           activityRecord = link.id; section = 'activity'; await load();
         }));
         const remove = el('button', 'Remove', { type: 'button', class: 'period-activity-remove', 'aria-label': 'Unlink activity: ' + name });
@@ -888,7 +885,7 @@
       if (busy && saveInFlight && !await saveInFlight) return;
       if (busy) { notice('Your planner is still loading or saving. Please try again when it finishes.'); return; }
       if (dirty) { await saveEntry(); if (dirty) return; }
-      if (!canLeave(true)) return;
+      if (!canLeave()) return;
       section = activity ? 'period' : 'week'; await load();
     });
     const slot = slots.find(item => item[0] === periodSlot);
@@ -948,7 +945,7 @@
     globalThis.plannerGoogleDrive.mount(drive, {
       el, resources,
       openSetup: () => {
-        if (!canLeave(true)) return;
+        if (!canLeave()) return;
         setupTab = 3; section = 'setup'; load();
       },
       request: async () => { await refreshSession(); return request(api + 'google-drive/config'); }
@@ -1883,8 +1880,8 @@
       if (setupTab === 5 && index !== 5 && duties.querySelector('[data-preferences-busy="true"]')) {
         notice('Save or reload your duty setup changes before switching tabs.', true); return false;
       }
-      if (setupTab === 6 && index !== 6 && (attendanceSyncRunning || attendance.dataset.attendanceLoading === 'true' || attendance.querySelector('[data-preferences-busy="true"]'))) {
-        notice('Finish the attendance sync or save/reload attendance changes before switching tabs.', true); return false;
+      if (setupTab === 6 && index !== 6 && (attendance.dataset.attendanceLoading === 'true' || attendance.querySelector('[data-preferences-busy="true"]'))) {
+        notice('Finish loading or save/reload attendance changes before switching tabs.', true); return false;
       }
       setupTab = index;
       pages.forEach((sheet, i) => { sheet.hidden = i !== index; });
@@ -2571,7 +2568,7 @@
     }
     if (!host.isConnected) return;
     await globalThis.plannerAttendance.mount(host, {
-      overview, automaticTabs: true, syncNow: node => runAttendanceDriveSync(node), bindSyncState: bindAttendanceSyncState,
+      overview, automaticTabs: true,
       el, year, ranges: termRanges(settings.content, calendar.terms || []), school: settings.content, calendar, today: localDate,
       uploadPdf: async file => {
         await refreshSession();
@@ -2586,8 +2583,6 @@
           headers: { 'Content-Type': 'application/json', 'x-planner-csrf': csrf }, body: JSON.stringify(body) });
       }
     });
-    const driveTarget = host.querySelector('[data-attendance-drive-feedback]');
-    if (driveTarget) placeAttendanceDriveNote(driveTarget);
   }
   async function loadAttendanceSchedule(selectedWeek, feedCache) {
     const months = new Set(Array.from({ length: 5 }, (_, i) => {
@@ -2606,126 +2601,9 @@
     }));
     return weeklyTimetableEntries(feeds.flatMap(feed => feed.events), selectedWeek, Infinity);
   }
-  let attendanceSyncRunning = false;
-  let attendanceSyncNote = null;
-  let attendanceSyncYear = null;
-  let attendanceSyncStateListener = null;
-  function bindAttendanceSyncState(listener, target) {
-    attendanceSyncStateListener = listener;
-    listener(attendanceSyncRunning);
-    placeAttendanceDriveNote(target);
-  }
-  function placeAttendanceDriveNote(host = content) {
-    if (!attendanceSyncNote || attendanceSyncYear !== year) return;
-    const target = host.querySelector('[data-attendance-drive-feedback]') || host;
-    if (target === content) return;
-    attendanceSyncNote.hidden = false;
-    target.replaceChildren(attendanceSyncNote);
-  }
-  async function runAttendanceDriveSync(host = content) {
-    if (attendanceSyncRunning) throw new Error('Attendance Drive sync is already running. Wait until it finishes.');
-    attendanceSyncRunning = true;
-    const syncYear = year;
-    const note = el('div', 'Checking Google Drive for new attendance PDFs...', {
-      class: 'duty-roster-feedback', role: 'status', 'aria-live': 'polite', 'data-preferences-busy': 'true'
-    });
-    attendanceSyncNote = note;
-    attendanceSyncYear = syncYear;
-    const target = host.querySelector('[data-attendance-drive-feedback]') || host;
-    note.hidden = target === content;
-    if (target === content) target.append(note);
-    else target.replaceChildren(note);
-    attendanceSyncStateListener?.(true);
-    let documents = [];
-    let statusMessage = '';
-    function show(message) {
-      statusMessage = message;
-      note.replaceChildren();
-      note.textContent = message;
-      for (const [status, title] of [
-        ['synced', 'Successfully synced documents'],
-        ['error', 'Document errors - not fully synced'],
-        ['unchanged', 'Already synced - unchanged documents']
-      ]) {
-        const matching = documents.filter(document => document.status === status);
-        if (!matching.length) continue;
-        const list = el('ol');
-        for (const document of matching) {
-          list.append(el('li', document.name + ': ' + (status === 'error' ? document.error :
-            status === 'unchanged' ? 'Previously synced; unchanged.' :
-              document.marks + ' blank marks saved; ' + document.conflicts + ' conflicts kept; ' +
-                document.warnings + ' student/class match warnings.')));
-        }
-        note.append(el('h4', title), list);
-      }
-    }
-    function collapseResultHint(hasErrors) {
-      const report = el('div', statusMessage);
-      report.append(...Array.from(note.children));
-      const hint = el('details', '', { class: 'planner-hint' });
-      hint.append(el('summary', hasErrors
-        ? 'Hint: Attendance sync completed with document errors'
-        : 'Hint: Attendance sync results'), report);
-      note.setAttribute('class', '');
-      note.replaceChildren(hint);
-    }
-    try {
-      await refreshSession();
-      const settings = await request(api + 'attendance/' + syncYear + '/drive-sync');
-      if (!settings.enabled) { note.textContent = 'Drive attendance updates are disabled. Open Setup My Planner > Two-Week Attendance to save and enable a folder, then click Update attendance from Drive.'; return; }
-      const school = (await request(api + 'school-settings/' + syncYear)).content;
-      let calendar;
-      try { calendar = await request(api.replace(/planner\/$/, '') + 'school-calendar/' + syncYear); }
-      catch (error) { calendar = { publicHolidays: [], publicHolidaysError: error.message }; }
-      const ranges = termRanges(school, calendar.terms || []);
-      if (!ranges.some(range => range.startDate && range.endDate)) throw new Error('Publish term dates in Planner Setup before syncing attendance.');
-      const feedCache = new Map();
-      const result = await globalThis.plannerAttendance.syncDrive({
-        year: syncYear, school, calendar, ranges, today: localDate, automaticTabs: true,
-        request: async path => { await refreshSession(); return request(api + path); },
-        mutate: async (path, body) => {
-          await refreshSession();
-          return request(api + path, { method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'x-planner-csrf': csrf }, body: JSON.stringify(body) });
-        },
-        loadSchedule: selectedWeek => loadAttendanceSchedule(selectedWeek, feedCache),
-        onProgress: show,
-        onDocument: document => {
-          documents.push(document);
-          if (document.status === 'error') note.setAttribute('role', 'alert');
-          show('Document finished: ' + document.name + '. Continuing to the next PDF. Keep this page open.');
-        }
-      });
-      if (!result.enabled) { note.textContent = 'Automatic Drive attendance sync is disabled.'; return; }
-      documents = result.documents || documents;
-      note.setAttribute('role', result.failed ? 'alert' : 'status');
-      show((result.failed ? 'Drive attendance sync completed with document errors at ' : 'Drive attendance sync completed successfully at ') +
-        new Date().toLocaleString('en-NZ', { timeZone: 'Pacific/Auckland' }) + ': ' +
-        result.files + ' new/updated PDFs processed; ' +
-        result.marks + ' blank marks filled; ' + result.conflicts + ' conflicts kept; ' +
-        result.warnings + ' student/class match warnings; ' + result.skipped + ' unchanged PDFs skipped; ' +
-        (result.failed || 0) + ' document errors.' +
-        (!result.files && !result.skipped && !result.failed ? ' No PDFs found in the selected folder.' : '') +
-        (!result.files && result.skipped && !result.failed ? ' Already up to date; no new or changed PDFs.' : '') +
-        (result.failed ? ' Successfully synced documents are saved. Correct or remove rejected PDFs, then retry; completed documents will not be duplicated.' : '') +
-        (result.warnings ? ' Re-preview affected PDFs in Two-Week Attendance to review unmatched students.' : '') +
-        (calendar.publicHolidaysError ? ' Public holiday dates unavailable: check the imported dates.' : ''));
-      collapseResultHint(Boolean(result.failed));
-      return { note };
-    } catch (error) {
-      note.setAttribute('role', 'alert');
-      show(error.message + ' Open Two-Week Attendance to check the folder, authorise Google Drive or retry sync.');
-      throw error;
-    } finally {
-      attendanceSyncRunning = false;
-      note.removeAttribute('data-preferences-busy');
-      attendanceSyncStateListener?.(false);
-    }
-  }
   async function load() {
     setupAttendanceReady = undefined;
     if (section === 'attendanceImport') { section = 'setup'; setupTab = 6; }
-    attendanceSyncStateListener = null;
     const dutyRefresh = document.getElementById?.('refresh-weekly-duties');
     if (dutyRefresh) { dutyRefresh.hidden = true; dutyRefresh.onclick = null; }
     clearTimeout(autosaveTimer);
@@ -2913,7 +2791,7 @@
     if (dirty && loaded) form.requestSubmit();
     else load();
   });
-  window.addEventListener('beforeunload', (event) => { if (hasUnsavedChanges() || busy || attendanceSyncRunning || content.querySelector('[data-timetable-busy="true"],[data-moderation-busy="true"],[data-preferences-busy="true"],[data-activity-busy="true"]')) { event.preventDefault(); event.returnValue = ''; } });
+  window.addEventListener('beforeunload', (event) => { if (hasUnsavedChanges() || busy || content.querySelector('[data-timetable-busy="true"],[data-moderation-busy="true"],[data-preferences-busy="true"],[data-activity-busy="true"]')) { event.preventDefault(); event.returnValue = ''; } });
   document.getElementById('print-planner').addEventListener('click', () => {
     if (!loaded || busy) return;
     pendingPrint = true;

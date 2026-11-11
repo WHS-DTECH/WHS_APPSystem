@@ -124,7 +124,8 @@ function validContent(section, content) {
   }
   return Buffer.byteLength(JSON.stringify(content)) <= 300000;
 }
-function createPlannerRouter({ query, searchStandards = searchNzqaStandards, loadStaff, loadSchoolCalendar, loadClasses, findReferences = findNzqaReferences, env = process.env }) {
+function createPlannerRouter({ query, searchStandards = searchNzqaStandards, loadStaff, loadSchoolCalendar, loadClasses,
+  loadAdminTeachers, authorizeAttendanceTarget, findReferences = findNzqaReferences, env = process.env }) {
   const router = express.Router();
   router.use('/moderation/import/:type', express.raw({ type: DOCX, limit: '8mb' }));
   router.use(express.json({ limit: '320kb' }));
@@ -299,7 +300,8 @@ function createPlannerRouter({ query, searchStandards = searchNzqaStandards, loa
       res.status(502).json({ error: 'The NZQA standard PDF details could not be loaded. Your saved version is unchanged. Retry shortly.' });
     }
   });
-  router.use('/google-calendar', createGoogleCalendarRouter({ query, loadSchoolCalendar, env }));
+  router.use('/google-calendar', createGoogleCalendarRouter({ query, loadSchoolCalendar, env,
+    adminAttendance: { loadTeachers: loadAdminTeachers, authorizeTarget: authorizeAttendanceTarget, loadClasses } }));
   router.use('/kamar-timetable', (req, res, next) => {
     if (typeof req.user.id !== 'string' || !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(req.user.id)) {
       return next(new Error('Verified planner identity has no valid user ID.'));

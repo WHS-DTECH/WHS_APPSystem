@@ -3,7 +3,8 @@ const express = require('express');
 const { DOCUMENT_ID, DOCS_SCOPE, documentRanges, parseDocumentEvents } = require('./googleDocEvents');
 const { validYearTerm, parseDutyDocument, dutyEvents, canManage } = require('./dutyRoster');
 const { TASKS_SCOPE, createGoogleTasksRouter } = require('./googleTasks');
-const { DRIVE_SCOPE, createAttendanceDriveRouter } = require('./attendanceDrive');
+const { DRIVE_SCOPE, createAttendanceDriveRouter, createAttendanceDriveService } = require('./attendanceDrive');
+const { createAdminAttendanceRouter } = require('./adminAttendance');
 
 const SCOPES = [
   'https://www.googleapis.com/auth/userinfo.email',
@@ -75,7 +76,7 @@ function normaliseEvent(event, calendar) {
     allDay, location: event.location || '', description: event.description || '',
     calendar: calendar.summary, htmlLink };
 }
-function createGoogleCalendarRouter({ query, env = process.env, fetchImpl = fetch, loadSchoolCalendar }) {
+function createGoogleCalendarRouter({ query, env = process.env, fetchImpl = fetch, loadSchoolCalendar, adminAttendance }) {
   const config = configuration(env);
   const router = express.Router();
   const saveSession = req => new Promise((resolve, reject) => req.session.save(error => error ? reject(error) : resolve()));
@@ -220,10 +221,22 @@ function createGoogleCalendarRouter({ query, env = process.env, fetchImpl = fetc
       (pending.includeTasks ? ', plus Google Tasks management' : '') +
       (pending.includeAttendanceDrive ? ', plus read-only Drive attendance access' : '') + '. Close this tab and return to your planner. Your planner edits have not been changed.');
   }));
-  router.use('/attendance-drive', createAttendanceDriveRouter({
-    query, ensureConnected, access, unchanged, fetchImpl, ErrorType: CalendarError,
-    hasScope: (row, scope) => (decryptTokens(row.encrypted_tokens, config.key, row.owner_id).scopes || []).includes(scope)
-  }));
+  const hasScope = (row, scope) => (decryptTokens(row.encrypted_tokens, config.key, row.owner_id).scopes || []).includes(scope);
+  const attendanceDrive = createAttendanceDriveService({
+    ensureConnected, access, unchanged, fetchImpl, ErrorType: CalendarError, hasScope
+  });
+  router.use('/attendance-drive', createAttendanceDriveRouter({ query, service: attendanceDrive, ErrorType: CalendarError }));
+  if (adminAttendance?.loadTeachers && adminAttendance?.authorizeTarget && adminAttendance?.loadClasses) {
+    router.use('/attendance-admin', createAdminAttendanceRouter({
+      query, ...adminAttendance, driveService: attendanceDrive,
+      loadSchoolCalendar,
+      driveStatus: async req => {
+        const row = await read(req.user.id);
+        const scopes = row ? decryptTokens(row.encrypted_tokens, config.key, req.user.id).scopes || [] : [];
+        return { connected: Boolean(row), driveAccess: scopes.includes(DRIVE_SCOPE), email: row?.email };
+      }
+    }));
+  }
   router.use('/tasks', createGoogleTasksRouter({
     ensureConnected, access, unchanged, fetchImpl, ErrorType: CalendarError,
     hasScope: (row, scope) => (decryptTokens(row.encrypted_tokens, config.key, row.owner_id).scopes || []).includes(scope)

@@ -56,6 +56,34 @@ function createTeacherPlannerRouter({ env = process.env, dbQuery = coreQuery, di
   const plannerEnv = { ...env, APP_BASE_URL: env.APP_BASE_URL || env.RENDER_EXTERNAL_URL,
     TEACHER_PLANNER_BASE_PATH: PREFIX };
   const calendar = (req, year) => schoolCalendar(year);
+  async function loadAdminTeachers() {
+    const staff = (await directoryQuery(`SELECT code,first_name,last_name,email_school FROM staff_upload
+      WHERE status='Current' AND NULLIF(TRIM(code),'') IS NOT NULL AND NULLIF(TRIM(email_school),'') IS NOT NULL
+      ORDER BY lower(trim(last_name)) NULLS LAST,lower(trim(first_name)) NULLS LAST,code`)).rows;
+    const byEmail = new Map();
+    for (const item of staff) {
+      const email = String(item.email_school).trim().toLowerCase();
+      byEmail.set(email, [...(byEmail.get(email) || []), item]);
+    }
+    const emails = [...byEmail].filter(([, matches]) => matches.length === 1).map(([email]) => email);
+    if (!emails.length) return [];
+    const users = (await dbQuery(`SELECT id::text,email,display_name FROM users
+      WHERE is_active=true AND lower(trim(email))=ANY($1::text[])`, [emails])).rows;
+    const byUserEmail = new Map();
+    for (const user of users) {
+      const email = String(user.email).trim().toLowerCase();
+      byUserEmail.set(email, [...(byUserEmail.get(email) || []), user]);
+    }
+    return emails.flatMap(email => {
+      const matches = byUserEmail.get(email) || [];
+      if (matches.length !== 1) return [];
+      const person = byEmail.get(email)[0];
+      const user = matches[0];
+      return [{ id: user.id, staffCode: person.code, name: [person.first_name, person.last_name]
+        .map(value => String(value || '').trim()).filter(Boolean).join(' ') || user.display_name || email }];
+    });
+  }
+  const authorizeAttendanceTarget = userId => authorisedModuleUser(userId, 'teacher-planner', dbQuery);
   function initialize() {
     if (!ready) ready = Promise.resolve().then(async () => {
       if (!plannerQuery) {
@@ -65,7 +93,8 @@ function createTeacherPlannerRouter({ env = process.env, dbQuery = coreQuery, di
         }
       }
       for (const table of ['planner_sections', 'school_planner_settings', 'teacher_calendar_settings',
-        'google_calendar_connections', 'school_duty_rosters', 'planner_attendance_groups', 'planner_attendance_marks']) {
+        'google_calendar_connections', 'school_duty_rosters', 'planner_attendance_groups', 'planner_attendance_marks',
+        'planner_attendance_admin_sync']) {
         try { await query(`SELECT * FROM ${table} LIMIT 0`); }
         catch (error) {
           const code = typeof error.code === 'string' && /^[A-Z0-9_]{2,30}$/.test(error.code) ? ` (${error.code})` : '';
@@ -80,7 +109,8 @@ function createTeacherPlannerRouter({ env = process.env, dbQuery = coreQuery, di
       try {
         module = createModuleRouter({ query, env: plannerEnv, loadSchoolCalendar: calendar,
           loadStaff: (req, options) => staffDirectory(req.user, options, directoryQuery, dbQuery),
-          loadClasses: (req, year, term) => attendanceClasses(req.user, year, directoryQuery, term) });
+          loadClasses: (req, year, term) => attendanceClasses(req.user, year, directoryQuery, term),
+          loadAdminTeachers, authorizeAttendanceTarget });
       } catch (error) {
         throw configurationFailure(error, 'Planner Google integration setup failed. Check APP_BASE_URL and the linked Google Calendar environment group.');
       }

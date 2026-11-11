@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node migrate.js && node server.js",
     "db:migrate": "node migrate.js",
-    "test": "node --test app.test.js planner.test.js attendance.test.js attendanceImport.test.js attendanceDrive.test.js periodPlanner.test.js kamarCalendar.test.js googleCalendar.test.js googleDrive.test.js dutyRoster.test.js nzqaStandards.test.js standardDetails.test.js nzqaReferences.test.js assessmentSetup.test.js moderation.test.js moderationUI.test.js moderationDrive.test.js googleTasks.test.js googleTasksUI.test.js googleDocEvents.test.js termAutosave.test.js weeklyPrompts.test.js weeklyLayout.test.js weeklyTimetable.test.js weeklyValues.test.js regionalHolidays.test.js"
+    "test": "node --test app.test.js planner.test.js attendance.test.js adminAttendance.test.js attendanceImport.test.js attendanceDrive.test.js periodPlanner.test.js kamarCalendar.test.js googleCalendar.test.js googleDrive.test.js dutyRoster.test.js nzqaStandards.test.js standardDetails.test.js nzqaReferences.test.js assessmentSetup.test.js moderation.test.js moderationUI.test.js moderationDrive.test.js googleTasks.test.js googleTasksUI.test.js googleDocEvents.test.js termAutosave.test.js weeklyPrompts.test.js weeklyLayout.test.js weeklyTimetable.test.js weeklyValues.test.js regionalHolidays.test.js"
   },
   "dependencies": {
     "@xmldom/xmldom": "^0.8.11",

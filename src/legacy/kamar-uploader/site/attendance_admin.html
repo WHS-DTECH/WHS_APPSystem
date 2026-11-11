@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attendance Admin | Kamar Uploader</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet" />
+</head>
+<body class="home-body">
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+  <main class="home-shell">
+    <section class="hero-panel attendance-admin-hero">
+      <div class="hero-text-wrap">
+        <p class="hero-kicker">Kamar Uploader · Administration</p>
+        <h1>Two-Week Attendance Admin</h1>
+        <p class="hero-subtitle">Import KAMAR attendance PDFs from the school Drive folder into a selected teacher’s private Teacher Planner.</p>
+      </div>
+      <article class="panel attendance-admin-privacy">
+        <h2>Teacher privacy</h2>
+        <p>This page reports import totals only. It does not display individual attendance marks. Teachers view their own records in Teacher Planner.</p>
+      </article>
+    </section>
+
+    <section class="panel attendance-admin-panel" aria-labelledby="attendanceAdminSetup">
+      <h2 id="attendanceAdminSetup">Import setup</h2>
+      <div class="attendance-admin-grid">
+        <label for="attendanceYear">Planner year</label>
+        <input id="attendanceYear" type="number" min="2000" max="2100" />
+        <label for="attendanceTeacher">Teacher</label>
+        <select id="attendanceTeacher"><option value="">Loading teachers...</option></select>
+      </div>
+      <div class="attendance-admin-grid attendance-admin-drive">
+        <label for="attendanceFolder">Google Drive attendance folder</label>
+        <input id="attendanceFolder" type="url" placeholder="https://drive.google.com/drive/folders/..." />
+        <label class="attendance-admin-checkbox" for="attendanceEnabled">
+          <input id="attendanceEnabled" type="checkbox" />
+          Enable admin imports from this folder
+        </label>
+        <div class="attendance-admin-actions">
+          <button id="saveAttendanceSettings" class="subtle-btn" type="button">Save folder settings</button>
+          <button id="connectAttendanceDrive" class="subtle-btn" type="button">Authorise read-only Google Drive</button>
+        </div>
+        <p id="attendanceDriveStatus" class="attendance-admin-status" role="status">Loading Drive status...</p>
+        <a id="attendanceConnectLink" class="hero-link" href="#" target="_blank" rel="noopener noreferrer" hidden>Continue Google authorisation</a>
+      </div>
+      <div class="attendance-admin-actions attendance-admin-run">
+        <button id="runAttendanceImport" type="button" disabled>Import attendance for selected teacher</button>
+        <a class="hero-link" href="/teacher-planner/">Open Teacher Planner</a>
+      </div>
+      <p class="attendance-admin-note">Existing marks are never overwritten. The importer saves blank marks for the selected teacher and records file-level outcomes. Select one teacher at a time; each teacher’s import history is tracked separately.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="attendanceAdminResults">
+      <h2 id="attendanceAdminResults">Import results</h2>
+      <p id="attendanceAdminStatus" role="status" aria-live="polite">Checking admin access and loading settings...</p>
+      <div id="attendanceAdminResultsBody"></div>
+    </section>
+  </main>
+  <script src="attendance_admin.js"></script>
+</body>
+</html>

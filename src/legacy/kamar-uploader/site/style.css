@@ -504,3 +504,107 @@ a {
     padding: 1rem;
   }
 }
+
+.attendance-admin-hero {
+  grid-template-columns: 1.5fr 1fr;
+}
+
+.attendance-admin-privacy p,
+.attendance-admin-note,
+.attendance-admin-status {
+  color: #38576b;
+  line-height: 1.5;
+}
+
+.attendance-admin-panel {
+  margin-bottom: 0.9rem;
+}
+
+.attendance-admin-grid {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.55fr) minmax(240px, 1fr);
+  gap: 0.65rem 0.9rem;
+  align-items: center;
+  margin: 0.8rem 0;
+}
+
+.attendance-admin-grid label {
+  color: #284a5f;
+  font-weight: 700;
+}
+
+.attendance-admin-grid input,
+.attendance-admin-grid select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #c8d6e4;
+  border-radius: 10px;
+  padding: 0.58rem 0.65rem;
+  font: inherit;
+}
+
+.attendance-admin-checkbox {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.attendance-admin-checkbox input {
+  width: auto;
+}
+
+.attendance-admin-drive .attendance-admin-actions,
+.attendance-admin-drive .attendance-admin-status,
+.attendance-admin-drive > .hero-link {
+  grid-column: 2;
+}
+
+.attendance-admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.attendance-admin-actions .subtle-btn {
+  margin-top: 0;
+}
+
+.attendance-admin-status {
+  margin: 0;
+}
+
+.attendance-admin-run {
+  margin-top: 1rem;
+}
+
+.attendance-admin-note {
+  margin: 0.9rem 0 0;
+  font-size: 0.9rem;
+}
+
+.attendance-admin-results {
+  margin-top: 0.75rem;
+  table-layout: auto;
+}
+
+.attendance-admin-results td:first-child {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 980px) {
+  .attendance-admin-hero {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .attendance-admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .attendance-admin-checkbox {
+    grid-column: 1;
+  }
+}

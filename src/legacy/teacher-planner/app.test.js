@@ -31,32 +31,31 @@ test('shared save and feedback are above every page and external save targets th
   assert.match(html,/<button type="submit" form="planner-form" id="save-planner"/);
   assert.equal([...html.matchAll(/id="save-planner"/g)].length,1);
 });
-test('hidden attendance sync does not block Setup navigation or restart sync, while unsafe changes remain guarded', async () => {
+test('planner navigation remains guarded by loading, saving and unsaved changes', async () => {
   const source=await fs.readFile(path.join(__dirname,'public','planner.js'),'utf8');
   const guard=source.slice(source.indexOf('  function hasUnsavedChanges()'),source.indexOf('  function inputField('));
   const navigation=source.slice(source.indexOf('  function navigatePlannerSection('),source.indexOf('  function renderSelectors('));
-  const note={},messages=[],loads=[];
-  const context={busy:false,dirty:false,attendanceSyncRunning:true,attendanceSyncNote:note,
-    content:{querySelector:()=>null,querySelectorAll:()=>[note]},notice:message=>messages.push(message),
+  const pending={},messages=[],loads=[];
+  const context={busy:false,dirty:false,
+    content:{querySelector:()=>null,querySelectorAll:()=>[]},notice:message=>messages.push(message),
     confirm:()=>true,section:'term',setupTab:0,loaded:true,
-    load:async()=>{loads.push(context.section);},runAttendanceDriveSync:async()=>{throw new Error('Must not start a second sync');}};
+    load:async()=>{loads.push(context.section);}};
   vm.runInNewContext(guard+navigation,context);
-  assert.equal(context.canLeave(),false,'year/date changes remain blocked during sync');
+  assert.equal(context.canLeave(),true);
   await context.navigatePlannerSection('setup');
   assert.equal(context.section,'setup');
   assert.deepEqual(loads,['setup']);
-  assert.match(messages[0],/Attendance is syncing/);
   context.busy=true;
   await context.navigatePlannerSection('term');
   assert.equal(context.section,'setup');
   assert.match(messages.at(-1),/loading or saving/);
   context.busy=false;
-  context.content.querySelectorAll=()=>[note,{}];
+  context.content.querySelectorAll=()=>[pending];
   await context.navigatePlannerSection('term');
   assert.equal(context.section,'setup','independent integration drafts/saves still block leaving');
   assert.match(messages.at(-1),/before leaving/);
   context.content.querySelectorAll=()=>[];
-  assert.equal(context.canLeave(),false,'year changes stay guarded after the sync note is detached');
+  assert.equal(context.canLeave(),true,'no attendance sync is started from Teacher Planner');
 });
 
 test('default term uses current term and most recently finished term during holidays', async () => {
@@ -80,14 +79,13 @@ test('default term uses current term and most recently finished term during holi
   assert.equal(context.defaultTerm([], '2026-10-18'),'');
 });
 
-test('opening Planner sections never starts a Drive attendance sync, including previously enabled folders', async () => {
+test('opening Planner sections cannot start a Drive attendance sync', async () => {
   const source = await fs.readFile(path.join(__dirname, 'public', 'planner.js'), 'utf8');
   const navigation = source.slice(source.indexOf('  function navigatePlannerSection('), source.indexOf('  function renderSelectors('));
   const loads = [];
   const context = {
     canLeave: () => true, section: 'term', moderationRecord: 'old', moderationPage: 'internal',
-    load: async () => { loads.push(context.section); },
-    runAttendanceDriveSync: () => assert.fail('Navigation must never request PDF sync')
+    load: async () => { loads.push(context.section); }
   };
   vm.runInNewContext(navigation, context);
   for (const section of ['attendance', 'setup', 'week', 'reporting', 'term', 'moderation']) {
@@ -96,8 +94,7 @@ test('opening Planner sections never starts a Drive attendance sync, including p
   assert.deepEqual(loads, ['attendance', 'setup', 'week', 'reporting', 'term', 'moderation']);
   assert.equal(context.moderationRecord, '');
   assert.equal(context.moderationPage, 'overview');
-  assert.equal([...source.matchAll(/runAttendanceDriveSync\(/g)].length, 2,
-    'Only the function definition and the explicit syncNow callback may reference the sync runner');
+  assert.equal(source.includes('runAttendanceDriveSync'), false);
   assert.match(source, /\r?\n  load\(\);\r?\n/);
 });
 
@@ -117,7 +114,7 @@ test('weekly controls show loading state and move forwards/backwards across mont
   const context = {
     el, selectors, section: 'week', term: '4', year: 2026, week: '2026-10-26', busy: true,
     date: value => new Date(value + 'T00:00:00Z'), iso: value => value.toISOString().slice(0, 10),
-    canLeave: allowSync => { guards.push(allowSync); return !context.busy; }, notice: message => messages.push(message),
+    canLeave: () => { guards.push(true); return !context.busy; }, notice: message => messages.push(message),
     load: () => loadedWeeks.push(context.week)
   };
   vm.runInNewContext(helpers, context);
@@ -133,7 +130,7 @@ test('weekly controls show loading state and move forwards/backwards across mont
   assert.equal(selectors.attrs['aria-busy'], 'false');
   next.click();
   assert.equal(context.week, '2026-11-02');
-  assert.equal(guards.at(-1), true, 'week navigation is allowed during attendance sync');
+  assert.equal(guards.at(-1), true, 'week navigation still checks the ordinary unsaved-change guard');
   previous.click();
   assert.equal(context.week, '2026-10-26');
   context.week = '2026-01-05';
@@ -647,7 +644,7 @@ test('attendance setup tab mounts once, preserves drafts and blocks leaving duri
   const page = el('section'), saveRow={}, messages=[], mounts=[];
   page.append({value:'Unsaved school date'});
   let finish;
-  const context = {el,page,year:2026,setupTab:0,attendanceSyncRunning:false,
+  const context = {el,page,year:2026,setupTab:0,
     document:{querySelector:()=>saveRow},history:{replaceState(){}},viewFragment:()=>'',notice:message=>messages.push(message),
     mountAttendancePage:(host,overview)=>{mounts.push({host,overview});return new Promise(resolve=>{finish=resolve;});}};
   const folder = vm.runInNewContext(helper+'\nsetupFolder(page);',context);
@@ -659,14 +656,10 @@ test('attendance setup tab mounts once, preserves drafts and blocks leaving duri
   tabs.children[0].click();assert.equal(context.setupTab,6,'loading cannot be interrupted');
   finish();await context.setupAttendanceReady;
   attendance.pending=true;tabs.children[0].click();assert.equal(context.setupTab,6);
-  attendance.pending=false;context.attendanceSyncRunning=true;
-  let prevented=false;
-  tabs.children[6].keydown({key:'Home',preventDefault(){prevented=true;}});
-  assert.equal(prevented,true);assert.equal(context.setupTab,6);assert.equal(tabs.children[0].focused,undefined);
-  context.attendanceSyncRunning=false;tabs.children[0].click();
+  attendance.pending=false;tabs.children[0].click();
   assert.equal(saveRow.hidden,false);assert.equal(page.children[0].value,'Unsaved school date');
   tabs.children[6].click();assert.equal(mounts.length,1,'tab state is retained without remount');
-  assert.equal(messages.length,3);
+  assert.equal(messages.length,2);
 });
 
 test('cover no longer duplicates Setup My Planner, which is first in shared Setup navigation', async () => {

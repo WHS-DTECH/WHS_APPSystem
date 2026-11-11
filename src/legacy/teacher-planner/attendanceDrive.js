@@ -17,28 +17,13 @@ function folderId(value) {
 function fileVersion(file) {
   return file.id + ':' + file.modifiedTime + ':' + file.md5Checksum;
 }
-function createAttendanceDriveRouter({ query, ensureConnected, access, unchanged, hasScope, fetchImpl, ErrorType, parsePdf = importAttendancePdf }) {
-  const router = express.Router();
-  const wrap = handler => async (req, res) => {
-    try { await handler(req, res); }
-    catch (error) {
-      console.error('Attendance Drive request failed.');
-      res.status(error instanceof ErrorType ? error.status : 502).json({
-        error: error instanceof ErrorType ? error.message : 'Attendance Drive could not be read. Retry sync; existing marks are unchanged.'
-      });
-    }
-  };
-  router.use('/:year', (req, res, next) => {
-    if (!/^(?:20\d{2}|2100)$/.test(req.params.year)) return res.status(400).json({ error: 'Choose a valid attendance year.' });
-    next();
-  });
-  async function connection(req, year) {
-    const config = (await query('SELECT content FROM planner_attendance_groups WHERE owner_id=$1 AND year=$2',
-      [req.user.id, year])).rows[0]?.content.driveSync;
-    if (!config?.enabled || !DRIVE_ID.test(config.folderId)) throw new ErrorType('Enable a Drive attendance folder in Two-Week Attendance first.', 409);
+function createAttendanceDriveService({ ensureConnected, access, unchanged, hasScope, fetchImpl = fetch,
+  ErrorType, parsePdf = importAttendancePdf }) {
+  async function connection(req, folder) {
+    if (!DRIVE_ID.test(folder || '')) throw new ErrorType('Choose a valid Drive attendance folder.', 400);
     const row = await ensureConnected(req);
-    if (!hasScope(row, DRIVE_SCOPE)) throw new ErrorType('Authorise read-only Google Drive access in Two-Week Attendance, then retry sync.', 409);
-    return { row, folder: config.folderId, token: await access(row) };
+    if (!hasScope(row, DRIVE_SCOPE)) throw new ErrorType('Authorise read-only Google Drive access in Kamar Uploader Attendance Admin, then retry the import.', 409);
+    return { row, folder, token: await access(row) };
   }
   async function google(path, token) {
     let response;
@@ -60,8 +45,8 @@ function createAttendanceDriveRouter({ query, ensureConnected, access, unchanged
       typeof file.md5Checksum === 'string' && /^[a-f0-9]{32}$/i.test(file.md5Checksum) &&
       /^\d+$/.test(file.size) && (!checkSize || Number(file.size) <= MAX_PDF);
   }
-  router.get('/:year/files', wrap(async (req, res) => {
-    const { row, folder, token } = await connection(req, Number(req.params.year));
+  async function listFiles(req, folderIdValue) {
+    const { row, folder, token } = await connection(req, folderIdValue);
     const metadata = await (await google('files/' + folder + '?fields=id,mimeType,trashed&supportsAllDrives=true', token)).json();
     if (metadata.mimeType !== 'application/vnd.google-apps.folder' || metadata.trashed) {
       throw new ErrorType('The configured Drive location is not an available folder.', 400);
@@ -85,12 +70,12 @@ function createAttendanceDriveRouter({ query, ensureConnected, access, unchanged
     }
     if (pageToken) throw new ErrorType('The attendance folder contains too many PDFs. Keep at most 1,000 PDFs in the selected folder.', 422);
     await unchanged(row);
-    res.json({ files, connectionId: row.connection_id, accountId: row.google_subject });
-  }));
-  router.get('/:year/files/:id', wrap(async (req, res) => {
-    if (!DRIVE_ID.test(req.params.id)) throw new ErrorType('Choose a valid Drive PDF.', 400);
-    const { row, folder, token } = await connection(req, Number(req.params.year));
-    const path = 'files/' + req.params.id;
+    return { files, connectionId: row.connection_id, accountId: row.google_subject };
+  }
+  async function readFile(req, folderIdValue, fileId) {
+    if (!DRIVE_ID.test(fileId || '')) throw new ErrorType('Choose a valid Drive PDF.', 400);
+    const { row, folder, token } = await connection(req, folderIdValue);
+    const path = 'files/' + fileId;
     const fields = '?fields=id,name,mimeType,modifiedTime,md5Checksum,size,parents,trashed&supportsAllDrives=true';
     const file = await (await google(path + fields, token)).json();
     if (!validFile(file, folder)) throw new ErrorType('This file is not an eligible PDF in your configured attendance folder (maximum 5 MB).', 422);
@@ -124,8 +109,39 @@ function createAttendanceDriveRouter({ query, ensureConnected, access, unchanged
     const after = await (await google(path + fields, token)).json();
     if (!validFile(after, folder) || fileVersion(after) !== fileVersion(file)) throw new ErrorType('The Drive PDF changed while being read. Retry sync.', 409);
     await unchanged(row);
-    res.json({ pdf, version: fileVersion(file), accountId: row.google_subject, connectionId: row.connection_id });
+    return { pdf, version: fileVersion(file), accountId: row.google_subject, connectionId: row.connection_id };
+  }
+  return { listFiles, readFile };
+}
+function createAttendanceDriveRouter({ query, service: suppliedService, ...options }) {
+  const router = express.Router();
+  const service = suppliedService || createAttendanceDriveService(options);
+  const ErrorType = options.ErrorType;
+  const wrap = handler => async (req, res) => {
+    try { await handler(req, res); }
+    catch (error) {
+      console.error('Attendance Drive request failed.');
+      res.status(error instanceof ErrorType ? error.status : 502).json({
+        error: error instanceof ErrorType ? error.message : 'Attendance Drive could not be read. Retry sync; existing marks are unchanged.'
+      });
+    }
+  };
+  router.use('/:year', (req, res, next) => {
+    if (!/^(?:20\d{2}|2100)$/.test(req.params.year)) return res.status(400).json({ error: 'Choose a valid attendance year.' });
+    next();
+  });
+  async function configuredFolder(req, year) {
+    const config = (await query('SELECT content FROM planner_attendance_groups WHERE owner_id=$1 AND year=$2',
+      [req.user.id, year])).rows[0]?.content.driveSync;
+    if (!config?.enabled || !DRIVE_ID.test(config.folderId)) throw new ErrorType('Enable a Drive attendance folder in Two-Week Attendance first.', 409);
+    return config.folderId;
+  }
+  router.get('/:year/files', wrap(async (req, res) => {
+    res.json(await service.listFiles(req, await configuredFolder(req, Number(req.params.year))));
+  }));
+  router.get('/:year/files/:id', wrap(async (req, res) => {
+    res.json(await service.readFile(req, await configuredFolder(req, Number(req.params.year)), req.params.id));
   }));
   return router;
 }
-module.exports = { DRIVE_SCOPE, folderId, createAttendanceDriveRouter };
+module.exports = { DRIVE_SCOPE, folderId, fileVersion, createAttendanceDriveService, createAttendanceDriveRouter };

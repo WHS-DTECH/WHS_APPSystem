@@ -256,7 +256,7 @@
   function weekStatus(entry) {
     return entry ? 'Synced' : 'Not synced';
   }
-  async function mount(host, { el, request, mutate, uploadPdf, loadSchedule, syncNow, bindSyncState,
+  async function mount(host, { el, request, mutate, uploadPdf, loadSchedule,
     year, ranges, school, calendar, today, overview = false, automaticTabs = false }) {
     host.setAttribute('data-planner-navigation', '');
     host.classList.add('attendance-page');
@@ -272,14 +272,8 @@
     host.append(feedback, controls);
     let revision = 0, groups = [], selected = '', selectedTerm = '', selectedWeek = '', marks = new Map();
     let pending = false, draft = false, directory;
-    let driveTerm = '';
-    const driveFeedback = el('div', '', { 'data-attendance-drive-feedback': '' });
+    let statusTerm = '';
     const refreshFeedback = el('p', '', { class: 'duty-roster-feedback', role: 'status', 'aria-live': 'polite' });
-    function driveSay(message, error = false) {
-      driveFeedback.replaceChildren(el('p', message, {
-        class: 'duty-roster-feedback', role: error ? 'alert' : 'status', 'aria-live': 'polite'
-      }));
-    }
     const tabs = el('div', '', { class: 'attendance-class-tabs', role: 'tablist', 'aria-label': 'Attendance class lists' });
     const add = el('button', '+ Class tab', { type: 'button' });
     const refreshTabs = el('button', 'Refresh timetable class tabs', { type: 'button' });
@@ -302,22 +296,6 @@
       draft = false; host.removeAttribute('data-preferences-busy'); editor.replaceChildren(); return true;
     }
     function edited() { draft = true; host.setAttribute('data-preferences-busy', 'true'); }
-    if (!overview && syncNow) {
-      const update = el('button', 'Update attendance from Drive', { type: 'button' });
-      const state = el('p', 'Saved attendance is used between uploads. After uploading new PDFs to your configured Drive folder, click Update attendance from Drive. No sync runs when opening pages.', { role: 'status' });
-      update.addEventListener('click', () => {
-        if (!guard()) return;
-        return act(async () => {
-          await syncNow(driveFeedback);
-          await loadSheet();
-        }, driveSay);
-      });
-      controls.prepend(update, state, driveFeedback);
-      bindSyncState?.(running => {
-        update.disabled = running;
-        update.textContent = running ? 'Updating attendance from Drive...' : 'Update attendance from Drive';
-      }, driveFeedback);
-    }
     async function act(callback, report = say) {
       if (pending) return;
       pending = true; controls.disabled = true; host.setAttribute('data-preferences-busy', 'true');
@@ -832,76 +810,34 @@
       }
       const scroll = el('div', '', { class: 'attendance-scroll', tabindex: '0' });
       scroll.append(table); sheet.append(scroll);
-      if (syncNow) sheet.append(await renderDriveSync(history));
+      if (overview) sheet.append(renderImportStatus(history));
       sheet.append(renderImport(null));
     }
-    async function renderDriveSync(history) {
-      const settings = await request('attendance/' + year + '/drive-sync');
+    function renderImportStatus(history) {
       const panel = el('details', '', { class: 'attendance-import' });
-      panel.open = settings.enabled;
-      panel.append(el('summary', 'Google Drive attendance folder sync'),
-        el('p', 'One-time setup: paste your private Drive folder link, authorise read-only Drive access, then enable Drive updates and save the folder. After uploading new PDFs, click Update attendance from Drive here or on Attendance. Opening pages and saving settings never start a sync. Only blank marks in matching saved class tabs are filled; conflicts are kept. Keep the planner open until your update finishes. Nothing is written to Drive.'));
-      const folder = el('input', '', { type: 'url', 'aria-label': 'Attendance Google Drive folder URL', placeholder: 'https://drive.google.com/drive/folders/...' });
-      folder.value = settings.folderId ? 'https://drive.google.com/drive/folders/' + settings.folderId : '';
-      const enabled = el('input', '', { type: 'checkbox', 'aria-label': 'Enable manual Drive attendance updates' });
-      enabled.checked = settings.enabled;
-      const label = el('label', 'Enable manual Drive attendance updates '); label.append(enabled);
-      const authorise = el('button', 'Authorise read-only Google Drive', { type: 'button' });
-      const link = el('p');
-      authorise.addEventListener('click', () => act(async () => {
-        const result = await mutate('google-calendar/connect', { includeAttendanceDrive: true }, 'POST');
-        link.replaceChildren(el('a', 'Open Google authorisation (then return here)', {
-          href: result.url, target: '_blank', rel: 'noopener noreferrer'
-        }));
-        driveSay('Open the Google authorisation link, approve read-only Drive access, then return and Save folder settings.');
-      }, driveSay));
-      const save = el('button', 'Save folder settings', { type: 'button' });
-      save.addEventListener('click', () => act(async () => {
-        driveSay('Saving Google Drive folder settings...');
-        await mutate('attendance/' + year + '/drive-sync', { folder: folder.value, enabled: enabled.checked });
-        driveSay(enabled.checked ? 'Folder settings saved. Click Update attendance from Drive after uploading new PDFs.' :
-          'Folder settings saved. Manual Drive attendance updates disabled.');
-        await loadSheet();
-      }, driveSay));
-      const run = el('button', 'Update attendance from Drive', { type: 'button' });
-      run.addEventListener('click', () => {
-        if (!guard()) return;
-        return act(async () => { await syncNow(driveFeedback); await loadSheet(); }, driveSay);
-      });
-      const syncState = el('p', 'Sync idle - ready to check Google Drive.', { role: 'status', 'aria-live': 'polite' });
-      bindSyncState?.((running) => {
-        for (const input of [folder, enabled, authorise, save, run]) input.disabled = running;
-        run.textContent = running ? 'Syncing Google Drive...' : 'Update attendance from Drive';
-        syncState.textContent = running ? 'Sync in progress - PDFs are being checked and saved. Keep this page open.' :
-          'Sync idle - check the latest result below, or start a new sync.';
-        driveFeedback.setAttribute('aria-busy', String(running));
-      }, driveFeedback);
-      const report = el('details', '', { class: 'planner-hint' });
-      report.append(el('summary', 'View sync report'), driveFeedback);
-      panel.append(folder, label, authorise, link, save, run,
-        el('p', settings.enabled ? 'Manual Drive updates are enabled. Nothing syncs until you click Update attendance from Drive.' :
-          'Manual Drive updates are disabled for this planner year.', { role: 'status' }),
-        syncState, report);
-      const coverage = el('section', '', { 'aria-label': 'Term attendance sync coverage' });
-      coverage.append(el('h3', 'Term attendance sync status'));
-      const terms = el('select', '', { 'aria-label': 'Drive sync term number' });
+      panel.open = true;
+      panel.append(el('summary', 'Attendance import status'),
+        el('p', 'School administrators manage Google Drive imports in Kamar Uploader. This history shows weeks with an import record; it does not confirm that every student matched. Ask an administrator to review the file-level sync report for match warnings.'));
+      const coverage = el('section', '', { 'aria-label': 'Term attendance import status' });
+      coverage.append(el('h3', 'Term attendance import status'));
+      const terms = el('select', '', { 'aria-label': 'Attendance status term number' });
       const available = ranges.filter(range => range.startDate && range.endDate);
       for (const range of available) terms.append(el('option', 'Term ' + range.term, { value: range.term }));
-      if (!available.some(range => range.term === driveTerm)) driveTerm = selectedTerm;
-      terms.value = driveTerm;
+      if (!available.some(range => range.term === statusTerm)) statusTerm = selectedTerm;
+      terms.value = statusTerm;
       const termLabel = el('label', 'Term number '); termLabel.append(terms);
-      const refresh = el('button', 'Refresh weekly sync status', { type: 'button' });
+      const refresh = el('button', 'Refresh weekly import status', { type: 'button' });
       refresh.addEventListener('click', () => act(async () => {
-        refresh.textContent = 'Refreshing weekly status...';
+        refresh.textContent = 'Refreshing weekly import status...';
         refresh.disabled = true;
-        refreshFeedback.textContent = 'Refreshing saved weekly status... This does not start a Google Drive sync.';
+        refreshFeedback.textContent = 'Refreshing saved weekly import status... This does not start a Google Drive sync.';
         refreshFeedback.setAttribute('role', 'status');
         try {
           history = await request('attendance/' + year + '/imports');
           renderCoverage();
-          refreshFeedback.textContent = 'Weekly status refreshed. This refresh did not start a Google Drive sync.';
+          refreshFeedback.textContent = 'Weekly import status refreshed. This refresh did not start a Google Drive sync.';
         } finally {
-          refresh.textContent = 'Refresh weekly sync status';
+          refresh.textContent = 'Refresh weekly import status';
           refresh.disabled = false;
         }
       }, (message) => {
@@ -911,13 +847,13 @@
       const scroll = el('div', '', { class: 'attendance-scroll', tabindex: '0' });
       function renderCoverage() {
         scroll.replaceChildren();
-        const range = available.find(range => range.term === driveTerm);
+        const range = available.find(range => range.term === statusTerm);
         if (!range) return;
         const automatic = groups.filter(group => group.scheduleMode !== 'manual' && group.classes.length);
         const table = el('table', '', { class: 'attendance-table' });
-        table.append(el('caption', 'Term ' + driveTerm + ' - weekly attendance sync status'));
+        table.append(el('caption', 'Term ' + statusTerm + ' - weekly attendance import status'));
         const head = el('thead'), headings = el('tr'), body = el('tbody');
-        ['Term week', 'Week beginning', 'Sync status'].forEach(label => headings.append(el('th', label, { scope: 'col' })));
+        ['Term week', 'Week beginning', 'Import status'].forEach(label => headings.append(el('th', label, { scope: 'col' })));
         head.append(headings); table.append(head, body);
         for (const [index, week] of termWeeks(range.startDate, range.endDate).entries()) {
           const entries = automatic.map(group => history.imports[group.id + ':' + week]);
@@ -929,7 +865,7 @@
         }
         scroll.append(table);
       }
-      terms.addEventListener('change', () => { driveTerm = terms.value; renderCoverage(); });
+      terms.addEventListener('change', () => { statusTerm = terms.value; renderCoverage(); });
       coverage.append(termLabel, refresh, refreshFeedback, scroll);
       renderCoverage();
       panel.append(coverage);

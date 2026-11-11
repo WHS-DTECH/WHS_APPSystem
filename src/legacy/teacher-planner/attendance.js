@@ -39,6 +39,90 @@ function validWeek(value, year) {
   return Number.isFinite(day.getTime()) && day.toISOString().slice(0, 10) === value && day.getUTCDay() === 1 &&
     [day.getUTCFullYear(), new Date(day.getTime() + 4 * 86400000).getUTCFullYear()].includes(year);
 }
+function attendanceError(message, status = 400) {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+}
+async function saveAttendanceGroups(query, ownerId, year, revision, content) {
+  if (!validGroups(content) || !Number.isInteger(revision) || revision < 0) {
+    throw attendanceError('Check the class tab name, students and periods. Attendance setup was not saved.');
+  }
+  const values = [ownerId, year, JSON.stringify(content)];
+  const result = revision === 0
+    ? await query(`INSERT INTO planner_attendance_groups(owner_id,year,content) VALUES ($1,$2,$3)
+      ON CONFLICT DO NOTHING RETURNING revision`, values)
+    : await query(`UPDATE planner_attendance_groups SET content=$3::jsonb ||
+      jsonb_build_object('imports',COALESCE(content->'imports','{}'::jsonb)) ||
+      CASE WHEN content ? 'driveSync' THEN jsonb_build_object('driveSync',content->'driveSync') ELSE '{}'::jsonb END,
+      revision=revision+1,updated_at=NOW()
+      WHERE owner_id=$1 AND year=$2 AND revision=$4 RETURNING revision`, [...values, revision]);
+  if (!result.rows.length) throw attendanceError('Attendance tabs changed in another window. Copy your edits, then reload before saving.', 409);
+  return result.rows[0];
+}
+async function saveAttendanceImports(query, ownerId, year, entries) {
+  if (!Array.isArray(entries) || !entries.length || entries.length > 60 ||
+      !entries.every(item => keys(item, ['groupId', 'week', 'expected', 'recorded', 'conflicts', 'unresolved']) &&
+        typeof item.groupId === 'string' && UUID.test(item.groupId) && validWeek(item.week, year) &&
+        Number.isInteger(item.expected) && item.expected > 0 && item.expected <= 5000 &&
+        Number.isInteger(item.recorded) && item.recorded > 0 && item.recorded <= item.expected &&
+        Number.isInteger(item.conflicts) && item.conflicts >= 0 && item.conflicts <= item.recorded &&
+        typeof item.unresolved === 'boolean')) {
+    throw attendanceError('Invalid attendance import history.');
+  }
+  const groups = await query('SELECT content FROM planner_attendance_groups WHERE owner_id=$1 AND year=$2', [ownerId, year]);
+  if (!entries.every(item => groups.rows[0]?.content.groups.some(group => group.id === item.groupId))) {
+    throw attendanceError('Import history must belong to your saved class tabs.');
+  }
+  const importedAt = new Date().toISOString();
+  const history = Object.fromEntries(entries.map(item => [item.groupId + ':' + item.week, { ...item, importedAt }]));
+  const saved = await query(`UPDATE planner_attendance_groups
+    SET content=jsonb_set(content,'{imports}',COALESCE(content->'imports','{}'::jsonb) || $3::jsonb),updated_at=NOW()
+    WHERE owner_id=$1 AND year=$2 RETURNING revision`, [ownerId, year, JSON.stringify(history)]);
+  if (!saved.rows.length) throw attendanceError('Class tabs changed. Reload before recording import history.', 409);
+  return { importedAt };
+}
+async function saveAttendanceImportMarks(query, ownerId, year, values) {
+  if (!Array.isArray(values) || !values.length || values.length > 200 ||
+      !values.every(value => keys(value, ['studentId', 'date', 'period', 'mark', 'revision']) &&
+        typeof value.studentId === 'string' && STUDENT.test(value.studentId) &&
+        validDay(value.date, year) && PERIODS.includes(value.period) &&
+        ['P', 'A', 'L'].includes(value.mark) && Number.isInteger(value.revision) && value.revision >= 0) ||
+      !unique(values.map(value => [value.studentId, value.date, value.period].join('|')))) {
+    throw attendanceError('Choose up to 200 distinct valid blank attendance marks to import.');
+  }
+  const groups = await query('SELECT content,revision FROM planner_attendance_groups WHERE owner_id=$1 AND year=$2', [ownerId, year]);
+  const named = values.map(value => {
+    const group = groups.rows[0]?.content.groups.find(group => group.students.some(item => item.id === value.studentId) &&
+      (group.periods.includes(value.period) || group.scheduleMode !== 'manual' && group.classes.length > 0));
+    return group && { ...value, name: group.students.find(item => item.id === value.studentId).name };
+  });
+  if (named.some(value => !value)) {
+    throw attendanceError('This student and period are not in your saved class tabs. Save class setup first.');
+  }
+  const result = await query(`WITH input AS (
+      SELECT * FROM jsonb_to_recordset($3::jsonb)
+        AS x("studentId" text, date date, period text, mark text, revision integer, name text)
+    ), inserted AS (
+      INSERT INTO planner_attendance_marks(owner_id,year,student_id,lesson_date,period,mark,student_name)
+      SELECT $1,$2,"studentId",date,period,mark,name FROM input WHERE revision=0
+      ON CONFLICT DO NOTHING RETURNING 1
+    ), updated AS (
+      UPDATE planner_attendance_marks AS m SET mark=i.mark,student_name=i.name,
+        revision=m.revision+1,updated_at=NOW()
+      FROM input AS i WHERE i.revision>0 AND m.owner_id=$1 AND m.year=$2
+        AND m.student_id=i."studentId" AND m.lesson_date=i.date AND m.period=i.period
+        AND m.revision=i.revision AND m.mark='' RETURNING 1
+    )
+    SELECT (SELECT count(*) FROM inserted) + (SELECT count(*) FROM updated) AS saved`,
+  [ownerId, year, JSON.stringify(named)]);
+  const saved = Number(result.rows[0].saved);
+  if (saved !== values.length) {
+    throw attendanceError(saved + ' of ' + values.length +
+      ' marks in this batch were saved; other marks changed in another window. Re-preview the PDF to retry safely.', 409);
+  }
+  return { saved };
+}
 function createAttendanceRouter({ query, loadClasses }) {
   const router = express.Router();
   function reject(res, message, status = 400) {
@@ -297,4 +381,5 @@ function createAttendanceRouter({ query, loadClasses }) {
   });
   return router;
 }
-module.exports = { createAttendanceRouter, validGroups, validDay };
+module.exports = { createAttendanceRouter, validGroups, validDay, validWeek,
+  saveAttendanceGroups, saveAttendanceImports, saveAttendanceImportMarks };

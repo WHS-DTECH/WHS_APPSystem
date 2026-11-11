@@ -395,7 +395,8 @@ test('two-week page filters term/class, displays every week and distinguishes le
       { imports: { [options.group.id + ':2026-10-26']: entry }, markedWeeks: [{ student_id: 'k:100', week: '2026-11-02' }] }
   });
   let nodes = descendants(host);
-  assert.equal(nodes.filter(node => node.attrs.scope === 'row').length, 10);
+  assert.equal(nodes.filter(node => node.tag === 'tr' &&
+    node.children.some(child => Object.hasOwn(child.attrs, 'data-import-status'))).length, 10);
   assert.ok(nodes.some(node => node.textContent === 'Week 10'));
   assert.ok(nodes.some(node => node.textContent === 'Synced'));
   assert.ok(nodes.some(node => node.textContent === 'Not synced'));
@@ -422,7 +423,7 @@ test('all-class import ignores display filters, deduplicates shared marks and re
     loadSchedule: async week => options.schedules[week], uploadPdf: async () => options.pdf,
     mutate: async (path, body) => { saved.push([path, body]); return { revision: 1 }; }
   });
-  await t.test('Drive card term list uses binary PDF import status, filters terms and refreshes saved history', async () => {
+  await t.  test('attendance import status filters terms, refreshes saved history and points Drive admins to Kamar Uploader', async () => {
     const options = importFixture(), host = element('section');
     const second = { ...options.group, id: crypto.randomUUID(), name: 'Second automatic class' };
     const manual = { ...options.group, id: crypto.randomUUID(), scheduleMode: 'manual' };
@@ -435,11 +436,9 @@ test('all-class import ignores display filters, deduplicates shared marks and re
       el: element, ...options, overview: true,
       ranges: [{ term: '3', startDate: '2026-07-20', endDate: '2026-09-25' }, ...options.ranges],
       request: async path => path.endsWith('/groups') ? { revision: 1, content: { groups: [options.group, second, manual] } } :
-        path.endsWith('/drive-sync') ? { enabled: true, folderId: 'synthetic_folder_123' } :
-          { imports, markedWeeks: [{ student_id: 'k:100', week: '2026-10-19' }] },
-      syncNow: async () => {}
+        { imports, markedWeeks: [{ student_id: 'k:100', week: '2026-10-19' }] }
     });
-    const coverage = () => descendants(host).find(node => node.attrs['aria-label'] === 'Term attendance sync coverage');
+    const coverage = () => descendants(host).find(node => node.attrs['aria-label'] === 'Term attendance import status');
     let nodes = descendants(coverage());
     const rows = nodes.filter(node => node.tag === 'tr' && node.children.some(child => child.attrs.scope === 'row'));
     assert.equal(rows.length, 10);
@@ -452,19 +451,17 @@ test('all-class import ignores display filters, deduplicates shared marks and re
     assert.ok(nodes.filter(node => Object.hasOwn(node.attrs, 'data-week-sync-status'))
       .every(node => ['Synced', 'Not synced'].includes(node.textContent)));
     assert.equal(nodes.some(node => /Saved PDF import coverage/.test(node.textContent)), false, 'explanation is removed');
-    const select = nodes.find(node => node.attrs['aria-label'] === 'Drive sync term number');
+    const select = nodes.find(node => node.attrs['aria-label'] === 'Attendance status term number');
     select.value = '3'; select.events.change();
     assert.ok(descendants(coverage()).some(node => node.textContent === '2026-07-20'));
-    await descendants(coverage()).find(node => node.textContent === 'Refresh weekly sync status').events.click();
-    assert.equal(descendants(coverage()).find(node => node.attrs['aria-label'] === 'Drive sync term number').value, '3');
-    const current = descendants(coverage()).find(node => node.attrs['aria-label'] === 'Drive sync term number');
+    await descendants(coverage()).find(node => node.textContent === 'Refresh weekly import status').events.click();
+    assert.equal(descendants(coverage()).find(node => node.attrs['aria-label'] === 'Attendance status term number').value, '3');
+    const current = descendants(coverage()).find(node => node.attrs['aria-label'] === 'Attendance status term number');
     current.value = '4'; current.events.change();
     imports[options.group.id + ':2026-11-09'] = complete;
-    await descendants(coverage()).find(node => node.textContent === 'Refresh weekly sync status').events.click();
+    await descendants(coverage()).find(node => node.textContent === 'Refresh weekly import status').events.click();
     assert.equal(descendants(coverage()).filter(node => node.attrs['data-week-sync-status'] === 'Synced').length, 3);
-    const card = descendants(host).find(node => node.tag === 'details' &&
-      node.children.some(child => child.textContent === 'Google Drive attendance folder sync'));
-    assert.ok(descendants(card).includes(coverage()));
+    assert.ok(descendants(host).some(node => /manage Google Drive imports in Kamar Uploader/.test(node.textContent)));
   });
   descendants(host).find(node => node.attrs.type === 'file').files = [{ size: 100 }];
   await descendants(host).find(node => node.textContent === 'Preview PDF import').events.click();
@@ -670,300 +667,43 @@ test('disabled Drive sync does not read Drive or change marks', async () => {
   assert.equal(result.enabled, false);
   assert.deepEqual(calls, ['attendance/2026/drive-sync']);
 });
-test('Drive setup authorises only on click and saves the chosen private folder before sync', async () => {
-  const options = importFixture(), host = element('section'), writes = [];
-  const redirectUri = 'https://school.example.test/teacher-planner/api/planner/google-calendar/callback';
-  const oauth = new URL('https://accounts.google.com/o/oauth2/v2/auth');
-  oauth.searchParams.set('client_id', 'synthetic-calendar-client');
-  oauth.searchParams.set('redirect_uri', redirectUri);
+test('Two-Week Attendance shows read-only import history and directs Drive admins to Kamar Uploader', async () => {
+  const options = importFixture(), host = element('section');
+  const requested = [];
+  await browser().mount(host, {
+    el: element, ...options, overview: true,
+    request: async path => {
+      requested.push(path);
+      return path.endsWith('/groups') ? { revision: 1, content: { groups: [options.group] } } :
+        { imports: {}, markedWeeks: [] };
+    },
+    loadSchedule: async week => options.schedules[week],
+    uploadPdf: async () => options.pdf,
+    syncNow: async () => assert.fail('Teacher Planner must not start Drive imports')
+  });
+  const nodes = descendants(host);
+  assert.ok(nodes.some(node => /manage Google Drive imports in Kamar Uploader/.test(node.textContent)));
+  assert.ok(nodes.some(node => node.textContent === 'Attendance import status'));
+  for (const label of ['Authorise read-only Google Drive', 'Save folder settings', 'Update attendance from Drive']) {
+    assert.equal(nodes.some(node => node.textContent === label), false, label);
+  }
+  assert.equal(nodes.some(node => node.attrs.type === 'url'), false);
+  assert.ok(nodes.some(node => node.textContent === 'Preview PDF import'), 'teachers retain personal PDF preview');
+  assert.equal(requested.some(path => path.endsWith('/drive-sync')), false);
+});
+test('daily Attendance does not expose a Drive import action', async () => {
+  const options = importFixture(), host = element('section');
   let syncs = 0;
   await browser().mount(host, {
-    el: element, ...options, overview: true,
-    request: async path => path.endsWith('/groups') ? { revision: 1, content: { groups: [options.group] } } :
-      path.endsWith('/drive-sync') ? { enabled: false, folderId: '', processed: {} } : { imports: {}, markedWeeks: [] },
-    mutate: async (path, body, method) => {
-      writes.push([path, body, method]);
-      return { url: oauth.href };
-    },
-    syncNow: async target => {
-      syncs++;
-      assert.equal(target, descendants(host).find(node => Object.hasOwn(node.attrs, 'data-attendance-drive-feedback')));
-      target.replaceChildren(element('p', 'Drive attendance sync completed successfully: 4 blank marks filled.', { role: 'status' }));
-    }
-  });
-  assert.equal(writes.length, 0);
-  let nodes = descendants(host);
-  await nodes.find(node => node.textContent === 'Authorise read-only Google Drive').events.click();
-  assert.deepEqual(JSON.parse(JSON.stringify(writes[0])), ['google-calendar/connect', { includeAttendanceDrive: true }, 'POST']);
-  assert.ok(descendants(host).some(node => node.tag === 'a' && node.attrs.target === '_blank'));
-  nodes = descendants(host);
-  assert.equal(nodes.some(node => /redirect_uri_mismatch|Google Cloud administrator|Authorised redirect URIs/.test(node.textContent)), false);
-  assert.equal(nodes.some(node => node.tag === 'code' &&
-    [redirectUri, 'synthetic-calendar-client'].includes(node.textContent)), false);
-  assert.equal(nodes.find(node => node.tag === 'a' && node.attrs.target === '_blank').attrs.href, oauth.href);
-  await nodes.find(node => node.textContent === 'Authorise read-only Google Drive').events.click();
-  assert.equal(descendants(host).filter(node => node.tag === 'a' && node.attrs.target === '_blank').length, 1, 'retry replaces the authorisation link');
-  nodes.find(node => node.attrs['aria-label'] === 'Attendance Google Drive folder URL').value =
-    'https://drive.google.com/drive/folders/synthetic_folder_123';
-  nodes.find(node => node.attrs['aria-label'] === 'Enable manual Drive attendance updates').checked = true;
-  await nodes.find(node => node.textContent === 'Save folder settings').events.click();
-  assert.equal(writes[2][0], 'attendance/2026/drive-sync');
-  assert.equal(writes[2][1].enabled, true);
-  assert.equal(syncs, 0, 'Saving folder settings never starts a sync');
-  await descendants(host).find(node => node.textContent === 'Update attendance from Drive').events.click();
-  assert.equal(syncs, 1, 'Only the explicit update button starts a sync');
-  const card = descendants(host).find(node => node.tag === 'details' &&
-    node.children.some(child => child.textContent === 'Google Drive attendance folder sync'));
-  assert.ok(descendants(card).some(node => /completed successfully: 4 blank marks filled/.test(node.textContent)),
-    'sync result stays in the Drive card after weekly history reloads');
-  const report = descendants(card).find(node => node.tag === 'details' &&
-    node.children.some(child => child.textContent === 'View sync report'));
-  assert.ok(report);
-  assert.ok(!report.open, 'detailed sync report is collapsed by default');
-  assert.equal(report.attrs.class, 'planner-hint', 'report uses existing pill-style disclosure');
-  assert.ok(descendants(report).some(node => /completed successfully: 4 blank marks filled/.test(node.textContent)));
-});
-test('daily attendance only updates on button click, prevents double requests and reloads saved marks', async () => {
-  const options = importFixture(), host = element('section');
-  let syncs = 0, weekReads = 0, release, fail = false, listener;
-  await browser().mount(host, {
     el: element, ...options,
-    loadSchedule: async week => options.schedules[week] || {},
-    request: async path => {
-      if (path.includes('/week/')) weekReads++;
-      return path.endsWith('/groups') ? { revision: 1, content: { groups: [options.group] } } :
-        path.includes('/week/') ? { marks: [] } : { imports: {}, markedWeeks: [] };
-    },
-    syncNow: async target => {
-      syncs++; listener(true);
-      try {
-        await new Promise(resolve => { release = resolve; });
-        if (fail) throw new Error('Drive update failed; saved marks retained');
-        target.replaceChildren(element('p', 'New attendance saved', { role: 'status' }));
-      } finally { listener(false); }
-    },
-    bindSyncState: callback => { listener = callback; callback(false); }
+    request: async path => path.endsWith('/groups') ? { revision: 1, content: { groups: [options.group] } } :
+      path.includes('/week/') ? { marks: [] } : { imports: {}, markedWeeks: [] },
+    syncNow: async () => { syncs++; }
   });
-  assert.equal(syncs, 0, 'Opening daily attendance uses saved marks only');
-  const initialReads = weekReads;
-  const button = descendants(host).find(node => node.textContent === 'Update attendance from Drive');
-  assert.ok(button);
-  const updating = button.events.click();
-  assert.equal(syncs, 1);
-  assert.equal(button.disabled, true);
-  await button.events.click();
-  assert.equal(syncs, 1, 'An update already in progress cannot be started again');
-  release(); await updating;
-  assert.equal(button.disabled, false);
-  assert.ok(weekReads > initialReads, 'Successful update reloads the displayed register from saved data');
-  assert.ok(descendants(host).some(node => node.textContent === 'New attendance saved'));
-  fail = true;
-  const failing = button.events.click();
-  release(); await failing;
-  assert.ok(descendants(host).some(node => node.attrs.role === 'alert' && /Drive update failed/.test(node.textContent)));
-  assert.equal(button.disabled, false, 'Failed update is retryable');
-});
-
-test('requested Drive sync protects navigation and shows explicit success or failure', async () => {
-  const source = fs.readFileSync(require.resolve('./public/planner.js'), 'utf8');
-  const helpers = source.slice(source.indexOf('  let attendanceSyncRunning = false;'), source.indexOf('  async function load()'));
-  const termHelpers = source.slice(source.indexOf('  function termRanges('), source.indexOf('  async function loadTermDates('));
-  for (const fail of [false, true]) {
-    const host = element('main');
-    let active = false;
-    const context = {
-      content: host, year: 2026, api: '/api/planner/', localDate: '2026-11-05', el: element, csrf: 'synthetic',
-      refreshSession: async () => {},
-      request: async path => path.endsWith('/drive-sync') ? { enabled: true } :
-        path.includes('school-settings') ? { content: { term4Start: '2026-10-12', term4End: '2026-12-18' } } : { terms: [] },
-      plannerAttendance: { syncDrive: async options => {
-        active = true;
-        assert.equal(host.children[0].attrs['data-preferences-busy'], 'true');
-        assert.equal(options.ranges[3].startDate, '2026-10-12');
-        if (fail) throw new Error('Drive permission required');
-        return { enabled: true, files: 1, marks: 4, conflicts: 1, warnings: 0, skipped: 2 };
-      } }
-    };
-    vm.runInNewContext(termHelpers + helpers, context);
-    if (fail) {
-      await assert.rejects(context.runAttendanceDriveSync(), /permission required/);
-      assert.equal(host.children[0].attrs.role, 'alert');
-    } else {
-      await context.runAttendanceDriveSync();
-      assert.match(host.children[0].textContent, /4 blank marks filled/);
-    }
-    assert.equal(active, true);
-    assert.equal(host.children[0].attrs['data-preferences-busy'], undefined);
-    assert.equal(host.children[0].hidden, true, 'sync report is not displayed on daily attendance or other planner pages');
-    const card = element('div', '', { 'data-attendance-drive-feedback': '' });
-    host.replaceChildren(card);
-    context.placeAttendanceDriveNote();
-    assert.equal(card.children[0].hidden, false, 'stored report becomes visible on Two-Week Attendance');
-    assert.match(card.children[0].textContent, fail ? /permission required/ : /4 blank marks filled/);
-  }
-});
-test('weekly refresh shows immediate progress and completion without losing active sync state', async () => {
-  const options = importFixture(), host = element('section');
-  let listener, target, release, hold = false;
-  const syncNote = element('div', 'Reading PDF 2 of 6...');
-  await browser().mount(host, {
-    el: element, ...options, overview: true,
-    request: async path => {
-      if (hold && path.endsWith('/imports')) await new Promise(resolve => { release = resolve; });
-      return path.endsWith('/groups') ? { revision: 1, content: { groups: [options.group] } } :
-        path.endsWith('/drive-sync') ? { enabled: true, folderId: 'synthetic_folder_123' } : { imports: {}, markedWeeks: [] };
-    },
-    syncNow: async () => { assert.fail('Refreshing status must not start a sync'); },
-    bindSyncState: (callback, feedback) => {
-      listener = callback; target = feedback;
-      callback(true); feedback.replaceChildren(syncNote);
-    }
-  });
-  let nodes = descendants(host);
-  assert.ok(nodes.some(node => node.textContent === 'Syncing Google Drive...' && node.disabled));
-  assert.equal(target.attrs['aria-busy'], 'true');
-  hold = true;
-  const button = nodes.find(node => node.textContent === 'Refresh weekly sync status');
-  const refreshing = button.events.click();
-  assert.equal(button.textContent, 'Refreshing weekly status...');
-  assert.equal(button.disabled, true);
-  assert.ok(descendants(host).some(node => /Refreshing saved weekly status/.test(node.textContent)));
-  await new Promise(resolve => setImmediate(resolve));
-  release(); hold = false;
-  await refreshing;
-  nodes = descendants(host);
-  assert.ok(nodes.some(node => /Weekly status refreshed/.test(node.textContent)));
-  assert.ok(nodes.includes(syncNote), 'active PDF progress survives card rebuild');
-  assert.ok(nodes.some(node => node.textContent === 'Syncing Google Drive...' && node.disabled));
-  listener(false);
-  assert.equal(target.attrs['aria-busy'], 'false');
-  assert.ok(descendants(host).some(node => node.textContent === 'Update attendance from Drive' && !node.disabled));
-});
-test('one Drive sync reuses monthly timetable feeds and retries failed requests', async () => {
-  const source = fs.readFileSync(require.resolve('./public/planner.js'), 'utf8');
-  const helper = source.slice(source.indexOf('  async function loadAttendanceSchedule('), source.indexOf('  let attendanceSyncRunning'));
-  const requests = [];
-  let fail = false;
-  const context = {
-    api: '/api/planner/',
-    date: value => new Date(value + 'T00:00:00Z'),
-    request: async path => {
-      requests.push(path);
-      if (fail) throw new Error('Timetable unavailable');
-      return { events: [{ title: 'Test' }] };
-    },
-    weeklyTimetableEntries: events => events
-  };
-  vm.runInNewContext(helper, context);
-  const cache = new Map();
-  await context.loadAttendanceSchedule('2026-10-19', cache);
-  await context.loadAttendanceSchedule('2026-10-26', cache);
-  assert.equal(requests.length, 1);
-  fail = true;
-  await assert.rejects(context.loadAttendanceSchedule('2026-11-02', cache), /Timetable unavailable/);
-  fail = false;
-  await context.loadAttendanceSchedule('2026-11-02', cache);
-  assert.equal(requests.length, 3);
-});
-test('Drive settings and authorisation failures are displayed inside the Drive card', async () => {
-  for (const action of ['Authorise read-only Google Drive', 'Save folder settings', 'Update attendance from Drive']) {
-    const options = importFixture(), host = element('section');
-    await browser().mount(host, {
-      el: element, ...options, overview: true,
-      request: async path => path.endsWith('/groups') ? { revision: 1, content: { groups: [options.group] } } :
-        path.endsWith('/drive-sync') ? { enabled: true, folderId: 'synthetic_folder_123' } : { imports: {}, markedWeeks: [] },
-      mutate: async () => { throw new Error('Synthetic Drive settings error'); },
-      syncNow: async () => { throw new Error('Synthetic Drive sync error'); }
-    });
-    const card = descendants(host).find(node => node.tag === 'details' &&
-      node.children.some(child => child.textContent === 'Google Drive attendance folder sync'));
-    await descendants(card).find(node => node.textContent === action).events.click();
-    assert.ok(descendants(card).some(node => node.attrs.role === 'alert' && /^Synthetic Drive/.test(node.textContent)), action);
-  }
-});
-test('automatic Drive feedback uses the card and survives remount without stale year results', async () => {
-  const source = fs.readFileSync(require.resolve('./public/planner.js'), 'utf8');
-  const helpers = source.slice(source.indexOf('  let attendanceSyncRunning = false;'), source.indexOf('  async function load()'));
-  const termHelpers = source.slice(source.indexOf('  function termRanges('), source.indexOf('  async function loadTermDates('));
-  for (const mode of ['processed', 'unchanged', 'empty', 'mixed', 'all-rejected', 'settings-failure', 'sync-failure', 'disabled']) {
-    const host = element('main'), unrelated = element('h2', 'Keep page contents');
-    const card = element('details'), target = element('div', '', { 'data-attendance-drive-feedback': '' });
-    card.append(target); host.append(unrelated, card);
-    const context = {
-      content: host, year: 2026, api: '/api/planner/', localDate: '2026-11-05', el: element, csrf: 'synthetic',
-      refreshSession: async () => {},
-      request: async path => {
-        if (mode === 'settings-failure') throw new Error('Folder settings unavailable');
-        return path.endsWith('/drive-sync') ? { enabled: mode !== 'disabled' } :
-          path.includes('school-settings') ? { content: { term4Start: '2026-10-12', term4End: '2026-12-18' } } : { terms: [] };
-      },
-      plannerAttendance: { syncDrive: async options => {
-        assert.equal(target.children[0].attrs['data-preferences-busy'], 'true');
-        options.onProgress('Reading attendance PDF');
-        assert.equal(target.children[0].textContent, 'Reading attendance PDF');
-        if (mode === 'sync-failure') throw new Error('PDF headings not recognised');
-        if (['mixed', 'all-rejected'].includes(mode)) {
-          const documents = [
-            ...(mode === 'mixed' ? [{ id: 'one', name: 'Good.pdf', status: 'synced', marks: 4, conflicts: 1, warnings: 0 }] : []),
-            { id: 'two', name: '<img src=x> Statistics.pdf', status: 'error', marks: 0, error: 'Half Days statistics report; not marked processed.' }
-          ];
-          for (const document of documents) options.onDocument(document);
-          options.onProgress('Reading next PDF');
-          assert.ok(descendants(target).some(node => node.tag === 'li' && /Half Days statistics/.test(node.textContent)),
-            'document error remains visible while progress continues');
-          return { enabled: true, files: mode === 'mixed' ? 1 : 0, marks: mode === 'mixed' ? 4 : 0,
-            conflicts: mode === 'mixed' ? 1 : 0, warnings: 0, skipped: 0, failed: 1, documents };
-        }
-        return { enabled: true, files: mode === 'processed' ? 1 : 0, marks: mode === 'processed' ? 4 : 0,
-          conflicts: 0, warnings: 0, skipped: mode === 'unchanged' ? 2 : 0 };
-      } }
-    };
-    vm.runInNewContext(termHelpers + helpers, context);
-    if (mode.endsWith('failure')) {
-      await assert.rejects(context.runAttendanceDriveSync());
-      assert.equal(target.children[0].attrs.role, 'alert');
-    } else if (['mixed', 'all-rejected'].includes(mode)) {
-      await context.runAttendanceDriveSync();
-      assert.equal(target.children[0].attrs.role, 'alert');
-      assert.match(target.children[0].textContent, /completed with document errors/);
-      assert.doesNotMatch(target.children[0].textContent, /completed successfully|No PDFs found|Already up to date/);
-      assert.ok(descendants(target).some(node => node.tag === 'li' &&
-        node.textContent === '<img src=x> Statistics.pdf: Half Days statistics report; not marked processed.'));
-      assert.equal(descendants(target).filter(node => node.tag === 'ol').length, mode === 'mixed' ? 2 : 1);
-      assert.equal(descendants(target).some(node => node.tag === 'ul'), false, 'document reports use numbered lists');
-      const hint = descendants(target).find(node => node.tag === 'details' && node.attrs.class === 'planner-hint');
-      assert.ok(hint, 'completed reports are hidden in a Hint pill');
-      assert.equal(hint.children[0].tag, 'summary');
-      assert.match(hint.children[0].textContent, /Hint: Attendance sync completed with document errors/);
-      if (mode === 'mixed') {
-        assert.ok(descendants(target).some(node => node.textContent === 'Successfully synced documents'));
-        assert.ok(descendants(target).some(node => node.tag === 'li' && /Good.pdf: 4 blank marks saved/.test(node.textContent)));
-      }
-    } else {
-      await context.runAttendanceDriveSync();
-      assert.equal(target.children[0].attrs.role, 'status');
-      assert.match(target.children[0].textContent, mode === 'disabled' ? /disabled/ : /completed successfully at/);
-      if (mode === 'unchanged') assert.match(target.children[0].textContent, /Already up to date/);
-      if (mode === 'empty') assert.match(target.children[0].textContent, /No PDFs found/);
-      if (mode !== 'disabled') {
-        const hint = descendants(target).find(node => node.tag === 'details' && node.attrs.class === 'planner-hint');
-        assert.ok(hint, 'completed reports are hidden in a Hint pill');
-        assert.equal(hint.children[0].textContent, 'Hint: Attendance sync results');
-        assert.equal(hint.attrs.open, undefined, 'completed reports start collapsed');
-      }
-    }
-    assert.equal(target.children[0].attrs['data-preferences-busy'], undefined);
-    assert.equal(host.children.length, 2, 'no messages appended outside card');
-    const note = target.children[0];
-    target.replaceChildren();
-    context.placeAttendanceDriveNote();
-    assert.equal(target.children[0], note);
-    target.replaceChildren();
-    context.year = 2027;
-    context.placeAttendanceDriveNote();
-    assert.equal(target.children.length, 0, 'old-year result is not shown for another year');
-    assert.equal(host.children[0], unrelated);
-  }
+  const nodes = descendants(host);
+  assert.equal(nodes.some(node => node.textContent === 'Update attendance from Drive'), false);
+  assert.equal(nodes.some(node => node.attrs.type === 'url'), false);
+  assert.equal(syncs, 0);
 });
 test('import refuses duplicate, unmatched and manual identities rather than guessing', () => {
   for (const change of [

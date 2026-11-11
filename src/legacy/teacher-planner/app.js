@@ -5,7 +5,8 @@ const { createPlannerRouter } = require('./planner');
 const { loadCalendar } = require('./kamarCalendar');
 
 // Embedded hosting supplies req.user from Global Control; never trust identity headers.
-function createModuleRouter({ query, searchStandards, loadStaff, loadSchoolCalendar, loadClasses, env = process.env } = {}) {
+function createModuleRouter({ query, searchStandards, loadStaff, loadSchoolCalendar, loadClasses,
+  loadAdminTeachers, authorizeAttendanceTarget, env = process.env } = {}) {
   const router = express.Router();
   router.use((req, res, next) => {
     res.set('Cache-Control', 'no-store');
@@ -28,7 +29,8 @@ function createModuleRouter({ query, searchStandards, loadStaff, loadSchoolCalen
       res.status(502).json({ error: 'The KAMAR School Events calendar could not be loaded. Please retry shortly.' });
     }
   });
-  if (query) router.use('/api/planner', createPlannerRouter({ query, searchStandards, loadStaff, loadSchoolCalendar, loadClasses, env }));
+  if (query) router.use('/api/planner', createPlannerRouter({ query, searchStandards, loadStaff,
+    loadSchoolCalendar, loadClasses, loadAdminTeachers, authorizeAttendanceTarget, env }));
   router.get('/', (req, res) => {
     const standalone = Boolean(req.moduleStandalone);
     const coreUrl = standalone ? new URL(process.env.GLOBAL_CONTROL_URL).origin : '';
