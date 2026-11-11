@@ -584,6 +584,11 @@ a {
   font-size: 0.9rem;
 }
 
+.attendance-admin-results-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
 .attendance-admin-results {
   margin-top: 0.75rem;
   table-layout: auto;

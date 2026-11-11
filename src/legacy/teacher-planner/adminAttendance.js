@@ -143,6 +143,14 @@ function createAdminAttendanceRouter({ query, loadTeachers, authorizeTarget, loa
       .catch(error => {
         console.error('Admin attendance import failed:', error.message);
         job.error = error.message || 'Attendance import failed. Check the folder and retry.';
+        if (job.summary) {
+          for (const document of job.summary.documents) {
+            if (document.status !== 'pending') continue;
+            document.status = 'blocked';
+            document.error = job.error + ' This PDF was not processed; no marks from it were changed.';
+            job.summary.blocked++;
+          }
+        }
         job.status = 'failed';
       })
       .finally(() => activeTargets.delete(key));
@@ -280,6 +288,25 @@ async function runJob(job, admin, selected, savedSettings, { query, authorizeTar
   if (!target) throw new Error('This teacher does not have active access to Teacher Planner.');
   const targetOwner = target.id;
   const targetRequest = { user: target };
+  const processedByTarget = savedSettings.processed || {};
+  if (!processedByTarget || typeof processedByTarget !== 'object' || Array.isArray(processedByTarget)) {
+    throw new Error('Admin attendance sync settings are invalid. Save the Drive folder settings again.');
+  }
+  const settings = { enabled: savedSettings.enabled, folderId: savedSettings.folder_id,
+    processed: processedByTarget[job.teacherId] || {} };
+  job.progress = 'Listing attendance PDFs in the Drive folder...';
+  const listing = await driveService.listFiles({ user: admin }, settings.folderId);
+  const dateRanges = new Map(listing.files.map(file => {
+    const previous = settings.processed[file.id];
+    return [file.id, previous?.version === file.version && previous.accountId === listing.accountId ?
+      previous.dateRange || null : null];
+  }));
+  job.summary = {
+    files: 0, marksFilled: 0, conflictsKept: 0, matchWarnings: 0, unchanged: 0, errors: 0, blocked: 0,
+    documents: listing.files.map(file => ({
+      name: file.name, status: 'pending', dateRange: dateRanges.get(file.id), marks: 0, conflicts: 0, warnings: 0
+    }))
+  };
   const schoolRow = (await query('SELECT content FROM school_planner_settings WHERE year=$1', [job.year])).rows[0];
   if (!schoolRow) throw new Error('Publish school term dates in Kamar Uploader or Planner Setup before importing attendance.');
   let calendar;
@@ -291,12 +318,6 @@ async function runJob(job, admin, selected, savedSettings, { query, authorizeTar
   }
   let directory;
   let schedules;
-  const processedByTarget = savedSettings.processed || {};
-  if (!processedByTarget || typeof processedByTarget !== 'object' || Array.isArray(processedByTarget)) {
-    throw new Error('Admin attendance sync settings are invalid. Save the Drive folder settings again.');
-  }
-  const settings = { enabled: savedSettings.enabled, folderId: savedSettings.folder_id,
-    processed: processedByTarget[job.teacherId] || {} };
   const request = async path => {
     const prefix = 'attendance/' + job.year + '/';
     if (path === prefix + 'drive-sync') return settings;
@@ -319,9 +340,14 @@ async function runJob(job, admin, selected, savedSettings, { query, authorizeTar
       return { marks: result.rows };
     }
     const listingPath = 'google-calendar/attendance-drive/' + job.year + '/files';
-    if (path === listingPath) return driveService.listFiles({ user: admin }, settings.folderId);
+    if (path === listingPath) return listing;
     const filePath = new RegExp('^' + listingPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '/([A-Za-z0-9_-]+)$').exec(path);
-    if (filePath) return driveService.readFile({ user: admin }, settings.folderId, filePath[1]);
+    if (filePath) {
+      const result = await driveService.readFile({ user: admin }, settings.folderId, filePath[1]);
+      const dates = result.pdf.rows.flatMap(row => row.days.map(day => day.date)).sort();
+      dateRanges.set(filePath[1], dates.length ? { startDate: dates[0], endDate: dates[dates.length - 1] } : null);
+      return result;
+    }
     throw new Error('Admin attendance sync requested an unsupported operation.');
   };
   const mutate = async (path, body) => {
@@ -339,7 +365,8 @@ async function runJob(job, admin, selected, savedSettings, { query, authorizeTar
         throw new Error('Invalid admin attendance Drive checkpoint.');
       }
       const value = JSON.stringify({ version: body.version, accountId: body.accountId,
-        revision: body.revision, retryOn: body.retryOn, contextKey: body.contextKey, completedAt: new Date().toISOString() });
+        revision: body.revision, retryOn: body.retryOn, contextKey: body.contextKey,
+        dateRange: dateRanges.get(body.fileId), completedAt: new Date().toISOString() });
       const result = await query(`UPDATE planner_attendance_admin_sync
         SET processed=jsonb_set(processed,ARRAY[$3::text,$4::text],$5::jsonb,true),
           revision=revision+1,updated_at=NOW()
@@ -353,16 +380,29 @@ async function runJob(job, admin, selected, savedSettings, { query, authorizeTar
   };
   const result = await attendance.syncDrive({ request, mutate, loadSchedule: async () => schedules,
     year: job.year, ranges, school: schoolRow.content, calendar, today: localDate(), automaticTabs: true,
-    onProgress: message => { job.progress = message; } });
+    onProgress: message => { job.progress = message; },
+    onDocument: document => {
+      const index = listing.files.findIndex(file => file.id === document.id);
+      job.summary.documents[index] = {
+        name: document.name, status: document.status, dateRange: dateRanges.get(document.id),
+        marks: document.marks, conflicts: document.conflicts || 0, warnings: document.warnings || 0,
+        ...(document.error ? { error: document.error } : {})
+      };
+      if (document.status === 'synced') job.summary.files++;
+      if (document.status === 'unchanged') job.summary.unchanged++;
+      if (document.status === 'error') job.summary.errors++;
+      job.summary.marksFilled += document.marks;
+      job.summary.conflictsKept += document.conflicts || 0;
+      job.summary.matchWarnings += document.warnings || 0;
+    } });
   if (!result.enabled) throw new Error('Admin attendance Drive sync is disabled.');
   return {
     files: result.files, marksFilled: result.marks, conflictsKept: result.conflicts,
-    matchWarnings: result.warnings, unchanged: result.skipped, errors: result.failed,
+    matchWarnings: result.warnings, unchanged: result.skipped, errors: result.failed, blocked: 0,
     ...((calendar.publicHolidaysError || calendar.publicHolidaysAvailable === false) ? {
       calendarWarning: 'Government public holiday dates could not be loaded. Verify school closures before importing.'
     } : {}),
-    documents: result.documents.map(({ name, status, marks, conflicts, warnings, error }) =>
-      ({ name, status, marks, conflicts: conflicts || 0, warnings: warnings || 0, ...(error ? { error } : {}) }))
+    documents: job.summary.documents
   };
 }
 

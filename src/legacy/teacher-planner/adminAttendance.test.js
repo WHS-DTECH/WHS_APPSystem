@@ -1,6 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
+const fs = require('node:fs');
+const vm = require('node:vm');
 const { once } = require('node:events');
 const { createAdminAttendanceRouter, timetableEntries } = require('./adminAttendance');
 
@@ -27,6 +29,22 @@ async function serve(t, options) {
 
 function headers(userId = adminId, admin = true) {
   return { 'x-user-id': userId, 'x-admin': String(admin) };
+}
+
+async function syncJob(url, year) {
+  const started = await fetch(url + '/sync', {
+    method: 'POST', headers: { ...headers(), 'content-type': 'application/json' },
+    body: JSON.stringify({ year, teacherId })
+  });
+  assert.equal(started.status, 202);
+  const { jobId } = await started.json();
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const response = await fetch(url + '/jobs/' + jobId, { headers: headers() });
+    const result = await response.json();
+    if (result.status !== 'running') return { jobId, ...result };
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+  assert.fail('Attendance sync did not finish.');
 }
 
 test('admin attendance timetable entries map KAMAR slots to period/day keys', () => {
@@ -71,7 +89,8 @@ test('admin sync writes to the selected teacher and exposes file summaries, not 
     students: [{ id: 'k:100', name: 'Private Student' }],
     periods: ['p1', 'p2', 'p3', 'p4', 'p5'], scheduleMode: 'auto'
   };
-  let classOwner, driveOwner, authorizedOwner;
+  let classOwner, driveOwner, authorizedOwner, reads = 0, rejectPdf = false;
+  const processed = {};
   const fileVersion = 'synthetic_file_123:2000-01-03:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
   const pdf = { weeks: ['2000-01-03'], rows: [{
     name: 'Private Student',
@@ -80,9 +99,12 @@ test('admin sync writes to the selected teacher and exposes file summaries, not 
   const url = await serve(t, {
     query: async (sql, params) => {
       if (sql.startsWith('SELECT folder_id,enabled,processed,revision')) {
-        return { rows: [{ folder_id: 'synthetic_folder_123', enabled: true, processed: {}, revision: 1 }] };
+        return { rows: [{ folder_id: 'synthetic_folder_123', enabled: true, processed, revision: 1 }] };
       }
-      if (sql.startsWith('UPDATE planner_attendance_admin_sync')) return { rows: [{ revision: 2 }] };
+      if (sql.startsWith('UPDATE planner_attendance_admin_sync')) {
+        processed[params[2]] = { [params[3]]: JSON.parse(params[4]) };
+        return { rows: [{ revision: 2 }] };
+      }
       if (sql.includes('school_planner_settings')) {
         return { rows: [{ content: { term1Start: '2000-01-03', term1End: '2000-01-07' } }] };
       }
@@ -113,37 +135,120 @@ test('admin sync writes to the selected teacher and exposes file summaries, not 
           connectionId: 'synthetic-connection', accountId: 'synthetic-google' };
       },
       readFile: async req => {
+        reads++;
         assert.equal(req.user.id, adminId);
+        if (rejectPdf) throw new Error('The updated PDF could not be decoded.');
         return { pdf, version: fileVersion, accountId: 'synthetic-google',
           connectionId: 'synthetic-connection' };
       }
     },
     driveStatus: async () => ({ connected: true, driveAccess: true, email: 'admin@example.test' })
   });
-  const started = await fetch(url + '/sync', {
-    method: 'POST', headers: { ...headers(), 'content-type': 'application/json' },
-    body: JSON.stringify({ year: 2000, teacherId })
-  });
-  assert.equal(started.status, 202);
-  const { jobId } = await started.json();
-  let result;
-  for (let attempt = 0; attempt < 50; attempt++) {
-    const response = await fetch(url + '/jobs/' + jobId, { headers: headers() });
-    result = await response.json();
-    if (result.status !== 'running') break;
-    await new Promise(resolve => setTimeout(resolve, 10));
-  }
+  const result = await syncJob(url, 2000);
   assert.equal(result.status, 'complete', result.error || result.progress);
   assert.equal(authorizedOwner, teacherId);
   assert.equal(classOwner, teacherId);
   assert.equal(driveOwner, adminId);
   assert.deepEqual(result.summary, {
-    files: 1, marksFilled: 1, conflictsKept: 0, matchWarnings: 0, unchanged: 0, errors: 0,
-    documents: [{ name: 'attendance.pdf', status: 'synced', marks: 1, conflicts: 0, warnings: 0 }]
+    files: 1, marksFilled: 1, conflictsKept: 0, matchWarnings: 0, unchanged: 0, errors: 0, blocked: 0,
+    documents: [{ name: 'attendance.pdf', status: 'synced', marks: 1, conflicts: 0, warnings: 0,
+      dateRange: { startDate: '2000-01-03', endDate: '2000-01-03' } }]
   });
   assert.doesNotMatch(JSON.stringify(result), /Private Student|k:100|"mark"|"P"/);
-  const hidden = await fetch(url + '/jobs/' + jobId, { headers: headers(otherAdminId) });
+  const hidden = await fetch(url + '/jobs/' + result.jobId, { headers: headers(otherAdminId) });
   assert.equal(hidden.status, 404);
+  const repeated = await syncJob(url, 2000);
+  assert.equal(repeated.status, 'complete');
+  assert.equal(repeated.summary.unchanged, 1);
+  assert.equal(repeated.summary.documents[0].status, 'unchanged');
+  assert.deepEqual(repeated.summary.documents[0].dateRange, result.summary.documents[0].dateRange);
+  assert.equal(reads, 1, 'unchanged PDFs retain their dates without downloading again');
+  processed[teacherId].synthetic_file_123.version = 'older-version';
+  rejectPdf = true;
+  const failed = await syncJob(url, 2000);
+  assert.equal(failed.summary.errors, 1);
+  assert.equal(failed.summary.documents[0].status, 'error');
+  assert.equal(failed.summary.documents[0].dateRange, null, 'failed reads must not show dates from an older PDF version');
+  assert.match(failed.summary.documents[0].error, /could not be decoded/);
+});
+
+test('missing published term dates return a blocked report for each Drive PDF without importing marks', async t => {
+  const url = await serve(t, {
+    query: async sql => {
+      if (sql.startsWith('SELECT folder_id,enabled,processed,revision')) {
+        return { rows: [{ folder_id: 'synthetic_folder_123', enabled: true, processed: {}, revision: 1 }] };
+      }
+      if (sql.includes('school_planner_settings')) return { rows: [] };
+      assert.fail('A blocked import must not query or change teacher attendance.');
+    },
+    loadTeachers: async () => [{ id: teacherId, name: 'Selected Teacher', staffCode: 'T01' }],
+    authorizeTarget: async id => ({ id }),
+    loadClasses: async () => assert.fail('A blocked import must not load classes.'),
+    loadSchoolCalendar: async () => assert.fail('Published dates are required first.'),
+    driveService: {
+      listFiles: async () => ({ files: [
+        { id: 'synthetic_file_123', name: 'Week one.pdf', version: 'v1' },
+        { id: 'synthetic_file_456', name: 'Week two.pdf', version: 'v2' }
+      ] }),
+      readFile: async () => assert.fail('A blocked PDF must not be downloaded.')
+    },
+    driveStatus: async () => ({ connected: true, driveAccess: true })
+  });
+  const result = await syncJob(url, 2026);
+  assert.equal(result.status, 'failed');
+  assert.match(result.error, /Publish school term dates/);
+  assert.equal(result.summary.blocked, 2);
+  assert.equal(result.summary.files, 0);
+  assert.equal(result.summary.marksFilled, 0);
+  assert.deepEqual(result.summary.documents.map(document => document.name), ['Week one.pdf', 'Week two.pdf']);
+  for (const document of result.summary.documents) {
+    assert.equal(document.status, 'blocked');
+    assert.equal(document.dateRange, null);
+    assert.match(document.error, /no marks from it were changed/);
+  }
+});
+
+test('Attendance Admin renders filenames, PDF date ranges and explicit outcomes even when sync is blocked', async () => {
+  function node(tag) {
+    return { tag, children: [], attrs: {}, textContent: '',
+      append(...items) { this.children.push(...items); },
+      replaceChildren() { this.children = []; },
+      setAttribute(key, value) { this.attrs[key] = value; } };
+  }
+  const results = node('div');
+  const source = fs.readFileSync(require.resolve('../kamar-uploader/site/attendance_admin.js'), 'utf8');
+  const context = { results, document: { createElement: node } };
+  vm.runInNewContext(source.slice(source.indexOf('  function renderDocuments('),
+    source.indexOf('  async function loadSettings(')), context);
+  const summary = { files: 1, marksFilled: 3, conflictsKept: 0, matchWarnings: 0, unchanged: 1, errors: 1, blocked: 1,
+    documents: [
+      { name: '<Attendance>.pdf', dateRange: { startDate: '2026-10-26', endDate: '2026-11-06' },
+        status: 'synced', marks: 3, conflicts: 0, warnings: 0 },
+      { name: 'Old.pdf', dateRange: null, status: 'unchanged', marks: 0, conflicts: 0, warnings: 0 },
+      { name: 'Bad.pdf', dateRange: null, status: 'error', marks: 0, conflicts: 0, warnings: 0, error: 'Invalid PDF' },
+      { name: 'Blocked.pdf', dateRange: null, status: 'blocked', marks: 0, conflicts: 0, warnings: 0, error: 'Publish school term dates' }
+    ] };
+  context.renderDocuments(summary);
+  const table = results.children[1].children[0];
+  assert.equal(table.children[0].children[0].children[1].textContent, 'Attendance date range');
+  const rows = table.children[1].children.map(row => row.children.map(cell => cell.textContent));
+  assert.deepEqual(rows[0], ['<Attendance>.pdf', '26 Oct 2026 - 6 Nov 2026', 'Success', '3', '0', '0',
+    'Import completed. Existing marks were not overwritten.']);
+  assert.equal(rows[1][1], 'Not recorded by the previous import');
+  assert.equal(rows[1][2], 'Already synced - unchanged');
+  assert.equal(rows[2][2], 'Failed');
+  assert.equal(rows[3][2], 'Blocked - not processed');
+
+  Object.assign(context, {
+    request: async () => ({ status: 'failed', summary, teacherName: 'Selected Teacher', year: 2026, error: 'Publish school term dates' }),
+    api: '/attendance-admin', show() {}
+  });
+  vm.runInNewContext(source.slice(source.indexOf('  async function pollJob('),
+    source.indexOf('  async function runImport(')), context);
+  await assert.rejects(context.pollJob('job'), /Publish school term dates/);
+  assert.equal(results.children[1].children[0].children[1].children.length, 4);
+  context.renderDocuments({ ...summary, documents: [] });
+  assert.match(results.children[1].textContent, /No attendance PDFs were found/);
 });
 
 test('admin PDF preview and apply are scoped to one teacher and never return individual marks', async t => {

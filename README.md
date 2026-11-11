@@ -1555,8 +1555,14 @@ least as large as the page's row count (continued classes show a whole-class tot
 
 The Kamar Uploader **Attendance Admin** page displays job progress and the
 latest selected-teacher import totals: PDFs processed, blank marks filled,
-conflicts kept, match warnings, unchanged PDFs and document errors. Its report
-contains file-level outcomes only; student names, IDs and attendance marks are
+conflicts kept, match warnings, unchanged PDFs and document errors. Its table
+lists each filename, the attendance date range read from the PDF, and an explicit
+success, unchanged, failed or blocked outcome. Date ranges are retained in the
+processed-file checkpoints for unchanged PDFs; older checkpoints without dates
+are labelled accordingly. If published school term dates are missing, the listed
+files are reported as blocked, with dates not read and no marks imported. Publish
+the dates in KAMAR School Calendar and retry. An empty folder is reported explicitly.
+The report contains file-level outcomes only; student names, IDs and attendance marks are
 not returned to or rendered in the admin browser. A public-holiday-data warning
 is shown when the school calendar cannot be loaded. The admin settings and
 per-teacher/year processed-file checkpoints live in

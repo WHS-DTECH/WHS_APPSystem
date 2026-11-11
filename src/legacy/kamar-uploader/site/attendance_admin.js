@@ -131,14 +131,19 @@
     totals.textContent = summary.files + ' PDFs processed; ' + summary.marksFilled +
       ' blank marks filled; ' + summary.conflictsKept + ' conflicts kept; ' +
       summary.matchWarnings + ' student/class match warnings; ' + summary.unchanged +
-      ' unchanged PDFs skipped; ' + summary.errors + ' document errors.';
+      ' unchanged PDFs skipped; ' + summary.errors + ' document errors; ' + (summary.blocked || 0) + ' PDFs blocked.';
     results.append(totals);
-    if (!summary.documents.length) return;
+    if (!summary.documents.length) {
+      const empty = document.createElement('p');
+      empty.textContent = 'No attendance PDFs were found in the selected Drive folder.';
+      results.append(empty);
+      return;
+    }
     const table = document.createElement('table');
     table.className = 'styled-table attendance-admin-results';
     const head = document.createElement('thead');
     const header = document.createElement('tr');
-    for (const label of ['PDF', 'Result', 'Marks filled', 'Conflicts', 'Match warnings', 'Details']) {
+    for (const label of ['PDF filename', 'Attendance date range', 'Result', 'Marks filled', 'Conflicts', 'Match warnings', 'Details']) {
       const cell = document.createElement('th');
       cell.scope = 'col';
       cell.textContent = label;
@@ -148,8 +153,18 @@
     const body = document.createElement('tbody');
     for (const documentResult of summary.documents) {
       const row = document.createElement('tr');
-      for (const value of [documentResult.name, documentResult.status, documentResult.marks,
-        documentResult.conflicts, documentResult.warnings, documentResult.error || '']) {
+      const labels = { synced: 'Success', unchanged: 'Already synced - unchanged', error: 'Failed',
+        blocked: 'Blocked - not processed', pending: 'Waiting' };
+      const dateRange = documentResult.dateRange;
+      const formatDate = value => new Intl.DateTimeFormat('en-NZ', { dateStyle: 'medium', timeZone: 'UTC' })
+        .format(new Date(value + 'T00:00:00Z'));
+      const dates = dateRange ? formatDate(dateRange.startDate) + ' - ' + formatDate(dateRange.endDate) :
+        documentResult.status === 'unchanged' ? 'Not recorded by the previous import' : 'Not read';
+      const details = documentResult.error || (documentResult.status === 'synced' ?
+        'Import completed. Existing marks were not overwritten.' : documentResult.status === 'unchanged' ?
+          'This PDF has already been processed for this teacher; no changes were needed.' : '');
+      for (const value of [documentResult.name, dates, labels[documentResult.status], documentResult.marks,
+        documentResult.conflicts, documentResult.warnings, details]) {
         const cell = document.createElement('td');
         cell.textContent = String(value);
         row.append(cell);
@@ -157,7 +172,13 @@
       body.append(row);
     }
     table.append(head, body);
-    results.append(table);
+    const scroll = document.createElement('div');
+    scroll.className = 'attendance-admin-results-scroll';
+    scroll.setAttribute('role', 'region');
+    scroll.setAttribute('aria-label', 'Attendance PDF import outcomes');
+    scroll.tabIndex = 0;
+    scroll.append(table);
+    results.append(scroll);
   }
   async function loadSettings() {
     const year = Number(yearInput.value);
@@ -203,10 +224,15 @@
       show(job.progress || 'Attendance import is running.');
       if (job.status === 'complete') {
         renderDocuments(job.summary);
-        show('Attendance import complete for ' + job.teacherName + ' (' + job.year + ').');
+        show('Attendance import ' + (job.summary.errors ? 'finished with document errors' : 'complete') +
+          ' for ' + job.teacherName + ' (' + job.year + ').', job.summary.errors > 0);
         return;
       }
-      if (job.status === 'failed') throw new Error(job.error || 'Attendance import failed.');
+      if (job.status === 'failed') {
+        if (job.summary) renderDocuments(job.summary);
+        throw new Error('Attendance import stopped for ' + job.teacherName + ' (' + job.year + '): ' +
+          (job.error || 'Attendance import failed.') + ' Review the results below, fix the issue, then retry.');
+      }
       await new Promise(resolve => setTimeout(resolve, 1200));
     }
   }
