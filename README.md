@@ -1562,7 +1562,9 @@ strict; footer recognition requires the expected position and a student count at
 least as large as the page's row count (continued classes show a whole-class total).
 
 The **Google Drive attendance folder sync** card shows authorisation/setup errors,
-live sync progress and the latest result. A successful check displays
+live sync progress and the latest result. Completed result details are collapsed
+inside a **Hint: Attendance sync results** pill; open it to view the full report.
+A successful check displays
 **Drive attendance sync completed successfully** with an NZ timestamp, processed
 PDFs, saved blank marks, conflicts kept, match warnings and unchanged PDFs skipped.
 **Already up to date** means nothing new needed importing; **No PDFs found**

@@ -2637,7 +2637,9 @@
     else target.replaceChildren(note);
     attendanceSyncStateListener?.(true);
     let documents = [];
+    let statusMessage = '';
     function show(message) {
+      statusMessage = message;
       note.replaceChildren();
       note.textContent = message;
       for (const [status, title] of [
@@ -2656,6 +2658,16 @@
         }
         note.append(el('h4', title), list);
       }
+    }
+    function collapseResultHint(hasErrors) {
+      const report = el('div', statusMessage);
+      report.append(...Array.from(note.children));
+      const hint = el('details', '', { class: 'planner-hint' });
+      hint.append(el('summary', hasErrors
+        ? 'Hint: Attendance sync completed with document errors'
+        : 'Hint: Attendance sync results'), report);
+      note.setAttribute('class', '');
+      note.replaceChildren(hint);
     }
     try {
       await refreshSession();
@@ -2698,6 +2710,7 @@
         (result.failed ? ' Successfully synced documents are saved. Correct or remove rejected PDFs, then retry; completed documents will not be duplicated.' : '') +
         (result.warnings ? ' Re-preview affected PDFs in Two-Week Attendance to review unmatched students.' : '') +
         (calendar.publicHolidaysError ? ' Public holiday dates unavailable: check the imported dates.' : ''));
+      collapseResultHint(Boolean(result.failed));
       return { note };
     } catch (error) {
       note.setAttribute('role', 'alert');

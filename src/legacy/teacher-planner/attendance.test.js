@@ -931,6 +931,10 @@ test('automatic Drive feedback uses the card and survives remount without stale 
         node.textContent === '<img src=x> Statistics.pdf: Half Days statistics report; not marked processed.'));
       assert.equal(descendants(target).filter(node => node.tag === 'ol').length, mode === 'mixed' ? 2 : 1);
       assert.equal(descendants(target).some(node => node.tag === 'ul'), false, 'document reports use numbered lists');
+      const hint = descendants(target).find(node => node.tag === 'details' && node.attrs.class === 'planner-hint');
+      assert.ok(hint, 'completed reports are hidden in a Hint pill');
+      assert.equal(hint.children[0].tag, 'summary');
+      assert.match(hint.children[0].textContent, /Hint: Attendance sync completed with document errors/);
       if (mode === 'mixed') {
         assert.ok(descendants(target).some(node => node.textContent === 'Successfully synced documents'));
         assert.ok(descendants(target).some(node => node.tag === 'li' && /Good.pdf: 4 blank marks saved/.test(node.textContent)));
@@ -941,6 +945,12 @@ test('automatic Drive feedback uses the card and survives remount without stale 
       assert.match(target.children[0].textContent, mode === 'disabled' ? /disabled/ : /completed successfully at/);
       if (mode === 'unchanged') assert.match(target.children[0].textContent, /Already up to date/);
       if (mode === 'empty') assert.match(target.children[0].textContent, /No PDFs found/);
+      if (mode !== 'disabled') {
+        const hint = descendants(target).find(node => node.tag === 'details' && node.attrs.class === 'planner-hint');
+        assert.ok(hint, 'completed reports are hidden in a Hint pill');
+        assert.equal(hint.children[0].textContent, 'Hint: Attendance sync results');
+        assert.equal(hint.attrs.open, undefined, 'completed reports start collapsed');
+      }
     }
     assert.equal(target.children[0].attrs['data-preferences-busy'], undefined);
     assert.equal(host.children.length, 2, 'no messages appended outside card');
