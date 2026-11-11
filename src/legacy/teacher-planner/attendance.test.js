@@ -411,83 +411,73 @@ test('two-week page filters term/class, displays every week and distinguishes le
   assert.ok(nodes.some(node => node.textContent === '2026-07-20'));
   assert.ok(nodes.some(node => node.textContent === 'Second class - Term 3 import history'));
 });
-test('all-class import ignores display filters, deduplicates shared marks and records each class week', async t => {
-  const options = importFixture(), host = element('section'), saved = [];
-  const second = { ...options.group, id: crypto.randomUUID(), name: 'Second class' };
-  const manual = { ...options.group, id: crypto.randomUUID(), name: 'Manual class', scheduleMode: 'manual' };
-  await browser().mount(host, {
-    el: element, ...options, overview: true,
-    request: async path => path.endsWith('/groups') ? { revision: 1, content: { groups: [options.group, second, manual] } } :
-      path.endsWith('/imports') ? { imports: {}, markedWeeks: [] } :
-        path.includes('/classes/') ? options.directory : { marks: options.savedMarks },
-    loadSchedule: async week => options.schedules[week], uploadPdf: async () => options.pdf,
-    mutate: async (path, body) => { saved.push([path, body]); return { revision: 1 }; }
-  });
-  await t.  test('attendance import status filters terms, refreshes saved history and points Drive admins to Kamar Uploader', async () => {
-    const options = importFixture(), host = element('section');
-    const second = { ...options.group, id: crypto.randomUUID(), name: 'Second automatic class' };
-    const manual = { ...options.group, id: crypto.randomUUID(), scheduleMode: 'manual' };
-    const imports = {};
-    const complete = { expected: 5, recorded: 5, unresolved: false, importedAt: '2026-11-05T00:00:00Z' };
-    imports[options.group.id + ':2026-10-26'] = complete;
-    imports[second.id + ':2026-10-26'] = complete;
-    imports[options.group.id + ':2026-11-02'] = { ...complete, recorded: 2, unresolved: true };
-    await browser().mount(host, {
-      el: element, ...options, overview: true,
-      ranges: [{ term: '3', startDate: '2026-07-20', endDate: '2026-09-25' }, ...options.ranges],
-      request: async path => path.endsWith('/groups') ? { revision: 1, content: { groups: [options.group, second, manual] } } :
-        { imports, markedWeeks: [{ student_id: 'k:100', week: '2026-10-19' }] }
-    });
-    const coverage = () => descendants(host).find(node => node.attrs['aria-label'] === 'Term attendance import status');
-    let nodes = descendants(coverage());
-    const rows = nodes.filter(node => node.tag === 'tr' && node.children.some(child => child.attrs.scope === 'row'));
-    assert.equal(rows.length, 10);
-    assert.equal(rows[0].children[0].textContent, 'Week 1');
-    assert.equal(rows[0].children[1].textContent, '2026-10-12');
-    assert.equal(rows[0].children[2].textContent, 'Not synced');
-    assert.equal(rows[1].children[2].textContent, 'Not synced', 'manual marks alone do not indicate a PDF import');
-    assert.equal(rows[2].children[2].textContent, 'Synced');
-    assert.equal(rows[3].children[2].textContent, 'Synced', 'PDF import counts regardless of blank slots or unmatched students');
-    assert.ok(nodes.filter(node => Object.hasOwn(node.attrs, 'data-week-sync-status'))
-      .every(node => ['Synced', 'Not synced'].includes(node.textContent)));
-    assert.equal(nodes.some(node => /Saved PDF import coverage/.test(node.textContent)), false, 'explanation is removed');
-    const select = nodes.find(node => node.attrs['aria-label'] === 'Attendance status term number');
-    select.value = '3'; select.events.change();
-    assert.ok(descendants(coverage()).some(node => node.textContent === '2026-07-20'));
-    await descendants(coverage()).find(node => node.textContent === 'Refresh weekly import status').events.click();
-    assert.equal(descendants(coverage()).find(node => node.attrs['aria-label'] === 'Attendance status term number').value, '3');
-    const current = descendants(coverage()).find(node => node.attrs['aria-label'] === 'Attendance status term number');
-    current.value = '4'; current.events.change();
-    imports[options.group.id + ':2026-11-09'] = complete;
-    await descendants(coverage()).find(node => node.textContent === 'Refresh weekly import status').events.click();
-    assert.equal(descendants(coverage()).filter(node => node.attrs['data-week-sync-status'] === 'Synced').length, 3);
-    assert.ok(descendants(host).some(node => /manage Google Drive imports in Kamar Uploader/.test(node.textContent)));
-  });
-  descendants(host).find(node => node.attrs.type === 'file').files = [{ size: 100 }];
-  await descendants(host).find(node => node.textContent === 'Preview PDF import').events.click();
-  const nodes = descendants(host);
-  assert.ok(nodes.some(node => node.textContent.startsWith('Second class: 4 blank marks')));
-  assert.ok(nodes.some(node => node.textContent.startsWith('Manual class: skipped')));
-  await nodes.find(node => node.textContent === 'Fill 4 blank marks').events.click();
-  assert.equal(saved.filter(([path]) => path.endsWith('/import-marks')).length, 1);
-  assert.equal(saved.find(([path]) => path.endsWith('/import-marks'))[1].marks.length, 4, 'shared marks are not saved twice');
-  const history = saved.find(([path]) => path.endsWith('/imports'))[1];
-  assert.equal(history.entries.length, 4);
-  assert.deepEqual(new Set(history.entries.map(item => item.groupId)), new Set([options.group.id, second.id]));
-});
-test('failed PDF preview displays its error beside the preview controls and never saves marks', async () => {
+test('Two-Week Attendance directs all-class PDF imports to Kamar Uploader', async () => {
   const options = importFixture(), host = element('section');
-  const message = 'The attendance PDF could not be read. The PDF day columns have changed.';
   await browser().mount(host, {
     el: element, ...options, overview: true,
     request: async path => path.endsWith('/groups') ? { revision: 1, content: { groups: [options.group] } } :
-      { imports: {}, markedWeeks: [] },
-    loadSchedule: async () => { throw new Error('Failed preview must not load schedules'); },
+      { imports: {}, markedWeeks: [] }
+  });
+  const nodes = descendants(host);
+  assert.ok(nodes.some(node => node.textContent.includes('Administrators can upload a PDF for the selected teacher in Kamar Uploader Attendance Admin.')));
+  assert.equal(nodes.some(node => node.textContent.startsWith('Load Two-Week Attendance PDF')), false);
+  assert.equal(nodes.some(node => node.textContent === 'Preview PDF import'), false);
+});
+test('attendance import status filters terms, refreshes saved history and points admins to Kamar Uploader', async () => {
+  const options = importFixture(), host = element('section');
+  const second = { ...options.group, id: crypto.randomUUID(), name: 'Second automatic class' };
+  const manual = { ...options.group, id: crypto.randomUUID(), scheduleMode: 'manual' };
+  const imports = {};
+  const complete = { expected: 5, recorded: 5, unresolved: false, importedAt: '2026-11-05T00:00:00Z' };
+  imports[options.group.id + ':2026-10-26'] = complete;
+  imports[second.id + ':2026-10-26'] = complete;
+  imports[options.group.id + ':2026-11-02'] = { ...complete, recorded: 2, unresolved: true };
+  await browser().mount(host, {
+    el: element, ...options, overview: true,
+    ranges: [{ term: '3', startDate: '2026-07-20', endDate: '2026-09-25' }, ...options.ranges],
+    request: async path => path.endsWith('/groups') ? { revision: 1, content: { groups: [options.group, second, manual] } } :
+      { imports, markedWeeks: [{ student_id: 'k:100', week: '2026-10-19' }] }
+  });
+  const coverage = () => descendants(host).find(node => node.attrs['aria-label'] === 'Term attendance import status');
+  let nodes = descendants(coverage());
+  const rows = nodes.filter(node => node.tag === 'tr' && node.children.some(child => child.attrs.scope === 'row'));
+  assert.equal(rows.length, 10);
+  assert.equal(rows[0].children[0].textContent, 'Week 1');
+  assert.equal(rows[0].children[1].textContent, '2026-10-12');
+  assert.equal(rows[0].children[2].textContent, 'Not synced');
+  assert.equal(rows[1].children[2].textContent, 'Not synced', 'manual marks alone do not indicate a PDF import');
+  assert.equal(rows[2].children[2].textContent, 'Synced');
+  assert.equal(rows[3].children[2].textContent, 'Synced', 'PDF import counts regardless of blank slots or unmatched students');
+  assert.ok(nodes.filter(node => Object.hasOwn(node.attrs, 'data-week-sync-status'))
+    .every(node => ['Synced', 'Not synced'].includes(node.textContent)));
+  assert.equal(nodes.some(node => /Saved PDF import coverage/.test(node.textContent)), false, 'explanation is removed');
+  const select = nodes.find(node => node.attrs['aria-label'] === 'Attendance status term number');
+  select.value = '3'; select.events.change();
+  assert.ok(descendants(coverage()).some(node => node.textContent === '2026-07-20'));
+  await descendants(coverage()).find(node => node.textContent === 'Refresh weekly import status').events.click();
+  assert.equal(descendants(coverage()).find(node => node.attrs['aria-label'] === 'Attendance status term number').value, '3');
+  const current = descendants(coverage()).find(node => node.attrs['aria-label'] === 'Attendance status term number');
+  current.value = '4'; current.events.change();
+  imports[options.group.id + ':2026-11-09'] = complete;
+  await descendants(coverage()).find(node => node.textContent === 'Refresh weekly import status').events.click();
+  assert.equal(descendants(coverage()).filter(node => node.attrs['data-week-sync-status'] === 'Synced').length, 3);
+  assert.ok(descendants(host).some(node =>
+    /manage Google Drive and all-class PDF imports in Kamar Uploader/.test(node.textContent)));
+});
+test('per-class PDF preview displays its error beside the controls and never saves marks', async () => {
+  const options = importFixture(), host = element('section');
+  const message = 'The attendance PDF could not be read. The PDF day columns have changed.';
+  await browser().mount(host, {
+    el: element, ...options,
+    request: async path => path.endsWith('/groups') ? { revision: 1, content: { groups: [options.group] } } :
+      path.includes('/classes/') ? options.directory : path.includes('/week/') ? { marks: [] } :
+        { imports: {}, markedWeeks: [] },
+    loadSchedule: async week => options.schedules[week],
     uploadPdf: async () => { throw new Error(message); },
     mutate: async () => { assert.fail('Failed preview must not save marks'); }
   });
   const panel = descendants(host).find(node => node.tag === 'details' &&
-    node.children.some(child => child.textContent.startsWith('Load Two-Week Attendance PDF')));
+    node.children.some(child => child.textContent.startsWith('Import KAMAR attendance PDF')));
   descendants(panel).find(node => node.attrs.type === 'file').files = [{ size: 100 }];
   await descendants(panel).find(node => node.textContent === 'Preview PDF import').events.click();
   assert.ok(descendants(panel).some(node => node.attrs.role === 'alert' && node.textContent === message));
@@ -498,7 +488,7 @@ test('an already populated PDF can record import history without rewriting any m
   const plan = browser().planImport(options);
   options.savedMarks.push(...plan.fills.map(value => ({ student_id: value.studentId, ...value })));
   await browser().mount(host, {
-    el: element, ...options, overview: true,
+    el: element, ...options,
     request: async path => path.endsWith('/groups') ? { revision: 1, content: { groups: [options.group] } } :
       path.endsWith('/imports') ? { imports: {}, markedWeeks: [] } :
         path.includes('/classes/') ? options.directory : { marks: options.savedMarks },
@@ -667,7 +657,7 @@ test('disabled Drive sync does not read Drive or change marks', async () => {
   assert.equal(result.enabled, false);
   assert.deepEqual(calls, ['attendance/2026/drive-sync']);
 });
-test('Two-Week Attendance shows read-only import history and directs Drive admins to Kamar Uploader', async () => {
+test('Two-Week Attendance shows import history and directs all-class PDF imports to Kamar Uploader', async () => {
   const options = importFixture(), host = element('section');
   const requested = [];
   await browser().mount(host, {
@@ -682,13 +672,13 @@ test('Two-Week Attendance shows read-only import history and directs Drive admin
     syncNow: async () => assert.fail('Teacher Planner must not start Drive imports')
   });
   const nodes = descendants(host);
-  assert.ok(nodes.some(node => /manage Google Drive imports in Kamar Uploader/.test(node.textContent)));
+  assert.ok(nodes.some(node => /manage Google Drive and all-class PDF imports in Kamar Uploader/.test(node.textContent)));
   assert.ok(nodes.some(node => node.textContent === 'Attendance import status'));
   for (const label of ['Authorise read-only Google Drive', 'Save folder settings', 'Update attendance from Drive']) {
     assert.equal(nodes.some(node => node.textContent === label), false, label);
   }
   assert.equal(nodes.some(node => node.attrs.type === 'url'), false);
-  assert.ok(nodes.some(node => node.textContent === 'Preview PDF import'), 'teachers retain personal PDF preview');
+  assert.equal(nodes.some(node => node.textContent === 'Preview PDF import'), false);
   assert.equal(requested.some(path => path.endsWith('/drive-sync')), false);
 });
 test('daily Attendance does not expose a Drive import action', async () => {

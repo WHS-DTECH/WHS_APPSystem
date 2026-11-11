@@ -88,6 +88,7 @@
   let termSelectionPending = !/^[1-4]$/.test(restored.get('term') || '');
   if (/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(restored.get('record') || '')) moderationRecord = restored.get('record');
   if (['overview', 'internal', 'schedule', 'feedback', 'coversheet'].includes(restored.get('page'))) moderationPage = restored.get('page');
+  if (section === 'setup' && setupTab === 6) setupTab = 5;
   const restoredPeriod = restored.get('date') || '';
   if (/^\d{4}-\d{2}-\d{2}$/.test(restoredPeriod) && Number.isFinite(date(restoredPeriod).getTime()) &&
       iso(date(restoredPeriod)) === restoredPeriod && Number(restoredPeriod.slice(0, 4)) >= 2000 &&
@@ -1862,12 +1863,10 @@
     let driveLoaded = false;
     const holidays = el('section', '', { class: 'paper-page setup-page' });
     let holidaysLoaded = false;
-    const duties = el('section', '', { class: 'paper-page setup-page duty-roster-setup' });
-    let dutiesLoaded = false;
     const attendance = el('section', '', { class: 'paper-page setup-page attendance-setup-page', 'data-planner-navigation': '' });
     let attendanceLoaded = false;
-    const pages = [page, kamar, tasks, drive, holidays, duties, attendance];
-    const buttons = ['Planner Setup', 'KAMAR Teacher Timetable Setup', 'Google Tasks Setup', 'Google Drive Setup', 'Public Holidays Setup', 'Duty Roster', 'Two-Week Attendance'].map((label, index) => {
+    const pages = [page, kamar, tasks, drive, holidays, attendance];
+    const buttons = ['Planner Setup', 'KAMAR Teacher Timetable Setup', 'Google Tasks Setup', 'Google Drive Setup', 'Public Holidays Setup', 'Two-Week Attendance'].map((label, index) => {
       const button = el('button', label, { type: 'button', role: 'tab', id: 'setup-tab-' + index, 'aria-controls': 'setup-sheet-' + index });
       pages[index].id = 'setup-sheet-' + index;
       pages[index].setAttribute('role', 'tabpanel');
@@ -1876,10 +1875,7 @@
       return button;
     });
     function activate(index) {
-      if (setupTab === 5 && index !== 5 && duties.querySelector('[data-preferences-busy="true"]')) {
-        notice('Save or reload your duty setup changes before switching tabs.', true); return false;
-      }
-      if (setupTab === 6 && index !== 6 && (attendance.dataset.attendanceLoading === 'true' || attendance.querySelector('[data-preferences-busy="true"]'))) {
+      if (setupTab === 5 && index !== 5 && (attendance.dataset.attendanceLoading === 'true' || attendance.querySelector('[data-preferences-busy="true"]'))) {
         notice('Finish loading or save/reload attendance changes before switching tabs.', true); return false;
       }
       setupTab = index;
@@ -1911,20 +1907,7 @@
         holidaysLoaded = true;
         mountHolidayPreferences(holidays);
       }
-      if (index === 5 && !dutiesLoaded) {
-        dutiesLoaded = true;
-        const host = el('div'); duties.append(host);
-        globalThis.plannerDutyRoster.mountSetup(host, {
-          el, year, week, canEdit: canManageSchoolSettings,
-          request: async path => { await refreshSession(); return request(api + path); },
-          mutate: async (path, body, method = 'POST') => {
-            await refreshSession();
-            return request(api + path, { method, headers: { 'Content-Type': 'application/json', 'x-planner-csrf': csrf },
-              body: JSON.stringify(body) });
-          }
-        });
-      }
-      if (index === 6 && !attendanceLoaded) {
+      if (index === 5 && !attendanceLoaded) {
         attendanceLoaded = true;
         attendance.dataset.attendanceLoading = 'true';
         setupAttendanceReady = mountAttendancePage(attendance, true).catch(error => {
@@ -1933,7 +1916,7 @@
           attendanceLoaded = false;
           attendance.replaceChildren(el('p', error.message, { role: 'alert' }));
           const retryAttendance = el('button', 'Retry Two-Week Attendance', { type: 'button' });
-          retryAttendance.addEventListener('click', () => { attendance.replaceChildren(); activate(6); });
+          retryAttendance.addEventListener('click', () => { attendance.replaceChildren(); activate(5); });
           attendance.append(retryAttendance);
         }).finally(() => { attendance.dataset.attendanceLoading = 'false'; });
       }
@@ -2601,7 +2584,7 @@
   }
   async function load() {
     setupAttendanceReady = undefined;
-    if (section === 'attendanceImport') { section = 'setup'; setupTab = 6; }
+    if (section === 'attendanceImport') { section = 'setup'; setupTab = 5; }
     const dutyRefresh = document.getElementById?.('refresh-weekly-duties');
     if (dutyRefresh) { dutyRefresh.hidden = true; dutyRefresh.onclick = null; }
     clearTimeout(autosaveTimer);

@@ -17,7 +17,7 @@
       <div class="hero-text-wrap">
         <p class="hero-kicker">Kamar Uploader · Administration</p>
         <h1>Two-Week Attendance Admin</h1>
-        <p class="hero-subtitle">Import KAMAR attendance PDFs from the school Drive folder into a selected teacher’s private Teacher Planner.</p>
+        <p class="hero-subtitle">Import KAMAR attendance PDFs from Drive or a single uploaded file into a selected teacher’s private Teacher Planner.</p>
       </div>
       <article class="panel attendance-admin-privacy">
         <h2>Teacher privacy</h2>
@@ -50,9 +50,21 @@
       <div class="attendance-admin-actions attendance-admin-run">
         <button id="runAttendanceImport" type="button" disabled>Import attendance for selected teacher</button>
         <a class="hero-link" href="school_calendar.html">KAMAR School Calendar &amp; term dates</a>
+        <a class="hero-link" href="duty_roster.html">Duty Roster setup</a>
         <a class="hero-link" href="/teacher-planner/">Open Teacher Planner</a>
       </div>
       <p class="attendance-admin-note">Existing marks are never overwritten. The importer saves blank marks for the selected teacher and records file-level outcomes. Select one teacher at a time; each teacher’s import history is tracked separately.</p>
+    </section>
+
+    <section class="panel attendance-admin-pdf" aria-labelledby="attendanceAdminPdfHeading">
+      <h2 id="attendanceAdminPdfHeading">Upload a Two-Week Attendance PDF</h2>
+      <p>Choose the planner year and teacher above, then preview a single KAMAR PDF. The preview shows totals only; individual student marks remain private. Confirmed imports fill blank marks only.</p>
+      <div class="attendance-admin-pdf-controls">
+        <label for="attendancePdfFile">KAMAR attendance PDF</label>
+        <input id="attendancePdfFile" type="file" accept=".pdf,application/pdf" aria-label="KAMAR two-week attendance PDF" />
+        <button id="previewAttendancePdf" class="subtle-btn" type="button" disabled>Preview PDF import</button>
+      </div>
+      <div id="attendancePdfResults" class="attendance-admin-pdf-results" role="status" aria-live="polite"></div>
     </section>
 
     <section class="panel" aria-labelledby="attendanceAdminResults">

@@ -593,6 +593,130 @@ a {
   overflow-wrap: anywhere;
 }
 
+.attendance-admin-pdf > p,
+.duty-roster-page-status {
+  color: #38576b;
+  line-height: 1.5;
+}
+
+.attendance-admin-pdf-controls {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.55fr) minmax(240px, 1fr);
+  gap: 0.65rem 0.9rem;
+  align-items: center;
+}
+
+.attendance-admin-pdf-controls label,
+.duty-roster-year label {
+  color: #284a5f;
+  font-weight: 700;
+}
+
+.attendance-admin-pdf-controls input,
+.duty-roster-year input,
+#dutyRosterSetup input[type="text"],
+#dutyRosterSetup select,
+#dutyRosterSetup textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #c8d6e4;
+  border-radius: 10px;
+  padding: 0.58rem 0.65rem;
+  font: inherit;
+}
+
+.attendance-admin-pdf-controls button {
+  grid-column: 2;
+  justify-self: start;
+  margin-top: 0;
+}
+
+.attendance-admin-pdf-results {
+  margin-top: 0.85rem;
+}
+
+.attendance-admin-pdf-results p {
+  color: #38576b;
+  line-height: 1.5;
+}
+
+.attendance-admin-pdf-results [role="alert"] {
+  border-left: 4px solid #a32d29;
+  padding: 0.65rem;
+  background: #fff0ef;
+  color: #842420;
+}
+
+.duty-roster-hero {
+  grid-template-columns: 1.5fr 1fr;
+}
+
+.duty-roster-hero article p {
+  color: #38576b;
+  line-height: 1.5;
+}
+
+.duty-roster-year {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.55fr) minmax(220px, 1fr);
+  gap: 0.65rem 0.9rem;
+  align-items: center;
+  max-width: 650px;
+  margin: 0 0 0.9rem;
+}
+
+#dutyRosterSetup input[type="text"],
+#dutyRosterSetup textarea {
+  display: block;
+}
+
+#dutyRosterSetup textarea {
+  min-height: 220px;
+  resize: vertical;
+}
+
+#dutyRosterSetup button,
+#dutyRosterSetup select {
+  margin: 0.5rem 0.5rem 0.5rem 0;
+}
+
+#dutyRosterSetup .duty-roster-feedback {
+  padding: 0.75rem;
+  border: 1px solid #347451;
+  border-left-width: 4px;
+  border-radius: 8px;
+  background: #e7f3e9;
+  color: #204e35;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+#dutyRosterSetup .duty-roster-feedback:empty {
+  display: none;
+}
+
+#dutyRosterSetup .duty-roster-feedback[role="alert"] {
+  border-color: #a32d29;
+  background: #fff0ef;
+  color: #842420;
+}
+
+#dutyRosterSetup .duty-roster-preview {
+  overflow-x: auto;
+}
+
+#dutyRosterSetup .duty-roster-preview table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#dutyRosterSetup .duty-roster-preview th,
+#dutyRosterSetup .duty-roster-preview td {
+  border: 1px solid #bdccc6;
+  padding: 0.4rem;
+  text-align: left;
+}
+
 .school-calendar-hero {
   grid-template-columns: 1.5fr 1fr;
 }
@@ -775,6 +899,10 @@ a {
   .school-calendar-hero {
     grid-template-columns: 1fr;
   }
+
+  .duty-roster-hero {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 620px) {
@@ -788,6 +916,15 @@ a {
 
   .school-calendar-year {
     grid-template-columns: 1fr;
+  }
+
+  .attendance-admin-pdf-controls,
+  .duty-roster-year {
+    grid-template-columns: 1fr;
+  }
+
+  .attendance-admin-pdf-controls button {
+    grid-column: 1;
   }
 
   .school-kamar-month {

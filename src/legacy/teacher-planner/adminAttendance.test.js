@@ -145,3 +145,104 @@ test('admin sync writes to the selected teacher and exposes file summaries, not 
   const hidden = await fetch(url + '/jobs/' + jobId, { headers: headers(otherAdminId) });
   assert.equal(hidden.status, 404);
 });
+
+test('admin PDF preview and apply are scoped to one teacher and never return individual marks', async t => {
+  const dbGroup = {
+    id: groupId, name: '10ENG', classes: ['10ENG'],
+    students: [{ id: 'k:100', name: 'Private Student' }],
+    periods: ['p1', 'p2', 'p3', 'p4', 'p5'], scheduleMode: 'auto'
+  };
+  const pdf = { weeks: ['2026-11-09'], rows: [{
+    name: 'Private Student',
+    days: [{ date: '2026-11-09', slots: ['', 'P', '', '', '', '', '', ''] }]
+  }] };
+  let authorizedOwner, classOwner, savedOwner;
+  const url = await serve(t, {
+    query: async (sql, params) => {
+      if (sql.includes('school_planner_settings')) {
+        return { rows: [{ content: { term4Start: '2026-10-12', term4End: '2026-12-11' } }] };
+      }
+      if (sql.includes('SELECT content,revision FROM planner_attendance_groups')) {
+        assert.equal(params[0], teacherId);
+        return { rows: [{ content: { groups: [dbGroup] }, revision: 1 }] };
+      }
+      if (sql.includes('SELECT student_id,student_name')) {
+        assert.equal(params[0], teacherId);
+        return { rows: [] };
+      }
+      if (sql.includes('WITH input AS')) {
+        savedOwner = params[0];
+        return { rows: [{ saved: JSON.parse(params[2]).length }] };
+      }
+      if (sql.includes('SELECT content FROM planner_attendance_groups')) {
+        assert.equal(params[0], teacherId);
+        return { rows: [{ content: { groups: [dbGroup] } }] };
+      }
+      if (sql.includes("SET content=jsonb_set(content,'{imports}'")) {
+        assert.equal(params[0], teacherId);
+        return { rows: [{ revision: 1 }] };
+      }
+      throw new Error('Unexpected query in admin PDF import test.');
+    },
+    loadTeachers: async () => [{ id: teacherId, name: 'Selected Teacher', staffCode: 'T01' }],
+    authorizeTarget: async id => { authorizedOwner = id; return { id }; },
+    loadClasses: async req => {
+      classOwner = req.user.id;
+      return { staffCode: 'T01', classes: [{
+        code: '10ENG', slots: ['mon_p1_1'],
+        students: [{ id: 'k:100', name: 'Private Student' }]
+      }] };
+    },
+    loadSchoolCalendar: async () => ({ terms: [], publicHolidays: [] }),
+    driveService: { listFiles: async () => ({ files: [] }), readFile: async () => ({}) },
+    driveStatus: async () => ({ connected: false, driveAccess: false }),
+    parsePdf: async buffer => {
+      assert.deepEqual(buffer, Buffer.from('PDF'));
+      return pdf;
+    },
+    today: () => '2026-11-12'
+  });
+  const denied = await fetch(url + '/pdf-preview/2026/' + teacherId, {
+    method: 'POST', headers: { ...headers(adminId, false), 'content-type': 'application/pdf' }, body: 'PDF'
+  });
+  assert.equal(denied.status, 403);
+  const response = await fetch(url + '/pdf-preview/2026/' + teacherId, {
+    method: 'POST', headers: { ...headers(), 'content-type': 'application/pdf' }, body: 'PDF'
+  });
+  assert.equal(response.status, 200);
+  const preview = await response.json();
+  assert.deepEqual({
+    teacherName: preview.teacherName, year: preview.year, weeks: preview.weeks,
+    marksToFill: preview.marksToFill, conflictsKept: preview.conflictsKept,
+    unchanged: preview.unchanged, matchWarnings: preview.matchWarnings,
+    hasImportStatus: preview.hasImportStatus
+  }, {
+    teacherName: 'Selected Teacher', year: 2026, weeks: ['2026-11-09'],
+    marksToFill: 1, conflictsKept: 0, unchanged: 0, matchWarnings: 0,
+    hasImportStatus: true
+  });
+  assert.doesNotMatch(JSON.stringify(preview), /Private Student|k:100|"mark"|"P"/);
+  assert.equal(authorizedOwner, teacherId);
+  assert.equal(classOwner, teacherId);
+
+  const hidden = await fetch(url + '/pdf-apply', {
+    method: 'POST', headers: { ...headers(otherAdminId), 'content-type': 'application/json' },
+    body: JSON.stringify({ previewId: preview.previewId })
+  });
+  assert.equal(hidden.status, 404);
+  const applied = await fetch(url + '/pdf-apply', {
+    method: 'POST', headers: { ...headers(), 'content-type': 'application/json' },
+    body: JSON.stringify({ previewId: preview.previewId })
+  });
+  assert.equal(applied.status, 200);
+  assert.deepEqual(await applied.json(), {
+    marksFilled: 1, conflictsKept: 0, matchWarnings: 0, unchanged: 0,
+    teacherName: 'Selected Teacher', year: 2026
+  });
+  assert.equal(savedOwner, teacherId);
+  const replay = await fetch(url + '/pdf-apply', {
+    method: 'POST', headers: { ...headers(), 'content-type': 'application/json' },
+    body: JSON.stringify({ previewId: preview.previewId })
+  });
+  assert.equal(replay.status, 404);
+});

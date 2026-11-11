@@ -1565,27 +1565,39 @@ attendance marks and import history remain scoped to the selected teacher's
 existing Planner records. A failed PDF remains retryable, and saved marks are
 never overwritten by a later import.
 
-The Teacher Planner **Two-Week Attendance** page retains the personal PDF preview
-and term/week import-history view, but no longer offers Drive folder settings,
-Google authorisation or a Drive sync button. The status table displays **Synced**
-when an automatic class tab has an import-history record for that week; it is not
-proof that every student matched. Administrators should review Kamar Uploader's
-file-level match warnings when marks are missing. Daily Attendance continues to
-show and edit the signed-in teacher's own saved records.
+The Teacher Planner **Two-Week Attendance** page retains the term/week
+import-history view, but no longer offers all-class PDF upload, Drive folder
+settings, Google authorisation or a Drive sync button. The ADMIN-only Kamar
+Uploader **Attendance Admin** page supports both Drive sync and a reviewed
+single-PDF upload for a selected teacher. Its preview shows totals only; applying
+the preview fills blank marks and records import history without exposing
+individual marks. The status table displays **Synced** when an automatic class
+tab has an import-history record for that week; it is not proof that every
+student matched. Administrators should review Kamar Uploader's file-level match
+warnings when marks are missing. Teachers can still preview a personal PDF
+import into one class tab from daily Attendance, which continues to show and edit
+the signed-in teacher's own saved records.
+
+The shared **Duty Roster** setup has moved from Setup My Planner to the
+ADMIN-only Kamar Uploader **Duty Roster** page. Administrators configure the
+shared source document, term settings and staff-code mappings there; weekly duty
+assignments continue to display in each teacher's Planner.
 
 Teacher Planner navigation is grouped into **Planning** (cover and year/term/week
 plans), **Setup** (Setup My Planner first, followed by Assessment setup), and
 **Section Modules** (daily Attendance, Moderation, Teaching Standards,
 Professional learning and upcoming modules). Groups use labelled, colour-accented panels and wrapping
 pill buttons; existing section routes and disabled upcoming modules are unchanged.
-Two-Week Attendance PDF preview, import history and term/week status live in
-their own stacked **Two-Week Attendance** tab inside Setup My Planner. All
-personal attendance controls remain available to teachers who cannot edit shared
-school dates. Switching setup tabs preserves mounted attendance state and is
-blocked during attendance loading or unsaved attendance edits. Old
-`#section=attendanceImport` links still open the new setup tab; its canonical link
-is `#section=setup&setupTab=6`. Daily Attendance remains a separate Section Module.
-Drive imports run from Kamar Uploader and do not block Teacher Planner navigation.
+Two-Week Attendance import history and term/week status live in their own
+stacked **Two-Week Attendance** tab inside Setup My Planner. The all-class PDF
+upload is in Kamar Uploader **Attendance Admin**; personal one-class PDF imports
+remain in daily Attendance. All personal attendance controls remain available
+to teachers who cannot edit shared school dates. Switching setup tabs preserves
+mounted attendance state and is blocked during attendance loading or unsaved
+attendance edits. Old `#section=attendanceImport` links still open the setup
+tab; its canonical link is `#section=setup&setupTab=5`. Daily Attendance remains
+a separate Section Module. Drive imports run from Kamar Uploader and do not
+block Teacher Planner navigation.
 Loading/saving or unsaved integration changes still prevent unsafe navigation,
 with explicit feedback.
 The cover name pill is centred; Setup My Planner is no longer duplicated on the cover.

@@ -216,7 +216,7 @@ test('normal opening resolves a term before loading its private entry, while dir
       assert.equal(requested.length,0);
     }else if(mode==='legacy-attendance'){
       assert.equal(context.section,'setup');
-      assert.equal(context.setupTab,6);
+      assert.equal(context.setupTab,5);
       assert.equal(requested[0],'2026/setup/1');
     }else if(mode==='direct' || mode==='term-explicit'){
       assert.equal(years.length,0);
@@ -351,7 +351,7 @@ test('setup folder keeps the private teacher timetable in Planner while school c
   assert.equal(planner.children[0].value,'Unsaved school date');
   tabs.children[1].click();
   assert.equal(calendarLoads,0);
-  assert.equal(tabs.children.length,7);
+  assert.equal(tabs.children.length,6);
   assert.equal(tasksLoads,0);
   tabs.children[1].keydown({key:'ArrowDown',preventDefault(){}});
   assert.equal(tasksLoads,1);
@@ -649,17 +649,17 @@ test('attendance setup tab mounts once, preserves drafts and blocks leaving duri
     document:{querySelector:()=>saveRow},history:{replaceState(){}},viewFragment:()=>'',notice:message=>messages.push(message),
     mountAttendancePage:(host,overview)=>{mounts.push({host,overview});return new Promise(resolve=>{finish=resolve;});}};
   const folder = vm.runInNewContext(helper+'\nsetupFolder(page);',context);
-  const tabs=folder.children[0], attendance=folder.children[7];
-  assert.equal(tabs.children[6].text,'Two-Week Attendance');
-  tabs.children[6].click();
+  const tabs=folder.children[0], attendance=folder.children[6];
+  assert.equal(tabs.children[5].text,'Two-Week Attendance');
+  tabs.children[5].click();
   assert.equal(mounts.length,1);assert.equal(mounts[0].overview,true);
   assert.equal(mounts[0].host,attendance);assert.equal(saveRow.hidden,true);
-  tabs.children[0].click();assert.equal(context.setupTab,6,'loading cannot be interrupted');
+  tabs.children[0].click();assert.equal(context.setupTab,5,'loading cannot be interrupted');
   finish();await context.setupAttendanceReady;
-  attendance.pending=true;tabs.children[0].click();assert.equal(context.setupTab,6);
+  attendance.pending=true;tabs.children[0].click();assert.equal(context.setupTab,5);
   attendance.pending=false;tabs.children[0].click();
   assert.equal(saveRow.hidden,false);assert.equal(page.children[0].value,'Unsaved school date');
-  tabs.children[6].click();assert.equal(mounts.length,1,'tab state is retained without remount');
+  tabs.children[5].click();assert.equal(mounts.length,1,'tab state is retained without remount');
   assert.equal(messages.length,2);
 });
 
@@ -682,6 +682,11 @@ test('cover no longer duplicates Setup My Planner, which is first in shared Setu
   const setup = shell.match(/aria-labelledby="planner-nav-setup"[\s\S]*?<\/section>/)[0];
   assert.ok(setup.indexOf('data-section="setup"') < setup.indexOf('data-section="assessmentSetup"'));
   assert.doesNotMatch(setup, /attendanceImport/);
+});
+
+test('legacy Attendance import links open the current Two-Week Attendance tab', async () => {
+  const source = await fs.readFile(path.join(__dirname,'public','planner.js'),'utf8');
+  assert.match(source, /if \(section === 'attendanceImport'\) \{ section = 'setup'; setupTab = 5; \}/);
 });
 
 test('integration tab form submissions never save shared school settings', async () => {

@@ -3,6 +3,7 @@ const express = require('express');
 const { folderId: parseFolderId } = require('./attendanceDrive');
 const { saveAttendanceGroups, saveAttendanceImports, saveAttendanceImportMarks, validWeek } = require('./attendance');
 const attendance = require('./public/attendance');
+const { importAttendancePdf } = require('./attendanceImport');
 
 const UUID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 const YEAR = /^(?:20\d{2}|2100)$/;
@@ -39,9 +40,10 @@ function localDate() {
 }
 
 function createAdminAttendanceRouter({ query, loadTeachers, authorizeTarget, loadClasses, loadSchoolCalendar,
-  driveService, driveStatus }) {
+  driveService, driveStatus, parsePdf = importAttendancePdf, today = localDate }) {
   const router = express.Router();
   const jobs = new Map();
+  const pdfPreviews = new Map();
   const activeTargets = new Set();
   function reject(res, message, status = 400) {
     return res.status(status).json({ error: message });
@@ -54,6 +56,22 @@ function createAdminAttendanceRouter({ query, loadTeachers, authorizeTarget, loa
         next(error);
       }
     };
+  }
+  function clearExpiredPreviews() {
+    const now = Date.now();
+    for (const [id, preview] of pdfPreviews) if (preview.expiresAt <= now) pdfPreviews.delete(id);
+    while (pdfPreviews.size >= 30) {
+      const oldest = [...pdfPreviews.entries()].sort((a, b) => a[1].createdAt - b[1].createdAt)[0];
+      if (!oldest) break;
+      pdfPreviews.delete(oldest[0]);
+    }
+  }
+  function pdfWeekContainsYear(pdf, week, year) {
+    const end = new Date(week + 'T00:00:00Z');
+    end.setUTCDate(end.getUTCDate() + 5);
+    const endDate = end.toISOString().slice(0, 10);
+    return pdf.rows.some(row => row.days.some(day => day.date.startsWith(year + '-') &&
+      day.date >= week && day.date < endDate));
   }
   router.use((req, res, next) => {
     res.set('Cache-Control', 'no-store');
@@ -129,6 +147,123 @@ function createAdminAttendanceRouter({ query, loadTeachers, authorizeTarget, loa
       })
       .finally(() => activeTargets.delete(key));
     res.status(202).json({ jobId: job.id });
+  }));
+  router.post('/pdf-preview/:year/:teacherId',
+    express.raw({ type: 'application/pdf', limit: '5mb' }), wrap(async (req, res) => {
+      const year = Number(req.params.year), teacherId = req.params.teacherId;
+      if (!YEAR.test(req.params.year) || !UUID.test(teacherId)) {
+        return reject(res, 'Choose a valid attendance year and teacher.');
+      }
+      if (!Buffer.isBuffer(req.body) || !req.body.length) {
+        return reject(res, 'Choose a KAMAR attendance PDF no larger than 5 MB.');
+      }
+      const teachers = await loadTeachers();
+      const selected = teachers.find(item => item.id === teacherId);
+      if (!selected) return reject(res, 'Choose a current teacher with an active school account.', 404);
+      const target = await authorizeTarget(teacherId);
+      if (!target) return reject(res, 'This teacher does not have active access to Teacher Planner.', 409);
+
+      let pdf;
+      try { pdf = await parsePdf(req.body); }
+      catch (error) { return reject(res, 'The attendance PDF could not be read. ' + error.message); }
+      if (!pdf?.rows?.length || !pdf.rows.some(row => row.days.some(day =>
+        Number(day.date.slice(0, 4)) === year))) {
+        return reject(res, 'The PDF dates do not match this attendance year.');
+      }
+      const weeks = pdf.weeks.filter(week => validWeek(week, year) && pdfWeekContainsYear(pdf, week, year));
+      if (!weeks.length) return reject(res, 'The PDF has no valid attendance week in this year.');
+      const schoolRow = (await query('SELECT content FROM school_planner_settings WHERE year=$1', [year])).rows[0];
+      if (!schoolRow) return reject(res, 'Publish school term dates in Kamar Uploader or Planner Setup before importing attendance.', 409);
+      let calendar;
+      try { calendar = await loadSchoolCalendar(year); }
+      catch (error) { calendar = { terms: [], publicHolidays: [], publicHolidaysError: error.message }; }
+      const ranges = termRanges(schoolRow.content, calendar.terms || []);
+      if (!ranges.some(range => range.startDate && range.endDate)) {
+        return reject(res, 'Publish school term dates in Kamar Uploader or Planner Setup before importing attendance.', 409);
+      }
+      const targetRequest = { user: target };
+      const directory = await loadClasses(targetRequest, year);
+      const saved = (await query('SELECT content,revision FROM planner_attendance_groups WHERE owner_id=$1 AND year=$2',
+        [target.id, year])).rows[0] || { content: { groups: [] }, revision: 0 };
+      const groups = attendance.timetableGroups(saved.content.groups, directory);
+      if (JSON.stringify(groups) !== JSON.stringify(saved.content.groups)) {
+        await saveAttendanceGroups(query, target.id, year, saved.revision, { groups });
+      }
+      const automatic = groups.filter(group => group.scheduleMode !== 'manual' && group.classes.length);
+      if (!automatic.length) return reject(res, 'No automatic class tabs are available for this teacher.');
+      const schedules = {}, savedMarks = [];
+      for (const week of weeks) {
+        schedules[week] = timetableEntries(directory);
+        const result = await query(`SELECT student_id,student_name,to_char(lesson_date,'YYYY-MM-DD') AS date,
+          period,mark,revision FROM planner_attendance_marks
+          WHERE owner_id=$1 AND year=$2 AND lesson_date >= $3::date AND lesson_date < $3::date + 5
+          ORDER BY lesson_date,period,student_id`, [target.id, year, week]);
+        savedMarks.push(...result.rows);
+      }
+      const plans = automatic.map(group => ({ group,
+        plan: attendance.planImport({ pdf, group, directory, schedules, savedMarks, year, ranges,
+          school: schoolRow.content, calendar, today: today() }) }));
+      const plan = attendance.mergePlans(plans);
+      const entries = plans.flatMap(item => item.plan.coverage);
+      const previewId = crypto.randomUUID();
+      const createdAt = Date.now();
+      const summary = {
+        teacherName: selected.name, year, weeks,
+        marksToFill: plan.fills.length, conflictsKept: plan.conflicts.length,
+        unchanged: plan.unchanged, matchWarnings: plan.warnings.length,
+        hasImportStatus: entries.length > 0,
+        ...((calendar.publicHolidaysError || calendar.publicHolidaysAvailable === false) ? {
+          calendarWarning: 'Government public holiday dates could not be loaded. Verify school closures before importing.'
+        } : {})
+      };
+      clearExpiredPreviews();
+      pdfPreviews.set(previewId, {
+        id: previewId, adminId: req.user.id, teacherId, year, targetOwner: target.id,
+        summary, marks: plan.fills.map(({ name, ...value }) => value), entries,
+        createdAt, expiresAt: createdAt + 15 * 60 * 1000
+      });
+      res.json({ previewId, ...summary });
+    }));
+  router.post('/pdf-apply', wrap(async (req, res) => {
+    if (!own(req.body, ['previewId']) || typeof req.body.previewId !== 'string' || !UUID.test(req.body.previewId)) {
+      return reject(res, 'Reload the PDF preview before importing.');
+    }
+    const preview = pdfPreviews.get(req.body.previewId);
+    if (!preview || preview.adminId !== req.user.id || preview.expiresAt <= Date.now()) {
+      if (preview?.expiresAt <= Date.now()) pdfPreviews.delete(preview.id);
+      return reject(res, 'This PDF preview has expired or is no longer available. Preview the file again.', 404);
+    }
+    const key = preview.year + ':' + preview.teacherId;
+    if (activeTargets.has(key)) return reject(res, 'An attendance import is already running for this teacher and year.', 409);
+    activeTargets.add(key);
+    pdfPreviews.delete(preview.id);
+    let savedCount = 0;
+    try {
+      const teachers = await loadTeachers();
+      if (!teachers.some(item => item.id === preview.teacherId) || !await authorizeTarget(preview.teacherId)) {
+        return reject(res, 'This teacher no longer has active Teacher Planner access. Reload the selected teacher and preview again.', 409);
+      }
+      for (let offset = 0; offset < preview.marks.length; offset += 200) {
+        const result = await saveAttendanceImportMarks(query, preview.targetOwner, preview.year,
+          preview.marks.slice(offset, offset + 200));
+        savedCount += result.saved;
+      }
+      if (preview.entries.length) {
+        await saveAttendanceImports(query, preview.targetOwner, preview.year, preview.entries);
+      }
+      res.json({
+        marksFilled: savedCount, conflictsKept: preview.summary.conflictsKept,
+        matchWarnings: preview.summary.matchWarnings, unchanged: preview.summary.unchanged,
+        teacherName: preview.summary.teacherName, year: preview.year
+      });
+    } catch (error) {
+      const message = savedCount
+        ? savedCount + ' of ' + preview.marks.length + ' blank marks were saved in completed batches. Import stopped: ' + error.message
+        : error.message;
+      return reject(res, message + ' Preview the PDF again to retry safely.', error.status || 409);
+    } finally {
+      activeTargets.delete(key);
+    }
   }));
   router.get('/jobs/:id', wrap(async (req, res) => {
     const job = jobs.get(req.params.id);

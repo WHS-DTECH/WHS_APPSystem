@@ -10,10 +10,15 @@
   const connectLink = document.getElementById('attendanceConnectLink');
   const driveStatus = document.getElementById('attendanceDriveStatus');
   const runButton = document.getElementById('runAttendanceImport');
+  const pdfFileInput = document.getElementById('attendancePdfFile');
+  const previewPdfButton = document.getElementById('previewAttendancePdf');
+  const pdfResults = document.getElementById('attendancePdfResults');
   const status = document.getElementById('attendanceAdminStatus');
   const results = document.getElementById('attendanceAdminResultsBody');
   let csrf = '';
   let busy = false;
+  let pdfPreview = null;
+  let applyPdfButton = null;
 
   function show(message, error = false) {
     status.textContent = message;
@@ -30,13 +35,88 @@
   }
   function setBusy(value) {
     busy = value;
-    for (const control of [yearInput, teacherSelect, folderInput, enabledInput, saveButton, connectButton, runButton]) {
+    for (const control of [yearInput, teacherSelect, folderInput, enabledInput, saveButton, connectButton, runButton,
+      pdfFileInput, previewPdfButton, applyPdfButton]) {
+      if (!control) continue;
       control.disabled = value;
     }
     if (!value) updateRunButton();
   }
   function updateRunButton() {
     runButton.disabled = busy || !teacherSelect.value || !enabledInput.checked || !folderInput.value.trim();
+    previewPdfButton.disabled = busy || !teacherSelect.value || !pdfFileInput.files?.[0];
+    if (applyPdfButton) applyPdfButton.disabled = busy || !pdfPreview;
+  }
+  function clearPdfPreview() {
+    pdfPreview = null;
+    applyPdfButton = null;
+    pdfResults.replaceChildren();
+    updateRunButton();
+  }
+  function showPdfPreview(preview) {
+    pdfPreview = preview;
+    pdfResults.replaceChildren();
+    const summary = document.createElement('p');
+    summary.textContent = preview.teacherName + ', ' + preview.year + ': PDF weeks ' + preview.weeks.join(' and ') +
+      ': ' + preview.marksToFill + ' blank marks to fill; ' + preview.conflictsKept +
+      ' saved conflicts left unchanged; ' + preview.unchanged + ' identical marks skipped; ' +
+      preview.matchWarnings + ' student/class match warnings.';
+    pdfResults.append(summary);
+    if (preview.calendarWarning) {
+      const warning = document.createElement('p');
+      warning.setAttribute('role', 'alert');
+      warning.textContent = preview.calendarWarning;
+      pdfResults.append(warning);
+    }
+    if (!preview.marksToFill && !preview.hasImportStatus) {
+      const empty = document.createElement('p');
+      empty.textContent = 'No blank marks or import status are available to save.';
+      pdfResults.append(empty);
+      applyPdfButton = null;
+      updateRunButton();
+      return;
+    }
+    applyPdfButton = document.createElement('button');
+    applyPdfButton.className = 'subtle-btn';
+    applyPdfButton.type = 'button';
+    applyPdfButton.textContent = preview.marksToFill ?
+      'Fill ' + preview.marksToFill + ' blank marks for selected teacher' : 'Record import status (no mark changes)';
+    applyPdfButton.disabled = busy;
+    applyPdfButton.addEventListener('click', () => act(async () => {
+      const currentPreview = pdfPreview;
+      if (!currentPreview) return;
+      if (!window.confirm('Fill ' + currentPreview.marksToFill + ' blank marks for ' + currentPreview.teacherName +
+        ' (' + currentPreview.year + ')? Existing marks will not be overwritten.')) return;
+      let result;
+      try {
+        result = await request(api + '/pdf-apply', {
+          method: 'POST', body: JSON.stringify({ previewId: currentPreview.previewId })
+        });
+      } catch (error) {
+        clearPdfPreview();
+        throw error;
+      }
+      clearPdfPreview();
+      const message = result.marksFilled + ' blank marks filled for ' + result.teacherName + ' (' + result.year +
+        '). ' + result.conflictsKept + ' conflicts kept; ' + result.matchWarnings + ' match warnings.';
+      pdfResults.textContent = message;
+      show(message);
+    }));
+    pdfResults.append(applyPdfButton);
+    updateRunButton();
+  }
+  async function previewPdf() {
+    const file = pdfFileInput.files?.[0];
+    if (!file || file.size > 5 * 1024 * 1024) throw new Error('Choose a KAMAR attendance PDF no larger than 5 MB.');
+    const year = Number(yearInput.value);
+    const teacherId = teacherSelect.value;
+    clearPdfPreview();
+    show('Reading the PDF and preparing a private attendance preview...');
+    const preview = await request(api + '/pdf-preview/' + year + '/' + encodeURIComponent(teacherId), {
+      method: 'POST', headers: { 'Content-Type': 'application/pdf' }, body: file
+    });
+    showPdfPreview(preview);
+    show('PDF preview ready. Nothing has been saved yet.');
   }
   function renderDocuments(summary) {
     results.replaceChildren();
@@ -147,10 +227,12 @@
   saveButton.addEventListener('click', () => act(saveSettings));
   connectButton.addEventListener('click', () => act(connectDrive));
   runButton.addEventListener('click', () => act(runImport));
-  teacherSelect.addEventListener('change', updateRunButton);
+  previewPdfButton.addEventListener('click', () => act(previewPdf));
+  pdfFileInput.addEventListener('change', clearPdfPreview);
+  teacherSelect.addEventListener('change', () => { clearPdfPreview(); updateRunButton(); });
   enabledInput.addEventListener('change', updateRunButton);
   folderInput.addEventListener('input', updateRunButton);
-  yearInput.addEventListener('change', () => act(loadSettings));
+  yearInput.addEventListener('change', () => { clearPdfPreview(); act(loadSettings); });
 
   yearInput.value = new Intl.DateTimeFormat('en-NZ', { timeZone: 'Pacific/Auckland', year: 'numeric' }).format(new Date());
   act(async () => {

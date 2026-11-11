@@ -238,8 +238,11 @@ test('setup folder exposes an accessible lazy-loaded Drive tab and keeps school 
   const mounted = [];
   const context = {
     el: node, year: 2026, setupTab: 0,
-    week: '2026-10-26', canManageSchoolSettings: true, plannerDutyRoster: { mountSetup() {} },
+    week: '2026-10-26', canManageSchoolSettings: true,
     document: { querySelector: () => save },
+    viewFragment: () => '',
+    history: { replaceState() {} },
+    mountAttendancePage: async () => {},
     plannerGoogleDrive: { mountSetup: host => mounted.push(host) }
   };
   vm.runInNewContext(planner.slice(planner.indexOf('  function setupFolder('), planner.indexOf('  function renderSetup(')), context);
@@ -263,8 +266,9 @@ test('setup folder exposes an accessible lazy-loaded Drive tab and keeps school 
   tabs[0].events.keydown({ key: 'End', preventDefault() {} });
   assert.equal(mounted.length, 1);
   assert.equal(tabs[5].focused, true);
-  assert.equal(tabs[5].textContent, 'Duty Roster');
+  assert.equal(tabs[5].textContent, 'Two-Week Attendance');
   assert.equal(tabs[4].textContent, 'Public Holidays Setup');
+  assert.doesNotMatch(planner, /plannerDutyRoster\.mountSetup/);
   context.setupTab = 3;
   context.setupFolder(node());
   assert.equal(mounted.length, 2);

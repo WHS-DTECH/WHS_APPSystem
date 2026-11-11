@@ -262,6 +262,32 @@ test('Duty Roster setup saves shared mappings independently and restricts editin
   assert.ok(!teacher.children.some(child => child.tag === 'textarea'));
   assert.match(teacher.children.at(-1).textContent, /administrator configures/);
 });
+test('Kamar Uploader Duty Roster page loads the shared setup with a CSRF-protected save adapter', async () => {
+  const yearInput = node('input'), host = node('section'), status = node('p');
+  const calls = [];
+  let mounted;
+  const context = {
+    document: {
+      getElementById: id => ({ dutyRosterYear: yearInput, dutyRosterSetup: host, dutyRosterPageStatus: status })[id],
+      createElement: tag => node(tag)
+    },
+    fetch: async (url, options) => {
+      calls.push({ url, options });
+      return { ok: true, json: async () => ({ csrf: 'x'.repeat(40), canManageSchoolSettings: true }) };
+    },
+    plannerDutyRoster: { mountSetup: (target, options) => { mounted = { target, options }; } }
+  };
+  vm.runInNewContext(fs.readFileSync(require.resolve('../kamar-uploader/site/duty_roster.js'), 'utf8'), context);
+  await flush();
+  assert.equal(calls[0].url, '/teacher-planner/api/planner/session');
+  assert.equal(mounted.target, host);
+  assert.equal(mounted.options.canEdit, true);
+  assert.match(mounted.options.week, /^\d{4}-\d{2}-\d{2}$/);
+  assert.match(status.textContent, /setup loaded/);
+  await mounted.options.mutate('duty-roster/2026/4', { revision: 1 }, 'PUT');
+  assert.equal(calls[1].url, '/teacher-planner/api/planner/duty-roster/2026/4');
+  assert.equal(calls[1].options.headers['x-planner-csrf'], 'x'.repeat(40));
+});
 test('duty sync feedback follows the action buttons and distinguishes success from failure', async () => {
   const context = {};
   vm.runInNewContext(fs.readFileSync(require.resolve('./public/duty-roster.js'), 'utf8'), context);

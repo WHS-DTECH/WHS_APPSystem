@@ -811,13 +811,12 @@
       const scroll = el('div', '', { class: 'attendance-scroll', tabindex: '0' });
       scroll.append(table); sheet.append(scroll);
       if (overview) sheet.append(renderImportStatus(history));
-      sheet.append(renderImport(null));
     }
     function renderImportStatus(history) {
       const panel = el('details', '', { class: 'attendance-import' });
       panel.open = true;
       panel.append(el('summary', 'Attendance import status'),
-        el('p', 'School administrators manage Google Drive imports in Kamar Uploader. This history shows weeks with an import record; it does not confirm that every student matched. Ask an administrator to review the file-level sync report for match warnings.'));
+        el('p', 'School administrators manage Google Drive and all-class PDF imports in Kamar Uploader. This history shows weeks with an import record; it does not confirm that every student matched. Ask an administrator to review the file-level report for match warnings.'));
       const coverage = el('section', '', { 'aria-label': 'Term attendance import status' });
       coverage.append(el('h3', 'Term attendance import status'));
       const terms = el('select', '', { 'aria-label': 'Attendance status term number' });
@@ -880,11 +879,12 @@
       const result = await request('attendance/' + year + '/groups');
       groups = result.content.groups; revision = result.revision; selected = groups[0]?.id || '';
       if (automaticTabs) await refreshTimetableTabs();
-      renderTabs(); await loadSheet(); say(overview ? 'Two-Week Attendance loaded. Preview a PDF before filling blank marks in all matching class tabs.' :
+      renderTabs(); await loadSheet(); say(overview ? 'Two-Week Attendance loaded. Administrators can upload a PDF for the selected teacher in Kamar Uploader Attendance Admin.' :
         'Attendance loaded. Class setup uses Save class tab; each P/A/L mark saves immediately.');
     });
   }
-  const api = { mount, termWeeks, combinedStudents, scheduledPeriods, classCode, timetableGroups, planImport, weekStatus, syncDrive };
+  const api = { mount, termWeeks, combinedStudents, scheduledPeriods, classCode, timetableGroups, planImport, mergePlans,
+    weekStatus, syncDrive };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else globalThis.plannerAttendance = api;
 })();

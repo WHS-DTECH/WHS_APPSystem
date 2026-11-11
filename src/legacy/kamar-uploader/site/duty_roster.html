@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Duty Roster | Kamar Uploader</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet" />
+</head>
+<body class="home-body">
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+  <main class="home-shell">
+    <section class="hero-panel duty-roster-hero">
+      <div class="hero-text-wrap">
+        <p class="hero-kicker">Kamar Uploader · Administration</p>
+        <h1>Duty Roster</h1>
+        <p class="hero-subtitle">Configure and preview the shared live duty roster for Teacher Planner.</p>
+      </div>
+      <article class="panel">
+        <h2>Staff privacy</h2>
+        <p>Duty assignments remain in each staff member’s weekly Planner. This page manages the shared source document and staff-code mappings.</p>
+      </article>
+    </section>
+
+    <section class="panel duty-roster-admin-panel" aria-labelledby="dutyRosterHeading">
+      <h2 id="dutyRosterHeading">Shared duty roster setup</h2>
+      <div class="duty-roster-year">
+        <label for="dutyRosterYear">Planner year</label>
+        <input id="dutyRosterYear" type="number" min="2000" max="2100" />
+      </div>
+      <p id="dutyRosterPageStatus" class="duty-roster-page-status" role="status" aria-live="polite">Loading shared duty setup...</p>
+      <div id="dutyRosterSetup"></div>
+      <a class="hero-link" href="attendance_admin.html">Return to Attendance Admin</a>
+    </section>
+  </main>
+  <script src="/teacher-planner/framework/duty-roster.js?v=duty-setup-uploader-1"></script>
+  <script src="duty_roster.js"></script>
+</body>
+</html>
