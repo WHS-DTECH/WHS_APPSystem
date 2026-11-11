@@ -668,7 +668,7 @@
       if (!group) { sheet.append(el('p', 'Create a class tab to start your attendance log.')); return; }
       studentPanel.hidden = false;
       const available = ranges.filter(range => range.startDate && range.endDate);
-      if (!available.length) throw new Error('Term dates are unavailable. Publish dates in Planner Setup before using Attendance.');
+      if (!available.length) throw new Error('Term dates are unavailable. Publish dates from Kamar Uploader or Planner Setup before using Attendance.');
       if (!available.some(range => range.term === selectedTerm)) {
         selectedTerm = available.find(range => range.startDate <= today && range.endDate >= today)?.term || available[0].term;
       }
@@ -771,7 +771,7 @@
       sheet.removeAttribute('role');
       sheet.removeAttribute('aria-labelledby');
       const available = ranges.filter(range => range.startDate && range.endDate);
-      if (!available.length) throw new Error('Term dates are unavailable. Publish dates in Planner Setup before using Attendance.');
+      if (!available.length) throw new Error('Term dates are unavailable. Publish dates from Kamar Uploader or Planner Setup before using Attendance.');
       if (!available.some(range => range.term === selectedTerm)) {
         selectedTerm = available.find(range => range.startDate <= today && range.endDate >= today)?.term || available[0].term;
       }

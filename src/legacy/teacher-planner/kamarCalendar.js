@@ -92,7 +92,7 @@ function parseCalendar(text, year, month) {
 
 let cached = null;
 let pending = null;
-async function loadCalendar(year, month) {
+async function loadCalendarFeed() {
   if (!cached || Date.now() - cached.at > 5 * 60 * 1000) {
     if (!pending) pending = (async () => {
       const text = await fetchCalendarText(SOURCE_URL);
@@ -100,8 +100,58 @@ async function loadCalendar(year, month) {
     })().finally(() => { pending = null; });
     await pending;
   }
-  return { year, month, events: parseCalendar(cached.text, year, month), sourceUrl: SOURCE_URL,
-    googleUrl: GOOGLE_URL, fetchedAt: new Date(cached.at).toISOString() };
+  return cached;
+}
+async function loadCalendar(year, month) {
+  const feed = await loadCalendarFeed();
+  return { year, month, events: parseCalendar(feed.text, year, month), sourceUrl: SOURCE_URL,
+    googleUrl: GOOGLE_URL, fetchedAt: new Date(feed.at).toISOString() };
+}
+async function loadCalendarYear(year) {
+  const feed = await loadCalendarFeed();
+  const events = new Map();
+  for (let month = 1; month <= 12; month++) {
+    for (const event of parseCalendar(feed.text, year, month)) {
+      events.set(JSON.stringify([event.id, event.start, event.end]), event);
+    }
+  }
+  return { year, events: [...events.values()], sourceUrl: SOURCE_URL,
+    fetchedAt: new Date(feed.at).toISOString() };
+}
+function previousSchoolDay(value) {
+  const day = new Date(value + 'T00:00:00Z');
+  day.setUTCDate(day.getUTCDate() - 1);
+  while (day.getUTCDay() === 0 || day.getUTCDay() === 6) day.setUTCDate(day.getUTCDate() - 1);
+  return day.toISOString().slice(0, 10);
+}
+function deriveTermDates(events, year) {
+  const yearText = String(year);
+  const firstDays = events.filter(event => /first day back at school/i.test(event.title || ''))
+    .map(event => eventDate(event.start)).filter(value => value.startsWith(yearText + '-')).sort();
+  if (!firstDays.length) {
+    throw new Error('The KAMAR School Events feed has no first day back entry for ' + yearText + '.');
+  }
+  const firstDay = firstDays[0];
+  const holidays = events.filter(event => event.allDay && /^school holidays?$/i.test((event.title || '').trim()))
+    .map(event => ({ start: event.start, end: event.end }))
+    .filter(event => /^\d{4}-\d{2}-\d{2}$/.test(event.start) && /^\d{4}-\d{2}-\d{2}$/.test(event.end) &&
+      event.start.startsWith(yearText + '-') && event.start > firstDay && event.end > event.start)
+    .sort((left, right) => left.start.localeCompare(right.start));
+  if (holidays.length !== 4) {
+    throw new Error('The KAMAR School Events feed must contain four School Holidays ranges after the first day back for ' + yearText + '.');
+  }
+  const dates = { studentFirstDay: firstDay };
+  for (let term = 1; term <= 4; term++) {
+    const start = term === 1 ? firstDay : holidays[term - 2].end;
+    const end = previousSchoolDay(holidays[term - 1].start);
+    if (!start.startsWith(yearText + '-') || end < start) {
+      throw new Error('The KAMAR School Events feed has incomplete or out-of-order term dates for ' + yearText + '.');
+    }
+    dates['term' + term + 'Start'] = start;
+    dates['term' + term + 'End'] = end;
+  }
+  return dates;
 }
 
-module.exports = { SOURCE_URL, GOOGLE_URL, parseCalendar, loadCalendar, eventDate, validTimetableUrl, loadTimetable };
+module.exports = { SOURCE_URL, GOOGLE_URL, parseCalendar, loadCalendar, loadCalendarYear,
+  deriveTermDates, eventDate, validTimetableUrl, loadTimetable };

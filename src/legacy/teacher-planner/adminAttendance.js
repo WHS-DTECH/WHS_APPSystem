@@ -146,13 +146,13 @@ async function runJob(job, admin, selected, savedSettings, { query, authorizeTar
   const targetOwner = target.id;
   const targetRequest = { user: target };
   const schoolRow = (await query('SELECT content FROM school_planner_settings WHERE year=$1', [job.year])).rows[0];
-  if (!schoolRow) throw new Error('Publish term dates in Planner Setup before importing attendance.');
+  if (!schoolRow) throw new Error('Publish school term dates in Kamar Uploader or Planner Setup before importing attendance.');
   let calendar;
   try { calendar = await loadSchoolCalendar(job.year); }
   catch (error) { calendar = { terms: [], publicHolidays: [], publicHolidaysError: error.message }; }
   const ranges = termRanges(schoolRow.content, calendar.terms || []);
   if (!ranges.some(range => range.startDate && range.endDate)) {
-    throw new Error('Publish term dates in Planner Setup before importing attendance.');
+    throw new Error('Publish school term dates in Kamar Uploader or Planner Setup before importing attendance.');
   }
   let directory;
   let schedules;

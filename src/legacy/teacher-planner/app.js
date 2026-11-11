@@ -2,11 +2,11 @@ const express = require('express');
 const path = require('path');
 const { renderShell } = require('./shell');
 const { createPlannerRouter } = require('./planner');
-const { loadCalendar } = require('./kamarCalendar');
+const { loadCalendar, loadCalendarYear, deriveTermDates } = require('./kamarCalendar');
 
 // Embedded hosting supplies req.user from Global Control; never trust identity headers.
 function createModuleRouter({ query, searchStandards, loadStaff, loadSchoolCalendar, loadClasses,
-  loadAdminTeachers, authorizeAttendanceTarget, env = process.env } = {}) {
+  loadAdminTeachers, authorizeAttendanceTarget, loadKamarCalendarYear = loadCalendarYear, env = process.env } = {}) {
   const router = express.Router();
   router.use((req, res, next) => {
     res.set('Cache-Control', 'no-store');
@@ -17,6 +17,24 @@ function createModuleRouter({ query, searchStandards, loadStaff, loadSchoolCalen
     next();
   });
   router.use('/framework', express.static(path.join(__dirname, 'public')));
+  router.get('/api/kamar-calendar/:year/terms', async (req, res) => {
+    const year = Number(req.params.year);
+    if (!/^\d{4}$/.test(req.params.year) || !Number.isInteger(year) || year < 2000 || year > 2100) {
+      return res.status(400).json({ error: 'Choose a calendar year from 2000 to 2100.' });
+    }
+    let calendar;
+    try { calendar = await loadKamarCalendarYear(year); }
+    catch (error) {
+      console.error('KAMAR school calendar failed:', error);
+      return res.status(502).json({ error: 'The KAMAR School Events calendar could not be loaded. Please retry shortly.' });
+    }
+    try {
+      return res.json({ year, dates: deriveTermDates(calendar.events, year),
+        sourceUrl: calendar.sourceUrl, fetchedAt: calendar.fetchedAt });
+    } catch (error) {
+      return res.status(422).json({ error: error.message });
+    }
+  });
   router.get('/api/kamar-calendar/:year/:month', async (req, res) => {
     const year = Number(req.params.year), month = Number(req.params.month);
     if (!/^\d{4}$/.test(req.params.year) || !/^\d{1,2}$/.test(req.params.month) ||

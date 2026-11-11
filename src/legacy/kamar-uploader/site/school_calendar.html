@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KAMAR School Calendar | Kamar Uploader</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet" />
+</head>
+<body class="home-body">
+  <div id="navbar-include"></div>
+  <script src="shared/navbar_loader.js"></script>
+  <main class="home-shell">
+    <section class="hero-panel school-calendar-hero">
+      <div class="hero-text-wrap">
+        <p class="hero-kicker">Kamar Uploader · Administration</p>
+        <h1>KAMAR School Calendar</h1>
+        <p class="hero-subtitle">View public school events and review school term dates derived from the KAMAR School Events feed.</p>
+      </div>
+      <article class="panel">
+        <h2>Shared Planner dates</h2>
+        <p>Publishing updates the term dates used across Teacher Planner for all staff. The private Teacher Timetable feed remains in each teacher’s Planner Setup.</p>
+      </article>
+    </section>
+
+    <section class="panel school-calendar-terms" aria-labelledby="schoolCalendarTermsHeading">
+      <h2 id="schoolCalendarTermsHeading">Review and publish term dates</h2>
+      <div class="school-calendar-year">
+        <label for="schoolCalendarYear">Planner year</label>
+        <input id="schoolCalendarYear" type="number" min="2000" max="2100" />
+      </div>
+      <p class="school-calendar-note">Dates are derived from KAMAR “First Day back at school” and “School Holidays” events. The last school day is the weekday before each holiday block. Check the preview before publishing.</p>
+      <div id="schoolTermPreview" class="school-term-preview" aria-live="polite">Loading KAMAR term dates...</div>
+      <div class="school-calendar-actions">
+        <button id="publishSchoolTerms" class="subtle-btn" type="button" disabled>Publish term dates for all staff</button>
+        <a class="hero-link" href="attendance_admin.html">Return to Attendance Admin</a>
+      </div>
+      <p id="schoolTermStatus" class="school-calendar-status" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="panel school-calendar-view" aria-labelledby="schoolCalendarEventsHeading">
+      <h2 id="schoolCalendarEventsHeading">Public KAMAR School Events</h2>
+      <div class="school-calendar-controls">
+        <button id="previousSchoolMonth" class="subtle-btn" type="button" aria-label="Previous month">Previous month</button>
+        <h3 id="schoolCalendarMonth" aria-live="polite"></h3>
+        <button id="nextSchoolMonth" class="subtle-btn" type="button" aria-label="Next month">Next month</button>
+      </div>
+      <p id="schoolCalendarStatus" class="school-calendar-status" role="status" aria-live="polite">Loading public school events...</p>
+      <div id="schoolCalendarEvents"></div>
+      <div id="schoolCalendarLinks" class="school-calendar-links"></div>
+    </section>
+  </main>
+  <script src="school_calendar.js"></script>
+</body>
+</html>

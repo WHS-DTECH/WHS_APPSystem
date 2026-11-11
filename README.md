@@ -186,6 +186,15 @@ authorised redirect URI are reused; Google Drive API and the
 `https://www.googleapis.com/auth/drive.readonly` scope may require school
 administrator approval. Existing Calendar/Docs/Tasks grants are preserved.
 
+The ADMIN-only **School Calendar** page in Kamar Uploader replaces the public
+KAMAR School Events calendar formerly shown in My Planner Setup; each teacher's
+private KAMAR timetable setup remains in Teacher Planner. The page derives a
+reviewable set of dates from the public feed's first student day and four
+`School Holidays` blocks. Publishing writes those dates to the existing shared
+Planner settings for the year, so they apply to all staff, and preserves other
+school settings such as teacher first day and school events. Publishing is
+disabled when the public feed does not provide complete, ordered dates.
+
 The server resolves the selected teacher's current KAMAR class timetable and
 writes blank marks and import history to that teacher's existing private Planner
 records. Existing marks are never overwritten. Folder settings and resumable PDF

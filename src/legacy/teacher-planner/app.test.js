@@ -309,7 +309,7 @@ test('teacher timetable has its own private save, collapsed instructions and ind
   assert.ok(settings.children[3].textContent.includes('disconnected'));
 });
 
-test('setup folder switches accessible right-side sheets without recreating unsaved settings', async () => {
+test('setup folder keeps the private teacher timetable in Planner while school calendar moves to Kamar Uploader', async () => {
   const source = await fs.readFile(path.join(__dirname,'public','planner.js'),'utf8');
   const helper = source.slice(source.indexOf('  function setupFolder('),source.indexOf('  function renderSetup('));
   const el = (tag,text='',attrs={})=>({
@@ -338,9 +338,10 @@ test('setup folder switches accessible right-side sheets without recreating unsa
   assert.equal(kamar.hidden,false);
   assert.equal(saveRow.hidden,true);
   assert.equal(tabs.children[1].attrs['aria-selected'],'true');
-  assert.equal(calendarLoads,1);
+  assert.equal(calendarLoads,0);
   assert.equal(teacherLoads,1);
-  assert.ok(kamar.children.some(node=>node.text.includes('School Events')));
+  assert.ok(kamar.children.some(node=>node.text.includes('Teacher Timetable')));
+  assert.ok(!kamar.children.some(node=>node.text.includes('School Events')));
   let prevented=false;
   tabs.children[1].keydown({key:'Home',preventDefault(){prevented=true;}});
   assert.equal(prevented,true);
@@ -349,7 +350,7 @@ test('setup folder switches accessible right-side sheets without recreating unsa
   assert.equal(saveRow.hidden,false);
   assert.equal(planner.children[0].value,'Unsaved school date');
   tabs.children[1].click();
-  assert.equal(calendarLoads,1);
+  assert.equal(calendarLoads,0);
   assert.equal(tabs.children.length,7);
   assert.equal(tasksLoads,0);
   tabs.children[1].keydown({key:'ArrowDown',preventDefault(){}});
@@ -870,7 +871,16 @@ test('module denies anonymous/student access and accepts a supplied teacher iden
   let user;
   const app = express();
   app.use((req, res, next) => { req.user = user; next(); });
-  app.use('/module/', createModuleRouter());
+  app.use('/module/', createModuleRouter({ loadKamarCalendarYear: async year => ({
+    year, sourceUrl: 'https://westlandhigh.school.kiwi/ics/school.ics', fetchedAt: '2026-01-01T00:00:00.000Z',
+    events: [
+      { title: 'First Day back at school', start: '2026-01-29T08:45:00', allDay: false },
+      { title: 'School Holidays', start: '2026-04-03', end: '2026-04-20', allDay: true },
+      { title: 'School Holidays', start: '2026-07-06', end: '2026-07-20', allDay: true },
+      { title: 'School Holidays', start: '2026-09-28', end: '2026-10-12', allDay: true },
+      { title: 'School Holidays', start: '2026-12-14', end: '2027-01-01', allDay: true }
+    ]
+  }) }));
   const server = app.listen(0, '127.0.0.1');
   await new Promise((resolve) => server.once('listening', resolve));
   const url = `http://127.0.0.1:${server.address().port}/module/`;
@@ -883,6 +893,13 @@ test('module denies anonymous/student access and accepts a supplied teacher iden
     user = { roles: ['Teacher'] };
     assert.equal((await fetch(url + 'api/kamar-calendar/2026/13')).status,400);
     assert.equal((await fetch(url + 'api/kamar-calendar/1999/10')).status,400);
+    assert.equal((await fetch(url + 'api/kamar-calendar/1999/terms')).status,400);
+    const termDates = await fetch(url + 'api/kamar-calendar/2026/terms');
+    assert.equal(termDates.status,200);
+    const termPayload = await termDates.json();
+    assert.equal(termPayload.dates.term1Start,'2026-01-29');
+    assert.equal(termPayload.dates.term4End,'2026-12-11');
+    assert.equal(termPayload.sourceUrl,'https://westlandhigh.school.kiwi/ics/school.ics');
     const response = await fetch(url);
     assert.equal(response.status, 200);
     assert.match(response.headers.get('content-type'), /text\/html/);

@@ -10,6 +10,7 @@
     { href: base + 'student_details_upload.html', label: 'Student Upload', permission: 'student_upload' },
     { href: base + 'student_upload.html', label: 'Student Timetable', permission: 'student_timetable' },
     { href: base + 'timetable_upload.html', label: 'Staff Timetable', permission: 'staff_timetable' },
+    { href: base + 'school_calendar.html', label: 'School Calendar', permission: 'admin_menu' },
     { href: base + 'attendance_admin.html', label: 'Attendance Admin', permission: 'admin_menu' },
     { href: base + 'history.html', label: 'Dataset History', permission: 'admin_menu' }
   ];
@@ -20,6 +21,7 @@
     'student_details_upload.html': 'student_upload',
     'student_upload.html': 'student_timetable',
     'timetable_upload.html': 'staff_timetable',
+    'school_calendar.html': 'admin_menu',
     'history.html': 'admin_menu',
     'attendance_admin.html': 'admin_menu'
   };

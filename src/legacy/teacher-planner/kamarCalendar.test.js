@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { parseCalendar, loadCalendar, SOURCE_URL, GOOGLE_URL, validTimetableUrl, loadTimetable } = require('./kamarCalendar');
+const { parseCalendar, loadCalendar, deriveTermDates, SOURCE_URL, GOOGLE_URL, validTimetableUrl, loadTimetable } = require('./kamarCalendar');
 const wrap = events => 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\n' + events + '\r\nEND:VCALENDAR';
 
 test('private subscription validation only permits personal KAMAR HTTPS feeds', async t => {
@@ -70,6 +70,27 @@ END:VEVENT`.replace(/\n/g,'\r\n')),2026,10);
   assert.equal(allDay.location,'Hall');
   assert.equal(events.find(event=>!event.allDay).start,'2026-10-18T23:00:00.000Z');
   assert.equal(new URL(GOOGLE_URL).searchParams.get('cid'),SOURCE_URL.replace('https:','webcal:'));
+});
+
+test('KAMAR school holidays and first-day events derive complete inclusive term dates', () => {
+  const events = [
+    { title: 'Yrs 7,8,9 - First Day back at school', start: '2026-01-29T08:45:00', allDay: false },
+    { title: 'Yrs 11,12,13 - First Day back at school', start: '2026-01-30T08:45:00', allDay: false },
+    { title: 'School Holidays', start: '2026-01-01', end: '2026-01-02', allDay: true },
+    { title: 'School Holidays', start: '2026-04-03', end: '2026-04-20', allDay: true },
+    { title: 'School Holidays', start: '2026-07-06', end: '2026-07-20', allDay: true },
+    { title: 'School Holidays', start: '2026-09-28', end: '2026-10-12', allDay: true },
+    { title: 'School Holidays', start: '2026-12-14', end: '2027-01-01', allDay: true }
+  ];
+  assert.deepEqual(deriveTermDates(events, 2026), {
+    studentFirstDay: '2026-01-29',
+    term1Start: '2026-01-29', term1End: '2026-04-02',
+    term2Start: '2026-04-20', term2End: '2026-07-03',
+    term3Start: '2026-07-20', term3End: '2026-09-25',
+    term4Start: '2026-10-12', term4End: '2026-12-11'
+  });
+  assert.throws(() => deriveTermDates(events.slice(2, 5), 2026), /no first day back entry/);
+  assert.throws(() => deriveTermDates(events.slice(0, 6), 2026), /four School Holidays ranges/);
 });
 
 test('KAMAR recurrences honour exclusions, changed occurrences and cancellations', () => {

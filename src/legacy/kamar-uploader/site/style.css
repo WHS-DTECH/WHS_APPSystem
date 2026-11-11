@@ -593,8 +593,186 @@ a {
   overflow-wrap: anywhere;
 }
 
+.school-calendar-hero {
+  grid-template-columns: 1.5fr 1fr;
+}
+
+.school-calendar-hero article p,
+.school-calendar-note,
+.school-calendar-status,
+.school-calendar-current {
+  color: #38576b;
+  line-height: 1.5;
+}
+
+.school-calendar-year {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.55fr) minmax(220px, 1fr);
+  gap: 0.65rem 0.9rem;
+  align-items: center;
+  max-width: 650px;
+}
+
+.school-calendar-year label {
+  color: #284a5f;
+  font-weight: 700;
+}
+
+.school-calendar-year input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #c8d6e4;
+  border-radius: 10px;
+  padding: 0.58rem 0.65rem;
+  font: inherit;
+}
+
+.school-calendar-note {
+  margin: 0.8rem 0;
+}
+
+.school-term-preview {
+  overflow-x: auto;
+}
+
+.school-term-table,
+.school-kamar-month {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.school-term-table th,
+.school-term-table td,
+.school-kamar-month th,
+.school-kamar-month td {
+  border: 1px solid #bdccc6;
+  padding: 0.45rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.school-calendar-current {
+  overflow-wrap: anywhere;
+}
+
+.school-calendar-actions,
+.school-calendar-controls,
+.school-calendar-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.school-calendar-actions {
+  margin-top: 0.8rem;
+}
+
+.school-calendar-actions .subtle-btn,
+.school-calendar-controls .subtle-btn {
+  margin-top: 0;
+}
+
+.school-calendar-status {
+  min-height: 1.5em;
+  margin: 0.65rem 0;
+}
+
+.school-calendar-controls {
+  justify-content: space-between;
+}
+
+.school-calendar-controls h3 {
+  margin: 0;
+  color: #193448;
+}
+
+.school-kamar-month {
+  table-layout: fixed;
+  font-size: 0.9rem;
+}
+
+.school-kamar-month caption {
+  padding: 0.6rem;
+  font-weight: 800;
+  text-align: left;
+}
+
+.school-kamar-month td {
+  height: 6rem;
+  padding: 0.2rem;
+}
+
+.school-kamar-day {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  width: 100%;
+  height: 100%;
+  min-height: 5.3rem;
+  overflow: hidden;
+  border: 0;
+  border-radius: 6px;
+  padding: 0.25rem;
+  background: #f4fbff;
+  color: #21445a;
+  text-align: left;
+  cursor: pointer;
+}
+
+.school-kamar-day[aria-pressed="true"] {
+  outline: 2px solid #0f5f84;
+  background: #e2f2fa;
+}
+
+.school-kamar-day span:not(:first-child) {
+  overflow: hidden;
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.school-kamar-details {
+  margin-top: 0.9rem;
+  border-top: 1px solid #bdccc6;
+  padding-top: 0.8rem;
+}
+
+.school-kamar-details h3,
+.school-kamar-details h4 {
+  margin: 0 0 0.45rem;
+}
+
+.school-kamar-details article + article {
+  margin-top: 0.8rem;
+  border-top: 1px solid #d5e0e5;
+  padding-top: 0.8rem;
+}
+
+.school-calendar-description {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.school-calendar-links {
+  margin-top: 0.9rem;
+  border-top: 1px solid #bdccc6;
+  padding-top: 0.8rem;
+}
+
+.school-calendar-links p {
+  flex-basis: 100%;
+  margin: 0;
+  color: #38576b;
+}
+
 @media (max-width: 980px) {
   .attendance-admin-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .school-calendar-hero {
     grid-template-columns: 1fr;
   }
 }
@@ -606,5 +784,23 @@ a {
 
   .attendance-admin-checkbox {
     grid-column: 1;
+  }
+
+  .school-calendar-year {
+    grid-template-columns: 1fr;
+  }
+
+  .school-kamar-month {
+    font-size: 0.72rem;
+  }
+
+  .school-kamar-month td {
+    height: 4.5rem;
+    padding: 0.1rem;
+  }
+
+  .school-kamar-day {
+    min-height: 4.2rem;
+    padding: 0.15rem;
   }
 }

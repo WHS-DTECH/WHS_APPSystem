@@ -1851,12 +1851,11 @@
     const folder = el('div', '', { class: 'setup-folder' });
     const tabs = el('div', '', { class: 'setup-folder-tabs', role: 'tablist', 'aria-label': 'Planner setup pages', 'aria-orientation': 'vertical' });
     const kamar = el('section', '', { class: 'paper-page setup-page kamar-setup-page' });
-    kamar.append(el('h2', 'Kamar Calendar Setup — ' + year, { class: 'paper-heading' }),
-      el('p', 'Public School Events, followed by your private Teacher Timetable. Select a day in either calendar to read its full details.'));
-    const calendar = el('div', '', { class: 'kamar-calendar' });
+    kamar.append(el('h2', 'KAMAR Teacher Timetable Setup — ' + year, { class: 'paper-heading' }),
+      el('p', 'Manage your private KAMAR Teacher Timetable subscription and review your timetable.'));
     const teacher = el('section', '', { class: 'teacher-timetable' });
-    kamar.append(calendar, teacher);
-    let calendarLoaded = false;
+    kamar.append(teacher);
+    let teacherTimetableLoaded = false;
     const tasks = el('section', '', { class: 'paper-page setup-page' });
     let tasksLoaded = false;
     const drive = el('section', '', { class: 'paper-page setup-page' });
@@ -1868,7 +1867,7 @@
     const attendance = el('section', '', { class: 'paper-page setup-page attendance-setup-page', 'data-planner-navigation': '' });
     let attendanceLoaded = false;
     const pages = [page, kamar, tasks, drive, holidays, duties, attendance];
-    const buttons = ['Planner Setup', 'Kamar Calendar Setup', 'Google Tasks Setup', 'Google Drive Setup', 'Public Holidays Setup', 'Duty Roster', 'Two-Week Attendance'].map((label, index) => {
+    const buttons = ['Planner Setup', 'KAMAR Teacher Timetable Setup', 'Google Tasks Setup', 'Google Drive Setup', 'Public Holidays Setup', 'Duty Roster', 'Two-Week Attendance'].map((label, index) => {
       const button = el('button', label, { type: 'button', role: 'tab', id: 'setup-tab-' + index, 'aria-controls': 'setup-sheet-' + index });
       pages[index].id = 'setup-sheet-' + index;
       pages[index].setAttribute('role', 'tabpanel');
@@ -1891,9 +1890,8 @@
       });
       document.querySelector('.planner-save').hidden = index !== 0;
       history.replaceState(null, '', '#' + viewFragment());
-      if (index === 1 && !calendarLoaded) {
-        calendarLoaded = true;
-        renderKamarCalendar(calendar);
+      if (index === 1 && !teacherTimetableLoaded) {
+        teacherTimetableLoaded = true;
         renderTeacherTimetable(teacher);
       }
       if (index === 2 && !tasksLoaded) {
