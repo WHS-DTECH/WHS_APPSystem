@@ -132,6 +132,66 @@ test('automatic tab creation persists once with revisions and shows errors witho
     } else assert.ok(nodes.some(node => node.tag === 'option' && node.textContent === '11TEST'));
   }
 });
+test('opening daily Attendance populates uploaded class tabs and imported marks without a personal timetable or teacher action', async () => {
+  const api = browser();
+  const directory = { staffCode: 'TEST', classes: [
+    { code: 'TEST-10ENG-CW', slots: ['mon_p1', 'tue_p2', 'wed_p4', 'fri_p3'],
+      students: [{ id: 'k:100', name: 'Synthetic Student' }] },
+    { code: 'TEST-9SCI-CW', slots: ['fri_p5'],
+      students: [{ id: 'k:200', name: 'Second Student' }] }
+  ] };
+  let savedGroups = [], revision = 0;
+  for (const firstOpening of [true, false]) {
+    const host = element('section'), writes = [], requests = [];
+    await api.mount(host, {
+      el: element, automaticTabs: true, year: 2026, today: '2026-11-13',
+      ranges: [{ term: '4', startDate: '2026-10-12', endDate: '2026-12-18' }],
+      school: {}, calendar: {},
+      request: async path => {
+        requests.push(path);
+        if (path.endsWith('/groups')) return { revision, content: { groups: savedGroups } };
+        if (path === 'attendance/classes/2026') return directory;
+        if (path === 'attendance/2026/week/2026-11-09') return { marks: [
+          { student_id: 'k:100', date: '2026-11-09', period: 'p1', mark: 'P', revision: 1 },
+          { student_id: 'k:100', date: '2026-11-10', period: 'p2', mark: 'A', revision: 2 },
+          { student_id: 'k:100', date: '2026-11-13', period: 'p3', mark: 'L', revision: 3 }
+        ] };
+        if (path.startsWith('attendance/2026/student/k%3A100?')) return { marks: [
+          { student_id: 'k:100', date: '2026-11-13', period: 'p3', mark: 'L', revision: 3 }
+        ] };
+        throw new Error('Unexpected request: ' + path);
+      },
+      ...(firstOpening ? {} : {
+        loadSchedule: async () => assert.fail('Opening Attendance must not use a personal calendar subscription.')
+      }),
+      uploadPdf: async () => assert.fail('Teachers do not need to upload attendance.'),
+      mutate: async (path, body) => {
+        assert.equal(path, 'attendance/2026/groups', 'opening Attendance must never write marks');
+        writes.push(body);
+        savedGroups = body.content.groups;
+        return { revision: ++revision };
+      }
+    });
+    const nodes = descendants(host);
+    assert.deepEqual(nodes.filter(node => node.attrs.role === 'tab').map(node => node.textContent), ['10ENG', '9SCI']);
+    for (const [day, period, mark] of [['09', 'P1', 'P'], ['10', 'P2', 'A'], ['11', 'P4', ''], ['13', 'P3', 'L']]) {
+      const cell = nodes.find(node => node.attrs['aria-label'] === 'Synthetic Student, 2026-11-' + day + ', ' + period);
+      assert.ok(cell, 'uploaded timetable period is rendered');
+      assert.equal(cell.value, mark);
+    }
+    assert.equal(writes.length, firstOpening ? 1 : 0, 'unchanged tabs do not need to be saved again');
+    assert.equal(requests.filter(path => path.includes('/classes/')).length, 1);
+    assert.equal(nodes.some(node => node.attrs.role === 'alert'), false);
+    const picker = nodes.find(node => node.attrs['aria-label'] === 'Select student');
+    picker.value = 'k:100';
+    await picker.events.change();
+    assert.ok(descendants(host).some(node => node.textContent === 'P3: L'),
+      'individual term attendance uses the uploaded timetable too');
+    await nodes.find(node => node.attrs.role === 'tab' && node.textContent === '9SCI').events.click();
+    assert.ok(descendants(host).some(node => node.attrs['aria-label'] === 'Second Student, 2026-11-13, P5'),
+      'other automatically populated class tabs load without setup');
+  }
+});
 test('Drive sync refreshes timetable tabs before reading PDFs, including from other Planner sections', async () => {
   const writes = [], calls = [];
   const directory = { staffCode: 'TEST', classes: [

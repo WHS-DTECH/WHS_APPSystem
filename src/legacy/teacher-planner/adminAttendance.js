@@ -7,7 +7,7 @@ const { importAttendancePdf } = require('./attendanceImport');
 
 const UUID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 const YEAR = /^(?:20\d{2}|2100)$/;
-const DAY_INDEX = { mon: 0, tue: 1, wed: 2, thu: 3, fri: 4 };
+const { timetableEntries } = attendance;
 const own = (value, allowed) => value && typeof value === 'object' && !Array.isArray(value) &&
   Object.keys(value).every(key => allowed.includes(key));
 
@@ -17,20 +17,6 @@ function termRanges(settings, terms) {
     return { term: String(number), startDate: settings['term' + number + 'Start'] || fallback?.startDate,
       endDate: settings['term' + number + 'End'] || fallback?.endDate };
   });
-}
-
-function timetableEntries(directory) {
-  const entries = {};
-  for (const group of directory.classes) {
-    const title = attendance.classCode(group.code, true);
-    for (const slot of group.slots || []) {
-      const match = /^(mon|tue|wed|thu|fri)_(p[1-5])(?:_[12])?$/.exec(slot);
-      if (!match) continue;
-      const key = match[2] + ':' + DAY_INDEX[match[1]];
-      (entries[key] ||= []).push({ title });
-    }
-  }
-  return entries;
 }
 
 function localDate() {

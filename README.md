@@ -1584,6 +1584,14 @@ warnings when marks are missing. Teachers can still preview a personal PDF
 import into one class tab from daily Attendance, which continues to show and edit
 the signed-in teacher's own saved records.
 
+Opening daily **Attendance** automatically creates or refreshes the signed-in
+teacher's class tabs and rosters from Kamar Uploader and loads their saved marks
+for the selected week. Its lesson periods use the same uploaded timetable as the
+admin importer; teachers do not need to configure a personal KAMAR calendar
+subscription, connect Google Drive, or run an import. Administrators must first
+import the attendance for that teacher and publish the school term dates.
+Unrecorded marks remain blank, and opening Attendance never overwrites marks.
+
 The shared **Duty Roster** setup has moved from Setup My Planner to the
 ADMIN-only Kamar Uploader **Duty Roster** page. Administrators configure the
 shared source document, term settings and staff-code mappings there; weekly duty

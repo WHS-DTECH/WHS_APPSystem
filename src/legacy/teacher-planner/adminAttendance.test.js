@@ -56,6 +56,8 @@ test('admin attendance timetable entries map KAMAR slots to period/day keys', ()
     'p3:2': [{ title: '10ENG' }],
     'p5:4': [{ title: '10ENG' }]
   });
+  assert.throws(() => timetableEntries({ classes: [{ code: '10ENG', students: [] }] }),
+    /Timetable class slots are unavailable/);
 });
 
 test('admin attendance API enforces ADMIN access and returns settings without student marks', async t => {

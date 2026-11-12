@@ -29,6 +29,22 @@
     return Array.from({ length: 5 }, (_, day) => periods.filter(period =>
       (entries[period + ':' + day] || []).some(entry => codes.has(classCode(entry.title)))));
   }
+  function timetableEntries(directory) {
+    const entries = {};
+    for (const group of directory.classes) {
+      if (!Array.isArray(group.slots) || !group.slots.length) {
+        throw new Error('Timetable class slots are unavailable. Ask an administrator to update the KAMAR timetable upload.');
+      }
+      const title = classCode(group.code, true);
+      for (const slot of group.slots) {
+        const match = /^(mon|tue|wed|thu|fri)_(p[1-5])(?:_[12])?$/.exec(slot);
+        if (!match) continue;
+        const day = ['mon', 'tue', 'wed', 'thu', 'fri'].indexOf(match[1]);
+        (entries[match[2] + ':' + day] ||= []).push({ title });
+      }
+    }
+    return entries;
+  }
   function timetableGroups(existing, directory) {
     if (!directory.classes.length) throw new Error('No timetable classes were found for your staff code. Saved tabs are unchanged; check the current KAMAR upload.');
     if (directory.classes.some(item => !Array.isArray(item.slots) || !item.slots.length)) {
@@ -272,6 +288,14 @@
     host.append(feedback, controls);
     let revision = 0, groups = [], selected = '', selectedTerm = '', selectedWeek = '', marks = new Map();
     let pending = false, draft = false, directory;
+    async function attendanceSchedule(week) {
+      if (automaticTabs) {
+        if (!directory) directory = await request('attendance/classes/' + year);
+        return timetableEntries(directory);
+      }
+      if (!loadSchedule) throw new Error('The KAMAR timetable connection is unavailable. Reopen Attendance after updating the Planner.');
+      return loadSchedule(week);
+    }
     let statusTerm = '';
     const refreshFeedback = el('p', '', { class: 'duty-roster-feedback', role: 'status', 'aria-live': 'polite' });
     const tabs = el('div', '', { class: 'attendance-class-tabs', role: 'tablist', 'aria-label': 'Attendance class lists' });
@@ -350,7 +374,7 @@
       panel.append(el('summary', all ? 'Load Two-Week Attendance PDF - all matching class tabs' : 'Import KAMAR attendance PDF into this class tab'));
       panel.append(el('p', (all ? 'All matching saved automatic class tabs are filled, regardless of the term/class display filters. Matching uses' : 'Only this tab is filled, using') +
         ' each student’s school class membership and timetable. Existing marks are never overwritten. * = P; L = L; all other codes (including ?) = A. Blank slots stay unrecorded. Whanau, Assembly and breaks are ignored.'));
-      if (!uploadPdf || !loadSchedule || !all && (group.scheduleMode === 'manual' || !group.classes.length)) {
+      if (!uploadPdf || (!automaticTabs && !loadSchedule) || !all && (group.scheduleMode === 'manual' || !group.classes.length)) {
         panel.append(el('p', 'To import, connect school classes and enable automatic timetable matching in Edit class tab / students.', { role: 'status' }));
         return panel;
       }
@@ -368,10 +392,10 @@
           result.append(el('p', error.message, { class: 'duty-roster-feedback', role: 'alert' }));
           throw error;
         }
-        const directory = await request('attendance/classes/' + year);
+        directory = await request('attendance/classes/' + year);
         const schedules = {}, savedMarks = [];
         for (const week of pdf.weeks) {
-          schedules[week] = await loadSchedule(week);
+          schedules[week] = await attendanceSchedule(week);
           const saved = await request('attendance/' + year + '/week/' + week);
           savedMarks.push(...saved.marks);
         }
@@ -604,7 +628,7 @@
           const weeks = termWeeks(studentRange.startDate, studentRange.endDate);
           let classes = group.classes;
           if (group.scheduleMode !== 'manual') {
-            if (!directory || !loadSchedule) throw new Error('School class details and timetable are required to show this student’s class attendance.');
+            if (!directory || (!automaticTabs && !loadSchedule)) throw new Error('School class details and timetable are required to show this student’s class attendance.');
             classes = directory.classes.filter(item => group.classes.includes(item.code) &&
               item.students.some(member => member.id === studentId)).map(item => item.code);
             if (!classes.length) throw new Error('No current school class membership found for this student in this tab.');
@@ -613,7 +637,7 @@
             request('attendance/' + year + '/student/' + encodeURIComponent(studentId) + '?groupId=' +
               encodeURIComponent(group.id) + '&start=' + studentRange.startDate + '&end=' + studentRange.endDate),
             Promise.all(weeks.map(async week => [week, group.scheduleMode === 'manual' ?
-              Array.from({ length: 5 }, () => group.periods) : scheduledPeriods({ classes }, await loadSchedule(week))]))
+              Array.from({ length: 5 }, () => group.periods) : scheduledPeriods({ classes }, await attendanceSchedule(week))]))
           ]);
           studentMarks = new Map(saved.marks.map(mark => [mark.student_id + '|' + mark.date + '|' + mark.period, mark]));
           studentSchedules = Object.fromEntries(schedules);
@@ -703,8 +727,7 @@
       const automatic = group.scheduleMode !== 'manual' && group.classes.length > 0;
       let schedule;
       if (automatic) {
-        if (!loadSchedule) throw new Error('The KAMAR timetable connection is unavailable. Reopen Attendance after updating the Planner.');
-        schedule = scheduledPeriods(group, await loadSchedule(selectedWeek));
+        schedule = scheduledPeriods(group, await attendanceSchedule(selectedWeek));
       } else schedule = Array.from({ length: 5 }, () => group.periods);
       const scroll = el('div', '', { class: 'attendance-scroll', tabindex: '0', 'aria-label': 'Attendance sheet, scroll horizontally for all days' });
       const table = el('table', '', { class: 'attendance-table' });
@@ -760,8 +783,11 @@
       scroll.append(table); sheet.append(scroll);
       if (automatic) {
         sheet.append(el('p', schedule.some(day => day.length) ?
-          'Days and periods matched to this week’s KAMAR Teacher Timetable. Saved marks outside the current schedule are retained.' :
-          'No matching lessons were found this week. Check the selected school class labels and your Teacher Timetable; no periods have been guessed.',
+          (automaticTabs ? 'Days and periods matched to the school’s uploaded KAMAR timetable. Attendance imported by an administrator loads automatically. ' :
+            'Days and periods matched to this week’s KAMAR Teacher Timetable. ') + 'Saved marks outside the current schedule are retained.' :
+          'No matching lessons were found this week. Check the selected school class labels and ' +
+            (automaticTabs ? 'ask an administrator to check the uploaded KAMAR timetable' : 'your Teacher Timetable') +
+            '; no periods have been guessed.',
         { role: schedule.some(day => day.length) ? 'status' : 'alert' }));
       }
       if (!group.students.length) sheet.append(el('p', 'No students yet. Use Edit class tab / students to add a school class or manual student.'));
@@ -883,7 +909,7 @@
         'Attendance loaded. Class setup uses Save class tab; each P/A/L mark saves immediately.');
     });
   }
-  const api = { mount, termWeeks, combinedStudents, scheduledPeriods, classCode, timetableGroups, planImport, mergePlans,
+  const api = { mount, termWeeks, combinedStudents, scheduledPeriods, classCode, timetableEntries, timetableGroups, planImport, mergePlans,
     weekStatus, syncDrive };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else globalThis.plannerAttendance = api;
