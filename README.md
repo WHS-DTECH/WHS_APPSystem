@@ -1654,7 +1654,9 @@ Explicitly approved current department staff,
 verified HoLAs and Global ADMIN may read the department's student profiles.
 The Tracker class selector browses linked class codes across the department's
 authorised teachers. A separate Year level selector browses students in Years 7
-to 13; class, year level and student-name filters can be combined. Results include
+to 13; discipline, class, year level and student-name filters can be combined.
+Discipline browsing includes confirmed linked subjects across the selected sources,
+and warns when possible matches cannot be confirmed. Results include
 current and preserved timetables for the selected year, not just the current
 roll. **All terms** is the default; selecting a specific term uses that term's
 preserved student and relevant teacher timetables only. Missing snapshots or

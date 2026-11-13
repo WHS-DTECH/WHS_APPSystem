@@ -41,7 +41,14 @@ function discipline(code) {
 function linkDisciplines(code, department) {
   const family = discipline(code);
   return normaliseDirectoryName(department.name) === normaliseDirectoryName('Technology') && seniorLine(code)
-    ? ['DTECH', 'COMP'] : [family];
+    ? ['DTECH', 'COMP'] : [...new Set([family, discipline(subjectCode(code))])];
+}
+function sortedDisciplines(disciplines) {
+  const order = ['DTECH', 'COMP', 'DVC', 'FOOD', 'HOSP', 'TEXTILES', 'WOOD', 'DTONLINE'];
+  return [...disciplines].sort((a, b) => {
+    const first = order.indexOf(a), second = order.indexOf(b);
+    return (first < 0 ? order.length : first) - (second < 0 ? order.length : second) || a.localeCompare(b);
+  });
 }
 function teacherClassCodes(value, staff, courses) {
   const codes = [], excluded = [];
@@ -504,8 +511,10 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
         departmentOptions: context.departmentOptions.map(choice => ({ ...choice,
           canManage: context.admin || choice.managerIds.includes(user.id), automaticTeachers: automaticTeachers(context, choice.name) })),
         automaticHolaAccess: true, teacherApprovalAccess: true, classSelection: true, classBrowse: true, yearLevelBrowse: true, termBrowse: true,
+        disciplineBrowse: true,
         departments: context.departments.map(item => ({
         id: item.id, name: item.name, subjects: item.subjects, revision: item.revision, unavailableClassCount: item.unavailableClassCount,
+        disciplines: sortedDisciplines(new Set(savedClassLinks(item, year).flatMap(link => linkDisciplines(link.code, item)))),
         ambiguousClassCount: item.classLinks.filter(link => link.ambiguousSources.length).length,
         canManage: context.admin || item.manager_ids.includes(user.id),
         managerIds: item.manager_ids, teacherEmails: manageable ? item.teacher_emails : [],
@@ -520,20 +529,28 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       if (input.classCode !== undefined && typeof input.classCode !== 'string') throw error('Choose a linked class.');
       const classCode = input.classCode || '';
       if (classCode && !department.classLinks.some(link => link.code === classCode)) throw error('Choose a class linked to this department and year.');
+      if (input.discipline !== undefined && typeof input.discipline !== 'string') throw error('Choose a linked discipline.');
+      const selectedDiscipline = input.discipline || '';
+      const saved = savedClassLinks(department, year);
+      const disciplines = new Set(saved.flatMap(link => linkDisciplines(link.code, department)));
+      if (selectedDiscipline && !disciplines.has(selectedDiscipline)) throw error('Choose a discipline linked to this department and year.');
       if (input.yearLevel !== undefined && (typeof input.yearLevel !== 'string' ||
           (input.yearLevel && !/^(?:7|8|9|10|11|12|13)$/.test(input.yearLevel)))) throw error('Choose a student year level from 7 to 13.');
       const yearLevel = input.yearLevel || '';
       if (input.term !== undefined && (!Number.isInteger(input.term) || input.term < 1 || input.term > 4)) throw error('Choose a term from 1 to 4.');
       const term = input.term;
       const query = (input.q || '').trim().toLowerCase();
-      if (!classCode && !yearLevel && !term && query.length < 2) throw error('Enter at least two characters of the student name, or choose a class, year level or term.');
+      if (!classCode && !selectedDiscipline && !yearLevel && !term && query.length < 2) {
+        throw error('Enter at least two characters of the student name, or choose a class, discipline, year level or term.');
+      }
       let tables = context.tables;
       if (term) {
         const snapshot = tables.find(table => table.term === term);
         if (!snapshot) throw error('No preserved student timetable for Term ' + term + ' in ' + year +
           '. Upload it through Kamar Uploader Dataset History before browsing this term.', 409);
-        const selected = savedClassLinks(department, year).filter(link =>
-          department.teacherEmails.includes(link.teacherEmail) && (!classCode || link.code === classCode));
+        const selected = saved.filter(link => department.teacherEmails.includes(link.teacherEmail) &&
+          ((!classCode && !selectedDiscipline) || link.code === classCode ||
+            (selectedDiscipline && linkDisciplines(link.code, department).includes(selectedDiscipline))));
         if (selected.some(link => !department.classLinks.some(available =>
           available.teacherEmail === link.teacherEmail && available.code === link.code))) {
           throw error('Some linked classes are unavailable. Ask the department manager to review class links before browsing this term.', 409);
@@ -550,7 +567,17 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
           missing.map(person => person.name).join(', ') + '. Upload it through Kamar Uploader Dataset History before browsing this term.', 409);
         tables = [snapshot];
       }
+      const unavailableByTerm = new Map(tables.map(table => [table.term, saved.flatMap(link => {
+        const person = context.candidates.find(candidate => candidate.email === link.teacherEmail);
+        const available = department.classLinks.some(item => item.teacherEmail === link.teacherEmail && item.code === link.code);
+        return !available || !person || (table.term === null ? !person.timetableCurrent : !person.timetableTerms.includes(table.term))
+          ? [{ link, person }] : [];
+      })]));
+      const missingLesson = (term, lesson) => unavailableByTerm.get(term).some(({ link, person }) =>
+        (!person || !lesson.staffCodes.length || lesson.staffCodes.includes(person.code)) &&
+        possibleLinkedLesson(department, link, lesson));
       const found = new Map();
+      const excludedDiscipline = new Set();
       let ambiguous = false;
       for (const table of tables) for (const row of table.rows) {
         const item = student(row);
@@ -563,32 +590,24 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
         } else if (!rowLessons.some(lesson => linkedLesson(department, lesson, table.term))) {
           if (rowLessons.some(lesson => department.classLinks.some(link =>
             seniorLessonMatch(department, link, lesson, table.term, true) === 'ambiguous'))) ambiguous = true;
+          if (selectedDiscipline && rowLessons.some(lesson => discipline(lesson.subject) === selectedDiscipline &&
+            (missingLesson(table.term, lesson) || department.classLinks.some(link =>
+              linkedLessonMatch(department, link, lesson, table.term) === 'ambiguous')))) excludedDiscipline.add(item.id);
           continue;
         }
         if (!found.has(item.id)) found.set(item.id, item);
       }
-      const saved = savedClassLinks(department, year);
-      const disciplines = new Set(saved.flatMap(link => linkDisciplines(link.code, department)));
-      const browse = classCode || yearLevel || term;
+      const browse = classCode || selectedDiscipline || yearLevel || term;
       const foundStudents = [...found.values()].sort((a, b) => a.name.localeCompare(b.name));
-      const visibleStudents = browse ? foundStudents : foundStudents.slice(0, 50);
-      const breakdowns = new Map(visibleStudents.map(item => [item.id, { subjects: new Map(), uncertain: new Map() }]));
-      const unavailableByTerm = new Map(tables.map(table => [table.term, saved.flatMap(link => {
-        const person = context.candidates.find(candidate => candidate.email === link.teacherEmail);
-        const available = department.classLinks.some(item => item.teacherEmail === link.teacherEmail && item.code === link.code);
-        return !available || !person || (table.term === null ? !person.timetableCurrent : !person.timetableTerms.includes(table.term))
-          ? [{ link, person }] : [];
-      })]));
+      const candidates = browse ? foundStudents : foundStudents.slice(0, 50);
+      const breakdowns = new Map(candidates.map(item => [item.id, { subjects: new Map(), uncertain: new Map() }]));
       for (const table of tables) for (const row of table.rows) {
         const breakdown = breakdowns.get(student(row).id);
         if (!breakdown) continue;
         for (const lesson of lessons(row)) {
           const matches = department.classLinks.map(link => linkedLessonMatch(department, link, lesson, table.term));
           const family = discipline(lesson.subject);
-          const missing = unavailableByTerm.get(table.term).some(({ link, person }) => {
-            if (person && !lesson.staffCodes.includes(person.code)) return false;
-            return possibleLinkedLesson(department, link, lesson);
-          });
+          const missing = missingLesson(table.term, lesson);
           if (matches.includes('matched')) {
             disciplines.add(family);
             breakdown.subjects.set(lesson.subject, { code: lesson.subject, discipline: family });
@@ -598,18 +617,21 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
           }
         }
       }
-      const students = visibleStudents.map(item => {
+      const withSubjects = candidates.map(item => {
         const breakdown = breakdowns.get(item.id);
         return { ...item, subjects: [...breakdown.subjects.values()].sort((a, b) => a.code.localeCompare(b.code)),
           uncertainDisciplines: [...new Set([...breakdown.uncertain].filter(([code]) => !breakdown.subjects.has(code))
             .map(([, family]) => family))].sort() };
       });
-      const order = ['DTECH', 'COMP', 'DVC', 'FOOD', 'HOSP', 'TEXTILES', 'WOOD', 'DTONLINE'];
-      return { students, truncated: !browse && foundStudents.length > 50, ambiguous,
-        disciplines: [...disciplines].sort((a, b) => {
-          const first = order.indexOf(a), second = order.indexOf(b);
-          return (first < 0 ? order.length : first) - (second < 0 ? order.length : second) || a.localeCompare(b);
-        }) };
+      const students = selectedDiscipline
+        ? withSubjects.filter(item => item.subjects.some(subject => subject.discipline === selectedDiscipline))
+        : withSubjects;
+      const disciplineAmbiguous = [...excludedDiscipline].some(id => !students.some(item => item.id === id)) ||
+        Boolean(selectedDiscipline && withSubjects.some(item =>
+        item.uncertainDisciplines.includes(selectedDiscipline) &&
+        !item.subjects.some(subject => subject.discipline === selectedDiscipline)));
+      return { students, truncated: !browse && foundStudents.length > 50, ambiguous, disciplineAmbiguous,
+        disciplines: sortedDisciplines(disciplines) };
     }
     const rows = selectedStudent(context, department, input.studentId);
     if (action === 'profile') {
