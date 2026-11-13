@@ -179,6 +179,43 @@ function createTeacherPlannerRouter({ env = process.env, dbQuery = coreQuery, di
       res.json(selectRegionalHolidays(await calendar(req, year), preferences.rows[0]?.content.anniversaryRegion || 'Westland'));
     } catch (error) { next(error); }
   });
+  router.loadMyStandards = async (userId, year) => {
+    if (typeof userId !== 'string' || !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(userId) ||
+        !Number.isInteger(year) || year < 2000 || year > 2100) {
+      throw new Error('Choose a valid Teacher Planner user and year.');
+    }
+
+    if (!plannerQuery) databaseOptions(env);
+    const result = await query(
+      `SELECT content FROM planner_sections
+       WHERE owner_id = $1 AND year = $2 AND section = 'assessmentSetup' AND entry_key = 'main'`,
+      [userId, year]
+    );
+    const saved = result.rows[0]?.content?.selectedStandards;
+    if (saved === undefined) {
+      return [];
+    }
+
+    let standards;
+    try {
+      standards = JSON.parse(saved);
+    } catch {
+      throw new Error('Saved My Standards data could not be read.');
+    }
+    if (!Array.isArray(standards) || standards.length > 100 ||
+        !standards.every((item) => item && typeof item.number === 'string' && /^\d{4,8}$/.test(item.number) &&
+          typeof item.title === 'string' && item.title.trim() && item.title.length <= 300)) {
+      throw new Error('Saved My Standards data is invalid.');
+    }
+
+    return standards.map(({ number, title, subject, level, version }) => ({
+      number,
+      title: title.trim(),
+      subject: typeof subject === 'string' ? subject : '',
+      level: typeof level === 'string' ? level : '',
+      version: typeof version === 'string' ? version : ''
+    }));
+  };
   router.use((req, res, next) => module(req, res, next));
   router.use((error, req, res, next) => {
     console.error('Teacher Planner request failed.');

@@ -483,6 +483,42 @@ function hasPlaceholderText(value) {
   return /replace\s+with/i.test(String(value || ""));
 }
 
+function syncInputError(message) {
+  const error = new Error(message);
+  error.status = 400;
+  return error;
+}
+
+function assessmentMerge(current, incoming) {
+  const assessments = (Array.isArray(current) ? current : [])
+    .map((value) => String(value || "").trim())
+    .filter((value) => value && !hasPlaceholderText(value));
+  const added = [];
+  const existing = new Set(assessments.map((value) => value.toLocaleLowerCase()));
+
+  for (const value of Array.isArray(incoming) ? incoming : []) {
+    const assessment = String(value || "").trim();
+    if (!assessment || hasPlaceholderText(assessment)) {
+      throw syncInputError("Sync entries must be non-empty and cannot be placeholders.");
+    }
+
+    const key = assessment.toLocaleLowerCase();
+    if (existing.has(key)) {
+      continue;
+    }
+
+    existing.add(key);
+    assessments.push(assessment);
+    added.push(assessment);
+  }
+
+  if (assessments.length > 10) {
+    throw syncInputError("Learning Sites supports up to 10 assessment entries per course. Remove entries before syncing.");
+  }
+
+  return { assessments, added };
+}
+
 function isValidAssessment(value) {
   const text = String(value || "").trim();
   return Boolean(text) && !hasPlaceholderText(text);
@@ -776,6 +812,115 @@ async function upsertCourseContent(payload) {
     assessmentLinks,
     updatedBy: actorName
   };
+}
+
+function validateAssessmentMergeEntries(entries) {
+  if (!Array.isArray(entries) || !entries.length || entries.length > 30) {
+    throw syncInputError("Choose between 1 and 30 Learning Sites courses to sync.");
+  }
+
+  const seen = new Set();
+  return entries.map((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      throw syncInputError("Each sync entry must identify a Learning Sites course.");
+    }
+    const courseCode = normalizeCourseCode(entry?.courseCode);
+    if (!courseCode || !COURSE_CONTENT_TARGETS.has(courseCode)) {
+      throw syncInputError(`Learning Sites course ${courseCode || "(blank)"} is not configured for sync.`);
+    }
+    if (seen.has(courseCode)) {
+      throw syncInputError(`Learning Sites course ${courseCode} was selected more than once.`);
+    }
+    seen.add(courseCode);
+
+    if (!Array.isArray(entry.assessments) || !entry.assessments.length || entry.assessments.length > 10 ||
+        !entry.assessments.every((item) => typeof item === "string" && item.trim() && item.length <= 500)) {
+      throw syncInputError(`Course ${courseCode} must have between 1 and 10 valid sync entries.`);
+    }
+
+    return {
+      courseCode,
+      assessments: entry.assessments.map((item) => item.trim())
+    };
+  });
+}
+
+async function previewCourseAssessmentsMerge(entries) {
+  const safeEntries = validateAssessmentMergeEntries(entries);
+  const previews = [];
+
+  for (const entry of safeEntries) {
+    const content = await getCourseContent(entry.courseCode);
+    const merge = assessmentMerge(content.assessments, entry.assessments);
+    previews.push({
+      courseCode: entry.courseCode,
+      current: merge.assessments.filter((item) => !merge.added.includes(item)),
+      incoming: entry.assessments,
+      added: merge.added,
+      unchanged: entry.assessments.length - merge.added.length
+    });
+  }
+
+  return { courses: previews };
+}
+
+async function mergeCourseAssessments(entries, updatedBy) {
+  const safeEntries = validateAssessmentMergeEntries(entries);
+  const actorName = normalizeActorName(updatedBy);
+  const client = await appPool.connect();
+  const results = [];
+
+  try {
+    await client.query("BEGIN");
+
+    for (const entry of safeEntries) {
+      await client.query(
+        `INSERT INTO admin_course_content (course_code)
+         VALUES ($1) ON CONFLICT (course_code) DO NOTHING`,
+        [entry.courseCode]
+      );
+      const current = await client.query(
+        "SELECT assessments FROM admin_course_content WHERE course_code = $1 FOR UPDATE",
+        [entry.courseCode]
+      );
+      const merge = assessmentMerge(current.rows[0]?.assessments, entry.assessments);
+
+      if (merge.added.length) {
+        await client.query(
+          `UPDATE admin_course_content
+           SET assessments = $2::jsonb, updated_at = NOW(), updated_by = $3
+           WHERE course_code = $1`,
+          [entry.courseCode, JSON.stringify(merge.assessments), actorName]
+        );
+        await client.query(
+          `INSERT INTO admin_course_content_activity (course_code, activity_type, actor_name, detail)
+           VALUES ($1, 'content-save', $2, $3)`,
+          [entry.courseCode, actorName, `Unit Library sync added ${merge.added.length} assessment entries`]
+        );
+      }
+
+      results.push({
+        courseCode: entry.courseCode,
+        added: merge.added,
+        assessments: merge.assessments
+      });
+    }
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+
+  for (const result of results) {
+    if (result.added.length) {
+      await syncCourseRequirementFromContent(result.courseCode, actorName);
+    }
+  }
+
+  return { ok: true, courses: results, updatedBy: actorName };
 }
 
 async function saveCourseStatementPdf(payload) {
@@ -1424,6 +1569,9 @@ module.exports = {
   getCourseContentTargets,
   getCourseContent,
   upsertCourseContent,
+  previewCourseAssessmentsMerge,
+  mergeCourseAssessments,
+  assessmentMerge,
   saveCourseStatementPdf,
   getCourseStatementPdf
 };

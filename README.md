@@ -1626,9 +1626,19 @@ empty listings are distinguished. Shared units are returned once in the
 `learningSites` collection and referenced through each class's
 `learningSiteCodes`, reusing Tracker's course/semester/junior matching.
 Content is current, not a historical unit snapshot for the selected timetable year.
-The Library never edits or copies Learning Sites unit storage. Its small Relief Plan
-button still opens Core's existing `/ReleverPlan/`; permissions, data and ADMIN
-tools have not moved.
+The **Learning Sites Sync** panel is available to Learning Sites administrators.
+Junior unit names are authored as Library source data; Senior standards are
+selected from the signed-in teacher's own Teacher Planner **My Standards** list.
+The Library stores these course-level sources in its separate database and logs
+who saved them. Every target must be mapped in the current Learning Area Profile.
+Staff preview the proposed merge and explicitly confirm it. Core rechecks the
+Library grant, Learning Sites administrator permission and (for standards) the
+caller's Teacher Planner access. Sync adds only missing entries to the existing
+Learning Sites assessment list; it preserves manual entries and never removes
+content. The normal HOD Update Dashboard status is recalculated from the saved
+content, and the Learning Sites activity log records additions. No student data
+is involved. Its small Relief Plan button still opens Core's existing
+`/ReleverPlan/`; permissions, data and ADMIN tools have not moved.
 
 ### Student Tracker
 

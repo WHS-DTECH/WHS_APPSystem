@@ -95,7 +95,8 @@ app.get('/launchpad/apps/:moduleKey', createLaunchApp());
 const { faults: faultReports, helpdesk } = createHelpdeskRouters();
 app.use('/faults', faultReports);
 app.use(createModuleAccessGuard());
-app.use('/teacher-planner', createTeacherPlannerRouter());
+const teacherPlanner = createTeacherPlannerRouter();
+app.use('/teacher-planner', teacherPlanner);
 
 app.get('/healthz', (req, res) => {
   res.status(200).json({ ok: true });
@@ -214,7 +215,9 @@ app.use('/dtech-hub/class-training', createClassTrainingRouter());
 app.get(/^\/dtech-hub$/, (req, res) => res.redirect(`/dtech-hub/${req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''}`));
 app.use('/dtech-hub', createDtechRouter());
 app.use('/module-builder', createModuleBuilderRouter());
-app.use('/module-auth', createModuleIdentityRouter());
+app.use('/module-auth', createModuleIdentityRouter({
+  loadMyStandards: (userId, year) => teacherPlanner.loadMyStandards(userId, year)
+}));
 app.get(/^\/bus-controller$/, (req, res) => res.redirect(`/bus-controller/${req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''}`));
 app.use('/bus-controller', createBusControllerRouter());
 app.use(express.static(path.join(__dirname, '..', 'public')));

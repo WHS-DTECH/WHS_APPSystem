@@ -6,6 +6,7 @@ const { loadSchoolCalendar } = require('./schoolCalendar');
 const { staffDirectory, attendanceClasses } = require('./kamarDirectory');
 const { httpsAppUrl } = require('./appAddresses');
 const { query: kamarQuery } = require('./legacy/kamar-uploader/db');
+const { userHasHubPermission } = require('./hubRoles');
 
 const hash = (value) => crypto.createHash('sha256').update(value).digest('base64url');
 const opaque = (value) => typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value);
@@ -39,7 +40,14 @@ async function authorisedModuleUser(userId, moduleKey, dbQuery = query) {
     await require('./studentTracker').approvedTrackerUser(userId, dbQuery) : undefined);
 }
 
-function createModuleIdentityRouter({ dbQuery = query, directoryQuery = kamarQuery, schoolCalendar = loadSchoolCalendar, trackerService } = {}) {
+function createModuleIdentityRouter({
+  dbQuery = query,
+  directoryQuery = kamarQuery,
+  schoolCalendar = loadSchoolCalendar,
+  trackerService,
+  loadMyStandards,
+  learningSitesSyncService
+} = {}) {
   const router = express.Router();
   const tracker = trackerService || require('./studentTracker').createStudentTrackerService({ dbQuery, directoryQuery });
   const search = createModuleSearch({ dbQuery });
@@ -205,6 +213,51 @@ function createModuleIdentityRouter({ dbQuery = query, directoryQuery = kamarQue
       console.error('Learning Area Profiles request failed:', error.status ? error.message : 'Data source unavailable.');
       res.status(error.status || 502).json({ error: error.status ? error.message :
         'Learning Area Profiles could not be loaded. Check the department directory, KAMAR staff timetables, Student Tracker setup and Learning Sites content, then retry.' });
+    }
+  }));
+  router.post('/learning-area-sync', wrap(async (req, res) => {
+    const user = await identity(req, res);
+    if (!user) return;
+    if (req.body.client_id?.split(':')[0] !== 'whs-unit-library') {
+        return deny(res, 'Learning Sites sync is restricted to the registered WHS Unit Library app.');
+    }
+
+    try {
+        const canSync = await userHasHubPermission(user, 'learning-sites', 'admin.manage', dbQuery);
+        if (req.body.action === 'access') {
+          return res.json({ canSync });
+        }
+        if (!canSync) {
+          return deny(res, 'Learning Sites administrator access is required to manage or sync course content.');
+        }
+        if (req.body.action === 'standards') {
+          const year = req.body.year;
+          if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+            return deny(res, 'Choose a valid school year.', 400);
+          }
+          if (!await authorisedModuleUser(user.id, 'teacher-planner', dbQuery)) {
+            return deny(res, 'Teacher Planner access is required to use My Standards.', 403);
+          }
+          if (typeof loadMyStandards !== 'function') {
+            return res.status(503).json({ error: 'Teacher Planner My Standards are unavailable.' });
+          }
+          return res.json({ standards: await loadMyStandards(user.id, year) });
+        }
+
+        if (!['preview', 'apply'].includes(req.body.action)) {
+          return deny(res, 'Choose a valid Learning Sites sync action.', 400);
+        }
+        const store = learningSitesSyncService || require('./legacy/learning-sites/adminStore');
+        await store.initAdminSchema();
+        const result = req.body.action === 'preview'
+          ? await store.previewCourseAssessmentsMerge(req.body.entries)
+          : await store.mergeCourseAssessments(req.body.entries, user.display_name || user.email);
+        return res.json(result);
+    } catch (error) {
+        console.error('Learning Sites sync request failed:', error.status ? error.message : 'A required data source is unavailable.');
+        return res.status(error.status || 502).json({
+          error: error.status ? error.message : 'Learning Sites sync is unavailable. Check the Learning Sites and Teacher Planner data sources, then retry.'
+        });
     }
   }));
   return router;
