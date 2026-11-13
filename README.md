@@ -1686,6 +1686,9 @@ a separate page and reads the existing Planner teaching-log marks for each term,
 grouped by the published school weeks. A missing mark is not recorded, not
 present or absent. A period mark that coincides with multiple linked subjects is
 shown once with those subjects and a warning; it is not assigned to one subject.
+When shared school term dates are not published, the Tracker uses and labels
+dates derived from the KAMAR school calendar; conflicting partial settings
+are reported instead of guessing. It does not publish or change Planner dates.
 Historical attendance requires that term's preserved student
 and teacher timetables; only the current term may use the current upload if a
 student snapshot is absent. Incomplete teacher or class data is reported.

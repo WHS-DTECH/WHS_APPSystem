@@ -4,6 +4,7 @@ const { classCode } = require('./legacy/teacher-planner/public/attendance');
 const reporting = require('./legacy/teacher-planner/public/reporting-schema');
 const { loadDepartments, normaliseDirectoryName } = require('./legacy/kamar-uploader/departments');
 const { JUNIOR_DTECH_CLASS_CODES } = require('./legacy/dtech-hub/learning-sites-assessment');
+const { loadCalendarYear, deriveTermDates } = require('./legacy/teacher-planner/kamarCalendar');
 
 const UUID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 const columns = ['mon', 'tue', 'wed', 'thu', 'fri']
@@ -212,6 +213,7 @@ function termRows(payload) {
   }).filter(row => row.id_number && row.student_name);
 }
 function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, env = process.env,
+  loadKamarTermDates = async year => deriveTermDates((await loadCalendarYear(year)).events, year),
   today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Pacific/Auckland', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()) }) {
   let pool;
   const planner = plannerQuery || ((...args) => {
@@ -709,11 +711,32 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
     const ids = teachers.map(owner => owner.id);
     if (action === 'attendance-overview') {
       const settings = (await planner('SELECT content FROM school_planner_settings WHERE year=$1', [year])).rows[0]?.content;
-      const dates = [1, 2, 3, 4].map(term => ({ term, start: settings?.['term' + term + 'Start'], end: settings?.['term' + term + 'End'] }));
+      const validDate = value => typeof value === 'string' && value.startsWith(year + '-') && /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+        !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
+      const configured = [1, 2, 3, 4].map(term => ({
+        term, start: settings?.['term' + term + 'Start'], end: settings?.['term' + term + 'End']
+      }));
+      let kamarDates;
+      if (configured.some(item => !item.start || !item.end)) {
+        try { kamarDates = await loadKamarTermDates(year); }
+        catch (error) {
+          console.warn('Student Tracker KAMAR term dates unavailable:', error.message);
+        }
+      }
+      const dates = configured.map(item => {
+        if (item.start && item.end) return { ...item, dateSource: 'Published school term dates' };
+        const start = kamarDates?.['term' + item.term + 'Start'], end = kamarDates?.['term' + item.term + 'End'];
+        if (!validDate(start) || !validDate(end) || start > end) return item;
+        if ((item.start && item.start !== start) || (item.end && item.end !== end)) {
+          return { ...item, conflict: true };
+        }
+        return { ...item, start, end, dateSource: 'KAMAR school calendar (derived)' };
+      });
       const localDate = today();
-      const currentTerm = dates.find(range => range.start && range.end && range.start <= localDate && range.end >= localDate)?.term;
+      const currentTerm = dates.find(range => !range.conflict && validDate(range.start) && validDate(range.end) &&
+        range.start <= localDate && range.end >= localDate)?.term;
       const terms = [];
-      for (const { term, start, end } of dates) {
+      for (const { term, start, end, dateSource, conflict } of dates) {
         const snapshot = rows.find(item => item.term === term);
         const source = snapshot || (term === currentTerm ? rows.find(item => item.term === null) : null);
         if (!source) {
@@ -729,10 +752,10 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
             : { term, status: 'not_enrolled' });
           continue;
         }
-        const validDate = value => typeof value === 'string' && value.startsWith(year + '-') && /^\d{4}-\d{2}-\d{2}$/.test(value) &&
-          !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
-        if (!validDate(start) || !validDate(end) || start > end) {
-          terms.push({ term, status: 'unavailable', message: 'Publish valid school term dates in Kamar Uploader before viewing attendance.' });
+        if (conflict || !validDate(start) || !validDate(end) || start > end) {
+          terms.push({ term, status: 'unavailable', message: conflict
+            ? 'The incomplete published dates disagree with the KAMAR calendar. Review school term dates in Kamar Uploader.'
+            : 'School term dates are unavailable. Review the KAMAR calendar or publish dates in Kamar Uploader.' });
           continue;
         }
         const marks = ids.length ? (await planner(`SELECT owner_id::text,to_char(lesson_date,'YYYY-MM-DD') AS date,period,mark
@@ -757,7 +780,7 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
         const warnings = [];
         if (incomplete || missingOwners) warnings.push('Some linked lessons or teacher records could not be confirmed; attendance may be incomplete.');
         if (sharedPeriod) warnings.push('A saved period mark coincides with multiple linked subjects and cannot be assigned to either subject separately.');
-        terms.push({ term, status: 'available', startDate: start, endDate: end,
+        terms.push({ term, status: 'available', startDate: start, endDate: end, dateSource,
           timetableSource: snapshot ? 'Preserved term timetable' : 'Current uploaded timetable (current term only)',
           ...(warnings.length ? { message: warnings.join(' ') } : {}), marks: savedMarks });
       }

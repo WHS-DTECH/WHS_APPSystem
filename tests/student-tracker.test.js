@@ -40,6 +40,7 @@ function fixture() {
       { teacher: 'PEER', data: { Teacher: 'PEER', Fri_P3: 'PIDTECH-05' } }
     ], teacherHistory: [], teacherYear: 2026, historyYear: 2026, courses: [{ course_code: 'PIDTECH', subject_code: 'DTECH' }],
     settings: { term1Start: '2026-01-29', term1End: '2026-04-02', term4Start: '2026-10-12', term4End: '2026-12-18' },
+    kamarDates: {},
     marks: [
       { owner_id: teacherId, date: '2026-11-09', period: 'p1', mark: 'P' },
       { owner_id: peerId, date: '2026-11-13', period: 'p3', mark: 'L' },
@@ -47,6 +48,7 @@ function fixture() {
     ] };
   const service = createStudentTrackerService({
     today: () => '2026-11-13',
+    loadKamarTermDates: async () => state.kamarDates,
     dbQuery: async (sql, params) => {
       assert.doesNotMatch(sql, /student_upload|planner_sections|planner_attendance_marks/);
       if (sql.startsWith('SELECT * FROM student_tracker_departments')) return { rows: params[0] === departmentId ? [department] : [] };
@@ -270,6 +272,23 @@ test('attendance overview does not duplicate one saved period mark across two su
   const result = await service.run(teacher, { ...input, action: 'attendance-overview' });
   assert.deepEqual(result.terms[3].marks.map(item => [item.subject, item.mark]), [['11FOOD / PIDTECH', 'P']]);
   assert.match(result.terms[3].message, /cannot be assigned/);
+});
+test('attendance uses KAMAR calendar dates when shared term settings are empty, without overriding conflicts', async () => {
+  const { service, input, state } = fixture();
+  state.settings.term4Start = '';
+  state.settings.term4End = '';
+  state.kamarDates = { term4Start: '2026-10-12', term4End: '2026-12-11' };
+  state.teacherHistory = [{ term: 4, payload: { headers: ['Teacher', 'Mon P1', 'Fri P3'],
+    rows: [['TST', 'PIDTECH-CW', ''], ['PEER', '', 'PIDTECH-05']] } }];
+  const result = await service.run(teacher, { ...input, action: 'attendance-overview' });
+  assert.equal(result.terms[3].status, 'available');
+  assert.equal(result.terms[3].dateSource, 'KAMAR school calendar (derived)');
+  assert.equal(result.terms[3].endDate, '2026-12-11');
+  assert.deepEqual(result.terms[3].marks.map(item => item.mark), ['P', 'L']);
+  state.settings.term4Start = '2026-10-13';
+  const conflict = await service.run(teacher, { ...input, action: 'attendance-overview' });
+  assert.equal(conflict.terms[3].status, 'unavailable');
+  assert.match(conflict.terms[3].message, /disagree/);
 });
 test('ADMIN cannot manually grant a student or unrelated account HoLA rights or replace a stale department id', async () => {
   const { service, input, department, state } = fixture();
