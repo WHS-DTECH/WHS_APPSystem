@@ -871,7 +871,7 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(embedded, /href="\/launchpad\/apps\/relief-plan"/);
   assert.match(embedded, /href="\/launchpad\/apps\/whs-unit-library"/);
   assert.match(embedded, /href="\/launchpad\/apps\/whs-assessment-manager"/);
-  assert.match(html, /planner\.css\?v=navigation-36/);
+  assert.match(html, /planner\.css\?v=navigation-37/);
   assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=navigation-35"'));
   assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=navigation-35"'));
   const heading = html.match(/<header class="planner-heading">([\s\S]*?)<\/header>/)[1];
@@ -907,6 +907,8 @@ test('compact Planner navigation retains accessible contrast, focus, and selecte
     assert.ok(1.05 / (luminance + .05) >= 4.5, colour + ' meets normal-text contrast with white');
   }
   assert.match(css, /\.planner-nav-menu summary \{[^}]*cursor: pointer/);
+  assert.match(css, /\.planner-nav-menu summary::after \{[^}]*border-right: 2px solid currentColor[^}]*border-bottom: 2px solid currentColor[^}]*transform: rotate\(45deg\)/);
+  assert.match(css, /\.planner-nav-menu\[open\] summary::after \{[^}]*transform: rotate\(225deg\)/);
   assert.match(css, /\.planner-nav-menu summary:focus-visible \{[^}]*outline: 3px solid/);
   assert.match(css, /\.planner-nav-menu\[open\] > \.planner-nav-buttons \{[^}]*display: flex/);
   assert.match(css, /\.planner-nav-buttons button\[aria-current="page"\] \{[^}]*box-shadow: inset 0 0 0 2px #fff/);
