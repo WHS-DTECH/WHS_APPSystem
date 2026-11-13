@@ -28,28 +28,37 @@ function subjectFamily(code) {
   const prefix = junior?.[1] || (code.startsWith('MTR-') ? 'MTR' : null);
   if (prefix && subject.startsWith(prefix)) subject = subject.slice(prefix.length);
   subject = subject.replace(/-/g, '');
+  if (subject === 'HOSPCOOK') return 'FOOD';
   const technology = /(DTECH|COMP|DVC|FOOD|HOSP|TEXT|WOOD|FURN)\d*[A-Z]?$/.exec(subject);
   if (technology) return { HOSP: 'FOOD', TEXT: 'TEXTILES', FURN: 'WOOD' }[technology[1]] || technology[1];
   return subject.replace(/^\d+/, '').replace(/\d+[A-Z]?$/, '') || subject;
 }
 function teacherClassCodes(value, staff, courses) {
   const codes = [], excluded = [];
+  const hospCook = { studentIds: [], unrestricted: false };
   for (const cell of String(value || '').toUpperCase().split(/[;\r\n]+/)) {
     let code = cell.trim();
     if (!code) continue;
     const prefix = code.slice(0, code.indexOf('-'));
     if (prefix && prefix.split('/').every(part => staff.some(person => person.code === part.trim()))) code = code.slice(code.indexOf('-') + 1);
+    const cooking = /^(?:(\d+)-)?HOSPCOOK(?:-[A-Z0-9]*)?$/.exec(code.replace(/^-+/, ''));
+    if (cooking) {
+      codes.push('HOSPCOOK');
+      if (cooking[1]) hospCook.studentIds.push(cooking[1]);
+      else hospCook.unrestricted = true;
+      continue;
+    }
     const parts = code.split('-');
     const exact = courses.some(course => course.course_code.toUpperCase() === code);
     if (!exact && (parts.length > 2 || (parts.length === 2 &&
         (!classGroup.test(parts[0]) || !/[A-Z]/.test(parts[1]))))) code = parts.slice(0, -1).join('-');
     if (!/^[A-Z0-9]+(?:-[A-Z0-9]+)*$/.test(code) || !/[A-Z]/.test(code) ||
-        /(?:^|-)(?:WHANAU|HAPU|DTONLINE|ASSEMBLY|HUI|FREE|DUTY|(?:\d+)?STUDY[A-Z0-9]*|HOSPCOOK)(?:-|$)/.test(code)) {
+        /(?:^|-)(?:WHANAU|HAPU|ASSEMBLY|HUI|FREE|DUTY|(?:\d+)?STUDY[A-Z0-9]*)(?:-|$)/.test(code)) {
       excluded.push(cell.trim()); continue;
     }
     codes.push(code);
   }
-  return { codes, excluded };
+  return { codes, excluded, hospCook };
 }
 function savedClassLinks(department, year) {
   const stored = department.class_links || {};
@@ -63,10 +72,14 @@ function mixedSeniorLesson(department, link, lesson) {
   return normaliseDirectoryName(department.name) === normaliseDirectoryName('Technology') &&
     seniorLine(link.code) && seniorSubject.test(lesson.subject);
 }
+function lessonSourceMatches(link, lesson, term) {
+  return link.sources.some(source => source.term === term && source.slot === lesson.slot &&
+    (!source.studentIds || source.unrestricted || source.studentIds.includes(lesson.studentId)));
+}
 function seniorLessonMatch(department, link, lesson, term, allowCombined) {
   const line = seniorLine(link.code);
   if (!mixedSeniorLesson(department, link, lesson) || !lesson.staffCodes.includes(link.staffCode) ||
-      !link.sources.some(source => source.term === term && source.slot === lesson.slot)) return null;
+      !lessonSourceMatches(link, lesson, term)) return null;
   if (lesson.classCode !== lesson.subject) return seniorLine(lesson.classCode) === line ? 'matched' : null;
   if (link.seniorAmbiguousSources.some(source => source.term === term && source.slot === lesson.slot)) {
     return allowCombined && !link.seniorUnselectedSources.some(source => source.term === term && source.slot === lesson.slot)
@@ -81,8 +94,8 @@ function linkedLesson(department, lesson, term = null, owner) {
       : link.subject === lesson.subject &&
         (lesson.classCode === lesson.subject || link.code === lesson.classCode) &&
         lesson.staffCodes.includes(link.staffCode) &&
-        link.sources.some(source => source.term === term && source.slot === lesson.slot &&
-          (lesson.classCode !== lesson.subject || !link.ambiguousSources.some(other => other.term === term && other.slot === lesson.slot)))));
+        lessonSourceMatches(link, lesson, term) &&
+        (lesson.classCode !== lesson.subject || !link.ambiguousSources.some(other => other.term === term && other.slot === lesson.slot))));
 }
 function classLessonMatch(department, lesson, term, code) {
   const senior = department.classLinks.filter(link => link.code === code)
@@ -91,8 +104,7 @@ function classLessonMatch(department, lesson, term, code) {
   if (senior.includes('ambiguous')) return 'ambiguous';
   const links = department.classLinks.filter(link => !mixedSeniorLesson(department, link, lesson) &&
     link.subject === lesson.subject &&
-    lesson.staffCodes.includes(link.staffCode) &&
-    link.sources.some(source => source.term === term && source.slot === lesson.slot));
+    lesson.staffCodes.includes(link.staffCode) && lessonSourceMatches(link, lesson, term));
   if (lesson.classCode !== lesson.subject) {
     return lesson.classCode === code && links.some(link => link.code === code) ? 'matched' : null;
   }
@@ -104,10 +116,14 @@ function classLessonMatch(department, lesson, term, code) {
 }
 function matchingCourses(code, courses) {
   const normal = value => value.toUpperCase().replace(/[\s_-]/g, '');
+  const raw = code.toUpperCase();
+  const junior = /^J(PI|SR|SD|MM|VE)-\1(DTECH|FOOD)$/.exec(raw);
+  const bareJuniorDtech = !raw.includes('-') && JUNIOR_DTECH_CLASS_CODES.test(raw);
   code = subjectCode(code);
   const value = normal(code);
   return courses.filter(course => {
-    if (JUNIOR_DTECH_CLASS_CODES.test(code) && course.course_code.toUpperCase() === 'JDTECH') return true;
+    if ((bareJuniorDtech || junior?.[2] === 'DTECH') && course.course_code.toUpperCase() === 'JDTECH') return true;
+    if (junior?.[2] === 'FOOD' && course.course_code.toUpperCase() === 'JFOOD') return true;
     const base = normal(course.course_code.replace(/-S[12]$/i, ''));
     const candidate = /^[78]/.test(value) ? value.replace(/^[78]J?/, 'J') :
       /^(9|10)/.test(value) ? value.replace(/^(9|10)M?/, 'M') : value;
@@ -130,9 +146,10 @@ function lessons(row) {
   return columns.flatMap(slot => String(row[slot] || '').split(/[;\r\n]+/).flatMap(value => {
     const code = value.trim();
     if (!code) return [];
-    const match = /^([^-]+)-(.+)-([^-]+)$/.exec(code);
-    const rawClass = classCode(code, true);
+    const match = /^([^-]+)-(.+)-([^-]*)$/.exec(code);
+    const rawClass = match ? classCode(match[2]) : classCode(code, true);
     return [{ slot, code, classCode: rawClass, subject: subjectCode(rawClass),
+      studentId: String(row.id_number || '').trim(),
       staffCodes: match ? match[1].toUpperCase().split('/').map(value => value.trim()) : [] }];
   }));
 }
@@ -282,7 +299,18 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
             }
             const item = classes.get(code);
             slots.forEach(slot => {
-              if (!item.sources.some(source => source.term === row.term && source.slot === slot)) item.sources.push({ term: row.term, slot });
+              let source = item.sources.find(source => source.term === row.term && source.slot === slot);
+              if (!source) {
+                source = { term: row.term, slot };
+                item.sources.push(source);
+              }
+              if (code === 'HOSPCOOK') {
+                if (!source.studentIds) source.studentIds = [];
+                source.unrestricted = source.unrestricted || parsed.hospCook.unrestricted;
+                parsed.hospCook.studentIds.forEach(id => {
+                  if (!source.studentIds.includes(id)) source.studentIds.push(id);
+                });
+              }
             });
           }
         }
@@ -448,7 +476,10 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
     const context = await scope(user, year);
     if (action === 'setup') {
       const manageable = context.admin || context.departments.some(item => item.manager_ids.includes(user.id));
-      return { admin: context.admin, staff: manageable ? context.candidates : [], users: context.users,
+      const publicClass = lesson => ({ ...lesson, sources: lesson.sources.map(({ term, slot }) => ({ term, slot })) });
+      const staff = manageable ? context.candidates.map(person => ({ ...person,
+        classes: person.classes.map(publicClass), links: person.links.map(publicClass) })) : [];
+      return { admin: context.admin, staff, users: context.users,
         departmentOptions: context.departmentOptions.map(choice => ({ ...choice,
           canManage: context.admin || choice.managerIds.includes(user.id), automaticTeachers: automaticTeachers(context, choice.name) })),
         automaticHolaAccess: true, teacherApprovalAccess: true, classSelection: true, classBrowse: true, yearLevelBrowse: true, termBrowse: true,

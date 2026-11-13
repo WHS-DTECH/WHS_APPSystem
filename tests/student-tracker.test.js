@@ -353,11 +353,13 @@ test('teacher links use the selected year and invalid source shapes fail explici
   state.teacherRows[0].data = { Teacher: 'TST' };
   await assert.rejects(service.run(admin, { ...input, action: 'setup' }), { status: 502 });
 });
-test('real teacher cells split concurrent lessons, retain class groups, and separate non-teaching entries', () => {
+test('real teacher cells retain online and hospitality cooking classes while excluding non-teaching entries', () => {
   const parsed = teacherClassCodes('3-13HOSP-F;-HOSPCOOK-;81A-MFOOD-F;2-DTOnline-CW;9WHAU-WHANAU-CW;HAPU',
     [], [{ course_code: '13HOSP' }, { course_code: 'MFOOD-S1' }]);
-  assert.deepEqual(parsed.codes, ['3-13HOSP', '81A-MFOOD']);
-  assert.equal(parsed.excluded.length, 4);
+  assert.deepEqual(parsed.codes, ['3-13HOSP', 'HOSPCOOK', '81A-MFOOD', '2-DTONLINE']);
+  assert.equal(parsed.excluded.length, 2);
+  assert.equal(subjectFamily('HOSPCOOK'), 'FOOD');
+  assert.equal(subjectFamily('2-DTONLINE'), 'DTONLINE');
   assert.equal(subjectFamily('3-13HOSP'), subjectFamily('81A-MFOOD'));
   assert.equal(subjectFamily('81C-MDTECH'), 'DTECH');
   assert.equal(subjectFamily('12HIST-12HIST'), 'HIST');
@@ -368,6 +370,56 @@ test('real teacher cells split concurrent lessons, retain class groups, and sepa
   assert.deepEqual(matchingCourses('81A-MFOOD', [{ course_code: 'MFOOD-S1' }, { course_code: 'MDTECH-S1' }])
     .map(course => course.course_code), ['MFOOD-S1']);
   assert.deepEqual(teacherClassCodes('TST/PEER-3-13HOSP-F', [{ code: 'TST' }, { code: 'PEER' }], []).codes, ['3-13HOSP']);
+});
+test('junior timetable aliases match their own DTECH or FOOD Learning Sites', () => {
+  const courses = [{ course_code: 'JDTECH' }, { course_code: 'JFOOD' }];
+  for (const code of ['JMM-MMDTECH', 'JPI-PIDTECH', 'JSR-SRDTECH', 'JVE-VEDTECH']) {
+    assert.deepEqual(matchingCourses(code, courses).map(course => course.course_code), ['JDTECH']);
+  }
+  assert.deepEqual(matchingCourses('JSD-SDFOOD', courses).map(course => course.course_code), ['JFOOD']);
+  assert.deepEqual(matchingCourses('JSD-SDSCI', courses), []);
+  assert.deepEqual(matchingCourses('JMM-PIDTECH', courses), []);
+});
+test('HOSPCOOK and DTONLINE are selectable without revealing or broadening individual cooking entries', async () => {
+  const { service, input, state } = fixture();
+  state.teacherRows[0].data = { Teacher: 'TST', Mon_P1: '100-HOSPCOOK', Fri_P3: '2-DTOnline-CW' };
+  state.department.class_links['2026'] = [
+    { teacherEmail: teacher.email, code: 'HOSPCOOK' },
+    { teacherEmail: teacher.email, code: '2-DTONLINE' }
+  ];
+  Object.assign(state.row, { year_level: '13', mon_p1_1: 'TST-HOSPCOOK-', fri_p3: '', tue_p2: '' });
+  state.extraStudents = [
+    { id_number: '101', student_name: 'Other Cooking Student', year_level: '13', mon_p1_1: 'TST-HOSPCOOK-' },
+    { id_number: '102', student_name: 'Online Student', year_level: '13', fri_p3: 'TST-DTonline-CW' }
+  ];
+  state.studentHistory = [{ term: 4, payload: {
+    headers: ['Student Name', 'ID Number', 'Year Level', 'Mon P1', 'Fri P3'],
+    rows: [
+      ['Synthetic Student', '100', '13', 'TST-HOSPCOOK-', ''],
+      ['Other Cooking Student', '101', '13', 'TST-HOSPCOOK-', ''],
+      ['Online Student', '102', '13', '', 'TST-DTonline-CW']
+    ]
+  } }];
+  state.teacherHistory = [{ term: 4, payload: { headers: ['Teacher', 'Mon P1', 'Fri P3'],
+    rows: [['TST', '101-HOSPCOOK', '2-DTOnline-CW']] } }];
+  const setup = await service.run({ ...teacher, roles: ['ADMIN'] }, { ...input, action: 'setup' });
+  const person = setup.staff.find(entry => entry.code === 'TST');
+  assert.equal(person.classes.find(entry => entry.code === 'HOSPCOOK').family, 'FOOD');
+  assert.equal(person.classes.find(entry => entry.code === '2-DTONLINE').family, 'DTONLINE');
+  assert.doesNotMatch(JSON.stringify(person), /100-HOSPCOOK|101-HOSPCOOK|studentIds|unrestricted/);
+  const search = values => service.run(teacher, { ...input, action: 'search', ...values });
+  assert.deepEqual((await search({ classCode: 'HOSPCOOK' })).students.map(student => student.name),
+    ['Other Cooking Student', 'Synthetic Student']);
+  assert.deepEqual((await search({ classCode: 'HOSPCOOK', term: 4 })).students.map(student => student.name),
+    ['Other Cooking Student']);
+  assert.deepEqual((await search({ classCode: '2-DTONLINE', term: 4 })).students.map(student => student.name), ['Online Student']);
+  assert.equal((await service.run(teacher, { ...input, action: 'profile' })).timetables[0].lessons[0].linked, true);
+  state.studentHistory = [];
+  assert.deepEqual((await search({ classCode: 'HOSPCOOK' })).students.map(student => student.name), ['Synthetic Student']);
+  await assert.rejects(service.run(teacher, { ...input, action: 'profile', studentId: 'k:101' }), { status: 404 });
+  state.teacherRows[0].data.Mon_P1 = '-HOSPCOOK-';
+  assert.deepEqual((await search({ classCode: 'HOSPCOOK' })).students.map(student => student.name),
+    ['Other Cooking Student', 'Synthetic Student']);
 });
 test('class links are explicit, year-specific, and limited to authorised teachers and actual teaching classes', async () => {
   const { service, input, state } = fixture();

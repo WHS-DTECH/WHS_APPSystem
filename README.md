@@ -1627,8 +1627,11 @@ shows each authorised teacher in a column, retaining class identifiers such as
 not select classes or authorise other-department classes automatically. HoLAs
 confirm which actual uploaded classes belong to their department.
 KAMAR day-number and weekday headers, duplicate periods, and semicolon-separated
-lessons are supported. Rooms are removed; Whanau, Hapu, online-block placeholders,
-study and auxiliary kitchen entries remain separate from selectable classes.
+lessons are supported. Rooms are removed; Whanau, Hapu and study entries remain
+separate from selectable classes. Junior DTECH/FOOD cohort aliases match their
+Junior Learning Sites. DT Online and HOSPCOOK are selectable, with HOSPCOOK in
+Food / Hospitality. Individual HOSPCOOK entries are consolidated without showing
+student IDs and match only their listed students and timetable periods.
 Missing sources and unavailable saved links are shown explicitly.
 Class links are validated server-side against current approved staff and uploaded
 timetables. Student/profile/attendance/report scope checks the teacher, subject and
