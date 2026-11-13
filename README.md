@@ -1607,19 +1607,27 @@ The department dropdown and adjacent website leadership panel use the shared
 Kamar Uploader directory, exactly as Moderation does. A single available,
 reviewed website HOL/HOLA must match that staff code. Acting leaders take priority;
 leaders on leave, ambiguous identities and TIC-only appointments grant no HoLA
-authority. The authorised list contains only these verified staff, never students.
+authority. The **Authorise Teachers** list contains uniquely identified current
+KAMAR staff, never student accounts; staff need not have signed into Core yet.
 These checks run on every request; removing the role or changing the website
 appointment withdraws management immediately. Website leadership alone is
 insufficient, and old/manual `manager_ids` never bypass these checks.
 Existing department names removed from the directory remain labelled saved
 values; new names must come from the directory. Verified HoLAs may change their
-own department's exact subject codes, selected from Kamar Uploader timetables,
-but cannot grant themselves or
-others management rights. They also need an app role through Global Control.
-Settings live in Core's `student_tracker_departments` table (migration 053).
-Department staff with Tracker access and teaching assignments in linked subjects,
+own department's teacher approvals, but cannot grant management rights.
+Approved staff gain Tracker sign-in and department access without a separate
+Global Control Teacher assignment; no other app or management roles are granted.
+Current verified HoLAs are automatic teacher sources, not permanent approvals.
+Settings live in Core's `student_tracker_departments` table (migrations 053–054).
+Subject codes are derived from approved teachers' current and preserved KAMAR
+teacher timetables for the selected year, matched against active WHS Learning
+Site courses. The confirmed DTECH, COMP, DVC, Food, Textiles and Woodwork programmes
+map to Technology. Other departments remain unmapped until their allocations
+exist. Missing timetables and unmatched codes are shown explicitly; subject codes
+cannot be manually forged. Preserved teacher timetables retain duplicate periods.
+Explicitly approved current department staff,
 verified HoLAs and Global ADMIN may read the department's student profiles.
-This explicitly shares relevant teachers' Planner draft reports and teaching-log
+This explicitly shares approved/automatic departmental teachers' relevant Planner draft reports and teaching-log
 attendance with those authorised department staff; it does not publish or change
 the original records. Unrelated students, subjects and marks are excluded.
 

@@ -195,5 +195,5 @@ function needsCourseCheckIn(savedAnswers, profile) {
 
 module.exports = {
     LEARNING_SITES_ID, withLearningSitesActivity, getLearningSitesAssessment, getHuntProfile, gradeLearningSites,
-    getCourseProgrammeFolder, needsCourseCheckIn
+    getCourseProgrammeFolder, needsCourseCheckIn, JUNIOR_DTECH_CLASS_CODES
 };

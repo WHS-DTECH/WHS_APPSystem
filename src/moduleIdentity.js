@@ -12,7 +12,7 @@ const opaque = (value) => typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.tes
 const GRANT_SECONDS = 8 * 60 * 60;
 
 async function authorisedModuleUser(userId, moduleKey, dbQuery = query) {
-  return (await dbQuery(`SELECT u.id,u.email,u.display_name,u.avatar_url,
+  const user = (await dbQuery(`SELECT u.id,u.email,u.display_name,u.avatar_url,
       CASE WHEN EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id=ur.role_id
         WHERE ur.user_id=u.id AND r.name='ADMIN') THEN ARRAY['ADMIN']::text[]
         ELSE ARRAY['Teacher']::text[] END AS roles
@@ -35,6 +35,8 @@ async function authorisedModuleUser(userId, moduleKey, dbQuery = query) {
             WHERE t.user_id=u.id AND m.module_key=$2 AND m.is_active=true
           )
         )))`, [userId, moduleKey])).rows[0];
+  return user || (moduleKey === 'whs-techstudent-tracker' ?
+    await require('./studentTracker').approvedTrackerUser(userId, dbQuery) : undefined);
 }
 
 function createModuleIdentityRouter({ dbQuery = query, directoryQuery = kamarQuery, schoolCalendar = loadSchoolCalendar, trackerService } = {}) {

@@ -19,6 +19,10 @@ async function registeredModules(user, dbQuery = query) {
     LEFT JOIN student_apps s ON m.module_key=s.hub_key OR m.module_key='student-app-'||s.slug
     LEFT JOIN users u ON u.id=$1
     ORDER BY m.display_name`, [user?.id || null]);
+  const tracker = rows.find(module => module.module_key === 'whs-techstudent-tracker' && module.is_active && !module.has_access);
+  if (tracker && user?.id && user.is_active !== false) {
+    tracker.has_access = Boolean(await require('./studentTracker').approvedTrackerUser(user.id, dbQuery));
+  }
   return rows;
 }
 

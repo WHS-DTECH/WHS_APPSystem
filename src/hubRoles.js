@@ -30,7 +30,9 @@ async function userHasHubPermission(user, hubKey, permissionKey, dbQuery = query
      LIMIT 1`,
     [user.id, hubKey, permissionKey]
   );
-  return result.rowCount > 0;
+  if (result.rowCount > 0) return true;
+  return hubKey === 'whs-techstudent-tracker' && ['home.view', 'teacher.view'].includes(permissionKey) &&
+    Boolean(await require('./studentTracker').approvedTrackerUser(user.id, dbQuery));
 }
 
 const canManageHubRoles = (user, hubKey) => userHasHubPermission(user, hubKey, 'admin.manage');
