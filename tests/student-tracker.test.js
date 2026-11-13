@@ -518,10 +518,13 @@ test('subject breakdown marks missing teacher snapshots and ambiguous linked gro
   state.teacherHistory = [{ term: 4, payload: { headers: ['Teacher', 'Mon P1', 'Tue P2'],
     rows: [['TST', 'PIDTECH-CW', '3-11FOOD-F;4-11FOOD-F']] } }];
   state.studentHistory = [{ term: 4, payload: { headers: ['Student Name', 'ID Number', 'Year Level', 'Mon P1', 'Tue P2', 'Fri P3'],
-    rows: [['Synthetic Student', '100', '8', 'TST-PIDTECH-CW', 'TST-11FOOD-F', 'PEER-11HOSP-F']] } }];
+    rows: [['Synthetic Student', '100', '8', 'TST-PIDTECH-CW', 'TST-11FOOD-F', 'PEER-11HOSP-F'],
+      ['No Related Lessons', '201', '8', 'TST-PIDTECH-CW', '', '']] } }];
   const result = await service.run(teacher, { ...input, action: 'search', classCode: 'PIDTECH', term: 4 });
-  assert.deepEqual(result.students[0].subjects, [{ code: 'PIDTECH', discipline: 'DTECH' }]);
-  assert.deepEqual(result.students[0].uncertainDisciplines, ['FOOD', 'HOSP']);
+  const first = result.students.find(student => student.name === 'Synthetic Student');
+  assert.deepEqual(first.subjects, [{ code: 'PIDTECH', discipline: 'DTECH' }]);
+  assert.deepEqual(first.uncertainDisciplines, ['FOOD', 'HOSP']);
+  assert.deepEqual(result.students.find(student => student.name === 'No Related Lessons').uncertainDisciplines, []);
 });
 test('year-level browsing combines department, class and name filters without truncating the roll', async () => {
   const { service, input, state } = fixture();

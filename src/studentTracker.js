@@ -559,33 +559,41 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       const browse = classCode || yearLevel || term;
       const foundStudents = [...found.values()].sort((a, b) => a.name.localeCompare(b.name));
       const visibleStudents = browse ? foundStudents : foundStudents.slice(0, 50);
-      const breakdowns = new Map(visibleStudents.map(item => [item.id, { subjects: new Map(), uncertain: new Set() }]));
-      const uncertainByTerm = new Map(tables.map(table => [table.term, saved.flatMap(link => {
+      const breakdowns = new Map(visibleStudents.map(item => [item.id, { subjects: new Map(), uncertain: new Map() }]));
+      const unavailableByTerm = new Map(tables.map(table => [table.term, saved.flatMap(link => {
         const person = context.candidates.find(candidate => candidate.email === link.teacherEmail);
         const available = department.classLinks.some(item => item.teacherEmail === link.teacherEmail && item.code === link.code);
         return !available || !person || (table.term === null ? !person.timetableCurrent : !person.timetableTerms.includes(table.term))
-          ? linkDisciplines(link.code, department) : [];
+          ? [{ link, person }] : [];
       })]));
       for (const table of tables) for (const row of table.rows) {
         const breakdown = breakdowns.get(student(row).id);
         if (!breakdown) continue;
-        uncertainByTerm.get(table.term).forEach(family => breakdown.uncertain.add(family));
         for (const lesson of lessons(row)) {
           const matches = department.classLinks.map(link => linkedLessonMatch(department, link, lesson, table.term));
           const family = discipline(lesson.subject);
+          const missing = unavailableByTerm.get(table.term).some(({ link, person }) => {
+            if (person && !lesson.staffCodes.includes(person.code)) return false;
+            if (mixedSeniorLesson(department, link, lesson)) {
+              return lesson.classCode === lesson.subject || seniorLine(lesson.classCode) === seniorLine(link.code);
+            }
+            return subjectCode(link.code) === lesson.subject &&
+              (lesson.classCode === lesson.subject || lesson.classCode === link.code);
+          });
           if (matches.includes('matched')) {
             disciplines.add(family);
             breakdown.subjects.set(lesson.subject, { code: lesson.subject, discipline: family });
-          } else if (matches.includes('ambiguous')) {
+          } else if (missing || matches.includes('ambiguous')) {
             disciplines.add(family);
-            breakdown.uncertain.add(family);
+            breakdown.uncertain.set(lesson.subject, family);
           }
         }
       }
       const students = visibleStudents.map(item => {
         const breakdown = breakdowns.get(item.id);
         return { ...item, subjects: [...breakdown.subjects.values()].sort((a, b) => a.code.localeCompare(b.code)),
-          uncertainDisciplines: [...breakdown.uncertain].sort() };
+          uncertainDisciplines: [...new Set([...breakdown.uncertain].filter(([code]) => !breakdown.subjects.has(code))
+            .map(([, family]) => family))].sort() };
       });
       const order = ['DTECH', 'COMP', 'DVC', 'FOOD', 'HOSP', 'TEXTILES', 'WOOD', 'DTONLINE'];
       return { students, truncated: !browse && foundStudents.length > 50, ambiguous,
