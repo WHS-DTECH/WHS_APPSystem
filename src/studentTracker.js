@@ -33,6 +33,16 @@ function subjectFamily(code) {
   if (technology) return { HOSP: 'FOOD', TEXT: 'TEXTILES', FURN: 'WOOD' }[technology[1]] || technology[1];
   return subject.replace(/^\d+/, '').replace(/\d+[A-Z]?$/, '') || subject;
 }
+function discipline(code) {
+  const subject = subjectCode(code).replace(/-/g, '');
+  if (subject.includes('HOSP')) return 'HOSP';
+  return subjectFamily(code);
+}
+function linkDisciplines(code, department) {
+  const family = discipline(code);
+  return normaliseDirectoryName(department.name) === normaliseDirectoryName('Technology') && seniorLine(code)
+    ? ['DTECH', 'COMP'] : [family];
+}
 function teacherClassCodes(value, staff, courses) {
   const codes = [], excluded = [];
   const hospCook = { studentIds: [], unrestricted: false };
@@ -89,15 +99,16 @@ function seniorLessonMatch(department, link, lesson, term, allowCombined) {
   }
   return 'matched';
 }
+function linkedLessonMatch(department, link, lesson, term) {
+  if (mixedSeniorLesson(department, link, lesson)) return seniorLessonMatch(department, link, lesson, term, true);
+  if (link.subject !== lesson.subject || (lesson.classCode !== lesson.subject && link.code !== lesson.classCode) ||
+      !lesson.staffCodes.includes(link.staffCode) || !lessonSourceMatches(link, lesson, term)) return null;
+  return lesson.classCode === lesson.subject && link.ambiguousSources.some(other => other.term === term && other.slot === lesson.slot)
+    ? 'ambiguous' : 'matched';
+}
 function linkedLesson(department, lesson, term = null, owner) {
   return department.classLinks.some(link => (!owner || owner.codes.includes(link.staffCode)) &&
-    (mixedSeniorLesson(department, link, lesson)
-      ? seniorLessonMatch(department, link, lesson, term, true) === 'matched'
-      : link.subject === lesson.subject &&
-        (lesson.classCode === lesson.subject || link.code === lesson.classCode) &&
-        lesson.staffCodes.includes(link.staffCode) &&
-        lessonSourceMatches(link, lesson, term) &&
-        (lesson.classCode !== lesson.subject || !link.ambiguousSources.some(other => other.term === term && other.slot === lesson.slot))));
+    linkedLessonMatch(department, link, lesson, term) === 'matched');
 }
 function classLessonMatch(department, lesson, term, code) {
   const senior = department.classLinks.filter(link => link.code === code)
@@ -319,7 +330,7 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
         }
       }
       const choices = [...classes.values()].sort((a, b) => a.family.localeCompare(b.family) || a.code.localeCompare(b.code, undefined, { numeric: true }));
-      return { ...person, timetableAvailable: mine.length > 0,
+      return { ...person, timetableAvailable: mine.length > 0, timetableCurrent: mine.some(row => row.term === null),
         timetableTerms: [...new Set(mine.map(row => row.term).filter(term => term !== null))],
         classes: choices, excludedCodes: [...excluded].sort(),
         links: choices.filter(item => item.suggestedDepartment).map(item => ({ ...item, department: item.suggestedDepartment })),
@@ -543,9 +554,45 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
         }
         if (!found.has(item.id)) found.set(item.id, item);
       }
-      const students = [...found.values()].sort((a, b) => a.name.localeCompare(b.name));
+      const saved = savedClassLinks(department, year);
+      const disciplines = new Set(saved.flatMap(link => linkDisciplines(link.code, department)));
       const browse = classCode || yearLevel || term;
-      return { students: browse ? students : students.slice(0, 50), truncated: !browse && students.length > 50, ambiguous };
+      const foundStudents = [...found.values()].sort((a, b) => a.name.localeCompare(b.name));
+      const visibleStudents = browse ? foundStudents : foundStudents.slice(0, 50);
+      const breakdowns = new Map(visibleStudents.map(item => [item.id, { subjects: new Map(), uncertain: new Set() }]));
+      const uncertainByTerm = new Map(tables.map(table => [table.term, saved.flatMap(link => {
+        const person = context.candidates.find(candidate => candidate.email === link.teacherEmail);
+        const available = department.classLinks.some(item => item.teacherEmail === link.teacherEmail && item.code === link.code);
+        return !available || !person || (table.term === null ? !person.timetableCurrent : !person.timetableTerms.includes(table.term))
+          ? linkDisciplines(link.code, department) : [];
+      })]));
+      for (const table of tables) for (const row of table.rows) {
+        const breakdown = breakdowns.get(student(row).id);
+        if (!breakdown) continue;
+        uncertainByTerm.get(table.term).forEach(family => breakdown.uncertain.add(family));
+        for (const lesson of lessons(row)) {
+          const matches = department.classLinks.map(link => linkedLessonMatch(department, link, lesson, table.term));
+          const family = discipline(lesson.subject);
+          if (matches.includes('matched')) {
+            disciplines.add(family);
+            breakdown.subjects.set(lesson.subject, { code: lesson.subject, discipline: family });
+          } else if (matches.includes('ambiguous')) {
+            disciplines.add(family);
+            breakdown.uncertain.add(family);
+          }
+        }
+      }
+      const students = visibleStudents.map(item => {
+        const breakdown = breakdowns.get(item.id);
+        return { ...item, subjects: [...breakdown.subjects.values()].sort((a, b) => a.code.localeCompare(b.code)),
+          uncertainDisciplines: [...breakdown.uncertain].sort() };
+      });
+      const order = ['DTECH', 'COMP', 'DVC', 'FOOD', 'HOSP', 'TEXTILES', 'WOOD', 'DTONLINE'];
+      return { students, truncated: !browse && foundStudents.length > 50, ambiguous,
+        disciplines: [...disciplines].sort((a, b) => {
+          const first = order.indexOf(a), second = order.indexOf(b);
+          return (first < 0 ? order.length : first) - (second < 0 ? order.length : second) || a.localeCompare(b);
+        }) };
     }
     const rows = selectedStudent(context, department, input.studentId);
     if (action === 'profile') {

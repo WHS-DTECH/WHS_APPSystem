@@ -423,6 +423,10 @@ test('HOSPCOOK and DTONLINE are selectable without revealing or broadening indiv
   state.studentHistory = [];
   assert.deepEqual((await search({ classCode: 'HOSPCOOK' })).students.map(student => student.name), ['Synthetic Student']);
   await assert.rejects(service.run(teacher, { ...input, action: 'profile', studentId: 'k:101' }), { status: 404 });
+  state.extraStudents[0].fri_p3 = 'TST-DTonline-CW';
+  const online = await search({ classCode: '2-DTONLINE' });
+  assert.deepEqual(online.students.find(student => student.name === 'Other Cooking Student').subjects,
+    [{ code: 'DTONLINE', discipline: 'DTONLINE' }]);
   state.teacherRows[0].data.Mon_P1 = '-HOSPCOOK-';
   assert.deepEqual((await search({ classCode: 'HOSPCOOK' })).students.map(student => student.name),
     ['Other Cooking Student', 'Synthetic Student']);
@@ -474,6 +478,50 @@ test('class browsing accepts an optional name, includes linked teachers, and rej
   await assert.rejects(service.run(teacher, { ...input, action: 'search', classCode: 123 }), { status: 400 });
   await assert.rejects(service.run(teacher, { ...input, action: 'search', classCode: 'PIDTECH',
     departmentId: '00000000-0000-4000-8000-000000000000' }), { status: 403 });
+});
+test('subject breakdown spans linked disciplines and timetable sources without exposing unlinked lessons', async () => {
+  const { service, input, state } = fixture();
+  state.teacherRows[0].data = { Teacher: 'TST', Mon_P1: 'PIDTECH-CW', Tue_P2: '11FOOD-F',
+    Wed_P3: '12FOOD-F', Thu_P3: '11HOSP-F', Fri_P2: 'MATH-A' };
+  state.department.class_links['2026'] = ['PIDTECH', '11FOOD', '12FOOD', '11HOSP']
+    .map(code => ({ teacherEmail: teacher.email, code }));
+  Object.assign(state.row, { tue_p2: 'TST-11FOOD-F', wed_p3: 'TST-12FOOD-F',
+    thu_p3: 'TST-11HOSP-F', fri_p2: 'TST-MATH-A', fri_p3: '' });
+  state.teacherHistory = [{ term: 4, payload: { headers: ['Teacher', 'Mon P1', 'Tue P2'],
+    rows: [['TST', 'PIDTECH-CW', '11FOOD-F']] } }];
+  state.studentHistory = [{ term: 4, payload: { headers: ['Student Name', 'ID Number', 'Year Level', 'Mon P1', 'Tue P2'],
+    rows: [['Synthetic Student', '100', '8', 'TST-PIDTECH-CW', 'TST-11FOOD-F']] } }];
+  const search = values => service.run(teacher, { ...input, action: 'search', classCode: 'PIDTECH', ...values });
+  const all = await search({});
+  assert.deepEqual(all.disciplines, ['DTECH', 'FOOD', 'HOSP']);
+  assert.deepEqual(all.students[0].subjects, [
+    { code: '11FOOD', discipline: 'FOOD' }, { code: '11HOSP', discipline: 'HOSP' },
+    { code: '12FOOD', discipline: 'FOOD' }, { code: 'PIDTECH', discipline: 'DTECH' }
+  ]);
+  assert.deepEqual(all.students[0].uncertainDisciplines, []);
+  const term = await search({ term: 4 });
+  assert.deepEqual(term.students[0].subjects, [
+    { code: '11FOOD', discipline: 'FOOD' }, { code: 'PIDTECH', discipline: 'DTECH' }
+  ]);
+  assert.deepEqual(term.students[0].uncertainDisciplines, []);
+});
+test('subject breakdown marks missing teacher snapshots and ambiguous linked groups as uncertain', async () => {
+  const { service, input, state } = fixture();
+  state.teacherRows[0].data = { Teacher: 'TST', Mon_P1: 'PIDTECH-CW', Tue_P2: '3-11FOOD-F;4-11FOOD-F' };
+  state.teacherRows[1].data = { Teacher: 'PEER', Fri_P3: '11HOSP-F' };
+  state.department.class_links['2026'] = [
+    { teacherEmail: teacher.email, code: 'PIDTECH' },
+    { teacherEmail: teacher.email, code: '3-11FOOD' },
+    { teacherEmail: 'peer@example.test', code: '11HOSP' }
+  ];
+  Object.assign(state.row, { tue_p2: 'TST-11FOOD-F', fri_p3: 'PEER-11HOSP-F' });
+  state.teacherHistory = [{ term: 4, payload: { headers: ['Teacher', 'Mon P1', 'Tue P2'],
+    rows: [['TST', 'PIDTECH-CW', '3-11FOOD-F;4-11FOOD-F']] } }];
+  state.studentHistory = [{ term: 4, payload: { headers: ['Student Name', 'ID Number', 'Year Level', 'Mon P1', 'Tue P2', 'Fri P3'],
+    rows: [['Synthetic Student', '100', '8', 'TST-PIDTECH-CW', 'TST-11FOOD-F', 'PEER-11HOSP-F']] } }];
+  const result = await service.run(teacher, { ...input, action: 'search', classCode: 'PIDTECH', term: 4 });
+  assert.deepEqual(result.students[0].subjects, [{ code: 'PIDTECH', discipline: 'DTECH' }]);
+  assert.deepEqual(result.students[0].uncertainDisciplines, ['FOOD', 'HOSP']);
 });
 test('year-level browsing combines department, class and name filters without truncating the roll', async () => {
   const { service, input, state } = fixture();
@@ -581,6 +629,8 @@ test('mixed senior lines include Years 11-13 DTECH and COMP in their selected te
     ['Senior Other Line', 'Synthetic Student']);
   assert.deepEqual((await search({ classCode: '3-11DTECH' })).students.map(student => student.name),
     ['Senior Computing', 'Synthetic Student']);
+  assert.deepEqual((await search({ classCode: '3-11DTECH' })).students[0].subjects,
+    [{ code: '12COMP', discipline: 'COMP' }]);
   assert.deepEqual((await search({ classCode: '4-11COMP', term: 4 })).students.map(student => student.name),
     ['Senior Other Line']);
   assert.deepEqual((await search({ classCode: '3-11DTECH', yearLevel: '13', term: 4 })).students.map(student => student.name),
