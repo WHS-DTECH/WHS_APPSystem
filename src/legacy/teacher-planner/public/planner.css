@@ -48,6 +48,8 @@
 .planner-nav-modules { --nav-colour: #75418a; --nav-selected: #4d245e; }
 .planner-nav-group h2 { margin: 0 0 10px; font-size: 15px; color: var(--nav-colour); }
 .planner-nav-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.planner-nav-buttons a { display: inline-block; border: 1px solid var(--nav-colour); border-radius: 20px; background: #fff; color: var(--nav-colour); padding: 9px 13px; font: inherit; text-decoration: none; }
+.planner-nav-buttons a:hover { background: var(--nav-colour); color: #fff; }
 .planner-nav-buttons button:not(:disabled) { color: var(--nav-colour); border-color: var(--nav-colour); border-radius: 20px; }
 .planner-nav-buttons button:not(:disabled):hover { background: var(--nav-colour); color: #fff; }
 .planner-nav-buttons button[aria-current="page"] { background: var(--nav-selected); border-color: var(--nav-selected); color: #fff; font-weight: 600; box-shadow: inset 0 0 0 2px #fff; }

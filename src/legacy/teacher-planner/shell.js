@@ -62,7 +62,7 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
       <button type="button" data-section="standards">Teaching Standards</button>
       <button type="button" data-section="learning">Professional learning</button>
       <button type="button" disabled title="Page coming soon">Behaviour Management</button>
-      <button type="button" disabled title="Page coming soon">Student Tracker</button>
+      <a href="${escape(coreUrl)}/launchpad/apps/whs-techstudent-tracker" target="_blank" rel="noopener" title="Open Student Tracker in a new tab">Student Tracker</a>
       <button type="button" disabled title="Page coming soon">Lesson</button>
       <button type="button" disabled title="Page coming soon">Assessment</button>
       <button type="button" data-section="reporting">Reporting</button>

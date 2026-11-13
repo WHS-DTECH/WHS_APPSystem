@@ -1494,6 +1494,9 @@ Planner database.
 Teacher Planner is embedded at `/teacher-planner/`, using the original module
 router and screens from `src/legacy/teacher-planner`. Shared Google sign-in,
 navigation, Search, sign-out and role assignment come from Global Control.
+The **Student Tracker** link under **Section Modules** opens the registered
+Tracker app in a new tab through Global Control's access-checked Launchpad route,
+leaving the current Planner page open.
 The integrated Teacher Planner appears under **Modules** in shared navigation,
 not In Development or Student Apps. Development registry/service details are
 retained for rollback; locally integrated projects are excluded from the
