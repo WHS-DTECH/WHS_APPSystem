@@ -289,8 +289,9 @@ test('teacher course matching handles aliases, rooms, year families and preserve
     { course_code: 'MDTECH-S1', subject_code: 'DTECH' }, { course_code: 'MDTECH-S2', subject_code: 'DTECH' },
     { course_code: '11DTECH', subject_code: 'DTECH' }, { course_code: '11HOSP', subject_code: 'FOOD' }
   ];
-  state.teacherRows[0].data = { Teacher: 'TST', Mon_P1: 'JPI-05', Tue_P2: '11DTECH1-CW', Wed_P3: 'MATH-JPI' };
-  state.teacherHistory = [{ term: 3, payload: { headers: ['Teacher', 'Mon P1', 'Mon P1'],
+  state.teacherRows[0].data = { Teacher: 'TST', 'D1 P1': 'JPI-05', 'D2 P2': '11DTECH1-CW',
+    'D3 P3': 'MATH-JPI', 'D1 I': 'JDTECH-CW', D1: 'MDTECH-CW' };
+  state.teacherHistory = [{ term: 3, payload: { headers: ['Teacher', 'D1 P1', 'D1 P1'],
     rows: [['TST', 'TST/PEER-9DTECH-CW', '11HOSP-K1']] } }];
   const manager = { ...teacher, id: peerId, email: 'peer@example.test' };
   const setup = await service.run(manager, { ...input, action: 'setup' });

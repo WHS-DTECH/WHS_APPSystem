@@ -168,10 +168,11 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       const codes = new Set();
       for (const row of mine) {
         const map = buildStudentHeaderMap(row.headers);
-        if (![...map.values()].some(key => columns.includes(key))) throw error('A teacher timetable has no recognised period columns. Review Kamar Uploader.', 502);
-        const mapped = mapStudentRow(row.values, map);
-        for (const slot of columns) {
-          let value = mapped[slot]?.trim().toUpperCase();
+        const indexes = row.headers.flatMap((header, index) => columns.includes(map.get(index)) ||
+          /^d[1-5]p[1-5](?:[12])?$/.test(String(header).toLowerCase().replace(/[^a-z0-9]/g, '')) ? [index] : []);
+        if (!indexes.length) throw error('A teacher timetable has no recognised period columns. Review Kamar Uploader.', 502);
+        for (const index of indexes) {
+          let value = String(row.values[index] || '').trim().toUpperCase();
           if (!value) continue;
           const prefix = value.slice(0, value.indexOf('-'));
           if (prefix && prefix.split('/').every(code => staff.some(item => item.code === code))) value = value.slice(value.indexOf('-') + 1);
