@@ -775,7 +775,8 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
           if (!subjects.length) return [];
           if (subjects.length > 1) sharedPeriod = true;
           return [{ date: mark.date, period: mark.period, mark: mark.mark,
-            subject: subjects.join(' / '), teacher: owner.display_name }];
+            subject: subjects.join(' / '), teacher: owner.display_name,
+            teacherCode: owner.codes.filter(code => matching.some(lesson => lesson.staffCodes.includes(code))).sort().join(' / ') }];
         });
         const warnings = [];
         if (incomplete || missingOwners) warnings.push('Some linked lessons or teacher records could not be confirmed; attendance may be incomplete.');

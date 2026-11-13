@@ -241,6 +241,7 @@ test('attendance overview shows each term, recorded linked marks and explicitly 
   assert.deepEqual(result.terms.map(item => item.status), ['available', 'not_enrolled', 'unavailable', 'available']);
   assert.deepEqual(result.terms[0].marks.map(item => item.mark), ['A']);
   assert.deepEqual(result.terms[3].marks.map(item => item.mark), ['P', 'L']);
+  assert.deepEqual(result.terms[3].marks.map(item => item.teacherCode), ['TST', 'PEER']);
   assert.equal(result.terms[0].startDate, '2026-01-29');
   assert.equal(result.terms[3].endDate, '2026-12-18');
   assert.match(result.notice, /not the official KAMAR/);
