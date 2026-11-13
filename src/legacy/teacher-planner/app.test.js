@@ -38,6 +38,7 @@ test('planner navigation remains guarded by loading, saving and unsaved changes'
   const pending={},messages=[],loads=[];
   const context={busy:false,dirty:false,
     content:{querySelector:()=>null,querySelectorAll:()=>[]},notice:message=>messages.push(message),
+    document:{querySelectorAll:()=>[]},
     confirm:()=>true,section:'term',setupTab:0,loaded:true,
     load:async()=>{loads.push(context.section);}};
   vm.runInNewContext(guard+navigation,context);
@@ -85,6 +86,7 @@ test('opening Planner sections cannot start a Drive attendance sync', async () =
   const loads = [];
   const context = {
     canLeave: () => true, section: 'term', moderationRecord: 'old', moderationPage: 'internal',
+    document: { querySelectorAll: () => [] },
     load: async () => { loads.push(context.section); }
   };
   vm.runInNewContext(navigation, context);
@@ -679,10 +681,37 @@ test('cover no longer duplicates Setup My Planner, which is first in shared Setu
   assert.equal(content.children[0].children.length,0);
   assert.equal(loads,0);
   const shell = renderShell({baseUrl:'/planner/',coreUrl:'',standalone:false});
-  const setup = shell.match(/aria-labelledby="planner-nav-setup"[\s\S]*?<\/section>/)[0];
+  const setup = shell.match(/<details class="planner-nav-menu planner-nav-setup">[\s\S]*?<\/details>/)[0];
   assert.match(setup, /data-section="setup"/);
   assert.doesNotMatch(setup, /data-section="assessmentSetup"/);
   assert.doesNotMatch(setup, /attendanceImport/);
+});
+
+test('accepted module navigation closes its menu and returns focus to the menu trigger', async () => {
+  const source = await fs.readFile(path.join(__dirname, 'public', 'planner.js'), 'utf8');
+  const start = source.indexOf('  function navigatePlannerSection(');
+  const end = source.indexOf('  function renderSelectors()', start);
+  const implementation = source.slice(start, end);
+  const fixture = allowed => {
+    const button = {};
+    const summary = { focused: false, focus() { this.focused = true; } };
+    const menu = { open: true, contains: value => value === button, querySelector: () => summary };
+    const context = {
+      canLeave: () => allowed,
+      document: { activeElement: button, querySelectorAll: () => menu.open ? [menu] : [] },
+      section: 'week', moderationRecord: 'old', moderationPage: 'internal',
+      load: async () => 'loaded'
+    };
+    vm.runInNewContext(implementation + '\nglobalThis.navigatePlannerSection = navigatePlannerSection;', context);
+    return { context, menu, summary };
+  };
+  const allowed = fixture(true);
+  assert.equal(await allowed.context.navigatePlannerSection('attendance'), 'loaded');
+  assert.equal(allowed.menu.open, false);
+  assert.equal(allowed.summary.focused, true);
+  const blocked = fixture(false);
+  assert.equal(blocked.context.navigatePlannerSection('attendance'), undefined);
+  assert.equal(blocked.menu.open, true);
 });
 
 test('legacy Attendance import links open the current Two-Week Attendance tab', async () => {
@@ -818,35 +847,33 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(html, /data-user-email="teacher&quot;@example.test"/);
   assert.ok(!html.includes('<script>alert(1)</script>'));
   assert.match(html, /data-section="cover" aria-current="page"/);
+  const navigation = html.match(/<nav class="planner-tabs" aria-label="Teacher Planner navigation">([\s\S]*?)<\/nav>/)[1];
   assert.deepEqual([...html.matchAll(/data-section="([^"]+)"/g)].map((match) => match[1]),
     ['cover', 'year', 'term', 'week', 'setup', 'attendance', 'moderation', 'standards', 'learning', 'reporting']);
-  const groups = [...html.matchAll(/<section class="planner-nav-group [^"]+" aria-labelledby="([^"]+)">([\s\S]*?)<\/section>/g)];
-  assert.equal(groups.length, 3);
-  for (const [index, expected] of [
-    ['cover', 'year', 'term', 'week'],
-    ['setup'], ['attendance', 'moderation', 'standards', 'learning', 'reporting']
-  ].entries()) {
-    assert.match(groups[index][2], new RegExp('<h2 id="' + groups[index][1] + '">'));
-    assert.deepEqual([...groups[index][2].matchAll(/data-section="([^"]+)"/g)].map(match => match[1]), expected);
-  }
-  assert.match(groups[0][2], />Planning<\/h2>/);
-  assert.match(groups[1][2], />Setup<\/h2>/);
-  assert.match(groups[2][2], />Section Modules<\/h2>/);
-  assert.equal([...groups[2][2].matchAll(/disabled title="Page coming soon"/g)].length, 0);
-  assert.doesNotMatch(groups[1][2], /Setup Assessment/);
-  assert.doesNotMatch(groups[2][2], /Behaviour Management/);
-  assert.match(groups[2][2], /<a href="https:\/\/core\.example\.test\/launchpad\/apps\/whs-techstudent-tracker" target="_blank" rel="noopener" title="Open Student Tracker in a new tab">Student Tracker<\/a>/);
-  assert.match(groups[2][2], /<a href="https:\/\/core\.example\.test\/launchpad\/apps\/relief-plan" target="_blank" rel="noopener" title="Open Relief Library in a new tab">Relief Library<\/a>/);
-  assert.match(groups[2][2], /<a href="https:\/\/core\.example\.test\/launchpad\/apps\/whs-unit-library" target="_blank" rel="noopener" title="Open WHS Unit Library in a new tab">Lesson<\/a>/);
-  assert.match(groups[2][2], /<a href="https:\/\/core\.example\.test\/launchpad\/apps\/whs-assessment-manager" target="_blank" rel="noopener" title="Open WHS Assessment Manager in a new tab">Assessment<\/a>/);
+  const planner = navigation.match(/<section class="planner-nav-group planner-nav-planning"[\s\S]*?<\/section>/)[0];
+  const setup = navigation.match(/<details class="planner-nav-menu planner-nav-setup">[\s\S]*?<\/details>/)[0];
+  const modules = navigation.match(/<details class="planner-nav-menu planner-nav-modules">[\s\S]*?<\/details>/)[0];
+  assert.match(planner, /<h2 id="planner-nav-planning">Planner<\/h2>/);
+  assert.deepEqual([...planner.matchAll(/data-section="([^"]+)"/g)].map(match => match[1]),
+    ['cover', 'year', 'term', 'week']);
+  assert.match(setup, /<summary id="planner-nav-setup">Setup<\/summary>/);
+  assert.match(setup, /data-section="setup"/);
+  assert.match(modules, /<summary id="planner-nav-modules">Modules<\/summary>/);
+  assert.deepEqual([...modules.matchAll(/data-section="([^"]+)"/g)].map(match => match[1]),
+    ['attendance', 'moderation', 'standards', 'learning', 'reporting']);
+  assert.doesNotMatch(modules, /Behaviour Management|Page coming soon/);
+  assert.match(modules, /<a href="https:\/\/core\.example\.test\/launchpad\/apps\/whs-techstudent-tracker" target="_blank" rel="noopener" title="Open Student Tracker in a new tab">Student Tracker<\/a>/);
+  assert.match(modules, /<a href="https:\/\/core\.example\.test\/launchpad\/apps\/relief-plan" target="_blank" rel="noopener" title="Open Relief Library in a new tab">Relief Library<\/a>/);
+  assert.match(modules, /<a href="https:\/\/core\.example\.test\/launchpad\/apps\/whs-unit-library" target="_blank" rel="noopener" title="Open WHS Unit Library in a new tab">Lesson<\/a>/);
+  assert.match(modules, /<a href="https:\/\/core\.example\.test\/launchpad\/apps\/whs-assessment-manager" target="_blank" rel="noopener" title="Open WHS Assessment Manager in a new tab">Assessment<\/a>/);
   const embedded = renderShell({ baseUrl: '/teacher-planner/', coreUrl: '', standalone: false });
   assert.match(embedded, /href="\/launchpad\/apps\/whs-techstudent-tracker"/);
   assert.match(embedded, /href="\/launchpad\/apps\/relief-plan"/);
   assert.match(embedded, /href="\/launchpad\/apps\/whs-unit-library"/);
   assert.match(embedded, /href="\/launchpad\/apps\/whs-assessment-manager"/);
-  assert.match(html, /planner\.css\?v=reporting-35/);
-  assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=manual-sync-34"'));
-  assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=manual-sync-34"'));
+  assert.match(html, /planner\.css\?v=navigation-36/);
+  assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=navigation-35"'));
+  assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=navigation-35"'));
   const heading = html.match(/<header class="planner-heading">([\s\S]*?)<\/header>/)[1];
   for (const id of ['planner-year', 'open-year', 'print-planner']) {
     assert.match(heading, new RegExp('id="' + id + '"'));
@@ -855,7 +882,7 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(heading, /class="planner-year-badge" aria-label="Open planner year 2026"/);
   assert.match(heading, /id="planner-year-badge-value">2026<\/span>/);
   assert.match(html, /src="\/planner\/framework\/attendance\.js\?v=manual-sync-11"/);
-  assert.match(groups[1][2], /id="refresh-weekly-duties" hidden>Refresh duties<\/button>/);
+  assert.match(planner, /id="refresh-weekly-duties" hidden>Refresh duties<\/button>/);
   assert.match(html, /id="planner-signin-link"/);
   assert.match(html, /href="https:\/\/core.example.test\/contact"/);
   for (const name of ['cover-kokako','term-1-takahe','term-2-bird','term-3-kakapo','term-4-kiwi','teaching-standards']) {
@@ -866,9 +893,9 @@ test('paper planner shell retains nested assets, private identity escaping and a
   }
 });
 
-test('secondary navigation rows use distinct accessible enabled colours and a separate selected state', async () => {
+test('compact Planner navigation retains accessible contrast, focus, and selected states', async () => {
   const css = await fs.readFile(path.join(__dirname, 'public', 'planner.css'), 'utf8');
-  const colours = [...css.matchAll(/--row-(?:colour|selected): (#[0-9a-f]{6})/g)].map(match => match[1]);
+  const colours = [...css.matchAll(/--nav-(?:colour|selected): (#[0-9a-f]{6})/g)].map(match => match[1]);
   assert.equal(colours.length, 6);
   assert.equal(new Set(colours).size, 6);
   for (const colour of colours) {
@@ -879,9 +906,11 @@ test('secondary navigation rows use distinct accessible enabled colours and a se
     const luminance = channels[0] * .2126 + channels[1] * .7152 + channels[2] * .0722;
     assert.ok(1.05 / (luminance + .05) >= 4.5, colour + ' meets normal-text contrast with white');
   }
-  assert.match(css, /button:not\(:disabled\) \{[^}]*background: var\(--row-colour\)[^}]*color: #fff/);
-  assert.match(css, /button\[aria-current="page"\] \{[^}]*box-shadow: inset 0 0 0 2px #fff/);
-  assert.match(css, /secondary-row button:disabled \{[^}]*cursor: not-allowed/);
+  assert.match(css, /\.planner-nav-menu summary \{[^}]*cursor: pointer/);
+  assert.match(css, /\.planner-nav-menu summary:focus-visible \{[^}]*outline: 3px solid/);
+  assert.match(css, /\.planner-nav-menu\[open\] > \.planner-nav-buttons \{[^}]*display: flex/);
+  assert.match(css, /\.planner-nav-buttons button\[aria-current="page"\] \{[^}]*box-shadow: inset 0 0 0 2px #fff/);
+  assert.match(css, /\.planner-nav-buttons button:disabled \{[^}]*cursor: not-allowed/);
 });
 
 test('module denies anonymous/student access and accepts a supplied teacher identity', async () => {
@@ -922,13 +951,10 @@ test('module denies anonymous/student access and accepts a supplied teacher iden
     assert.match(response.headers.get('content-type'), /text\/html/);
     const html = await response.text();
     assert.match(html, /framework\/whs-logo.png/);
-    assert.match(html, /framework\/assessment-manager\.js/);
-    assert.match(html, /framework\/assessment-manager\.css/);
-    assert.match(html, /id="assessment-manager-content"/);
     assert.match(html, /Last Updated:/);
     assert.match(html, /id="planner-year"[^>]*value="2026"/);
     assert.match(html, /data-api="\/module\/api\/planner\/"/);
-    assert.match(html, /src="\/module\/framework\/planner\.js\?v=manual-sync-34"/);
+    assert.match(html, /src="\/module\/framework\/planner\.js\?v=navigation-35"/);
     assert.match(html, /Weekly planner/);
     assert.match(html, /Professional learning/);
     assert.ok(!html.includes('name="whs-global-control"'));

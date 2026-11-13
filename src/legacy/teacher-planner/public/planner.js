@@ -198,6 +198,10 @@
   }
   function navigatePlannerSection(target) {
     if (!canLeave()) return;
+    const openMenus = [...document.querySelectorAll('.planner-nav-menu[open]')];
+    const focusedMenu = openMenus.find(menu => menu.contains(document.activeElement));
+    for (const menu of openMenus) menu.open = false;
+    focusedMenu?.querySelector('summary')?.focus();
     section = target;
     if (section === 'moderation') { moderationRecord = ''; moderationPage = 'overview'; }
     return load();

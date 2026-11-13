@@ -1,4 +1,4 @@
-const UPDATED_AT = '2026-11-13T18:55:00.000Z';
+const UPDATED_AT = '2026-11-13T19:25:31.843Z';
 const escape = (value) => String(value).replace(/[&<>"']/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
 }[char]));
@@ -20,7 +20,7 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
 <link rel="icon" type="image/png" href="${asset('whs-logo.png')}">
 <link rel="stylesheet" href="${asset('account-controls.css')}">
 <link rel="stylesheet" href="${asset('module-shell.css')}">
-<link rel="stylesheet" href="${asset('planner.css?v=reporting-35')}">
+<link rel="stylesheet" href="${asset('planner.css?v=navigation-36')}">
 </head><body class="whs-module-shell whs-planner" data-api="${escape(baseUrl)}api/planner/" data-assets="${escape(baseUrl)}framework/" data-planner-name="${escape(displayName)}" data-user-id="${escape(userId)}" data-user-email="${escape(userEmail)}" data-core-url="${escape(coreUrl)}">
 <main class="planner-main" aria-label="${escape(title)}">
 <header class="planner-heading">
@@ -36,37 +36,39 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
     </div>
   </div>
 </header>
-<nav class="planner-tabs" aria-label="Planner sections">
+<nav class="planner-tabs" aria-label="Teacher Planner navigation">
   <section class="planner-nav-group planner-nav-planning" aria-labelledby="planner-nav-planning">
-    <h2 id="planner-nav-planning">Planning</h2>
+    <h2 id="planner-nav-planning">Planner</h2>
     <div class="planner-nav-buttons">
-  <button type="button" data-section="cover" aria-current="page">Planner cover</button>
+    <button type="button" data-section="cover" aria-current="page">Planner cover</button>
     <button type="button" data-section="year">Year overview</button>
     <button type="button" data-section="term">Term plan</button>
     <button type="button" data-section="week">Weekly planner</button>
+    <button type="button" id="refresh-weekly-duties" hidden>Refresh duties</button>
     </div>
   </section>
-  <section class="planner-nav-group planner-nav-setup" aria-labelledby="planner-nav-setup">
-    <h2 id="planner-nav-setup">Setup</h2>
-    <div class="planner-nav-buttons">
-      <button type="button" data-section="setup">Setup My Planner</button>
-      <button type="button" id="refresh-weekly-duties" hidden>Refresh duties</button>
-    </div>
-  </section>
-  <section class="planner-nav-group planner-nav-modules" aria-labelledby="planner-nav-modules">
-    <h2 id="planner-nav-modules">Section Modules</h2>
-    <div class="planner-nav-buttons">
-      <button type="button" data-section="attendance">Attendance</button>
-      <button type="button" data-section="moderation">Moderation</button>
-      <button type="button" data-section="standards">Teaching Standards</button>
-      <button type="button" data-section="learning">Professional learning</button>
-      <a href="${escape(coreUrl)}/launchpad/apps/whs-techstudent-tracker" target="_blank" rel="noopener" title="Open Student Tracker in a new tab">Student Tracker</a>
-      <a href="${escape(coreUrl)}/launchpad/apps/relief-plan" target="_blank" rel="noopener" title="Open Relief Library in a new tab">Relief Library</a>
-      <a href="${escape(coreUrl)}/launchpad/apps/whs-unit-library" target="_blank" rel="noopener" title="Open WHS Unit Library in a new tab">Lesson</a>
-      <a href="${escape(coreUrl)}/launchpad/apps/whs-assessment-manager" target="_blank" rel="noopener" title="Open WHS Assessment Manager in a new tab">Assessment</a>
-      <button type="button" data-section="reporting">Reporting</button>
-    </div>
-  </section>
+  <div class="planner-nav-menus">
+    <details class="planner-nav-menu planner-nav-setup">
+      <summary id="planner-nav-setup">Setup</summary>
+      <div class="planner-nav-buttons" aria-labelledby="planner-nav-setup">
+        <button type="button" data-section="setup">Setup My Planner</button>
+      </div>
+    </details>
+    <details class="planner-nav-menu planner-nav-modules">
+      <summary id="planner-nav-modules">Modules</summary>
+      <div class="planner-nav-buttons" aria-labelledby="planner-nav-modules">
+        <button type="button" data-section="attendance">Attendance</button>
+        <button type="button" data-section="moderation">Moderation</button>
+        <button type="button" data-section="standards">Teaching Standards</button>
+        <button type="button" data-section="learning">Professional learning</button>
+        <a href="${escape(coreUrl)}/launchpad/apps/whs-techstudent-tracker" target="_blank" rel="noopener" title="Open Student Tracker in a new tab">Student Tracker</a>
+        <a href="${escape(coreUrl)}/launchpad/apps/relief-plan" target="_blank" rel="noopener" title="Open Relief Library in a new tab">Relief Library</a>
+        <a href="${escape(coreUrl)}/launchpad/apps/whs-unit-library" target="_blank" rel="noopener" title="Open WHS Unit Library in a new tab">Lesson</a>
+        <a href="${escape(coreUrl)}/launchpad/apps/whs-assessment-manager" target="_blank" rel="noopener" title="Open WHS Assessment Manager in a new tab">Assessment</a>
+        <button type="button" data-section="reporting">Reporting</button>
+      </div>
+    </details>
+  </div>
 </nav>
 <div class="planner-page-controls">
 <div id="planner-selectors"></div>
@@ -107,7 +109,7 @@ ${standalone ? `<script src="${asset('global-nav.js')}" defer></script>` : ''}
 <script src="${asset('textarea-autosize.js')}" defer></script>
 <script src="${asset('reporting-schema.js?v=6')}" defer></script>
 <script src="${asset('reporting.js?v=7')}" defer></script>
-<script src="${asset('planner.js?v=manual-sync-34')}" defer></script>
+<script src="${asset('planner.js?v=navigation-35')}" defer></script>
 </body></html>`;
 }
 
