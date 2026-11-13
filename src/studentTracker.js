@@ -12,6 +12,10 @@ const error = (message, status = 400) => Object.assign(new Error(message), { sta
 const technologyPrograms = new Set(['DTECH', 'COMP', 'DVC', 'FOOD', 'TEXTILES', 'WOOD']);
 const days = ['mon', 'tue', 'wed', 'thu', 'fri'];
 const classGroup = /^(?:\d+|\d{1,2}[A-Z]|J[A-Z]{2}|MTR)$/;
+const seniorSubject = /^(?:11|12|13)(?:DTECH|COMP)$/;
+function seniorLine(code) {
+  return /^(\d+|JSR)-(?:11|12|13|SR)(?:DTECH|COMP)$/.exec(code)?.[1];
+}
 function subjectCode(code) {
   const parts = code.split('-');
   const grouped = classGroup.test(parts[0]) ||
@@ -55,15 +59,38 @@ function savedClassLinks(department, year) {
   }
   return year === undefined ? stored : stored[String(year)] || [];
 }
+function mixedSeniorLesson(department, link, lesson) {
+  return normaliseDirectoryName(department.name) === normaliseDirectoryName('Technology') &&
+    seniorLine(link.code) && seniorSubject.test(lesson.subject);
+}
+function seniorLessonMatch(department, link, lesson, term, allowCombined) {
+  const line = seniorLine(link.code);
+  if (!mixedSeniorLesson(department, link, lesson) || !lesson.staffCodes.includes(link.staffCode) ||
+      !link.sources.some(source => source.term === term && source.slot === lesson.slot)) return null;
+  if (lesson.classCode !== lesson.subject) return seniorLine(lesson.classCode) === line ? 'matched' : null;
+  if (link.seniorAmbiguousSources.some(source => source.term === term && source.slot === lesson.slot)) {
+    return allowCombined && !link.seniorUnselectedSources.some(source => source.term === term && source.slot === lesson.slot)
+      ? 'matched' : 'ambiguous';
+  }
+  return 'matched';
+}
 function linkedLesson(department, lesson, term = null, owner) {
-  return department.classLinks.some(link => link.subject === lesson.subject &&
-    (lesson.classCode === lesson.subject || link.code === lesson.classCode) &&
-    lesson.staffCodes.includes(link.staffCode) && (!owner || owner.codes.includes(link.staffCode)) &&
-    link.sources.some(source => source.term === term && source.slot === lesson.slot &&
-      (lesson.classCode !== lesson.subject || !link.ambiguousSources.some(other => other.term === term && other.slot === lesson.slot))));
+  return department.classLinks.some(link => (!owner || owner.codes.includes(link.staffCode)) &&
+    (mixedSeniorLesson(department, link, lesson)
+      ? seniorLessonMatch(department, link, lesson, term, true) === 'matched'
+      : link.subject === lesson.subject &&
+        (lesson.classCode === lesson.subject || link.code === lesson.classCode) &&
+        lesson.staffCodes.includes(link.staffCode) &&
+        link.sources.some(source => source.term === term && source.slot === lesson.slot &&
+          (lesson.classCode !== lesson.subject || !link.ambiguousSources.some(other => other.term === term && other.slot === lesson.slot)))));
 }
 function classLessonMatch(department, lesson, term, code) {
-  const links = department.classLinks.filter(link => link.subject === lesson.subject &&
+  const senior = department.classLinks.filter(link => link.code === code)
+    .map(link => seniorLessonMatch(department, link, lesson, term, false));
+  if (senior.includes('matched')) return 'matched';
+  if (senior.includes('ambiguous')) return 'ambiguous';
+  const links = department.classLinks.filter(link => !mixedSeniorLesson(department, link, lesson) &&
+    link.subject === lesson.subject &&
     lesson.staffCodes.includes(link.staffCode) &&
     link.sources.some(source => source.term === term && source.slot === lesson.slot));
   if (lesson.classCode !== lesson.subject) {
@@ -277,7 +304,17 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
         other.code !== lesson.code && other.subject === lesson.subject &&
         !links.some(selected => selected.teacherEmail === person.email && selected.code === other.code) &&
         other.sources.some(slot => slot.term === source.term && slot.slot === source.slot)));
-      return [{ ...link, ...lesson, ambiguousSources, staffCode: person.code, teacherName: person.name }];
+      const line = seniorLine(lesson.code);
+      const seniorLines = source => person.classes.filter(other => seniorLine(other.code) &&
+        other.sources.some(slot => slot.term === source.term && slot.slot === source.slot));
+      const seniorAmbiguousSources = line ? lesson.sources.filter(source =>
+        seniorLines(source).some(other => seniorLine(other.code) !== line)) : [];
+      const seniorUnselectedSources = seniorAmbiguousSources.filter(source => seniorLines(source).some(other =>
+        !links.some(selected => selected.teacherEmail === person.email &&
+          seniorLine(selected.code) === seniorLine(other.code) && person.classes.some(available =>
+            available.code === selected.code && available.sources.some(slot => slot.term === source.term)))));
+      return [{ ...link, ...lesson, ambiguousSources, seniorAmbiguousSources, seniorUnselectedSources,
+        staffCode: person.code, teacherName: person.name }];
     });
   }
   function validateTeachers(emails, candidates) {
@@ -465,7 +502,11 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
           const matches = rowLessons.map(lesson => classLessonMatch(department, lesson, table.term, classCode));
           if (matches.includes('ambiguous')) ambiguous = true;
           if (!matches.includes('matched')) continue;
-        } else if (!rowLessons.some(lesson => linkedLesson(department, lesson, table.term))) continue;
+        } else if (!rowLessons.some(lesson => linkedLesson(department, lesson, table.term))) {
+          if (rowLessons.some(lesson => department.classLinks.some(link =>
+            seniorLessonMatch(department, link, lesson, table.term, true) === 'ambiguous'))) ambiguous = true;
+          continue;
+        }
         if (!found.has(item.id)) found.set(item.id, item);
       }
       const students = [...found.values()].sort((a, b) => a.name.localeCompare(b.name));

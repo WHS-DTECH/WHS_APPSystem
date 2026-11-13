@@ -1637,6 +1637,13 @@ stored links across years. Migration 055 deliberately does not convert the old
 automatic subject cache into approvals: existing departments must select classes.
 If co-timetabled groups share a teacher/subject and the student export omits their
 group IDs, ambiguous records are excluded unless all relevant groups are linked.
+Technology's senior numbered DTECH/COMP teaching lines are mixed Year 11–13
+classes: a linked line includes its students across those years and subjects,
+even when the staff timetable lists only some of them. Matching still requires
+the same teacher, period and timetable source. If multiple senior lines share a
+period and the student timetable does not identify the line, a class-specific
+browse excludes the student; department-wide browsing includes them only when
+all possible senior lines are linked and available for that source.
 Explicitly approved current department staff,
 verified HoLAs and Global ADMIN may read the department's student profiles.
 The Tracker class selector browses linked class codes across the department's

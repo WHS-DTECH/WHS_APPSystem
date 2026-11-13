@@ -35,7 +35,7 @@ function fixture() {
     { id: managerId, email: 'student@example.test', display_name: 'Synthetic Student', lead_teacher: true, student_account: true }
   ];
   const state = { department, row, catalog, extraStudents: [], plannerCalls: [], writes: [], failPlanner: false, conflict: false, hasSnapshot: true,
-    failDirectory: false, staff, accounts, teacherRows: [
+    failDirectory: false, studentHistory: null, staff, accounts, teacherRows: [
       { teacher: 'TST', data: { Teacher: 'TST', Mon_P1: 'PIDTECH-CW', Tue_P2: 'MATH-A' } },
       { teacher: 'PEER', data: { Teacher: 'PEER', Fri_P3: 'PIDTECH-05' } }
     ], teacherHistory: [], teacherYear: 2026, historyYear: 2026, courses: [{ course_code: 'PIDTECH', subject_code: 'DTECH' }] };
@@ -82,10 +82,10 @@ function fixture() {
         assert.match(sql, /school_year=\$1/);
         return { rows: params[0] === state.historyYear ? state.teacherHistory : [] };
       }
-      if (sql.includes('FROM kamar_datasets')) return { rows: state.hasSnapshot ? [{ term: 4, payload: {
+      if (sql.includes('FROM kamar_datasets')) return { rows: state.studentHistory || (state.hasSnapshot ? [{ term: 4, payload: {
         headers: ['Student Name', 'ID Number', 'Year Level', 'Mon P1', 'Mon P1', 'Fri P3', 'Tue P2'],
         rows: [['Synthetic Student', '100', '8', 'TST-PIDTECH-CW', '', 'PEER-PIDTECH-05', 'OTHER-MATH-A']]
-      } }] : [] };
+      } }] : []) };
       throw new Error('Unexpected KAMAR query: ' + sql);
     },
     plannerQuery: async (sql, params) => {
@@ -491,6 +491,80 @@ test('same-subject classes remain separate by teacher and scheduled group; unlin
   await service.run({ ...teacher, roles: ['ADMIN'] }, { ...input, action: 'save-classes',
     department: { id: departmentId, name: 'Technology', revision: 1, classLinks: [{ teacherEmail: teacher.email, code: '4-PIDTECH' }] } });
   assert.deepEqual((await service.run(teacher, { ...input, action: 'attendance', term: 4 })).marks.map(mark => mark.mark), ['A']);
+});
+test('mixed senior lines include Years 11-13 DTECH and COMP in their selected teaching line', async () => {
+  const { service, input, state } = fixture();
+  state.teacherRows[0].data = { Teacher: 'TST', Mon_P1: '3-11DTECH-CW;3-12COMP-CW', Fri_P3: '4-11COMP-CW' };
+  state.department.class_links['2026'] = [
+    { teacherEmail: teacher.email, code: '3-11DTECH' },
+    { teacherEmail: teacher.email, code: '4-11COMP' }
+  ];
+  Object.assign(state.row, { year_level: '13', mon_p1_1: 'TST-13DTECH-CW', fri_p3: '', tue_p2: '' });
+  state.extraStudents = [
+    { id_number: '201', student_name: 'Senior Computing', year_level: '12', mon_p1_1: 'TST-12COMP-CW' },
+    { id_number: '202', student_name: 'Senior Other Line', year_level: '13', fri_p3: 'TST-13DTECH-CW' },
+    { id_number: '203', student_name: 'Wrong Group', year_level: '13', mon_p1_1: 'TST-4-13DTECH-CW' },
+    { id_number: '204', student_name: 'Wrong Subject', year_level: '13', mon_p1_1: 'TST-13FOOD-CW' },
+    { id_number: '205', student_name: 'Wrong Teacher', year_level: '13', mon_p1_1: 'PEER-13DTECH-CW' },
+    { id_number: '206', student_name: 'Wrong Period', year_level: '13', tue_p2: 'TST-13DTECH-CW' }
+  ];
+  state.studentHistory = [{ term: 4, payload: {
+    headers: ['Student Name', 'ID Number', 'Year Level', 'Mon P1', 'Fri P3'],
+    rows: [
+      ['Synthetic Student', '100', '13', 'TST-13DTECH-CW', ''],
+      ['Senior Computing', '201', '12', 'TST-12COMP-CW', ''],
+      ['Senior Other Line', '202', '13', '', 'TST-13DTECH-CW']
+    ]
+  } }];
+  state.teacherHistory = [{ term: 4, payload: { headers: ['Teacher', 'Mon P1', 'Fri P3'],
+    rows: [['TST', '3-11DTECH-CW;3-12COMP-CW', '4-11COMP-CW']] } }];
+  const search = values => service.run(teacher, { ...input, action: 'search', ...values });
+  assert.deepEqual((await search({ yearLevel: '13' })).students.map(student => student.name),
+    ['Senior Other Line', 'Synthetic Student']);
+  assert.deepEqual((await search({ classCode: '3-11DTECH' })).students.map(student => student.name),
+    ['Senior Computing', 'Synthetic Student']);
+  assert.deepEqual((await search({ classCode: '4-11COMP', term: 4 })).students.map(student => student.name),
+    ['Senior Other Line']);
+  assert.deepEqual((await search({ classCode: '3-11DTECH', yearLevel: '13', term: 4 })).students.map(student => student.name),
+    ['Synthetic Student']);
+  assert.equal((await service.run(teacher, { ...input, action: 'profile' })).timetables[0].lessons[0].linked, true);
+  assert.deepEqual((await service.run(teacher, { ...input, action: 'attendance', term: 4 })).marks.map(mark => mark.mark), ['P']);
+  state.department.name = 'Science';
+  assert.equal((await search({ yearLevel: '13' })).students.length, 0);
+});
+test('mixed senior lines do not guess between co-timetabled groups or expose unselected lines', async () => {
+  const { service, input, state } = fixture();
+  state.hasSnapshot = false;
+  state.teacherRows[0].data = { Teacher: 'TST', Mon_P1: '3-11DTECH-CW;4-12COMP-CW' };
+  state.department.class_links['2026'] = [{ teacherEmail: teacher.email, code: '3-11DTECH' }];
+  Object.assign(state.row, { year_level: '13', mon_p1_1: 'TST-13DTECH-CW', fri_p3: '', tue_p2: '' });
+  const search = values => service.run(teacher, { ...input, action: 'search', ...values });
+  let result = await search({ yearLevel: '13' });
+  assert.equal(result.students.length, 0);
+  assert.equal(result.ambiguous, true);
+  result = await search({ classCode: '3-11DTECH' });
+  assert.equal(result.students.length, 0);
+  assert.equal(result.ambiguous, true);
+  state.department.class_links['2026'].push({ teacherEmail: teacher.email, code: '4-13COMP' });
+  assert.equal((await search({ yearLevel: '13' })).students.length, 0, 'unavailable links do not approve another line');
+  state.teacherHistory = [{ term: 3, payload: { headers: ['Teacher', 'Mon P1'],
+    rows: [['TST', '4-13COMP-CW']] } }];
+  assert.equal((await search({ yearLevel: '13' })).students.length, 0, 'another term does not approve the current line');
+  state.teacherHistory = [];
+  state.department.class_links['2026'].pop();
+  state.teacherRows[0].data.Mon_P1 = '3-11DTECH-CW;JSR-SRDTECH-CW';
+  assert.equal((await search({ yearLevel: '13' })).students.length, 0, 'a concurrent senior line remains ambiguous');
+  state.teacherRows[0].data.Mon_P1 = '3-11DTECH-CW;4-12COMP-CW';
+  state.row.mon_p1_1 = 'TST-3-13DTECH-CW';
+  assert.equal((await search({ classCode: '3-11DTECH' })).students.length, 1);
+  state.row.mon_p1_1 = 'TST-4-13DTECH-CW';
+  assert.equal((await search({ classCode: '3-11DTECH' })).students.length, 0);
+  state.row.mon_p1_1 = 'TST-13DTECH-CW';
+  state.department.class_links['2026'].push({ teacherEmail: teacher.email, code: '4-12COMP' });
+  assert.equal((await search({ yearLevel: '13' })).students.length, 1);
+  result = await search({ classCode: '3-11DTECH' });
+  assert.equal(result.students.length, 0);
+  assert.equal(result.ambiguous, true);
 });
 test('saving teacher approvals prunes removed teachers across years without automatically linking their classes', async () => {
   const { service, input, state } = fixture();
