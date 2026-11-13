@@ -62,6 +62,19 @@ function linkedLesson(department, lesson, term = null, owner) {
     link.sources.some(source => source.term === term && source.slot === lesson.slot &&
       (lesson.classCode !== lesson.subject || !link.ambiguousSources.some(other => other.term === term && other.slot === lesson.slot))));
 }
+function classLessonMatch(department, lesson, term, code) {
+  const links = department.classLinks.filter(link => link.subject === lesson.subject &&
+    lesson.staffCodes.includes(link.staffCode) &&
+    link.sources.some(source => source.term === term && source.slot === lesson.slot));
+  if (lesson.classCode !== lesson.subject) {
+    return lesson.classCode === code && links.some(link => link.code === code) ? 'matched' : null;
+  }
+  const selected = links.filter(link => link.code === code);
+  if (!selected.length) return null;
+  if (new Set(links.map(link => link.code)).size > 1 || selected.some(link =>
+    link.ambiguousSources.some(source => source.term === term && source.slot === lesson.slot))) return 'ambiguous';
+  return 'matched';
+}
 function matchingCourses(code, courses) {
   const normal = value => value.toUpperCase().replace(/[\s_-]/g, '');
   code = subjectCode(code);
@@ -399,7 +412,7 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       return { admin: context.admin, staff: manageable ? context.candidates : [], users: context.users,
         departmentOptions: context.departmentOptions.map(choice => ({ ...choice,
           canManage: context.admin || choice.managerIds.includes(user.id), automaticTeachers: automaticTeachers(context, choice.name) })),
-        automaticHolaAccess: true, teacherApprovalAccess: true, classSelection: true, departments: context.departments.map(item => ({
+        automaticHolaAccess: true, teacherApprovalAccess: true, classSelection: true, classBrowse: true, departments: context.departments.map(item => ({
         id: item.id, name: item.name, subjects: item.subjects, revision: item.revision, unavailableClassCount: item.unavailableClassCount,
         ambiguousClassCount: item.classLinks.filter(link => link.ambiguousSources.length).length,
         canManage: context.admin || item.manager_ids.includes(user.id),
@@ -411,16 +424,27 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
     }
     const department = departmentFor(context, input.departmentId);
     if (action === 'search') {
-      if (typeof input.q !== 'string' || input.q.trim().length < 2 || input.q.length > 100) throw error('Enter at least two characters of the student name.');
+      if (input.q !== undefined && (typeof input.q !== 'string' || input.q.length > 100)) throw error('Enter a student name of at most 100 characters.');
+      if (input.classCode !== undefined && typeof input.classCode !== 'string') throw error('Choose a linked class.');
+      const classCode = input.classCode || '';
+      if (classCode && !department.classLinks.some(link => link.code === classCode)) throw error('Choose a class linked to this department and year.');
+      const query = (input.q || '').trim().toLowerCase();
+      if (!classCode && query.length < 2) throw error('Enter at least two characters of the student name or choose a class.');
       const found = new Map();
+      let ambiguous = false;
       for (const table of context.tables) for (const row of table.rows) {
         const item = student(row);
-        if (!item.name.toLowerCase().includes(input.q.trim().toLowerCase()) ||
-            !lessons(row).some(lesson => linkedLesson(department, lesson, table.term))) continue;
+        if (!item.name.toLowerCase().includes(query)) continue;
+        const rowLessons = lessons(row);
+        if (classCode) {
+          const matches = rowLessons.map(lesson => classLessonMatch(department, lesson, table.term, classCode));
+          if (matches.includes('ambiguous')) ambiguous = true;
+          if (!matches.includes('matched')) continue;
+        } else if (!rowLessons.some(lesson => linkedLesson(department, lesson, table.term))) continue;
         if (!found.has(item.id)) found.set(item.id, item);
       }
       const students = [...found.values()].sort((a, b) => a.name.localeCompare(b.name));
-      return { students: students.slice(0, 50), truncated: students.length > 50 };
+      return { students: classCode ? students : students.slice(0, 50), truncated: !classCode && students.length > 50, ambiguous };
     }
     const rows = selectedStudent(context, department, input.studentId);
     if (action === 'profile') {

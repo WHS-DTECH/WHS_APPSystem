@@ -34,7 +34,7 @@ function fixture() {
     { id: peerId, email: 'peer@example.test', display_name: 'Synthetic Peer', lead_teacher: true, student_account: false },
     { id: managerId, email: 'student@example.test', display_name: 'Synthetic Student', lead_teacher: true, student_account: true }
   ];
-  const state = { department, row, catalog, plannerCalls: [], writes: [], failPlanner: false, conflict: false, hasSnapshot: true,
+  const state = { department, row, catalog, extraStudents: [], plannerCalls: [], writes: [], failPlanner: false, conflict: false, hasSnapshot: true,
     failDirectory: false, staff, accounts, teacherRows: [
       { teacher: 'TST', data: { Teacher: 'TST', Mon_P1: 'PIDTECH-CW', Tue_P2: 'MATH-A' } },
       { teacher: 'PEER', data: { Teacher: 'PEER', Fri_P3: 'PIDTECH-05' } }
@@ -72,7 +72,7 @@ function fixture() {
     directoryQuery: async (sql, params) => {
       assert.doesNotMatch(sql, /planner_sections|planner_attendance_marks|FROM users/);
       if (sql.includes('FROM student_upload')) return { rows: [row,
-        { id_number: '200', student_name: 'Unlinked Student', year_level: '8', mon_p1_1: 'OTHER-MATH-A' }] };
+        { id_number: '200', student_name: 'Unlinked Student', year_level: '8', mon_p1_1: 'OTHER-MATH-A' }, ...state.extraStudents] };
       if (sql.includes('FROM staff_upload')) return { rows: staff };
       if (sql.includes('FROM timetable_upload')) {
         assert.match(sql, /upload_year=\$1/);
@@ -392,6 +392,31 @@ test('class links are explicit, year-specific, and limited to authorised teacher
   state.conflict = true;
   await assert.rejects(service.run(admin, { ...input, action: 'save-classes', department: values }), { status: 409 });
 });
+test('class browsing accepts an optional name, includes linked teachers, and rejects unlinked classes', async () => {
+  const { service, input, state } = fixture();
+  assert.equal((await service.run(teacher, { ...input, action: 'setup' })).classBrowse, true);
+  state.extraStudents = [
+    { id_number: '201', student_name: 'Peer Only', year_level: '8', fri_p3: 'PEER-PIDTECH-05' },
+    ...Array.from({ length: 55 }, (_, i) => ({ id_number: String(300 + i), student_name: 'Class Member ' + i,
+      year_level: '8', mon_p1_1: 'TST-PIDTECH-CW' }))
+  ];
+  const browse = await service.run(teacher, { ...input, action: 'search', classCode: 'PIDTECH' });
+  assert.equal(browse.students.length, 57);
+  assert.equal(browse.truncated, false);
+  assert.equal(browse.ambiguous, false);
+  assert.ok(browse.students.some(student => student.name === 'Peer Only'));
+  assert.deepEqual((await service.run(teacher, { ...input, action: 'search', classCode: 'PIDTECH', q: 'peer' }))
+    .students.map(student => student.name), ['Peer Only']);
+  assert.equal((await service.run(teacher, { ...input, action: 'search', classCode: 'PIDTECH', q: 'P' })).students.length, 1);
+  const named = await service.run(teacher, { ...input, action: 'search', q: 'Class' });
+  assert.equal(named.students.length, 50);
+  assert.equal(named.truncated, true);
+  await assert.rejects(service.run(teacher, { ...input, action: 'search', classCode: 'MATH' }), { status: 400 });
+  await assert.rejects(service.run(teacher, { ...input, action: 'search', q: '' }), { status: 400 });
+  await assert.rejects(service.run(teacher, { ...input, action: 'search', classCode: 123 }), { status: 400 });
+  await assert.rejects(service.run(teacher, { ...input, action: 'search', classCode: 'PIDTECH',
+    departmentId: '00000000-0000-4000-8000-000000000000' }), { status: 403 });
+});
 test('same-subject classes remain separate by teacher and scheduled group; unlinked marks and owners stay private', async () => {
   const { service, input, state } = fixture();
   state.hasSnapshot = false;
@@ -442,9 +467,20 @@ test('co-timetabled same-subject groups cannot expose unselected groups when stu
   assert.equal((await service.run(teacher, { ...input, action: 'search', q: 'Student' })).students.length, 0);
   state.row.mon_p1_1 = 'TST-3-PIDTECH-CW';
   assert.equal((await service.run(teacher, { ...input, action: 'search', q: 'Student' })).students.length, 1);
+  assert.equal((await service.run(teacher, { ...input, action: 'search', classCode: '3-PIDTECH' })).students.length, 1);
+  await assert.rejects(service.run(teacher, { ...input, action: 'search', classCode: '4-PIDTECH' }), { status: 400 });
   state.row.mon_p1_1 = 'TST-PIDTECH-CW';
+  let classSearch = await service.run(teacher, { ...input, action: 'search', classCode: '3-PIDTECH' });
+  assert.equal(classSearch.students.length, 0);
+  assert.equal(classSearch.ambiguous, true);
   state.department.class_links['2026'].push({ teacherEmail: teacher.email, code: '4-PIDTECH' });
   assert.equal((await service.run(teacher, { ...input, action: 'search', q: 'Student' })).students.length, 1);
+  classSearch = await service.run(teacher, { ...input, action: 'search', classCode: '3-PIDTECH' });
+  assert.equal(classSearch.students.length, 0);
+  assert.equal(classSearch.ambiguous, true);
+  state.row.mon_p1_1 = 'TST-4-PIDTECH-CW';
+  assert.equal((await service.run(teacher, { ...input, action: 'search', classCode: '3-PIDTECH' })).students.length, 0);
+  assert.equal((await service.run(teacher, { ...input, action: 'search', classCode: '4-PIDTECH' })).students.length, 1);
 });
 test('Tracker bridge requires a live grant for the registered Tracker client before any data access', async t => {
   let calls = 0, allowed = true;

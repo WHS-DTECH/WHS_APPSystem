@@ -1639,6 +1639,12 @@ If co-timetabled groups share a teacher/subject and the student export omits the
 group IDs, ambiguous records are excluded unless all relevant groups are linked.
 Explicitly approved current department staff,
 verified HoLAs and Global ADMIN may read the department's student profiles.
+The Tracker class selector browses linked class codes across the department's
+authorised teachers, with an optional student-name filter. Results include
+current and preserved timetables for the selected year, not just the current
+roll. Student timetable entries that cannot distinguish a selected class group
+are excluded from that class list and reported. Name-only searches retain their
+50-result limit.
 This explicitly shares approved/automatic departmental teachers' relevant Planner draft reports and teaching-log
 attendance with those authorised department staff; it does not publish or change
 the original records. Unrelated students, subjects and marks are excluded.
