@@ -506,6 +506,8 @@ test('subject breakdown spans linked disciplines and timetable sources without e
   assert.deepEqual(term.students[0].uncertainDisciplines, []);
   assert.equal((await search({ term: 4, discipline: 'FOOD' })).students.length, 1);
   assert.equal((await search({ term: 4, discipline: 'HOSP' })).students.length, 0);
+  assert.equal((await search({ term: 4, subject: 'FOOD', discipline: 'digital_technologies' })).students.length, 1);
+  assert.equal((await search({ term: 4, subject: 'FOOD', discipline: 'food_hospitality' })).students.length, 1);
 });
 test('discipline browsing combines filters and retains other linked subjects without truncation', async () => {
   const { service, input, state } = fixture();
@@ -531,6 +533,49 @@ test('discipline browsing combines filters and retains other linked subjects wit
   assert.deepEqual(combined.students[0].subjects.map(item => item.code), ['11FOOD', 'PIDTECH']);
   assert.equal((await search({ discipline: 'FOOD', classCode: 'PIDTECH', yearLevel: '9' })).students.length, 0);
   for (const invalid of ['OTHER', 4, null]) await assert.rejects(search({ discipline: invalid }), { status: 400 });
+});
+test('broader disciplines group subjects and combine independently with a subject filter', async () => {
+  const { service, input, state } = fixture();
+  state.hasSnapshot = false;
+  const entries = [
+    ['Mon_P1', 'mon_p1_1', 'DTECH'], ['Mon_P2', 'mon_p2', 'COMP'],
+    ['Mon_P3', 'mon_p3', 'DTONLINE'], ['Mon_P4', 'mon_p4', 'MPROG'], ['Mon_P5', 'mon_p5', 'TECH'],
+    ['Tue_P2', 'tue_p2', 'TEXT'], ['Tue_P3', 'tue_p3', 'FOOD'], ['Tue_P4', 'tue_p4', 'HOSP'],
+    ['Tue_P5', 'tue_p5', 'WOOD'], ['Wed_P2', 'wed_p2', 'FURN'], ['Wed_P3', 'wed_p3', 'DVC']
+  ];
+  state.teacherRows[0].data = Object.fromEntries([['Teacher', 'TST'], ...entries.map(([header, , code]) => [header, code + '-X'])]);
+  state.department.class_links['2026'] = entries.map(([, , code]) => ({ teacherEmail: teacher.email, code }));
+  Object.keys(state.row).filter(key => /^(mon|tue|wed|thu|fri)_p/.test(key)).forEach(key => { state.row[key] = ''; });
+  state.row.mon_p1_1 = 'TST-DTECH-X';
+  state.row.tue_p3 = 'TST-FOOD-X';
+  state.extraStudents = entries.map(([, slot, code], index) => ({
+    id_number: String(300 + index), student_name: 'Student ' + code, year_level: '8', [slot]: 'TST-' + code + '-X'
+  }));
+  const search = values => service.run(teacher, { ...input, action: 'search', ...values });
+  const setup = await service.run(teacher, { ...input, action: 'setup' });
+  assert.equal(setup.disciplineGroupBrowse, true);
+  assert.deepEqual(setup.departments[0].disciplineGroups.map(item => item.label),
+    ['Digital Technologies', 'Textiles', 'Food & Hospitality', 'Wood & Furniture', 'Design Visual Communication']);
+  const cases = [
+    ['digital_technologies', ['DTECH', 'COMP', 'DTONLINE', 'MPROG', 'TECH']],
+    ['textiles', ['TEXT']],
+    ['food_hospitality', ['FOOD', 'HOSP']],
+    ['wood_furniture', ['WOOD', 'FURN']],
+    ['dvc', ['DVC']]
+  ];
+  for (const [group, codes] of cases) {
+    const result = await search({ discipline: group });
+    const selected = result.students.filter(student => student.name.startsWith('Student ')).map(student => student.name.slice(8)).sort();
+    assert.deepEqual(selected, [...codes].sort());
+  }
+  const combined = await search({ discipline: 'digital_technologies', subject: 'FOOD', yearLevel: '8' });
+  assert.deepEqual(combined.students.map(student => student.name), ['Synthetic Student']);
+  assert.deepEqual(combined.students[0].subjects.map(item => item.code), ['DTECH', 'FOOD']);
+  assert.deepEqual((await search({ subject: 'FOOD' })).students.map(student => student.name),
+    (await search({ discipline: 'FOOD' })).students.map(student => student.name));
+  assert.equal((await search({ discipline: 'wood_furniture', subject: 'DVC' })).students.length, 0);
+  await assert.rejects(search({ discipline: 'unknown' }), { status: 400 });
+  await assert.rejects(search({ subject: 'unknown' }), { status: 400 });
 });
 test('subject breakdown marks missing teacher snapshots and ambiguous linked groups as uncertain', async () => {
   const { service, input, state } = fixture();
@@ -687,6 +732,8 @@ test('mixed senior lines include Years 11-13 DTECH and COMP in their selected te
     [{ code: '12COMP', discipline: 'COMP' }]);
   assert.deepEqual((await search({ classCode: '3-11DTECH', discipline: 'COMP' })).students.map(student => student.name),
     ['Senior Computing']);
+  assert.deepEqual((await search({ classCode: '3-11DTECH', subject: 'COMP', discipline: 'digital_technologies' }))
+    .students.map(student => student.name), ['Senior Computing']);
   assert.deepEqual((await search({ classCode: '4-11COMP', term: 4 })).students.map(student => student.name),
     ['Senior Other Line']);
   assert.deepEqual((await search({ classCode: '3-11DTECH', yearLevel: '13', term: 4 })).students.map(student => student.name),
