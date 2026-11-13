@@ -1599,7 +1599,10 @@ The independent `whs-techstudent-tracker` app uses the authenticated
 the registered Tracker client and the caller's current Global Control access on
 every request. No KAMAR or Planner database credentials are sent to the app.
 
-**Setup Student Tracker** lets Global ADMIN create department records. HoLA
+**Setup Student Tracker** opens a separate setup page for the selected school
+year; the Student Tracker heading returns to student search. Global ADMIN can
+open **+ Add Department** to create a department without displaying a blank
+editor by default. HoLA
 management is automatic only when a unique current KAMAR staff school email maps
 to one active, non-student Core account, its signed-in display name matches the
 staff/website name, and it holds the **Student Tracker Lead Teacher** role.
@@ -1628,8 +1631,8 @@ not select classes or authorise other-department classes automatically. HoLAs
 confirm which actual uploaded classes belong to their department.
 KAMAR day-number and weekday headers, duplicate periods, and semicolon-separated
 lessons are supported. Rooms are removed; Whanau, Hapu and study entries remain
-separate from selectable classes. Junior DTECH/FOOD cohort aliases match their
-Junior Learning Sites. DT Online and HOSPCOOK are selectable, with HOSPCOOK in
+separate from selectable classes. Junior DTECH/FOOD/WOOD cohort aliases match
+their Junior Learning Sites. DT Online and HOSPCOOK are selectable, with HOSPCOOK in
 Food / Hospitality. Individual HOSPCOOK entries are consolidated without showing
 student IDs and match only their listed students and timetable periods.
 Missing sources and unavailable saved links are shown explicitly.

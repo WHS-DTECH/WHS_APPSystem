@@ -48,6 +48,8 @@ function teacherClassCodes(value, staff, courses) {
       else hospCook.unrestricted = true;
       continue;
     }
+    const emptyGroup = /^-([A-Z0-9]+)(?:-[A-Z0-9]*)?$/.exec(code);
+    if (emptyGroup && courses.some(course => course.course_code.toUpperCase() === emptyGroup[1])) code = code.slice(1);
     const parts = code.split('-');
     const exact = courses.some(course => course.course_code.toUpperCase() === code);
     if (!exact && (parts.length > 2 || (parts.length === 2 &&
@@ -117,13 +119,14 @@ function classLessonMatch(department, lesson, term, code) {
 function matchingCourses(code, courses) {
   const normal = value => value.toUpperCase().replace(/[\s_-]/g, '');
   const raw = code.toUpperCase();
-  const junior = /^J(PI|SR|SD|MM|VE)-\1(DTECH|FOOD)$/.exec(raw);
+  const junior = /^J(PI|SR|SD|MM|VE)-\1(DTECH|FOOD|WOOD)$/.exec(raw);
   const bareJuniorDtech = !raw.includes('-') && JUNIOR_DTECH_CLASS_CODES.test(raw);
   code = subjectCode(code);
   const value = normal(code);
   return courses.filter(course => {
     if ((bareJuniorDtech || junior?.[2] === 'DTECH') && course.course_code.toUpperCase() === 'JDTECH') return true;
     if (junior?.[2] === 'FOOD' && course.course_code.toUpperCase() === 'JFOOD') return true;
+    if (junior?.[2] === 'WOOD' && course.course_code.toUpperCase() === 'JWOOD') return true;
     const base = normal(course.course_code.replace(/-S[12]$/i, ''));
     const candidate = /^[78]/.test(value) ? value.replace(/^[78]J?/, 'J') :
       /^(9|10)/.test(value) ? value.replace(/^(9|10)M?/, 'M') : value;

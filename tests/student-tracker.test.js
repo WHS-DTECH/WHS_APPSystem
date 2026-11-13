@@ -371,14 +371,20 @@ test('real teacher cells retain online and hospitality cooking classes while exc
     .map(course => course.course_code), ['MFOOD-S1']);
   assert.deepEqual(teacherClassCodes('TST/PEER-3-13HOSP-F', [{ code: 'TST' }, { code: 'PEER' }], []).codes, ['3-13HOSP']);
 });
-test('junior timetable aliases match their own DTECH or FOOD Learning Sites', () => {
-  const courses = [{ course_code: 'JDTECH' }, { course_code: 'JFOOD' }];
+test('junior timetable aliases match their own DTECH, FOOD or WOOD Learning Sites', () => {
+  const courses = [{ course_code: 'JDTECH' }, { course_code: 'JFOOD' }, { course_code: 'JWOOD' }];
   for (const code of ['JMM-MMDTECH', 'JPI-PIDTECH', 'JSR-SRDTECH', 'JVE-VEDTECH']) {
     assert.deepEqual(matchingCourses(code, courses).map(course => course.course_code), ['JDTECH']);
   }
   assert.deepEqual(matchingCourses('JSD-SDFOOD', courses).map(course => course.course_code), ['JFOOD']);
+  for (const code of ['JMM-MMWOOD', 'JPI-PIWOOD', 'JSR-SRWOOD', 'JVE-VEWOOD']) {
+    assert.deepEqual(matchingCourses(code, courses).map(course => course.course_code), ['JWOOD']);
+  }
   assert.deepEqual(matchingCourses('JSD-SDSCI', courses), []);
   assert.deepEqual(matchingCourses('JMM-PIDTECH', courses), []);
+  const withoutGroup = teacherClassCodes('-11HOSP-F;-UNKNOWN-F', [], [{ course_code: '11HOSP' }]);
+  assert.deepEqual(withoutGroup.codes, ['11HOSP']);
+  assert.deepEqual(withoutGroup.excluded, ['-UNKNOWN-F']);
 });
 test('HOSPCOOK and DTONLINE are selectable without revealing or broadening individual cooking entries', async () => {
   const { service, input, state } = fixture();
