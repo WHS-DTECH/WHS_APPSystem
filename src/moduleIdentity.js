@@ -37,8 +37,9 @@ async function authorisedModuleUser(userId, moduleKey, dbQuery = query) {
         )))`, [userId, moduleKey])).rows[0];
 }
 
-function createModuleIdentityRouter({ dbQuery = query, directoryQuery = kamarQuery, schoolCalendar = loadSchoolCalendar } = {}) {
+function createModuleIdentityRouter({ dbQuery = query, directoryQuery = kamarQuery, schoolCalendar = loadSchoolCalendar, trackerService } = {}) {
   const router = express.Router();
+  const tracker = trackerService || require('./studentTracker').createStudentTrackerService({ dbQuery, directoryQuery });
   const search = createModuleSearch({ dbQuery });
   router.use((req, res, next) => {
     res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
@@ -177,6 +178,19 @@ function createModuleIdentityRouter({ dbQuery = query, directoryQuery = kamarQue
     if (!opaque(token)) return deny(res, 'Invalid module sign-out request.', 401);
     await dbQuery('DELETE FROM module_identity_grants WHERE token_hash=$1', [hash(token)]);
     res.json({ signedOut: true });
+  }));
+  router.post('/student-tracker', wrap(async (req, res) => {
+    const user = await identity(req, res);
+    if (!user) return;
+    if (req.body.client_id?.split(':')[0] !== 'whs-techstudent-tracker') {
+      return deny(res, 'Student Tracker records are restricted to the registered Student Tracker app.');
+    }
+    try { res.json(await tracker.run(user, req.body)); }
+    catch (error) {
+      console.error('Student Tracker request failed:', error.status ? error.message : 'Data source unavailable.');
+      res.status(error.status || 502).json({ error: error.status ? error.message :
+        'Student Tracker data could not be loaded. Check the Kamar Uploader, Tracker setup and Planner database, then retry.' });
+    }
   }));
   return router;
 }

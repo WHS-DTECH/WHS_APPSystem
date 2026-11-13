@@ -1592,6 +1592,35 @@ subscription, connect Google Drive, or run an import. Administrators must first
 import the attendance for that teacher and publish the school term dates.
 Unrecorded marks remain blank, and opening Attendance never overwrites marks.
 
+### Student Tracker
+
+The independent `whs-techstudent-tracker` app uses the authenticated
+`POST /module-auth/student-tracker` bridge. Its opaque grant is checked against
+the registered Tracker client and the caller's current Global Control access on
+every request. No KAMAR or Planner database credentials are sent to the app.
+
+**Setup Student Tracker** lets Global ADMIN create department records and assign
+HoLA accounts. Assigned HoLAs may change their own department's exact subject
+codes, selected from Kamar Uploader timetables, but cannot grant themselves or
+others management rights. They also need an app role through Global Control.
+Settings live in Core's `student_tracker_departments` table (migration 053).
+Department staff with Tracker access and teaching assignments in linked subjects,
+assigned HoLAs and Global ADMIN may read the department's student profiles.
+This explicitly shares relevant teachers' Planner draft reports and teaching-log
+attendance with those authorised department staff; it does not publish or change
+the original records. Unrelated students, subjects and marks are excluded.
+
+Student search, profiles and timetables read only Kamar Uploader's current and
+preserved term timetables. Attendance and report drafts read the existing Planner
+database. Attendance starts at the current/latest finished term with published
+dates. Historical attendance requires that term's preserved student timetable;
+only the current term may use the current upload if a snapshot is absent.
+Reports History currently displays the working JuniorDTECH/MiddleDTECH draft
+records for the selected school year, not official KAMAR report history.
+Behaviour and Assessment remain disabled buttons with no pages or data sources.
+Use the year selector to explore another year's imported records. Missing
+uploads, unpublished dates and source outages are displayed explicitly.
+
 The shared **Duty Roster** setup has moved from Setup My Planner to the
 ADMIN-only Kamar Uploader **Duty Roster** page. Administrators configure the
 shared source document, term settings and staff-code mappings there; weekly duty
