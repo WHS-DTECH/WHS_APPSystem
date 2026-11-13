@@ -831,13 +831,17 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(groups[0][2], />Planning<\/h2>/);
   assert.match(groups[1][2], />Setup<\/h2>/);
   assert.match(groups[2][2], />Section Modules<\/h2>/);
-  assert.equal([...groups[2][2].matchAll(/disabled title="Page coming soon"/g)].length, 2);
+  assert.equal([...groups[2][2].matchAll(/disabled title="Page coming soon"/g)].length, 0);
   assert.doesNotMatch(groups[2][2], /Behaviour Management/);
   assert.match(groups[2][2], /<a href="https:\/\/core\.example\.test\/launchpad\/apps\/whs-techstudent-tracker" target="_blank" rel="noopener" title="Open Student Tracker in a new tab">Student Tracker<\/a>/);
   assert.match(groups[2][2], /<a href="https:\/\/core\.example\.test\/launchpad\/apps\/relief-plan" target="_blank" rel="noopener" title="Open Relief Library in a new tab">Relief Library<\/a>/);
+  assert.match(groups[2][2], /<a href="https:\/\/core\.example\.test\/launchpad\/apps\/whs-unit-library" target="_blank" rel="noopener" title="Open WHS Unit Library in a new tab">Lesson<\/a>/);
+  assert.match(groups[2][2], /<a href="https:\/\/core\.example\.test\/launchpad\/apps\/whs-assessment-manager" target="_blank" rel="noopener" title="Open WHS Assessment Manager in a new tab">Assessment<\/a>/);
   const embedded = renderShell({ baseUrl: '/teacher-planner/', coreUrl: '', standalone: false });
   assert.match(embedded, /href="\/launchpad\/apps\/whs-techstudent-tracker"/);
   assert.match(embedded, /href="\/launchpad\/apps\/relief-plan"/);
+  assert.match(embedded, /href="\/launchpad\/apps\/whs-unit-library"/);
+  assert.match(embedded, /href="\/launchpad\/apps\/whs-assessment-manager"/);
   assert.match(html, /planner\.css\?v=reporting-35/);
   assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=manual-sync-34"'));
   assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=manual-sync-34"'));
@@ -916,6 +920,9 @@ test('module denies anonymous/student access and accepts a supplied teacher iden
     assert.match(response.headers.get('content-type'), /text\/html/);
     const html = await response.text();
     assert.match(html, /framework\/whs-logo.png/);
+    assert.match(html, /framework\/assessment-manager\.js/);
+    assert.match(html, /framework\/assessment-manager\.css/);
+    assert.match(html, /id="assessment-manager-content"/);
     assert.match(html, /Last Updated:/);
     assert.match(html, /id="planner-year"[^>]*value="2026"/);
     assert.match(html, /data-api="\/module\/api\/planner\/"/);
