@@ -1,5 +1,6 @@
+const normaliseDirectoryName = value => (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
 function departmentDirectory(rows, staff) {
-  const normal = value => (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const normal = normaliseDirectoryName;
   const departments = new Map();
   function department(name) {
     name = name.trim();
@@ -17,7 +18,8 @@ function departmentDirectory(rows, staff) {
       const name = [person.first_name?.trim(), person.last_name?.trim()].filter(Boolean).join(' ') +
         (matches.length === 1 && person.code?.trim() ? ' (' + person.code.trim() + ')' : '');
       department(role.department).leaders.push({ name, role: role.role, acting: Boolean(role.acting),
-        onLeave: Boolean(role.onLeave), source: role.source, reviewedOn: role.reviewedOn });
+        onLeave: Boolean(role.onLeave), source: role.source, reviewedOn: role.reviewedOn,
+        staffCode: matches.length === 1 ? person.code?.trim().toUpperCase() || '' : '' });
     }
   }
   return [...departments.values()].sort((a, b) => a.name.localeCompare(b.name, 'en-NZ')).map(item => {
@@ -32,4 +34,4 @@ async function loadDepartments(dbQuery, staff) {
     FROM public.department ORDER BY id`);
   return departmentDirectory(result.rows, staff);
 }
-module.exports = { departmentDirectory, loadDepartments };
+module.exports = { departmentDirectory, loadDepartments, normaliseDirectoryName };

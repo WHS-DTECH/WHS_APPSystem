@@ -2,7 +2,7 @@ const { Pool } = require('pg');
 const { buildStudentHeaderMap, mapStudentRow } = require('./legacy/kamar-uploader/studentTimetable');
 const { classCode } = require('./legacy/teacher-planner/public/attendance');
 const reporting = require('./legacy/teacher-planner/public/reporting-schema');
-const { loadDepartments } = require('./legacy/kamar-uploader/departments');
+const { loadDepartments, normaliseDirectoryName } = require('./legacy/kamar-uploader/departments');
 
 const UUID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 const columns = ['mon', 'tue', 'wed', 'thu', 'fri']
@@ -63,19 +63,63 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
     return (await directoryQuery(`SELECT upper(trim(code)) AS code,lower(trim(email_school)) AS email,
       first_name,last_name FROM staff_upload WHERE status='Current'`)).rows;
   }
+  async function leadership(staff) {
+    const emails = [...new Set(staff.map(person => person.email).filter(Boolean))];
+    const [choices, accounts] = await Promise.all([
+      loadDepartments(dbQuery, staff),
+      dbQuery(`SELECT u.id::text,u.email,u.display_name,
+        EXISTS (SELECT 1 FROM user_hub_roles ur JOIN hub_roles r ON r.id=ur.hub_role_id
+          WHERE ur.user_id=u.id AND ur.area_key IS NULL
+          AND r.hub_key='whs-techstudent-tracker' AND r.role_key='lead-teacher') AS lead_teacher,
+        EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id=ur.role_id
+          WHERE ur.user_id=u.id AND lower(r.name)='student') AS student_account
+        FROM users u WHERE u.is_active=true AND lower(trim(u.email))=ANY($1::text[])
+        ORDER BY u.display_name`, [emails])
+    ]);
+    const staffAccounts = accounts.rows.flatMap(account => {
+      const email = account.email.trim().toLowerCase();
+      const matches = staff.filter(person => person.email === email);
+      if (account.student_account || matches.length !== 1 ||
+          accounts.rows.filter(other => other.email.trim().toLowerCase() === email).length !== 1) return [];
+      return [{ ...account, staff: matches[0] }];
+    });
+    const verified = staffAccounts.flatMap(account => {
+      if (!account.lead_teacher) return [];
+      const person = account.staff, name = normaliseDirectoryName([person.first_name, person.last_name].filter(Boolean).join(' '));
+      if (!person.code || !name || name !== normaliseDirectoryName(account.display_name) ||
+          staff.filter(other => other.code === person.code).length !== 1) return [];
+      return [{ id: account.id, display_name: account.display_name, staffCode: person.code }];
+    });
+    const departmentOptions = choices.map(choice => {
+      const leader = choice.leaders.find(item => item.name === choice.teacher && !item.onLeave &&
+        ['HOL', 'HOLA'].includes(item.role) && item.source && item.reviewedOn && item.staffCode);
+      return { ...choice, managerIds: leader ? verified.filter(person => person.staffCode === leader.staffCode).map(person => person.id) : [] };
+    });
+    const ids = new Set(departmentOptions.flatMap(choice => choice.managerIds));
+    return { departmentOptions, staffIds: staffAccounts.map(account => account.id), users: verified.filter(person => ids.has(person.id))
+      .map(({ id, display_name }) => ({ id, display_name })) };
+  }
+  function managersFor(leadership, name) {
+    return leadership.departmentOptions.find(choice => normaliseDirectoryName(choice.name) === normaliseDirectoryName(name))?.managerIds || [];
+  }
   async function scope(user, year) {
     const [departments, staff, tables] = await Promise.all([
       dbQuery('SELECT id,name,manager_ids,subjects,revision FROM student_tracker_departments ORDER BY name'),
       staffRows(),
       timetables(year)
     ]);
+    const leaders = await leadership(staff);
+    if (!user.roles.includes('ADMIN') && !leaders.staffIds.includes(user.id)) {
+      throw error('Student Tracker is staff-only. Your account must match one current KAMAR staff record and must not be a student account.', 403);
+    }
     const staffCodes = staff.filter(row => row.email === user.email.trim().toLowerCase()).map(row => row.code);
     const taught = new Set(tables.flatMap(table => table.rows.flatMap(row => lessons(row)))
       .filter(lesson => lesson.staffCodes.some(code => staffCodes.includes(code))).map(lesson => lesson.subject));
     const admin = user.roles.includes('ADMIN');
-    const visible = departments.rows.filter(department => admin || department.manager_ids.includes(user.id) ||
+    const visible = departments.rows.map(department => ({ ...department, manager_ids: managersFor(leaders, department.name) }))
+      .filter(department => admin || department.manager_ids.includes(user.id) ||
       department.subjects.some(subject => taught.has(subject)));
-    return { admin, departments: visible, tables, staff };
+    return { admin, departments: visible, tables, staff, ...leaders };
   }
   function departmentFor(context, id) {
     const department = context.departments.find(item => item.id === id);
@@ -124,17 +168,18 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
         [department.id])).rows[0] : null;
       if (department.id && !existing) throw error('The department no longer exists. Reload setup.', 404);
       const admin = user.roles.includes('ADMIN');
-      if (!admin && !existing?.manager_ids.includes(user.id)) throw error('Only Global ADMIN or an authorised department HoLA can change this setup.', 403);
-      const choices = await loadDepartments(dbQuery, await staffRows());
-      if (!choices.some(item => item.name === department.name.trim()) && department.name.trim() !== existing?.name) {
+      const leaders = await leadership(await staffRows());
+      if (!admin && (!existing || !managersFor(leaders, existing.name).includes(user.id))) {
+        throw error('Only Global ADMIN or a verified website HoLA with the Student Tracker Lead Teacher role can change this setup.', 403);
+      }
+      if (!leaders.departmentOptions.some(item => item.name === department.name.trim()) && department.name.trim() !== existing?.name) {
         throw error('Choose a department from Kamar Uploader. Reload setup if the directory has changed.');
       }
-      const managers = admin ? department.managerIds : existing.manager_ids;
-      if (!Array.isArray(managers) || managers.length > 30 || !managers.every(id => typeof id === 'string' && UUID.test(id)) ||
-          new Set(managers).size !== managers.length) throw error('Choose valid HoLA accounts.');
-      if (admin && managers.length) {
-        const active = (await dbQuery('SELECT id FROM users WHERE is_active=true AND id=ANY($1::uuid[])', [managers])).rows;
-        if (active.length !== managers.length) throw error('Choose active HoLA accounts.');
+      const managers = managersFor(leaders, department.name.trim());
+      if (!admin && !managers.includes(user.id)) throw error('You cannot move this setup to a department you do not lead.', 403);
+      if (department.managerIds !== undefined && (!Array.isArray(department.managerIds) ||
+          department.managerIds.length !== managers.length || !managers.every(id => department.managerIds.includes(id)))) {
+        throw error('HoLA access is automatic from verified staff, Lead Teacher roles and website leadership. Reload setup; manual assignments are not accepted.');
       }
       const observed = new Set((await timetables(year)).flatMap(table => table.rows.flatMap(row => lessons(row).map(lesson => lesson.subject))));
       if (department.subjects.some(subject => !observed.has(subject) && !existing?.subjects.includes(subject))) {
@@ -155,15 +200,11 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
     const context = await scope(user, year);
     if (action === 'setup') {
       const subjects = [...new Set(context.tables.flatMap(table => table.rows.flatMap(row => lessons(row).map(lesson => lesson.subject))))].sort();
-      const [departmentOptions, users] = await Promise.all([
-        loadDepartments(dbQuery, context.staff),
-        context.admin ? dbQuery('SELECT id::text,display_name FROM users WHERE is_active=true ORDER BY display_name')
-          .then(result => result.rows) : Promise.resolve([])
-      ]);
-      return { admin: context.admin, subjects, users, departmentOptions, departments: context.departments.map(item => ({
+      return { admin: context.admin, subjects, users: context.users, departmentOptions: context.departmentOptions,
+        automaticHolaAccess: true, departments: context.departments.map(item => ({
         id: item.id, name: item.name, subjects: item.subjects, revision: item.revision,
         canManage: context.admin || item.manager_ids.includes(user.id),
-        ...(context.admin ? { managerIds: item.manager_ids } : {})
+        managerIds: item.manager_ids
       })) };
     }
     const department = departmentFor(context, input.departmentId);

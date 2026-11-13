@@ -1599,19 +1599,26 @@ The independent `whs-techstudent-tracker` app uses the authenticated
 the registered Tracker client and the caller's current Global Control access on
 every request. No KAMAR or Planner database credentials are sent to the app.
 
-**Setup Student Tracker** lets Global ADMIN create department records and assign
-HoLA accounts. The department dropdown and adjacent website leadership panel use
-the shared Kamar Uploader directory, exactly as Moderation does. Acting leaders
-take priority and leaders on leave are not selected; ambiguous leadership is
-shown without guessing. Displaying website leadership never grants authority.
+**Setup Student Tracker** lets Global ADMIN create department records. HoLA
+management is automatic only when a unique current KAMAR staff school email maps
+to one active, non-student Core account, its signed-in display name matches the
+staff/website name, and it holds the **Student Tracker Lead Teacher** role.
+The department dropdown and adjacent website leadership panel use the shared
+Kamar Uploader directory, exactly as Moderation does. A single available,
+reviewed website HOL/HOLA must match that staff code. Acting leaders take priority;
+leaders on leave, ambiguous identities and TIC-only appointments grant no HoLA
+authority. The authorised list contains only these verified staff, never students.
+These checks run on every request; removing the role or changing the website
+appointment withdraws management immediately. Website leadership alone is
+insufficient, and old/manual `manager_ids` never bypass these checks.
 Existing department names removed from the directory remain labelled saved
-values; new names must come from the directory. Assigned HoLAs may change their
+values; new names must come from the directory. Verified HoLAs may change their
 own department's exact subject codes, selected from Kamar Uploader timetables,
 but cannot grant themselves or
 others management rights. They also need an app role through Global Control.
 Settings live in Core's `student_tracker_departments` table (migration 053).
 Department staff with Tracker access and teaching assignments in linked subjects,
-assigned HoLAs and Global ADMIN may read the department's student profiles.
+verified HoLAs and Global ADMIN may read the department's student profiles.
 This explicitly shares relevant teachers' Planner draft reports and teaching-log
 attendance with those authorised department staff; it does not publish or change
 the original records. Unrelated students, subjects and marks are excluded.

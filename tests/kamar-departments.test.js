@@ -21,6 +21,7 @@ test('department leadership matches Kamar names, retains substantive leaders and
     { first_name: 'Siobhan', last_name: "O'Malley", code: 'SOM' }];
   const result = departmentDirectory(rows, staff);
   assert.equal(result.find(item => item.name === 'P.E. / Health').teacher, 'Mike Talbot (MTA)');
+  assert.equal(result.find(item => item.name === 'P.E. / Health').leaders.find(leader => leader.acting).staffCode, 'MTA');
   assert.equal(result.find(item => item.name === 'P.E. / Health').leaders.length, 2);
   assert.equal(result.find(item => item.name === 'Outdoor Education').teacher, 'Mike Talbot (MTA)');
   assert.equal(result.find(item => item.name === 'English').teacher, "Siobhan O'Malley (SOM)");
@@ -33,6 +34,7 @@ test('ambiguous or unavailable leaders are not guessed; legacy assignments still
   assert.equal(result.find(item => item.name === 'Technology').teacher, '');
   const onLeave = departmentDirectory([{ ...leader, leadership_roles: [{ ...leader.leadership_roles[0], onLeave: true }] }], []);
   assert.equal(onLeave.find(item => item.name === 'Science').teacher, '');
+  assert.equal(onLeave.find(item => item.name === 'Science').leaders[0].staffCode, '');
   assert.throws(() => departmentDirectory([{ ...leader, leadership_roles: [{ department: 'Science', role: 'invalid' }] }], []), /Invalid/);
 });
 test('Food Room cannot bulk-delete the shared Kamar department directory', async t => {

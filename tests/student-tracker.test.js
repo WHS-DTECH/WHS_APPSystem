@@ -19,10 +19,20 @@ function fixture() {
     { first_name: 'Synthetic', last_name: 'Teacher', department: 'Technology', leadership_roles: [
       { department: 'Technology', role: 'HOL', acting: false, onLeave: true }] },
     { first_name: 'Synthetic', last_name: 'Peer', department: 'Science', leadership_roles: [
-      { department: 'Technology', role: 'HOLA', acting: true, onLeave: false, reviewedOn: '2026-11-01' }] }
+      { department: 'Technology', role: 'HOLA', acting: true, onLeave: false, reviewedOn: '2026-11-01',
+        source: 'https://www.westlandhigh.school.nz/intranet/staff-at-westland-high/' }] }
+  ];
+  const staff = [
+    { code: 'TST', email: 'teacher@example.test', first_name: 'Synthetic', last_name: 'Teacher' },
+    { code: 'PEER', email: 'peer@example.test', first_name: 'Synthetic', last_name: 'Peer' }
+  ];
+  const accounts = [
+    { id: teacherId, email: 'teacher@example.test', display_name: 'Synthetic Teacher', lead_teacher: false, student_account: false },
+    { id: peerId, email: 'peer@example.test', display_name: 'Synthetic Peer', lead_teacher: true, student_account: false },
+    { id: managerId, email: 'student@example.test', display_name: 'Synthetic Student', lead_teacher: true, student_account: true }
   ];
   const state = { department, row, catalog, plannerCalls: [], writes: [], failPlanner: false, conflict: false, hasSnapshot: true,
-    failDirectory: false };
+    failDirectory: false, staff, accounts };
   const service = createStudentTrackerService({
     today: () => '2026-11-13',
     dbQuery: async (sql, params) => {
@@ -33,8 +43,11 @@ function fixture() {
         if (state.failDirectory) throw new Error('Shared department directory unavailable');
         return { rows: catalog };
       }
-      if (sql.startsWith('SELECT id FROM users')) return { rows: params[0]
-        .filter(id => [managerId, teacherId, peerId].includes(id)).map(id => ({ id })) };
+      if (sql.includes('AS lead_teacher')) {
+        assert.match(sql, /r.hub_key='whs-techstudent-tracker' AND r.role_key='lead-teacher'/);
+        assert.match(sql, /ur.area_key IS NULL/);
+        return { rows: accounts };
+      }
       if (sql.includes('FROM users')) return { rows: [
         { id: teacherId, email: 'teacher@example.test', display_name: 'Teacher' },
         { id: peerId, email: 'peer@example.test', display_name: 'Peer Teacher' }
@@ -48,10 +61,7 @@ function fixture() {
       assert.doesNotMatch(sql, /planner_sections|planner_attendance_marks|FROM users/);
       if (sql.includes('FROM student_upload')) return { rows: [row,
         { id_number: '200', student_name: 'Unlinked Student', year_level: '8', mon_p1_1: 'OTHER-MATH-A' }] };
-      if (sql.includes('FROM staff_upload')) return { rows: [
-        { code: 'TST', email: 'teacher@example.test', first_name: 'Synthetic', last_name: 'Teacher' },
-        { code: 'PEER', email: 'peer@example.test', first_name: 'Synthetic', last_name: 'Peer' }
-      ] };
+      if (sql.includes('FROM staff_upload')) return { rows: staff };
       if (sql.includes('FROM kamar_datasets')) return { rows: state.hasSnapshot ? [{ term: 4, payload: {
         headers: ['Student Name', 'ID Number', 'Year Level', 'Mon P1', 'Mon P1', 'Fri P3', 'Tue P2'],
         rows: [['Synthetic Student', '100', '8', 'TST-PIDTECH-CW', '', 'PEER-PIDTECH-05', 'OTHER-MATH-A']]
@@ -105,22 +115,26 @@ test('department staff can read peer report drafts and term marks only for linke
   await assert.rejects(service.run(teacher, { ...input, action: 'attendance', term: 1 }), { status: 404 });
   assert.equal(plannerCalls.filter(call => call.sql.includes('planner_attendance_marks')).length, 1);
 });
-test('only assigned HoLAs may edit departments and they cannot change their own authority', async () => {
+test('verified website HoLAs with current module Lead Teacher roles can manage only their department', async () => {
   const { service, input, department, state } = fixture();
-  const changes = { ...department, name: 'Science', managerIds: [teacherId] };
+  const changes = { ...department, managerIds: [peerId] };
   await assert.rejects(service.run(teacher, { ...input, action: 'save-setup', department: changes }), { status: 403 });
-  const manager = { ...teacher, id: managerId };
+  const manager = { ...teacher, id: peerId, email: 'peer@example.test' };
   const setup = await service.run(manager, { ...input, action: 'setup' });
   assert.equal(setup.departments[0].canManage, true);
-  assert.equal(setup.departments[0].managerIds, undefined);
+  assert.deepEqual(setup.departments[0].managerIds, [peerId]);
   await service.run(manager, { ...input, action: 'save-setup', department: changes });
-  assert.deepEqual(state.writes[0][3], [managerId], 'only ADMIN can change HoLA authority');
+  assert.deepEqual(state.writes[0][3], [peerId], 'authority is derived from live identity, role and reviewed website listing');
+  await assert.rejects(service.run(manager, { ...input, action: 'save-setup',
+    department: { ...changes, name: 'Science' } }), { status: 403 });
+  await assert.rejects(service.run(manager, { ...input, action: 'save-setup',
+    department: { ...changes, managerIds: [teacherId] } }), /manual assignments are not accepted/);
   state.conflict = true;
   await assert.rejects(service.run(manager, { ...input, action: 'save-setup', department: changes }), { status: 409 });
   await assert.rejects(service.run(manager, { ...input, action: 'save-setup',
     department: { ...changes, subjects: ['FAKE'] } }), /uploaded KAMAR/);
 });
-test('setup reuses the shared Kamar department directory and website acting leadership without granting authority', async () => {
+test('setup lists only verified staff Lead Teacher HoLAs, never students or unrelated active accounts', async () => {
   const { service, input, state } = fixture();
   const setup = await service.run(teacher, { ...input, action: 'setup' });
   assert.deepEqual(setup.departmentOptions.map(item => item.name), ['Science', 'Technology']);
@@ -129,14 +143,18 @@ test('setup reuses the shared Kamar department directory and website acting lead
   assert.equal(technology.leaders.find(item => item.onLeave).name, 'Synthetic Teacher (TST)');
   assert.equal(technology.leaders.find(item => item.acting).reviewedOn, '2026-11-01');
   assert.equal(setup.departments[0].canManage, false);
+  assert.deepEqual(setup.users, [{ id: peerId, display_name: 'Synthetic Peer' }]);
+  assert.deepEqual(technology.managerIds, [peerId]);
+  assert.deepEqual(setup.departments[0].managerIds, [peerId]);
+  assert.equal(setup.automaticHolaAccess, true);
   assert.deepEqual(state.department.manager_ids, [managerId]);
   state.failDirectory = true;
   await assert.rejects(service.run(teacher, { ...input, action: 'setup' }), /Shared department directory unavailable/);
-  assert.equal((await service.run(teacher, { ...input, action: 'profile' })).student.name, 'Synthetic Student');
+  await assert.rejects(service.run(teacher, { ...input, action: 'profile' }), /Shared department directory unavailable/);
 });
 test('setup rejects invented department names but preserves an existing name removed from the shared directory', async () => {
   const { service, input, department, state } = fixture();
-  const manager = { ...teacher, id: managerId };
+  const manager = { ...teacher, roles: ['ADMIN'] };
   await assert.rejects(service.run(manager, { ...input, action: 'save-setup',
     department: { ...department, name: 'Invented Faculty' } }), /department from Kamar Uploader/);
   department.name = 'Saved Faculty';
@@ -156,17 +174,57 @@ test('current term attendance can use the current upload but previous terms neve
   assert.equal(result.marks.length, 2);
   await assert.rejects(service.run(teacher, { ...input, action: 'attendance', term: 1 }), /No preserved timetable/);
 });
-test('ADMIN authorises active managers but a stale department id never creates a replacement', async () => {
+test('ADMIN cannot manually grant a student or unrelated account HoLA rights or replace a stale department id', async () => {
   const { service, input, department, state } = fixture();
   const admin = { ...teacher, roles: ['ADMIN'] };
-  const changes = { ...department, managerIds: [teacherId] };
+  const changes = { ...department, managerIds: [peerId] };
   await service.run(admin, { ...input, action: 'save-setup', department: changes });
-  assert.deepEqual(state.writes[0][3], [teacherId]);
+  assert.deepEqual(state.writes[0][3], [peerId]);
   await assert.rejects(service.run(admin, { ...input, action: 'save-setup',
     department: { ...changes, id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' } }), { status: 404 });
   await assert.rejects(service.run(admin, { ...input, action: 'save-setup',
-    department: { ...changes, managerIds: ['eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'] } }), /active HoLA/);
+    department: { ...changes, managerIds: [managerId] } }), /manual assignments are not accepted/);
   assert.equal(state.writes.length, 1);
+});
+test('HoLA management is withdrawn immediately on missing roles, identity mismatch, leave or ambiguous website data', async () => {
+  const cases = [
+    state => { state.accounts[1].lead_teacher = false; },
+    state => { state.accounts[1].display_name = 'Different Name'; },
+    state => { state.accounts[1].email = 'student@example.test'; },
+    state => { state.accounts[1].student_account = true; },
+    state => { state.catalog[1].leadership_roles[0].onLeave = true; },
+    state => { state.catalog[1].leadership_roles[0].source = undefined; },
+    state => { state.catalog[1].leadership_roles[0].reviewedOn = undefined; },
+    state => { state.catalog[1].leadership_roles[0].role = 'TIC'; },
+    state => { state.catalog[1].leadership_roles.push({ ...state.catalog[1].leadership_roles[0] }); },
+    state => { state.accounts.push({ ...state.accounts[1], id: managerId }); },
+    state => { state.staff.push({ ...state.staff[1], code: 'DUP', first_name: 'Other' }); }
+  ];
+  for (const mutate of cases) {
+    const { service, input, state } = fixture();
+    state.department.manager_ids = [peerId];
+    state.department.subjects = [];
+    mutate(state);
+    const user = { ...teacher, id: peerId, email: 'peer@example.test', module_roles: ['lead-teacher'] };
+    try {
+      const setup = await service.run(user, { ...input, action: 'setup' });
+      assert.equal(setup.departments.length, 0, 'stale stored grants and caller role hints never bypass live checks');
+      assert.deepEqual(setup.users, []);
+    } catch (error) {
+      assert.equal(error.status, 403);
+      assert.match(error.message, /staff-only/);
+    }
+    await assert.rejects(service.run(user, { ...input, action: 'save-setup',
+      department: { ...state.department } }), { status: 403 });
+  }
+});
+test('a verified HoLA without teaching assignments can access its department; legacy managers cannot', async () => {
+  const { service, input, state } = fixture();
+  state.department.subjects = [];
+  const manager = { ...teacher, id: peerId, email: 'peer@example.test' };
+  assert.equal((await service.run(manager, { ...input, action: 'setup' })).departments[0].canManage, true);
+  const legacy = { ...teacher, id: managerId, email: 'student@example.test' };
+  await assert.rejects(service.run(legacy, { ...input, action: 'setup' }), { status: 403 });
 });
 test('source outages and malformed snapshots fail explicitly instead of returning empty history', async () => {
   const { service, input, state } = fixture();
