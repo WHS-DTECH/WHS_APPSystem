@@ -1,4 +1,4 @@
-const UPDATED_AT = '2026-10-18T21:25:00.000Z';
+const UPDATED_AT = '2026-11-13T18:40:00.000Z';
 const escape = (value) => String(value).replace(/[&<>"']/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
 }[char]));
@@ -61,8 +61,8 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
       <button type="button" data-section="moderation">Moderation</button>
       <button type="button" data-section="standards">Teaching Standards</button>
       <button type="button" data-section="learning">Professional learning</button>
-      <button type="button" disabled title="Page coming soon">Behaviour Management</button>
       <a href="${escape(coreUrl)}/launchpad/apps/whs-techstudent-tracker" target="_blank" rel="noopener" title="Open Student Tracker in a new tab">Student Tracker</a>
+      <a href="${escape(coreUrl)}/launchpad/apps/relief-plan" target="_blank" rel="noopener" title="Open Relief Library in a new tab">Relief Library</a>
       <button type="button" disabled title="Page coming soon">Lesson</button>
       <button type="button" disabled title="Page coming soon">Assessment</button>
       <button type="button" data-section="reporting">Reporting</button>
