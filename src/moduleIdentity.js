@@ -194,6 +194,19 @@ function createModuleIdentityRouter({ dbQuery = query, directoryQuery = kamarQue
         'Student Tracker data could not be loaded. Check the Kamar Uploader, Tracker setup and Planner database, then retry.' });
     }
   }));
+  router.post('/learning-area-profiles', wrap(async (req, res) => {
+    const user = await identity(req, res);
+    if (!user) return;
+    if (req.body.client_id?.split(':')[0] !== 'whs-unit-library') {
+      return deny(res, 'Learning Area Profiles are restricted to the registered WHS Unit Library app.');
+    }
+    try { res.json(await tracker.learningAreas(user, { year: req.body.year })); }
+    catch (error) {
+      console.error('Learning Area Profiles request failed:', error.status ? error.message : 'Data source unavailable.');
+      res.status(error.status || 502).json({ error: error.status ? error.message :
+        'Learning Area Profiles could not be loaded. Check the department directory, KAMAR staff timetables and Student Tracker setup, then retry.' });
+    }
+  }));
   return router;
 }
 

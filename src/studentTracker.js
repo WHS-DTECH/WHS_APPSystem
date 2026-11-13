@@ -391,6 +391,50 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       throw error('Choose current staff from the teacher list. Students and ambiguous staff records cannot be authorised.');
     }
   }
+  async function learningAreas(user, { year } = {}) {
+    if (!user?.roles?.some(role => ['ADMIN', 'Teacher'].includes(role))) throw error('Staff access is required.', 403);
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) throw error('Choose a year from 2000 to 2100.');
+    const [departments, staff] = await Promise.all([
+      dbQuery('SELECT id,name,manager_ids,subjects,revision,teacher_emails,class_links FROM student_tracker_departments ORDER BY name'),
+      staffRows()
+    ]);
+    const leaders = await leadership(staff);
+    if (!user.roles.includes('ADMIN') && !leaders.staffIds.includes(user.id)) {
+      throw error('Learning Area Profiles are staff-only. Your account must match one current KAMAR staff record and must not be a student account.', 403);
+    }
+    const candidates = await teacherLinks(leaders.candidates, year);
+    return { year, departments: leaders.departmentOptions.map(choice => {
+      const configured = departments.rows.filter(item => normaliseDirectoryName(item.name) === normaliseDirectoryName(choice.name));
+      if (configured.length > 1) throw error('Duplicate Tracker department setup. Ask an administrator to review ' + choice.name + '.', 409);
+      const department = configured[0];
+      const emails = department ? [...new Set([
+        ...automaticTeachers(leaders, department.name), ...(department.teacher_emails || [])
+      ])].filter(email => candidates.some(person => person.email === email)) : [];
+      const saved = department ? savedClassLinks(department, year) : [];
+      const links = availableLinks(candidates, emails, saved);
+      const leader = choice.leaders.find(item => item.name === choice.teacher && !item.onLeave &&
+        ['HOL', 'HOLA'].includes(item.role) && item.source && item.reviewedOn && item.staffCode);
+      return {
+        id: normaliseDirectoryName(choice.name), name: choice.name,
+        leader: leader ? { name: leader.name, staffCode: leader.staffCode, acting: leader.acting,
+          role: leader.role, reviewedOn: leader.reviewedOn } : null,
+        teachers: candidates.filter(person => emails.includes(person.email))
+          .map(person => ({ name: person.name, staffCode: person.code })),
+        classes: links.map(link => {
+          const subject = discipline(link.code);
+          const group = disciplineGroups.find(group => group.subjects.includes(subject));
+          return { disciplineId: group?.id || 'subject_' + subject, discipline: group?.label || subject,
+            subject, course: link.subject, classCode: link.code, teacher: link.teacherName, staffCode: link.staffCode,
+            sources: [...new Set(link.sources.map(source => source.term))] };
+        }),
+        warnings: [
+          ...(!department ? ['This department has not been configured in Student Tracker; teaching assignments are unavailable.'] : []),
+          ...(saved.length > links.length ? ["Some saved class links could not be confirmed against the selected year's staff timetables."] : []),
+          ...(department && !saved.length ? ['No teaching groups are linked for this department and school year.'] : [])
+        ]
+      };
+    }), notice: 'Department leadership comes from the reviewed shared directory. Teaching groups use approved Student Tracker class links and KAMAR staff timetables for the selected year. Current and preserved sources are labelled; they do not prove continuing enrolment. No student records are included.' };
+  }
   async function scope(user, year) {
     const [departments, staff, tables] = await Promise.all([
       dbQuery('SELECT id,name,manager_ids,subjects,revision,teacher_emails,class_links FROM student_tracker_departments ORDER BY name'),
@@ -839,6 +883,6 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
     }
     throw error('Unknown Student Tracker action.');
   }
-  return { run };
+  return { run, learningAreas };
 }
 module.exports = { createStudentTrackerService, lessons, termRows, approvedTrackerUser, matchingCourses, teacherClassCodes, subjectFamily };

@@ -34,7 +34,7 @@ function fixture() {
     { id: peerId, email: 'peer@example.test', display_name: 'Synthetic Peer', lead_teacher: true, student_account: false },
     { id: managerId, email: 'student@example.test', display_name: 'Synthetic Student', lead_teacher: true, student_account: true }
   ];
-  const state = { department, row, catalog, extraStudents: [], plannerCalls: [], writes: [], failPlanner: false, conflict: false, hasSnapshot: true,
+  const state = { department, row, catalog, extraStudents: [], directoryCalls: [], plannerCalls: [], writes: [], failPlanner: false, conflict: false, hasSnapshot: true,
     failDirectory: false, studentHistory: null, staff, accounts, teacherRows: [
       { teacher: 'TST', data: { Teacher: 'TST', Mon_P1: 'PIDTECH-CW', Tue_P2: 'MATH-A' } },
       { teacher: 'PEER', data: { Teacher: 'PEER', Fri_P3: 'PIDTECH-05' } }
@@ -78,6 +78,7 @@ function fixture() {
       throw new Error('Unexpected Core query: ' + sql);
     },
     directoryQuery: async (sql, params) => {
+      state.directoryCalls.push(sql);
       assert.doesNotMatch(sql, /planner_sections|planner_attendance_marks|FROM users/);
       if (sql.includes('FROM student_upload')) return { rows: [row,
         { id_number: '200', student_name: 'Unlinked Student', year_level: '8', mon_p1_1: 'OTHER-MATH-A' }, ...state.extraStudents] };
@@ -929,6 +930,72 @@ test('co-timetabled same-subject groups cannot expose unselected groups when stu
   assert.equal((await service.run(teacher, { ...input, action: 'search', classCode: '3-PIDTECH' })).students.length, 0);
   assert.equal((await service.run(teacher, { ...input, action: 'search', classCode: '4-PIDTECH' })).students.length, 1);
 });
+test('Learning Area Profiles reuse confirmed department links without reading or returning student or Planner records', async () => {
+  const { service, state } = fixture();
+  const data = await service.learningAreas(teacher, { year: 2026 });
+  const technology = data.departments.find(item => item.name === 'Technology');
+  assert.equal(technology.leader.staffCode, 'PEER');
+  assert.equal(technology.leader.acting, true);
+  assert.deepEqual(technology.teachers.map(item => item.staffCode).sort(), ['PEER', 'TST']);
+  assert.deepEqual(technology.classes.map(item => [item.subject, item.course, item.classCode]).sort(),
+    [['DTECH', 'PIDTECH', 'PIDTECH'], ['DTECH', 'PIDTECH', 'PIDTECH']]);
+  assert.ok(technology.classes.every(item => item.disciplineId === 'digital_technologies'));
+  assert.ok(technology.classes.every(item => item.sources.includes(null)));
+  assert.match(data.departments.find(item => item.name === 'Science').warnings.join(' '), /not been configured/);
+  assert.equal(state.plannerCalls.length, 0);
+  assert.ok(state.directoryCalls.every(sql => !/student_upload|dataset_type='student_timetable'/.test(sql)));
+  assert.doesNotMatch(JSON.stringify(data), /@|studentIds|student_name|Synthetic Student|k:100|manager_ids/);
+  const previous = await service.learningAreas(teacher, { year: 2025 });
+  assert.equal(previous.departments.find(item => item.name === 'Technology').classes.length, 0);
+  await assert.rejects(service.learningAreas(teacher, { year: '2026' }), { status: 400 });
+  await assert.rejects(service.learningAreas({ ...teacher, roles: ['Student'] }, { year: 2026 }), { status: 403 });
+  await assert.rejects(service.learningAreas({ ...teacher, id: managerId }, { year: 2026 }), { status: 403 });
+  state.catalog[1].leadership_roles[0].onLeave = true;
+  assert.equal((await service.learningAreas(teacher, { year: 2026 })).departments
+    .find(item => item.name === 'Technology').leader, null);
+  state.department.class_links['2026'].push({ teacherEmail: teacher.email, code: 'UNCONFIRMED' });
+  assert.match((await service.learningAreas(teacher, { year: 2026 })).departments
+    .find(item => item.name === 'Technology').warnings.join(' '), /could not be confirmed/);
+  state.failDirectory = true;
+  await assert.rejects(service.learningAreas(teacher, { year: 2026 }), /directory unavailable/);
+});
+
+test('Learning Area Profile bridge permits only a live Unit Library grant and no Tracker actions', async t => {
+  let allowed = true, calls = 0;
+  const app = express(); app.use(express.json());
+  app.use('/module-auth', createModuleIdentityRouter({
+    dbQuery: async (sql, params) => {
+      if (sql.includes('FROM module_builder_projects')) return { rows: [{ id: 'library', slug: params[0],
+        kind: 'development', app_url: 'https://library.example.test' }] };
+      if (sql.includes('FROM module_identity_grants')) return { rows: allowed ? [{ user_id: teacherId }] : [] };
+      if (sql.includes('FROM users u')) return { rows: [teacher] };
+      throw new Error('Unexpected query');
+    },
+    trackerService: { learningAreas: async (user, input) => {
+      calls++; assert.equal(user.id, teacherId); assert.deepEqual(input, { year: 2026 });
+      return { year: 2026, departments: [] };
+    } }
+  }));
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const post = (client, token, route = 'learning-area-profiles') => fetch(
+    `http://127.0.0.1:${server.address().port}/module-auth/${route}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
+      body: JSON.stringify({ client_id: client + ':development', year: 2026, action: 'profile', studentId: 'k:100' })
+    });
+  assert.equal((await post('whs-unit-library')).status, 401);
+  assert.equal((await post('teacher-planner', 'A'.repeat(43))).status, 403);
+  assert.equal((await post('whs-unit-library', 'A'.repeat(43), 'student-tracker')).status, 403);
+  assert.equal(calls, 0);
+  const response = await post('whs-unit-library', 'A'.repeat(43));
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  allowed = false;
+  assert.equal((await post('whs-unit-library', 'A'.repeat(43))).status, 401);
+  assert.equal(calls, 1);
+});
+
 test('Tracker bridge requires a live grant for the registered Tracker client before any data access', async t => {
   let calls = 0, allowed = true;
   const app = express(); app.use(express.json());
