@@ -445,13 +445,21 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
     if (!user?.roles?.some(role => ['ADMIN', 'Teacher'].includes(role))) throw error('Staff access is required.', 403);
     if (!Number.isInteger(year) || year < 2000 || year > 2100) throw error('Choose a year from 2000 to 2100.');
     const [departments, staff] = await Promise.all([
-      dbQuery('SELECT name,class_links FROM student_tracker_departments ORDER BY name'),
+      dbQuery('SELECT name,teacher_emails,class_links FROM student_tracker_departments ORDER BY name'),
       staffRows()
     ]);
     const leaders = await leadership(staff);
     const email = typeof user.email === 'string' ? user.email.trim().toLowerCase() : '';
     const person = leaders.staffIds.includes(user.id) && leaders.candidates.find(item => item.email === email);
-    if (!person) return { year, classes: [] };
+    if (!person) return { year, classes: [], departments: [] };
+    // Department members match the Learning Area Profile: verified leaders plus authorised Tracker teachers.
+    const members = leaders.departmentOptions.flatMap(choice => {
+      const configured = departments.rows.filter(item => normaliseDirectoryName(item.name) === normaliseDirectoryName(choice.name));
+      if (configured.length !== 1) return [];
+      const emails = new Set([...automaticTeachers(leaders, configured[0].name), ...(configured[0].teacher_emails || [])]);
+      const teachers = leaders.candidates.filter(item => emails.has(item.email)).map(item => item.name);
+      return teachers.length ? [{ name: choice.name, teachers }] : [];
+    });
     const candidates = await teacherLinks([person], year);
     const classes = new Map();
     for (const department of departments.rows) {
@@ -461,7 +469,7 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       }
     }
     return { year, classes: [...classes.values()].sort((a, b) => a.subject.localeCompare(b.subject) ||
-      a.course.localeCompare(b.course, undefined, { numeric: true })) };
+      a.course.localeCompare(b.course, undefined, { numeric: true })), departments: members };
   }
   async function scope(user, year) {
     const [departments, staff, tables] = await Promise.all([

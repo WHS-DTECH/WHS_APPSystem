@@ -980,6 +980,7 @@ test('teaching subjects list only the signed-in teacher’s confirmed subject an
   state.teacherRows[0].data = { Teacher: 'TST', Mon_P1: '3-11DTECH-05', Tue_P2: '6-11DTECH-05', Wed_P3: '4-12DTECH-05' };
   const data = await service.teachingSubjects(teacher, { year: 2026 });
   assert.deepEqual(data.classes, [{ subject: 'DTECH', course: '11DTECH' }, { subject: 'DTECH', course: '12DTECH' }]);
+  assert.deepEqual(data.departments, [{ name: 'Technology', teachers: ['Synthetic Peer', 'Synthetic Teacher'] }]);
   assert.doesNotMatch(JSON.stringify(data), /@|k:100|Synthetic Student/);
   assert.deepEqual((await service.teachingSubjects({ ...teacher, id: managerId }, { year: 2026 })).classes, []);
   await assert.rejects(service.teachingSubjects(teacher, { year: '2026' }), { status: 400 });

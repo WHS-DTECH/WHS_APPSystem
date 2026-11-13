@@ -1618,9 +1618,11 @@ The registered `whs-assessment-manager` client can call
 `POST /module-auth/teaching-subjects` with a school year. It returns only the
 signed-in teacher's own subject/course pairs (for example `DTECH` / `13DTECH`)
 from approved Student Tracker class links confirmed by that year's KAMAR staff
-timetables, to suggest Subject and Course Code. Staff not uniquely matched to a
-current KAMAR record receive an empty list; no class codes, students or emails
-are returned.
+timetables, to suggest Subject and Course Code. It also returns each configured
+department's member names (verified leaders plus authorised Tracker teachers,
+as in the Learning Area Profile) to suggest the Assessor. Staff not uniquely
+matched to a current KAMAR record receive empty lists; no class codes, students
+or emails are returned.
 
 The Library filters Department → Discipline → Subject and expands a collapsed
 Discipline → Subject → Course → listed units tree, without teaching-group
