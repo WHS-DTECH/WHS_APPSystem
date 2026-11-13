@@ -2,6 +2,7 @@ const { Pool } = require('pg');
 const { buildStudentHeaderMap, mapStudentRow } = require('./legacy/kamar-uploader/studentTimetable');
 const { classCode } = require('./legacy/teacher-planner/public/attendance');
 const reporting = require('./legacy/teacher-planner/public/reporting-schema');
+const { loadDepartments } = require('./legacy/kamar-uploader/departments');
 
 const UUID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 const columns = ['mon', 'tue', 'wed', 'thu', 'fri']
@@ -58,19 +59,23 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
     ]);
     return [{ term: null, rows: current.rows }, ...snapshots.rows.map(row => ({ term: row.term, rows: termRows(row.payload) }))];
   }
+  async function staffRows() {
+    return (await directoryQuery(`SELECT upper(trim(code)) AS code,lower(trim(email_school)) AS email,
+      first_name,last_name FROM staff_upload WHERE status='Current'`)).rows;
+  }
   async function scope(user, year) {
     const [departments, staff, tables] = await Promise.all([
       dbQuery('SELECT id,name,manager_ids,subjects,revision FROM student_tracker_departments ORDER BY name'),
-      directoryQuery("SELECT upper(trim(code)) AS code,lower(trim(email_school)) AS email FROM staff_upload WHERE status='Current'"),
+      staffRows(),
       timetables(year)
     ]);
-    const staffCodes = staff.rows.filter(row => row.email === user.email.trim().toLowerCase()).map(row => row.code);
+    const staffCodes = staff.filter(row => row.email === user.email.trim().toLowerCase()).map(row => row.code);
     const taught = new Set(tables.flatMap(table => table.rows.flatMap(row => lessons(row)))
       .filter(lesson => lesson.staffCodes.some(code => staffCodes.includes(code))).map(lesson => lesson.subject));
     const admin = user.roles.includes('ADMIN');
     const visible = departments.rows.filter(department => admin || department.manager_ids.includes(user.id) ||
       department.subjects.some(subject => taught.has(subject)));
-    return { admin, departments: visible, tables, staff: staff.rows };
+    return { admin, departments: visible, tables, staff };
   }
   function departmentFor(context, id) {
     const department = context.departments.find(item => item.id === id);
@@ -120,6 +125,10 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       if (department.id && !existing) throw error('The department no longer exists. Reload setup.', 404);
       const admin = user.roles.includes('ADMIN');
       if (!admin && !existing?.manager_ids.includes(user.id)) throw error('Only Global ADMIN or an authorised department HoLA can change this setup.', 403);
+      const choices = await loadDepartments(dbQuery, await staffRows());
+      if (!choices.some(item => item.name === department.name.trim()) && department.name.trim() !== existing?.name) {
+        throw error('Choose a department from Kamar Uploader. Reload setup if the directory has changed.');
+      }
       const managers = admin ? department.managerIds : existing.manager_ids;
       if (!Array.isArray(managers) || managers.length > 30 || !managers.every(id => typeof id === 'string' && UUID.test(id)) ||
           new Set(managers).size !== managers.length) throw error('Choose valid HoLA accounts.');
@@ -146,8 +155,12 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
     const context = await scope(user, year);
     if (action === 'setup') {
       const subjects = [...new Set(context.tables.flatMap(table => table.rows.flatMap(row => lessons(row).map(lesson => lesson.subject))))].sort();
-      const users = context.admin ? (await dbQuery('SELECT id::text,display_name FROM users WHERE is_active=true ORDER BY display_name')).rows : [];
-      return { admin: context.admin, subjects, users, departments: context.departments.map(item => ({
+      const [departmentOptions, users] = await Promise.all([
+        loadDepartments(dbQuery, context.staff),
+        context.admin ? dbQuery('SELECT id::text,display_name FROM users WHERE is_active=true ORDER BY display_name')
+          .then(result => result.rows) : Promise.resolve([])
+      ]);
+      return { admin: context.admin, subjects, users, departmentOptions, departments: context.departments.map(item => ({
         id: item.id, name: item.name, subjects: item.subjects, revision: item.revision,
         canManage: context.admin || item.manager_ids.includes(user.id),
         ...(context.admin ? { managerIds: item.manager_ids } : {})

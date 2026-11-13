@@ -15,13 +15,24 @@ function fixture() {
     mon_p1_1: 'TST-PIDTECH-CW', fri_p3: 'PEER-PIDTECH-05', tue_p2: 'OTHER-MATH-A' };
   const report = { studentId: 'k:100', programme: 'junior', cycle: 'eoy', coding: '3P', design: '4P',
     kaitiakitanga: 'Dem', rangatiratanga: 'Dev', comment: 'Shared draft' };
-  const state = { department, row, plannerCalls: [], writes: [], failPlanner: false, conflict: false, hasSnapshot: true };
+  const catalog = [
+    { first_name: 'Synthetic', last_name: 'Teacher', department: 'Technology', leadership_roles: [
+      { department: 'Technology', role: 'HOL', acting: false, onLeave: true }] },
+    { first_name: 'Synthetic', last_name: 'Peer', department: 'Science', leadership_roles: [
+      { department: 'Technology', role: 'HOLA', acting: true, onLeave: false, reviewedOn: '2026-11-01' }] }
+  ];
+  const state = { department, row, catalog, plannerCalls: [], writes: [], failPlanner: false, conflict: false, hasSnapshot: true,
+    failDirectory: false };
   const service = createStudentTrackerService({
     today: () => '2026-11-13',
     dbQuery: async (sql, params) => {
       assert.doesNotMatch(sql, /student_upload|planner_sections|planner_attendance_marks/);
       if (sql.startsWith('SELECT * FROM student_tracker_departments')) return { rows: params[0] === departmentId ? [department] : [] };
       if (sql.includes('FROM student_tracker_departments')) return { rows: [department] };
+      if (sql.includes('FROM public.department')) {
+        if (state.failDirectory) throw new Error('Shared department directory unavailable');
+        return { rows: catalog };
+      }
       if (sql.startsWith('SELECT id FROM users')) return { rows: params[0]
         .filter(id => [managerId, teacherId, peerId].includes(id)).map(id => ({ id })) };
       if (sql.includes('FROM users')) return { rows: [
@@ -38,7 +49,8 @@ function fixture() {
       if (sql.includes('FROM student_upload')) return { rows: [row,
         { id_number: '200', student_name: 'Unlinked Student', year_level: '8', mon_p1_1: 'OTHER-MATH-A' }] };
       if (sql.includes('FROM staff_upload')) return { rows: [
-        { code: 'TST', email: 'teacher@example.test' }, { code: 'PEER', email: 'peer@example.test' }
+        { code: 'TST', email: 'teacher@example.test', first_name: 'Synthetic', last_name: 'Teacher' },
+        { code: 'PEER', email: 'peer@example.test', first_name: 'Synthetic', last_name: 'Peer' }
       ] };
       if (sql.includes('FROM kamar_datasets')) return { rows: state.hasSnapshot ? [{ term: 4, payload: {
         headers: ['Student Name', 'ID Number', 'Year Level', 'Mon P1', 'Mon P1', 'Fri P3', 'Tue P2'],
@@ -95,7 +107,7 @@ test('department staff can read peer report drafts and term marks only for linke
 });
 test('only assigned HoLAs may edit departments and they cannot change their own authority', async () => {
   const { service, input, department, state } = fixture();
-  const changes = { ...department, name: 'Tech', managerIds: [teacherId] };
+  const changes = { ...department, name: 'Science', managerIds: [teacherId] };
   await assert.rejects(service.run(teacher, { ...input, action: 'save-setup', department: changes }), { status: 403 });
   const manager = { ...teacher, id: managerId };
   const setup = await service.run(manager, { ...input, action: 'setup' });
@@ -107,6 +119,33 @@ test('only assigned HoLAs may edit departments and they cannot change their own 
   await assert.rejects(service.run(manager, { ...input, action: 'save-setup', department: changes }), { status: 409 });
   await assert.rejects(service.run(manager, { ...input, action: 'save-setup',
     department: { ...changes, subjects: ['FAKE'] } }), /uploaded KAMAR/);
+});
+test('setup reuses the shared Kamar department directory and website acting leadership without granting authority', async () => {
+  const { service, input, state } = fixture();
+  const setup = await service.run(teacher, { ...input, action: 'setup' });
+  assert.deepEqual(setup.departmentOptions.map(item => item.name), ['Science', 'Technology']);
+  const technology = setup.departmentOptions.find(item => item.name === 'Technology');
+  assert.equal(technology.teacher, 'Synthetic Peer (PEER)');
+  assert.equal(technology.leaders.find(item => item.onLeave).name, 'Synthetic Teacher (TST)');
+  assert.equal(technology.leaders.find(item => item.acting).reviewedOn, '2026-11-01');
+  assert.equal(setup.departments[0].canManage, false);
+  assert.deepEqual(state.department.manager_ids, [managerId]);
+  state.failDirectory = true;
+  await assert.rejects(service.run(teacher, { ...input, action: 'setup' }), /Shared department directory unavailable/);
+  assert.equal((await service.run(teacher, { ...input, action: 'profile' })).student.name, 'Synthetic Student');
+});
+test('setup rejects invented department names but preserves an existing name removed from the shared directory', async () => {
+  const { service, input, department, state } = fixture();
+  const manager = { ...teacher, id: managerId };
+  await assert.rejects(service.run(manager, { ...input, action: 'save-setup',
+    department: { ...department, name: 'Invented Faculty' } }), /department from Kamar Uploader/);
+  department.name = 'Saved Faculty';
+  await service.run(manager, { ...input, action: 'save-setup', department: { ...department } });
+  assert.equal(state.writes[0][1], 'Saved Faculty');
+  state.failDirectory = true;
+  await assert.rejects(service.run(manager, { ...input, action: 'save-setup', department: { ...department } }),
+    /Shared department directory unavailable/);
+  assert.equal(state.writes.length, 1);
 });
 test('current term attendance can use the current upload but previous terms never borrow its timetable', async () => {
   const { service, input, state } = fixture();

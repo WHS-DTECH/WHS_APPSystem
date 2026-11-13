@@ -1600,8 +1600,14 @@ the registered Tracker client and the caller's current Global Control access on
 every request. No KAMAR or Planner database credentials are sent to the app.
 
 **Setup Student Tracker** lets Global ADMIN create department records and assign
-HoLA accounts. Assigned HoLAs may change their own department's exact subject
-codes, selected from Kamar Uploader timetables, but cannot grant themselves or
+HoLA accounts. The department dropdown and adjacent website leadership panel use
+the shared Kamar Uploader directory, exactly as Moderation does. Acting leaders
+take priority and leaders on leave are not selected; ambiguous leadership is
+shown without guessing. Displaying website leadership never grants authority.
+Existing department names removed from the directory remain labelled saved
+values; new names must come from the directory. Assigned HoLAs may change their
+own department's exact subject codes, selected from Kamar Uploader timetables,
+but cannot grant themselves or
 others management rights. They also need an app role through Global Control.
 Settings live in Core's `student_tracker_departments` table (migration 053).
 Department staff with Tracker access and teaching assignments in linked subjects,
