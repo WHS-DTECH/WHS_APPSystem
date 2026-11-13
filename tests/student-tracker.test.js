@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
-const { createStudentTrackerService, termRows, matchingCourses } = require('../src/studentTracker');
+const { createStudentTrackerService, termRows, matchingCourses, teacherClassCodes, subjectFamily } = require('../src/studentTracker');
 const { userHasHubPermission } = require('../src/hubRoles');
 const { createModuleIdentityRouter, authorisedModuleUser } = require('../src/moduleIdentity');
 const { accessibleModules } = require('../src/moduleAccess');
@@ -12,7 +12,8 @@ const teacherId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const peerId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const teacher = { id: teacherId, email: 'teacher@example.test', roles: ['Teacher'] };
 function fixture() {
-  const department = { id: departmentId, name: 'Technology', subjects: ['PIDTECH'], teacher_emails: [teacher.email], manager_ids: [managerId], revision: 1 };
+  const department = { id: departmentId, name: 'Technology', subjects: undefined, teacher_emails: [teacher.email], manager_ids: [managerId], revision: 1,
+    class_links: { '2026': [{ teacherEmail: teacher.email, code: 'PIDTECH' }, { teacherEmail: 'peer@example.test', code: 'PIDTECH' }] } };
   const row = { id_number: '100', student_name: 'Synthetic Student', year_level: '8', form_class: 'W1',
     mon_p1_1: 'TST-PIDTECH-CW', fri_p3: 'PEER-PIDTECH-05', tue_p2: 'OTHER-MATH-A' };
   const report = { studentId: 'k:100', programme: 'junior', cycle: 'eoy', coding: '3P', design: '4P',
@@ -59,7 +60,12 @@ function fixture() {
         { id: peerId, email: 'peer@example.test', display_name: 'Peer Teacher' }
       ] };
       if (sql.startsWith('UPDATE student_tracker_departments')) {
-        state.writes.push(params); return { rows: state.conflict ? [] : [{ id: departmentId }] };
+        state.writes.push(params);
+        if (!state.conflict) {
+          if (sql.includes('jsonb_set')) department.class_links[params[3]] = JSON.parse(params[2]);
+          else department.class_links = JSON.parse(params[7]);
+        }
+        return { rows: state.conflict ? [] : [{ id: departmentId }] };
       }
       throw new Error('Unexpected Core query: ' + sql);
     },
@@ -146,7 +152,7 @@ test('verified website HoLAs with current module Lead Teacher roles can manage o
   state.conflict = true;
   await assert.rejects(service.run(manager, { ...input, action: 'save-setup', department: changes }), { status: 409 });
   await assert.rejects(service.run(manager, { ...input, action: 'save-setup',
-    department: { ...changes, subjects: ['FAKE'] } }), /matched automatically/);
+    department: { ...changes, subjects: ['FAKE'] } }), /Link Subject Classes/);
 });
 test('setup lists only verified staff Lead Teacher HoLAs, never students or unrelated active accounts', async () => {
   const { service, input, state } = fixture();
@@ -172,7 +178,7 @@ test('setup rejects invented department names but preserves an existing name rem
   await assert.rejects(service.run(manager, { ...input, action: 'save-setup',
     department: { ...department, teacherEmails: department.teacher_emails, name: 'Invented Faculty' } }), /department from Kamar Uploader/);
   department.name = 'Saved Faculty';
-  await service.run(manager, { ...input, action: 'save-setup', department: { ...department, subjects: [], teacherEmails: department.teacher_emails } });
+  await service.run(manager, { ...input, action: 'save-setup', department: { ...department, teacherEmails: department.teacher_emails } });
   assert.equal(state.writes[0][1], 'Saved Faculty');
   state.failDirectory = true;
   await assert.rejects(service.run(manager, { ...input, action: 'save-setup', department: { ...department, teacherEmails: department.teacher_emails } }),
@@ -296,12 +302,13 @@ test('teacher course matching handles aliases, rooms, year families and preserve
   const manager = { ...teacher, id: peerId, email: 'peer@example.test' };
   const setup = await service.run(manager, { ...input, action: 'setup' });
   const source = setup.staff.find(person => person.code === 'TST');
-  assert.deepEqual(source.links.map(link => link.code), ['11DTECH1', '11HOSP', '9DTECH', 'JPI']);
+  assert.deepEqual(source.links.map(link => link.code).sort(), ['11DTECH1', '11HOSP', '9DTECH', 'JPI']);
   assert.deepEqual(source.links.find(link => link.code === '9DTECH').courses, ['MDTECH-S1', 'MDTECH-S2']);
   assert.deepEqual(source.unmatchedCodes, ['MATH']);
   assert.equal(matchingCourses('11DTECHNOLOGY', state.courses).length, 0);
   assert.deepEqual(matchingCourses('7DTECH1', state.courses).map(course => course.course_code), ['JDTECH']);
   state.row.mon_p1_1 = 'TST-JPI-05'; state.hasSnapshot = false;
+  state.department.class_links['2026'] = [{ teacherEmail: teacher.email, code: 'JPI' }];
   const reports = await service.run(teacher, { ...input, action: 'reports' });
   assert.equal(reports.reports.length, 1, 'JuniorDTECH aliases retain report history');
   state.department.name = 'Science';
@@ -345,6 +352,95 @@ test('teacher links use the selected year and invalid source shapes fail explici
   state.teacherHistory = [];
   state.teacherRows[0].data = { Teacher: 'TST' };
   await assert.rejects(service.run(admin, { ...input, action: 'setup' }), { status: 502 });
+});
+test('real teacher cells split concurrent lessons, retain class groups, and separate non-teaching entries', () => {
+  const parsed = teacherClassCodes('3-13HOSP-F;-HOSPCOOK-;81A-MFOOD-F;2-DTOnline-CW;9WHAU-WHANAU-CW;HAPU',
+    [], [{ course_code: '13HOSP' }, { course_code: 'MFOOD-S1' }]);
+  assert.deepEqual(parsed.codes, ['3-13HOSP', '81A-MFOOD']);
+  assert.equal(parsed.excluded.length, 4);
+  assert.equal(subjectFamily('3-13HOSP'), subjectFamily('81A-MFOOD'));
+  assert.equal(subjectFamily('81C-MDTECH'), 'DTECH');
+  assert.deepEqual(matchingCourses('8S-JDTECH', [{ course_code: 'JDTECH' }]).map(course => course.course_code), ['JDTECH']);
+  assert.deepEqual(matchingCourses('81A-MFOOD', [{ course_code: 'MFOOD-S1' }, { course_code: 'MDTECH-S1' }])
+    .map(course => course.course_code), ['MFOOD-S1']);
+  assert.deepEqual(teacherClassCodes('TST/PEER-3-13HOSP-F', [{ code: 'TST' }, { code: 'PEER' }], []).codes, ['3-13HOSP']);
+});
+test('class links are explicit, year-specific, and limited to authorised teachers and actual teaching classes', async () => {
+  const { service, input, state } = fixture();
+  const admin = { ...teacher, roles: ['ADMIN'] };
+  state.department.class_links = {};
+  const values = { id: departmentId, name: 'Technology', revision: 1, classLinks: [{ teacherEmail: teacher.email, code: 'PIDTECH' }] };
+  await assert.rejects(service.run(teacher, { ...input, action: 'search', q: 'Student' }), { status: 409 });
+  await assert.rejects(service.run(teacher, { ...input, action: 'save-classes', department: values }), { status: 403 });
+  for (const links of [[{ teacherEmail: teacher.email, code: 'WHANAU' }],
+    [{ teacherEmail: 'outsider@example.test', code: 'PIDTECH' }], [values.classLinks[0], values.classLinks[0]]]) {
+    await assert.rejects(service.run(admin, { ...input, action: 'save-classes',
+      department: { ...values, classLinks: links } }), { status: 400 });
+  }
+  await service.run(admin, { ...input, action: 'save-classes', department: values });
+  assert.deepEqual(state.department.class_links['2026'], values.classLinks);
+  assert.equal((await service.run(teacher, { ...input, action: 'search', q: 'Student' })).students.length, 1);
+  assert.deepEqual((await service.run(admin, { ...input, year: 2025, action: 'setup' })).departments[0].classLinks, []);
+  await assert.rejects(service.run(admin, { ...input, action: 'save-classes', department: { ...values, id: undefined } }), { status: 409 });
+  state.accounts[1].lead_teacher = false;
+  await assert.rejects(service.run(admin, { ...input, action: 'save-classes',
+    department: { ...values, classLinks: [{ teacherEmail: 'peer@example.test', code: 'PIDTECH' }] } }), { status: 400 });
+  state.conflict = true;
+  await assert.rejects(service.run(admin, { ...input, action: 'save-classes', department: values }), { status: 409 });
+});
+test('same-subject classes remain separate by teacher and scheduled group; unlinked marks and owners stay private', async () => {
+  const { service, input, state } = fixture();
+  state.hasSnapshot = false;
+  state.teacherRows[0].data = { Teacher: 'TST', Mon_P1: '3-PIDTECH-CW', Tue_P2: '4-PIDTECH-CW' };
+  state.row.tue_p2 = 'TST-PIDTECH-CW';
+  state.department.class_links['2026'] = [{ teacherEmail: teacher.email, code: '3-PIDTECH' }];
+  const profile = await service.run(teacher, { ...input, action: 'profile' });
+  const lessons = profile.timetables[0].lessons;
+  assert.equal(lessons.find(lesson => lesson.slot === 'mon_p1_1').linked, true);
+  assert.equal(lessons.find(lesson => lesson.slot === 'tue_p2').linked, false);
+  assert.equal(lessons.find(lesson => lesson.slot === 'fri_p3').linked, false);
+  assert.deepEqual((await service.run(teacher, { ...input, action: 'attendance', term: 4 })).marks.map(mark => mark.mark), ['P']);
+  assert.equal((await service.run(teacher, { ...input, action: 'reports' })).reports.length, 1);
+  assert.deepEqual(state.plannerCalls.find(call => call.sql.includes('planner_sections')).params[0], [teacherId]);
+  await service.run({ ...teacher, roles: ['ADMIN'] }, { ...input, action: 'save-classes',
+    department: { id: departmentId, name: 'Technology', revision: 1, classLinks: [{ teacherEmail: teacher.email, code: '4-PIDTECH' }] } });
+  assert.deepEqual((await service.run(teacher, { ...input, action: 'attendance', term: 4 })).marks.map(mark => mark.mark), ['A']);
+});
+test('saving teacher approvals prunes removed teachers across years without automatically linking their classes', async () => {
+  const { service, input, state } = fixture();
+  state.department.class_links['2025'] = [{ teacherEmail: teacher.email, code: 'PIDTECH' }];
+  await service.run({ ...teacher, roles: ['ADMIN'] }, { ...input, action: 'save-setup',
+    department: { id: departmentId, name: 'Technology', revision: 1, teacherEmails: [] } });
+  assert.deepEqual(state.department.class_links, {
+    '2025': [], '2026': [{ teacherEmail: 'peer@example.test', code: 'PIDTECH' }]
+  });
+  state.teacherRows[1].data = { Teacher: 'PEER', Fri_P3: '11HOSP-F' };
+  const setup = await service.run({ ...teacher, roles: ['ADMIN'] }, { ...input, action: 'setup' });
+  assert.equal(setup.departments[0].unavailableClassCount, 1);
+  assert.deepEqual(setup.departments[0].classLinks, []);
+});
+test('preserved teacher class periods match their own term, including the current term without a current teacher row', async () => {
+  const { service, input, state } = fixture();
+  state.teacherRows = [];
+  state.teacherHistory = [{ term: 4, payload: { headers: ['Teacher', 'Mon P1'], rows: [['TST', 'PIDTECH-CW']] } }];
+  const profile = await service.run(teacher, { ...input, action: 'profile' });
+  assert.equal(profile.timetables.find(table => table.term === null).lessons.some(lesson => lesson.linked), false);
+  assert.equal(profile.timetables.find(table => table.term === 4).lessons.some(lesson => lesson.linked), true);
+  assert.deepEqual((await service.run(teacher, { ...input, action: 'attendance', term: 4 })).marks.map(mark => mark.mark), ['P']);
+});
+test('co-timetabled same-subject groups cannot expose unselected groups when student exports omit the group identifier', async () => {
+  const { service, input, state } = fixture();
+  state.hasSnapshot = false;
+  state.teacherRows[0].data = { Teacher: 'TST', Mon_P1: '3-PIDTECH-CW;4-PIDTECH-CW' };
+  state.department.class_links['2026'] = [{ teacherEmail: teacher.email, code: '3-PIDTECH' }];
+  const admin = { ...teacher, roles: ['ADMIN'] };
+  assert.equal((await service.run(admin, { ...input, action: 'setup' })).departments[0].ambiguousClassCount, 1);
+  assert.equal((await service.run(teacher, { ...input, action: 'search', q: 'Student' })).students.length, 0);
+  state.row.mon_p1_1 = 'TST-3-PIDTECH-CW';
+  assert.equal((await service.run(teacher, { ...input, action: 'search', q: 'Student' })).students.length, 1);
+  state.row.mon_p1_1 = 'TST-PIDTECH-CW';
+  state.department.class_links['2026'].push({ teacherEmail: teacher.email, code: '4-PIDTECH' });
+  assert.equal((await service.run(teacher, { ...input, action: 'search', q: 'Student' })).students.length, 1);
 });
 test('Tracker bridge requires a live grant for the registered Tracker client before any data access', async t => {
   let calls = 0, allowed = true;

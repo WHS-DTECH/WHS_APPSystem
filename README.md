@@ -1618,13 +1618,25 @@ own department's teacher approvals, but cannot grant management rights.
 Approved staff gain Tracker sign-in and department access without a separate
 Global Control Teacher assignment; no other app or management roles are granted.
 Current verified HoLAs are automatic teacher sources, not permanent approvals.
-Settings live in Core's `student_tracker_departments` table (migrations 053–054).
-Subject codes are derived from approved teachers' current and preserved KAMAR
-teacher timetables for the selected year, matched against active WHS Learning
-Site courses. The confirmed DTECH, COMP, DVC, Food, Textiles and Woodwork programmes
-map to Technology. Other departments remain unmapped until their allocations
-exist. Missing timetables and unmatched codes are shown explicitly; subject codes
-cannot be manually forged. Preserved teacher timetables retain duplicate periods.
+Settings live in Core's `student_tracker_departments` table (migrations 053–055).
+Teacher approval grants access, not automatic subject enrolment. After saving
+teachers, use **Link Subject Classes** to persist explicit teacher/class pairs for
+the selected department and school year. The picker groups subject families and
+shows each authorised teacher in a column, retaining class identifiers such as
+`3-13HOSP` and `81A-MFOOD`. Learning Site matches suggest course families but do
+not select classes or authorise other-department classes automatically. HoLAs
+confirm which actual uploaded classes belong to their department.
+KAMAR day-number and weekday headers, duplicate periods, and semicolon-separated
+lessons are supported. Rooms are removed; Whanau, Hapu, online-block placeholders,
+study and auxiliary kitchen entries remain separate from selectable classes.
+Missing sources and unavailable saved links are shown explicitly.
+Class links are validated server-side against current approved staff and uploaded
+timetables. Student/profile/attendance/report scope checks the teacher, subject and
+scheduled class periods, not a subject-code union. Teacher revocation removes its
+stored links across years. Migration 055 deliberately does not convert the old
+automatic subject cache into approvals: existing departments must select classes.
+If co-timetabled groups share a teacher/subject and the student export omits their
+group IDs, ambiguous records are excluded unless all relevant groups are linked.
 Explicitly approved current department staff,
 verified HoLAs and Global ADMIN may read the department's student profiles.
 This explicitly shares approved/automatic departmental teachers' relevant Planner draft reports and teaching-log
@@ -1634,7 +1646,7 @@ the original records. Unrelated students, subjects and marks are excluded.
 Student search, profiles and timetables read only Kamar Uploader's current and
 preserved term timetables. Attendance and report drafts read the existing Planner
 database. Attendance starts at the current/latest finished term with published
-dates. Historical attendance requires that term's preserved student timetable;
+dates. Historical attendance requires that term's preserved student and teacher timetables;
 only the current term may use the current upload if a snapshot is absent.
 Reports History currently displays the working JuniorDTECH/MiddleDTECH draft
 records for the selected school year, not official KAMAR report history.

@@ -10,8 +10,55 @@ const columns = ['mon', 'tue', 'wed', 'thu', 'fri']
   .flatMap(day => ['p1_1', 'p1_2', 'p2', 'p3', 'p4', 'p5'].map(period => day + '_' + period));
 const error = (message, status = 400) => Object.assign(new Error(message), { status });
 const technologyPrograms = new Set(['DTECH', 'COMP', 'DVC', 'FOOD', 'TEXTILES', 'WOOD']);
+const days = ['mon', 'tue', 'wed', 'thu', 'fri'];
+const classGroup = /^(?:\d+|\d{1,2}[A-Z]|J[A-Z]{2})$/;
+function subjectCode(code) {
+  const parts = code.split('-');
+  return parts.length > 1 && classGroup.test(parts[0]) ? parts.slice(1).join('-') : code;
+}
+function subjectFamily(code) {
+  const subject = subjectCode(code);
+  const technology = /(DTECH|COMP|DVC|FOOD|HOSP|TEXT|WOOD|FURN)\d*[A-Z]?$/.exec(subject);
+  if (technology) return { HOSP: 'FOOD', TEXT: 'TEXTILES', FURN: 'WOOD' }[technology[1]] || technology[1];
+  return subject.replace(/^\d+/, '').replace(/\d+[A-Z]?$/, '') || subject;
+}
+function teacherClassCodes(value, staff, courses) {
+  const codes = [], excluded = [];
+  for (const cell of String(value || '').toUpperCase().split(/[;\r\n]+/)) {
+    let code = cell.trim();
+    if (!code) continue;
+    const prefix = code.slice(0, code.indexOf('-'));
+    if (prefix && prefix.split('/').every(part => staff.some(person => person.code === part.trim()))) code = code.slice(code.indexOf('-') + 1);
+    const parts = code.split('-');
+    const exact = courses.some(course => course.course_code.toUpperCase() === code);
+    if (!exact && (parts.length > 2 || (parts.length === 2 &&
+        (!classGroup.test(parts[0]) || !/[A-Z]/.test(parts[1]))))) code = parts.slice(0, -1).join('-');
+    if (!/^[A-Z0-9]+(?:-[A-Z0-9]+)*$/.test(code) || !/[A-Z]/.test(code) ||
+        /(?:^|-)(?:WHANAU|HAPU|DTONLINE|ASSEMBLY|HUI|FREE|DUTY|(?:\d+)?STUDY[A-Z0-9]*|HOSPCOOK)(?:-|$)/.test(code)) {
+      excluded.push(cell.trim()); continue;
+    }
+    codes.push(code);
+  }
+  return { codes, excluded };
+}
+function savedClassLinks(department, year) {
+  const stored = department.class_links || {};
+  if (typeof stored !== 'object' || Array.isArray(stored) || Object.values(stored).some(links =>
+    !Array.isArray(links) || links.some(link => !link || typeof link.teacherEmail !== 'string' || typeof link.code !== 'string'))) {
+    throw error('Stored class links are invalid. Ask an administrator to review Student Tracker setup.', 502);
+  }
+  return year === undefined ? stored : stored[String(year)] || [];
+}
+function linkedLesson(department, lesson, term = null, owner) {
+  return department.classLinks.some(link => link.subject === lesson.subject &&
+    (lesson.classCode === lesson.subject || link.code === lesson.classCode) &&
+    lesson.staffCodes.includes(link.staffCode) && (!owner || owner.codes.includes(link.staffCode)) &&
+    link.sources.some(source => source.term === term && source.slot === lesson.slot &&
+      (lesson.classCode !== lesson.subject || !link.ambiguousSources.some(other => other.term === term && other.slot === lesson.slot))));
+}
 function matchingCourses(code, courses) {
   const normal = value => value.toUpperCase().replace(/[\s_-]/g, '');
+  code = subjectCode(code);
   const value = normal(code);
   return courses.filter(course => {
     if (JUNIOR_DTECH_CLASS_CODES.test(code) && course.course_code.toUpperCase() === 'JDTECH') return true;
@@ -34,13 +81,14 @@ async function approvedTrackerUser(userId, dbQuery) {
       WHERE lower(trim(u.email))=ANY(d.teacher_emails))`, [userId])).rows[0];
 }
 function lessons(row) {
-  return columns.flatMap(slot => {
-    const code = String(row[slot] || '').trim();
+  return columns.flatMap(slot => String(row[slot] || '').split(/[;\r\n]+/).flatMap(value => {
+    const code = value.trim();
     if (!code) return [];
     const match = /^([^-]+)-(.+)-([^-]+)$/.exec(code);
-    return [{ slot, code, subject: classCode(code, true),
+    const rawClass = classCode(code, true);
+    return [{ slot, code, classCode: rawClass, subject: subjectCode(rawClass),
       staffCodes: match ? match[1].toUpperCase().split('/').map(value => value.trim()) : [] }];
-  });
+  }));
 }
 function student(row) {
   return { id: 'k:' + String(row.id_number).trim(), name: String(row.student_name).trim(),
@@ -150,7 +198,7 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
     ]);
     const rows = current.rows.map(row => {
       if (!row.data || typeof row.data !== 'object' || Array.isArray(row.data)) throw error('An uploaded teacher timetable is invalid. Review Kamar Uploader.', 502);
-      return { teacher: row.teacher, headers: Object.keys(row.data), values: Object.values(row.data) };
+      return { teacher: row.teacher, headers: Object.keys(row.data), values: Object.values(row.data), term: null };
     });
     for (const snapshot of history.rows) {
       const { headers, rows: values } = snapshot.payload || {};
@@ -159,38 +207,57 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       if (index < 0) throw error('A preserved teacher timetable has no teacher code.', 502);
       for (const value of values) {
         if (!Array.isArray(value) || value.length !== headers.length) throw error('A preserved teacher timetable row is invalid.', 502);
-        rows.push({ teacher: value[index], headers, values: value });
+        rows.push({ teacher: value[index], headers, values: value, term: Number(snapshot.term) });
       }
     }
-    const courses = catalogue.rows.filter(course => technologyPrograms.has(course.subject_code.toUpperCase()));
+    const courses = catalogue.rows;
     return staff.map(person => {
       const mine = rows.filter(row => String(row.teacher).trim().toUpperCase().split('/').map(code => code.trim()).includes(person.code));
-      const codes = new Set();
+      const classes = new Map(), excluded = new Set();
       for (const row of mine) {
         const map = buildStudentHeaderMap(row.headers);
         const indexes = row.headers.flatMap((header, index) => columns.includes(map.get(index)) ||
           /^d[1-5]p[1-5](?:[12])?$/.test(String(header).toLowerCase().replace(/[^a-z0-9]/g, '')) ? [index] : []);
         if (!indexes.length) throw error('A teacher timetable has no recognised period columns. Review Kamar Uploader.', 502);
         for (const index of indexes) {
-          let value = String(row.values[index] || '').trim().toUpperCase();
-          if (!value) continue;
-          const prefix = value.slice(0, value.indexOf('-'));
-          if (prefix && prefix.split('/').every(code => staff.some(item => item.code === code))) value = value.slice(value.indexOf('-') + 1);
-          const exactCourse = courses.some(course => course.course_code.toUpperCase() === value);
-          if (!exactCourse && value.includes('-')) value = value.slice(0, value.lastIndexOf('-'));
-          if (value) codes.add(value);
+          const parsed = teacherClassCodes(row.values[index], staff, courses);
+          parsed.excluded.forEach(code => excluded.add(code));
+          const numbered = /^d([1-5])p([1-5])(?:[12])?$/.exec(String(row.headers[index]).toLowerCase().replace(/[^a-z0-9]/g, ''));
+          const slot = numbered ? days[Number(numbered[1]) - 1] + '_p' + numbered[2] : map.get(index);
+          const slots = /_p1(?:_[12])?$/.test(slot) ? [slot.slice(0, 3) + '_p1_1', slot.slice(0, 3) + '_p1_2'] : [slot];
+          for (const code of parsed.codes) {
+            if (!classes.has(code)) {
+              const matches = matchingCourses(code, courses);
+              classes.set(code, { code, subject: subjectCode(code), family: subjectFamily(code),
+                courses: matches.map(course => course.course_code),
+                programmes: [...new Set(matches.map(course => course.subject_code.toUpperCase()))],
+                suggestedDepartment: matches.some(course => technologyPrograms.has(course.subject_code.toUpperCase())) ? 'Technology' : null,
+                sources: [] });
+            }
+            const item = classes.get(code);
+            slots.forEach(slot => {
+              if (!item.sources.some(source => source.term === row.term && source.slot === slot)) item.sources.push({ term: row.term, slot });
+            });
+          }
         }
       }
-      return { ...person, timetableAvailable: mine.length > 0, links: [...codes].sort().flatMap(code => {
-        const matches = matchingCourses(code, courses);
-        return matches.length ? [{ code, courses: matches.map(course => course.course_code),
-          programmes: [...new Set(matches.map(course => course.subject_code.toUpperCase()))], department: 'Technology' }] : [];
-      }), unmatchedCodes: [...codes].filter(code => !matchingCourses(code, courses).length).sort() };
+      const choices = [...classes.values()].sort((a, b) => a.family.localeCompare(b.family) || a.code.localeCompare(b.code, undefined, { numeric: true }));
+      return { ...person, timetableAvailable: mine.length > 0, classes: choices, excludedCodes: [...excluded].sort(),
+        links: choices.filter(item => item.suggestedDepartment).map(item => ({ ...item, department: item.suggestedDepartment })),
+        unmatchedCodes: choices.filter(item => !item.courses.length).map(item => item.code) };
     });
   }
-  function linkedSubjects(staff, name, emails) {
-    return [...new Set(staff.filter(person => emails.includes(person.email)).flatMap(person =>
-      person.links.filter(link => normaliseDirectoryName(link.department) === normaliseDirectoryName(name)).map(link => link.code)))].sort();
+  function availableLinks(staff, emails, links) {
+    return links.flatMap(link => {
+      const person = staff.find(person => person.email === link.teacherEmail && emails.includes(person.email));
+      const lesson = person?.classes.find(item => item.code === link.code);
+      if (!lesson) return [];
+      const ambiguousSources = lesson.sources.filter(source => person.classes.some(other =>
+        other.code !== lesson.code && other.subject === lesson.subject &&
+        !links.some(selected => selected.teacherEmail === person.email && selected.code === other.code) &&
+        other.sources.some(slot => slot.term === source.term && slot.slot === source.slot)));
+      return [{ ...link, ...lesson, ambiguousSources, staffCode: person.code, teacherName: person.name }];
+    });
   }
   function validateTeachers(emails, candidates) {
     if (!Array.isArray(emails) || emails.length > 100 || new Set(emails).size !== emails.length ||
@@ -200,7 +267,7 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
   }
   async function scope(user, year) {
     const [departments, staff, tables] = await Promise.all([
-      dbQuery('SELECT id,name,manager_ids,subjects,revision,teacher_emails FROM student_tracker_departments ORDER BY name'),
+      dbQuery('SELECT id,name,manager_ids,subjects,revision,teacher_emails,class_links FROM student_tracker_departments ORDER BY name'),
       staffRows(),
       timetables(year)
     ]);
@@ -214,21 +281,25 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       const automatic = automaticTeachers(leaders, department.name);
       const approved = (department.teacher_emails || []).filter(email => candidates.some(person => person.email === email));
       const teacherEmails = [...new Set([...automatic, ...approved])];
+      const saved = savedClassLinks(department, year);
+      const classLinks = availableLinks(candidates, teacherEmails, saved);
       return { ...department, teacher_emails: approved, teacherEmails, manager_ids: managersFor(leaders, department.name),
-        subjects: linkedSubjects(candidates, department.name, teacherEmails) };
+        classLinks, unavailableClassCount: saved.length - classLinks.length,
+        subjects: [...new Set(classLinks.map(link => link.subject))].sort() };
     }).filter(department => admin || department.manager_ids.includes(user.id) || department.teacherEmails.includes(user.email.trim().toLowerCase()));
     return { admin, departments: visible, tables, staff, ...leaders, candidates };
   }
   function departmentFor(context, id) {
     const department = context.departments.find(item => item.id === id);
     if (!department) throw error('You do not have access to this Tracker department.', 403);
+    if (!department.classLinks.length) throw error('No classes are linked for this department and year. Ask its HoLA to use Link Subject Classes.', 409);
     return department;
   }
   function selectedStudent(context, department, id) {
     if (typeof id !== 'string' || !/^k:[A-Za-z0-9_-]{1,60}$/.test(id)) throw error('Choose a valid student.');
     const rows = context.tables.flatMap(table => table.rows.filter(row => student(row).id === id)
       .map(row => ({ ...table, row })));
-    if (!rows.some(item => lessons(item.row).some(lesson => department.subjects.includes(lesson.subject)))) {
+    if (!rows.some(item => lessons(item.row).some(lesson => linkedLesson(department, lesson, item.term)))) {
       throw error('This student is not enrolled in the linked subjects for this department and year.', 404);
     }
     return rows;
@@ -243,22 +314,21 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       return [{ ...user, codes: context.staff.filter(row => row.email === user.email.trim().toLowerCase()).map(row => row.code) }];
     });
   }
-  function teaches(owner, row, department) {
-    return lessons(row).some(lesson => department.subjects.includes(lesson.subject) &&
-      lesson.staffCodes.some(code => owner.codes.includes(code)));
+  function teaches(owner, item, department) {
+    return lessons(item.row).some(lesson => linkedLesson(department, lesson, item.term, owner));
   }
   async function run(user, input) {
     if (!user?.roles?.some(role => ['ADMIN', 'Teacher'].includes(role))) throw error('Staff access is required.', 403);
     if (!input || typeof input !== 'object' || Array.isArray(input)) throw error('Invalid Student Tracker request.');
     const { action, year } = input;
     if (!Number.isInteger(year) || year < 2000 || year > 2100) throw error('Choose a year from 2000 to 2100.');
-    if (!['setup', 'save-setup', 'search', 'profile', 'attendance', 'reports'].includes(action)) {
+    if (!['setup', 'save-setup', 'save-classes', 'search', 'profile', 'attendance', 'reports'].includes(action)) {
       throw error('Unknown Student Tracker action.');
     }
-    if (action === 'save-setup') {
+    if (action === 'save-setup' || action === 'save-classes') {
       const { department } = input;
       if (!department || typeof department.name !== 'string' || !department.name.trim() || department.name.length > 100 ||
-          !Array.isArray(department.teacherEmails)) throw error('Choose a department and its authorised teachers.');
+          (action === 'save-setup' && !Array.isArray(department.teacherEmails))) throw error('Choose a department and its authorised teachers.');
       if (department.id && (typeof department.id !== 'string' || !UUID.test(department.id))) throw error('Invalid department.');
       const existing = department.id ? (await dbQuery('SELECT * FROM student_tracker_departments WHERE id=$1',
         [department.id])).rows[0] : null;
@@ -273,6 +343,25 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       }
       const managers = managersFor(leaders, department.name.trim());
       if (!admin && !managers.includes(user.id)) throw error('You cannot move this setup to a department you do not lead.', 403);
+      if (action === 'save-classes') {
+        if (!existing || department.name.trim() !== existing.name) throw error('Save the department and authorised teachers before linking classes.', 409);
+        if (!Number.isInteger(department.revision)) throw error('Reload setup before linking classes.', 409);
+        const links = department.classLinks;
+        if (!Array.isArray(links) || links.length > 1000 || links.some(link => !link ||
+            typeof link.teacherEmail !== 'string' || typeof link.code !== 'string') ||
+            new Set(links.map(link => link.teacherEmail + ':' + link.code)).size !== links.length) {
+          throw error('Choose unique teacher classes from the uploaded timetable list.');
+        }
+        const emails = [...(existing.teacher_emails || []), ...automaticTeachers(leaders, existing.name)];
+        const sources = await teacherLinks(leaders.candidates, year);
+        if (availableLinks(sources, emails, links).length !== links.length) throw error('A selected class is not in an authorised teacher timetable. Reload setup.');
+        const result = await dbQuery(`UPDATE student_tracker_departments SET
+          class_links=jsonb_set(class_links,ARRAY[$4::text],$3::jsonb,true),
+          revision=revision+1,updated_by=$5,updated_at=NOW() WHERE id=$1 AND revision=$2 RETURNING id`,
+        [existing.id, department.revision, JSON.stringify(links.map(({ teacherEmail, code }) => ({ teacherEmail, code }))), String(year), user.id]);
+        if (!result.rows.length) throw error('Department setup changed in another window. Reload before linking classes.', 409);
+        return { saved: true };
+      }
       if (department.managerIds !== undefined && (!Array.isArray(department.managerIds) ||
           department.managerIds.length !== managers.length || !managers.every(id => department.managerIds.includes(id)))) {
         throw error('HoLA access is automatic from verified staff, Lead Teacher roles and website leadership. Reload setup; manual assignments are not accepted.');
@@ -280,21 +369,21 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       validateTeachers(department.teacherEmails, leaders.candidates);
       const automatic = automaticTeachers(leaders, department.name);
       const teachers = department.teacherEmails.filter(email => !automatic.includes(email));
-      const sources = await teacherLinks(leaders.candidates, year);
-      const subjects = linkedSubjects(sources, department.name, [...teachers, ...automatic]);
-      if (department.subjects !== undefined && (!Array.isArray(department.subjects) ||
-          JSON.stringify([...department.subjects].sort()) !== JSON.stringify(subjects))) {
-        throw error('Subject codes are matched automatically from authorised teachers and Learning Site courses. Reload setup before saving.');
+      if (department.subjects !== undefined) {
+        throw error('Use Link Subject Classes to select classes separately from teacher authorisation.');
       }
+      const effective = [...teachers, ...automatic];
+      const kept = existing && existing.name === department.name.trim() ? Object.fromEntries(
+        Object.entries(savedClassLinks(existing)).map(([year, links]) => [year, links.filter(link => effective.includes(link.teacherEmail))])) : {};
       if (existing) {
         if (!Number.isInteger(department.revision)) throw error('Reload setup before saving.', 409);
         const result = await dbQuery(`UPDATE student_tracker_departments SET name=$2,subjects=$3,manager_ids=$4,
-          teacher_emails=$7,revision=revision+1,updated_by=$5,updated_at=NOW() WHERE id=$1 AND revision=$6 RETURNING id`,
-        [existing.id, department.name.trim(), subjects, managers, user.id, department.revision, teachers]);
+          teacher_emails=$7,class_links=$8::jsonb,revision=revision+1,updated_by=$5,updated_at=NOW() WHERE id=$1 AND revision=$6 RETURNING id`,
+        [existing.id, department.name.trim(), [], managers, user.id, department.revision, teachers, JSON.stringify(kept)]);
         if (!result.rows.length) throw error('Department setup changed in another window. Reload before saving.', 409);
       } else {
         await dbQuery(`INSERT INTO student_tracker_departments(name,subjects,manager_ids,updated_by,teacher_emails) VALUES($1,$2,$3,$4,$5)`,
-          [department.name.trim(), subjects, managers, user.id, teachers]);
+          [department.name.trim(), [], managers, user.id, teachers]);
       }
       return { saved: true };
     }
@@ -304,10 +393,13 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       return { admin: context.admin, staff: manageable ? context.candidates : [], users: context.users,
         departmentOptions: context.departmentOptions.map(choice => ({ ...choice,
           canManage: context.admin || choice.managerIds.includes(user.id), automaticTeachers: automaticTeachers(context, choice.name) })),
-        automaticHolaAccess: true, teacherApprovalAccess: true, departments: context.departments.map(item => ({
-        id: item.id, name: item.name, subjects: item.subjects, revision: item.revision,
+        automaticHolaAccess: true, teacherApprovalAccess: true, classSelection: true, departments: context.departments.map(item => ({
+        id: item.id, name: item.name, subjects: item.subjects, revision: item.revision, unavailableClassCount: item.unavailableClassCount,
+        ambiguousClassCount: item.classLinks.filter(link => link.ambiguousSources.length).length,
         canManage: context.admin || item.manager_ids.includes(user.id),
         managerIds: item.manager_ids, teacherEmails: manageable ? item.teacher_emails : [],
+        classLinks: item.classLinks.map(link => ({ code: link.code, teacherName: link.teacherName,
+          teacherEmail: manageable ? link.teacherEmail : undefined })),
         teacherNames: context.candidates.filter(person => item.teacherEmails.includes(person.email)).map(person => person.name)
       })) };
     }
@@ -318,7 +410,7 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       for (const table of context.tables) for (const row of table.rows) {
         const item = student(row);
         if (!item.name.toLowerCase().includes(input.q.trim().toLowerCase()) ||
-            !lessons(row).some(lesson => department.subjects.includes(lesson.subject))) continue;
+            !lessons(row).some(lesson => linkedLesson(department, lesson, table.term))) continue;
         if (!found.has(item.id)) found.set(item.id, item);
       }
       const students = [...found.values()].sort((a, b) => a.name.localeCompare(b.name));
@@ -328,12 +420,12 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
     if (action === 'profile') {
       return { student: student(rows[0].row), timetables: rows.map(item => ({
         term: item.term, lessons: lessons(item.row).map(lesson => ({
-          slot: lesson.slot, code: lesson.code, subject: lesson.subject, linked: department.subjects.includes(lesson.subject)
+          slot: lesson.slot, code: lesson.code, subject: lesson.subject, linked: linkedLesson(department, lesson, item.term)
         }))
       })), availableTerms: rows.filter(item => item.term !== null).map(item => item.term) };
     }
     const teachers = (await owners(context)).filter(owner => department.teacherEmails.includes(owner.email.trim().toLowerCase()) &&
-      rows.some(item => teaches(owner, item.row, department)));
+      rows.some(item => teaches(owner, item, department)));
     const ids = teachers.map(owner => owner.id);
     if (action === 'reports') {
       const records = ids.length ? (await planner(`SELECT owner_id::text,content,updated_at FROM planner_sections
@@ -343,9 +435,9 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
         if (!reporting.validContent(record.content)) throw error('A Planner reporting draft is invalid. Ask its teacher to review it.', 502);
         const owner = teachers.find(teacher => teacher.id === record.owner_id);
         const dtechCodes = context.candidates.filter(person => person.email === owner.email.trim().toLowerCase())
-          .flatMap(person => person.links.filter(link => link.programmes.includes('DTECH')).map(link => link.code));
+          .flatMap(person => person.classes.filter(link => link.programmes.includes('DTECH') || link.family === 'DTECH').map(link => link.subject));
         const relevant = rows.filter(item => lessons(item.row).some(lesson => dtechCodes.includes(lesson.subject) &&
-          department.subjects.includes(lesson.subject) && lesson.staffCodes.some(code => owner.codes.includes(code))));
+          linkedLesson(department, lesson, item.term, owner)));
         return JSON.parse(record.content.records).filter(row => row.studentId === input.studentId &&
           relevant.some(item => reporting.programmes[row.programme].years.includes(String(item.row.year_level)))).map(row => ({
           teacher: owner.display_name, updatedAt: record.updated_at, year, ...row, studentId: undefined
@@ -370,13 +462,16 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
         FROM planner_attendance_marks WHERE owner_id=ANY($1::uuid[]) AND student_id=$2 AND year=$3
         AND lesson_date BETWEEN $4::date AND $5::date AND mark<>'' ORDER BY lesson_date,period,owner_id`,
       [ids, input.studentId, year, start, end])).rows : [];
-      const allowed = lessons(row).filter(lesson => department.subjects.includes(lesson.subject));
+      const linkedForTerm = (lesson, owner) => linkedLesson(department, lesson, term, owner) ||
+        (term === currentTerm && linkedLesson(department, lesson, null, owner));
+      const allowed = lessons(row).filter(lesson => linkedForTerm(lesson));
+      if (!allowed.length) throw error('No linked teacher class timetable matches this student and term. Review class links and preserved teacher timetables.', 404);
       return { term, timetableSource: snapshot ? 'Preserved term timetable' : 'Current uploaded timetable (current term only)',
         startDate: start, endDate: end, marks: marks.flatMap(mark => {
         const owner = teachers.find(item => item.id === mark.owner_id);
         const day = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date(mark.date + 'T00:00:00Z').getUTCDay()];
         const matching = allowed.filter(lesson => lesson.slot.replace(/_[12]$/, '') === day + '_' + mark.period &&
-          lesson.staffCodes.some(code => owner.codes.includes(code)));
+          linkedForTerm(lesson, owner));
         return [...new Set(matching.map(lesson => lesson.subject))].map(subject => ({
           date: mark.date, period: mark.period, mark: mark.mark, subject, teacher: owner.display_name
         }));
@@ -386,4 +481,4 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
   }
   return { run };
 }
-module.exports = { createStudentTrackerService, lessons, termRows, approvedTrackerUser, matchingCourses };
+module.exports = { createStudentTrackerService, lessons, termRows, approvedTrackerUser, matchingCourses, teacherClassCodes, subjectFamily };
