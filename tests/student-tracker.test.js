@@ -445,6 +445,35 @@ test('year-level browsing combines department, class and name filters without tr
   await assert.rejects(search({ yearLevel: '9', classCode: 'UNLINKED' }), { status: 400 });
   await assert.rejects(search({ yearLevel: '9', departmentId: '00000000-0000-4000-8000-000000000000' }), { status: 403 });
 });
+test('term browsing uses preserved student and relevant teacher timetables without guessing', async () => {
+  const { service, input, state } = fixture();
+  const search = values => service.run(teacher, { ...input, action: 'search', ...values });
+  assert.equal((await service.run(teacher, { ...input, action: 'setup' })).termBrowse, true);
+  state.extraStudents = [{ id_number: '201', student_name: 'Current Only', year_level: '8', mon_p1_1: 'TST-PIDTECH-CW' }];
+  assert.ok((await search({ yearLevel: '8' })).students.some(student => student.name === 'Current Only'));
+  await assert.rejects(search({ term: 1 }), /No preserved student timetable for Term 1/);
+  await assert.rejects(search({ term: 4 }), /No preserved teacher timetable for Term 4/);
+  state.teacherHistory = [{ term: 4, payload: { headers: ['Teacher', 'Mon P1', 'Fri P3'],
+    rows: [['TST', 'PIDTECH-CW', ''], ['PEER', '', 'PIDTECH-05']] } }];
+  const term = await search({ term: 4 });
+  assert.deepEqual(term.students.map(student => student.name), ['Synthetic Student']);
+  assert.equal(term.truncated, false);
+  assert.equal((await search({ term: 4, classCode: 'PIDTECH', yearLevel: '8', q: 'Student' })).students.length, 1);
+  assert.equal((await search({ term: 4, classCode: 'PIDTECH', yearLevel: '9' })).students.length, 0);
+  assert.equal((await search({ term: 4, q: 'Current' })).students.length, 0);
+  state.teacherHistory[0].payload.rows.pop();
+  await assert.rejects(search({ term: 4, classCode: 'PIDTECH' }), /No preserved teacher timetable.*Synthetic Peer/);
+  state.department.class_links['2026'][1].code = '2-12COMP';
+  assert.equal((await search({ term: 4, classCode: 'PIDTECH' })).students.length, 1);
+  await assert.rejects(search({ term: 4 }), /Some linked classes are unavailable/);
+  state.department.class_links['2026'] = [{ teacherEmail: teacher.email, code: 'PIDTECH' }];
+  assert.equal((await search({ term: 4, classCode: 'PIDTECH' })).students.length, 1);
+  state.hasSnapshot = false;
+  await assert.rejects(search({ term: 4 }), /No preserved student timetable for Term 4/);
+  for (const invalid of [0, 5, '4', null, 2.5]) {
+    await assert.rejects(search({ term: invalid }), { status: 400 });
+  }
+});
 test('same-subject classes remain separate by teacher and scheduled group; unlinked marks and owners stay private', async () => {
   const { service, input, state } = fixture();
   state.hasSnapshot = false;

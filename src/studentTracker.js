@@ -261,7 +261,9 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
         }
       }
       const choices = [...classes.values()].sort((a, b) => a.family.localeCompare(b.family) || a.code.localeCompare(b.code, undefined, { numeric: true }));
-      return { ...person, timetableAvailable: mine.length > 0, classes: choices, excludedCodes: [...excluded].sort(),
+      return { ...person, timetableAvailable: mine.length > 0,
+        timetableTerms: [...new Set(mine.map(row => row.term).filter(term => term !== null))],
+        classes: choices, excludedCodes: [...excluded].sort(),
         links: choices.filter(item => item.suggestedDepartment).map(item => ({ ...item, department: item.suggestedDepartment })),
         unmatchedCodes: choices.filter(item => !item.courses.length).map(item => item.code) };
     });
@@ -412,7 +414,7 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       return { admin: context.admin, staff: manageable ? context.candidates : [], users: context.users,
         departmentOptions: context.departmentOptions.map(choice => ({ ...choice,
           canManage: context.admin || choice.managerIds.includes(user.id), automaticTeachers: automaticTeachers(context, choice.name) })),
-        automaticHolaAccess: true, teacherApprovalAccess: true, classSelection: true, classBrowse: true, yearLevelBrowse: true,
+        automaticHolaAccess: true, teacherApprovalAccess: true, classSelection: true, classBrowse: true, yearLevelBrowse: true, termBrowse: true,
         departments: context.departments.map(item => ({
         id: item.id, name: item.name, subjects: item.subjects, revision: item.revision, unavailableClassCount: item.unavailableClassCount,
         ambiguousClassCount: item.classLinks.filter(link => link.ambiguousSources.length).length,
@@ -432,11 +434,30 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       if (input.yearLevel !== undefined && (typeof input.yearLevel !== 'string' ||
           (input.yearLevel && !/^(?:7|8|9|10|11|12|13)$/.test(input.yearLevel)))) throw error('Choose a student year level from 7 to 13.');
       const yearLevel = input.yearLevel || '';
+      if (input.term !== undefined && (!Number.isInteger(input.term) || input.term < 1 || input.term > 4)) throw error('Choose a term from 1 to 4.');
+      const term = input.term;
       const query = (input.q || '').trim().toLowerCase();
-      if (!classCode && !yearLevel && query.length < 2) throw error('Enter at least two characters of the student name, or choose a class or year level.');
+      if (!classCode && !yearLevel && !term && query.length < 2) throw error('Enter at least two characters of the student name, or choose a class, year level or term.');
+      let tables = context.tables;
+      if (term) {
+        const snapshot = tables.find(table => table.term === term);
+        if (!snapshot) throw error('No preserved student timetable for Term ' + term + ' in ' + year +
+          '. Upload it through Kamar Uploader Dataset History before browsing this term.', 409);
+        const selected = savedClassLinks(department, year).filter(link =>
+          department.teacherEmails.includes(link.teacherEmail) && (!classCode || link.code === classCode));
+        if (selected.some(link => !department.classLinks.some(available =>
+          available.teacherEmail === link.teacherEmail && available.code === link.code))) {
+          throw error('Some linked classes are unavailable. Ask the department manager to review class links before browsing this term.', 409);
+        }
+        const missing = context.candidates.filter(person => selected.some(link => link.teacherEmail === person.email) &&
+          !person.timetableTerms.includes(term));
+        if (missing.length) throw error('No preserved teacher timetable for Term ' + term + ' in ' + year + ' for ' +
+          missing.map(person => person.name).join(', ') + '. Upload it through Kamar Uploader Dataset History before browsing this term.', 409);
+        tables = [snapshot];
+      }
       const found = new Map();
       let ambiguous = false;
-      for (const table of context.tables) for (const row of table.rows) {
+      for (const table of tables) for (const row of table.rows) {
         const item = student(row);
         if ((yearLevel && item.yearLevel !== yearLevel) || !item.name.toLowerCase().includes(query)) continue;
         const rowLessons = lessons(row);
@@ -448,7 +469,7 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
         if (!found.has(item.id)) found.set(item.id, item);
       }
       const students = [...found.values()].sort((a, b) => a.name.localeCompare(b.name));
-      const browse = classCode || yearLevel;
+      const browse = classCode || yearLevel || term;
       return { students: browse ? students : students.slice(0, 50), truncated: !browse && students.length > 50, ambiguous };
     }
     const rows = selectedStudent(context, department, input.studentId);

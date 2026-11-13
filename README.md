@@ -1643,7 +1643,11 @@ The Tracker class selector browses linked class codes across the department's
 authorised teachers. A separate Year level selector browses students in Years 7
 to 13; class, year level and student-name filters can be combined. Results include
 current and preserved timetables for the selected year, not just the current
-roll. Student timetable entries that cannot distinguish a selected class group
+roll. **All terms** is the default; selecting a specific term uses that term's
+preserved student and relevant teacher timetables only. Missing snapshots or
+unavailable relevant class links are reported rather than substituting current
+data. The term filters the search list, not the student's profile or attendance.
+Student timetable entries that cannot distinguish a selected class group
 are excluded from that class list and reported. Name-only searches retain their
 50-result limit.
 This explicitly shares approved/automatic departmental teachers' relevant Planner draft reports and teaching-log
