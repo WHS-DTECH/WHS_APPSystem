@@ -680,7 +680,8 @@ test('cover no longer duplicates Setup My Planner, which is first in shared Setu
   assert.equal(loads,0);
   const shell = renderShell({baseUrl:'/planner/',coreUrl:'',standalone:false});
   const setup = shell.match(/aria-labelledby="planner-nav-setup"[\s\S]*?<\/section>/)[0];
-  assert.ok(setup.indexOf('data-section="setup"') < setup.indexOf('data-section="assessmentSetup"'));
+  assert.match(setup, /data-section="setup"/);
+  assert.doesNotMatch(setup, /data-section="assessmentSetup"/);
   assert.doesNotMatch(setup, /attendanceImport/);
 });
 
@@ -818,12 +819,12 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.ok(!html.includes('<script>alert(1)</script>'));
   assert.match(html, /data-section="cover" aria-current="page"/);
   assert.deepEqual([...html.matchAll(/data-section="([^"]+)"/g)].map((match) => match[1]),
-    ['cover', 'year', 'term', 'week', 'setup', 'assessmentSetup', 'attendance', 'moderation', 'standards', 'learning', 'reporting']);
+    ['cover', 'year', 'term', 'week', 'setup', 'attendance', 'moderation', 'standards', 'learning', 'reporting']);
   const groups = [...html.matchAll(/<section class="planner-nav-group [^"]+" aria-labelledby="([^"]+)">([\s\S]*?)<\/section>/g)];
   assert.equal(groups.length, 3);
   for (const [index, expected] of [
     ['cover', 'year', 'term', 'week'],
-    ['setup', 'assessmentSetup'], ['attendance', 'moderation', 'standards', 'learning', 'reporting']
+    ['setup'], ['attendance', 'moderation', 'standards', 'learning', 'reporting']
   ].entries()) {
     assert.match(groups[index][2], new RegExp('<h2 id="' + groups[index][1] + '">'));
     assert.deepEqual([...groups[index][2].matchAll(/data-section="([^"]+)"/g)].map(match => match[1]), expected);
@@ -832,6 +833,7 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(groups[1][2], />Setup<\/h2>/);
   assert.match(groups[2][2], />Section Modules<\/h2>/);
   assert.equal([...groups[2][2].matchAll(/disabled title="Page coming soon"/g)].length, 0);
+  assert.doesNotMatch(groups[1][2], /Setup Assessment/);
   assert.doesNotMatch(groups[2][2], /Behaviour Management/);
   assert.match(groups[2][2], /<a href="https:\/\/core\.example\.test\/launchpad\/apps\/whs-techstudent-tracker" target="_blank" rel="noopener" title="Open Student Tracker in a new tab">Student Tracker<\/a>/);
   assert.match(groups[2][2], /<a href="https:\/\/core\.example\.test\/launchpad\/apps\/relief-plan" target="_blank" rel="noopener" title="Open Relief Library in a new tab">Relief Library<\/a>/);

@@ -50,7 +50,6 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
     <h2 id="planner-nav-setup">Setup</h2>
     <div class="planner-nav-buttons">
       <button type="button" data-section="setup">Setup My Planner</button>
-      <button type="button" data-section="assessmentSetup">Setup Assessment</button>
       <button type="button" id="refresh-weekly-duties" hidden>Refresh duties</button>
     </div>
   </section>
