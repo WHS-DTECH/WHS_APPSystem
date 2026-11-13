@@ -441,6 +441,28 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
     return { year, departments: profiles, learningSites,
       notice: 'Department leadership comes from the reviewed shared directory. Teaching groups use approved Student Tracker class links and KAMAR staff timetables for the selected year. Learning Site units reflect listed content only; missing listings are not generated. No student records are included.' };
   }
+  async function teachingSubjects(user, { year } = {}) {
+    if (!user?.roles?.some(role => ['ADMIN', 'Teacher'].includes(role))) throw error('Staff access is required.', 403);
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) throw error('Choose a year from 2000 to 2100.');
+    const [departments, staff] = await Promise.all([
+      dbQuery('SELECT name,class_links FROM student_tracker_departments ORDER BY name'),
+      staffRows()
+    ]);
+    const leaders = await leadership(staff);
+    const email = typeof user.email === 'string' ? user.email.trim().toLowerCase() : '';
+    const person = leaders.staffIds.includes(user.id) && leaders.candidates.find(item => item.email === email);
+    if (!person) return { year, classes: [] };
+    const candidates = await teacherLinks([person], year);
+    const classes = new Map();
+    for (const department of departments.rows) {
+      for (const link of availableLinks(candidates, [person.email], savedClassLinks(department, year))) {
+        const subject = discipline(link.code);
+        classes.set(subject + '|' + link.subject, { subject, course: link.subject });
+      }
+    }
+    return { year, classes: [...classes.values()].sort((a, b) => a.subject.localeCompare(b.subject) ||
+      a.course.localeCompare(b.course, undefined, { numeric: true })) };
+  }
   async function scope(user, year) {
     const [departments, staff, tables] = await Promise.all([
       dbQuery('SELECT id,name,manager_ids,subjects,revision,teacher_emails,class_links FROM student_tracker_departments ORDER BY name'),
@@ -889,6 +911,6 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
     }
     throw error('Unknown Student Tracker action.');
   }
-  return { run, learningAreas };
+  return { run, learningAreas, teachingSubjects };
 }
 module.exports = { createStudentTrackerService, lessons, termRows, approvedTrackerUser, matchingCourses, teacherClassCodes, subjectFamily };

@@ -971,8 +971,23 @@ test('Learning Area Profiles reuse confirmed department links without reading or
   await assert.rejects(service.learningAreas(teacher, { year: 2026 }), /directory unavailable/);
 });
 
+test('teaching subjects list only the signed-in teacher’s confirmed subject and course pairs', async () => {
+  const { service, state } = fixture();
+  state.courses.push({ course_code: '11DTECH', subject_code: 'DTECH' }, { course_code: '12DTECH', subject_code: 'DTECH' });
+  state.department.class_links['2026'] = [{ teacherEmail: teacher.email, code: '3-11DTECH' },
+    { teacherEmail: teacher.email, code: '6-11DTECH' }, { teacherEmail: teacher.email, code: '4-12DTECH' },
+    { teacherEmail: teacher.email, code: 'UNCONFIRMED' }];
+  state.teacherRows[0].data = { Teacher: 'TST', Mon_P1: '3-11DTECH-05', Tue_P2: '6-11DTECH-05', Wed_P3: '4-12DTECH-05' };
+  const data = await service.teachingSubjects(teacher, { year: 2026 });
+  assert.deepEqual(data.classes, [{ subject: 'DTECH', course: '11DTECH' }, { subject: 'DTECH', course: '12DTECH' }]);
+  assert.doesNotMatch(JSON.stringify(data), /@|k:100|Synthetic Student/);
+  assert.deepEqual((await service.teachingSubjects({ ...teacher, id: managerId }, { year: 2026 })).classes, []);
+  await assert.rejects(service.teachingSubjects(teacher, { year: '2026' }), { status: 400 });
+  await assert.rejects(service.teachingSubjects({ ...teacher, roles: ['Student'] }, { year: 2026 }), { status: 403 });
+});
+
 test('Learning Area Profile bridge permits only a live Unit Library grant and no Tracker actions', async t => {
-  let allowed = true, calls = 0;
+  let allowed = true, calls = 0, subjectCalls = 0;
   const app = express(); app.use(express.json());
   app.use('/module-auth', createModuleIdentityRouter({
     dbQuery: async (sql, params) => {
@@ -985,7 +1000,7 @@ test('Learning Area Profile bridge permits only a live Unit Library grant and no
     trackerService: { learningAreas: async (user, input) => {
       calls++; assert.equal(user.id, teacherId); assert.deepEqual(input, { year: 2026 });
       return { year: 2026, departments: [] };
-    } }
+    }, teachingSubjects: async user => { subjectCalls++; assert.equal(user.id, teacherId); return { year: 2026, classes: [] }; } }
   }));
   const server = app.listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
@@ -1005,6 +1020,10 @@ test('Learning Area Profile bridge permits only a live Unit Library grant and no
   allowed = false;
   assert.equal((await post('whs-unit-library', 'A'.repeat(43))).status, 401);
   assert.equal(calls, 1);
+  allowed = true;
+  assert.equal((await post('whs-unit-library', 'A'.repeat(43), 'teaching-subjects')).status, 403);
+  assert.equal((await post('whs-assessment-manager', 'A'.repeat(43), 'teaching-subjects')).status, 200);
+  assert.equal(subjectCalls, 1);
 });
 
 test('Tracker bridge requires a live grant for the registered Tracker client before any data access', async t => {

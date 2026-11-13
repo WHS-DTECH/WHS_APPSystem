@@ -215,6 +215,19 @@ function createModuleIdentityRouter({
         'Learning Area Profiles could not be loaded. Check the department directory, KAMAR staff timetables, Student Tracker setup and Learning Sites content, then retry.' });
     }
   }));
+  router.post('/teaching-subjects', wrap(async (req, res) => {
+    const user = await identity(req, res);
+    if (!user) return;
+    if (req.body.client_id?.split(':')[0] !== 'whs-assessment-manager') {
+      return deny(res, 'Teaching subjects are available only to the registered WHS Assessment Manager app.');
+    }
+    try { res.json(await tracker.teachingSubjects(user, { year: req.body.year })); }
+    catch (error) {
+      console.error('Teaching subjects request failed:', error.status ? error.message : 'Data source unavailable.');
+      res.status(error.status || 502).json({ error: error.status ? error.message :
+        'Your teaching subjects could not be loaded. Check KAMAR staff timetables and Student Tracker class links, then retry.' });
+    }
+  }));
   router.post('/learning-area-sync', wrap(async (req, res) => {
     const user = await identity(req, res);
     if (!user) return;

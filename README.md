@@ -1614,6 +1614,14 @@ records, email addresses, private Planner records or database credentials are
 returned. Unconfigured departments and unconfirmed class links produce visible
 warnings, while upstream failures fail explicitly.
 
+The registered `whs-assessment-manager` client can call
+`POST /module-auth/teaching-subjects` with a school year. It returns only the
+signed-in teacher's own subject/course pairs (for example `DTECH` / `13DTECH`)
+from approved Student Tracker class links confirmed by that year's KAMAR staff
+timetables, to suggest Subject and Course Code. Staff not uniquely matched to a
+current KAMAR record receive an empty list; no class codes, students or emails
+are returned.
+
 The Library filters Department → Discipline → Subject and expands a collapsed
 Discipline → Subject → Course → listed units tree, without teaching-group
 branches. `learningSiteUnits` reads the real static course-page assessment/unit
