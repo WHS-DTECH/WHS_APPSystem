@@ -572,11 +572,24 @@ test('term browsing uses preserved student and relevant teacher timetables witho
   assert.equal((await search({ term: 4, q: 'Current' })).students.length, 0);
   state.teacherHistory[0].payload.rows.pop();
   await assert.rejects(search({ term: 4, classCode: 'PIDTECH' }), /No preserved teacher timetable.*Synthetic Peer/);
+  state.studentHistory = [{ term: 4, payload: {
+    headers: ['Student Name', 'ID Number', 'Year Level', 'Mon P1', 'Fri P3'],
+    rows: [['Synthetic Student', '100', '8', 'TST-PIDTECH-CW', '']]
+  } }];
+  assert.deepEqual((await search({ term: 4, classCode: 'PIDTECH' })).students.map(student => student.name), ['Synthetic Student']);
+  state.studentHistory[0].payload.rows[0][4] = 'PEER-MATH-05';
+  assert.equal((await search({ term: 4 })).students.length, 1, 'a teacher in an unrelated subject does not block the search');
+  state.studentHistory[0].payload.rows[0][4] = 'PEER-PIDTECH-05';
+  await assert.rejects(search({ term: 4 }), /No preserved teacher timetable.*Synthetic Peer/);
+  state.studentHistory[0].payload.rows[0][4] = 'PIDTECH';
+  await assert.rejects(search({ term: 4 }), /No preserved teacher timetable.*Synthetic Peer/);
+  state.studentHistory[0].payload.rows[0][4] = 'PEER-PIDTECH-05';
   state.department.class_links['2026'][1].code = '2-12COMP';
   assert.equal((await search({ term: 4, classCode: 'PIDTECH' })).students.length, 1);
   await assert.rejects(search({ term: 4 }), /Some linked classes are unavailable/);
   state.department.class_links['2026'] = [{ teacherEmail: teacher.email, code: 'PIDTECH' }];
   assert.equal((await search({ term: 4, classCode: 'PIDTECH' })).students.length, 1);
+  state.studentHistory = null;
   state.hasSnapshot = false;
   await assert.rejects(search({ term: 4 }), /No preserved student timetable for Term 4/);
   for (const invalid of [0, 5, '4', null, 2.5]) {

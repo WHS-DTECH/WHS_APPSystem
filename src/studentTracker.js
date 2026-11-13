@@ -84,6 +84,13 @@ function mixedSeniorLesson(department, link, lesson) {
   return normaliseDirectoryName(department.name) === normaliseDirectoryName('Technology') &&
     seniorLine(link.code) && seniorSubject.test(lesson.subject);
 }
+function possibleLinkedLesson(department, link, lesson) {
+  if (mixedSeniorLesson(department, link, lesson)) {
+    return lesson.classCode === lesson.subject || seniorLine(lesson.classCode) === seniorLine(link.code);
+  }
+  return subjectCode(link.code) === lesson.subject &&
+    (lesson.classCode === lesson.subject || lesson.classCode === link.code);
+}
 function lessonSourceMatches(link, lesson, term) {
   return link.sources.some(source => source.term === term && source.slot === lesson.slot &&
     (!source.studentIds || source.unrestricted || source.studentIds.includes(lesson.studentId)));
@@ -531,8 +538,14 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
           available.teacherEmail === link.teacherEmail && available.code === link.code))) {
           throw error('Some linked classes are unavailable. Ask the department manager to review class links before browsing this term.', 409);
         }
-        const missing = context.candidates.filter(person => selected.some(link => link.teacherEmail === person.email) &&
-          !person.timetableTerms.includes(term));
+        const studentLessons = snapshot.rows.flatMap(row => {
+          const item = student(row);
+          return (!yearLevel || item.yearLevel === yearLevel) && item.name.toLowerCase().includes(query) ? lessons(row) : [];
+        });
+        const missing = context.candidates.filter(person => !person.timetableTerms.includes(term) &&
+          selected.some(link => link.teacherEmail === person.email && studentLessons.some(lesson =>
+            (!lesson.staffCodes.length || lesson.staffCodes.includes(person.code)) &&
+            possibleLinkedLesson(department, link, lesson))));
         if (missing.length) throw error('No preserved teacher timetable for Term ' + term + ' in ' + year + ' for ' +
           missing.map(person => person.name).join(', ') + '. Upload it through Kamar Uploader Dataset History before browsing this term.', 409);
         tables = [snapshot];
@@ -574,11 +587,7 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
           const family = discipline(lesson.subject);
           const missing = unavailableByTerm.get(table.term).some(({ link, person }) => {
             if (person && !lesson.staffCodes.includes(person.code)) return false;
-            if (mixedSeniorLesson(department, link, lesson)) {
-              return lesson.classCode === lesson.subject || seniorLine(lesson.classCode) === seniorLine(link.code);
-            }
-            return subjectCode(link.code) === lesson.subject &&
-              (lesson.classCode === lesson.subject || lesson.classCode === link.code);
+            return possibleLinkedLesson(department, link, lesson);
           });
           if (matches.includes('matched')) {
             disciplines.add(family);

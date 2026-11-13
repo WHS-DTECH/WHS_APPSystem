@@ -1659,7 +1659,10 @@ current and preserved timetables for the selected year, not just the current
 roll. **All terms** is the default; selecting a specific term uses that term's
 preserved student and relevant teacher timetables only. Missing snapshots or
 unavailable relevant class links are reported rather than substituting current
-data. The term filters the search list, not the student's profile or attendance.
+data. A missing teacher snapshot blocks the search only when a matching student
+timetable lesson may belong to that teacher's linked class; teachers who were
+not teaching those lessons in that term do not block it. The term filters the
+search list, not the student's profile or attendance.
 Student timetable entries that cannot distinguish a selected class group
 are excluded from that class list and reported. Name-only searches retain their
 50-result limit. Results show each student's linked subjects by discipline across
