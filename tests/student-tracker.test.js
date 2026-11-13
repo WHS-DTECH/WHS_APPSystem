@@ -360,6 +360,10 @@ test('real teacher cells split concurrent lessons, retain class groups, and sepa
   assert.equal(parsed.excluded.length, 4);
   assert.equal(subjectFamily('3-13HOSP'), subjectFamily('81A-MFOOD'));
   assert.equal(subjectFamily('81C-MDTECH'), 'DTECH');
+  assert.equal(subjectFamily('12HIST-12HIST'), 'HIST');
+  assert.equal(subjectFamily('JPI-PISCI'), 'SCI');
+  assert.equal(subjectFamily('JSD-SDSCI'), 'SCI');
+  assert.equal(subjectFamily('MTR-MTRSCI'), 'SCI');
   assert.deepEqual(matchingCourses('8S-JDTECH', [{ course_code: 'JDTECH' }]).map(course => course.course_code), ['JDTECH']);
   assert.deepEqual(matchingCourses('81A-MFOOD', [{ course_code: 'MFOOD-S1' }, { course_code: 'MDTECH-S1' }])
     .map(course => course.course_code), ['MFOOD-S1']);

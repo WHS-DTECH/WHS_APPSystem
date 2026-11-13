@@ -11,13 +11,19 @@ const columns = ['mon', 'tue', 'wed', 'thu', 'fri']
 const error = (message, status = 400) => Object.assign(new Error(message), { status });
 const technologyPrograms = new Set(['DTECH', 'COMP', 'DVC', 'FOOD', 'TEXTILES', 'WOOD']);
 const days = ['mon', 'tue', 'wed', 'thu', 'fri'];
-const classGroup = /^(?:\d+|\d{1,2}[A-Z]|J[A-Z]{2})$/;
+const classGroup = /^(?:\d+|\d{1,2}[A-Z]|J[A-Z]{2}|MTR)$/;
 function subjectCode(code) {
   const parts = code.split('-');
-  return parts.length > 1 && classGroup.test(parts[0]) ? parts.slice(1).join('-') : code;
+  const grouped = classGroup.test(parts[0]) ||
+    (parts.length > 1 && /^\d{1,2}[A-Z]+$/.test(parts[0]) && /^\d/.test(parts[1]));
+  return parts.length > 1 && grouped ? parts.slice(1).join('-') : code;
 }
 function subjectFamily(code) {
-  const subject = subjectCode(code);
+  let subject = subjectCode(code);
+  const junior = /^J([A-Z]{2})-/.exec(code);
+  const prefix = junior?.[1] || (code.startsWith('MTR-') ? 'MTR' : null);
+  if (prefix && subject.startsWith(prefix)) subject = subject.slice(prefix.length);
+  subject = subject.replace(/-/g, '');
   const technology = /(DTECH|COMP|DVC|FOOD|HOSP|TEXT|WOOD|FURN)\d*[A-Z]?$/.exec(subject);
   if (technology) return { HOSP: 'FOOD', TEXT: 'TEXTILES', FURN: 'WOOD' }[technology[1]] || technology[1];
   return subject.replace(/^\d+/, '').replace(/\d+[A-Z]?$/, '') || subject;
