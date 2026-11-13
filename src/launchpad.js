@@ -4,7 +4,7 @@ const path = require('path');
 const express = require('express');
 const { query } = require('./db');
 const { ensureAuthenticated, ensureRole } = require('./middleware');
-const { accessibleModules } = require('./moduleAccess');
+const { accessibleModules, registeredModules } = require('./moduleAccess');
 const { appDestination } = require('./appAddresses');
 const { developmentProjects } = require('./developmentProjects');
 
@@ -96,10 +96,15 @@ function createLaunchApp({ dbQuery = query } = {}) {
     res.set('Cache-Control', 'no-store');
     if (!req.user) return res.redirect('/auth/google?next=' + encodeURIComponent(req.originalUrl));
     try {
-      const modules = await accessibleModules(req.user, dbQuery);
+      const modules = await registeredModules(req.user, dbQuery);
       const module = modules.find(item => item.module_key === req.params.moduleKey);
-      if (!module) return res.status(403).render('error', { title: 'App access denied', message: 'This app is inactive or has not been assigned to your active school account.' });
-      const destination = appDestination(module.path);
+      const project = !module && req.user.is_active !== false
+        ? (await developmentProjects(req.user, dbQuery)).find(item => item.slug === req.params.moduleKey)
+        : null;
+      if (req.user.is_active === false || (module ? !module.is_active || !module.has_access : !project?.app_url)) {
+        return res.status(403).render('error', { title: 'App access denied', message: 'This app is inactive or has not been assigned to your active school account.' });
+      }
+      const destination = appDestination(module ? module.path : project.app_url);
       if (destination === '/' || /^\/(?:launchpad|auth)(?:[/?#]|$)/i.test(destination)) {
         throw new Error('The registered app destination points to Global Control sign-in or the Launchpad.');
       }

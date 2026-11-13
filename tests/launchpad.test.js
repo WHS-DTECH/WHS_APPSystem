@@ -117,8 +117,8 @@ test('authenticated Launchpad, admin cards, stable launch routes and direct modu
   let user = null;
   const dbQuery = async (sql, params = []) => {
     if (sql.includes('FROM module_builder_projects')) return { rows: [
-      { id: 'b0000000-0000-4000-8000-000000000002', name: 'Tracker <Dev>', description: null, app_url: 'https://tracker-development.onrender.com/' },
-      { id: 'b0000000-0000-4000-8000-000000000003', name: 'Undeployed Dev', description: null, app_url: null },
+      { id: 'b0000000-0000-4000-8000-000000000002', slug: 'whs-techstudent-tracker', name: 'Tracker <Dev>', description: null, app_url: 'https://tracker-development.onrender.com/' },
+      { id: 'b0000000-0000-4000-8000-000000000003', slug: 'undeployed', name: 'Undeployed Dev', description: null, app_url: null },
       { id: 'b0000000-0000-4000-8000-000000000004', name: 'International (renamed)', description: null, app_url: 'https://whs-international.onrender.com/' },
       { id: 'b0000000-0000-4000-8000-000000000005', name: 'Example App', description: null, app_url: 'https://other.onrender.com/' }
     ] };
@@ -199,6 +199,7 @@ test('authenticated Launchpad, admin cards, stable launch routes and direct modu
     assert.equal(page.headers.get('cache-control'), 'no-store');
     assert.equal((await call('/example/')).status, 200);
     assert.equal((await call('/launchpad/apps/international-app')).status, 403);
+    assert.equal((await call('/launchpad/apps/whs-techstudent-tracker')).status, 403, 'unregistered development apps remain ADMIN-only');
     assert.equal((await call('/inactive/')).status, 403);
     assert.equal((await call('/admin/launchpad')).status, 403);
     assigned.clear();
@@ -215,6 +216,16 @@ test('authenticated Launchpad, admin cards, stable launch routes and direct modu
     assert.equal((await call('/example/')).status, 403);
     assert.equal((await call('/launchpad/apps/example-module')).status, 403);
     user = { id: 'admin-fixture', roles: ['ADMIN'], is_active: true };
+    const trackerLaunch = '/launchpad/apps/whs-techstudent-tracker';
+    assert.equal((await call(trackerLaunch)).headers.get('location'), 'https://tracker-development.onrender.com/');
+    assert.equal((await call('/launchpad/apps/undeployed')).status, 403);
+    assert.equal((await call('/launchpad/apps/unknown-app')).status, 403);
+    user.is_active = false;
+    assert.equal((await call(trackerLaunch)).status, 403, 'inactive ADMIN cannot launch a development app');
+    user.is_active = true;
+    modules.push({ module_key: 'whs-techstudent-tracker', is_active: false, path: 'https://tracker-development.onrender.com/' });
+    assert.equal((await call(trackerLaunch)).status, 403, 'development registration cannot bypass a deactivated module');
+    modules.pop();
     assert.equal((await call('/admin/launchpad')).status, 200, 'administrators retain recovery tools when the Core card is inactive');
     const adminHtml = await (await call('/admin/launchpad')).text();
     assert.doesNotMatch(adminHtml, /href="\/admin\/launchpad\/download"/);

@@ -1497,6 +1497,9 @@ navigation, Search, sign-out and role assignment come from Global Control.
 The **Student Tracker** link under **Section Modules** opens the registered
 Tracker app in a new tab through Global Control's access-checked Launchpad route,
 leaving the current Planner page open.
+Before Tracker is registered as a Core module, this route resolves its deployed
+Module Builder development address for active ADMIN accounts only, matching the
+In Development sidebar. An inactive registered module still blocks launch.
 The integrated Teacher Planner appears under **Modules** in shared navigation,
 not In Development or Student Apps. Development registry/service details are
 retained for rollback; locally integrated projects are excluded from the
