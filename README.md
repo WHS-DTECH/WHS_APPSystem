@@ -1679,13 +1679,18 @@ attendance with those authorised department staff; it does not publish or change
 the original records. Unrelated students, subjects and marks are excluded.
 
 Student search, profiles and timetables read only Kamar Uploader's current and
-preserved term timetables. Attendance and report drafts read the existing Planner
-database. Attendance starts at the current/latest finished term with published
-dates. Historical attendance requires that term's preserved student and teacher timetables;
-only the current term may use the current upload if a snapshot is absent.
-Reports History currently displays the working JuniorDTECH/MiddleDTECH draft
-records for the selected school year, not official KAMAR report history.
-Behaviour and Assessment remain disabled buttons with no pages or data sources.
+preserved term timetables. The profile lists confirmed department subject classes,
+teachers and their recorded sources separately from the weekly timetable, with
+warnings when subject or class matches cannot be confirmed. Attendance opens on
+a separate page and reads the existing Planner teaching-log marks for each term,
+grouped by the published school weeks. A missing mark is not recorded, not
+present or absent. A period mark that coincides with multiple linked subjects is
+shown once with those subjects and a warning; it is not assigned to one subject.
+Historical attendance requires that term's preserved student
+and teacher timetables; only the current term may use the current upload if a
+student snapshot is absent. Incomplete teacher or class data is reported.
+The existing report-draft API remains available, but the profile's Reporting,
+Behaviour and Assessment buttons are disabled while those pages are being defined.
 Use the year selector to explore another year's imported records. Missing
 uploads, unpublished dates and source outages are displayed explicitly.
 

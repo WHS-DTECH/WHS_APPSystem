@@ -38,7 +38,13 @@ function fixture() {
     failDirectory: false, studentHistory: null, staff, accounts, teacherRows: [
       { teacher: 'TST', data: { Teacher: 'TST', Mon_P1: 'PIDTECH-CW', Tue_P2: 'MATH-A' } },
       { teacher: 'PEER', data: { Teacher: 'PEER', Fri_P3: 'PIDTECH-05' } }
-    ], teacherHistory: [], teacherYear: 2026, historyYear: 2026, courses: [{ course_code: 'PIDTECH', subject_code: 'DTECH' }] };
+    ], teacherHistory: [], teacherYear: 2026, historyYear: 2026, courses: [{ course_code: 'PIDTECH', subject_code: 'DTECH' }],
+    settings: { term1Start: '2026-01-29', term1End: '2026-04-02', term4Start: '2026-10-12', term4End: '2026-12-18' },
+    marks: [
+      { owner_id: teacherId, date: '2026-11-09', period: 'p1', mark: 'P' },
+      { owner_id: peerId, date: '2026-11-13', period: 'p3', mark: 'L' },
+      { owner_id: teacherId, date: '2026-11-10', period: 'p2', mark: 'A' }
+    ] };
   const service = createStudentTrackerService({
     today: () => '2026-11-13',
     dbQuery: async (sql, params) => {
@@ -92,18 +98,13 @@ function fixture() {
       state.plannerCalls.push({ sql, params });
       if (state.failPlanner) throw new Error('Planner unavailable');
       assert.doesNotMatch(sql, /INSERT|UPDATE|DELETE|student_upload/);
-      if (sql.includes('school_planner_settings')) return { rows: [{ content: {
-        term1Start: '2026-01-29', term1End: '2026-04-02', term4Start: '2026-10-12', term4End: '2026-12-18'
-      } }] };
+      if (sql.includes('school_planner_settings')) return { rows: [{ content: state.settings }] };
       if (sql.includes('planner_sections')) return { rows: [
         { owner_id: teacherId, content: { records: JSON.stringify([report, { ...report, studentId: 'k:200' }]) }, updated_at: '2026-11-12' },
         { owner_id: peerId, content: { records: JSON.stringify([report]) }, updated_at: '2026-11-11' }
       ].filter(row => params[0].includes(row.owner_id)) };
-      if (sql.includes('planner_attendance_marks')) return { rows: [
-        { owner_id: teacherId, date: '2026-11-09', period: 'p1', mark: 'P' },
-        { owner_id: peerId, date: '2026-11-13', period: 'p3', mark: 'L' },
-        { owner_id: teacherId, date: '2026-11-10', period: 'p2', mark: 'A' }
-      ].filter(row => params[0].includes(row.owner_id)) };
+      if (sql.includes('planner_attendance_marks')) return { rows: state.marks.filter(row =>
+        params[0].includes(row.owner_id) && row.date >= params[3] && row.date <= params[4]) };
       throw new Error('Unexpected Planner query: ' + sql);
     }
   });
@@ -193,6 +194,82 @@ test('current term attendance can use the current upload but previous terms neve
   assert.match(result.timetableSource, /current term only/);
   assert.equal(result.marks.length, 2);
   await assert.rejects(service.run(teacher, { ...input, action: 'attendance', term: 1 }), /No preserved timetable/);
+  const overview = await service.run(teacher, { ...input, action: 'attendance-overview' });
+  assert.equal(overview.terms[0].status, 'unavailable');
+  assert.equal(overview.terms[3].status, 'available');
+  assert.match(overview.terms[3].timetableSource, /current term only/);
+  state.marks = [];
+  assert.deepEqual((await service.run(teacher, { ...input, action: 'attendance-overview' })).terms[3].marks, []);
+});
+test('profile lists confirmed linked subject classes, teachers and sources without guessing unavailable timetables', async () => {
+  const { service, input, state } = fixture();
+  state.teacherHistory = [{ term: 4, payload: { headers: ['Teacher', 'Mon P1', 'Fri P3'],
+    rows: [['TST', 'PIDTECH-CW', ''], ['PEER', '', 'PIDTECH-05']] } }];
+  const profile = await service.run(teacher, { ...input, action: 'profile' });
+  assert.deepEqual(profile.subjectClasses, [
+    { discipline: 'Digital Technologies', subject: 'PIDTECH', classCode: 'PIDTECH', teacher: 'Synthetic Peer', sources: [null, 4] },
+    { discipline: 'Digital Technologies', subject: 'PIDTECH', classCode: 'PIDTECH', teacher: 'Synthetic Teacher', sources: [null, 4] }
+  ]);
+  assert.deepEqual(profile.subjectClassesWarnings, []);
+  state.teacherHistory = [];
+  const missing = await service.run(teacher, { ...input, action: 'profile' });
+  assert.ok(missing.subjectClasses.every(item => item.sources.length === 1 && item.sources[0] === null));
+  assert.match(missing.subjectClassesWarnings.join(' '), /Term 4/);
+  assert.doesNotMatch(JSON.stringify(profile.subjectClasses), /MATH|100|example\.test/);
+});
+test('attendance overview shows each term, recorded linked marks and explicitly incomplete sources', async () => {
+  const { service, input, state } = fixture();
+  state.settings.term2Start = '2026-04-20';
+  state.settings.term2End = '2026-07-03';
+  state.settings.term3Start = '2026-07-20';
+  state.settings.term3End = '2026-09-25';
+  const headers = ['Student Name', 'ID Number', 'Year Level', 'Mon P1', 'Fri P3'];
+  const row = ['Synthetic Student', '100', '8', 'TST-PIDTECH-CW', 'PEER-PIDTECH-05'];
+  state.studentHistory = [
+    { term: 1, payload: { headers, rows: [row] } },
+    { term: 2, payload: { headers, rows: [['Synthetic Student', '100', '8', 'OTHER-MATH-A', '']] } },
+    { term: 3, payload: { headers, rows: [row] } },
+    { term: 4, payload: { headers, rows: [row] } }
+  ];
+  state.teacherHistory = [1, 4].map(term => ({ term, payload: {
+    headers: ['Teacher', 'Mon P1', 'Fri P3'], rows: [['TST', 'PIDTECH-CW', ''], ['PEER', '', 'PIDTECH-05']]
+  } }));
+  state.marks.push({ owner_id: teacherId, date: '2026-02-02', period: 'p1', mark: 'A' });
+  const result = await service.run(teacher, { ...input, action: 'attendance-overview' });
+  assert.deepEqual(result.terms.map(item => item.status), ['available', 'not_enrolled', 'unavailable', 'available']);
+  assert.deepEqual(result.terms[0].marks.map(item => item.mark), ['A']);
+  assert.deepEqual(result.terms[3].marks.map(item => item.mark), ['P', 'L']);
+  assert.equal(result.terms[0].startDate, '2026-01-29');
+  assert.equal(result.terms[3].endDate, '2026-12-18');
+  assert.match(result.notice, /not the official KAMAR/);
+  assert.match(result.terms[2].message, /could not be confirmed/);
+  assert.doesNotMatch(JSON.stringify(result), /MATH|k:100/);
+  state.teacherHistory.find(item => item.term === 4).payload.rows.pop();
+  const partial = await service.run(teacher, { ...input, action: 'attendance-overview' });
+  assert.deepEqual(partial.terms[3].marks.map(item => item.mark), ['P']);
+  assert.match(partial.terms[3].message, /incomplete/);
+  state.studentHistory = state.studentHistory.filter(item => item.term !== 1);
+  state.settings.term4End = '';
+  const missing = await service.run(teacher, { ...input, action: 'attendance-overview' });
+  assert.match(missing.terms[0].message, /No student timetable/);
+  assert.match(missing.terms[3].message, /term dates/);
+  await assert.rejects(service.run({ ...teacher, email: 'outsider@example.test' },
+    { ...input, action: 'attendance-overview' }), { status: 403 });
+});
+test('attendance overview does not duplicate one saved period mark across two subjects', async () => {
+  const { service, input, state } = fixture();
+  state.department.class_links['2026'] = ['PIDTECH', '11FOOD'].map(code => ({ teacherEmail: teacher.email, code }));
+  state.teacherRows[0].data.Mon_P1 = 'PIDTECH-CW;11FOOD-F';
+  Object.assign(state.row, { mon_p1_2: 'TST-11FOOD-F', fri_p3: '' });
+  state.teacherHistory = [{ term: 4, payload: { headers: ['Teacher', 'Mon P1'],
+    rows: [['TST', 'PIDTECH-CW;11FOOD-F']] } }];
+  state.studentHistory = [{ term: 4, payload: {
+    headers: ['Student Name', 'ID Number', 'Year Level', 'Mon P1', 'Mon P1'],
+    rows: [['Synthetic Student', '100', '8', 'TST-PIDTECH-CW', 'TST-11FOOD-F']]
+  } }];
+  const result = await service.run(teacher, { ...input, action: 'attendance-overview' });
+  assert.deepEqual(result.terms[3].marks.map(item => [item.subject, item.mark]), [['11FOOD / PIDTECH', 'P']]);
+  assert.match(result.terms[3].message, /cannot be assigned/);
 });
 test('ADMIN cannot manually grant a student or unrelated account HoLA rights or replace a stale department id', async () => {
   const { service, input, department, state } = fixture();
@@ -419,7 +496,12 @@ test('HOSPCOOK and DTONLINE are selectable without revealing or broadening indiv
   assert.deepEqual((await search({ classCode: 'HOSPCOOK', term: 4 })).students.map(student => student.name),
     ['Other Cooking Student']);
   assert.deepEqual((await search({ classCode: '2-DTONLINE', term: 4 })).students.map(student => student.name), ['Online Student']);
-  assert.equal((await service.run(teacher, { ...input, action: 'profile' })).timetables[0].lessons[0].linked, true);
+  const profile = await service.run(teacher, { ...input, action: 'profile' });
+  assert.equal(profile.timetables[0].lessons[0].linked, true);
+  assert.deepEqual(profile.subjectClasses.map(item => [item.classCode, item.sources]), [['HOSPCOOK', [null]]]);
+  assert.doesNotMatch(JSON.stringify(profile.subjectClasses), /100|101|studentIds/);
+  const overview = await service.run(teacher, { ...input, action: 'attendance-overview' });
+  assert.equal(overview.terms[3].status, 'unavailable');
   state.studentHistory = [];
   assert.deepEqual((await search({ classCode: 'HOSPCOOK' })).students.map(student => student.name), ['Synthetic Student']);
   await assert.rejects(service.run(teacher, { ...input, action: 'profile', studentId: 'k:101' }), { status: 404 });
@@ -773,6 +855,9 @@ test('mixed senior lines do not guess between co-timetabled groups or expose uns
   state.row.mon_p1_1 = 'TST-13DTECH-CW';
   state.department.class_links['2026'].push({ teacherEmail: teacher.email, code: '4-12COMP' });
   assert.equal((await search({ yearLevel: '13' })).students.length, 1);
+  const profile = await service.run(teacher, { ...input, action: 'profile' });
+  assert.deepEqual(profile.subjectClasses.map(item => item.classCode), ['Class group not distinguishable']);
+  assert.match(profile.subjectClassesWarnings.join(' '), /current timetable/);
   result = await search({ classCode: '3-11DTECH' });
   assert.equal(result.students.length, 0);
   assert.equal(result.ambiguous, true);

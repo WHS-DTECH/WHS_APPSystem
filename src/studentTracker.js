@@ -441,12 +441,26 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
   function teaches(owner, item, department) {
     return lessons(item.row).some(lesson => linkedLesson(department, lesson, item.term, owner));
   }
+  function incompleteLesson(context, department, year, term, lesson) {
+    return savedClassLinks(department, year).some(link => {
+      if (!department.teacherEmails.includes(link.teacherEmail)) return false;
+      const person = context.candidates.find(candidate => candidate.email === link.teacherEmail);
+      const available = department.classLinks.find(item => item.teacherEmail === link.teacherEmail && item.code === link.code);
+      const hasTimetable = person && (term === null ? person.timetableCurrent : person.timetableTerms.includes(term));
+      if ((!person || !lesson.staffCodes.length || lesson.staffCodes.includes(person.code)) &&
+          possibleLinkedLesson(department, link, lesson)) {
+        return !available || !hasTimetable || !department.classLinks.some(item =>
+          item.teacherEmail === link.teacherEmail && linkedLessonMatch(department, item, lesson, term) === 'matched');
+      }
+      return false;
+    }) || department.classLinks.some(link => linkedLessonMatch(department, link, lesson, term) === 'ambiguous');
+  }
   async function run(user, input) {
     if (!user?.roles?.some(role => ['ADMIN', 'Teacher'].includes(role))) throw error('Staff access is required.', 403);
     if (!input || typeof input !== 'object' || Array.isArray(input)) throw error('Invalid Student Tracker request.');
     const { action, year } = input;
     if (!Number.isInteger(year) || year < 2000 || year > 2100) throw error('Choose a year from 2000 to 2100.');
-    if (!['setup', 'save-setup', 'save-classes', 'search', 'profile', 'attendance', 'reports'].includes(action)) {
+    if (!['setup', 'save-setup', 'save-classes', 'search', 'profile', 'attendance', 'attendance-overview', 'reports'].includes(action)) {
       throw error('Unknown Student Tracker action.');
     }
     if (action === 'save-setup' || action === 'save-classes') {
@@ -658,7 +672,33 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
     }
     const rows = selectedStudent(context, department, input.studentId);
     if (action === 'profile') {
-      return { student: student(rows[0].row), timetables: rows.map(item => ({
+      const classes = new Map(), uncertainSources = new Set();
+      for (const item of rows) for (const lesson of lessons(item.row)) {
+        if (incompleteLesson(context, department, year, item.term, lesson)) {
+          uncertainSources.add(item.term === null ? 'current timetable' : 'Term ' + item.term);
+        }
+        for (const link of department.classLinks) {
+          if (linkedLessonMatch(department, link, lesson, item.term) !== 'matched') continue;
+          const family = discipline(lesson.subject);
+          const group = disciplineGroups.find(group => group.subjects.includes(family));
+          const code = classLessonMatch(department, lesson, item.term, link.code) === 'matched'
+            ? link.code : 'Class group not distinguishable';
+          if (code !== link.code) uncertainSources.add(item.term === null ? 'current timetable' : 'Term ' + item.term);
+          const key = JSON.stringify([lesson.subject, code, link.teacherEmail]);
+          if (!classes.has(key)) classes.set(key, {
+            discipline: group?.label || family, subject: lesson.subject, classCode: code,
+            teacher: link.teacherName, sources: []
+          });
+          const entry = classes.get(key);
+          if (!entry.sources.includes(item.term)) entry.sources.push(item.term);
+        }
+      }
+      return { student: student(rows[0].row), subjectClasses: [...classes.values()].sort((a, b) =>
+        a.discipline.localeCompare(b.discipline) || a.subject.localeCompare(b.subject) ||
+        a.classCode.localeCompare(b.classCode) || a.teacher.localeCompare(b.teacher)),
+      subjectClassesWarnings: uncertainSources.size ? ['Some linked subjects or class groups could not be confirmed in: ' +
+        [...uncertainSources].join(', ') + '. Review the student and teacher timetables and class links.'] : [],
+      timetables: rows.map(item => ({
         term: item.term, lessons: lessons(item.row).map(lesson => ({
           slot: lesson.slot, code: lesson.code, subject: lesson.subject, linked: linkedLesson(department, lesson, item.term)
         }))
@@ -667,6 +707,62 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
     const teachers = (await owners(context)).filter(owner => department.teacherEmails.includes(owner.email.trim().toLowerCase()) &&
       rows.some(item => teaches(owner, item, department)));
     const ids = teachers.map(owner => owner.id);
+    if (action === 'attendance-overview') {
+      const settings = (await planner('SELECT content FROM school_planner_settings WHERE year=$1', [year])).rows[0]?.content;
+      const dates = [1, 2, 3, 4].map(term => ({ term, start: settings?.['term' + term + 'Start'], end: settings?.['term' + term + 'End'] }));
+      const localDate = today();
+      const currentTerm = dates.find(range => range.start && range.end && range.start <= localDate && range.end >= localDate)?.term;
+      const terms = [];
+      for (const { term, start, end } of dates) {
+        const snapshot = rows.find(item => item.term === term);
+        const source = snapshot || (term === currentTerm ? rows.find(item => item.term === null) : null);
+        if (!source) {
+          terms.push({ term, status: 'unavailable', message: 'No student timetable is available for this term. Upload the preserved timetable in Kamar Uploader.' });
+          continue;
+        }
+        const studentLessons = lessons(source.row);
+        const allowed = studentLessons.filter(lesson => linkedLesson(department, lesson, source.term));
+        const incomplete = studentLessons.some(lesson => incompleteLesson(context, department, year, source.term, lesson));
+        if (!allowed.length) {
+          terms.push(incomplete
+            ? { term, status: 'unavailable', message: 'Linked subjects could not be confirmed. Review the teacher timetables and class links for this term.' }
+            : { term, status: 'not_enrolled' });
+          continue;
+        }
+        const validDate = value => typeof value === 'string' && value.startsWith(year + '-') && /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+          !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
+        if (!validDate(start) || !validDate(end) || start > end) {
+          terms.push({ term, status: 'unavailable', message: 'Publish valid school term dates in Kamar Uploader before viewing attendance.' });
+          continue;
+        }
+        const marks = ids.length ? (await planner(`SELECT owner_id::text,to_char(lesson_date,'YYYY-MM-DD') AS date,period,mark
+          FROM planner_attendance_marks WHERE owner_id=ANY($1::uuid[]) AND student_id=$2 AND year=$3
+          AND lesson_date BETWEEN $4::date AND $5::date AND mark<>'' ORDER BY lesson_date,period,owner_id`,
+        [ids, input.studentId, year, start, end])).rows : [];
+        const missingOwners = department.classLinks.some(link =>
+          allowed.some(lesson => linkedLessonMatch(department, link, lesson, source.term) === 'matched') &&
+          !teachers.some(owner => owner.email.trim().toLowerCase() === link.teacherEmail));
+        let sharedPeriod = false;
+        const savedMarks = marks.flatMap(mark => {
+          const owner = teachers.find(item => item.id === mark.owner_id);
+          const day = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date(mark.date + 'T00:00:00Z').getUTCDay()];
+          const matching = allowed.filter(lesson => lesson.slot.replace(/_[12]$/, '') === day + '_' + mark.period &&
+            linkedLesson(department, lesson, source.term, owner));
+          const subjects = [...new Set(matching.map(lesson => lesson.subject))].sort();
+          if (!subjects.length) return [];
+          if (subjects.length > 1) sharedPeriod = true;
+          return [{ date: mark.date, period: mark.period, mark: mark.mark,
+            subject: subjects.join(' / '), teacher: owner.display_name }];
+        });
+        const warnings = [];
+        if (incomplete || missingOwners) warnings.push('Some linked lessons or teacher records could not be confirmed; attendance may be incomplete.');
+        if (sharedPeriod) warnings.push('A saved period mark coincides with multiple linked subjects and cannot be assigned to either subject separately.');
+        terms.push({ term, status: 'available', startDate: start, endDate: end,
+          timetableSource: snapshot ? 'Preserved term timetable' : 'Current uploaded timetable (current term only)',
+          ...(warnings.length ? { message: warnings.join(' ') } : {}), marks: savedMarks });
+      }
+      return { terms, notice: 'Saved Teacher Planner teaching-log marks, not the official KAMAR register. Missing entries are not recorded, not present. No attendance percentage is inferred.' };
+    }
     if (action === 'reports') {
       const records = ids.length ? (await planner(`SELECT owner_id::text,content,updated_at FROM planner_sections
         WHERE owner_id=ANY($1::uuid[]) AND year=$2 AND section='reporting' AND entry_key='main' ORDER BY updated_at DESC`,
