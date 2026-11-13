@@ -412,7 +412,8 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       return { admin: context.admin, staff: manageable ? context.candidates : [], users: context.users,
         departmentOptions: context.departmentOptions.map(choice => ({ ...choice,
           canManage: context.admin || choice.managerIds.includes(user.id), automaticTeachers: automaticTeachers(context, choice.name) })),
-        automaticHolaAccess: true, teacherApprovalAccess: true, classSelection: true, classBrowse: true, departments: context.departments.map(item => ({
+        automaticHolaAccess: true, teacherApprovalAccess: true, classSelection: true, classBrowse: true, yearLevelBrowse: true,
+        departments: context.departments.map(item => ({
         id: item.id, name: item.name, subjects: item.subjects, revision: item.revision, unavailableClassCount: item.unavailableClassCount,
         ambiguousClassCount: item.classLinks.filter(link => link.ambiguousSources.length).length,
         canManage: context.admin || item.manager_ids.includes(user.id),
@@ -428,13 +429,16 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       if (input.classCode !== undefined && typeof input.classCode !== 'string') throw error('Choose a linked class.');
       const classCode = input.classCode || '';
       if (classCode && !department.classLinks.some(link => link.code === classCode)) throw error('Choose a class linked to this department and year.');
+      if (input.yearLevel !== undefined && (typeof input.yearLevel !== 'string' ||
+          (input.yearLevel && !/^(?:7|8|9|10|11|12|13)$/.test(input.yearLevel)))) throw error('Choose a student year level from 7 to 13.');
+      const yearLevel = input.yearLevel || '';
       const query = (input.q || '').trim().toLowerCase();
-      if (!classCode && query.length < 2) throw error('Enter at least two characters of the student name or choose a class.');
+      if (!classCode && !yearLevel && query.length < 2) throw error('Enter at least two characters of the student name, or choose a class or year level.');
       const found = new Map();
       let ambiguous = false;
       for (const table of context.tables) for (const row of table.rows) {
         const item = student(row);
-        if (!item.name.toLowerCase().includes(query)) continue;
+        if ((yearLevel && item.yearLevel !== yearLevel) || !item.name.toLowerCase().includes(query)) continue;
         const rowLessons = lessons(row);
         if (classCode) {
           const matches = rowLessons.map(lesson => classLessonMatch(department, lesson, table.term, classCode));
@@ -444,7 +448,8 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
         if (!found.has(item.id)) found.set(item.id, item);
       }
       const students = [...found.values()].sort((a, b) => a.name.localeCompare(b.name));
-      return { students: classCode ? students : students.slice(0, 50), truncated: !classCode && students.length > 50, ambiguous };
+      const browse = classCode || yearLevel;
+      return { students: browse ? students : students.slice(0, 50), truncated: !browse && students.length > 50, ambiguous };
     }
     const rows = selectedStudent(context, department, input.studentId);
     if (action === 'profile') {

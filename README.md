@@ -1640,7 +1640,8 @@ group IDs, ambiguous records are excluded unless all relevant groups are linked.
 Explicitly approved current department staff,
 verified HoLAs and Global ADMIN may read the department's student profiles.
 The Tracker class selector browses linked class codes across the department's
-authorised teachers, with an optional student-name filter. Results include
+authorised teachers. A separate Year level selector browses students in Years 7
+to 13; class, year level and student-name filters can be combined. Results include
 current and preserved timetables for the selected year, not just the current
 roll. Student timetable entries that cannot distinguish a selected class group
 are excluded from that class list and reported. Name-only searches retain their

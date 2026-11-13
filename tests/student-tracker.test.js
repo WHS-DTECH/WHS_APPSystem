@@ -417,6 +417,34 @@ test('class browsing accepts an optional name, includes linked teachers, and rej
   await assert.rejects(service.run(teacher, { ...input, action: 'search', classCode: 'PIDTECH',
     departmentId: '00000000-0000-4000-8000-000000000000' }), { status: 403 });
 });
+test('year-level browsing combines department, class and name filters without truncating the roll', async () => {
+  const { service, input, state } = fixture();
+  assert.equal((await service.run(teacher, { ...input, action: 'setup' })).yearLevelBrowse, true);
+  state.department.class_links['2026'].push({ teacherEmail: teacher.email, code: 'MATH' });
+  state.extraStudents = [
+    { id_number: '201', student_name: 'Senior Math', year_level: '9', tue_p2: 'TST-MATH-A' },
+    { id_number: '202', student_name: 'Senior Peer', year_level: '9', fri_p3: 'PEER-PIDTECH-05' },
+    ...Array.from({ length: 55 }, (_, i) => ({ id_number: String(300 + i), student_name: 'Senior Coding ' + i,
+      year_level: '9', mon_p1_1: 'TST-PIDTECH-CW' }))
+  ];
+  const search = values => service.run(teacher, { ...input, action: 'search', ...values });
+  const yearNine = await search({ yearLevel: '9' });
+  assert.equal(yearNine.students.length, 57);
+  assert.equal(yearNine.truncated, false);
+  assert.ok(yearNine.students.some(student => student.name === 'Senior Peer'));
+  assert.deepEqual((await search({ yearLevel: '8' })).students.map(student => student.name), ['Synthetic Student']);
+  const combined = await search({ yearLevel: '9', classCode: 'PIDTECH' });
+  assert.equal(combined.students.length, 56);
+  assert.ok(!combined.students.some(student => student.name === 'Senior Math'));
+  assert.deepEqual((await search({ yearLevel: '9', classCode: 'PIDTECH', q: 'Peer' })).students.map(student => student.name), ['Senior Peer']);
+  assert.deepEqual((await search({ yearLevel: '9', q: 'Math' })).students.map(student => student.name), ['Senior Math']);
+  assert.equal((await search({ yearLevel: '13' })).students.length, 0);
+  for (const yearLevel of ['6', '14', '09', 9, null]) {
+    await assert.rejects(search({ yearLevel }), { status: 400 });
+  }
+  await assert.rejects(search({ yearLevel: '9', classCode: 'UNLINKED' }), { status: 400 });
+  await assert.rejects(search({ yearLevel: '9', departmentId: '00000000-0000-4000-8000-000000000000' }), { status: 403 });
+});
 test('same-subject classes remain separate by teacher and scheduled group; unlinked marks and owners stay private', async () => {
   const { service, input, state } = fixture();
   state.hasSnapshot = false;
