@@ -1609,14 +1609,24 @@ callers. It accepts a school year, not arbitrary Tracker actions.
 Profiles reuse the reviewed Kamar Uploader department/acting-leadership directory
 and that year's explicitly approved Student Tracker teacher/class links. They
 project only department, confirmed leader, teacher name/code, discipline,
-subject, course, raw class code and current/preserved term provenance. No student
+subject, course, raw class code, Learning Site mappings and current/preserved term provenance. No student
 records, email addresses, private Planner records or database credentials are
 returned. Unconfigured departments and unconfirmed class links produce visible
 warnings, while upstream failures fail explicitly.
 
 The Library filters Department → Discipline → Subject and expands a collapsed
-Discipline → Subject → Course → Teaching group → Units tree. Unit branches are
-honestly empty until unit storage/linking is implemented. Its small Relief Plan
+Discipline → Subject → Course → listed units tree, without teaching-group
+branches. `learningSiteUnits` reads the real static course-page assessment/unit
+listings with an HTML parser. Pages configured to use the Learning Sites
+uploader read only their saved `admin_course_content` assessments/links; the
+default-generating content helper is deliberately not used. Template assessment
+placeholders and generic resource buttons are excluded. Named units with `#`
+URLs are retained without invented links; missing pages, unmapped courses and
+empty listings are distinguished. Shared units are returned once in the
+`learningSites` collection and referenced through each class's
+`learningSiteCodes`, reusing Tracker's course/semester/junior matching.
+Content is current, not a historical unit snapshot for the selected timetable year.
+The Library never edits or copies Learning Sites unit storage. Its small Relief Plan
 button still opens Core's existing `/ReleverPlan/`; permissions, data and ADMIN
 tools have not moved.
 

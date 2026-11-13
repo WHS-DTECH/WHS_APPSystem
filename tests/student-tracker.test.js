@@ -945,6 +945,17 @@ test('Learning Area Profiles reuse confirmed department links without reading or
   assert.equal(state.plannerCalls.length, 0);
   assert.ok(state.directoryCalls.every(sql => !/student_upload|dataset_type='student_timetable'/.test(sql)));
   assert.doesNotMatch(JSON.stringify(data), /@|studentIds|student_name|Synthetic Student|k:100|manager_ids/);
+  state.courses.push({ course_code: '11DTECH', subject_code: 'DTECH' });
+  state.department.class_links['2026'] = [
+    { teacherEmail: teacher.email, code: '3-11DTECH' }, { teacherEmail: teacher.email, code: '6-11DTECH' }
+  ];
+  state.teacherRows[0].data = { Teacher: 'TST', Mon_P1: '3-11DTECH-05', Tue_P2: '6-11DTECH-05' };
+  const withUnits = await service.learningAreas(teacher, { year: 2026 });
+  assert.equal(withUnits.learningSites.length, 1);
+  assert.equal(withUnits.learningSites[0].code, '11DTECH');
+  assert.equal(withUnits.learningSites[0].units.length, 6);
+  assert.deepEqual(withUnits.departments.find(item => item.name === 'Technology').classes
+    .map(item => item.learningSiteCodes), [['11DTECH'], ['11DTECH']]);
   const previous = await service.learningAreas(teacher, { year: 2025 });
   assert.equal(previous.departments.find(item => item.name === 'Technology').classes.length, 0);
   await assert.rejects(service.learningAreas(teacher, { year: '2026' }), { status: 400 });

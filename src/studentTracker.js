@@ -5,6 +5,7 @@ const reporting = require('./legacy/teacher-planner/public/reporting-schema');
 const { loadDepartments, normaliseDirectoryName } = require('./legacy/kamar-uploader/departments');
 const { JUNIOR_DTECH_CLASS_CODES } = require('./legacy/dtech-hub/learning-sites-assessment');
 const { loadCalendarYear, deriveTermDates } = require('./legacy/teacher-planner/kamarCalendar');
+const { loadLearningSiteUnits } = require('./learningSiteUnits');
 
 const UUID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 const columns = ['mon', 'tue', 'wed', 'thu', 'fri']
@@ -403,7 +404,7 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       throw error('Learning Area Profiles are staff-only. Your account must match one current KAMAR staff record and must not be a student account.', 403);
     }
     const candidates = await teacherLinks(leaders.candidates, year);
-    return { year, departments: leaders.departmentOptions.map(choice => {
+    const profiles = leaders.departmentOptions.map(choice => {
       const configured = departments.rows.filter(item => normaliseDirectoryName(item.name) === normaliseDirectoryName(choice.name));
       if (configured.length > 1) throw error('Duplicate Tracker department setup. Ask an administrator to review ' + choice.name + '.', 409);
       const department = configured[0];
@@ -425,6 +426,7 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
           const group = disciplineGroups.find(group => group.subjects.includes(subject));
           return { disciplineId: group?.id || 'subject_' + subject, discipline: group?.label || subject,
             subject, course: link.subject, classCode: link.code, teacher: link.teacherName, staffCode: link.staffCode,
+            learningSiteCodes: link.courses,
             sources: [...new Set(link.sources.map(source => source.term))] };
         }),
         warnings: [
@@ -433,7 +435,11 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
           ...(department && !saved.length ? ['No teaching groups are linked for this department and school year.'] : [])
         ]
       };
-    }), notice: 'Department leadership comes from the reviewed shared directory. Teaching groups use approved Student Tracker class links and KAMAR staff timetables for the selected year. Current and preserved sources are labelled; they do not prove continuing enrolment. No student records are included.' };
+    });
+    const learningSites = await loadLearningSiteUnits(profiles.flatMap(profile =>
+      profile.classes.flatMap(item => item.learningSiteCodes)), { dbQuery });
+    return { year, departments: profiles, learningSites,
+      notice: 'Department leadership comes from the reviewed shared directory. Teaching groups use approved Student Tracker class links and KAMAR staff timetables for the selected year. Learning Site units reflect listed content only; missing listings are not generated. No student records are included.' };
   }
   async function scope(user, year) {
     const [departments, staff, tables] = await Promise.all([

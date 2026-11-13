@@ -204,7 +204,7 @@ function createModuleIdentityRouter({ dbQuery = query, directoryQuery = kamarQue
     catch (error) {
       console.error('Learning Area Profiles request failed:', error.status ? error.message : 'Data source unavailable.');
       res.status(error.status || 502).json({ error: error.status ? error.message :
-        'Learning Area Profiles could not be loaded. Check the department directory, KAMAR staff timetables and Student Tracker setup, then retry.' });
+        'Learning Area Profiles could not be loaded. Check the department directory, KAMAR staff timetables, Student Tracker setup and Learning Sites content, then retry.' });
     }
   }));
   return router;
