@@ -297,7 +297,7 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       directoryQuery(`SELECT DISTINCT ON(term) term,payload FROM kamar_datasets
         WHERE school_year=$1 AND dataset_type='teacher_timetable'
         ORDER BY term DESC,source_date DESC,source_time DESC,created_at DESC,id DESC`, [year]),
-      dbQuery(`SELECT c.course_code,c.subject_code FROM admin_courses c
+      dbQuery(`SELECT c.course_code,c.subject_code,s.name AS subject_name FROM admin_courses c
         JOIN admin_subjects s ON s.code=c.subject_code WHERE c.is_active=true ORDER BY c.course_code`)
     ]);
     const rows = current.rows.map(row => {
@@ -335,6 +335,7 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
               classes.set(code, { code, subject: subjectCode(code), family: subjectFamily(code),
                 courses: matches.map(course => course.course_code),
                 programmes: [...new Set(matches.map(course => course.subject_code.toUpperCase()))],
+                programmeNames: [...new Set(matches.map(course => course.subject_name).filter(name => typeof name === 'string' && name.trim()))],
                 suggestedDepartment: matches.some(course => technologyPrograms.has(course.subject_code.toUpperCase())) ? 'Technology' : null,
                 sources: [] });
             }
@@ -451,16 +452,30 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
     const leaders = await leadership(staff);
     const email = typeof user.email === 'string' ? user.email.trim().toLowerCase() : '';
     const person = leaders.staffIds.includes(user.id) && leaders.candidates.find(item => item.email === email);
-    if (!person) return { year, classes: [], departments: [] };
+    if (!person) return { year, classes: [], departments: [], myDepartments: [] };
     // Department members match the Learning Area Profile: verified leaders plus authorised Tracker teachers.
+    const mine = [];
     const members = leaders.departmentOptions.flatMap(choice => {
       const configured = departments.rows.filter(item => normaliseDirectoryName(item.name) === normaliseDirectoryName(choice.name));
-      if (configured.length !== 1) return [];
+      if (configured.length !== 1) {
+        if (!configured.length && (choice.managerIds || []).includes(user.id)) {
+          mine.push({ name: choice.name, emails: [person.email], department: null });
+        }
+        return [];
+      }
       const emails = new Set([...automaticTeachers(leaders, configured[0].name), ...(configured[0].teacher_emails || [])]);
+      if (emails.has(person.email)) mine.push({ name: choice.name, emails: [...emails], department: configured[0] });
       const teachers = leaders.candidates.filter(item => emails.has(item.email)).map(item => item.name);
       return teachers.length ? [{ name: choice.name, teachers }] : [];
     });
     const candidates = await teacherLinks([person], year);
+    const departmentEmails = new Set(mine.filter(item => item.department).flatMap(item => item.emails));
+    const departmentCandidates = departmentEmails.size
+      ? await teacherLinks(leaders.candidates.filter(candidate => departmentEmails.has(candidate.email)), year) : [];
+    const myDepartments = mine.map(item => ({ name: item.name, subjects: sortedDisciplines(new Set(
+      (item.department ? availableLinks(departmentCandidates, item.emails, savedClassLinks(item.department, year)) : []).flatMap(link =>
+        link.programmeNames.length ? link.programmeNames : linkDisciplines(link.code, item.department))
+    )) }));
     const classes = new Map();
     for (const department of departments.rows) {
       for (const link of availableLinks(candidates, [person.email], savedClassLinks(department, year))) {
@@ -469,7 +484,7 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       }
     }
     return { year, classes: [...classes.values()].sort((a, b) => a.subject.localeCompare(b.subject) ||
-      a.course.localeCompare(b.course, undefined, { numeric: true })), departments: members };
+      a.course.localeCompare(b.course, undefined, { numeric: true })), departments: members, myDepartments };
   }
   // Returns only a count of current students in a course across the user's linked Tracker classes.
   async function courseSize(user, { year, course } = {}) {

@@ -1622,7 +1622,11 @@ timetables, to suggest Subject and Course Code. It also returns each configured
 department's member names (verified leaders plus authorised Tracker teachers,
 as in the Learning Area Profile) to suggest the Assessor. Staff not uniquely
 matched to a current KAMAR record receive empty lists; no class codes, students
-or emails are returned.
+or emails are returned. The response also identifies the signed-in person's
+verified departments and their confirmed linked course subject names (or codes
+when names are unavailable), so Assessment Manager can filter NZQA exam and
+portfolio dates. Reviewed available leaders remain associated with their
+department even when Tracker class links have not yet been configured.
 
 It can also call `POST /module-auth/class-size` with a school year and course code
 (for example `13DTECH`). Student Tracker counts distinct students in the current

@@ -981,8 +981,16 @@ test('teaching subjects list only the signed-in teacher’s confirmed subject an
   const data = await service.teachingSubjects(teacher, { year: 2026 });
   assert.deepEqual(data.classes, [{ subject: 'DTECH', course: '11DTECH' }, { subject: 'DTECH', course: '12DTECH' }]);
   assert.deepEqual(data.departments, [{ name: 'Technology', teachers: ['Synthetic Peer', 'Synthetic Teacher'] }]);
+  assert.deepEqual(data.myDepartments, [{ name: 'Technology', subjects: ['DTECH', 'COMP'] }]);
+  state.courses.forEach(course => { course.subject_name = 'Digital Technologies'; });
+  assert.deepEqual((await service.teachingSubjects(teacher, { year: 2026 })).myDepartments,
+    [{ name: 'Technology', subjects: ['Digital Technologies'] }]);
   assert.doesNotMatch(JSON.stringify(data), /@|k:100|Synthetic Student/);
   assert.deepEqual((await service.teachingSubjects({ ...teacher, id: managerId }, { year: 2026 })).classes, []);
+  assert.deepEqual((await service.teachingSubjects({ ...teacher, id: managerId }, { year: 2026 })).myDepartments, []);
+  state.department.name = 'Unrelated';
+  assert.deepEqual((await service.teachingSubjects({ id: peerId, email: 'peer@example.test', roles: ['Teacher'] }, { year: 2026 })).myDepartments,
+    [{ name: 'Technology', subjects: [] }]);
   await assert.rejects(service.teachingSubjects(teacher, { year: '2026' }), { status: 400 });
   await assert.rejects(service.teachingSubjects({ ...teacher, roles: ['Student'] }, { year: 2026 }), { status: 403 });
 });
