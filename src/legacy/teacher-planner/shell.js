@@ -58,7 +58,6 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
       <summary id="planner-nav-modules">Modules</summary>
       <div class="planner-nav-buttons" aria-labelledby="planner-nav-modules">
         <button type="button" data-section="attendance">Attendance</button>
-        <button type="button" data-section="moderation">Moderation</button>
         <button type="button" data-section="standards">Teaching Standards</button>
         <button type="button" data-section="learning">Professional learning</button>
         <a href="${escape(coreUrl)}/launchpad/apps/whs-techstudent-tracker" target="_blank" rel="noopener" title="Open Student Tracker in a new tab">Student Tracker</a>

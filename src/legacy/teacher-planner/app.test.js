@@ -849,7 +849,7 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(html, /data-section="cover" aria-current="page"/);
   const navigation = html.match(/<nav class="planner-tabs" aria-label="Teacher Planner navigation">([\s\S]*?)<\/nav>/)[1];
   assert.deepEqual([...html.matchAll(/data-section="([^"]+)"/g)].map((match) => match[1]),
-    ['cover', 'year', 'term', 'week', 'setup', 'attendance', 'moderation', 'standards', 'learning', 'reporting']);
+    ['cover', 'year', 'term', 'week', 'setup', 'attendance', 'standards', 'learning', 'reporting']);
   const planner = navigation.match(/<section class="planner-nav-group planner-nav-planning"[\s\S]*?<\/section>/)[0];
   const setup = navigation.match(/<details class="planner-nav-menu planner-nav-setup">[\s\S]*?<\/details>/)[0];
   const modules = navigation.match(/<details class="planner-nav-menu planner-nav-modules">[\s\S]*?<\/details>/)[0];
@@ -860,7 +860,7 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(setup, /data-section="setup"/);
   assert.match(modules, /<summary id="planner-nav-modules">Modules<\/summary>/);
   assert.deepEqual([...modules.matchAll(/data-section="([^"]+)"/g)].map(match => match[1]),
-    ['attendance', 'moderation', 'standards', 'learning', 'reporting']);
+    ['attendance', 'standards', 'learning', 'reporting']);
   assert.doesNotMatch(modules, /Behaviour Management|Page coming soon/);
   assert.match(modules, /<a href="https:\/\/core\.example\.test\/launchpad\/apps\/whs-techstudent-tracker" target="_blank" rel="noopener" title="Open Student Tracker in a new tab">Student Tracker<\/a>/);
   assert.match(modules, /<a href="https:\/\/core\.example\.test\/launchpad\/apps\/relief-plan" target="_blank" rel="noopener" title="Open Relief Library in a new tab">Relief Library<\/a>/);

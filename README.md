@@ -1768,9 +1768,11 @@ assignments continue to display in each teacher's Planner.
 
 Teacher Planner navigation is grouped into **Planning** (cover and year/term/week
 plans), **Setup** (Setup My Planner first, followed by Assessment setup), and
-**Section Modules** (daily Attendance, Moderation, Teaching Standards,
+**Section Modules** (daily Attendance, Teaching Standards,
 Professional learning and upcoming modules). Groups use labelled, colour-accented panels and wrapping
 pill buttons; existing section routes and disabled upcoming modules are unchanged.
+The old Moderation button is removed; use **Assessment** to open WHS Assessment Manager.
+Existing Planner moderation records and direct links remain available.
 Two-Week Attendance import history and term/week status live in their own
 stacked **Two-Week Attendance** tab inside Setup My Planner. The all-class PDF
 upload is in Kamar Uploader **Attendance Admin**; personal one-class PDF imports
