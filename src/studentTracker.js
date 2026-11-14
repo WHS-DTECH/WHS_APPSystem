@@ -471,6 +471,28 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
     return { year, classes: [...classes.values()].sort((a, b) => a.subject.localeCompare(b.subject) ||
       a.course.localeCompare(b.course, undefined, { numeric: true })), departments: members };
   }
+  // Returns only a count of current students in a course across the user's linked Tracker classes.
+  async function courseSize(user, { year, course } = {}) {
+    if (!user?.roles?.some(role => ['ADMIN', 'Teacher'].includes(role))) throw error('Staff access is required.', 403);
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) throw error('Choose a year from 2000 to 2100.');
+    if (typeof course !== 'string' || !/^[A-Za-z0-9]{2,20}$/.test(course.trim())) throw error('Choose a valid course code.');
+    const code = course.trim().toUpperCase();
+    const context = await scope(user, year);
+    const snapshots = context.tables.filter(table => table.term !== null && table.rows.length).sort((a, b) => b.term - a.term);
+    const table = context.tables.find(table => table.term === null && table.rows.length) || snapshots[0];
+    const departments = context.departments.filter(department => department.classLinks.length);
+    const students = new Set();
+    let ambiguous = false;
+    for (const row of table?.rows || []) {
+      const courseLessons = lessons(row).filter(lesson => lesson.subject === code);
+      if (!courseLessons.length) continue;
+      if (departments.some(department => courseLessons.some(lesson => linkedLesson(department, lesson, table.term)))) students.add(student(row).id);
+      else if (departments.some(department => courseLessons.some(lesson => department.classLinks.some(link =>
+        linkedLessonMatch(department, link, lesson, table.term) === 'ambiguous')))) ambiguous = true;
+    }
+    return { year, course: code, students: students.size, term: table ? table.term : null,
+      linked: departments.length > 0, ambiguous };
+  }
   async function scope(user, year) {
     const [departments, staff, tables] = await Promise.all([
       dbQuery('SELECT id,name,manager_ids,subjects,revision,teacher_emails,class_links FROM student_tracker_departments ORDER BY name'),
@@ -919,6 +941,6 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
     }
     throw error('Unknown Student Tracker action.');
   }
-  return { run, learningAreas, teachingSubjects };
+  return { run, learningAreas, teachingSubjects, courseSize };
 }
 module.exports = { createStudentTrackerService, lessons, termRows, approvedTrackerUser, matchingCourses, teacherClassCodes, subjectFamily };

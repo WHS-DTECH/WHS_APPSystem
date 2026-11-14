@@ -1624,6 +1624,12 @@ as in the Learning Area Profile) to suggest the Assessor. Staff not uniquely
 matched to a current KAMAR record receive empty lists; no class codes, students
 or emails are returned.
 
+It can also call `POST /module-auth/class-size` with a school year and course code
+(for example `13DTECH`). Student Tracker counts distinct students in the current
+timetable (or the latest preserved term) whose course lessons match the linked
+classes of departments the user can see. Only the count, timetable term and
+linked/ambiguous flags are returned; no student names, IDs or emails.
+
 The Library filters Department → Discipline → Subject and expands a collapsed
 Discipline → Subject → Course → listed units tree, without teaching-group
 branches. `learningSiteUnits` reads the real static course-page assessment/unit

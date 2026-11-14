@@ -228,6 +228,19 @@ function createModuleIdentityRouter({
         'Your teaching subjects could not be loaded. Check KAMAR staff timetables and Student Tracker class links, then retry.' });
     }
   }));
+  router.post('/class-size', wrap(async (req, res) => {
+    const user = await identity(req, res);
+    if (!user) return;
+    if (req.body.client_id?.split(':')[0] !== 'whs-assessment-manager') {
+      return deny(res, 'Class sizes are available only to the registered WHS Assessment Manager app.');
+    }
+    try { res.json(await tracker.courseSize(user, { year: req.body.year, course: req.body.course })); }
+    catch (error) {
+      console.error('Class size request failed:', error.status ? error.message : 'Data source unavailable.');
+      res.status(error.status || 502).json({ error: error.status ? error.message :
+        'The class size could not be loaded from Student Tracker. Check KAMAR timetables and Tracker class links, then retry.' });
+    }
+  }));
   router.post('/learning-area-sync', wrap(async (req, res) => {
     const user = await identity(req, res);
     if (!user) return;
