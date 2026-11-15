@@ -94,9 +94,7 @@ test('admin attendance view is read-only, scoped to the current teacher and rech
     query: async (sql, params) => {
       calls.push({ sql, params });
       assert.match(sql, /^SELECT /, 'view must never write attendance');
-      if (sql.includes('school_planner_settings')) return { rows: [{ content: {
-        term4Start: '2026-10-12', term4End: '2026-12-18', events: []
-      } }] };
+      if (sql.includes('school_planner_settings')) return { rows: [{ content: { events: [] } }] };
       assert.equal(params[0], teacherId);
       if (sql.includes('planner_attendance_groups')) return { rows: [{
         content: { groups: [savedGroup], driveSync: { secret: 'private' } }, revision: 1
@@ -109,7 +107,10 @@ test('admin attendance view is read-only, scoped to the current teacher and rech
     loadTeachers: async () => current ? [{ id: teacherId, name: 'Selected Teacher', staffCode: 'T01' }] : [],
     authorizeTarget: async id => allowed ? { id } : null,
     loadClasses: async req => { directoryOwner = req.user.id; return { staffCode: 'T01', classes: [] }; },
-    loadSchoolCalendar: async () => ({ terms: [], publicHolidays: [] })
+    loadSchoolCalendar: async (req, year) => {
+      if (req?.user?.id !== adminId || year !== 2026) throw new Error('Calendar request and year required');
+      return { terms: [{ term: 4, startDate: '2026-10-12', endDate: '2026-12-18' }], publicHolidays: [] };
+    }
   });
   const base = url + '/view/2026/' + teacherId;
   assert.equal((await fetch(base, { headers: headers(adminId, false) })).status, 403);
@@ -119,6 +120,7 @@ test('admin attendance view is read-only, scoped to the current teacher and rech
   const view = await response.json();
   assert.equal(view.teacherName, 'Selected Teacher');
   assert.equal(view.groups[0].id, groupId);
+  assert.equal(view.ranges.find(item => item.term === '4').startDate, '2026-10-12');
   assert.equal(directoryOwner, teacherId);
   assert.doesNotMatch(JSON.stringify(view), /driveSync|private/);
   const week = await (await fetch(base + '/week/2026-10-12', { headers: headers() })).json();
@@ -159,7 +161,7 @@ test('admin sync writes to the selected teacher and exposes file summaries, not 
         return { rows: [{ revision: 2 }] };
       }
       if (sql.includes('school_planner_settings')) {
-        return { rows: [{ content: { term1Start: '2000-01-03', term1End: '2000-01-07' } }] };
+        return { rows: [{ content: {} }] };
       }
       if (sql.includes('SELECT student_id,student_name')) return { rows: [] };
       if (sql.includes('WITH input AS')) return { rows: [{ saved: 1 }] };
@@ -180,7 +182,10 @@ test('admin sync writes to the selected teacher and exposes file summaries, not 
         students: [{ id: 'k:100', name: 'Private Student' }]
       }] };
     },
-    loadSchoolCalendar: async () => ({ terms: [], publicHolidays: [] }),
+    loadSchoolCalendar: async (req, year) => {
+      if (req?.user?.id !== adminId || year !== 2000) throw new Error('Calendar request and year required');
+      return { terms: [{ term: 1, startDate: '2000-01-03', endDate: '2000-01-07' }], publicHolidays: [] };
+    },
     driveService: {
       listFiles: async (req, selectedFolder, staffCode) => {
         driveOwner = req.user.id;
@@ -409,7 +414,7 @@ test('admin PDF preview and apply are scoped to one teacher and never return ind
   const url = await serve(t, {
     query: async (sql, params) => {
       if (sql.includes('school_planner_settings')) {
-        return { rows: [{ content: { term4Start: '2026-10-12', term4End: '2026-12-11' } }] };
+        return { rows: [{ content: {} }] };
       }
       if (sql.includes('SELECT content,revision FROM planner_attendance_groups')) {
         assert.equal(params[0], teacherId);
@@ -442,7 +447,10 @@ test('admin PDF preview and apply are scoped to one teacher and never return ind
         students: [{ id: 'k:100', name: 'Private Student' }]
       }] };
     },
-    loadSchoolCalendar: async () => ({ terms: [], publicHolidays: [] }),
+    loadSchoolCalendar: async (req, year) => {
+      if (req?.user?.id !== adminId || year !== 2026) throw new Error('Calendar request and year required');
+      return { terms: [{ term: 4, startDate: '2026-10-12', endDate: '2026-12-11' }], publicHolidays: [] };
+    },
     driveService: { listFiles: async () => ({ files: [] }), readFile: async () => ({}) },
     driveStatus: async () => ({ connected: false, driveAccess: false }),
     parsePdf: async buffer => {

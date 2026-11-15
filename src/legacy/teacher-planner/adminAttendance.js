@@ -99,7 +99,7 @@ function createAdminAttendanceRouter({ query, loadTeachers, authorizeTarget, loa
     const schoolRow = (await query('SELECT content FROM school_planner_settings WHERE year=$1', [year])).rows[0];
     if (!schoolRow) return reject(res, 'Publish school term dates before viewing attendance.', 409);
     let calendar;
-    try { calendar = await loadSchoolCalendar(year); }
+    try { calendar = await loadSchoolCalendar(req, year); }
     catch (error) {
       calendar = { terms: [], publicHolidays: [], publicHolidaysAvailable: false,
         publicHolidaysError: 'Government calendar dates could not be loaded.' };
@@ -195,8 +195,7 @@ function createAdminAttendanceRouter({ query, loadTeachers, authorizeTarget, loa
     for (const [id, old] of jobs) {
       if (old.status !== 'running' && Date.now() - old.createdAt > 60 * 60 * 1000) jobs.delete(id);
     }
-    const admin = req.user;
-    runJob(job, admin, selected, saved, { query, authorizeTarget, loadClasses, loadSchoolCalendar, driveService })
+    runJob(job, req, selected, saved, { query, authorizeTarget, loadClasses, loadSchoolCalendar, driveService })
       .then(summary => { job.summary = summary; job.status = 'complete'; job.progress = 'Attendance import complete.'; })
       .catch(error => {
         console.error('Admin attendance import failed:', error.message);
@@ -241,7 +240,7 @@ function createAdminAttendanceRouter({ query, loadTeachers, authorizeTarget, loa
       const schoolRow = (await query('SELECT content FROM school_planner_settings WHERE year=$1', [year])).rows[0];
       if (!schoolRow) return reject(res, 'Publish school term dates in Kamar Uploader or Planner Setup before importing attendance.', 409);
       let calendar;
-      try { calendar = await loadSchoolCalendar(year); }
+      try { calendar = await loadSchoolCalendar(req, year); }
       catch (error) { calendar = { terms: [], publicHolidays: [], publicHolidaysError: error.message }; }
       const ranges = termRanges(schoolRow.content, calendar.terms || []);
       if (!ranges.some(range => range.startDate && range.endDate)) {
@@ -340,8 +339,9 @@ function createAdminAttendanceRouter({ query, loadTeachers, authorizeTarget, loa
   return router;
 }
 
-async function runJob(job, admin, selected, savedSettings, { query, authorizeTarget, loadClasses,
+async function runJob(job, req, selected, savedSettings, { query, authorizeTarget, loadClasses,
   loadSchoolCalendar, driveService }) {
+  const admin = req.user;
   const target = await authorizeTarget(selected.id);
   if (!target) throw new Error('This teacher does not have active access to Teacher Planner.');
   const targetOwner = target.id;
@@ -370,7 +370,7 @@ async function runJob(job, admin, selected, savedSettings, { query, authorizeTar
   const schoolRow = (await query('SELECT content FROM school_planner_settings WHERE year=$1', [job.year])).rows[0];
   if (!schoolRow) throw new Error('Publish school term dates in Kamar Uploader or Planner Setup before importing attendance.');
   let calendar;
-  try { calendar = await loadSchoolCalendar(job.year); }
+  try { calendar = await loadSchoolCalendar(req, job.year); }
   catch (error) { calendar = { terms: [], publicHolidays: [], publicHolidaysError: error.message }; }
   const ranges = termRanges(schoolRow.content, calendar.terms || []);
   if (!ranges.some(range => range.startDate && range.endDate)) {
