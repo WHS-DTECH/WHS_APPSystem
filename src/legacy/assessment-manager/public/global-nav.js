@@ -137,7 +137,9 @@
         });
         return found;
       }
-      section('Modules', ['Core Administration', 'Kamar Uploader', 'WHS Learning Sites', 'Teacher Planner', 'Module Builder'], function (module, name) { return module.name === name; });
+      section('Modules', ['Core Administration', 'Kamar Uploader', 'WHS Learning Sites', 'Teacher Planner', 'WHS Assessment Manager', 'Module Builder'], function (module, name) {
+        return module.name === name || (name === 'WHS Assessment Manager' && module.launchPath === '/launchpad/apps/whs-assessment-manager');
+      });
       if (data.isAdmin) {
         nav.appendChild(el('div', { 'class': 'gn-head' }, 'In Development'));
         (data.developmentProjects || []).forEach(function (project) {

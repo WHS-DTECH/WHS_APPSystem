@@ -39,7 +39,7 @@ test('integrated projects are excluded from development navigation without delet
   let body;
   await navData(async sql => {
     if (sql.includes('FROM module_builder_projects')) {
-      assert.match(sql, /NOT EXISTS \(SELECT 1 FROM modules m WHERE m.module_key=p.slug AND m.path LIKE '\/%'\)/);
+      assert.match(sql, /NOT EXISTS \(SELECT 1 FROM modules m WHERE m.module_key=p.slug\s+AND \(m.path LIKE '\/%' OR m.module_key='whs-assessment-manager'\)\)/);
       return { rows: [{ id: 'bus', name: 'Bus Controller App', app_url: 'https://bus.example.test' }] };
     }
     return { rows: [{ module_key: 'teacher-planner', display_name: 'Teacher Planner',
@@ -72,4 +72,71 @@ test('Teacher Planner renders once under Modules with its stable integrated laun
     assert.equal(entries[planner].href, '/launchpad/apps/teacher-planner');
     assert.ok(planner < entries.findIndex(entry => entry.text === 'Student Apps'));
   }
+});
+
+test('Assessment Manager renders under Modules for authorised users, including with a customised name', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'global-nav.js'), 'utf8');
+  const start = source.indexOf('var modules = data.modules || [];');
+  const end = source.indexOf("nav.appendChild(el('div', { 'class': 'gn-spacer' }));", start);
+  const render = new Function('data', 'nav', 'el', 'link', source.slice(start, end));
+  for (const [role, active, access] of [['ADMIN', true, true], ['Teacher', true, true],
+    ['Teacher', true, false], ['ADMIN', false, true]]) {
+    let data;
+    await navData(async sql => ({ rows: sql.includes('FROM module_builder_projects') ? [] : [{
+      module_key: 'whs-assessment-manager', display_name: 'Assessment Manager',
+      path: 'https://assessment.example.test/', is_active: active, has_access: access
+    }] }), async () => false, async () => null)(
+      { user: { id: 'fixture', roles: [role] }, query: {} },
+      { locals: { isAdmin: role === 'ADMIN' }, set() {}, json(value) { data = value; } },
+      error => { throw error; });
+    const entries = [];
+    render(data, { appendChild(node) { entries.push(node); } },
+      (tag, attrs, text) => ({ text }), (nav, text, href) => entries.push({ text, href }));
+    const links = entries.filter(entry => entry.href === '/launchpad/apps/whs-assessment-manager');
+    assert.equal(links.length, active && access ? 1 : 0);
+    if (links.length) {
+      const index = entries.indexOf(links[0]);
+      assert.ok(index > entries.findIndex(entry => entry.text === 'Modules'));
+      assert.ok(index < entries.findIndex(entry => entry.text === 'Hubs'));
+      if (role === 'ADMIN') assert.ok(index < entries.findIndex(entry => entry.text === 'In Development'));
+    }
+  }
+});
+
+test('Assessment Manager promotion preserves its destination and development registry', {
+  skip: !process.env.MODULE_BUILDER_TEST_DATABASE_URL
+}, async t => {
+  const { Client } = require('pg');
+  const client = new Client({ connectionString: process.env.MODULE_BUILDER_TEST_DATABASE_URL, ssl: false });
+  await client.connect();
+  t.after(() => client.end());
+  await client.query(`CREATE TEMP TABLE modules (module_key text PRIMARY KEY, display_name text,
+    description text, path text, is_active boolean NOT NULL DEFAULT true);
+    CREATE TEMP TABLE module_builder_projects (id integer PRIMARY KEY, slug text, name text,
+    description text, stage text, listed_as_student_app boolean NOT NULL DEFAULT false);
+    CREATE TEMP TABLE module_builder_environments (project_id integer, kind text, config jsonb);
+    INSERT INTO module_builder_projects VALUES
+      (1,'whs-assessment-manager','WHS Assessment Manager','Assessment','development',false),
+      (2,'another-project','Another Project','Other','development',false);
+    INSERT INTO module_builder_environments VALUES
+      (1,'development','{}'), (2,'development','{"appUrl":"https://other.example.test/"}')`);
+  const migration = fs.readFileSync(path.join(__dirname, '..', 'migrations', '056_assessment_manager_module.sql'), 'utf8');
+  await client.query(migration);
+  assert.equal((await client.query('SELECT count(*)::int AS count FROM modules')).rows[0].count, 0);
+  await client.query(`UPDATE module_builder_environments SET config='{"appUrl":"https://assessment.example.test/"}'
+    WHERE project_id=1`);
+  await client.query(migration);
+  const query = (...args) => client.query(...args);
+  const { developmentProjects } = require('../src/developmentProjects');
+  const development = await developmentProjects({ roles: ['ADMIN'] }, query);
+  assert.deepEqual(development.map(project => project.slug), ['another-project']);
+  const registered = (await client.query('SELECT * FROM modules')).rows[0];
+  assert.equal(registered.path, 'https://assessment.example.test/');
+  await client.query(`UPDATE modules SET path='https://custom.example.test/',is_active=false
+    WHERE module_key='whs-assessment-manager'`);
+  await client.query(migration);
+  const preserved = (await client.query('SELECT * FROM modules')).rows[0];
+  assert.equal(preserved.path, 'https://custom.example.test/');
+  assert.equal(preserved.is_active, false);
+  assert.equal((await client.query("SELECT stage FROM module_builder_projects WHERE id=1")).rows[0].stage, 'development');
 });

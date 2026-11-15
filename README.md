@@ -1469,6 +1469,14 @@ KAMAR staff, teaching subjects and class sizes use the existing authorised
 Core/KAMAR services; the unfinished marking tracker and screenshot
 reconciliation are not included in this integration.
 
+Assessment Manager is listed under **Modules**, not **In Development**. Core
+migration 056 registers its existing development destination if necessary,
+without changing an existing module destination, active state or assignments.
+If there is no registered module or saved development URL, an administrator
+must register the existing destination in App Module Management. This navigation
+change does not cut over to the embedded service; follow the verification steps
+above before updating the destination.
+
 Embedded checks: `node --test tests\assessment-manager-integration.test.js`.
 The imported app suite is `npm test --prefix src\legacy\assessment-manager`;
 its optional PostgreSQL checks require isolated disposable test databases.
