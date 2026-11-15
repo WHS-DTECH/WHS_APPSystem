@@ -109,6 +109,11 @@ function createAdminAttendanceRouter({ query, loadTeachers, authorizeTarget, loa
     const teachers = await loadTeachers();
     const selected = teachers.find(item => item.id === teacherId);
     if (!selected) return reject(res, 'Choose a current teacher with an active school account.', 404);
+    const staffCode = typeof selected.staffCode === 'string' ? selected.staffCode.trim().toUpperCase() : '';
+    if (!staffCode || teachers.some(item => item.id !== teacherId &&
+        typeof item.staffCode === 'string' && item.staffCode.trim().toUpperCase() === staffCode)) {
+      return reject(res, 'The selected teacher needs a unique current KAMAR staff code before attendance can be imported.', 409);
+    }
     const key = year + ':' + teacherId;
     if (activeTargets.has(key)) return reject(res, 'An attendance import is already running for this teacher and year.', 409);
     const saved = await settings(req.user.id, year);
@@ -281,7 +286,8 @@ async function runJob(job, admin, selected, savedSettings, { query, authorizeTar
   const settings = { enabled: savedSettings.enabled, folderId: savedSettings.folder_id,
     processed: processedByTarget[job.teacherId] || {} };
   job.progress = 'Listing attendance PDFs in the Drive folder...';
-  const listing = await driveService.listFiles({ user: admin }, settings.folderId);
+  const listing = await driveService.listFiles({ user: admin }, settings.folderId, selected.staffCode);
+  const fileFolders = new Map(listing.files.map(file => [file.id, file.folderId]));
   const dateRanges = new Map(listing.files.map(file => {
     const previous = settings.processed[file.id];
     return [file.id, previous?.version === file.version && previous.accountId === listing.accountId ?
@@ -289,6 +295,7 @@ async function runJob(job, admin, selected, savedSettings, { query, authorizeTar
   }));
   job.summary = {
     files: 0, marksFilled: 0, conflictsKept: 0, matchWarnings: 0, unchanged: 0, errors: 0, blocked: 0,
+    staffFolder: listing.staffFolder || null,
     documents: listing.files.map(file => ({
       name: file.name, status: 'pending', dateRange: dateRanges.get(file.id), marks: 0, conflicts: 0, warnings: 0
     }))
@@ -314,6 +321,10 @@ async function runJob(job, admin, selected, savedSettings, { query, authorizeTar
     }
     if (path === 'attendance/classes/' + job.year) {
       directory = await loadClasses(targetRequest, job.year);
+      if (typeof directory.staffCode !== 'string' ||
+          directory.staffCode.trim().toUpperCase() !== selected.staffCode.trim().toUpperCase()) {
+        throw new Error('The teacher’s timetable staff code does not match the selected staff code. Check the current KAMAR upload.');
+      }
       schedules = timetableEntries(directory);
       return directory;
     }
@@ -329,7 +340,9 @@ async function runJob(job, admin, selected, savedSettings, { query, authorizeTar
     if (path === listingPath) return listing;
     const filePath = new RegExp('^' + listingPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '/([A-Za-z0-9_-]+)$').exec(path);
     if (filePath) {
-      const result = await driveService.readFile({ user: admin }, settings.folderId, filePath[1]);
+      const fileFolder = fileFolders.get(filePath[1]);
+      if (!fileFolder) throw new Error('The attendance PDF was not in the selected folder listing. Retry sync.');
+      const result = await driveService.readFile({ user: admin }, fileFolder, filePath[1], settings.folderId, selected.staffCode);
       const dates = result.pdf.rows.flatMap(row => row.days.map(day => day.date)).sort();
       dateRanges.set(filePath[1], dates.length ? { startDate: dates[0], endDate: dates[dates.length - 1] } : null);
       return result;
@@ -385,6 +398,7 @@ async function runJob(job, admin, selected, savedSettings, { query, authorizeTar
   return {
     files: result.files, marksFilled: result.marks, conflictsKept: result.conflicts,
     matchWarnings: result.warnings, unchanged: result.skipped, errors: result.failed, blocked: 0,
+    staffFolder: listing.staffFolder || null,
     ...((calendar.publicHolidaysError || calendar.publicHolidaysAvailable === false) ? {
       calendarWarning: 'Government public holiday dates could not be loaded. Verify school closures before importing.'
     } : {}),

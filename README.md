@@ -179,8 +179,12 @@ marks remain in the existing owner-scoped Planner tables.
 **Attendance Admin** page in Kamar Uploader. Select the Planner year and current
 teacher, configure the admin account's Drive folder, authorise read-only Drive
 access, save/enable the folder and start an import. The connected admin account
-must be able to read the selected folder. The integration lists and downloads
-only direct PDF children of that folder, never writes to Drive, and never exposes
+must be able to read the selected folder and its staff-code subfolders. The integration
+lists PDFs directly in the configured folder and in the selected teacher's one
+direct subfolder matching their current KAMAR staff code (case-insensitive). It
+does not search other staff folders or deeper subfolders. Duplicate matching
+folders stop the import; the results report whether a staff-code folder was found.
+It never writes to Drive and never exposes
 Google tokens to the browser. The existing Calendar OAuth project and
 authorised redirect URI are reused; Google Drive API and the
 `https://www.googleapis.com/auth/drive.readonly` scope may require school

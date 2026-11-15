@@ -132,10 +132,15 @@
       ' blank marks filled; ' + summary.conflictsKept + ' conflicts kept; ' +
       summary.matchWarnings + ' student/class match warnings; ' + summary.unchanged +
       ' unchanged PDFs skipped; ' + summary.errors + ' document errors; ' + (summary.blocked || 0) + ' PDFs blocked.';
+    if ('staffFolder' in summary) {
+      totals.textContent += summary.staffFolder ?
+        ' Searched the configured folder and staff-code folder "' + summary.staffFolder + '".' :
+        ' No matching staff-code folder was found; only PDFs directly in the configured folder were searched.';
+    }
     results.append(totals);
     if (!summary.documents.length) {
       const empty = document.createElement('p');
-      empty.textContent = 'No attendance PDFs were found in the selected Drive folder.';
+      empty.textContent = 'No attendance PDFs were found in the configured folder or matching staff-code folder.';
       results.append(empty);
       return;
     }

@@ -2,6 +2,7 @@ const express = require('express');
 const { AttendancePdfError, importAttendancePdf } = require('./attendanceImport');
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
 const DRIVE_ID = /^[A-Za-z0-9_-]{10,200}$/;
+const FOLDER_MIME = 'application/vnd.google-apps.folder';
 const MAX_PDF = 5 * 1024 * 1024;
 function folderId(value) {
   if (typeof value !== 'string') return null;
@@ -45,36 +46,70 @@ function createAttendanceDriveService({ ensureConnected, access, unchanged, hasS
       typeof file.md5Checksum === 'string' && /^[a-f0-9]{32}$/i.test(file.md5Checksum) &&
       /^\d+$/.test(file.size) && (!checkSize || Number(file.size) <= MAX_PDF);
   }
-  async function listFiles(req, folderIdValue) {
+  async function listFiles(req, folderIdValue, staffCode) {
     const { row, folder, token } = await connection(req, folderIdValue);
     const metadata = await (await google('files/' + folder + '?fields=id,mimeType,trashed&supportsAllDrives=true', token)).json();
-    if (metadata.mimeType !== 'application/vnd.google-apps.folder' || metadata.trashed) {
+    if (metadata.mimeType !== FOLDER_MIME || metadata.trashed) {
       throw new ErrorType('The configured Drive location is not an available folder.', 400);
     }
-    const files = [];
-    let pageToken;
-    for (let page = 0; page < 10; page++) {
-      const params = new URLSearchParams({
-        q: "'" + folder + "' in parents and trashed = false and mimeType = 'application/pdf'",
-        fields: 'nextPageToken,files(id,name,mimeType,modifiedTime,md5Checksum,size,parents,trashed)',
-        pageSize: '100', orderBy: 'modifiedTime', supportsAllDrives: 'true', includeItemsFromAllDrives: 'true',
-        ...(pageToken ? { pageToken } : {})
-      });
-      const result = await (await google('files?' + params, token)).json();
-      if (!Array.isArray(result.files) || result.files.some(file => !validFile(file, folder, false))) {
-        throw new ErrorType('Drive returned unreadable PDF metadata. Check the folder before syncing.', 422);
+    async function listChildren(parent, mimeType, fields, validate) {
+      const children = [];
+      let pageToken;
+      for (let page = 0; page < 10; page++) {
+        const params = new URLSearchParams({
+          q: "'" + parent + "' in parents and trashed = false and mimeType = '" + mimeType + "'",
+          fields: 'nextPageToken,files(' + fields + ')',
+          pageSize: '100', orderBy: 'modifiedTime', supportsAllDrives: 'true', includeItemsFromAllDrives: 'true',
+          ...(pageToken ? { pageToken } : {})
+        });
+        const result = await (await google('files?' + params, token)).json();
+        if (!Array.isArray(result.files) || result.files.some(child => !validate(child))) {
+          throw new ErrorType('Drive returned unreadable folder or PDF metadata. Check the folder before syncing.', 422);
+        }
+        children.push(...result.files);
+        pageToken = result.nextPageToken;
+        if (!pageToken) break;
       }
-      files.push(...result.files.map(file => ({ id: file.id, name: file.name, version: fileVersion(file) })));
-      pageToken = result.nextPageToken;
-      if (!pageToken) break;
+      if (pageToken) throw new ErrorType('The attendance folder contains too many items. Keep at most 1,000 PDFs or subfolders per folder.', 422);
+      return children;
     }
-    if (pageToken) throw new ErrorType('The attendance folder contains too many PDFs. Keep at most 1,000 PDFs in the selected folder.', 422);
+    let staffFolder = null;
+    if (staffCode !== undefined) {
+      if (typeof staffCode !== 'string' || !staffCode.trim() || staffCode.trim().length > 60) {
+        throw new ErrorType('The selected teacher has no valid staff code. Check the current KAMAR staff upload.', 422);
+      }
+      const folders = await listChildren(folder, FOLDER_MIME, 'id,name,mimeType,parents,trashed', item =>
+        item && DRIVE_ID.test(item.id) && typeof item.name === 'string' && item.name.length <= 500 &&
+        item.mimeType === FOLDER_MIME && item.trashed === false && item.parents?.includes(folder));
+      const matches = folders.filter(item => item.name.trim().toUpperCase() === staffCode.trim().toUpperCase());
+      if (matches.length > 1) throw new ErrorType('Multiple Drive folders match the selected staff code. Keep only one matching folder and retry.', 409);
+      staffFolder = matches[0] || null;
+    }
+    const files = [];
+    for (const parent of [folder, ...(staffFolder ? [staffFolder.id] : [])]) {
+      const children = await listChildren(parent, 'application/pdf',
+        'id,name,mimeType,modifiedTime,md5Checksum,size,parents,trashed', item => validFile(item, parent, false));
+      files.push(...children.map(file => ({ id: file.id, name: file.name, version: fileVersion(file), folderId: parent })));
+    }
     await unchanged(row);
-    return { files, connectionId: row.connection_id, accountId: row.google_subject };
+    return { files, connectionId: row.connection_id, accountId: row.google_subject,
+      ...(staffCode !== undefined ? { staffFolder: staffFolder?.name || null } : {}) };
   }
-  async function readFile(req, folderIdValue, fileId) {
+  async function readFile(req, folderIdValue, fileId, parentFolderId, staffCode) {
     if (!DRIVE_ID.test(fileId || '')) throw new ErrorType('Choose a valid Drive PDF.', 400);
     const { row, folder, token } = await connection(req, folderIdValue);
+    async function checkParent() {
+      if (parentFolderId === undefined || parentFolderId === folder) return;
+      if (!DRIVE_ID.test(parentFolderId)) throw new ErrorType('Choose a valid Drive attendance folder.', 400);
+      const metadata = await (await google('files/' + folder +
+        '?fields=id,name,mimeType,parents,trashed&supportsAllDrives=true', token)).json();
+      if (metadata.id !== folder || metadata.mimeType !== FOLDER_MIME || metadata.trashed !== false ||
+          !metadata.parents?.includes(parentFolderId) || typeof staffCode !== 'string' ||
+          typeof metadata.name !== 'string' || metadata.name.trim().toUpperCase() !== staffCode.trim().toUpperCase()) {
+        throw new ErrorType('The staff-code folder moved, was renamed or is no longer available. Retry attendance sync.', 409);
+      }
+    }
+    await checkParent();
     const path = 'files/' + fileId;
     const fields = '?fields=id,name,mimeType,modifiedTime,md5Checksum,size,parents,trashed&supportsAllDrives=true';
     const file = await (await google(path + fields, token)).json();
@@ -108,6 +143,7 @@ function createAttendanceDriveService({ ensureConnected, access, unchanged, hasS
     }
     const after = await (await google(path + fields, token)).json();
     if (!validFile(after, folder) || fileVersion(after) !== fileVersion(file)) throw new ErrorType('The Drive PDF changed while being read. Retry sync.', 409);
+    await checkParent();
     await unchanged(row);
     return { pdf, version: fileVersion(file), accountId: row.google_subject, connectionId: row.connection_id };
   }

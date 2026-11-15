@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
 const session = require('express-session');
-const { folderId, DRIVE_SCOPE, createAttendanceDriveRouter } = require('./attendanceDrive');
+const { folderId, DRIVE_SCOPE, createAttendanceDriveRouter, createAttendanceDriveService } = require('./attendanceDrive');
 const { createGoogleCalendarRouter, configuration, encryptTokens, SCOPES } = require('./googleCalendar');
 const { AttendancePdfError } = require('./attendanceImport');
 const owner = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -102,6 +102,54 @@ test('Drive provider enforces selected folder, permissions, pagination, file ver
   granted = true; enabled = false;
   assert.equal((await fetch(base)).status, 409);
   assert.equal((await fetch(base.replace('2026', 'bad'))).status, 400);
+});
+test('admin Drive listing reads direct PDFs and only the uniquely matching staff folder', async () => {
+  const staffFolder = 'synthetic_staff_folder';
+  const otherFolder = 'synthetic_other_folder';
+  const staffFile = { ...file, id: 'synthetic_staff_file', name: 'Staff.pdf', parents: [staffFolder] };
+  const folderItem = (id, name) => ({ id, name, mimeType: 'application/vnd.google-apps.folder',
+    parents: [folder], trashed: false });
+  let duplicate = false, moved = false, renamed = false;
+  const service = createAttendanceDriveService({
+    ensureConnected: async () => ({ connection_id: 'connection-test', google_subject: 'google-test' }),
+    access: async () => 'synthetic-token', hasScope: () => true, unchanged: async () => {},
+    ErrorType: DriveError, parsePdf: async () => ({ weeks: [], rows: [] }),
+    fetchImpl: async urlString => {
+      const url = new URL(urlString);
+      if (url.pathname.endsWith('/' + folder)) return Response.json({ id: folder, mimeType: 'application/vnd.google-apps.folder', trashed: false });
+      if (url.pathname.endsWith('/' + staffFolder)) return Response.json({
+        ...folderItem(staffFolder, renamed ? 'VP' : 'wy'), parents: [moved ? otherFolder : folder]
+      });
+      if (url.pathname.endsWith('/files')) {
+        const q = url.searchParams.get('q');
+        if (q.includes('application/vnd.google-apps.folder')) return Response.json({ files: [
+          folderItem(staffFolder, 'wy'), folderItem(otherFolder, duplicate ? ' WY ' : 'VP')
+        ] });
+        if (q.includes("'" + folder + "' in parents")) return Response.json({ files: [file] });
+        assert.ok(q.includes("'" + staffFolder + "' in parents"));
+        return Response.json({ files: [staffFile] });
+      }
+      if (url.searchParams.get('alt') === 'media') return new Response('%PDF-test');
+      return Response.json(staffFile);
+    }
+  });
+  const listing = await service.listFiles({}, folder, ' WY ');
+  assert.equal(listing.staffFolder, 'wy');
+  assert.deepEqual(listing.files.map(item => [item.id, item.folderId]),
+    [[file.id, folder], [staffFile.id, staffFolder]]);
+  assert.equal((await service.readFile({}, staffFolder, staffFile.id, folder, 'WY')).version.includes(staffFile.id), true);
+  moved = true;
+  await assert.rejects(service.readFile({}, staffFolder, staffFile.id, folder, 'WY'), /staff-code folder moved/);
+  moved = false;
+  renamed = true;
+  await assert.rejects(service.readFile({}, staffFolder, staffFile.id, folder, 'WY'), /staff-code folder moved/);
+  renamed = false;
+  const missing = await service.listFiles({}, folder, 'ZZ');
+  assert.equal(missing.staffFolder, null);
+  assert.deepEqual(missing.files.map(item => item.id), [file.id]);
+  duplicate = true;
+  await assert.rejects(service.listFiles({}, folder, 'WY'), /Multiple Drive folders/);
+  await assert.rejects(service.listFiles({}, folder, ''), /no valid staff code/);
 });
 test('Drive consent is opt-in and reconnect retains previously granted scopes', async t => {
   const env = {

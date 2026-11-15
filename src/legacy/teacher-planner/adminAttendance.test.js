@@ -91,7 +91,7 @@ test('admin sync writes to the selected teacher and exposes file summaries, not 
     students: [{ id: 'k:100', name: 'Private Student' }],
     periods: ['p1', 'p2', 'p3', 'p4', 'p5'], scheduleMode: 'auto'
   };
-  let classOwner, driveOwner, authorizedOwner, reads = 0, rejectPdf = false;
+  let classOwner, driveOwner, authorizedOwner, reads = 0, rejectPdf = false, mismatch = false;
   const processed = {};
   const fileVersion = 'synthetic_file_123:2000-01-03:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
   const pdf = { weeks: ['2000-01-03'], rows: [{
@@ -124,21 +124,28 @@ test('admin sync writes to the selected teacher and exposes file summaries, not 
     authorizeTarget: async id => { authorizedOwner = id; return { id }; },
     loadClasses: async req => {
       classOwner = req.user.id;
-      return { staffCode: 'T01', classes: [{
+      return { staffCode: mismatch ? 'OTHER' : 'T01', classes: [{
         code: '10ENG', slots: ['mon_p1_1'],
         students: [{ id: 'k:100', name: 'Private Student' }]
       }] };
     },
     loadSchoolCalendar: async () => ({ terms: [], publicHolidays: [] }),
     driveService: {
-      listFiles: async req => {
+      listFiles: async (req, selectedFolder, staffCode) => {
         driveOwner = req.user.id;
-        return { files: [{ id: 'synthetic_file_123', name: 'attendance.pdf', version: fileVersion }],
-          connectionId: 'synthetic-connection', accountId: 'synthetic-google' };
+        assert.equal(selectedFolder, 'synthetic_folder_123');
+        assert.equal(staffCode, 'T01');
+        return { files: [{ id: 'synthetic_file_123', name: 'attendance.pdf', version: fileVersion,
+          folderId: 'synthetic_staff_folder' }], staffFolder: 'T01',
+        connectionId: 'synthetic-connection', accountId: 'synthetic-google' };
       },
-      readFile: async req => {
+      readFile: async (req, selectedFolder, fileId, parentFolder, staffCode) => {
         reads++;
         assert.equal(req.user.id, adminId);
+        assert.equal(selectedFolder, 'synthetic_staff_folder');
+        assert.equal(fileId, 'synthetic_file_123');
+        assert.equal(parentFolder, 'synthetic_folder_123');
+        assert.equal(staffCode, 'T01');
         if (rejectPdf) throw new Error('The updated PDF could not be decoded.');
         return { pdf, version: fileVersion, accountId: 'synthetic-google',
           connectionId: 'synthetic-connection' };
@@ -152,7 +159,7 @@ test('admin sync writes to the selected teacher and exposes file summaries, not 
   assert.equal(classOwner, teacherId);
   assert.equal(driveOwner, adminId);
   assert.deepEqual(result.summary, {
-    files: 1, marksFilled: 1, conflictsKept: 0, matchWarnings: 0, unchanged: 0, errors: 0, blocked: 0,
+    files: 1, marksFilled: 1, conflictsKept: 0, matchWarnings: 0, unchanged: 0, errors: 0, blocked: 0, staffFolder: 'T01',
     documents: [{ name: 'attendance.pdf', status: 'synced', marks: 1, conflicts: 0, warnings: 0,
       dateRange: { startDate: '2000-01-03', endDate: '2000-01-03' } }]
   });
@@ -172,6 +179,27 @@ test('admin sync writes to the selected teacher and exposes file summaries, not 
   assert.equal(failed.summary.documents[0].status, 'error');
   assert.equal(failed.summary.documents[0].dateRange, null, 'failed reads must not show dates from an older PDF version');
   assert.match(failed.summary.documents[0].error, /could not be decoded/);
+  mismatch = true;
+  const mismatched = await syncJob(url, 2000);
+  assert.equal(mismatched.status, 'failed');
+  assert.match(mismatched.error, /timetable staff code does not match/);
+  assert.equal(mismatched.summary.documents[0].status, 'blocked');
+});
+
+test('admin sync rejects ambiguous teacher staff codes before accessing Drive', async t => {
+  const url = await serve(t, {
+    query: async () => assert.fail('Ambiguous staff codes must not read settings.'),
+    loadTeachers: async () => [
+      { id: teacherId, name: 'Selected Teacher', staffCode: 'T01' },
+      { id: otherAdminId, name: 'Other Teacher', staffCode: ' t01 ' }
+    ]
+  });
+  const response = await fetch(url + '/sync', {
+    method: 'POST', headers: { ...headers(), 'content-type': 'application/json' },
+    body: JSON.stringify({ year: 2026, teacherId })
+  });
+  assert.equal(response.status, 409);
+  assert.match((await response.json()).error, /unique current KAMAR staff code/);
 });
 
 test('missing published term dates return a blocked report for each Drive PDF without importing marks', async t => {
@@ -238,6 +266,10 @@ test('Attendance Admin renders filenames, PDF date ranges and explicit outcomes 
     'Import completed. Existing marks were not overwritten.']);
   assert.equal(rows[1][1], 'Not recorded by the previous import');
   assert.equal(rows[1][2], 'Already synced - unchanged');
+  context.renderDocuments({ ...summary, staffFolder: 'WY', documents: [] });
+  assert.match(results.children[0].textContent, /staff-code folder "WY"/);
+  context.renderDocuments({ ...summary, staffFolder: null, documents: [] });
+  assert.match(results.children[0].textContent, /No matching staff-code folder/);
   assert.equal(rows[2][2], 'Failed');
   assert.equal(rows[3][2], 'Blocked - not processed');
 
