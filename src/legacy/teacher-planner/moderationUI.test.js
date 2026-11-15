@@ -629,19 +629,23 @@ test('Records table preserves multiple assessments of one standard and orphaned 
   assert.ok(rows[1].children[1].all().some(n => n.textContent === 'No assessment record'));
   assert.ok(rows[1].children[2].all().some(n => n.textContent === 'Orphan student'));
 });
-test('student panels use letter labels and compact fields; empty discussion imports only its linked marker comments', async () => {
+test('student panels import missing grade and comments from their linked schedules without replacing existing values', async () => {
   const first = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
   const second = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+  const third = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
   const f = fixture({ page: 'internal', data: { internal: JSON.stringify({ samples: [
     { student: 'Student A - TV', markingScheduleRecord: first },
-    { student: 'Student B - CJ', markingScheduleRecord: second, comments: 'My existing discussion' }
+    { student: 'Student B - CJ', markingScheduleRecord: second, comments: 'My existing discussion' },
+    { student: 'Student C - AA', markingScheduleRecord: third, markerGrade: 'M' }
   ] }) }, recordRequest: async path => {
-    assert.ok(path.endsWith(first), 'nonempty discussions are not fetched');
-    return { revision: 1, content: { parentRecord: record, schedule: '{"markerComments":"Comments from marker"}' } };
+    const schedule = path.endsWith(first) ? { grade: 'E', markerComments: 'Comments from marker' }
+      : path.endsWith(second) ? { grade: 'Not assessed', markerComments: 'Do not replace' }
+        : { grade: 'A', markerComments: 'Another comment' };
+    return { revision: 1, content: { parentRecord: record, schedule: JSON.stringify(schedule) } };
   } }); await flush();
   assert.ok(f.host.find(n => n.tag === 'legend' && n.textContent === 'Student A'));
   assert.ok(f.host.find(n => n.tag === 'legend' && n.textContent === 'Student B'));
-  assert.equal(f.host.all().filter(n => n.attrs.class === 'moderation-fields moderation-student-fields').length, 2);
+  assert.equal(f.host.all().filter(n => n.attrs.class === 'moderation-fields moderation-student-fields').length, 3);
   const top = f.host.find(n => n.attrs.class === 'moderation-fields moderation-student-fields');
   const reporting = f.host.find(n => n.attrs.class === 'moderation-fields moderation-student-reporting');
   assert.deepEqual(top.children.map(n => n.children[1].attrs.id),
@@ -653,24 +657,64 @@ test('student panels use letter labels and compact fields; empty discussion impo
   assert.equal(top.parentElement.children[3].tag, 'button');
   const samples = JSON.parse(f.host.find(n => n.attrs.name === 'internal').value).samples;
   assert.equal(samples[0].comments, 'Comments from marker');
+  assert.equal(samples[0].markerGrade, 'E');
   assert.equal(samples[1].comments, 'My existing discussion');
+  assert.equal(samples[1].markerGrade, 'Not assessed');
+  assert.equal(samples[2].comments, 'Another comment');
+  assert.equal(samples[2].markerGrade, 'M');
   assert.equal(f.host.find(n => n.attrs.id === 'moderation-internal-0-comments').value, 'Comments from marker');
+  assert.equal(f.host.find(n => n.attrs.id === 'moderation-internal-0-markerGrade').value, 'E');
 });
-test('discussion import does not overwrite edits made while loading or copy another parent record', async () => {
+test('marker details do not overwrite edits made while loading or copy another parent record', async () => {
   const id = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
   let resolve;
   const f = fixture({ page: 'internal', data: { internal: JSON.stringify({ samples: [{ markingScheduleRecord: id }] }) },
     recordRequest: () => new Promise(done => { resolve = done; }) });
   const control = f.host.find(n => n.attrs.id === 'moderation-internal-0-comments');
   control.value = 'Typed during lookup'; control.events.input();
-  resolve({ revision: 1, content: { parentRecord: record, schedule: '{"markerComments":"Old comment"}' } });
+  const grade = f.host.find(n => n.attrs.id === 'moderation-internal-0-markerGrade');
+  grade.value = 'M'; grade.events.change();
+  resolve({ revision: 1, content: { parentRecord: record, schedule: '{"grade":"E","markerComments":"Old comment"}' } });
   await flush();
   assert.equal(JSON.parse(f.host.find(n => n.attrs.name === 'internal').value).samples[0].comments, 'Typed during lookup');
+  assert.equal(JSON.parse(f.host.find(n => n.attrs.name === 'internal').value).samples[0].markerGrade, 'M');
   const mismatch = fixture({ page: 'internal', data: { internal: JSON.stringify({ samples: [{ markingScheduleRecord: id }] }) },
-    recordRequest: async () => ({ revision: 1, content: { parentRecord: id, schedule: '{"markerComments":"Do not copy"}' } }) });
+    recordRequest: async () => ({ revision: 1, content: { parentRecord: id, schedule: '{"grade":"E","markerComments":"Do not copy"}' } }) });
   await flush();
   assert.ok(!JSON.parse(mismatch.host.find(n => n.attrs.name === 'internal').value).samples[0].comments);
+  assert.ok(!JSON.parse(mismatch.host.find(n => n.attrs.name === 'internal').value).samples[0].markerGrade);
   assert.ok(mismatch.host.find(n => n.attrs.role === 'alert' && n.textContent.includes('does not belong')));
+});
+test('invalid schedule grades are reported without blocking valid comments', async () => {
+  const id = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+  const f = fixture({ page: 'internal', data: { internal: JSON.stringify({ samples: [{ markingScheduleRecord: id }] }) },
+    recordRequest: async () => ({ revision: 1, content: { parentRecord: record, schedule: '{"grade":"invalid","markerComments":"Valid comment"}' } }) });
+  await flush();
+  const sample = JSON.parse(f.host.find(n => n.attrs.name === 'internal').value).samples[0];
+  assert.equal(sample.comments, 'Valid comment');
+  assert.ok(!sample.markerGrade);
+  assert.ok(f.host.find(n => n.attrs.role === 'alert' && n.textContent.includes('grade is invalid')));
+});
+test('a valid grade is imported even when schedule comments are invalid, and blank grades stay blank', async () => {
+  const first = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+  const second = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+  const complete = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
+  const f = fixture({ page: 'internal', data: { internal: JSON.stringify({ samples: [
+    { markingScheduleRecord: first }, { markingScheduleRecord: second },
+    { markingScheduleRecord: complete, markerGrade: 'A', comments: 'Existing' }
+  ] }) }, recordRequest: async path => {
+    assert.ok(!path.endsWith(complete));
+    return { revision: 1, content: { parentRecord: record, schedule: path.endsWith(first)
+      ? '{"grade":"A","markerComments":42}' : '{"grade":"","markerComments":"Comment"}' } };
+  } });
+  await flush();
+  const samples = JSON.parse(f.host.find(n => n.attrs.name === 'internal').value).samples;
+  assert.equal(samples[0].markerGrade, 'A');
+  assert.ok(!samples[0].comments);
+  assert.ok(!samples[1].markerGrade);
+  assert.equal(samples[1].comments, 'Comment');
+  assert.ok(f.host.find(n => n.attrs.role === 'alert' && n.textContent.includes('comments are invalid')));
+  assert.ok(!f.calls.some(call => call[0] === 'request' && call[1].endsWith(complete)));
 });
 test('all moderation Yes/No fields render in two-column tick tables without changing saved answers on load', async () => {
   for (const [page, definition] of Object.entries(schema.documents)) {

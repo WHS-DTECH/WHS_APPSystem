@@ -1844,6 +1844,9 @@ followed by separate student schedules. Fill in each standard's own criteria;
 existing standard-specific schedule instructions and criteria remain accessible
 through Records → Marking Schedules and are still used when preparing student
 schedules. No existing marking or linked documents are changed by the template.
+When the Internal Moderation Sheet opens, each linked student's saved overall
+grade and marker comments fill an empty marker grade and discussion field.
+Existing entries are preserved; clear a field and reopen the sheet to refill it.
 WHS Coversheet also provides one reusable blank template with separate student
 sheets below it. Open a student's coversheet from that list; create their student
 record through Internal Moderation first if needed. Existing assessment-level coversheets remain

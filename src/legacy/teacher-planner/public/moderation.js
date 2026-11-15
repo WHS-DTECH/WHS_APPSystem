@@ -762,31 +762,43 @@
     }
     const editor = el('div');
     let sourceLinks = data.parentRecord ? {} : sourceScheduleLinks(values.internal.source);
-    const discussionControls = new Map();
-    async function fillMarkerComments() {
+    const sampleControls = new Map();
+    async function fillMarkerDetails() {
       if (page !== 'internal') return;
       const failures = [];
       await Promise.all((state.samples || []).map(async item => {
-        if (!item.markingScheduleRecord || (item.comments || '').trim()) return;
+        const scheduleRecord = item.markingScheduleRecord;
+        if (!scheduleRecord || ((item.comments || '').trim() && item.markerGrade)) return;
         try {
-          const result = await request(year + '/moderation/' + item.markingScheduleRecord);
+          const result = await request(year + '/moderation/' + scheduleRecord);
           if (!area.isConnected) return;
           if (result.revision === 0 || result.content.parentRecord !== record) throw new Error('The linked marking schedule is missing or does not belong to this moderation record.');
-          const comments = JSON.parse(result.content.schedule || '{}').markerComments;
-          if (comments !== undefined && typeof comments !== 'string') throw new Error('The saved marker comments are invalid.');
-          if (comments && !(item.comments || '').trim() && state.samples.includes(item)) {
-            item.comments = comments;
-            sync();
-            const control = discussionControls.get(item);
-            if (control) control.value = comments;
+          const schedule = JSON.parse(result.content.schedule || '{}');
+          const grades = documents.internal.rows.fields.find(def => def[0] === 'markerGrade')[2];
+          if (!state.samples.includes(item) || item.markingScheduleRecord !== scheduleRecord) return;
+          let filled = false;
+          for (const [key, value, valid, label] of [
+            ['comments', schedule.markerComments, value => typeof value === 'string', 'comments are'],
+            ['markerGrade', schedule.grade, value => grades.includes(value), 'grade is']
+          ]) {
+            if ((item[key] || '').trim() || value === undefined) continue;
+            if (!valid(value)) {
+              failures.push('The saved marker ' + label + ' invalid.');
+            } else if (value) {
+              item[key] = value;
+              const control = sampleControls.get(item)?.get(key);
+              if (control) control.value = value;
+              filled = true;
+            }
           }
+          if (filled) sync();
         } catch (error) {
-          console.error('Marker comments could not be loaded.');
+          console.error('Marker details could not be loaded.');
           failures.push(error.message);
         }
       }));
       if (failures.length && area.isConnected) {
-        message('Some marker comments could not be populated: ' + [...new Set(failures)].join(' ') + ' Existing discussion text is unchanged. Reopen this sheet to retry.', true);
+        message('Some marker grades or comments could not be populated: ' + [...new Set(failures)].join(' ') + ' Existing entries are preserved. Reopen this sheet to retry.', true);
       }
     }
     function fillSourceLinks() {
@@ -1052,7 +1064,7 @@
         const list = el('div');
         function renderRows() {
           list.replaceChildren();
-          discussionControls.clear();
+          sampleControls.clear();
           if (page === 'schedule') {
             list.setAttribute('class', 'moderation-requirements-scroll');
             const table = el('table', '', { class: 'moderation-requirements-table' });
@@ -1118,7 +1130,10 @@
               const control = input(def, item[def[0]], value => { item[def[0]] = value; sync(['student', 'reportedGrade', 'reportedDate'].includes(def[0])); },
                 page === 'internal' && !primary ? reporting : grid, page + '-' + i + '-');
               if (primary) control.setAttribute('class', 'moderation-student-highlight');
-              if (page === 'internal' && def[0] === 'comments') discussionControls.set(item, control);
+              if (page === 'internal' && ['comments', 'markerGrade'].includes(def[0])) {
+                if (!sampleControls.has(item)) sampleControls.set(item, new Map());
+                sampleControls.get(item).set(def[0], control);
+              }
             }
             row.append(grid);
             if (page === 'internal') row.append(reporting);
@@ -1341,7 +1356,7 @@
       for (const key of Object.keys(state)) delete state[key];
       Object.assign(state, imported.document); fillSourceLinks(); sync(true); renderEditor();
       await fillSetupFolderLink();
-      await fillMarkerComments();
+      await fillMarkerDetails();
       await saveLink(file);
       message(imported.warning);
     }, actions);
@@ -1430,7 +1445,7 @@
       }
     });
     if (page === 'internal') Promise.resolve().then(() => { if (area.isConnected) sync(true, true); });
-    fillMarkerComments();
+    fillMarkerDetails();
     if (page === 'schedule' && hidden.standardNumber.value) {
       loadStandardDetails().then(details => {
         if (!area.isConnected) return;
