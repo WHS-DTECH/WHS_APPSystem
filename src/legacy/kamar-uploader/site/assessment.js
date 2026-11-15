@@ -7,8 +7,15 @@
   const status = $('status'), canvas = $('canvas'), context = canvas.getContext('2d');
   const state = { csrf: '', students: [], rows: [], image: null, imageHash: '', sourceName: '', supersedesId: null,
     selection: null, busy: false, historical: false };
+  function today(date = new Date()) {
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Pacific/Auckland',
+      year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date);
+    const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+    return `${values.year}-${values.month}-${values.day}`;
+  }
   $('year').value = $('history-year').value =
     new Intl.DateTimeFormat('en-NZ', { year: 'numeric', timeZone: 'Pacific/Auckland' }).format(new Date());
+  $('date').value = today();
 
   function show(message, error = false) {
     status.textContent = message;
@@ -173,6 +180,7 @@
     state.selection = null; $('read').disabled = true; $('image').value = ''; $('reviewed').checked = false;
     showSave('');
     for (const name of fields.filter(name => name !== 'year')) $(name).value = '';
+    $('date').value = today();
     $('source').textContent = ''; draw(); renderRows();
   }
   $('clear').addEventListener('click', () => clear());

@@ -30,6 +30,47 @@ const namesOnly = () => ({
     reviewed: true, matchConfirmed: false }]
 });
 
+test('new records default to the New Zealand date while saved dates are preserved', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'legacy', 'kamar-uploader', 'site', 'assessment.js'), 'utf8');
+  const start = source.indexOf('  function today(');
+  const end = source.indexOf("  $('year').value", start);
+  assert.ok(start !== -1 && end > start);
+  const today = new Function(source.slice(start, end) + '\nreturn today;')();
+  assert.equal(today(new Date('2026-11-15T10:59:00Z')), '2026-11-15');
+  assert.equal(today(new Date('2026-11-15T11:00:00Z')), '2026-11-16');
+
+  const fields = ['year', 'date', 'class', 'number', 'code', 'title', 'version', 'credits', 'level'];
+  const elements = Object.fromEntries([...fields, 'history-year', 'save', 'read', 'image', 'reviewed', 'source']
+    .map(id => [id, { value: '', checked: false, disabled: false, textContent: '' }]));
+  const initEnd = source.indexOf('  function show(', end);
+  assert.ok(initEnd > end);
+  new Function('$', source.slice(start, initEnd))(id => elements[id]);
+  assert.equal(elements.date.value, today());
+  const state = { csrf: 'token', imageHash: '', rows: [], historical: false };
+  const clearStart = source.indexOf('  function clear(');
+  const clearEnd = source.indexOf("  $('clear').addEventListener", clearStart);
+  assert.ok(clearStart !== -1 && clearEnd > clearStart);
+  const clear = new Function('$', 'state', 'fields', 'today', 'showSave', 'draw', 'renderRows', 'window',
+    source.slice(clearStart, clearEnd) + '\nreturn clear;')(
+    id => elements[id], state, fields, () => '2026-11-16', () => {}, () => {}, () => {}, { confirm: () => true });
+  clear(false);
+  assert.equal(elements.date.value, '2026-11-16');
+
+  const openStart = source.indexOf('  async function openSnapshot(');
+  const openEnd = source.indexOf('  async function loadHistory(', openStart);
+  assert.ok(openStart !== -1 && openEnd > openStart);
+  for (const observedOn of ['2026-07-12', null]) {
+    const snapshot = { id: 'snapshot', school_year: 2026, observed_on: observedOn, source_name: null,
+      image_hash: null, is_current: true, data: { assessment: namesOnly().assessment, rows: namesOnly().rows } };
+    const open = new Function('$', 'state', 'request', 'clear', 'renderRows', 'show', 'window',
+      source.slice(openStart, openEnd) + '\nreturn openSnapshot;')(
+      id => elements[id], state, async () => ({ snapshot }), clear, () => {}, () => {},
+      { confirm: () => true, scrollTo() {} });
+    await open('snapshot');
+    assert.equal(elements.date.value, observedOn || '');
+  }
+});
+
 test('overall result offers NAME grades and preserves existing nonstandard results', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'legacy', 'kamar-uploader', 'site', 'assessment.js'), 'utf8');
   const helpers = source.slice(source.indexOf('  function option('), source.indexOf('  function renderRows()'));

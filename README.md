@@ -1417,8 +1417,10 @@ current Student List, timetable or KAMAR records.
 
 Student names can be saved unmatched without a screenshot, year, date, class or
 standard; these details and confirmed Student List matches can be added later
-by opening the latest version. The year defaults to the current year and can
-be cleared; records without a year appear when loading any year's history.
+by opening the latest version. The year and observation date default to the
+current New Zealand year and date; either can be changed or cleared. Saved
+records retain their original date, and records without a year appear when
+loading any year's history.
 If available, select one PNG, JPEG or WebP screenshot at a time (maximum 8 MB).
 Optional name recognition runs in the browser using locally served OCR files;
 it may miss or misread names, especially in small screenshots. Grades,
