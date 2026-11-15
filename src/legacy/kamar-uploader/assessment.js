@@ -15,18 +15,18 @@ function validDate(value) {
 }
 function validate(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input) ||
-      !Number.isInteger(input.year) || input.year < 2000 || input.year > 2100 ||
-      !validDate(input.observedOn) || !text(input.sourceName, 255, true) ||
-      typeof input.imageHash !== 'string' || !HASH.test(input.imageHash) ||
+      !(input.year === null || Number.isInteger(input.year) && input.year >= 2000 && input.year <= 2100) ||
+      !(input.observedOn === null || validDate(input.observedOn)) ||
+      !((input.sourceName === null && input.imageHash === null) ||
+        (text(input.sourceName, 255, true) && typeof input.imageHash === 'string' && HASH.test(input.imageHash))) ||
       !(input.supersedesId === null || typeof input.supersedesId === 'string' && UUID.test(input.supersedesId)) ||
       input.reviewed !== true || !input.assessment || typeof input.assessment !== 'object' ||
       !text(input.assessment.standardNumber, 12) || !/^\d*$/.test(input.assessment.standardNumber) ||
-      !text(input.assessment.code, 80) || !text(input.assessment.title, 500, true) ||
+      !text(input.assessment.code, 80) || !text(input.assessment.title, 500) ||
       !text(input.assessment.version, 20) || !text(input.assessment.credits, 20) ||
-      !text(input.assessment.level, 20) || !text(input.assessment.className, 120, true) ||
-      !(input.assessment.standardNumber || input.assessment.code) ||
+      !text(input.assessment.level, 20) || !text(input.assessment.className, 120) ||
       !Array.isArray(input.rows) || !input.rows.length || input.rows.length > 200) {
-    throw new Error('Review the screenshot details, observation date and at least one student before saving.');
+    throw new Error('Review the entered details and at least one student before saving.');
   }
   const ids = new Set();
   for (const row of input.rows) {
@@ -82,8 +82,8 @@ function createAssessmentRouter({ pool, appBaseUrl }) {
       const result = await pool.query(`SELECT s.id,s.school_year,s.observed_on::text,s.source_name,s.created_at,
         s.data->'assessment' AS assessment,jsonb_array_length(s.data->'rows') AS row_count,
         NOT EXISTS (SELECT 1 FROM kamar_assessment_snapshots newer WHERE newer.supersedes_id=s.id) AS is_current
-        FROM kamar_assessment_snapshots s WHERE s.school_year=$1
-        ORDER BY s.observed_on DESC,s.created_at DESC,s.id`, [year]);
+        FROM kamar_assessment_snapshots s WHERE s.school_year=$1 OR s.school_year IS NULL
+        ORDER BY s.observed_on DESC NULLS LAST,s.created_at DESC,s.id`, [year]);
       res.json({ snapshots: result.rows });
     } catch {
       console.error('KAMAR assessment snapshots read failed.');
@@ -117,7 +117,7 @@ function createAssessmentRouter({ pool, appBaseUrl }) {
           await client.query('ROLLBACK');
           return res.status(409).json({ error: 'The original snapshot was not found. Reload before saving.' });
         }
-        if (previous.rows[0].image_hash !== req.body.imageHash) {
+        if (previous.rows[0].image_hash && previous.rows[0].image_hash !== req.body.imageHash) {
           await client.query('ROLLBACK');
           return res.status(409).json({ error: 'A correction must refer to the same screenshot. Start a new snapshot for a different image.' });
         }

@@ -20,6 +20,14 @@ const example = () => ({
   ]
 });
 
+const namesOnly = () => ({
+  year: null, observedOn: null, sourceName: null, imageHash: null, supersedesId: null, reviewed: true,
+  assessment: { className: '', standardNumber: '', code: '', title: '', version: '', credits: '', level: '' },
+  rows: [{ visibleName: 'Avery Fictional', studentId: '', yearLevel: '', tutor: '', course: '',
+    entered: null, published: null, notify: null, status: 'unknown', result: '', derivedGrade: '',
+    reviewed: true, matchConfirmed: false }]
+});
+
 async function fixture(t) {
   const owner = crypto.randomUUID(), snapshots = new Map(), writes = [];
   const pool = {
@@ -31,7 +39,11 @@ async function fixture(t) {
         const row = snapshots.get(values[0]);
         return { rows: row ? [{ ...row, is_current: ![...snapshots.values()].some(item => item.supersedes_id === row.id) }] : [] };
       }
-      if (sql.includes('FROM kamar_assessment_snapshots s WHERE s.school_year')) return { rows: [] };
+      if (sql.includes('FROM kamar_assessment_snapshots s WHERE s.school_year')) {
+        return { rows: [...snapshots.values()].filter(row => row.school_year === values[0] || row.school_year === null)
+          .map(row => ({ ...row, assessment: row.data.assessment, row_count: row.data.rows.length,
+            is_current: ![...snapshots.values()].some(item => item.supersedes_id === row.id) })) };
+      }
       assert.fail('Unexpected pool query: ' + sql);
     },
     async connect() {
@@ -85,6 +97,7 @@ async function fixture(t) {
 
 test('review validation preserves unknowns and distinguishes derived and official results', () => {
   validate(example());
+  validate(namesOnly());
   for (const change of [
     input => { input.reviewed = false; },
     input => { input.observedOn = '2026-02-30'; },
@@ -98,6 +111,48 @@ test('review validation preserves unknowns and distinguishes derived and officia
     const input = example(); change(input);
     assert.throws(() => validate(input));
   }
+  for (const change of [
+    input => { input.sourceName = 'fictional.png'; },
+    input => { input.imageHash = 'a'.repeat(64); },
+    input => { input.year = 0; },
+    input => { input.rows[0].visibleName = ' '; }
+  ]) {
+    const input = namesOnly(); change(input);
+    assert.throws(() => validate(input));
+  }
+});
+
+test('names can be saved unmatched and completed later without changing the original', async t => {
+  const { snapshots, call } = await fixture(t);
+  const { csrf } = await (await call('/session')).json();
+  const save = input => call('/snapshots', { method: 'POST',
+    headers: { 'Content-Type': 'application/json', Origin: 'https://school.example.test', 'x-kamar-assessment-csrf': csrf },
+    body: JSON.stringify(input) });
+  const first = await save(namesOnly());
+  assert.equal(first.status, 201);
+  const { id } = await first.json();
+  const original = (await (await call('/snapshots/' + id)).json()).snapshot;
+  assert.equal(original.school_year, null);
+  assert.equal(original.observed_on, null);
+  assert.equal(original.image_hash, null);
+  assert.equal(original.data.rows[0].studentId, '');
+  assert.equal(original.data.rows[0].entered, null);
+  assert.equal((await (await call('/snapshots?year=2026')).json()).snapshots.length, 1);
+  const completed = namesOnly();
+  completed.supersedesId = id;
+  completed.year = 2026;
+  completed.assessment.standardNumber = '92004';
+  completed.rows[0].studentId = '100';
+  completed.rows[0].matchConfirmed = true;
+  completed.sourceName = 'fictional.png';
+  completed.imageHash = 'a'.repeat(64);
+  const saved = await save(completed);
+  assert.equal(saved.status, 201);
+  assert.equal(snapshots.get(id).data.rows[0].studentId, '');
+  const newest = (await (await call('/snapshots/' + (await saved.json()).id)).json()).snapshot;
+  assert.equal(newest.data.rows[0].studentId, '100');
+  assert.equal(newest.image_hash, 'a'.repeat(64));
+  assert.equal((await save(completed)).status, 409);
 });
 
 test('assessment snapshots require admin, CSRF, reviewed matches and append-only correction', async t => {

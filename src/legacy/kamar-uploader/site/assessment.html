@@ -13,24 +13,25 @@
   <main class="assessment-shell">
     <section class="panel">
       <h1>KAMAR Assessment Reconciliation</h1>
-      <p>Save a reviewed snapshot of what was visible in KAMAR. This does not change KAMAR or confirm current results.
+      <p>Start with student names and add matches and assessment details later, or save a reviewed snapshot of what was visible in KAMAR.
+        This does not change KAMAR or confirm current results.
         No unit-standard elements are recorded. The image stays in your browser and is not saved.</p>
       <p>Student names, grades and tickboxes may be misread or missing. Check every row against the screenshot;
         leave unreadable fields as unknown. Derived grades are not official results.</p>
       <p id="assessment-status" role="status" aria-live="polite"></p>
       <div class="assessment-grid">
-        <label>School year <input id="assessment-year" type="number" min="2000" max="2100" required></label>
-        <label>Date seen in KAMAR <input id="assessment-date" type="date" required></label>
-        <label>Class or teaching group <input id="assessment-class" maxlength="120" required></label>
+        <label>School year <input id="assessment-year" type="number" min="2000" max="2100"></label>
+        <label>Date seen in KAMAR <input id="assessment-date" type="date"></label>
+        <label>Class or teaching group <input id="assessment-class" maxlength="120"></label>
         <label>Standard number <input id="assessment-number" maxlength="12" inputmode="numeric"></label>
         <label>Other assessment code <input id="assessment-code" maxlength="80"></label>
-        <label>Standard or assessment title <input id="assessment-title" maxlength="500" required></label>
+        <label>Standard or assessment title <input id="assessment-title" maxlength="500"></label>
         <label>Version <input id="assessment-version" maxlength="20"></label>
         <label>Credits <input id="assessment-credits" maxlength="20"></label>
         <label>Standard level <input id="assessment-level" maxlength="20"></label>
       </div>
-      <p>A standard number or another assessment code is required. Leave fields blank if they are not visible.</p>
-      <label>Screenshot <input id="assessment-image" type="file" accept="image/png,image/jpeg,image/webp"></label>
+      <p>These details are optional and can be added later. Leave unknown fields blank.</p>
+      <label>Screenshot (optional) <input id="assessment-image" type="file" accept="image/png,image/jpeg,image/webp"></label>
       <p id="assessment-source"></p>
       <div class="assessment-preview">
         <canvas id="assessment-canvas" hidden aria-label="Screenshot preview"></canvas>
@@ -45,15 +46,16 @@
     </section>
     <section class="panel">
       <h2>Review students and results</h2>
-      <p>Choose the matching Student List entry and confirm it for each row. Duplicate names need individual review.
-        Leave a student unmatched if you cannot identify them. An empty field does not mean “No”.</p>
+      <p>Names can be saved unmatched and linked to the Student List later. If you choose a match, confirm it for each row.
+        Duplicate names need individual review. An empty field does not mean “No”.</p>
       <div id="assessment-rows"></div>
-      <label><input id="assessment-reviewed" type="checkbox"> I checked the screenshot details and every student row.</label>
+      <label><input id="assessment-reviewed" type="checkbox"> I checked the information entered and every student row.</label>
       <div class="assessment-actions"><button id="assessment-save" type="button" disabled>Save reviewed snapshot</button></div>
     </section>
     <section class="panel">
       <h2>Saved snapshots</h2>
-      <p>Corrections create a new version; earlier snapshots are retained. The screenshot image itself is not retained.</p>
+      <p>Corrections create a new version; earlier snapshots are retained. Records without a year appear with every year.
+        The screenshot image itself is not retained.</p>
       <div class="assessment-actions">
         <label>School year <input id="assessment-history-year" type="number" min="2000" max="2100"></label>
         <button id="assessment-load" type="button">Load snapshots</button>

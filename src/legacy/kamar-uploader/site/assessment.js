@@ -22,21 +22,8 @@
     if (!response.ok) throw new Error(result.error || 'KAMAR assessment request failed.');
     return result;
   }
-  function normal(value) {
-    return String(value || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
-  }
-  function suggest(name) {
-    const candidate = normal(name);
-    if (!candidate) return '';
-    const matches = state.students.filter(student => {
-      const first = normal(student.first_name), last = normal(student.last_name);
-      return first && last && (candidate === first + ' ' + last || candidate === last + ' ' + first);
-    });
-    return matches.length === 1 ? matches[0].id_number : '';
-  }
   function newRow(name = '') {
-    return { visibleName: name, studentId: suggest(name), yearLevel: '', tutor: '', course: '',
+    return { visibleName: name, studentId: '', yearLevel: '', tutor: '', course: '',
       status: 'unknown', result: '', derivedGrade: '', entered: null, published: null, notify: null,
       reviewed: false, matchConfirmed: false };
   }
@@ -57,7 +44,7 @@
     input.addEventListener('input', () => {
       row[key] = input.value;
       if (key === 'visibleName') {
-        row.studentId = suggest(row.visibleName);
+        row.studentId = '';
         const select = input.closest('.assessment-student').querySelector('[data-student-id]');
         select.value = row.studentId;
       }
@@ -167,7 +154,7 @@
     draw();
   });
   function clear(ask = true) {
-    if (ask && (state.imageHash || state.rows.length) && !window.confirm('Discard this unsaved review and start a new screenshot?')) return;
+    if (ask && (state.imageHash || state.rows.length) && !window.confirm('Discard this unsaved review and start a new record?')) return;
     state.rows = []; state.image = null; state.imageHash = ''; state.sourceName = ''; state.supersedesId = null;
     state.historical = false; $('save').disabled = !state.csrf;
     state.selection = null; $('read').disabled = true; $('image').value = ''; $('reviewed').checked = false;
@@ -190,7 +177,7 @@
       const bytes = await file.arrayBuffer();
       const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))]
         .map(value => value.toString(16).padStart(2, '0')).join('');
-      if (state.supersedesId && state.imageHash !== hash) throw new Error('Choose the original screenshot when correcting a saved snapshot.');
+      if (state.supersedesId && state.imageHash && state.imageHash !== hash) throw new Error('Choose the original screenshot when correcting a saved snapshot.');
       const url = URL.createObjectURL(file), image = new Image();
       try {
         await new Promise((resolve, reject) => {
@@ -231,7 +218,7 @@
       if (!lines.length) throw new Error('No names could be read. Draw a tighter selection or add rows manually.');
       if (state.rows.length + lines.length > 200) throw new Error('A screenshot can contain at most 200 reviewed rows.');
       state.rows.push(...lines.map(newRow)); $('reviewed').checked = false; renderRows();
-      show('Added ' + lines.length + ' suggested lines. Correct names, matches and all visible fields before saving.');
+      show('Added ' + lines.length + ' suggested lines. Check the names and any entered details before saving.');
     } catch (error) {
       console.error('KAMAR screenshot recognition failed.');
       show(error.message || 'Name recognition failed. Add rows manually.', true);
@@ -243,8 +230,9 @@
   $('save').addEventListener('click', async () => {
     if (state.busy || state.historical) return;
     const payload = {
-      year: Number($('year').value), observedOn: $('date').value, sourceName: state.sourceName,
-      imageHash: state.imageHash, supersedesId: state.supersedesId, reviewed: $('reviewed').checked,
+      year: $('year').value ? Number($('year').value) : null, observedOn: $('date').value || null,
+      sourceName: state.sourceName || null, imageHash: state.imageHash || null,
+      supersedesId: state.supersedesId, reviewed: $('reviewed').checked,
       assessment: { className: $('class').value.trim(), standardNumber: $('number').value.trim(),
         code: $('code').value.trim(), title: $('title').value.trim(), version: $('version').value.trim(),
         credits: $('credits').value.trim(), level: $('level').value.trim() },
@@ -252,13 +240,13 @@
         yearLevel: row.yearLevel.trim(), tutor: row.tutor.trim(), course: row.course.trim(),
         result: row.result.trim(), derivedGrade: row.derivedGrade.trim() }))
     };
-    if (!payload.imageHash || !payload.reviewed || !payload.rows.length || payload.rows.some(row => !row.reviewed)) {
-      show('Choose a screenshot and review the screenshot details and every student row before saving.', true); return;
+    if (!payload.reviewed || !payload.rows.length || payload.rows.some(row => !row.reviewed)) {
+      show('Review the information entered and every student row before saving.', true); return;
     }
     state.busy = true; $('save').disabled = true;
     try {
       await request('/snapshots', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      $('history-year').value = String(payload.year);
+      if (payload.year !== null) $('history-year').value = String(payload.year);
       clear(false);
       show('Reviewed snapshot saved. KAMAR and existing student records were not changed.');
       try { await loadHistory(); }
@@ -271,13 +259,15 @@
     const { snapshot } = await request('/snapshots/' + encodeURIComponent(id));
     clear(false);
     const a = snapshot.data.assessment;
-    $('year').value = snapshot.school_year; $('date').value = snapshot.observed_on;
+    $('year').value = snapshot.school_year ?? ''; $('date').value = snapshot.observed_on ?? '';
     $('class').value = a.className; $('number').value = a.standardNumber; $('code').value = a.code;
     $('title').value = a.title; $('version').value = a.version; $('credits').value = a.credits; $('level').value = a.level;
-    state.sourceName = snapshot.source_name; state.imageHash = snapshot.image_hash; state.supersedesId = snapshot.id;
+    state.sourceName = snapshot.source_name || ''; state.imageHash = snapshot.image_hash || ''; state.supersedesId = snapshot.id;
     state.historical = !snapshot.is_current; $('save').disabled = state.historical;
     state.rows = snapshot.data.rows.map(row => ({ ...row, reviewed: false, matchConfirmed: false }));
-    $('source').textContent = 'Correcting saved source: ' + state.sourceName + '. Reselect the original screenshot to view it.';
+    $('source').textContent = state.sourceName
+      ? 'Correcting saved source: ' + state.sourceName + '. Reselect the original screenshot to view it.'
+      : 'No screenshot was recorded. You can add one when completing this record.';
     renderRows(); show(state.historical ? 'This is an earlier version. Open the latest version to make a correction.' :
       'Review every field again. Saving creates a new version and keeps the original.');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -291,8 +281,9 @@
     for (const snapshot of snapshots) {
       const row = document.createElement('div'); row.className = 'assessment-history-item';
       const details = document.createElement('span');
-      details.textContent = snapshot.observed_on + ' — ' + snapshot.assessment.className + ' — ' +
-        (snapshot.assessment.standardNumber || snapshot.assessment.code) + ' — ' + snapshot.row_count +
+      details.textContent = (snapshot.observed_on || 'Date not recorded') + ' — ' +
+        (snapshot.assessment.className || 'Class not recorded') + ' — ' +
+        (snapshot.assessment.standardNumber || snapshot.assessment.code || 'Standard not recorded') + ' — ' + snapshot.row_count +
         ' students — ' + (snapshot.is_current ? 'Latest version' : 'Earlier version');
       const button = document.createElement('button'); button.type = 'button';
       button.textContent = snapshot.is_current ? 'Review or correct' : 'View earlier version';
@@ -301,11 +292,19 @@
     }
   }
   $('load').addEventListener('click', () => { loadHistory().catch(error => show(error.message, true)); });
-  Promise.all([request('/session'), request('/students')]).then(([session, result]) => {
-    if (typeof session.csrf !== 'string' || !Array.isArray(result.students)) throw new Error('Assessment review data is invalid.');
-    state.csrf = session.csrf; state.students = result.students;
+  request('/session').then(async session => {
+    if (typeof session.csrf !== 'string') throw new Error('Assessment review session is invalid.');
+    state.csrf = session.csrf;
     $('save').disabled = false;
+    try {
+      const result = await request('/students');
+      if (!Array.isArray(result.students)) throw new Error('Assessment Student List data is invalid.');
+      state.students = result.students;
+      show('Add student names now. You can match them and add assessment details later.');
+    } catch (error) {
+      console.error('KAMAR Student List is unavailable for assessment matching.');
+      show('Student List unavailable. Names can still be saved unmatched; reload to match them later.', true);
+    }
     renderRows();
-    show('Choose a screenshot and review its visible assessment information.');
   }).catch(error => { $('save').disabled = true; show(error.message, true); });
 })();

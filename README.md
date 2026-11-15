@@ -1415,21 +1415,23 @@ to record what was visible in a KAMAR assessment screenshot. Run
 the migration adds an append-only assessment snapshot table and does not change
 current Student List, timetable or KAMAR records.
 
-Select one PNG, JPEG or WebP screenshot at a time (maximum 8 MB), enter its
-school year, date observed, class and visible assessment details, and review
-each student. Optional name recognition runs in the browser using locally served
-OCR files; it may miss or misread names, especially in small screenshots.
-Grades, tickboxes and other fields must be entered or checked manually. OCR and
-Student List name matches are suggestions only: a person must confirm every
-row and each chosen student ID. Duplicate or uncertain names can be left
-unmatched. Blank or unreadable flags are **unknown**, not No; derived grades
-are recorded separately from official results. Individual unit-standard
-elements are not collected.
+Student names can be saved unmatched without a screenshot, year, date, class or
+standard; these details and confirmed Student List matches can be added later
+by opening the latest version. The year defaults to the current year and can
+be cleared; records without a year appear when loading any year's history.
+If available, select one PNG, JPEG or WebP screenshot at a time (maximum 8 MB).
+Optional name recognition runs in the browser using locally served OCR files;
+it may miss or misread names, especially in small screenshots. Grades,
+tickboxes and other fields must be entered or checked manually. A person must
+confirm every row and each chosen student ID; names are not automatically
+linked. Duplicate or uncertain names can be left unmatched. Blank or unreadable
+flags are **unknown**, not No; derived grades are recorded separately from
+official results. Individual unit-standard elements are not collected.
 
 Only the reviewed fields, image hash, filename, observation date and author
 are saved in the separate KAMAR database; the screenshot stays in the browser.
-Previous versions remain available when correcting a snapshot. These are dated
-observations, not a live KAMAR connection, and never update KAMAR. Screenshots
+Previous versions remain available when completing or correcting a snapshot.
+These are reviewed records, not a live KAMAR connection, and never update KAMAR. Screenshots
 shared in a chat are not automatically uploaded: reselect them in the app.
 Comparison with Assessment Manager marking decisions and teacher-scoped access
 are not yet implemented.

@@ -140,6 +140,11 @@ test('PostgreSQL preserves baselines, statuses, snapshots, rollback and immutabi
     (id,school_year,observed_on,source_name,image_hash,data,created_by)
     VALUES ($1,2026,'2026-07-23','fictional.png',$2,$3::jsonb,$4)`,
   [require('node:crypto').randomUUID(), 'a'.repeat(64), JSON.stringify({ assessment: {}, rows: [] }), require('node:crypto').randomUUID()]);
+  await client.query(`INSERT INTO kamar_assessment_snapshots (id,data,created_by) VALUES ($1,$2::jsonb,$3)`,
+    [require('node:crypto').randomUUID(), JSON.stringify({ assessment: {}, rows: [] }), require('node:crypto').randomUUID()]);
+  await assert.rejects(client.query(`INSERT INTO kamar_assessment_snapshots (id,source_name,data,created_by)
+    VALUES ($1,'fictional.png','{}',$2)`, [require('node:crypto').randomUUID(), require('node:crypto').randomUUID()]),
+  /kamar_assessment_snapshot_source_pair/);
   for (const sql of ['UPDATE kamar_assessment_snapshots SET data=data', 'DELETE FROM kamar_assessment_snapshots',
     'TRUNCATE kamar_assessment_snapshots']) {
     await assert.rejects(client.query(sql), /append-only/);

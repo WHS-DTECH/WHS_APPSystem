@@ -62,7 +62,8 @@ async function migrate(client) {
     await client.query(`CREATE TABLE IF NOT EXISTS kamar_history_migrations
       (name text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())`);
     for (const [name, file] of [['001_immutable_datasets', 'history.sql'],
-      ['002_assessment_snapshots', 'assessment-history.sql']]) {
+      ['002_assessment_snapshots', 'assessment-history.sql'],
+      ['003_assessment_drafts', 'assessment-drafts.sql']]) {
       if (!(await client.query('SELECT 1 FROM kamar_history_migrations WHERE name=$1', [name])).rows.length) {
         await client.query(await fs.readFile(path.join(__dirname, file), 'utf8'));
         await client.query('INSERT INTO kamar_history_migrations(name) VALUES ($1)', [name]);
