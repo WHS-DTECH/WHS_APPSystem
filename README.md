@@ -205,8 +205,13 @@ records. Existing marks are never overwritten. Folder settings and resumable PDF
 checkpoints are scoped to the signed-in ADMIN, Planner year and selected teacher
 in the separate Teacher Planner database. The importer accepts up to 1,000 PDFs
 per folder listing and enforces the existing 5 MB PDF limit. Kamar Uploader shows
-per-file counts, conflicts, match warnings and errors, but never returns or
-renders student names, IDs or attendance marks. Teachers continue to view their
+per-file counts, conflicts, match warnings and errors without returning student
+names, IDs or attendance marks in import reports. ADMIN users can separately open
+**View selected teacher's attendance** to inspect that teacher's saved class tabs,
+weekly marks and individual student term attendance. This view is read-only: it
+does not refresh class tabs, change marks or sign in as the teacher. Each read
+rechecks the administrator and teacher's access and logs the admin ID, teacher ID,
+year and view operation without student names or marks. Teachers continue to view their
 own records in Teacher Planner; the Teacher Planner pages no longer provide Drive
 folder setup or a Drive sync button, while teacher-owned manual PDF preview and
 import remain available.
@@ -1653,8 +1658,9 @@ processed-file checkpoints for unchanged PDFs; older checkpoints without dates
 are labelled accordingly. If published school term dates are missing, the listed
 files are reported as blocked, with dates not read and no marks imported. Publish
 the dates in KAMAR School Calendar and retry. An empty folder is reported explicitly.
-The report contains file-level outcomes only; student names, IDs and attendance marks are
-not returned to or rendered in the admin browser. A public-holiday-data warning
+The import report contains file-level outcomes only; student names, IDs and attendance marks are
+not returned in that report. A separate ADMIN-only read-only attendance view can
+display the selected teacher's saved marks. A public-holiday-data warning
 is shown when the school calendar cannot be loaded. The admin settings and
 per-teacher/year processed-file checkpoints live in
 `planner_attendance_admin_sync` in the existing Teacher Planner database;
@@ -1668,7 +1674,7 @@ settings, Google authorisation or a Drive sync button. The ADMIN-only Kamar
 Uploader **Attendance Admin** page supports both Drive sync and a reviewed
 single-PDF upload for a selected teacher. Its preview shows totals only; applying
 the preview fills blank marks and records import history without exposing
-individual marks. The status table displays **Synced** when an automatic class
+individual marks in the import report. The status table displays **Synced** when an automatic class
 tab has an import-history record for that week; it is not proof that every
 student matched. Administrators should review Kamar Uploader's file-level match
 warnings when marks are missing. Teachers can still preview a personal PDF

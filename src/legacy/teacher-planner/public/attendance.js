@@ -273,13 +273,14 @@
     return entry ? 'Synced' : 'Not synced';
   }
   async function mount(host, { el, request, mutate, uploadPdf, loadSchedule,
-    year, ranges, school, calendar, today, overview = false, automaticTabs = false }) {
+    year, ranges, school, calendar, today, overview = false, automaticTabs = false, readOnly = false }) {
     host.setAttribute('data-planner-navigation', '');
     host.classList.add('attendance-page');
     const feedback = el('p', '', { class: 'duty-roster-feedback', role: 'status', 'aria-live': 'polite' });
     const controls = el('fieldset', '', { class: 'attendance-controls' });
     host.append(el('h2', (overview ? 'Two-Week Attendance — ' : 'Attendance daily log — ') + year, { class: 'paper-heading' }),
-      el('p', 'Private teaching log, not the official KAMAR register. Blank = not recorded; P = present; A = absent; L = late. Marks save individually and can be used by your future report-writing module.'));
+      el('p', readOnly ? 'ADMIN read-only view of the teacher’s saved attendance. Blank = not recorded; P = present; A = absent; L = late. No records are changed.' :
+        'Private teaching log, not the official KAMAR register. Blank = not recorded; P = present; A = absent; L = late. Marks save individually and can be used by your future report-writing module.'));
     if (calendar.publicHolidaysError || calendar.publicHolidaysAvailable === false) {
       host.append(el('p', (calendar.publicHolidaysError || 'Government public holiday dates are unavailable for this year.') +
         ' Attendance remains available. Some public holidays may be missing; check dates before recording marks. Known holidays and school closures still apply.',
@@ -301,7 +302,7 @@
     const tabs = el('div', '', { class: 'attendance-class-tabs', role: 'tablist', 'aria-label': 'Attendance class lists' });
     const add = el('button', '+ Class tab', { type: 'button' });
     const refreshTabs = el('button', 'Refresh timetable class tabs', { type: 'button' });
-    refreshTabs.hidden = !automaticTabs;
+    refreshTabs.hidden = !automaticTabs || readOnly;
     const timetableFeedback = el('p', '', { class: 'duty-roster-feedback attendance-timetable-feedback', role: 'status', 'aria-live': 'polite', hidden: '' });
     const editor = el('section', '', { class: 'attendance-editor' });
     const sheet = el('section', '', { class: 'attendance-sheet', role: 'tabpanel', id: 'attendance-sheet' });
@@ -312,6 +313,7 @@
     const workspace = el('div', '', { class: 'attendance-workspace' });
     workspace.append(sheet, studentPanel);
     controls.append(tabs, add, refreshTabs, timetableFeedback, editor, overview ? sheet : workspace);
+    if (readOnly) add.hidden = true;
     if (overview) { tabs.hidden = true; add.hidden = true; }
     function say(message, error = false) { feedback.textContent = message; feedback.setAttribute('role', error ? 'alert' : 'status'); }
     function guard() {
@@ -689,7 +691,10 @@
       studentPanel.hidden = true;
       if (overview) { await loadOverview(); return; }
       const group = groups.find(item => item.id === selected);
-      if (!group) { sheet.append(el('p', 'Create a class tab to start your attendance log.')); return; }
+      if (!group) {
+        sheet.append(el('p', readOnly ? 'This teacher has no saved attendance class tabs.' : 'Create a class tab to start your attendance log.'));
+        return;
+      }
       studentPanel.hidden = false;
       const available = ranges.filter(range => range.startDate && range.endDate);
       if (!available.length) throw new Error('Term dates are unavailable. Publish dates from Kamar Uploader or Planner Setup before using Attendance.');
@@ -719,9 +724,12 @@
       });
       const reload = el('button', 'Reload saved week', { type: 'button' });
       reload.addEventListener('click', () => { if (guard()) act(loadSheet); });
-      sheet.append(el('h3', group.name), termLabel, edit, remove, reload, weekTabs,
-        el('p', 'Week beginning ' + selectedWeek + ' · Term ' + selectedTerm + '. Mark only periods when this class meets. No totals are calculated.'));
-      sheet.append(renderImport(group));
+      sheet.append(el('h3', group.name), termLabel);
+      if (!readOnly) sheet.append(edit, remove);
+      sheet.append(reload, weekTabs,
+        el('p', 'Week beginning ' + selectedWeek + ' · Term ' + selectedTerm +
+          (readOnly ? '. Showing saved marks for scheduled lessons.' : '. Mark only periods when this class meets. No totals are calculated.')));
+      if (!readOnly) sheet.append(renderImport(group));
       const result = await request('attendance/' + year + '/week/' + selectedWeek);
       marks = new Map(result.marks.map(item => [item.student_id + '|' + item.date + '|' + item.period, item]));
       const automatic = group.scheduleMode !== 'manual' && group.classes.length > 0;
@@ -753,6 +761,9 @@
             const mark = marks.get(key);
             if (closed(value)) {
               cell.textContent = mark?.mark ? mark.mark + ' (saved)' : '—';
+            } else if (readOnly) {
+              cell.textContent = mark?.mark || '—';
+              cell.setAttribute('data-mark', mark?.mark || '');
             } else {
               const input = el('select', '', { 'aria-label': student.name + ', ' + value + ', ' + period.toUpperCase() });
               for (const [code, label] of [['', 'Blank — not recorded'], ['P', 'Present'], ['A', 'Absent'], ['L', 'Late']]) {
@@ -790,7 +801,8 @@
             '; no periods have been guessed.',
         { role: schedule.some(day => day.length) ? 'status' : 'alert' }));
       }
-      if (!group.students.length) sheet.append(el('p', 'No students yet. Use Edit class tab / students to add a school class or manual student.'));
+      if (!group.students.length) sheet.append(el('p', readOnly ? 'This class has no saved students.' :
+        'No students yet. Use Edit class tab / students to add a school class or manual student.'));
       await renderStudentPanel(group, available);
     }
     async function loadOverview() {
@@ -904,9 +916,10 @@
     await act(async () => {
       const result = await request('attendance/' + year + '/groups');
       groups = result.content.groups; revision = result.revision; selected = groups[0]?.id || '';
-      if (automaticTabs) await refreshTimetableTabs();
-      renderTabs(); await loadSheet(); say(overview ? 'Two-Week Attendance loaded. Administrators can upload a PDF for the selected teacher in Kamar Uploader Attendance Admin.' :
-        'Attendance loaded. Class setup uses Save class tab; each P/A/L mark saves immediately.');
+      if (automaticTabs && !readOnly) await refreshTimetableTabs();
+      renderTabs(); await loadSheet(); say(readOnly ? 'Read-only view loaded. Saved class tabs are not refreshed or changed.' :
+        overview ? 'Two-Week Attendance loaded. Administrators can upload a PDF for the selected teacher in Kamar Uploader Attendance Admin.' :
+          'Attendance loaded. Class setup uses Save class tab; each P/A/L mark saves immediately.');
     });
   }
   const api = { mount, termWeeks, combinedStudents, scheduledPeriods, classCode, timetableEntries, timetableGroups, planImport, mergePlans,

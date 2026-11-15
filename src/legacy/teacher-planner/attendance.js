@@ -39,6 +39,14 @@ function validWeek(value, year) {
   return Number.isFinite(day.getTime()) && day.toISOString().slice(0, 10) === value && day.getUTCDay() === 1 &&
     [day.getUTCFullYear(), new Date(day.getTime() + 4 * 86400000).getUTCFullYear()].includes(year);
 }
+function validStudentRange(studentId, groupId, start, end, year) {
+  const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+    value.startsWith(year + '-') && Number.isFinite(Date.parse(value + 'T00:00:00Z')) &&
+    new Date(value + 'T00:00:00Z').toISOString().slice(0, 10) === value;
+  return typeof studentId === 'string' && STUDENT.test(studentId) &&
+    typeof groupId === 'string' && UUID.test(groupId) && validDate(start) && validDate(end) &&
+    start <= end && (Date.parse(end) - Date.parse(start)) / 86400000 <= 150;
+}
 function attendanceError(message, status = 400) {
   const error = new Error(message);
   error.status = status;
@@ -276,12 +284,7 @@ function createAttendanceRouter({ query, loadClasses }) {
   router.get('/:year/student/:studentId', async (req, res, next) => {
     const { studentId } = req.params;
     const { groupId, start, end } = req.query;
-    const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) &&
-      value.startsWith(req.attendanceYear + '-') && Number.isFinite(Date.parse(value + 'T00:00:00Z')) &&
-      new Date(value + 'T00:00:00Z').toISOString().slice(0, 10) === value;
-    if (!STUDENT.test(studentId) || typeof groupId !== 'string' || !UUID.test(groupId) ||
-      !validDate(start) || !validDate(end) || start > end ||
-      (Date.parse(end) - Date.parse(start)) / 86400000 > 150) {
+    if (!validStudentRange(studentId, groupId, start, end, req.attendanceYear)) {
       return reject(res, 'Choose a saved class student and valid term dates in this attendance year.');
     }
     try {
@@ -381,5 +384,5 @@ function createAttendanceRouter({ query, loadClasses }) {
   });
   return router;
 }
-module.exports = { createAttendanceRouter, validGroups, validDay, validWeek,
+module.exports = { createAttendanceRouter, validGroups, validDay, validWeek, validStudentRange,
   saveAttendanceGroups, saveAttendanceImports, saveAttendanceImportMarks };

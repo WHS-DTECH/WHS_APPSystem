@@ -192,6 +192,38 @@ test('opening daily Attendance populates uploaded class tabs and imported marks 
       'other automatically populated class tabs load without setup');
   }
 });
+test('read-only attendance shows saved marks and students without refreshing or changing tabs', async () => {
+  const host = element('section');
+  const savedGroup = { ...group, name: 'Saved class', scheduleMode: 'auto', classes: ['TEST-10ENG-CW'] };
+  const directory = { staffCode: 'TEST', classes: [{
+    code: 'TEST-10ENG-CW', slots: ['mon_p1', 'tue_p2'], students: savedGroup.students
+  }] };
+  await browser().mount(host, {
+    el: element, automaticTabs: true, readOnly: true, year: 2026, today: '2026-10-12',
+    ranges: [{ term: '4', startDate: '2026-10-12', endDate: '2026-10-23' }], school: {}, calendar: {},
+    request: async path => {
+      if (path.endsWith('/groups')) return { revision: 1, content: { groups: [savedGroup] } };
+      if (path.includes('/classes/')) return directory;
+      if (path.includes('/week/') || path.includes('/student/')) return { marks: [
+        { student_id: 'k:100', date: '2026-10-12', period: 'p1', mark: 'P', revision: 1 }
+      ] };
+      throw new Error('Unexpected request: ' + path);
+    },
+    mutate: async () => assert.fail('Read-only attendance must never change records')
+  });
+  const nodes = descendants(host);
+  assert.ok(nodes.some(node => node.attrs.role === 'tab' && node.textContent === 'Saved class'));
+  assert.ok(nodes.some(node => node.tag === 'td' && node.attrs['data-mark'] === 'P' && node.textContent === 'P'));
+  assert.ok(nodes.some(node => node.tag === 'td' && node.attrs['data-mark'] === '' && node.textContent === '—'));
+  assert.ok(nodes.find(node => node.textContent === '+ Class tab').hidden);
+  assert.ok(nodes.find(node => node.textContent === 'Refresh timetable class tabs').hidden);
+  assert.equal(nodes.some(node => node.textContent === 'Edit class tab / students' || node.textContent === 'Remove class tab'), false);
+  assert.equal(nodes.some(node => node.tag === 'select' && /Synthetic Student,/.test(node.attrs['aria-label'] || '')), false);
+  const picker = nodes.find(node => node.attrs['aria-label'] === 'Select student');
+  picker.value = 'k:100';
+  await picker.events.change();
+  assert.ok(descendants(host).some(node => node.textContent === 'P1: P'));
+});
 test('Drive sync refreshes timetable tabs before reading PDFs, including from other Planner sections', async () => {
   const writes = [], calls = [];
   const directory = { staffCode: 'TEST', classes: [

@@ -10,6 +10,8 @@
   const connectLink = document.getElementById('attendanceConnectLink');
   const driveStatus = document.getElementById('attendanceDriveStatus');
   const runButton = document.getElementById('runAttendanceImport');
+  const viewButton = document.getElementById('viewTeacherAttendance');
+  const viewHost = document.getElementById('teacherAttendanceView');
   const pdfFileInput = document.getElementById('attendancePdfFile');
   const previewPdfButton = document.getElementById('previewAttendancePdf');
   const pdfResults = document.getElementById('attendancePdfResults');
@@ -35,7 +37,7 @@
   }
   function setBusy(value) {
     busy = value;
-    for (const control of [yearInput, teacherSelect, folderInput, enabledInput, saveButton, connectButton, runButton,
+    for (const control of [yearInput, teacherSelect, folderInput, enabledInput, saveButton, connectButton, runButton, viewButton,
       pdfFileInput, previewPdfButton, applyPdfButton]) {
       if (!control) continue;
       control.disabled = value;
@@ -44,6 +46,7 @@
   }
   function updateRunButton() {
     runButton.disabled = busy || !teacherSelect.value || !enabledInput.checked || !folderInput.value.trim();
+    viewButton.disabled = busy || !teacherSelect.value;
     previewPdfButton.disabled = busy || !teacherSelect.value || !pdfFileInput.files?.[0];
     if (applyPdfButton) applyPdfButton.disabled = busy || !pdfPreview;
   }
@@ -248,6 +251,40 @@
     });
     await pollJob(started.jobId);
   }
+  async function viewAttendance() {
+    viewHost.replaceChildren();
+    if (!globalThis.plannerAttendance?.mount) throw new Error('The attendance view could not load. Check Teacher Planner access and reload this page.');
+    const year = Number(yearInput.value), teacherId = teacherSelect.value;
+    const base = api + '/view/' + year + '/' + encodeURIComponent(teacherId);
+    show('Loading the selected teacher’s read-only attendance...');
+    const context = await request(base);
+    const heading = document.createElement('h3');
+    heading.textContent = 'Read-only attendance: ' + context.teacherName + ' (' + year + ')';
+    const host = document.createElement('div');
+    viewHost.append(heading, host);
+    const el = (tag, text, attrs = {}) => {
+      const node = document.createElement(tag);
+      if (text) node.textContent = text;
+      for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+      return node;
+    };
+    const prefix = 'attendance/' + year + '/';
+    await globalThis.plannerAttendance.mount(host, {
+      el, year, ranges: context.ranges, school: context.school, calendar: context.calendar,
+      today: new Intl.DateTimeFormat('en-CA', { timeZone: 'Pacific/Auckland', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()),
+      automaticTabs: true, readOnly: true,
+      request: async path => {
+        if (path === 'attendance/classes/' + year) return context.directory;
+        if (path === prefix + 'groups') return { content: { groups: context.groups }, revision: 0 };
+        if (path.startsWith(prefix + 'week/') || path.startsWith(prefix + 'student/')) {
+          return request(base + '/' + path.slice(prefix.length));
+        }
+        throw new Error('Unsupported read-only attendance request.');
+      },
+      mutate: async () => { throw new Error('This attendance view is read-only.'); }
+    });
+    show('Read-only attendance for ' + context.teacherName + ': check the view above for its status.');
+  }
   async function act(action) {
     if (busy) return;
     setBusy(true);
@@ -258,12 +295,13 @@
   saveButton.addEventListener('click', () => act(saveSettings));
   connectButton.addEventListener('click', () => act(connectDrive));
   runButton.addEventListener('click', () => act(runImport));
+  viewButton.addEventListener('click', () => act(viewAttendance));
   previewPdfButton.addEventListener('click', () => act(previewPdf));
   pdfFileInput.addEventListener('change', clearPdfPreview);
-  teacherSelect.addEventListener('change', () => { clearPdfPreview(); updateRunButton(); });
+  teacherSelect.addEventListener('change', () => { viewHost.replaceChildren(); clearPdfPreview(); updateRunButton(); });
   enabledInput.addEventListener('change', updateRunButton);
   folderInput.addEventListener('input', updateRunButton);
-  yearInput.addEventListener('change', () => { clearPdfPreview(); act(loadSettings); });
+  yearInput.addEventListener('change', () => { viewHost.replaceChildren(); clearPdfPreview(); act(loadSettings); });
 
   yearInput.value = new Intl.DateTimeFormat('en-NZ', { timeZone: 'Pacific/Auckland', year: 'numeric' }).format(new Date());
   act(async () => {

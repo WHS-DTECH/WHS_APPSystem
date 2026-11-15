@@ -1,7 +1,7 @@
 const crypto = require('node:crypto');
 const express = require('express');
 const { folderId: parseFolderId } = require('./attendanceDrive');
-const { saveAttendanceGroups, saveAttendanceImports, saveAttendanceImportMarks, validWeek } = require('./attendance');
+const { saveAttendanceGroups, saveAttendanceImports, saveAttendanceImportMarks, validWeek, validStudentRange } = require('./attendance');
 const attendance = require('./public/attendance');
 const { importAttendancePdf } = require('./attendanceImport');
 
@@ -72,6 +72,73 @@ function createAdminAttendanceRouter({ query, loadTeachers, authorizeTarget, loa
   router.get('/teachers', wrap(async (_req, res) => {
     const teachers = await loadTeachers();
     res.json({ teachers: teachers.map(({ id, name, staffCode }) => ({ id, name, staffCode })) });
+  }));
+  async function viewTarget(req, res) {
+    const year = Number(req.params.year), teacherId = req.params.teacherId;
+    if (!YEAR.test(req.params.year) || !UUID.test(teacherId)) {
+      reject(res, 'Choose a valid attendance year and teacher.');
+      return null;
+    }
+    const selected = (await loadTeachers()).find(item => item.id === teacherId);
+    if (!selected) {
+      reject(res, 'Choose a current teacher with an active school account.', 404);
+      return null;
+    }
+    const target = await authorizeTarget(teacherId);
+    if (!target || target.id !== teacherId) {
+      reject(res, 'This teacher does not have active access to Teacher Planner.', 409);
+      return null;
+    }
+    console.info('Admin attendance view:', req.user.id, teacherId, year, req.route.path);
+    return { selected, target, year };
+  }
+  router.get('/view/:year/:teacherId', wrap(async (req, res) => {
+    const context = await viewTarget(req, res);
+    if (!context) return;
+    const { selected, target, year } = context;
+    const schoolRow = (await query('SELECT content FROM school_planner_settings WHERE year=$1', [year])).rows[0];
+    if (!schoolRow) return reject(res, 'Publish school term dates before viewing attendance.', 409);
+    let calendar;
+    try { calendar = await loadSchoolCalendar(year); }
+    catch (error) {
+      calendar = { terms: [], publicHolidays: [], publicHolidaysAvailable: false,
+        publicHolidaysError: 'Government calendar dates could not be loaded.' };
+    }
+    const directory = await loadClasses({ user: target }, year);
+    const saved = (await query('SELECT content,revision FROM planner_attendance_groups WHERE owner_id=$1 AND year=$2',
+      [target.id, year])).rows[0];
+    res.json({ teacherName: selected.name, year, ranges: termRanges(schoolRow.content, calendar.terms || []),
+      school: { events: schoolRow.content.events || [] }, calendar,
+      directory, groups: saved?.content.groups || [] });
+  }));
+  router.get('/view/:year/:teacherId/week/:week', wrap(async (req, res) => {
+    const context = await viewTarget(req, res);
+    if (!context) return;
+    if (!validWeek(req.params.week, context.year)) return reject(res, 'Choose a valid attendance week.');
+    const marks = await query(`SELECT student_id,to_char(lesson_date,'YYYY-MM-DD') AS date,period,mark,revision
+      FROM planner_attendance_marks WHERE owner_id=$1 AND year=$2 AND lesson_date >= $3::date
+      AND lesson_date < $3::date + 5 ORDER BY lesson_date,period,student_id`,
+    [context.target.id, context.year, req.params.week]);
+    res.json({ marks: marks.rows });
+  }));
+  router.get('/view/:year/:teacherId/student/:studentId', wrap(async (req, res) => {
+    const context = await viewTarget(req, res);
+    if (!context) return;
+    const { studentId } = req.params, { groupId, start, end } = req.query;
+    if (!validStudentRange(studentId, groupId, start, end, context.year)) {
+      return reject(res, 'Choose a saved class student and valid term dates in this attendance year.');
+    }
+    const saved = (await query('SELECT content FROM planner_attendance_groups WHERE owner_id=$1 AND year=$2',
+      [context.target.id, context.year])).rows[0];
+    if (!saved?.content.groups.some(group => group.id === groupId &&
+        group.students.some(student => student.id === studentId))) {
+      return reject(res, 'This student is not in the selected teacher’s saved class tab.', 403);
+    }
+    const marks = await query(`SELECT student_id,to_char(lesson_date,'YYYY-MM-DD') AS date,period,mark,revision
+      FROM planner_attendance_marks WHERE owner_id=$1 AND year=$2 AND student_id=$3
+      AND lesson_date >= $4::date AND lesson_date <= $5::date ORDER BY lesson_date,period`,
+    [context.target.id, context.year, studentId, start, end]);
+    res.json({ marks: marks.rows });
   }));
   router.get('/settings/:year', wrap(async (req, res) => {
     if (!YEAR.test(req.params.year)) return reject(res, 'Choose a valid attendance year.');

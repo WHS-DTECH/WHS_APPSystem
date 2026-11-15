@@ -85,6 +85,57 @@ test('admin attendance API enforces ADMIN access and returns settings without st
   assert.equal(JSON.stringify(settings).includes('mark'), false);
 });
 
+test('admin attendance view is read-only, scoped to the current teacher and rechecks access', async t => {
+  const savedGroup = { id: groupId, name: '10ENG', classes: ['10ENG'], scheduleMode: 'auto',
+    periods: ['p1'], students: [{ id: 'k:100', name: 'Private Student' }] };
+  let allowed = true, current = true, directoryOwner;
+  const calls = [];
+  const url = await serve(t, {
+    query: async (sql, params) => {
+      calls.push({ sql, params });
+      assert.match(sql, /^SELECT /, 'view must never write attendance');
+      if (sql.includes('school_planner_settings')) return { rows: [{ content: {
+        term4Start: '2026-10-12', term4End: '2026-12-18', events: []
+      } }] };
+      assert.equal(params[0], teacherId);
+      if (sql.includes('planner_attendance_groups')) return { rows: [{
+        content: { groups: [savedGroup], driveSync: { secret: 'private' } }, revision: 1
+      }] };
+      if (sql.includes('planner_attendance_marks')) return { rows: [{
+        student_id: 'k:100', date: '2026-10-12', period: 'p1', mark: 'P', revision: 1
+      }] };
+      assert.fail('Unexpected view query');
+    },
+    loadTeachers: async () => current ? [{ id: teacherId, name: 'Selected Teacher', staffCode: 'T01' }] : [],
+    authorizeTarget: async id => allowed ? { id } : null,
+    loadClasses: async req => { directoryOwner = req.user.id; return { staffCode: 'T01', classes: [] }; },
+    loadSchoolCalendar: async () => ({ terms: [], publicHolidays: [] })
+  });
+  const base = url + '/view/2026/' + teacherId;
+  assert.equal((await fetch(base, { headers: headers(adminId, false) })).status, 403);
+  const response = await fetch(base, { headers: headers() });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  const view = await response.json();
+  assert.equal(view.teacherName, 'Selected Teacher');
+  assert.equal(view.groups[0].id, groupId);
+  assert.equal(directoryOwner, teacherId);
+  assert.doesNotMatch(JSON.stringify(view), /driveSync|private/);
+  const week = await (await fetch(base + '/week/2026-10-12', { headers: headers() })).json();
+  assert.equal(week.marks[0].mark, 'P');
+  assert.equal((await fetch(base + '/week/2026-10-13', { headers: headers() })).status, 400);
+  const student = '/student/k%3A100?groupId=' + groupId + '&start=2026-10-12&end=2026-12-18';
+  assert.equal((await (await fetch(base + student, { headers: headers() })).json()).marks[0].mark, 'P');
+  assert.equal((await fetch(base + student.replace('k%3A100', 'k%3A999'), { headers: headers() })).status, 403);
+  assert.equal((await fetch(base + student.replace('2026-12-18', '2027-01-01'), { headers: headers() })).status, 400);
+  assert.equal((await fetch(base + '/week/2026-10-12', { method: 'PUT', headers: headers() })).status, 404);
+  allowed = false;
+  assert.equal((await fetch(base + '/week/2026-10-12', { headers: headers() })).status, 409);
+  current = false;
+  assert.equal((await fetch(base, { headers: headers() })).status, 404);
+  assert.ok(calls.every(call => call.sql.startsWith('SELECT ')));
+});
+
 test('admin sync writes to the selected teacher and exposes file summaries, not marks', async t => {
   const dbGroup = {
     id: groupId, name: '10ENG', classes: ['10ENG'],
@@ -283,6 +334,65 @@ test('Attendance Admin renders filenames, PDF date ranges and explicit outcomes 
   assert.equal(results.children[1].children[0].children[1].children.length, 4);
   context.renderDocuments({ ...summary, documents: [] });
   assert.match(results.children[1].textContent, /No attendance PDFs were found/);
+});
+
+test('Attendance Admin opens and clears the selected teacher read-only view', async () => {
+  function node() {
+    return { children: [], events: {}, attrs: {}, value: '', checked: false, files: [],
+      append(...items) { this.children.push(...items); },
+      add(item) { this.children.push(item); },
+      replaceChildren(...items) { this.children = items; },
+      setAttribute(key, value) { this.attrs[key] = value; },
+      addEventListener(event, callback) { this.events[event] = callback; } };
+  }
+  const elements = new Map();
+  const document = { getElementById(id) {
+    if (!elements.has(id)) elements.set(id, node());
+    return elements.get(id);
+  }, createElement: node };
+  const requests = [];
+  let mounted;
+  const context = {
+    document, Option: function (text, value) { return { text, value }; },
+    Intl, Date, URL, encodeURIComponent,
+    fetch: async (url, options) => {
+      requests.push(url);
+      assert.equal(options.cache, 'no-store');
+      let payload;
+      if (url.endsWith('/session')) payload = { csrf: 'a'.repeat(32) };
+      else if (url.includes('/settings/')) payload = { folderId: '', enabled: false, connected: false };
+      else if (url.endsWith('/teachers')) payload = { teachers: [{ id: teacherId, name: 'Selected Teacher', staffCode: 'T01' }] };
+      else if (url.endsWith('/view/2026/' + teacherId)) payload = {
+        teacherName: 'Selected Teacher', ranges: [], school: {}, calendar: {}, directory: { classes: [] }, groups: []
+      };
+      else if (url.includes('/week/') || url.includes('/student/')) payload = { marks: [] };
+      else throw new Error('Unexpected request: ' + url);
+      return { ok: true, json: async () => payload };
+    },
+    plannerAttendance: { mount: async (_host, options) => {
+      mounted = options;
+      assert.equal(options.readOnly, true);
+      assert.equal(options.automaticTabs, true);
+      await options.request('attendance/2026/week/2026-10-12');
+      await options.request('attendance/2026/student/k%3A100?groupId=' + groupId + '&start=2026-10-12&end=2026-12-18');
+      await assert.rejects(options.mutate(), /read-only/);
+    } }
+  };
+  vm.runInNewContext(fs.readFileSync(require.resolve('../kamar-uploader/site/attendance_admin.js'), 'utf8'), context);
+  for (let attempt = 0; attempt < 20 && !elements.get('attendanceTeacher').children.length; attempt++) {
+    await new Promise(resolve => setImmediate(resolve));
+  }
+  elements.get('attendanceYear').value = '2026';
+  elements.get('attendanceTeacher').value = teacherId;
+  elements.get('attendanceTeacher').events.change();
+  await elements.get('viewTeacherAttendance').events.click();
+  assert.ok(mounted);
+  assert.equal(elements.get('teacherAttendanceView').children[0].textContent,
+    'Read-only attendance: Selected Teacher (2026)');
+  assert.ok(requests.some(url => url.includes('/view/2026/' + teacherId + '/week/2026-10-12')));
+  assert.ok(requests.some(url => url.includes('/view/2026/' + teacherId + '/student/k%3A100')));
+  elements.get('attendanceTeacher').events.change();
+  assert.equal(elements.get('teacherAttendanceView').children.length, 0);
 });
 
 test('admin PDF preview and apply are scoped to one teacher and never return individual marks', async t => {

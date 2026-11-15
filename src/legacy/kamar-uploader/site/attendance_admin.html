@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Attendance Admin | Kamar Uploader</title>
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="/teacher-planner/framework/planner.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet" />
@@ -21,7 +22,7 @@
       </div>
       <article class="panel attendance-admin-privacy">
         <h2>Teacher privacy</h2>
-        <p>This page reports import totals only. It does not display individual attendance marks. Teachers view their own records in Teacher Planner.</p>
+        <p>Import reports show totals only. The ADMIN-only read-only view below can display the selected teacher's individual attendance for support.</p>
       </article>
     </section>
 
@@ -56,6 +57,13 @@
       <p class="attendance-admin-note">Select the parent attendance folder. The importer checks PDFs directly in it and in the selected teacher’s exact staff-code subfolder (for example, WY). Other staff folders and deeper subfolders are not searched. Existing marks are never overwritten. Select one teacher at a time; each teacher’s import history is tracked separately.</p>
     </section>
 
+    <section class="panel" aria-labelledby="attendanceAdminViewHeading">
+      <h2 id="attendanceAdminViewHeading">View teacher attendance</h2>
+      <p>ADMIN-only read-only view of the selected teacher's saved class tabs and marks. Opening this view does not refresh or change their records.</p>
+      <button id="viewTeacherAttendance" type="button" disabled>View selected teacher's attendance</button>
+      <div id="teacherAttendanceView" class="whs-planner"></div>
+    </section>
+
     <section class="panel attendance-admin-pdf" aria-labelledby="attendanceAdminPdfHeading">
       <h2 id="attendanceAdminPdfHeading">Upload a Two-Week Attendance PDF</h2>
       <p>Choose the planner year and teacher above, then preview a single KAMAR PDF. The preview shows totals only; individual student marks remain private. Confirmed imports fill blank marks only.</p>
@@ -74,6 +82,7 @@
       <div id="attendanceAdminResultsBody"></div>
     </section>
   </main>
+  <script src="/teacher-planner/framework/attendance.js"></script>
   <script src="attendance_admin.js"></script>
 </body>
 </html>
