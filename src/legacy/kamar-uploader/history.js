@@ -61,10 +61,12 @@ async function migrate(client) {
     await client.query('SELECT pg_advisory_xact_lock(1377474882)');
     await client.query(`CREATE TABLE IF NOT EXISTS kamar_history_migrations
       (name text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())`);
-    const name = '001_immutable_datasets';
-    if (!(await client.query('SELECT 1 FROM kamar_history_migrations WHERE name=$1', [name])).rows.length) {
-      await client.query(await fs.readFile(path.join(__dirname, 'history.sql'), 'utf8'));
-      await client.query('INSERT INTO kamar_history_migrations(name) VALUES ($1)', [name]);
+    for (const [name, file] of [['001_immutable_datasets', 'history.sql'],
+      ['002_assessment_snapshots', 'assessment-history.sql']]) {
+      if (!(await client.query('SELECT 1 FROM kamar_history_migrations WHERE name=$1', [name])).rows.length) {
+        await client.query(await fs.readFile(path.join(__dirname, file), 'utf8'));
+        await client.query('INSERT INTO kamar_history_migrations(name) VALUES ($1)', [name]);
+      }
     }
     await client.query('COMMIT');
   } catch (error) {

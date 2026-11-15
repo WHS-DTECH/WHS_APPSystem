@@ -5,6 +5,8 @@ const store = require('./store');
 const { loadDepartments } = require('./departments');
 const history = require('./history');
 const { STUDENT_PERIOD_KEYS, STUDENT_KEYS, buildStudentHeaderMap, mapStudentRow } = require('./studentTimetable');
+const { createAssessmentRouter } = require('./assessment');
+const config = require('../../config');
 
 // Legacy Kamar Uploader API using its existing database. Data routes are unchanged;
 // the old cookie login and role tables are replaced by the app's Google session roles.
@@ -86,7 +88,8 @@ const DATA_API_PATHS = [
   '/api/student_upload',
   '/api/timetable',
   '/api/upload_timetable',
-  '/api/kamar-datasets'
+  '/api/kamar-datasets',
+  '/api/kamar-assessment'
 ];
 
 router.use(DATA_API_PATHS, requireAdminApi);
@@ -100,6 +103,8 @@ router.use(['/api/feed', '/api/projects', ...DATA_API_PATHS], (req, res, next) =
     res.status(503).json({ success: false, error: 'The existing Kamar Uploader database is unavailable. Check its connection and schema; no fallback database is used.' });
   });
 });
+
+router.use('/api/kamar-assessment', createAssessmentRouter({ pool, appBaseUrl: config.appBaseUrl }));
 
 router.use(async (req, res, next) => {
   const mutating = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method);

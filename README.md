@@ -1407,6 +1407,35 @@ Set `KAMAR_HISTORY_TEST_DATABASE_URL` only to an isolated local test database to
 also run the PostgreSQL baseline/immutability/rollback checks. They create and
 remove a uniquely named test schema, never use a live Kamar connection.
 
+### Assessment reconciliation: reviewed screenshots
+
+Global administrators can open **KAMAR Uploader → Assessment Reconciliation**
+to record what was visible in a KAMAR assessment screenshot. Run
+`npm run db:migrate:kamar` against the existing KAMAR database before using it;
+the migration adds an append-only assessment snapshot table and does not change
+current Student List, timetable or KAMAR records.
+
+Select one PNG, JPEG or WebP screenshot at a time (maximum 8 MB), enter its
+school year, date observed, class and visible assessment details, and review
+each student. Optional name recognition runs in the browser using locally served
+OCR files; it may miss or misread names, especially in small screenshots.
+Grades, tickboxes and other fields must be entered or checked manually. OCR and
+Student List name matches are suggestions only: a person must confirm every
+row and each chosen student ID. Duplicate or uncertain names can be left
+unmatched. Blank or unreadable flags are **unknown**, not No; derived grades
+are recorded separately from official results. Individual unit-standard
+elements are not collected.
+
+Only the reviewed fields, image hash, filename, observation date and author
+are saved in the separate KAMAR database; the screenshot stays in the browser.
+Previous versions remain available when correcting a snapshot. These are dated
+observations, not a live KAMAR connection, and never update KAMAR. Screenshots
+shared in a chat are not automatically uploaded: reselect them in the app.
+Comparison with Assessment Manager marking decisions and teacher-scoped access
+are not yet implemented.
+
+Tests: `node --test tests\kamar-assessment.test.js tests\kamar-history.test.js tests\kamar-uploader-legacy.test.js`.
+
 ## Assessment Manager integration
 
 The embedded Assessment Manager is at `/whs-assessment-manager/`. It uses the

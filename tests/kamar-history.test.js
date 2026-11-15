@@ -79,7 +79,9 @@ test('history APIs remain admin-only, validate filters and IDs, and missing migr
   }, connect: async () => assert.fail('No current-data writes expected') };
   const dependencies = { './db': { pool }, './store': { init: async () => {} }, './history': history,
     './departments': require('../src/legacy/kamar-uploader/departments'),
-    './studentTimetable': require('../src/legacy/kamar-uploader/studentTimetable'), '../../db': {} };
+    './studentTimetable': require('../src/legacy/kamar-uploader/studentTimetable'),
+    './assessment': require('../src/legacy/kamar-uploader/assessment'),
+    '../../config': { appBaseUrl: 'https://school.example.test' }, '../../db': {} };
   const module = { exports: {} };
   vm.runInThisContext('(function(require,module,exports){' + await fs.readFile(file, 'utf8') + '\n})')(
     key => dependencies[key] || require(key), module, module.exports);
@@ -94,7 +96,7 @@ test('history APIs remain admin-only, validate filters and IDs, and missing migr
   t.after(() => new Promise(resolve => server.close(resolve)));
   const base = `http://127.0.0.1:${server.address().port}`;
   const get = (url, role = 'ADMIN') => fetch(base + url, { headers: role ? { 'x-test-role': role } : {} });
-  for (const url of ['/api/kamar-datasets?year=2026', '/api/kamar-datasets/123']) {
+  for (const url of ['/api/kamar-datasets?year=2026', '/api/kamar-datasets/123', '/api/kamar-assessment/students']) {
     assert.equal((await get(url, '')).status, 401);
     assert.equal((await get(url, 'Teacher')).status, 403);
   }
@@ -134,6 +136,14 @@ test('PostgreSQL preserves baselines, statuses, snapshots, rollback and immutabi
   }
   await history.migrate(client);
   await history.migrate(client);
+  await client.query(`INSERT INTO kamar_assessment_snapshots
+    (id,school_year,observed_on,source_name,image_hash,data,created_by)
+    VALUES ($1,2026,'2026-07-23','fictional.png',$2,$3::jsonb,$4)`,
+  [require('node:crypto').randomUUID(), 'a'.repeat(64), JSON.stringify({ assessment: {}, rows: [] }), require('node:crypto').randomUUID()]);
+  for (const sql of ['UPDATE kamar_assessment_snapshots SET data=data', 'DELETE FROM kamar_assessment_snapshots',
+    'TRUNCATE kamar_assessment_snapshots']) {
+    await assert.rejects(client.query(sql), /append-only/);
+  }
   assert.equal((await client.query('SELECT count(*)::int AS n FROM kamar_record_versions')).rows[0].n, 4);
   const dataset = sample();
   const plan = { datasets: [{ dataset }, { dataset: { ...dataset, term: 4, date: '2026-10-28' } }] };
@@ -183,7 +193,9 @@ test('PostgreSQL preserves baselines, statuses, snapshots, rollback and immutabi
     connect: async () => ({ query: (...args) => client.query(...args), release() {} }) } },
     './store': { init: async () => {} }, './history': history,
     './departments': require('../src/legacy/kamar-uploader/departments'),
-    './studentTimetable': require('../src/legacy/kamar-uploader/studentTimetable'), '../../db': {} };
+    './studentTimetable': require('../src/legacy/kamar-uploader/studentTimetable'),
+    './assessment': require('../src/legacy/kamar-uploader/assessment'),
+    '../../config': { appBaseUrl: 'https://school.example.test' }, '../../db': {} };
   const module = { exports: {} };
   const file = path.join(__dirname, '..', 'src', 'legacy', 'kamar-uploader', 'routes.js');
   vm.runInThisContext('(function(require,module,exports){' + await fs.readFile(file, 'utf8') + '\n})')(

@@ -13,7 +13,8 @@
     { href: base + 'school_calendar.html', label: 'School Calendar', permission: 'admin_menu' },
     { href: base + 'duty_roster.html', label: 'Duty Roster', permission: 'admin_menu' },
     { href: base + 'attendance_admin.html', label: 'Attendance Admin', permission: 'admin_menu' },
-    { href: base + 'history.html', label: 'Dataset History', permission: 'admin_menu' }
+    { href: base + 'history.html', label: 'Dataset History', permission: 'admin_menu' },
+    { href: base + 'assessment.html', label: 'Assessment Reconciliation', permission: 'admin_menu' }
   ];
 
   const pagePermissionMap = {
@@ -25,7 +26,8 @@
     'school_calendar.html': 'admin_menu',
     'duty_roster.html': 'admin_menu',
     'history.html': 'admin_menu',
-    'attendance_admin.html': 'admin_menu'
+    'attendance_admin.html': 'admin_menu',
+    'assessment.html': 'admin_menu'
   };
 
   function hasPermission(user, permission) {
