@@ -138,6 +138,8 @@ function navData(query, canManageHubRoles, datasetManagerUrl, canManageCourses =
         }
       } else if (user && /^\/teacher-planner(?:\/|$)/.test(currentPath)) {
         if (await canManageHubRoles(user, 'teacher-planner')) assignRolesUrl = '/hubs/teacher-planner/roles';
+      } else if (user && /^\/whs-assessment-manager(?:\/|$)/.test(currentPath)) {
+        if (await canManageHubRoles(user, 'whs-assessment-manager')) assignRolesUrl = '/hubs/whs-assessment-manager/roles';
       } else if (user?.roles?.includes('ADMIN') && moduleForPath(currentPath)?.key === 'core') {
         roleViewModule = 'Core Administration';
         roleViews = ['admin', 'teacher', 'student'].map((key) => ({

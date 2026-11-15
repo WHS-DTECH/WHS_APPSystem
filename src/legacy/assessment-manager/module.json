@@ -1,0 +1,12 @@
+{
+  "key": "whs-assessment-manager",
+  "mountPath": "/whs-assessment-manager/",
+  "framework": "node-express-v2",
+  "entry": "app.js",
+  "factory": "createModuleRouter",
+  "identity": "Global Control single-use code with PKCE when standalone; req.user from authenticated host when embedded",
+  "developmentAccess": "Global ADMIN only; checked server-to-server on every application request",
+  "roles": ["ADMIN", "Teacher"],
+  "healthPath": "/health",
+  "data": "Separate module database; private owner-scoped assessment records and standards settings; metadata-only audit history."
+}

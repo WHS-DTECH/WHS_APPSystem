@@ -39,6 +39,7 @@ const { createLaunchpad, createLaunchApp, createLaunchpadAdminRouter } = require
 const { accessibleModules, createModuleAccessGuard } = require('./moduleAccess');
 const { appDestination } = require('./appAddresses');
 const { createTeacherPlannerRouter } = require('./modules/teacherPlanner');
+const { createAssessmentManagerRouter } = require('./modules/assessmentManager');
 const { createTypingAttendanceRouter } = require('./modules/typingAttendance');
 const { createBusControllerRouter, renderFirebaseUsers } = require('./busController');
 
@@ -53,10 +54,10 @@ app.get('/favicon.ico', (req, res) => res.sendFile(path.join(__dirname, '..', 'p
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use('/integrations/typing-attendance', rateLimit({ windowMs: 60000, limit: 120 }), createTypingAttendanceRouter());
 // Interactive legacy apps make frequent API calls and use their own access/form guards.
-app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, skip: (req) => req.path.startsWith('/food-room/') || req.path.startsWith('/dtech-hub/') || req.path.startsWith('/teacher-planner/') || req.path === '/nav-data' }));
+app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, skip: (req) => req.path.startsWith('/food-room/') || req.path.startsWith('/dtech-hub/') || req.path.startsWith('/teacher-planner/') || req.path.startsWith('/whs-assessment-manager/') || req.path === '/nav-data' }));
 // Hosted Flask apps receive their request bodies untouched, including training uploads.
 const parseBodies = [express.urlencoded({ extended: false }), express.json({ limit: '25mb' })];
-app.use((req, res, next) => (req.path.startsWith('/apps/') || req.path.startsWith('/dtech-hub/class-training/') || req.path.startsWith('/teacher-planner/')
+app.use((req, res, next) => (req.path.startsWith('/apps/') || req.path.startsWith('/dtech-hub/class-training/') || req.path.startsWith('/teacher-planner/') || req.path.startsWith('/whs-assessment-manager/')
   ? next()
   : parseBodies[0](req, res, (error) => (error ? next(error) : parseBodies[1](req, res, next)))));
 app.use(session({
@@ -97,6 +98,7 @@ app.use('/faults', faultReports);
 app.use(createModuleAccessGuard());
 const teacherPlanner = createTeacherPlannerRouter();
 app.use('/teacher-planner', teacherPlanner);
+app.use('/whs-assessment-manager', createAssessmentManagerRouter());
 
 app.get('/healthz', (req, res) => {
   res.status(200).json({ ok: true });

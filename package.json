@@ -9,6 +9,7 @@
     "dev": "node --watch src/server.js",
     "db:migrate": "node src/migrate.js",
     "db:migrate:planner": "node src/modules/migrateTeacherPlanner.js",
+    "db:migrate:assessment": "node src/modules/migrateAssessmentManager.js",
     "db:migrate:kamar": "node src/legacy/kamar-uploader/history-command.js migrate",
     "kamar:archive": "node src/legacy/kamar-uploader/history-command.js import"
   },

@@ -1407,6 +1407,43 @@ Set `KAMAR_HISTORY_TEST_DATABASE_URL` only to an isolated local test database to
 also run the PostgreSQL baseline/immutability/rollback checks. They create and
 remove a uniquely named test schema, never use a live Kamar connection.
 
+## Assessment Manager integration
+
+The embedded Assessment Manager is at `/whs-assessment-manager/`. It uses the
+existing Assessment Manager PostgreSQL database for reads and writes; no records
+are copied into Core. Set `ASSESSMENT_MANAGER_DATABASE_URL` to that database and,
+for local PostgreSQL only, optionally set `ASSESSMENT_MANAGER_DATABASE_SSL=false`.
+The original Core owner UUIDs and assessment revisions remain unchanged. The
+database must be separate from Core, KAMAR and Teacher Planner. Missing settings,
+incomplete migrations or a database outage make only this module unavailable;
+there is no fallback. Schema changes are not run on application startup.
+
+Before cutover, back up the existing database and verify the configured target.
+If migrations are needed, run `npm run db:migrate:assessment` against that
+database using the same migration history as the standalone service. Copy the
+existing `GOOGLE_DRIVE_CLIENT_ID`, `GOOGLE_DRIVE_API_KEY` and
+`GOOGLE_DRIVE_APP_ID` to the Core service as
+`ASSESSMENT_MANAGER_GOOGLE_DRIVE_CLIENT_ID`,
+`ASSESSMENT_MANAGER_GOOGLE_DRIVE_API_KEY` and
+`ASSESSMENT_MANAGER_GOOGLE_DRIVE_APP_ID` respectively, and authorise
+the Core HTTPS origin for the OAuth client and any API-key restrictions.
+Keep the old origin and standalone service available for rollback.
+
+Verify sign-in, the existing owner records, document generation, Drive Picker
+and save/revision conflicts at the embedded address before changing navigation.
+In Global Control's App Module Management, register or update the existing
+`whs-assessment-manager` key to `/whs-assessment-manager/`, preserving the
+intended assignments and active state. Save the previous destination for
+rollback; do not shut down the standalone service until the cutover is verified.
+Both versions use the same live database, so changes in either are shared.
+KAMAR staff, teaching subjects and class sizes use the existing authorised
+Core/KAMAR services; the unfinished marking tracker and screenshot
+reconciliation are not included in this integration.
+
+Embedded checks: `node --test tests\assessment-manager-integration.test.js`.
+The imported app suite is `npm test --prefix src\legacy\assessment-manager`;
+its optional PostgreSQL checks require isolated disposable test databases.
+
 ## Teacher Planner integration
 
 ### Reporting

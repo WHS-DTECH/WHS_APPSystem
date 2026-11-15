@@ -1,0 +1,65 @@
+const fs = require('fs/promises');
+const path = require('path');
+const { Client } = require('pg');
+
+// A newly created Render database can report "available" shortly before its internal hostname accepts connections.
+const TRANSIENT = new Set(['ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', '57P03']);
+
+async function connect({ attempts = 7, delayMs = 2000, createClient, wait = ms => new Promise(r => setTimeout(r, ms)) } = {}) {
+  for (let attempt = 1; ; attempt += 1) {
+    const client = createClient();
+    try { await client.connect(); return client; } catch (error) {
+      await client.end().catch(() => {});
+      if (!TRANSIENT.has(error?.code) || attempt >= attempts) throw error;
+      console.log(`Database not ready (${error.code}); retrying (${attempt}/${attempts - 1})...`);
+      await wait(delayMs * attempt);
+    }
+  }
+}
+
+async function migrate({ connectionString = process.env.DATABASE_URL,
+  ssl = process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false } } = {}) {
+  if (!connectionString) throw new Error('A separate module DATABASE_URL is required.');
+  const client = await connect({ createClient: () => new Client({
+    connectionString, ssl
+  }) });
+  try {
+    await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock(1377474881)');
+    await client.query('CREATE TABLE IF NOT EXISTS module_migrations (name text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT NOW())');
+    const directory = path.join(__dirname, 'db', 'migrations');
+    for (const name of (await fs.readdir(directory)).filter((name) => name.endsWith('.sql')).sort()) {
+      if ((await client.query('SELECT 1 FROM module_migrations WHERE name=$1', [name])).rows.length) continue;
+      await client.query(await fs.readFile(path.join(directory, name), 'utf8'));
+      await client.query('INSERT INTO module_migrations(name) VALUES ($1)', [name]);
+    }
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally { await client.end(); }
+}
+
+function migrationFailure(error) {
+  const reasons = {
+    ENOENT: 'Migration files are missing.',
+    ENOTFOUND: 'Database hostname could not be resolved.',
+    ECONNREFUSED: 'Database connection was refused.',
+    ETIMEDOUT: 'Database connection timed out.',
+    '28P01': 'Database authentication failed.',
+    '3D000': 'Configured database does not exist.',
+    '42501': 'Database user lacks migration permissions.',
+    SELF_SIGNED_CERT_IN_CHAIN: 'Database TLS certificate was rejected.',
+    DEPTH_ZERO_SELF_SIGNED_CERT: 'Database TLS certificate was rejected.',
+    ERR_TLS_CERT_ALTNAME_INVALID: 'Database TLS hostname did not match the certificate.'
+  };
+  const reason = reasons[error?.code] ||
+    (/does not support ssl/i.test(error?.message || '') ? 'Database server does not support the requested TLS connection.' :
+      'Check database access and migration files.');
+  return `Module migration failed. ${reason}`;
+}
+
+if (require.main === module) {
+  migrate().catch(error => { console.error(migrationFailure(error)); process.exitCode = 1; });
+}
+module.exports = { migrate, migrationFailure, connect };

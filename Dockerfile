@@ -22,6 +22,7 @@ COPY . .
 
 RUN npm ci --omit=dev --prefix src/legacy/dtech-hub
 RUN npm ci --omit=dev --prefix src/legacy/teacher-planner
+RUN npm ci --omit=dev --prefix src/legacy/assessment-manager
 
 ENV NODE_ENV=production
 ENV PYTHON_BIN=/opt/pyenv/bin/python

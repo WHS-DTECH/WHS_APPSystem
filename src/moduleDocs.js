@@ -72,6 +72,17 @@ const moduleDocs = {
       { name: 'GOOGLE_DRIVE_APP_ID', note: 'Original Google Picker numeric project ID.', optional: true }
     ]
   },
+  'whs-assessment-manager': {
+    summary: 'Assessment Manager embedded at /whs-assessment-manager/ with shared school sign-in.',
+    legacyDatabase: { used: true, how: 'The existing Assessment Manager database remains authoritative. No records are copied into Core and owner UUIDs are preserved. Schema migrations are run explicitly.' },
+    env: [
+      { name: 'ASSESSMENT_MANAGER_DATABASE_URL', note: 'Existing separate Assessment Manager database connection.', legacy: true },
+      { name: 'ASSESSMENT_MANAGER_DATABASE_SSL', note: 'Set false only for local PostgreSQL without TLS.', optional: true },
+      { name: 'ASSESSMENT_MANAGER_GOOGLE_DRIVE_CLIENT_ID', note: 'Existing Assessment Manager Google Picker client. Authorise the Core site origin.', optional: true },
+      { name: 'ASSESSMENT_MANAGER_GOOGLE_DRIVE_API_KEY', note: 'Existing Assessment Manager browser key. Include the Core origin in allowed referrers.', optional: true },
+      { name: 'ASSESSMENT_MANAGER_GOOGLE_DRIVE_APP_ID', note: 'Existing Assessment Manager Google Picker numeric project ID.', optional: true }
+    ]
+  },
   'technology-hub': {
     summary: 'Technology Hub homepage with assigned student and teacher discipline access.',
     legacyDatabase: { used: false, how: 'No legacy database. It uses the unified database only.' },
