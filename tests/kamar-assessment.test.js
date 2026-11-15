@@ -1,6 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
 const express = require('express');
 const session = require('express-session');
 const { validate, createAssessmentRouter } = require('../src/legacy/kamar-uploader/assessment');
@@ -26,6 +28,58 @@ const namesOnly = () => ({
   rows: [{ visibleName: 'Avery Fictional', studentId: '', yearLevel: '', tutor: '', course: '',
     entered: null, published: null, notify: null, status: 'unknown', result: '', derivedGrade: '',
     reviewed: true, matchConfirmed: false }]
+});
+
+function saveButtonFixture({ rows = namesOnly().rows, reviewed = true, request, loadHistory } = {}) {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'legacy', 'kamar-uploader', 'site', 'assessment.js'), 'utf8');
+  const start = source.indexOf("  $('save').addEventListener('click', async () => {");
+  const end = source.indexOf('  async function openSnapshot(', start);
+  assert.ok(start !== -1 && end > start);
+  const elements = Object.fromEntries(['year', 'date', 'class', 'number', 'code', 'title', 'version',
+    'credits', 'level', 'reviewed', 'save', 'history-year'].map(id => [id, { value: '', checked: false, disabled: false }]));
+  elements.reviewed.checked = reviewed;
+  const state = { busy: false, historical: false, csrf: 'token', imageHash: '', sourceName: '', supersedesId: null, rows };
+  let handler, message, error;
+  elements.save.addEventListener = (_type, callback) => { handler = callback; };
+  const showSave = (value, failed = false) => { message = value; error = failed; };
+  new Function('$', 'state', 'request', 'clear', 'loadHistory', 'showSave', source.slice(start, end))(
+    id => elements[id], state, request || (async () => ({})), () => {},
+    loadHistory || (async () => {}), showSave);
+  return { click: () => handler(), state, elements, result: () => ({ message, error }) };
+}
+
+test('save feedback identifies missing review steps beside the button', async () => {
+  const input = namesOnly().rows[0];
+  for (const [options, expected] of [
+    [{ rows: [] }, /Add at least one student/],
+    [{ rows: [{ ...input, visibleName: '' }] }, /Enter a name for Student 1/],
+    [{ rows: [{ ...input, reviewed: false }] }, /confirmation box on Student 1/],
+    [{ reviewed: false }, /final confirmation box/]
+  ]) {
+    let calls = 0;
+    const fixture = saveButtonFixture({ ...options, request: async () => { calls++; } });
+    await fixture.click();
+    assert.match(fixture.result().message, expected);
+    assert.equal(fixture.result().error, true);
+    assert.equal(calls, 0);
+  }
+});
+
+test('save feedback reports server errors and successful saves without discarding failed work', async () => {
+  const failure = saveButtonFixture({ request: async () => { throw new Error('Run the KAMAR history migration.'); } });
+  await failure.click();
+  assert.match(failure.result().message, /Snapshot not saved.*migration/);
+  assert.equal(failure.result().error, true);
+  assert.equal(failure.state.rows.length, 1);
+  assert.equal(failure.elements.save.disabled, false);
+
+  const success = saveButtonFixture();
+  await success.click();
+  assert.match(success.result().message, /snapshot saved/i);
+  assert.equal(success.result().error, false);
+  const historyFailure = saveButtonFixture({ loadHistory: async () => { throw new Error('offline'); } });
+  await historyFailure.click();
+  assert.match(historyFailure.result().message, /Snapshot saved, but the history list/);
 });
 
 async function fixture(t) {

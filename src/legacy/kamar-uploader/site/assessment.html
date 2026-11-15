@@ -46,11 +46,12 @@
     </section>
     <section class="panel">
       <h2>Review students and results</h2>
-      <p>Names can be saved unmatched and linked to the Student List later. If you choose a match, confirm it for each row.
-        Duplicate names need individual review. An empty field does not mean “No”.</p>
+      <p>Names can be saved unmatched and linked to the Student List later. Check the confirmation box on every student
+        row, then check the final confirmation below. Duplicate names need individual review. An empty field does not mean “No”.</p>
       <div id="assessment-rows"></div>
       <label><input id="assessment-reviewed" type="checkbox"> I checked the information entered and every student row.</label>
       <div class="assessment-actions"><button id="assessment-save" type="button" disabled>Save reviewed snapshot</button></div>
+      <p id="assessment-save-status" role="status" aria-live="polite"></p>
     </section>
     <section class="panel">
       <h2>Saved snapshots</h2>

@@ -14,10 +14,17 @@
     status.textContent = message;
     status.setAttribute('role', error ? 'alert' : 'status');
   }
+  function showSave(message, error = false) {
+    $('save-status').textContent = message;
+    $('save-status').setAttribute('role', error ? 'alert' : 'status');
+  }
   async function request(path, options = {}) {
     const headers = { ...(options.headers || {}) };
     if (options.method && options.method !== 'GET') headers['x-kamar-assessment-csrf'] = state.csrf;
     const response = await fetch(api + path, { ...options, headers, cache: 'no-store' });
+    if (!response.headers.get('content-type')?.includes('application/json')) {
+      throw new Error('The server returned an unexpected response. Check your sign-in and retry.');
+    }
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'KAMAR assessment request failed.');
     return result;
@@ -158,6 +165,7 @@
     state.rows = []; state.image = null; state.imageHash = ''; state.sourceName = ''; state.supersedesId = null;
     state.historical = false; $('save').disabled = !state.csrf;
     state.selection = null; $('read').disabled = true; $('image').value = ''; $('reviewed').checked = false;
+    showSave('');
     for (const name of fields.filter(name => name !== 'year')) $(name).value = '';
     $('source').textContent = ''; draw(); renderRows();
   }
@@ -228,7 +236,8 @@
     }
   });
   $('save').addEventListener('click', async () => {
-    if (state.busy || state.historical) return;
+    if (state.busy) { showSave('Please wait for the current operation to finish.', true); return; }
+    if (state.historical) { showSave('Open the latest version to make a correction.', true); return; }
     const payload = {
       year: $('year').value ? Number($('year').value) : null, observedOn: $('date').value || null,
       sourceName: state.sourceName || null, imageHash: state.imageHash || null,
@@ -240,18 +249,25 @@
         yearLevel: row.yearLevel.trim(), tutor: row.tutor.trim(), course: row.course.trim(),
         result: row.result.trim(), derivedGrade: row.derivedGrade.trim() }))
     };
-    if (!payload.reviewed || !payload.rows.length || payload.rows.some(row => !row.reviewed)) {
-      show('Review the information entered and every student row before saving.', true); return;
+    if (!payload.rows.length) { showSave('Add at least one student before saving.', true); return; }
+    const missingName = payload.rows.findIndex(row => !row.visibleName);
+    if (missingName !== -1) { showSave('Enter a name for Student ' + (missingName + 1) + '.', true); return; }
+    const unchecked = payload.rows.findIndex(row => !row.reviewed);
+    if (unchecked !== -1) {
+      showSave('Check the confirmation box on Student ' + (unchecked + 1) + ', then tick the final confirmation below.', true);
+      return;
     }
+    if (!payload.reviewed) { showSave('Tick the final confirmation box before saving.', true); return; }
     state.busy = true; $('save').disabled = true;
+    showSave('Saving snapshot...');
     try {
       await request('/snapshots', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (payload.year !== null) $('history-year').value = String(payload.year);
       clear(false);
-      show('Reviewed snapshot saved. KAMAR and existing student records were not changed.');
+      showSave('Reviewed snapshot saved. KAMAR and existing student records were not changed.');
       try { await loadHistory(); }
-      catch { show('Snapshot saved, but the history list could not be refreshed. Reload it to view the saved snapshot.', true); }
-    } catch (error) { show(error.message, true); }
+      catch { showSave('Snapshot saved, but the history list could not be refreshed. Reload it to view the saved snapshot.', true); }
+    } catch (error) { showSave('Snapshot not saved. ' + (error.message || 'Check your connection and retry.'), true); }
     finally { state.busy = false; $('save').disabled = !state.csrf || state.historical; }
   });
   async function openSnapshot(id) {
@@ -264,6 +280,7 @@
     $('title').value = a.title; $('version').value = a.version; $('credits').value = a.credits; $('level').value = a.level;
     state.sourceName = snapshot.source_name || ''; state.imageHash = snapshot.image_hash || ''; state.supersedesId = snapshot.id;
     state.historical = !snapshot.is_current; $('save').disabled = state.historical;
+    if (state.historical) showSave('This earlier version is read-only. Open the latest version to make a correction.');
     state.rows = snapshot.data.rows.map(row => ({ ...row, reviewed: false, matchConfirmed: false }));
     $('source').textContent = state.sourceName
       ? 'Correcting saved source: ' + state.sourceName + '. Reselect the original screenshot to view it.'
@@ -306,5 +323,9 @@
       show('Student List unavailable. Names can still be saved unmatched; reload to match them later.', true);
     }
     renderRows();
-  }).catch(error => { $('save').disabled = true; show(error.message, true); });
+  }).catch(error => {
+    $('save').disabled = true;
+    show(error.message, true);
+    showSave('Saving is unavailable. ' + error.message, true);
+  });
 })();

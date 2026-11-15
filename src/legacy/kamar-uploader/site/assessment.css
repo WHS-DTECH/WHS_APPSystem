@@ -5,6 +5,7 @@
 .assessment-preview { overflow: auto; margin: .75rem 0; }
 #assessment-canvas { max-width: 100%; cursor: crosshair; border: 1px solid #94a3b8; touch-action: none; }
 .assessment-actions { display: flex; flex-wrap: wrap; align-items: end; gap: .75rem; margin: 1rem 0; }
+#assessment-save-status[role="alert"] { color: #b91c1c; font-weight: 600; }
 .assessment-student { border: 1px solid #cbd5e1; border-radius: 8px; padding: 1rem; margin: .75rem 0; }
 .assessment-student-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
 .assessment-student label input[type="checkbox"] { width: auto; }
