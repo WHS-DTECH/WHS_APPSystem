@@ -58,10 +58,13 @@
     });
     return input;
   }
-  function selectInput(row, key, label, options, parent) {
+  function selectInput(row, key, label, options, parent, preserveUnknown = false) {
     const select = document.createElement('select');
     for (const [value, caption] of options) option(select, value, caption);
     const value = row[key] === null ? '' : String(row[key]);
+    if (preserveUnknown && value && !options.some(([choice]) => choice === value)) {
+      option(select, value, 'Previously recorded: ' + value);
+    }
     select.value = value;
     control(label, select, parent);
     select.addEventListener('change', () => {
@@ -109,7 +112,10 @@
       selectInput(row, 'status', 'KAMAR status', [['unknown', 'Unknown / not visible'],
         ['not_entered', 'Not entered'], ['not_yet_assessed', 'Not yet assessed'],
         ['result', 'Result shown'], ['external', 'External'], ['other', 'Other']], grid);
-      textInput(row, 'result', 'Overall / official result shown', 100, grid);
+      selectInput(row, 'result', 'Overall / official result shown', [
+        ['', 'Unknown / not visible'], ['Not Achieved', 'N — Not Achieved'],
+        ['Achieved', 'A — Achieved'], ['Merit', 'M — Merit'], ['Excellence', 'E — Excellence']
+      ], grid, true);
       textInput(row, 'derivedGrade', 'Derived grade shown (not official)', 100, grid);
       card.append(grid);
       const confirmation = document.createElement('input'); confirmation.type = 'checkbox'; confirmation.checked = row.reviewed;

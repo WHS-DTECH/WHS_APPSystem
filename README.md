@@ -1426,7 +1426,8 @@ tickboxes and other fields must be entered or checked manually. A person must
 confirm every row and each chosen student ID; names are not automatically
 linked. Check each row's confirmation and the final confirmation before saving;
 the result or any error appears next to the save button. Duplicate or uncertain
-names can be left unmatched. Blank or unreadable
+names can be left unmatched. The overall result selector offers N, A, M and E
+and retains other previously recorded results. Blank or unreadable
 flags are **unknown**, not No; derived grades are recorded separately from
 official results. Individual unit-standard elements are not collected.
 

@@ -30,6 +30,38 @@ const namesOnly = () => ({
     reviewed: true, matchConfirmed: false }]
 });
 
+test('overall result offers NAME grades and preserves existing nonstandard results', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'legacy', 'kamar-uploader', 'site', 'assessment.js'), 'utf8');
+  const helpers = source.slice(source.indexOf('  function option('), source.indexOf('  function renderRows()'));
+  const start = source.indexOf("      selectInput(row, 'result'");
+  const end = source.indexOf('], grid, true);', start);
+  assert.ok(start !== -1 && end > start);
+  const expression = source.slice(start, end + '], grid, true)'.length).trim();
+  const node = tag => ({
+    tag, children: [], events: {}, value: '', textContent: '',
+    append(...children) { this.children.push(...children); },
+    addEventListener(event, callback) { this.events[event] = callback; }
+  });
+  const render = new Function('document', 'row', 'grid', helpers + '\nreturn ' + expression + ';');
+  for (const previous of ['', 'A', 'External result', 'Merit']) {
+    const row = { result: previous, derivedGrade: 'Excellence', status: 'external' };
+    const select = render({ createElement: node }, row, node('div'));
+    assert.equal(select.tag, 'select');
+    assert.deepEqual(select.children.slice(0, 5).map(item => item.value),
+      ['', 'Not Achieved', 'Achieved', 'Merit', 'Excellence']);
+    assert.equal(select.value, previous);
+    if (previous && !['Not Achieved', 'Achieved', 'Merit', 'Excellence'].includes(previous)) {
+      assert.equal(select.children.at(-1).value, previous);
+      assert.match(select.children.at(-1).textContent, /Previously recorded/);
+    }
+    select.value = 'Achieved';
+    select.events.change();
+    assert.equal(row.result, 'Achieved');
+    assert.equal(row.derivedGrade, 'Excellence');
+    assert.equal(row.status, 'external');
+  }
+});
+
 function saveButtonFixture({ rows = namesOnly().rows, reviewed = true, request, loadHistory } = {}) {
   const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'legacy', 'kamar-uploader', 'site', 'assessment.js'), 'utf8');
   const start = source.indexOf("  $('save').addEventListener('click', async () => {");
