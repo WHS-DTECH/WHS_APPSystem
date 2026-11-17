@@ -101,27 +101,29 @@ test('reviewed standard criteria and requirements survive schedule export and im
   const imported = importDocument(renderDocument('schedule', data, 2026), 'schedule').document;
   assert.equal(imported.achieved, schedule.achieved);
   assert.equal(imported.notes, schedule.notes);
-  assert.deepEqual(imported.requirements[0], schedule.requirements[0]);
+  assert.deepEqual(imported.requirements[0], { requirement: schedule.requirements[0].requirement,
+    evidence: 'Existing evidence', judgement: 'Existing judgement' });
   const updated = fillDocument(renderDocument('schedule', data, 2026), 'schedule', data, 2026);
   assert.equal(importDocument(updated, 'schedule').document.notes, source);
 });
 
-test('schedule documents round-trip N and requirement levels, including conflicting saved marks', () => {
+test('schedule documents round-trip requirement text, evidence and judgement without per-requirement grades', () => {
   const requirements = [
     { requirement: 'Basic requirement', level: 'A', grade: 'N', evidence: 'Evidence' },
     { requirement: 'Merit requirement', level: 'M', grade: 'M' },
     { requirement: 'Excellence requirement', level: 'E', grade: 'M' },
     { requirement: 'Unclassified requirement', grade: 'N' }
   ];
-  const data = { standardNumber: '99999', version: '2', schedule: JSON.stringify({ requirements }) };
+  const data = { standardNumber: '99999', version: '2', schedule: JSON.stringify({ requirements, grade: 'E' }) };
   assert.equal(validModerationContent(data), true);
   const first = renderDocument('schedule', data, 2026);
   for (const buffer of [first, fillDocument(first, 'schedule', data, 2026)]) {
-    const result = importDocument(buffer, 'schedule').document.requirements;
-    assert.deepEqual(result.map(({ requirement, level, grade }) => ({ requirement, level, grade })),
-      requirements.map(({ requirement, level, grade }) => ({ requirement, level, grade })));
-    assert.equal(result[0].evidence, 'Evidence');
+    const result = importDocument(buffer, 'schedule').document;
+    assert.deepEqual(result.requirements, requirements.map(({ requirement, evidence = '', judgement = '' }) =>
+      ({ requirement, evidence, judgement })));
+    assert.equal(result.grade, 'E');
   }
+  assert.deepEqual(JSON.parse(data.schedule).requirements, requirements, 'saved historical grades are unchanged');
 });
 
 test('new marking schedules use the illustrated colours, class code and compact grade layout', () => {
@@ -149,9 +151,14 @@ test('new marking schedules use the illustrated colours, class code and compact 
       assert.equal(run.getElementsByTagNameNS(W, 'color')[0].getAttributeNS(W, 'val'), 'FFFFFF');
     }
     const requirements = cells(label('Key requirements (list):'));
-    assert.deepEqual(requirements.map(fill), Array(7).fill('0000FF'));
+    assert.deepEqual(requirements.map(fill), Array(3).fill('0000FF'));
+    assert.deepEqual(requirements.map(cell => text(cell).trim()), ['Key requirements (list):',
+      'Describe or attach the evidence considered.', 'Explain how the judgment was made.']);
     const entry = cells(label('Planning'));
-    assert.deepEqual(entry.map(fill), Array(7).fill('FFFFFF'));
+    assert.deepEqual(entry.map(fill), Array(3).fill('FFFFFF'));
+    assert.deepEqual(entry.map(text), ['Planning', 'Evidence', '']);
+    assert.equal(entry.reduce((sum, cell) =>
+      sum + Number(cell.getElementsByTagNameNS(W, 'gridSpan')[0]?.getAttributeNS(W, 'val') || 1), 0), 29);
     const heading = cells(label('Marking Grade')), overall = cells(label('OVERALL GRADE:'));
     assert.deepEqual(heading.map(text), ['', 'Marking Grade', 'Marker’s Comments']);
     assert.deepEqual(heading.map(fill), ['9900FF', '9900FF', '9900FF']);
@@ -174,27 +181,44 @@ test('new unit schedules retain their single-grade marking and legacy schedules 
   const imported = importDocument(renderDocument('schedule', data, 2026), 'schedule');
   assert.equal(imported.common.course, '11COMP');
   assert.equal(imported.document.grade, 'A');
-  assert.equal(imported.document.requirements[0].grade, 'A');
+  assert.equal(imported.document.requirements[0].grade, undefined);
   const old = fillDocument(fs.readFileSync(require('node:path').join(__dirname, 'templates', 'schedule.docx')), 'schedule', data, 2026);
   const legacy = importDocument(old, 'schedule');
   assert.equal(legacy.common.subject, 'Computing');
   assert.equal(legacy.common.course, undefined);
 });
 
-test('older schedule documents without N retain their recorded grade without guessing a level', () => {
+test('older schedules with and without N import their saved grades but updates use ungraded requirement columns', () => {
   const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
-  const zip = new PizZip(fs.readFileSync(require('node:path').join(__dirname, 'templates', 'schedule.docx')));
-  const doc = new DOMParser().parseFromString(zip.file('word/document.xml').asText(), 'application/xml');
-  const table = doc.getElementsByTagNameNS(W, 'tbl')[0];
   const kids = (node, tag) => Array.from(node.childNodes).filter(item => item.namespaceURI === W && item.localName === tag);
-  const row = kids(table, 'tr')[11], columns = kids(row, 'tc');
   const set = (cell, value) => Array.from(cell.getElementsByTagNameNS(W, 't')).forEach((t, i) => { t.textContent = i ? '' : value; });
-  set(columns[0], 'Legacy requirement'); set(columns[2], 'Yes');
-  zip.file('word/document.xml', new XMLSerializer().serializeToString(doc));
-  const imported = importDocument(zip.generate({ type: 'nodebuffer' }), 'schedule').document.requirements[0];
-  assert.equal(imported.requirement, 'Legacy requirement');
-  assert.equal(imported.grade, 'M');
-  assert.equal(imported.level, undefined);
+  for (const withNotAchieved of [false, true]) {
+    const zip = new PizZip(fs.readFileSync(require('node:path').join(__dirname, 'templates', 'schedule.docx')));
+    const doc = new DOMParser().parseFromString(zip.file('word/document.xml').asText(), 'application/xml');
+    const table = doc.getElementsByTagNameNS(W, 'tbl')[0];
+    if (withNotAchieved) for (const index of [10, 11]) {
+      const row = kids(table, 'tr')[index], c = kids(row, 'tc');
+      c[0].getElementsByTagNameNS(W, 'gridSpan')[0].setAttributeNS(W, 'w:val', '5');
+      const added = c[1].cloneNode(true);
+      added.getElementsByTagNameNS(W, 'gridSpan')[0].setAttributeNS(W, 'w:val', '2');
+      set(added, index === 10 ? 'N' : '');
+      row.insertBefore(added, c[1]);
+    }
+    const columns = kids(kids(table, 'tr')[11], 'tc');
+    set(columns[0], 'Legacy requirement'); set(columns[withNotAchieved ? 3 : 2], 'Yes');
+    if (withNotAchieved) for (const index of [2, 4]) set(columns[index], '\u2014');
+    set(columns.at(-2), 'Legacy evidence'); set(columns.at(-1), 'Legacy judgement');
+    zip.file('word/document.xml', new XMLSerializer().serializeToString(doc));
+    const buffer = zip.generate({ type: 'nodebuffer' });
+    const imported = importDocument(buffer, 'schedule').document;
+    assert.equal(imported.requirements[0].requirement, 'Legacy requirement');
+    assert.equal(imported.requirements[0].grade, 'M');
+    assert.equal(imported.requirements[0].level, withNotAchieved ? 'M' : undefined);
+    const updated = fillDocument(buffer, 'schedule', { schedule: JSON.stringify({ ...imported, grade: 'E' }) }, 2026);
+    const result = importDocument(updated, 'schedule').document;
+    assert.deepEqual(result.requirements, [{ requirement: 'Legacy requirement', evidence: 'Legacy evidence', judgement: 'Legacy judgement' }]);
+    assert.equal(result.grade, 'E');
+  }
 });
 
 test('internal evaluation survives generated document export and import without duplicate sections', () => {

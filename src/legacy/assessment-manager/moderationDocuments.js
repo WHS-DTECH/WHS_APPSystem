@@ -347,16 +347,16 @@ function replaceRows(table, start, end, data, fill) {
   }
   for (const row of original) table.removeChild(row);
 }
-function insertNotAchievedCell(c) {
+function removeRequirementGradeCells(c) {
+  if (c.length === 3) return c;
+  if (![6, 7].includes(c.length)) throw new Error('The marking schedule requirement columns are not supported.');
   const span = c[0].getElementsByTagNameNS(W, 'gridSpan')[0];
-  const width = Number(span?.getAttributeNS(W, 'val'));
-  if (!span || width < 3 || !c[1]) throw new Error('The marking schedule cannot accommodate the Not Achieved column.');
-  span.setAttributeNS(W, 'w:val', String(width - 2));
-  const added = c[1].cloneNode(true);
-  const addedSpan = added.getElementsByTagNameNS(W, 'gridSpan')[0];
-  if (!addedSpan) throw new Error('The marking schedule grade column is not supported.');
-  addedSpan.setAttributeNS(W, 'w:val', '2');
-  c[0].parentNode.insertBefore(added, c[1]);
+  if (!span) throw new Error('The marking schedule requirement width is not supported.');
+  const removed = c.slice(1, -2);
+  const width = [c[0], ...removed].reduce((sum, cell) =>
+    sum + Number(cell.getElementsByTagNameNS(W, 'gridSpan')[0]?.getAttributeNS(W, 'val') || 1), 0);
+  span.setAttributeNS(W, 'w:val', String(width));
+  for (const cell of removed) cell.parentNode.removeChild(cell);
   return cells(c[0].parentNode);
 }
 function appendDetails(body, data, values, definition) {
@@ -480,13 +480,7 @@ function fillDocument(buffer, type, data, year, useBuiltInScheduleDesign = false
     });
   } else if (type === 'schedule') {
     setText(cells(rows(state.tables[0])[scheduleLayout(state).header])[0], 'Achieved Grade Criteria');
-    let requirementHeaders = cells(rows(state.tables[0])[scheduleLayout(state).requirements - 1]);
-    const hasNotAchieved = text(requirementHeaders[1]).trim() === 'N';
-    if (!hasNotAchieved) {
-      if (requirementHeaders.length !== 6) throw new Error('The marking schedule requirement columns are not supported.');
-      requirementHeaders = insertNotAchievedCell(requirementHeaders);
-      setText(requirementHeaders[1], 'N');
-    } else if (requirementHeaders.length !== 7) throw new Error('The marking schedule requirement columns are not supported.');
+    removeRequirementGradeCells(cells(rows(state.tables[0])[scheduleLayout(state).requirements - 1]));
     const marking = markingRow(state);
     const markingHeaders = cells(rows(state.tables[0])[marking]);
     setText(markingHeaders[markingHeaders.length === 3 ? 1 : 0], 'Marking Grade');
@@ -515,14 +509,10 @@ function fillDocument(buffer, type, data, year, useBuiltInScheduleDesign = false
       property.setAttributeNS(W, 'w:val', value);
     }
     replaceRows(state.tables[0], scheduleLayout(state).requirements, marking, values.requirements || [], (original, item) => {
-      const c = hasNotAchieved ? original : insertNotAchievedCell(original);
+      const c = removeRequirementGradeCells(original);
       setText(c[0], item.requirement);
-      ['N', 'A', 'M', 'E'].forEach((grade, i) => {
-        const allowed = grade === 'N' || item.level === grade || data.standardType === 'Unit' && grade === 'A';
-        setText(c[i + 1], item.grade === grade ? (allowed ? 'Yes' : 'Yes (previously saved)') : allowed ? '' : '—');
-      });
-      setText(c[5], item.evidence); setText(c[6], item.judgement);
-      for (const p of paragraphs(c[5])) {
+      setText(c[1], item.evidence); setText(c[2], item.judgement);
+      for (const p of paragraphs(c[1])) {
         let properties = children(p, 'pPr')[0];
         if (!properties) { properties = state.doc.createElementNS(W, 'w:pPr'); p.insertBefore(properties, p.firstChild); }
         const alignment = children(properties, 'jc')[0] || state.doc.createElementNS(W, 'w:jc');
@@ -876,11 +866,13 @@ function importDocument(buffer, type) {
     const end = markingRow(state);
     const header = cells(rows(state.tables[0])[scheduleLayout(state).requirements - 1]);
     const hasNotAchieved = text(header[1]).trim() === 'N';
-    if (header.length !== (hasNotAchieved ? 7 : 6)) throw new Error('The marking schedule requirement columns are not supported.');
+    const ungraded = header.length === 3;
+    if (!ungraded && header.length !== (hasNotAchieved ? 7 : 6)) throw new Error('The marking schedule requirement columns are not supported.');
     const gradeNames = hasNotAchieved ? ['N', 'A', 'M', 'E'] : ['A', 'M', 'E'];
     values.requirements = rows(state.tables[0]).slice(scheduleLayout(state).requirements, end).map(row => {
       const c = cells(row);
       if (c.length !== header.length) throw new Error('The marking schedule requirement row has unsupported columns.');
+      if (ungraded) return { requirement: text(c[0]), evidence: text(c[1]), judgement: text(c[2]) };
       const marks = gradeNames.filter((_, i) => /Yes|✅/.test(text(c[i + 1])));
       if (marks.length > 1) resourceWarnings.push('A requirement has multiple grade marks; choose its result manually.');
       const available = ['A', 'M', 'E'].filter(grade => {

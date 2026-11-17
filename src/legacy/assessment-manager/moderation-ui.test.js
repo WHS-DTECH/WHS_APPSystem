@@ -1479,33 +1479,22 @@ test('evaluation comments grow with saved and edited content without changing th
   control.value = 'Short note'; control.events.input();
   assert.equal(mirror.textContent, 'Short note');
 });
-test('requirements show N and only the selected level, with exclusive ticks', async () => {
+test('requirements show only text, evidence and judgement without altering historical grades', async () => {
   for (const standardType of ['Unit', 'Achievement']) {
     const f = fixture({ page: 'schedule', data: { schedule: JSON.stringify({ requirements: [
-      { requirement: 'Requirement one', level: 'A', grade: 'A', evidence: 'Evidence', judgement: 'Judgement' }
+      { requirement: 'Requirement one', level: 'A', grade: 'E', evidence: 'Evidence', judgement: 'Judgement' }
     ] }) }, standardRequest: async () => ({ number: '99999', standardType }) });
     await flush();
     let table = f.host.find(n => n.attrs.class === 'moderation-requirements-table');
     assert.deepEqual(table.children[1].children[0].children.map(n => n.textContent),
-      ['Key requirements (list)', ...(standardType === 'Unit' ? ['N', 'A'] : ['N', 'A', 'M', 'E']),
-        'Describe or attach the evidence considered', 'Explain how the judgement was made']);
-    const boxes = table.all().filter(n => n.type === 'checkbox');
-    assert.equal(boxes.length, 2);
-    assert.equal(boxes[1].checked, true);
-    const selected = boxes[0];
-    selected.checked = true; selected.events.change();
-    assert.equal(boxes.filter(n => n.checked).length, 1);
-    assert.equal(JSON.parse(f.host.find(n => n.attrs.name === 'schedule').value).requirements[0].grade, 'N');
-    selected.checked = false; selected.events.change();
-    assert.equal(JSON.parse(f.host.find(n => n.attrs.name === 'schedule').value).requirements[0].grade, '');
-    if (standardType === 'Achievement') {
-      const level = f.host.find(n => n.attrs.id === 'moderation-schedule-0-level');
-      level.value = 'M'; level.events.change();
-      assert.equal(JSON.parse(f.host.find(n => n.attrs.name === 'schedule').value).requirements[0].level, 'M');
-      assert.ok(f.host.find(n => n.attrs['aria-label'] === 'M for requirement 1'));
-      assert.equal(f.host.find(n => n.attrs['aria-label'] === 'A for requirement 1'), undefined);
-      assert.equal(f.host.find(n => n.attrs['aria-label'] === 'E for requirement 1'), undefined);
-    } else assert.equal(table.all().some(n => n.tag === 'select'), false);
+      ['Key requirements (list)', 'Describe or attach the evidence considered', 'Explain how the judgement was made']);
+    assert.equal(table.all().some(n => n.type === 'checkbox' || n.tag === 'select'), false);
+    assert.equal(table.all().some(n => n.textContent.startsWith('Saved grade:')), false);
+    assert.equal(table.children[2].children[0].children.length, 3);
+    const evidence = f.host.find(n => n.attrs.id === 'moderation-schedule-0-evidence');
+    evidence.value = 'Updated evidence'; evidence.events.input();
+    assert.deepEqual(JSON.parse(f.host.find(n => n.attrs.name === 'schedule').value).requirements[0],
+      { requirement: 'Requirement one', level: 'A', grade: 'E', evidence: 'Updated evidence', judgement: 'Judgement' });
     assert.ok(f.host.find(n => n.textContent === 'Requirement 1'));
     assert.ok(f.host.find(n => n.tag === 'h3' && n.textContent === 'Standard'));
     assert.ok(f.host.find(n => n.tag === 'label' && n.textContent === 'Achieved Grade Criteria'));
@@ -1515,33 +1504,6 @@ test('requirements show N and only the selected level, with exclusive ticks', as
     await f.click('Remove requirement 2');
     assert.equal(JSON.parse(f.host.find(n => n.attrs.name === 'schedule').value).requirements.length, 1);
   }
-});
-test('hidden legacy requirement grades are labelled and can be explicitly cleared', async () => {
-  const f = fixture({ page: 'schedule', data: { schedule: '{"requirements":[{"grade":"E"}]}' },
-    standardRequest: async () => ({ number: '99999', standardType: 'Unit' }) });
-  await flush();
-  assert.ok(f.host.find(n => n.textContent.startsWith('Saved grade: E.')));
-  await f.click('Clear saved grade for requirement 1');
-  assert.equal(JSON.parse(f.host.find(n => n.attrs.name === 'schedule').value).requirements[0].grade, '');
-});
-test('unknown levels require selection, and conflicting saved marks remain visible', async () => {
-  const f = fixture({ page: 'schedule', data: { schedule: JSON.stringify({ requirements: [
-    { requirement: 'Manual requirement', grade: 'M', evidence: 'Keep evidence' },
-    { requirement: 'Excellence requirement', level: 'E', grade: 'M' }
-  ] }) } });
-  await flush();
-  for (const index of [1, 2]) {
-    assert.ok(f.host.find(n => n.attrs['aria-label'] === 'N for requirement ' + index));
-    assert.ok(f.host.find(n => n.textContent.startsWith('Saved grade: M.')));
-    assert.equal(f.host.find(n => n.attrs['aria-label'] === 'M for requirement ' + index), undefined);
-  }
-  assert.ok(f.host.find(n => n.attrs['aria-label'] === 'E for requirement 2'));
-  const level = f.host.find(n => n.attrs.id === 'moderation-schedule-0-level');
-  level.value = 'M'; level.events.change();
-  assert.equal(f.host.find(n => n.attrs['aria-label'] === 'M for requirement 1').checked, true);
-  const saved = JSON.parse(f.host.find(n => n.attrs.name === 'schedule').value);
-  assert.equal(saved.requirements[0].evidence, 'Keep evidence');
-  assert.equal(saved.requirements[1].grade, 'M');
 });
 test('four visible schedule resources independently select and save Drive links without importing or updating contents', async () => {
   const f = fixture({ page: 'schedule', data: { schedule: JSON.stringify({ instructions: 'Existing instructions', submissions: 'Existing submissions' }) } });
@@ -1774,10 +1736,9 @@ test('Select all keeps separate grade levels for identical requirement text', as
     { requirement: 'Same item.', level: 'A' }, { requirement: 'Same item.', level: 'M' },
     { requirement: 'Another item.', level: 'E' }
   ]);
-  for (const [i, level] of ['A', 'M', 'E'].entries()) {
-    assert.ok(f.host.find(n => n.attrs['aria-label'] === level + ' for requirement ' + (i + 1)));
-    assert.ok(f.host.find(n => n.attrs['aria-label'] === 'N for requirement ' + (i + 1)));
-  }
+  const table = f.host.find(n => n.attrs.class === 'moderation-requirements-table');
+  assert.equal(table.children[2].children.length, 3);
+  assert.equal(table.all().some(n => n.type === 'checkbox' || n.tag === 'select'), false);
 });
 test('opening a schedule moves only generated criteria sources to notes without changing marking', async () => {
   const citation = 'Source: NZQA, Achievement Standard 99999, version 2 — https://www.nzqa.govt.nz/nqfdocs/ncea-resource/achievements/2026/as99999.pdf';
@@ -1911,34 +1872,29 @@ test('resource tables put short and long filename links on the left and Remove b
   assert.match(css, /\.moderation-resource-table\s*\{[^}]*width:\s*100%/);
   assert.match(css, /\.moderation-resource-table th,[^{]*\{[^}]*overflow-wrap:\s*anywhere/);
 });
-test('Unit overall grade follows requirement ticks and clears when incomplete while Achievement grade remains manual', async () => {
-  const f = fixture({ page: 'schedule', standardRequest: async () => ({ number: '99999', standardType: 'Unit' }),
-    data: { standardType: 'Unit', schedule: JSON.stringify({ requirements: [
-      { requirement: 'First', grade: 'A' }, { requirement: 'Second', grade: 'A' }
-    ] }) } });
-  await flush();
-  const grade = () => JSON.parse(f.host.find(n => n.attrs.name === 'schedule').value).grade;
-  const control = () => f.host.find(n => n.attrs.id === 'moderation-schedule-grade');
-  assert.equal(grade(), 'A');
-  assert.equal(control().value, 'A');
-  const tick = f.host.find(n => n.attrs['aria-label'] === 'A for requirement 2');
-  tick.checked = false; tick.events.change();
-  assert.equal(grade(), '');
-  assert.equal(control().value, '');
-  tick.checked = true; tick.events.change();
-  assert.equal(grade(), 'A');
-  await f.click('Add requirement');
-  assert.equal(grade(), '');
-  await f.click('Remove requirement 3');
-  assert.equal(grade(), 'A');
-  await f.click('Remove requirement 2'); await f.click('Remove requirement 1');
-  assert.equal(grade(), '');
-  const achievement = fixture({ page: 'schedule', data: { schedule: JSON.stringify({
-    grade: 'M', requirements: [{ requirement: 'First', level: 'A', grade: 'A' }]
-  }) } }); await flush();
-  const aTick = achievement.host.find(n => n.attrs['aria-label'] === 'A for requirement 1');
-  aTick.checked = false; aTick.events.change();
-  assert.equal(JSON.parse(achievement.host.find(n => n.attrs.name === 'schedule').value).grade, 'M');
+test('overall grades remain manual and independent of requirements for Unit and Achievement standards', async () => {
+  for (const standardType of ['Unit', 'Achievement']) {
+    const original = standardType === 'Unit' ? 'N' : 'M';
+    const f = fixture({ page: 'schedule', standardRequest: async () => ({ number: '99999', standardType }),
+      data: { standardType, schedule: JSON.stringify({ grade: original, requirements: [
+        { requirement: 'First', grade: 'A' }, { requirement: 'Second', grade: 'A' }
+      ] }) } });
+    await flush();
+    const grade = () => JSON.parse(f.host.find(n => n.attrs.name === 'schedule').value).grade;
+    const control = f.host.find(n => n.attrs.id === 'moderation-schedule-grade');
+    assert.equal(grade(), original);
+    assert.equal(control.value, original);
+    control.value = 'A'; control.events.change();
+    assert.equal(grade(), 'A');
+    await f.click('Add requirement');
+    assert.equal(grade(), 'A');
+    await f.click('Remove requirement 3');
+    assert.equal(grade(), 'A');
+    await f.click('Remove requirement 2'); await f.click('Remove requirement 1');
+    assert.equal(grade(), 'A');
+    control.value = ''; control.events.change();
+    assert.equal(grade(), '');
+  }
 });
 test('opening a saved student schedule removes its template-only row and keeps the three actual requirements', async () => {
   const placeholder = { requirement: 'Key requirements (list):', grade: '',

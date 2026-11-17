@@ -282,9 +282,8 @@
 .moderation-folder-standards { display: flex; flex-wrap: wrap; gap: .5rem; }
 .moderation-folder-button { display: inline-block; padding: .5rem .75rem; border: 1px solid #66419a; border-radius: 4px; background: #66419a; color: #fff; font-weight: 600; text-decoration: none; }
 .moderation-requirements-table { min-width: 850px; table-layout: fixed; }
-.moderation-requirements-table th:first-child { width: 38%; }
-.moderation-requirements-table th:nth-last-child(-n+2) { width: 25%; }
-.moderation-requirements-table .moderation-grade-heading { width: 3rem; text-align: center; }
+.moderation-requirements-table th:first-child { width: 40%; }
+.moderation-requirements-table th:nth-last-child(-n+2) { width: 30%; }
 .moderation-autogrow { display: grid; grid-template-columns: minmax(0, 1fr); }
 .moderation-autogrow label { grid-area: 1 / 1; }
 .moderation-autogrow textarea, .moderation-autogrow-mirror {
@@ -294,7 +293,6 @@
 .moderation-autogrow textarea { height: 100%; overflow: hidden; resize: none; border-color: #bdccc6; }
 .moderation-autogrow-mirror { visibility: hidden; }
 .moderation-autogrow-mirror::after { content: ' '; }
-.moderation-requirements-table .moderation-grade-tick { text-align: center; }
 .moderation-student-reporting { margin: .8rem 0; gap: .6rem; }
 .moderation-reference-suggestions { overflow-wrap: anywhere; font-size: .85rem; }
 .moderation-reference-suggestions > div { margin: .5rem 0; padding: .6rem; border: 1px solid #c4d3d9; }

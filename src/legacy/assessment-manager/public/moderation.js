@@ -1525,10 +1525,6 @@
       }
       if (page === 'schedule' && hidden.standardType.value === 'Unit') {
         state.merit = ''; state.excellence = '';
-        const requirements = state.requirements || [];
-        state.grade = requirements.length && requirements.every(row => row.grade === 'A') ? 'A' : '';
-        const grade = fieldControls.get('grade');
-        if (grade) grade.value = state.grade;
       }
       const json = JSON.stringify(state);
       if (onlyIfChanged && json === before) return;
@@ -1980,12 +1976,10 @@
           if (page === 'schedule') {
             list.setAttribute('class', 'moderation-requirements-scroll');
             const table = el('table', '', { class: 'moderation-requirements-table' });
-            table.append(el('caption', 'Choose the requirement level, then select N if it is not met or its level if it is met. Untick to clear it.'));
-            const unit = hidden.standardType.value === 'Unit';
-            const grades = unit ? ['N', 'A'] : ['N', 'A', 'M', 'E'];
+            table.append(el('caption', 'Record the requirements, evidence and judgements here. Select the overall grade under Marking decision.'));
             const head = el('thead'), headings = el('tr');
-            for (const label of ['Key requirements (list)', ...grades, 'Describe or attach the evidence considered', 'Explain how the judgement was made']) {
-              headings.append(el('th', label, { scope: 'col', ...(grades.includes(label) ? { class: 'moderation-grade-heading' } : {}) }));
+            for (const label of ['Key requirements (list)', 'Describe or attach the evidence considered', 'Explain how the judgement was made']) {
+              headings.append(el('th', label, { scope: 'col' }));
             }
             head.append(headings); table.append(head);
             const body = el('tbody');
@@ -1994,36 +1988,11 @@
               requirement.append(el('strong', 'Requirement ' + (i + 1)));
               input(rows.fields.find(def => def[0] === 'requirement'), item.requirement,
                 value => { item.requirement = value; sync(); }, requirement, page + '-' + i + '-', true);
-              if (!unit) input(rows.metadata.find(def => def[0] === 'level'), item.level,
-                value => { item.level = value; sync(); renderRows(); }, requirement, page + '-' + i + '-');
               button('Remove requirement ' + (i + 1), () => {
                 if (!confirm('Remove this requirement?')) return;
                 state[rows.key].splice(i, 1); sync(); renderRows();
               }, requirement, 'danger');
-              const level = unit ? 'A' : item.level || '';
-              const allowed = ['N', ...(level ? [level] : [])];
-              if (item.grade && !allowed.includes(item.grade)) requirement.append(el('p',
-                'Saved grade: ' + item.grade + '. Select an available tick to replace it, or clear the saved grade.'));
-              if (item.grade && !allowed.includes(item.grade)) button('Clear saved grade for requirement ' + (i + 1), () => {
-                item.grade = ''; sync(); renderRows();
-              }, requirement, 'danger');
               row.append(requirement);
-              const boxes = [];
-              for (const grade of grades) {
-                const cell = el('td', '', { class: 'moderation-grade-tick' });
-                if (allowed.includes(grade)) {
-                  const box = el('input', '', { type: 'checkbox', 'aria-label': grade + ' for requirement ' + (i + 1) });
-                  box.type = 'checkbox'; box.checked = item.grade === grade;
-                  boxes.push({ box, grade });
-                  box.addEventListener('change', () => {
-                    item.grade = box.checked ? grade : '';
-                    for (const entry of boxes) entry.box.checked = item.grade === entry.grade;
-                    sync();
-                  });
-                  cell.append(box);
-                }
-                row.append(cell);
-              }
               for (const key of ['evidence', 'judgement']) {
                 const cell = el('td');
                 input(rows.fields.find(def => def[0] === key), item[key],

@@ -1935,6 +1935,11 @@ followed by separate student schedules. Fill in each standard's own criteria;
 existing standard-specific schedule instructions and criteria remain accessible
 through Records → Marking Schedules and are still used when preparing student
 schedules. No existing marking or linked documents are changed by the template.
+Marking Schedule requirements contain only the requirement text, evidence and
+judgement; there are no per-requirement level dropdowns or grade ticks in the
+form or newly generated documents. Set the overall grade manually under
+**Marking decision**, including for Unit Standards. Historical requirement grades
+remain in saved records, and older graded documents can still be imported.
 When the Internal Moderation Sheet opens, each linked student's saved overall
 grade and marker comments fill an empty marker grade and discussion field.
 Existing entries are preserved; clear a field and reopen the sheet to refill it.
