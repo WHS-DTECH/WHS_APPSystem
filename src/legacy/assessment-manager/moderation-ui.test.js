@@ -1234,6 +1234,118 @@ test(title + ' offers one blank template even without student forms', async () =
   assert.equal(f.calls.filter(call => ['mutate', 'upload', 'authorize'].includes(call[0])).length, 0);
 });
 }
+test('verifier email asks which parent records to include and opens an editable, grouped Gmail draft without sending or saving', async () => {
+  const second = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', third = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+  const excluded = 'ffffffff-ffff-4fff-8fff-ffffffffffff', child = 'abababab-abab-4bab-8bab-abababababab';
+  const records = [record, second, third, excluded].map((id, i) => ({
+    entry_key: id, title: 'Assessment ' + i, standard_number: String(92000 + i)
+  }));
+  records.push({ entry_key: child, title: 'Student schedule', parent_record: record, standard_number: '92000' });
+  const contents = Object.fromEntries([record, second, third].map((id, i) => [id, {
+    standardNumber: String(92000 + i), standardTitle: 'Test standard ' + i, level: i === 2 ? '3' : '2',
+    driveDocuments: JSON.stringify({ internal: { id: 'moderation_file_' + i, name: 'Sheet ' + i, mimeType: i === 2 ? DOCX : 'application/vnd.google-apps.document' } }),
+    internal: JSON.stringify({ verifierName: 'Synthetic Verifier', samples: i === 0
+      ? [{ student: 'Learner A' }, { student: 'Learner B' }, {}]
+      : i === 1 ? [{ student: ' learner   a ' }, { student: 'Learner C' }] : [{ student: 'Learner D' }] })
+  }]));
+  const original = JSON.stringify(contents);
+  const f = fixture({ id: '', userEmail: 'synthetic.teacher@example.test', recordsRequest: async () => ({ records }),
+    recordRequest: async path => ({ content: contents[path.split('/').pop()], revision: 1 }) });
+  await flush(); await f.click('Email verifier');
+  const panel = f.host.find(n => n.attrs['aria-label'] === 'Email verifier');
+  const choices = panel.all().filter(n => n.tag === 'input' && n.attrs.type === 'checkbox');
+  assert.equal(choices.length, 4);
+  assert.ok(choices.every(n => !n.checked));
+  assert.equal(f.calls.filter(call => call[0] === 'request' && /^2026\/moderation\/(?!main)/.test(call[1])).length, 0);
+  await f.click('Prepare verifier email');
+  assert.ok(panel.find(n => n.attrs.role === 'alert' && n.textContent === 'Select at least one moderation record.'));
+  for (const choice of choices.slice(0, 3)) choice.checked = true;
+  await f.click('Prepare verifier email');
+  assert.deepEqual(f.calls.filter(call => call[0] === 'request' && /^2026\/moderation\/(?!main)/.test(call[1])).map(call => call[1]),
+    [record, second, third].map(id => '2026/moderation/' + id));
+  const field = key => panel.find(n => n.attrs.id === 'moderation-email-' + key);
+  assert.equal(field('greeting').value, 'Kia ora Synthetic Verifier,');
+  assert.equal(field('count-2').value, '3');
+  assert.equal(field('count-3').value, '1');
+  const draft = panel.find(n => n.tag === 'a' && n.textContent === 'Open Gmail draft');
+  assert.equal(draft.hidden, true); assert.equal(draft.attrs.href, undefined);
+  for (const [key, value] of [['recipient', 'verifier@example.test'], ['subject', 'DTECH & final moderation?'],
+    ['introduction', 'Please verify these sheets.\nThank you & see you soon.'], ['closing', 'Thanks,\nSynthetic Teacher'], ['count-2', '4']]) {
+    field(key).value = value; field(key).events.input();
+  }
+  assert.equal(draft.hidden, false);
+  const url = new URL(draft.attrs.href);
+  assert.equal(url.origin, 'https://mail.google.com');
+  assert.equal(url.searchParams.get('authuser'), 'synthetic.teacher@example.test');
+  assert.equal(url.searchParams.get('to'), 'verifier@example.test');
+  assert.equal(url.searchParams.get('su'), 'DTECH & final moderation?');
+  const body = url.searchParams.get('body');
+  assert.match(body, /Please verify these sheets\.\nThank you & see you soon\./);
+  assert.match(body, /Level 2: 4 students/);
+  assert.match(body, /Level 3: 1 student\n\n92002 - Test standard 2\nhttps:\/\/drive\.google\.com\/file\/d\/moderation_file_2\/view/);
+  assert.ok(body.indexOf('Level 2:') < body.indexOf('Level 3:'));
+  assert.match(body, /https:\/\/docs\.google\.com\/document\/d\/moderation_file_0\/edit/);
+  assert.match(body, /Thanks,\nSynthetic Teacher$/);
+  assert.doesNotMatch(body, /Learner|92003|Student schedule/);
+  assert.equal(draft.attrs.rel, 'noopener noreferrer');
+  assert.ok(panel.find(n => n.attrs['aria-label'] === 'Verifier email preview').find(n => n.tag === 'h4' && n.textContent === 'Level 2: 4 students'));
+  field('recipient').value = 'bad-address'; field('recipient').events.input();
+  assert.equal(draft.hidden, true); assert.equal(draft.attrs.href, undefined);
+  field('recipient').value = 'verifier@example.test'; field('recipient').events.input();
+  field('count-2').value = '-1'; field('count-2').events.input();
+  assert.equal(draft.hidden, true);
+  field('count-2').value = '4'; field('count-2').events.input();
+  field('subject').value = ''; field('subject').events.input();
+  assert.equal(draft.hidden, true);
+  await f.click('Change selected records');
+  assert.ok(panel.all().filter(n => n.tag === 'input' && n.attrs.type === 'checkbox').every(n => !n.checked));
+  await f.click('Cancel email'); assert.equal(panel.hidden, true);
+  assert.equal(JSON.stringify(contents), original);
+  assert.equal(f.saved.length, 0);
+  assert.equal(f.calls.filter(call => ['mutate', 'upload', 'authorize', 'binary'].includes(call[0])).length, 0);
+});
+test('verifier email reports missing sheets, levels, unreadable data and failed record loads without producing a partial draft', async () => {
+  const second = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+  const valid = { standardNumber: '92000', level: '2', internal: '{}',
+    driveDocuments: JSON.stringify({ internal: { id: 'moderation_file_123', name: 'Sheet', mimeType: 'application/vnd.google-apps.document' } }) };
+  for (const [overrides, error] of [
+    [{ driveDocuments: '{}' }, /Create or link the Internal Moderation Drive document/],
+    [{ driveDocuments: '{broken' }, /Saved document links or samples could not be read/],
+    [{ level: '' }, /Record a valid level/],
+    [{ internal: '{"samples":{}}' }, /Saved samples could not be read/],
+    [{ parentRecord: record }, /is no longer an assessment record/],
+    [null, /Records unavailable/]
+  ]) {
+    const f = fixture({ id: '', page: 'internal', recordsRequest: async () => ({ records: [
+      { entry_key: record, title: 'Valid sheet' }, { entry_key: second, title: 'Problem sheet' }
+    ] }), recordRequest: async path => {
+      if (path.endsWith(second) && overrides === null) throw new Error('Records unavailable');
+      return { revision: 1, content: path.endsWith(second) ? { ...valid, ...overrides } : valid };
+    } });
+    await flush(); await f.click('Email verifier');
+    const panel = f.host.find(n => n.attrs['aria-label'] === 'Email verifier');
+    panel.all().filter(n => n.tag === 'input' && n.attrs.type === 'checkbox').forEach(n => { n.checked = true; });
+    await f.click('Prepare verifier email');
+    assert.ok(panel.find(n => n.attrs.role === 'alert' && error.test(n.textContent)));
+    assert.equal(panel.find(n => n.textContent === 'Open Gmail draft'), undefined);
+    assert.equal(f.saved.length, 0);
+    assert.equal(panel.find(n => n.textContent === 'Prepare verifier email').disabled, false);
+  }
+});
+test('cancelling a pending verifier email does not restore its abandoned selection', async () => {
+  let resolve;
+  const f = fixture({ id: '', recordRequest: () => new Promise(done => { resolve = done; }) });
+  await flush(); await f.click('Email verifier');
+  const panel = f.host.find(n => n.attrs['aria-label'] === 'Email verifier');
+  panel.find(n => n.attrs.type === 'checkbox').checked = true;
+  const pending = f.click('Prepare verifier email');
+  await f.click('Cancel email');
+  resolve({ revision: 1, content: { level: '2', internal: '{}',
+    driveDocuments: JSON.stringify({ internal: { id: 'moderation_file_123', name: 'Sheet', mimeType: DOCX } }) } });
+  await pending;
+  assert.equal(panel.hidden, true);
+  assert.equal(panel.find(n => n.textContent === 'Open Gmail draft'), undefined);
+});
 test('Records table groups standards and stacks student links in the correct document columns', async () => {
   const first = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', second = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
   const f = fixture({ id: '', recordsRequest: async () => ({ records: [

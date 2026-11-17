@@ -1940,6 +1940,17 @@ judgement; there are no per-requirement level dropdowns or grade ticks in the
 form or newly generated documents. Set the overall grade manually under
 **Marking decision**, including for Unit Standards. Historical requirement grades
 remain in saved records, and older graded documents can still be imported.
+**Email verifier** on Moderation's Records or Internal Moderation contents asks
+which assessment records to include, then prepares an editable Gmail draft with
+existing Internal Moderation Drive links grouped by level. Student counts start
+from distinct sample names per level and are editable; student names are not
+included in the message. Review the recipient, subject, greeting, request and
+signature before opening Gmail to send it yourself. Gmail uses plain-text headings
+and links; rich formatting can be added there. Each selected record requires a
+level and linked Drive sheet. Update those sheets first if their saved forms have
+changed and ensure the verifier has Drive access. The app does not send emails,
+change sharing or mark moderation complete. The temporary message editor is not
+saved when cancelled or left.
 When the Internal Moderation Sheet opens, each linked student's saved overall
 grade and marker comments fill an empty marker grade and discussion field.
 Existing entries are preserved; clear a field and reopen the sheet to refill it.

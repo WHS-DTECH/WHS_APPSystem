@@ -625,11 +625,125 @@
         create.hidden = true;
       }
       area.append(listing, feedback);
+      const emailPanel = el('section', '', { class: 'moderation-panel moderation-email', 'aria-label': 'Email verifier' });
+      emailPanel.hidden = true; area.append(emailPanel);
+      function chooseVerifierRecords(records) {
+        emailPanel.hidden = false;
+        emailPanel.replaceChildren(el('h3', 'Email verifier'),
+          el('p', 'Choose the internal moderation sheets to include. Only existing Drive document links are included; no email is sent by this app. Update the sheets in Drive first if their saved forms have changed.'));
+        const choices = el('fieldset');
+        choices.append(el('legend', 'Moderation records to include'));
+        const selections = records.map(item => {
+          const id = 'moderation-email-record-' + item.entry_key;
+          const box = el('input', '', { type: 'checkbox', id });
+          box.type = 'checkbox';
+          const row = el('div', '', { class: 'moderation-check' });
+          row.append(box, el('label', item.title || item.standard_number || 'Untitled assessment', { for: id }));
+          choices.append(row);
+          return { box, item };
+        });
+        const status = el('p', '', { role: 'status' });
+        emailPanel.append(choices, status);
+        const prepare = button('Prepare verifier email', async () => {
+          const selected = selections.filter(entry => entry.box.checked);
+          if (!selected.length) { status.textContent = 'Select at least one moderation record.'; status.setAttribute('role', 'alert'); return; }
+          prepare.disabled = true; choices.disabled = true;
+          status.textContent = 'Loading selected moderation sheets...'; status.setAttribute('role', 'status');
+          try {
+            const sheets = await Promise.all(selected.map(async ({ item }) => {
+              const saved = await request(year + '/moderation/' + encodeURIComponent(item.entry_key));
+              const content = saved.content;
+              if (!saved.revision || !content || content.parentRecord) throw new Error('Reopen Records: ' + (item.title || item.entry_key) + ' is no longer an assessment record.');
+              let links, internal;
+              try { links = JSON.parse(content.driveDocuments || '{}'); internal = JSON.parse(content.internal || '{}'); }
+              catch { throw new Error('Saved document links or samples could not be read for ' + (item.title || item.entry_key) + '. Open its Internal Moderation sheet to resolve this.'); }
+              const file = links?.internal;
+              if (!file || !/^[A-Za-z0-9_-]{10,}$/.test(file.id || '') || ![GOOGLE_DOC, DOCX].includes(file.mimeType)) {
+                throw new Error('Create or link the Internal Moderation Drive document for ' + (item.title || item.entry_key) + ', then try again.');
+              }
+              if (!/^(?:[1-9]|10)$/.test(content.level || '')) throw new Error('Record a valid level for ' + (item.title || item.entry_key) + ' before preparing this email.');
+              if (!internal || typeof internal !== 'object' || Array.isArray(internal) ||
+                  internal.samples !== undefined && !Array.isArray(internal.samples)) throw new Error('Saved samples could not be read for ' + (item.title || item.entry_key) + '.');
+              return { content, internal, title: [content.standardNumber, content.standardTitle || content.title || 'Internal Moderation Sheet'].filter(Boolean).join(' - '),
+                url: file.mimeType === GOOGLE_DOC ? 'https://docs.google.com/document/d/' + file.id + '/edit' : 'https://drive.google.com/file/d/' + file.id + '/view' };
+            }));
+            if (area.isConnected && prepare.isConnected && !emailPanel.hidden) renderVerifierEmail(records, sheets);
+          } catch (error) {
+            console.error('Verifier email preparation failed.');
+            status.textContent = error.message; status.setAttribute('role', 'alert');
+          } finally { prepare.disabled = false; choices.disabled = false; }
+        }, emailPanel);
+        button('Cancel email', () => { emailPanel.hidden = true; emailPanel.replaceChildren(); }, emailPanel);
+        selections[0].box.focus();
+      }
+      function renderVerifierEmail(records, sheets) {
+        emailPanel.replaceChildren(el('h3', 'Review verifier email'),
+          el('p', 'Check the recipient and student counts. Counts start from distinct sample names in the selected sheets, not class rolls; adjust them if needed. Links keep their existing Drive permissions: ensure your verifier has access.'),
+          el('p', 'Gmail opens an editable draft with plain-text headings and links. Add any formatting or Drive link cards in Gmail, then send it yourself. This app does not change sharing or mark moderation as complete.'));
+        const fields = el('div', '', { class: 'moderation-fields' });
+        emailPanel.append(fields);
+        const names = [...new Set(sheets.map(sheet => (sheet.internal.verifierName || '').trim()).filter(Boolean))];
+        const recipient = input(['recipient', 'Verifier email'], '', refresh, fields, 'email-');
+        recipient.type = 'email';
+        const subject = input(['subject', 'Email subject'], 'Internal moderation for verification - ' + year, refresh, fields, 'email-');
+        const greeting = input(['greeting', 'Greeting'], names.length === 1 ? 'Kia ora ' + names[0] + ',' : 'Kia ora,', refresh, fields, 'email-');
+        const introduction = input(['introduction', 'Introduction / request', 'area'],
+          'Could you please verify the internal moderation sheets linked below? Please let me know if you have any questions or would like to discuss any of the judgements. Thank you for your help.', refresh, fields, 'email-');
+        const closing = input(['closing', 'Closing / signature', 'area'], 'Kind regards,\n' + assessorName, refresh, fields, 'email-');
+        const levels = [...new Set(sheets.map(sheet => sheet.content.level))].sort((a, b) => Number(a) - Number(b));
+        const counts = new Map(levels.map(level => {
+          const names = new Set(sheets.filter(sheet => sheet.content.level === level).flatMap(sheet =>
+            (sheet.internal.samples || []).map(sample => String(sample.student || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('en-NZ')).filter(Boolean)));
+          const control = input(['count-' + level, 'Level ' + level + ' student count'], String(names.size), refresh, fields, 'email-');
+          control.type = 'number'; control.min = '0'; control.step = '1';
+          return [level, control];
+        }));
+        const preview = el('section', '', { class: 'moderation-email-preview', 'aria-label': 'Verifier email preview' });
+        const status = el('p', '', { role: 'status' });
+        const draft = el('a', 'Open Gmail draft', { target: '_blank', rel: 'noopener noreferrer' });
+        emailPanel.append(preview, status, draft);
+        function refresh() {
+          preview.replaceChildren(el('h4', subject.value), el('p', greeting.value), el('p', introduction.value));
+          const body = [greeting.value, introduction.value];
+          let validCounts = true;
+          for (const level of levels) {
+            const value = counts.get(level).value.trim();
+            if (!/^\d{1,5}$/.test(value)) validCounts = false;
+            const heading = 'Level ' + level + ': ' + value + (Number(value) === 1 ? ' student' : ' students');
+            preview.append(el('h4', heading)); body.push(heading);
+            for (const sheet of sheets.filter(sheet => sheet.content.level === level)) {
+              const line = el('p');
+              line.append(el('a', sheet.title, { href: sheet.url, target: '_blank', rel: 'noopener noreferrer' }));
+              preview.append(line); body.push(sheet.title + '\n' + sheet.url);
+            }
+          }
+          preview.append(el('p', closing.value)); body.push(closing.value);
+          const email = recipient.value.trim();
+          const error = !/^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(email) ? 'Enter one valid verifier email address.'
+            : !subject.value.trim() ? 'Enter an email subject.' : !validCounts ? 'Enter a whole student count from 0 to 99999 for each level.' : '';
+          status.textContent = error || 'Ready to review in Gmail. Nothing has been sent.';
+          status.setAttribute('role', error ? 'alert' : 'status');
+          draft.hidden = Boolean(error);
+          if (error) draft.removeAttribute('href');
+          else {
+            const parameters = new URLSearchParams({ view: 'cm', fs: '1', to: email, su: subject.value, body: body.filter(Boolean).join('\n\n') });
+            if (options.userEmail) parameters.set('authuser', options.userEmail);
+            draft.setAttribute('href', 'https://mail.google.com/mail/?' + parameters);
+          }
+        }
+        button('Change selected records', () => chooseVerifierRecords(records), emailPanel);
+        button('Cancel email', () => { emailPanel.hidden = true; emailPanel.replaceChildren(); }, emailPanel);
+        refresh(); recipient.focus();
+      }
       async function loadRecords() {
         try {
           const result = await request('moderation/' + year);
           if (!area.isConnected) return;
           listing.replaceChildren(el('h3', listTitle));
+          if (['overview', 'internal'].includes(page)) {
+            const assessments = result.records.filter(item => !item.parent_record);
+            if (assessments.length) button('Email verifier', () => chooseVerifierRecords(assessments), listing);
+          }
           const records = result.records.filter(item => reusable ? item.parent_record : page !== 'internal' || !item.parent_record);
           if (!records.length) listing.append(el('p', reusable
             ? 'No student ' + reusable.title + ' forms yet. Use Internal Moderation to create a separate sheet for each student and standard.'
