@@ -4,7 +4,7 @@ const escape = (value) => String(value).replace(/[&<>"']/g, (char) => ({
 }[char]));
 
 function renderShell({ baseUrl, coreUrl, standalone, displayName = '', userEmail = '', userId = '', now = new Date() }) {
-  const asset = (file) => escape(baseUrl + 'framework/' + file + '?v=moderation-evaluation-autogrow-1');
+  const asset = (file) => escape(baseUrl + 'framework/' + file + '?v=verifier-email-autosave-1');
   const monthYear = new Intl.DateTimeFormat('en-NZ', {
     month: 'long', year: 'numeric', timeZone: 'Pacific/Auckland'
   }).format(now);
