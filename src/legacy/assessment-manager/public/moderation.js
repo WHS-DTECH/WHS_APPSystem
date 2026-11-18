@@ -626,6 +626,7 @@
       }
       area.append(listing, feedback);
       const emailPanel = el('section', '', { class: 'moderation-panel moderation-email', 'aria-label': 'Email verifier' });
+      for (const type of ['input', 'change']) emailPanel.addEventListener(type, event => event.stopPropagation());
       emailPanel.hidden = true; area.append(emailPanel);
       function chooseVerifierRecords(records) {
         emailPanel.hidden = false;

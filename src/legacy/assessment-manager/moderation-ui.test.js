@@ -17,7 +17,7 @@ function node(tag = 'div', text = '', attrs = {}) {
     append(...children) { for (const child of children) { child.parent = this; this.children.push(child); } },
     replaceChildren(...children) { this.children = []; this.append(...children); },
     addEventListener(type, callback) { this.events[type] = callback; },
-    dispatchEvent(event) { this.events[event.type]?.(event); if (event.bubbles) this.parent?.dispatchEvent(event); },
+    dispatchEvent(event) { this.events[event.type]?.(event); if (event.bubbles && !event.cancelBubble) this.parent?.dispatchEvent(event); },
     setAttribute(key, value) { this.attrs[key] = value; },
     removeAttribute(key) { delete this.attrs[key]; },
     focus() { this.focused = true; },
@@ -1251,7 +1251,11 @@ test('verifier email asks which parent records to include and opens an editable,
   const original = JSON.stringify(contents);
   const f = fixture({ id: '', userEmail: 'synthetic.teacher@example.test', recordsRequest: async () => ({ records }),
     recordRequest: async path => ({ content: contents[path.split('/').pop()], revision: 1 }) });
-  await flush(); await f.click('Email verifier');
+  await flush();
+  let autosaves = 0;
+  f.host.addEventListener('input', () => { autosaves++; });
+  f.host.addEventListener('change', () => { autosaves++; });
+  await f.click('Email verifier');
   const panel = f.host.find(n => n.attrs['aria-label'] === 'Email verifier');
   const choices = panel.all().filter(n => n.tag === 'input' && n.attrs.type === 'checkbox');
   assert.equal(choices.length, 4);
@@ -1259,7 +1263,9 @@ test('verifier email asks which parent records to include and opens an editable,
   assert.equal(f.calls.filter(call => call[0] === 'request' && /^2026\/moderation\/(?!main)/.test(call[1])).length, 0);
   await f.click('Prepare verifier email');
   assert.ok(panel.find(n => n.attrs.role === 'alert' && n.textContent === 'Select at least one moderation record.'));
-  for (const choice of choices.slice(0, 3)) choice.checked = true;
+  for (const choice of choices.slice(0, 3)) {
+    choice.checked = true; choice.dispatchEvent(new Event('change', { bubbles: true }));
+  }
   await f.click('Prepare verifier email');
   assert.deepEqual(f.calls.filter(call => call[0] === 'request' && /^2026\/moderation\/(?!main)/.test(call[1])).map(call => call[1]),
     [record, second, third].map(id => '2026/moderation/' + id));
@@ -1271,7 +1277,7 @@ test('verifier email asks which parent records to include and opens an editable,
   assert.equal(draft.hidden, true); assert.equal(draft.attrs.href, undefined);
   for (const [key, value] of [['recipient', 'verifier@example.test'], ['subject', 'DTECH & final moderation?'],
     ['introduction', 'Please verify these sheets.\nThank you & see you soon.'], ['closing', 'Thanks,\nSynthetic Teacher'], ['count-2', '4']]) {
-    field(key).value = value; field(key).events.input();
+    field(key).value = value; field(key).dispatchEvent(new Event('input', { bubbles: true }));
   }
   assert.equal(draft.hidden, false);
   const url = new URL(draft.attrs.href);
@@ -1302,6 +1308,7 @@ test('verifier email asks which parent records to include and opens an editable,
   await f.click('Cancel email'); assert.equal(panel.hidden, true);
   assert.equal(JSON.stringify(contents), original);
   assert.equal(f.saved.length, 0);
+  assert.equal(autosaves, 0);
   assert.equal(f.calls.filter(call => ['mutate', 'upload', 'authorize', 'binary'].includes(call[0])).length, 0);
 });
 test('verifier email reports missing sheets, levels, unreadable data and failed record loads without producing a partial draft', async () => {
