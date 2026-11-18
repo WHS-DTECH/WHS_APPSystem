@@ -7,6 +7,7 @@ const { staffDirectory, attendanceClasses } = require('./kamarDirectory');
 const { httpsAppUrl } = require('./appAddresses');
 const { query: kamarQuery } = require('./legacy/kamar-uploader/db');
 const { userHasHubPermission } = require('./hubRoles');
+const { assessmentModerationAccess } = require('./assessmentModerationAccess');
 
 const hash = (value) => crypto.createHash('sha256').update(value).digest('base64url');
 const opaque = (value) => typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value);
@@ -161,6 +162,18 @@ function createModuleIdentityRouter({
     } catch (error) {
       console.error('Shared Kamar staff directory load failed.');
       res.status(502).json({ error: 'The current Kamar Uploader staff list could not be loaded. Check the staff upload and retry.' });
+    }
+  }));
+  router.post('/moderation-access', wrap(async (req, res) => {
+    const user = await identity(req, res);
+    if (!user) return;
+    if (req.body.client_id?.split(':')[0] !== 'whs-assessment-manager') {
+      return deny(res, 'Moderation access is restricted to Assessment Manager.');
+    }
+    try { res.json(await assessmentModerationAccess(user, directoryQuery, dbQuery)); }
+    catch {
+      console.error('Assessment Manager department authority check failed.');
+      res.status(502).json({ error: 'Current HoLA authority could not be verified. Retry shortly.' });
     }
   }));
   router.post('/attendance-classes', wrap(async (req, res) => {

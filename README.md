@@ -1719,6 +1719,15 @@ when names are unavailable), so Assessment Manager can filter NZQA exam and
 portfolio dates. Reviewed available leaders remain associated with their
 department even when Tracker class links have not yet been configured.
 
+`POST /module-auth/moderation-access` is restricted to that registered client and
+its current module grant. It returns ADMIN all-record scope or the signed-in
+staff member's currently reviewed, available HOL/HOLA departments. Non-admin
+access requires a unique active Core account and current KAMAR staff match by
+school email, name and staff code. Unique acting leadership takes precedence;
+on-leave, ambiguous and TIC-only leadership do not grant full-record access.
+Generic module Lead Teacher assignments are not HoLA authority. Directory failures
+return an explicit error rather than cached or caller-supplied permissions.
+
 It can also call `POST /module-auth/class-size` with a school year and course code
 (for example `13DTECH`). Student Tracker counts distinct students in the current
 timetable (or the latest preserved term) whose course lessons match the linked
