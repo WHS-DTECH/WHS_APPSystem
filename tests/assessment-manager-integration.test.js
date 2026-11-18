@@ -11,7 +11,7 @@ const origin = 'https://school.example.test';
 
 async function fixture(t) {
   const owner = crypto.randomUUID();
-  const state = { signedIn: true, allowed: true, unavailable: false, incomplete: false, calls: [], revision: 1 };
+  const state = { signedIn: true, allowed: true, unavailable: false, incomplete: false, calls: [], revision: 1, roles: ['Teacher'] };
   const app = express();
   const globalJson = express.json({ limit: '25mb' });
   app.use((req, res, next) => req.path.startsWith('/whs-assessment-manager/') ? next() : globalJson(req, res, next));
@@ -25,7 +25,7 @@ async function fixture(t) {
     assert.match(sql, /FROM users u/);
     assert.deepEqual(values, [owner, 'whs-assessment-manager']);
     return { rows: state.allowed ? [{ id: owner, email: 'teacher@school.test', display_name: 'Test Teacher',
-      roles: ['Teacher'], module_roles: ['teacher'] }] : [] };
+      roles: state.roles, module_roles: ['teacher'] }] : [] };
   };
   const assessmentQuery = async (sql, values) => {
     state.calls.push({ sql, values });
@@ -34,7 +34,12 @@ async function fixture(t) {
       return { rows: values[0].slice(state.incomplete ? 1 : 0).map(name => ({ name })) };
     }
     if (/LIMIT 0$/.test(sql)) return { rows: [] };
+    if (sql.includes('FROM assessment_verifiers')) return { rows: [] };
     assert.equal(values[0], owner);
+    if (sql.includes("->>'verifierId'=$4") || sql.includes('FROM assessment_verifier_history')) {
+      assert.deepEqual(values.slice(1, 3), [[], true], 'embedded ADMIN history uses current server authority');
+      return { rows: [] };
+    }
     if (sql.startsWith('SELECT content,revision,updated_at FROM assessment_settings')) {
       return { rows: [{ content: {}, revision: state.revision, updated_at: null }] };
     }
@@ -86,6 +91,17 @@ test('assessment database is separate and never falls back to another database',
   assert.throws(() => databaseOptions({ ASSESSMENT_MANAGER_DATABASE_URL: assessment, INTEGRATION_KAMAR_DATABASE_URL: assessment }, core), /must not use/);
   assert.throws(() => databaseOptions({ ASSESSMENT_MANAGER_DATABASE_URL: assessment, TEACHER_PLANNER_DATABASE_URL: assessment }, core), /must not use/);
   assert.throws(() => databaseOptions({ ASSESSMENT_MANAGER_DATABASE_URL: 'https://assessment.example.test/data' }, core), /PostgreSQL/);
+});
+
+test('embedded verifier contacts and cross-year history use their separate tables and live authority loader', async t => {
+  const { state, call } = await fixture(t);
+  state.roles = ['ADMIN'];
+  assert.equal((await call('/framework/verifiers.js')).status, 200);
+  assert.deepEqual(await (await call('/api/moderation/verifiers')).json(), { verifiers: [] });
+  const response = await call('/api/moderation/verifiers/' + crypto.randomUUID() + '/history');
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { linked: [], manual: [] });
+  assert.ok(state.calls.some(({ sql }) => sql.includes('FROM assessment_verifier_history')));
 });
 
 test('assessment navigation uses its own role management permission', async () => {

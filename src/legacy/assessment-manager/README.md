@@ -390,6 +390,38 @@ When the Internal Moderation Sheet opens, each linked student's saved overall
 grade and marker comments fill an empty marker grade and discussion field.
 Existing entries are preserved; clear a field and reopen the sheet to refill it.
 
+### Verifiers
+
+The **Moderation -> Verifiers** tab is a staff-shared contact directory for name,
+school, position, email, notes/reference and the staff-recorded **NZQA Expert
+Moderator** designation (not independently verified with NZQA). Contact edits are
+revision-checked. **Email this verifier** prefills an editable Gmail draft; select
+your assessment records, each with a level and an existing Internal Moderation
+Drive sheet. Links are grouped by level with editable distinct-sample counts.
+No student names are included. Review/send in Gmail yourself; preparing email
+does not save records, change sharing or mark moderation complete.
+
+**Moderation history** shows explicitly linked Assessment Manager records across
+years and manually entered older/external moderation with year, department,
+standard/title, optional date and notes/evidence reference. **Link my existing
+record** loads one of your parent records for the chosen year and confirms saving
+the stable contact ID, name, school and position using the latest revision. Other
+content and dates stay unchanged; Drive documents are not refreshed. Historical
+names are never automatically matched. Changing the verifier name on the internal
+form removes its saved contact association; link the correct contact again here.
+Linked history uses the saved verification date or dated named sample; undated
+records remain awaiting moderation. Email drafts never count as completed history.
+Save or cancel contact/manual-history edits before leaving.
+
+Teachers see their own history and forms. Verified HoLAs can also read full parent
+and student forms for their current department; ADMIN can read all. Each history
+and full-record request checks current server-side Core/KAMAR leadership, failing
+explicitly if unavailable. Other owners' forms remain read-only. Only the creator
+can edit manual entries. Original Drive permissions are unchanged.
+Migration `009_verifiers.sql` creates the shared contact and manual-history tables
+in the existing Assessment Manager database. Focused checks:
+`node --test verifiers.test.js moderation-ui.test.js`.
+
 Each named student's Date moderated follows the Section C verification date;
 a different date entered for a student is kept when the verification date changes.
 Sighted by fields are shown and enabled only once the verifier's name and verification date

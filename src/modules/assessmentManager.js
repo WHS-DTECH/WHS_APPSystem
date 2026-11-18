@@ -5,6 +5,7 @@ const config = require('../config');
 const { query: coreQuery } = require('../db');
 const { query: kamarQuery } = require('../legacy/kamar-uploader/db');
 const { authorisedModuleUser } = require('../moduleIdentity');
+const { assessmentModerationAccess } = require('../assessmentModerationAccess');
 const { staffDirectory } = require('../kamarDirectory');
 const { createStudentTrackerService } = require('../studentTracker');
 const { createModuleRouter } = require('../legacy/assessment-manager/app');
@@ -17,12 +18,13 @@ const TABLES = [
   'assessment_resource_library', 'assessment_resource_library_history', 'assessment_resource_library_drafts',
   'assessment_home_calendar', 'assessment_home_tasks', 'assessment_home_audit', 'assessment_calendar_cache',
   'assessment_school_calendar', 'assessment_school_calendar_history',
-  'assessment_suppliers', 'assessment_supplier_reminders', 'assessment_exam_timetable_cache'
+  'assessment_suppliers', 'assessment_supplier_reminders', 'assessment_exam_timetable_cache',
+  'assessment_verifiers', 'assessment_verifier_history'
 ];
 const MIGRATIONS = [
   '001_initial.sql', '002_assessment_records.sql', '003_resource_library.sql',
   '004_assessment_home.sql', '005_school_calendar.sql', '006_library_drafts_and_deletion.sql',
-  '007_suppliers.sql', '008_exam_timetable_cache.sql'
+  '007_suppliers.sql', '008_exam_timetable_cache.sql', '009_verifiers.sql'
 ];
 
 function databaseOptions(env = process.env, coreUrl = config.databaseUrl) {
@@ -71,7 +73,8 @@ function createAssessmentManagerRouter({ env = process.env, dbQuery = coreQuery,
         },
         loadStaff: req => staffDirectory(req.user, {}, directoryQuery, dbQuery),
         loadTeachingSubjects: (req, year) => tracker.teachingSubjects(req.user, { year }),
-        loadClassSize: (req, year, course) => tracker.courseSize(req.user, { year, course })
+        loadClassSize: (req, year, course) => tracker.courseSize(req.user, { year, course }),
+        loadModerationAccess: req => assessmentModerationAccess(req.user, directoryQuery, dbQuery)
       });
     }).catch(error => { ready = null; throw error; });
     return ready;

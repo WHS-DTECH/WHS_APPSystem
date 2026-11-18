@@ -1949,7 +1949,7 @@ judgement; there are no per-requirement level dropdowns or grade ticks in the
 form or newly generated documents. Set the overall grade manually under
 **Marking decision**, including for Unit Standards. Historical requirement grades
 remain in saved records, and older graded documents can still be imported.
-**Email verifier** on Moderation's Records or Internal Moderation contents asks
+**Email verifier** on Moderation's **Verifiers** tab asks
 which assessment records to include, then prepares an editable Gmail draft with
 existing Internal Moderation Drive links grouped by level. Student counts start
 from distinct sample names per level and are editable; student names are not
@@ -1960,6 +1960,23 @@ level and linked Drive sheet. Update those sheets first if their saved forms hav
 changed and ensure the verifier has Drive access. The app does not send emails,
 change sharing or mark moderation complete. The temporary message editor is not
 saved when cancelled or left.
+The same tab stores a staff-shared verifier directory (name, school, position,
+email, notes/reference and staff-recorded **NZQA Expert Moderator** designation).
+**Email this verifier** prefills the recipient and greeting. **Moderation history**
+shows explicitly linked Assessment Manager records across years and manual
+older/external entries with year, department, standard/title, optional date and
+notes. Linking one of your existing records saves the stable verifier ID and
+contact fields after confirmation, preserving other content and moderation dates;
+historical names are never matched automatically. Changing the verifier name on
+the internal form removes its saved contact association. Undated linked records
+remain awaiting moderation; preparing email never creates completion history.
+Teachers see their own history/full forms; currently verified HoLAs can also read
+full parent and student forms for their department, and ADMIN can read all.
+Other owners' forms remain read-only; manual history is editable only by its
+creator. Contacts and manual entries are revision-checked. Authority is fetched
+from current Core/KAMAR leadership on each history/full-record request and fails
+explicitly when unavailable. Migration `009_verifiers.sql` creates the contact and
+manual-history tables in the existing Assessment Manager database.
 When the Internal Moderation Sheet opens, each linked student's saved overall
 grade and marker comments fill an empty marker grade and discussion field.
 Existing entries are preserved; clear a field and reopen the sheet to refill it.

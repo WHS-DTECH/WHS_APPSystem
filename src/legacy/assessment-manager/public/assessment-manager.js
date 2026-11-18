@@ -157,6 +157,10 @@
         year: route.year, section: 'moderation', record: nextRecord, page
       })
     });
+    if (moderation?.hasUnsavedChanges) {
+      saveCurrent = moderation.saveNow;
+      hasUnsavedChanges = moderation.hasUnsavedChanges;
+    }
     openSetupYear = setupOnly ? moderation.openYear : undefined;
   }
 

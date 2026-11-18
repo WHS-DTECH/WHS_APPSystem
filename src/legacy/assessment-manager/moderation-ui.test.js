@@ -7,6 +7,7 @@ const schema = require('./public/moderation-schema');
 const librarySchema = require('./public/resource-library-schema');
 const librarySource = fs.readFileSync(require.resolve('./public/resource-library.js'), 'utf8');
 const source = fs.readFileSync(require.resolve('./public/moderation.js'), 'utf8');
+const verifiersSource = fs.readFileSync(require.resolve('./public/verifiers.js'), 'utf8');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 const record = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -370,7 +371,7 @@ test('Manager clears loading after each route renders but keeps request errors v
     });
   }
 });
-function fixture({ page = 'overview', id = record, data = {}, setupOnly = false, saveFails = false, staff = [], departments = [], staffRequest, standardRequest, consentRequest, previewRequest, referenceRequest, recordRequest, recordsRequest, teachingRequest, classSizeRequest, libraryRequest, mutation, importResult, myStandards, selectedLevel = '3', selectedTopic = 'Database', displayName = 'Synthetic Teacher', userEmail = '', confirmResponse = true, clock = Date } = {}) {
+function fixture({ page = 'overview', id = record, data = {}, setupOnly = false, saveFails = false, staff = [], departments = [], staffRequest, standardRequest, consentRequest, previewRequest, referenceRequest, recordRequest, recordsRequest, teachingRequest, classSizeRequest, libraryRequest, verifierRequest, mutation, importResult, myStandards, selectedLevel = '3', selectedTopic = 'Database', displayName = 'Synthetic Teacher', userEmail = '', confirmResponse = true, clock = Date } = {}) {
   const host = node(), saved = [], calls = [], notices = [], navigation = [];
   const file = { id: 'document_id_123', name: 'Existing assessment', mimeType: 'application/vnd.google-apps.document',
     modifiedTime: '2026-10-22T00:00:00Z', parents: ['student_folder_123'], capabilities: { canEdit: true, canAddChildren: true } };
@@ -441,8 +442,9 @@ function fixture({ page = 'overview', id = record, data = {}, setupOnly = false,
     }
   };
   vm.runInNewContext(librarySource, context);
+  vm.runInNewContext(verifiersSource, context);
   vm.runInNewContext(source, context);
-  context.plannerModeration.mount(host, {
+  const controller = context.plannerModeration.mount(host, {
     el: node, data: { title: 'Synthetic assessment', folderId: 'folder_id_123', folderName: 'Private assessments',
       ...(setupOnly ? { folderTopics: '["Database"]' } : {}),
       level: page === 'overview' ? '' : '3', version: page === 'overview' ? '' : '2', standardNumber: '99999', ...data }, displayName, userEmail,
@@ -452,6 +454,7 @@ function fixture({ page = 'overview', id = record, data = {}, setupOnly = false,
     coversheetTemplateUrl: '/teacher-planner/api/planner/moderation/templates/coversheet',
     request: async path => {
       calls.push(['request', path]);
+      if (path.startsWith('verifiers')) return verifierRequest ? verifierRequest(path) : { verifiers: [], linked: [], manual: [] };
       if (path.startsWith('resource-library')) return libraryRequest ? libraryRequest(path) : { records: [], total: 0 };
       if (/^teaching-subjects\/\d{4}$/.test(path)) return teachingRequest ? teachingRequest(path) : { classes: [] };
       if (path === 'staff') return staffRequest ? staffRequest() : { staff, departments };
@@ -487,7 +490,7 @@ function fixture({ page = 'overview', id = record, data = {}, setupOnly = false,
     assert.ok(button, label); assert.notEqual(button.disabled, true, label + ' enabled');
     await button.events.click();
   };
-  return { host, saved, calls, notices, navigation, click, access, set chosen(value) { chosen = value; }, set missing(value) { missing = value; } };
+  return { host, saved, calls, notices, navigation, click, access, controller, set chosen(value) { chosen = value; }, set missing(value) { missing = value; } };
 }
 test('results completion follows named students and fills an empty loaded date from the latest KAMAR date', async () => {
   const f = fixture({ page: 'internal', data: { internal: JSON.stringify({ samples: [
@@ -1134,12 +1137,15 @@ test('Confirmation launch rejects mismatched parents and failed saves without na
 test('top year contents tabs navigate to year-wide lists instead of the current record', async () => {
   const f = fixture({ page: 'schedule' }); await flush();
   const tabs = f.host.find(n => n.attrs.class === 'moderation-tabs');
-  assert.equal(tabs.children.length, 5);
+  assert.equal(tabs.children.length, 6);
   assert.equal(tabs.children[2].attrs['aria-current'], 'page');
   await tabs.children[1].events.click();
   assert.deepEqual(f.navigation.at(-1), ['', 'internal']);
   await tabs.children[3].events.click();
   assert.deepEqual(f.navigation.at(-1), ['', 'feedback']);
+  await tabs.children[5].events.click();
+  assert.deepEqual(f.navigation.at(-1), ['', 'verifiers']);
+  assert.equal(f.host.find(n => n.tag === 'button' && n.textContent === 'Email verifier'), undefined);
 });
 test('year contents group shared and individual schedules by standard and open the selected form', async () => {
   const child = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
@@ -1249,7 +1255,7 @@ test('verifier email asks which parent records to include and opens an editable,
       : i === 1 ? [{ student: ' learner   a ' }, { student: 'Learner C' }] : [{ student: 'Learner D' }] })
   }]));
   const original = JSON.stringify(contents);
-  const f = fixture({ id: '', userEmail: 'synthetic.teacher@example.test', recordsRequest: async () => ({ records }),
+  const f = fixture({ id: '', page: 'verifiers', userEmail: 'synthetic.teacher@example.test', recordsRequest: async () => ({ records }),
     recordRequest: async path => ({ content: contents[path.split('/').pop()], revision: 1 }) });
   await flush();
   let autosaves = 0;
@@ -1323,7 +1329,7 @@ test('verifier email reports missing sheets, levels, unreadable data and failed 
     [{ parentRecord: record }, /is no longer an assessment record/],
     [null, /Records unavailable/]
   ]) {
-    const f = fixture({ id: '', page: 'internal', recordsRequest: async () => ({ records: [
+    const f = fixture({ id: '', page: 'verifiers', recordsRequest: async () => ({ records: [
       { entry_key: record, title: 'Valid sheet' }, { entry_key: second, title: 'Problem sheet' }
     ] }), recordRequest: async path => {
       if (path.endsWith(second) && overrides === null) throw new Error('Records unavailable');
@@ -1341,7 +1347,7 @@ test('verifier email reports missing sheets, levels, unreadable data and failed 
 });
 test('cancelling a pending verifier email does not restore its abandoned selection', async () => {
   let resolve;
-  const f = fixture({ id: '', recordRequest: () => new Promise(done => { resolve = done; }) });
+  const f = fixture({ id: '', page: 'verifiers', recordRequest: () => new Promise(done => { resolve = done; }) });
   await flush(); await f.click('Email verifier');
   const panel = f.host.find(n => n.attrs['aria-label'] === 'Email verifier');
   panel.find(n => n.attrs.type === 'checkbox').checked = true;
@@ -1352,6 +1358,108 @@ test('cancelling a pending verifier email does not restore its abandoned selecti
   await pending;
   assert.equal(panel.hidden, true);
   assert.equal(panel.find(n => n.textContent === 'Open Gmail draft'), undefined);
+});
+const savedVerifier = { id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', name: 'Saved Verifier', school: 'Example School',
+  position: 'Moderator', email: 'saved@example.test', nzqa_expert: true, notes: 'Staff reference', revision: 4 };
+test('shared verifier edits save explicitly with revisions and do not reach moderation autosave', async () => {
+  const f = fixture({ id: '', page: 'verifiers', verifierRequest: async () => ({ verifiers: [savedVerifier] }) });
+  await flush();
+  assert.ok(f.host.find(n => n.textContent === 'NZQA Expert Moderator'));
+  let autosaves = 0;
+  f.host.addEventListener('input', () => { autosaves++; });
+  f.host.addEventListener('change', () => { autosaves++; });
+  await f.click('Edit details');
+  const name = f.host.find(n => n.attrs.id === 'verifier-name');
+  name.value = 'Updated Verifier'; name.dispatchEvent(new Event('input', { bubbles: true }));
+  const expert = f.host.find(n => n.attrs.id === 'verifier-expert');
+  expert.checked = false; expert.dispatchEvent(new Event('change', { bubbles: true }));
+  assert.equal(f.controller.hasUnsavedChanges(), true);
+  await assert.rejects(f.controller.saveNow(), /Save or cancel/);
+  assert.equal(f.calls.some(call => call[0] === 'mutate'), false);
+  await f.click('Save verifier');
+  const write = f.calls.find(call => call[0] === 'mutate');
+  assert.equal(write[1], 'verifiers/' + savedVerifier.id);
+  assert.equal(write[2].revision, 4);
+  assert.equal(write[2].verifier.name, 'Updated Verifier');
+  assert.equal(write[2].verifier.nzqaExpert, false);
+  assert.equal(autosaves, 0); assert.equal(f.saved.length, 0);
+  assert.equal(f.controller.hasUnsavedChanges(), false);
+});
+test('saved verifier selection prefills the Gmail draft without saving records or history', async () => {
+  const f = fixture({ id: '', page: 'verifiers', verifierRequest: async () => ({ verifiers: [savedVerifier] }),
+    recordRequest: async () => ({ revision: 2, content: { level: '2', internal: '{}',
+      driveDocuments: JSON.stringify({ internal: { id: 'moderation_file_123', name: 'Sheet', mimeType: DOCX } }) } }) });
+  await flush(); await f.click('Email this verifier');
+  const panel = f.host.find(n => n.attrs['aria-label'] === 'Email verifier');
+  panel.find(n => n.attrs.type === 'checkbox').checked = true;
+  await f.click('Prepare verifier email');
+  assert.equal(panel.find(n => n.attrs.id === 'moderation-email-recipient').value, savedVerifier.email);
+  assert.equal(panel.find(n => n.attrs.id === 'moderation-email-greeting').value, 'Kia ora Saved Verifier,');
+  const draft = panel.find(n => n.tag === 'a' && n.textContent === 'Open Gmail draft');
+  assert.equal(new URL(draft.attrs.href).searchParams.get('to'), savedVerifier.email);
+  assert.equal(f.calls.some(call => call[0] === 'mutate'), false);
+  assert.equal(f.saved.length, 0);
+});
+test('explicit cross-year verifier linking preserves the latest record and never claims completion', async () => {
+  const original = { title: 'Existing assessment', department: 'Technology', schedule: '{"grade":"E"}',
+    internal: JSON.stringify({ verifierName: 'Old name', verificationDate: '', notes: 'Retain this note', samples: [{ student: 'Synthetic learner', markerGrade: 'A' }] }) };
+  const f = fixture({ id: '', page: 'verifiers',
+    verifierRequest: async path => path === 'verifiers' ? { verifiers: [savedVerifier] } : { linked: [], manual: [] },
+    recordRequest: async path => { assert.equal(path, '2024/moderation/' + record); return { content: original, revision: 7 }; } });
+  await flush(); await f.click('Moderation history'); await f.click('Link my existing record');
+  const year = f.host.find(n => n.attrs.id === 'verifier-link-year');
+  year.value = '2024'; year.dispatchEvent(new Event('input', { bubbles: true }));
+  await f.click('Load my records for year');
+  f.host.find(n => n.attrs['aria-label'] === 'Record to link').value = record;
+  await f.click('Link verifier to record');
+  const write = f.calls.find(call => call[0] === 'mutate');
+  assert.equal(write[1], '2024/moderation/' + record);
+  assert.equal(write[2].revision, 7);
+  assert.equal(write[2].content.schedule, original.schedule);
+  const internal = JSON.parse(write[2].content.internal);
+  assert.equal(internal.verifierId, savedVerifier.id);
+  assert.equal(internal.verifierName, savedVerifier.name);
+  assert.equal(internal.verificationDate, '');
+  assert.equal(internal.notes, 'Retain this note');
+  assert.deepEqual(internal.samples, JSON.parse(original.internal).samples);
+  assert.equal(JSON.parse(original.internal).verifierName, 'Old name');
+});
+test('history shows manual years and pending linked records, with a read-only full student viewer', async () => {
+  const entry = { id: record, year: 2022, department: 'Technology', standard_number: '99999', title: 'Historical assessment',
+    moderated_date: '2022-10-12', notes: 'Older evidence', revision: 3, own: true };
+  const f = fixture({ id: '', page: 'verifiers', verifierRequest: async path => path === 'verifiers' ? { verifiers: [savedVerifier] } :
+    path.includes('/records/') ? { content: { title: 'Department assessment', department: 'Technology', internal: '{}' },
+      children: [{ content: { studentName: 'Synthetic learner', schedule: '{"grade":"E","requirements":[{"requirement":"Evidence","grade":"A"}]}' } }] } :
+      { linked: [{ ownerId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', year: 2025, record, department: 'Technology',
+        title: 'Awaiting verifier', standardNumber: '99999', moderatedDate: '', pending: true, own: false }],
+      manual: [entry, { ...entry, id: savedVerifier.id, own: false, title: 'Another teacher history' }] } });
+  await flush(); await f.click('Moderation history');
+  assert.ok(f.host.find(n => n.textContent === 'Awaiting moderation'));
+  assert.ok(f.host.find(n => n.textContent === '2022'));
+  assert.equal(f.host.all().filter(n => n.textContent === 'Edit history entry').length, 1);
+  await f.click('View full record');
+  const panels = f.host.all().filter(n => n.attrs.class === 'moderation-panel verifier-readonly');
+  assert.equal(panels.length, 2);
+  assert.ok(panels[1].find(n => n.textContent === 'Student name (individual documents): Synthetic learner'));
+  assert.ok(panels[1].find(n => n.textContent === 'Overall grade: E'));
+  assert.equal(panels[1].find(n => n.textContent === 'Grade met: A'), undefined);
+  assert.equal(panels.flatMap(n => n.all()).some(n => ['input', 'textarea', 'button'].includes(n.tag)), false);
+  await f.click('Close full record'); await f.click('Edit history entry');
+  const title = f.host.find(n => n.attrs.id === 'verifier-history-title');
+  title.value = 'Updated historic title'; title.dispatchEvent(new Event('input', { bubbles: true }));
+  await f.click('Save history entry');
+  const write = f.calls.find(call => call[0] === 'mutate');
+  assert.equal(write[2].revision, 3); assert.equal(write[2].entry.year, 2022);
+  assert.equal(write[2].entry.title, 'Updated historic title');
+});
+test('editing a linked verifier name removes the association without guessing a new contact', async () => {
+  const f = fixture({ page: 'internal', data: { internal: JSON.stringify({ verifierId: savedVerifier.id, verifierName: savedVerifier.name }) } });
+  await flush();
+  const control = f.host.find(n => n.attrs.id === 'moderation-internal-verifierName');
+  control.value = 'Different Verifier'; control.events.input();
+  const internal = JSON.parse(f.host.find(n => n.attrs.name === 'internal').value);
+  assert.equal(internal.verifierId, undefined);
+  assert.equal(internal.verifierName, 'Different Verifier');
 });
 test('Records table groups standards and stacks student links in the correct document columns', async () => {
   const first = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', second = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';

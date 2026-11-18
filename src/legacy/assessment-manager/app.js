@@ -4,7 +4,7 @@ const { renderShell } = require('./shell');
 const { createAssessmentRouter } = require('./assessment');
 
 // Embedded hosting supplies req.user from Global Control; never trust identity headers.
-function createModuleRouter({ query, loadStaff, loadTeachingSubjects, loadClassSize, env = process.env } = {}) {
+function createModuleRouter({ query, loadStaff, loadTeachingSubjects, loadClassSize, loadModerationAccess, env = process.env } = {}) {
   const router = express.Router();
   router.use((req, res, next) => {
     res.set('Cache-Control', 'no-store');
@@ -14,7 +14,7 @@ function createModuleRouter({ query, loadStaff, loadTeachingSubjects, loadClassS
     }
     next();
   });
-  router.use('/api/moderation', createAssessmentRouter({ query, loadStaff, loadTeachingSubjects, loadClassSize, env }));
+  router.use('/api/moderation', createAssessmentRouter({ query, loadStaff, loadTeachingSubjects, loadClassSize, loadModerationAccess, env }));
   router.use('/framework', express.static(path.join(__dirname, 'public')));
   router.get('/', (req, res) => {
     const standalone = Boolean(req.moduleStandalone);

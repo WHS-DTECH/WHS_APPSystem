@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node migrate.js && node server.js",
     "db:migrate": "node migrate.js",
-    "test": "node --test app.test.js assessment.test.js moderation-ui.test.js moderation-drive.test.js resource-library.test.js assessment-home.test.js"
+    "test": "node --test app.test.js assessment.test.js moderation-ui.test.js moderation-drive.test.js resource-library.test.js assessment-home.test.js verifiers.test.js"
   },
   "dependencies": {
     "@xmldom/xmldom": "^0.8.11",

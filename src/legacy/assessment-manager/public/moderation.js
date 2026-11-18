@@ -528,8 +528,8 @@
     const contentsPage = documents[page] ? page : 'internal';
     const tabs = el('nav', '', { class: 'moderation-tabs', 'aria-label': 'Year moderation contents', 'data-planner-navigation': '' });
     for (const [key, title] of [['overview', 'Records'], ['internal', 'Internal Moderation'],
-      ['schedule', 'Marking Schedule'], ['feedback', 'Marking Confirmation & Feedback'], ['coversheet', 'WHS Coversheet']]) {
-      const tab = button(title, () => navigate('', key), tabs);
+      ['schedule', 'Marking Schedule'], ['feedback', 'Marking Confirmation & Feedback'], ['coversheet', 'WHS Coversheet'], ['verifiers', 'Verifiers']]) {
+      const tab = button(title, () => navigate('', key).catch(error => message(error.message, true)), tabs);
       if (key === (record ? contentsPage : page)) tab.setAttribute('aria-current', 'page');
     }
     area.append(tabs);
@@ -617,7 +617,7 @@
         finally { delete area.dataset.moderationBusy; area.inert = false; working = false; createButton.disabled = false; }
       }, create);
       const listing = el('section', '', { class: 'moderation-panel' });
-      const listTitle = page === 'overview' ? 'My moderation records'
+      const listTitle = page === 'verifiers' ? 'Verifiers' : page === 'overview' ? 'My moderation records'
         : (reusable ? 'Student ' + reusable.title + ' forms' : page === 'internal' ? 'Internal Moderation' : documents[page].title) + ' — ' + year;
       listing.append(el('h3', listTitle), el('p', 'Loading records…', { role: 'status' }));
       if (page === 'overview') area.append(create);
@@ -628,6 +628,7 @@
       const emailPanel = el('section', '', { class: 'moderation-panel moderation-email', 'aria-label': 'Email verifier' });
       for (const type of ['input', 'change']) emailPanel.addEventListener(type, event => event.stopPropagation());
       emailPanel.hidden = true; area.append(emailPanel);
+      let emailVerifier;
       function chooseVerifierRecords(records) {
         emailPanel.hidden = false;
         emailPanel.replaceChildren(el('h3', 'Email verifier'),
@@ -684,10 +685,10 @@
         const fields = el('div', '', { class: 'moderation-fields' });
         emailPanel.append(fields);
         const names = [...new Set(sheets.map(sheet => (sheet.internal.verifierName || '').trim()).filter(Boolean))];
-        const recipient = input(['recipient', 'Verifier email'], '', refresh, fields, 'email-');
+        const recipient = input(['recipient', 'Verifier email'], emailVerifier?.email || '', refresh, fields, 'email-');
         recipient.type = 'email';
         const subject = input(['subject', 'Email subject'], 'Internal moderation for verification - ' + year, refresh, fields, 'email-');
-        const greeting = input(['greeting', 'Greeting'], names.length === 1 ? 'Kia ora ' + names[0] + ',' : 'Kia ora,', refresh, fields, 'email-');
+        const greeting = input(['greeting', 'Greeting'], emailVerifier ? 'Kia ora ' + emailVerifier.name + ',' : names.length === 1 ? 'Kia ora ' + names[0] + ',' : 'Kia ora,', refresh, fields, 'email-');
         const introduction = input(['introduction', 'Introduction / request', 'area'],
           'Could you please verify the internal moderation sheets linked below? Please let me know if you have any questions or would like to discuss any of the judgements. Thank you for your help.', refresh, fields, 'email-');
         const closing = input(['closing', 'Closing / signature', 'area'], 'Kind regards,\n' + assessorName, refresh, fields, 'email-');
@@ -741,10 +742,6 @@
           const result = await request('moderation/' + year);
           if (!area.isConnected) return;
           listing.replaceChildren(el('h3', listTitle));
-          if (['overview', 'internal'].includes(page)) {
-            const assessments = result.records.filter(item => !item.parent_record);
-            if (assessments.length) button('Email verifier', () => chooseVerifierRecords(assessments), listing);
-          }
           const records = result.records.filter(item => reusable ? item.parent_record : page !== 'internal' || !item.parent_record);
           if (!records.length) listing.append(el('p', reusable
             ? 'No student ' + reusable.title + ' forms yet. Use Internal Moderation to create a separate sheet for each student and standard.'
@@ -830,6 +827,18 @@
           listing.replaceChildren(el('p', error.message, { role: 'alert' }));
           button('Retry loading records', loadRecords, listing);
         }
+      }
+      if (page === 'verifiers') {
+        return globalThis.assessmentVerifiers.mount(listing, {
+          el, request, mutate, year,
+          onEmail: async verifier => {
+            const result = await request('moderation/' + year);
+            const records = result.records.filter(item => !item.parent_record);
+            if (!records.length) throw new Error('No assessment records are available for ' + year + '. Create a record from Records first.');
+            emailVerifier = verifier;
+            chooseVerifierRecords(records);
+          }
+        });
       }
       loadRecords();
       async function loadStandards() {
@@ -1984,6 +1993,10 @@
           const control = input(def, sightedField && !verifierComplete() ? '' : state[def[0]], value => {
             const previous = state[def[0]];
             state[def[0]] = value;
+            if (page === 'internal' && def[0] === 'verifierName' && value !== previous && state.verifierId) {
+              delete state.verifierId;
+              message('Saved verifier association removed because the name changed. Use Verifiers to link the correct contact.');
+            }
             if (page === 'internal' && def[0] === 'evaluationComments' && value !== previous &&
                 value.trim() && !(state.evaluationDate || '').trim()) {
               state.evaluationDate = todayInNewZealand();

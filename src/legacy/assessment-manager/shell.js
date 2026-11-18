@@ -1,10 +1,10 @@
-const UPDATED_AT = '2026-11-18T00:08:20.282Z';
+const UPDATED_AT = '2026-11-18T01:04:38.515Z';
 const escape = (value) => String(value).replace(/[&<>"']/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
 }[char]));
 
 function renderShell({ baseUrl, coreUrl, standalone, displayName = '', userEmail = '', userId = '', now = new Date() }) {
-  const asset = (file) => escape(baseUrl + 'framework/' + file + '?v=verifier-email-autosave-1');
+  const asset = (file) => escape(baseUrl + 'framework/' + file + '?v=verifier-directory-1');
   const monthYear = new Intl.DateTimeFormat('en-NZ', {
     month: 'long', year: 'numeric', timeZone: 'Pacific/Auckland'
   }).format(now);
@@ -58,6 +58,7 @@ ${standalone ? `<script src="${asset('global-nav.js')}" defer></script>` : ''}
 <script src="${asset('resource-library-schema.js')}" defer></script>
 <script src="${asset('resource-library.js')}" defer></script>
 <script src="${asset('suppliers.js')}" defer></script>
+<script src="${asset('verifiers.js')}" defer></script>
 <script src="${asset('moderation.js')}" defer></script>
 <script src="${asset('assessment-home.js')}" defer></script>
 <script src="${asset('assessment-manager.js')}" defer></script>

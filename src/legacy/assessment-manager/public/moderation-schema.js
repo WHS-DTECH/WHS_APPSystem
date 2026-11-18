@@ -29,7 +29,7 @@
     internal: {
       title: 'Internal Moderation Cover Sheet',
       description: 'Assessment setup, critique, verification, strategic samples and post-results review.',
-      metadata: [['consentBsasStandard', 'Automatically verified consent standard'],
+      metadata: [['verifierId', 'Saved verifier', 'uuid'], ['consentBsasStandard', 'Automatically verified consent standard'],
         ['retentionAutoProcessed', 'Retention location processed', ['', 'Yes']],
         ...['A', 'B', 'C', 'D'].map(letter => ['randomInitials' + letter, 'Random selection initials ' + letter])],
       groups: [

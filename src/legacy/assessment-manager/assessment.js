@@ -11,6 +11,7 @@ const { pickerConfiguration } = require('./googleDrive');
 const { createResourceLibraryRouter } = require('./resourceLibrary');
 const { createSuppliersRouter } = require('./suppliers');
 const { createAssessmentHomeRouter } = require('./assessmentHome');
+const { createVerifiersRouter } = require('./verifiers');
 
 const FIELD_SET = new Set(fields);
 const DOCUMENT_TYPES = new Set(Object.keys(documents));
@@ -66,7 +67,7 @@ function safeOwnerId(req) {
     ? req.user.id : null;
 }
 
-function createAssessmentRouter({ query, loadStaff, loadTeachingSubjects, loadClassSize, checkConsent = checkBsas, env = process.env } = {}) {
+function createAssessmentRouter({ query, loadStaff, loadTeachingSubjects, loadClassSize, loadModerationAccess, checkConsent = checkBsas, env = process.env } = {}) {
   const router = express.Router();
   router.use('/moderation/import/:type', express.raw({ type: DOCX, limit: '8mb' }));
   router.use(express.json({ limit: '320kb' }));
@@ -94,6 +95,7 @@ function createAssessmentRouter({ query, loadStaff, loadTeachingSubjects, loadCl
   });
   router.use('/resource-library', createResourceLibraryRouter({ query }));
   router.use('/suppliers', createSuppliersRouter({ query }));
+  router.use('/verifiers', createVerifiersRouter({ query, loadModerationAccess }));
   router.use('/home', createAssessmentHomeRouter({ query, loadTeachingSubjects }));
 
   router.get('/google-drive/config', (_req, res, next) => {
