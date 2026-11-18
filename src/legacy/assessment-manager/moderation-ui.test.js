@@ -1384,6 +1384,12 @@ test('shared verifier edits save explicitly with revisions and do not reach mode
   assert.equal(write[2].verifier.nzqaExpert, false);
   assert.equal(autosaves, 0); assert.equal(f.saved.length, 0);
   assert.equal(f.controller.hasUnsavedChanges(), false);
+  await f.click('Edit details');
+  const edited = f.host.find(n => n.attrs.id === 'verifier-name');
+  edited.value = 'Discard this change'; edited.dispatchEvent(new Event('input', { bubbles: true }));
+  await f.click('Cancel changes');
+  assert.equal(f.controller.hasUnsavedChanges(), false);
+  assert.equal(f.host.find(n => n.attrs.class === 'verifiers-directory').find(n => n.attrs.role === 'status').textContent, '');
 });
 test('saved verifier selection prefills the Gmail draft without saving records or history', async () => {
   const f = fixture({ id: '', page: 'verifiers', verifierRequest: async () => ({ verifiers: [savedVerifier] }),

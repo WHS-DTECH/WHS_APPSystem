@@ -30,7 +30,7 @@
     }
     function abandon() {
       if (dirty && !confirm('Discard unsaved verifier changes?')) return false;
-      dirty = false; editor.replaceChildren(); return true;
+      dirty = false; editor.replaceChildren(); message(''); return true;
     }
     async function load() {
       const result = await request('verifiers');

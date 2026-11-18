@@ -1,10 +1,10 @@
-const UPDATED_AT = '2026-11-18T01:04:38.515Z';
+const UPDATED_AT = '2026-11-18T01:09:19.727Z';
 const escape = (value) => String(value).replace(/[&<>"']/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
 }[char]));
 
 function renderShell({ baseUrl, coreUrl, standalone, displayName = '', userEmail = '', userId = '', now = new Date() }) {
-  const asset = (file) => escape(baseUrl + 'framework/' + file + '?v=verifier-directory-1');
+  const asset = (file) => escape(baseUrl + 'framework/' + file + '?v=verifier-directory-2');
   const monthYear = new Intl.DateTimeFormat('en-NZ', {
     month: 'long', year: 'numeric', timeZone: 'Pacific/Auckland'
   }).format(now);

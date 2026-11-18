@@ -542,8 +542,10 @@
         coversheet: { title: 'WHS Coversheet', url: options.coversheetTemplateUrl, filename: 'whs-coversheet-template.docx',
           existing: 'Existing assessment-level coversheets remain available through Records.' }
       }[page];
-      area.append(el('h2', 'Moderation — ' + year, { class: 'paper-heading' }));
-      area.append(el('p', reusable
+      area.append(el('h2', page === 'verifiers' ? 'Verifiers — shared across years' : 'Moderation — ' + year, { class: 'paper-heading' }));
+      area.append(el('p', page === 'verifiers'
+        ? 'Manage shared contacts and view authorised moderation history across years. Email selection uses your records for ' + year + '.'
+        : reusable
         ? 'Use the same blank ' + reusable.title + ' template for every standard. Keep a separate completed sheet for each student and standard.'
         : 'Choose a record below to open its form. Use the tabs above to browse this year’s other document types.'));
       if (reusable) {
