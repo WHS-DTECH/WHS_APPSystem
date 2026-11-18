@@ -195,7 +195,9 @@ function lessons(row) {
 }
 function student(row) {
   return { id: 'k:' + String(row.id_number).trim(), name: String(row.student_name).trim(),
-    yearLevel: String(row.year_level || '').trim(), whanau: String(row.form_class || '').trim() };
+    yearLevel: String(row.year_level || '').trim(),
+    whanau: String(row.tutor || '').trim() || String(row.form_class || '').trim(),
+    homeroom: String(row.timetable_class || '').trim() };
 }
 function termRows(payload) {
   if (!payload || !Array.isArray(payload.headers) || !Array.isArray(payload.rows)) {
@@ -227,14 +229,21 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
   });
   async function timetables(year) {
     const [current, snapshots] = await Promise.all([
-      directoryQuery(`SELECT id_number,student_name,year_level,form_class,${columns.join(',')}
-        FROM student_upload WHERE status='Current' AND upload_year=$1
+      directoryQuery(`SELECT id_number,student_name,year_level,form_class,details.tutor,details.timetable_class,${columns.join(',')}
+        FROM student_upload LEFT JOIN (
+          SELECT id_number AS details_id,tutor,timetable_class FROM student_details_upload
+          WHERE status='Current' AND upload_year=$1
+        ) details ON details.details_id=student_upload.id_number
+        WHERE status='Current' AND upload_year=$1
         AND NULLIF(TRIM(id_number),'') IS NOT NULL AND NULLIF(TRIM(student_name),'') IS NOT NULL`, [year]),
       directoryQuery(`SELECT DISTINCT ON (term) term,payload FROM kamar_datasets
         WHERE school_year=$1 AND dataset_type='student_timetable'
         ORDER BY term DESC,source_date DESC,source_time DESC,created_at DESC,id DESC`, [year])
     ]);
-    return [{ term: null, rows: current.rows }, ...snapshots.rows.map(row => ({ term: row.term, rows: termRows(row.payload) }))];
+    const groups = new Map(current.rows.map(row => [String(row.id_number).trim(),
+      { tutor: row.tutor, timetable_class: row.timetable_class }]));
+    return [{ term: null, rows: current.rows }, ...snapshots.rows.map(row => ({ term: row.term,
+      rows: termRows(row.payload).map(item => ({ ...item, ...groups.get(String(item.id_number).trim()) })) }))];
   }
   async function staffRows() {
     return (await directoryQuery(`SELECT upper(trim(code)) AS code,lower(trim(email_school)) AS email,
@@ -689,12 +698,21 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
         ...(group ? [{ kind: 'discipline', matches: family => group.subjects.includes(family), excluded: new Set() }] : [])
       ];
       if (input.yearLevel !== undefined && (typeof input.yearLevel !== 'string' ||
-          (input.yearLevel && !/^(?:7|8|9|10|11|12|13)$/.test(input.yearLevel)))) throw error('Choose a student year level from 7 to 13.');
+          (input.yearLevel && !/^(?:7|8|9|10|11|12|13|junior|middle)$/.test(input.yearLevel)))) throw error('Choose a year level from 7 to 13, Junior School or Middle School.');
       const yearLevel = input.yearLevel || '';
+      const levels = { junior: ['7', '8'], middle: ['9', '10'] }[yearLevel] || [yearLevel];
+      const matchesYear = item => !yearLevel || levels.includes(item.yearLevel);
+      for (const key of ['whanau', 'homeroom']) {
+        if (input[key] !== undefined && (typeof input[key] !== 'string' || input[key].length > 100 ||
+            /[\u0000-\u001f\u007f]/.test(input[key]))) throw error('Choose a valid ' + key + ' class.');
+      }
+      const sortBy = input.sortBy === undefined ? 'name' : input.sortBy;
+      if (!['name', 'whanau', 'homeroom'].includes(sortBy)) throw error('Choose student name, whanau or homeroom sorting.');
+      const hasGroupFilter = Boolean(input.whanau || input.homeroom);
       if (input.term !== undefined && (!Number.isInteger(input.term) || input.term < 1 || input.term > 4)) throw error('Choose a term from 1 to 4.');
       const term = input.term;
       const query = (input.q || '').trim().toLowerCase();
-      if (!classCode && !filters.length && !yearLevel && !term && query.length < 2) {
+      if (!classCode && !filters.length && !yearLevel && !term && !hasGroupFilter && query.length < 2) {
         throw error('Enter at least two characters of the student name, or choose a class, subject, discipline, year level or term.');
       }
       let tables = context.tables;
@@ -711,7 +729,7 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
         }
         const studentLessons = snapshot.rows.flatMap(row => {
           const item = student(row);
-          return (!yearLevel || item.yearLevel === yearLevel) && item.name.toLowerCase().includes(query) ? lessons(row) : [];
+          return matchesYear(item) && item.name.toLowerCase().includes(query) ? lessons(row) : [];
         });
         const missing = context.candidates.filter(person => !person.timetableTerms.includes(term) &&
           selected.some(link => link.teacherEmail === person.email && studentLessons.some(lesson =>
@@ -734,7 +752,7 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       let ambiguous = false;
       for (const table of tables) for (const row of table.rows) {
         const item = student(row);
-        if ((yearLevel && item.yearLevel !== yearLevel) || !item.name.toLowerCase().includes(query)) continue;
+        if (!matchesYear(item) || !item.name.toLowerCase().includes(query)) continue;
         const rowLessons = lessons(row);
         if (classCode) {
           const matches = rowLessons.map(lesson => classLessonMatch(department, lesson, table.term, classCode));
@@ -752,7 +770,7 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
         }
         if (!found.has(item.id)) found.set(item.id, item);
       }
-      const browse = classCode || filters.length || yearLevel || term;
+      const browse = classCode || filters.length || yearLevel || term || hasGroupFilter;
       const foundStudents = [...found.values()].sort((a, b) => a.name.localeCompare(b.name));
       const candidates = browse ? foundStudents : foundStudents.slice(0, 50);
       const breakdowns = new Map(candidates.map(item => [item.id, { subjects: new Map(), uncertain: new Map() }]));
@@ -779,7 +797,18 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
             .map(([, family]) => family))].sort() };
       });
       const matches = (item, filter) => item.subjects.some(subject => filter.matches(subject.discipline));
-      const students = withSubjects.filter(item => filters.every(filter => matches(item, filter)));
+      const eligible = withSubjects.filter(item => filters.every(filter => matches(item, filter)));
+      const groupOptions = Object.fromEntries(['whanau', 'homeroom'].map(key => [key,
+        [...new Set(eligible.map(item => item[key]).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'en-NZ', { numeric: true }))]));
+      const students = eligible.filter(item => ['whanau', 'homeroom'].every(key => !input[key] || item[key] === input[key].trim()));
+      students.sort((a, b) => {
+        if (sortBy !== 'name') {
+          if (Boolean(a[sortBy]) !== Boolean(b[sortBy])) return a[sortBy] ? -1 : 1;
+          const group = a[sortBy].localeCompare(b[sortBy], 'en-NZ', { numeric: true });
+          if (group) return group;
+        }
+        return a.name.localeCompare(b.name, 'en-NZ') || a.id.localeCompare(b.id);
+      });
       const uncertain = filter => [...filter.excluded].some(id => !withSubjects.some(item => item.id === id && matches(item, filter))) ||
         withSubjects.some(item => item.uncertainDisciplines.some(filter.matches) && !matches(item, filter));
       const subjectFilter = filters.find(filter => filter.kind === 'subject');
@@ -787,7 +816,7 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       const subjectAmbiguous = Boolean(subjectFilter && uncertain(subjectFilter));
       const disciplineAmbiguous = Boolean(groupFilter && uncertain(groupFilter)) || Boolean(legacySubject && subjectAmbiguous);
       return { students, truncated: !browse && foundStudents.length > 50, ambiguous, subjectAmbiguous, disciplineAmbiguous,
-        disciplines: sortedDisciplines(disciplines) };
+        disciplines: sortedDisciplines(disciplines), groupOptions };
     }
     const rows = selectedStudent(context, department, input.studentId);
     if (action === 'profile') {

@@ -740,6 +740,44 @@ test('year-level browsing combines department, class and name filters without tr
   await assert.rejects(search({ yearLevel: '9', classCode: 'UNLINKED' }), { status: 400 });
   await assert.rejects(search({ yearLevel: '9', departmentId: '00000000-0000-4000-8000-000000000000' }), { status: 403 });
 });
+test('school groups combine with whanau and homeroom filters and sort classes naturally with missing values last', async () => {
+  const { service, input, state } = fixture();
+  state.row.tutor = 'W2'; state.row.timetable_class = '8HR2';
+  state.extraStudents = [
+    { id_number: '201', student_name: 'Alpha Junior', year_level: '7', tutor: 'W10', timetable_class: '7HR1', mon_p1_1: 'TST-PIDTECH-CW' },
+    { id_number: '202', student_name: 'Middle Ten', year_level: '10', tutor: 'W10', mon_p1_1: 'TST-PIDTECH-CW' },
+    { id_number: '203', student_name: 'Middle Nine', year_level: '9', tutor: 'W2', mon_p1_1: 'TST-PIDTECH-CW' },
+    { id_number: '204', student_name: 'No Groups', year_level: '9', mon_p1_1: 'TST-PIDTECH-CW' },
+    { id_number: '205', student_name: 'Senior', year_level: '11', tutor: 'W2', mon_p1_1: 'TST-PIDTECH-CW' }
+  ];
+  const search = values => service.run(teacher, { ...input, action: 'search', ...values });
+  const junior = await search({ yearLevel: 'junior', sortBy: 'homeroom' });
+  assert.deepEqual(junior.students.map(item => [item.yearLevel, item.whanau, item.homeroom]), [['7', 'W10', '7HR1'], ['8', 'W2', '8HR2']]);
+  assert.deepEqual(junior.groupOptions.homeroom, ['7HR1', '8HR2']);
+  const middle = await search({ yearLevel: 'middle', sortBy: 'whanau' });
+  assert.deepEqual(middle.students.map(item => item.name), ['Middle Nine', 'Middle Ten', 'No Groups']);
+  assert.deepEqual((await search({ yearLevel: 'middle', whanau: 'W2' })).students.map(item => item.name), ['Middle Nine']);
+  assert.deepEqual((await search({ yearLevel: 'junior', homeroom: '8HR2', whanau: 'W2' })).students.map(item => item.name), ['Synthetic Student']);
+  assert.equal((await search({ whanau: 'W2' })).truncated, false);
+  assert.deepEqual((await search({ yearLevel: 'middle', homeroom: '8HR2' })).students, []);
+  await assert.rejects(search({ yearLevel: 'junior', sortBy: 'invalid' }), { status: 400 });
+  await assert.rejects(search({ yearLevel: 'junior', homeroom: ['8HR2'] }), { status: 400 });
+  await assert.rejects(search({ yearLevel: 'junior', whanau: 'W2\n' }), { status: 400 });
+  const sql = state.directoryCalls.find(sql => sql.includes('FROM student_upload'));
+  assert.match(sql, /details\.tutor,details\.timetable_class/);
+  assert.match(sql, /FROM student_details_upload\s+WHERE status='Current' AND upload_year=\$1/);
+});
+test('preserved terms retain enrolments while grouping uses the matching school-year directory labels', async () => {
+  const { service, input, state } = fixture();
+  state.row.tutor = 'W2'; state.row.timetable_class = '8HR2';
+  state.teacherHistory = [{ term: 4, payload: { headers: ['Teacher', 'Mon P1', 'Fri P3'],
+    rows: [['TST', 'PIDTECH-CW', ''], ['PEER', '', 'PIDTECH-05']] } }];
+  const result = await service.run(teacher, { ...input, action: 'search', yearLevel: 'junior', term: 4, homeroom: '8HR2' });
+  assert.equal(result.students.length, 1);
+  assert.equal(result.students[0].whanau, 'W2');
+  assert.equal(result.students[0].homeroom, '8HR2');
+  assert.equal(result.students[0].subjects[0].code, 'PIDTECH');
+});
 test('term browsing uses preserved student and relevant teacher timetables without guessing', async () => {
   const { service, input, state } = fixture();
   const search = values => service.run(teacher, { ...input, action: 'search', ...values });

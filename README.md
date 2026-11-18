@@ -1822,7 +1822,20 @@ Explicitly approved current department staff,
 verified HoLAs and Global ADMIN may read the department's student profiles.
 The Tracker class selector browses linked class codes across the department's
 authorised teachers. A separate Year level selector browses students in Years 7
-to 13; subject, discipline, class, year level and student-name filters can be combined.
+to 13, plus Junior School (Years 7 and 8) and Middle School (Years 9 and 10).
+Whanau and homeroom filters combine with the other selections, and results can
+sort naturally by either class then student name (unrecorded classes sort last).
+Whanau uses the matching school-year Current student details Tutor field, falling
+back to the timetable Form Class; homeroom uses Timetable Class. The directory
+join is by student ID and school year, never name. Preserved term enrolments
+are unchanged; their grouping labels use the matching latest school-year directory
+record where available, not an invented term-dated homeroom. Missing values are
+shown as not recorded. Subject, discipline, class, year level and student-name
+filters can be combined.
+The independently hosted Tracker can hide selected subject columns in its table,
+CSV and PDF, retaining Student, Year level, Whanau, Homeroom and the total across
+all linked subjects. Applied grouping filters, sort and restricted column selections
+are included in PDF headings and both export filenames.
 Discipline groups are Digital Technologies (DTECH, COMP, DTONLINE, MPROG, TECH),
 Textiles (TEXT), Food & Hospitality (FOOD, HOSP), Wood & Furniture (WOOD, FURN)
 and Design Visual Communication (DVC). Subject and discipline filters each match
