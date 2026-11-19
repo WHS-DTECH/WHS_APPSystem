@@ -1502,7 +1502,7 @@ its optional PostgreSQL checks require isolated disposable test databases.
 ### Reporting
 
 The **Reporting** section provides JuniorDTECH and MiddleDTECH programme tabs,
-then class tabs and report-part pages, plus an Awards view. A permanent
+then class tabs and report-part pages. A permanent
 [DTECH Assessment Criteria Google Doc](https://docs.google.com/document/d/1oA7xHQapbqE3myKKFL6T7oUMGxPbrm2BCE1rJQ51-gw/edit?usp=sharing)
 shortcut opens in a new tab.
 
@@ -1535,16 +1535,10 @@ each report cycle; JuniorDTECH has a separate judgement for each term's value.
 Reporting does not wait for attendance marks, PDF imports, or private timetable
 downloads.
 
-The read-only **Awards** view combines the signed-in teacher's JuniorDTECH
-classes from the latest preserved timetable in each of the four terms,
-deduplicating students by school ID. It uses End of Year SLO judgements and
-highlights individual SLOs at or above the Kaha Mohio achievement guide:
-Year 7 4P and Year 8 4A. When a student appears in multiple terms, the most
-recent term's name and year level are used. Missing or UAG entries are not
-highlighted. The view is a guide for teacher review, not a nomination,
-eligibility decision or award; the Technology-wide 20% selection is separate.
-All four term rosters must load, otherwise the view reports the error and offers
-a retry rather than displaying a partial list. Opening it does not alter reports.
+The former SLO-based **Awards** guide is no longer a Reporting tab. Achievement
+SLOs, report cycles, school values and comments remain editable in Reporting and
+are not inputs to the Student Tracker Award Calculator. Awards nominations are
+entered in KAMAR and imported from its CSV export into Student Tracker.
 
 The **Default school values to Dem** action is a one-time opt-in for the
 signed-in teacher and selected planner year, shown on the School Values tab.
@@ -1766,6 +1760,22 @@ The independent `whs-techstudent-tracker` app uses the authenticated
 `POST /module-auth/student-tracker` bridge. Its opaque grant is checked against
 the registered Tracker client and the caller's current Global Control access on
 every request. No KAMAR or Planner database credentials are sent to the app.
+
+The **Award Calculator** is a department-level module at the independent
+Tracker's `/awards` page. Core's `awards-roster` action reuses the same department,
+class, subject, discipline, year-level, term, Whanau and homeroom filters as
+student search, but can return the complete authorised roster without a name
+filter or 50-name limit. Existing student search behaviour is unchanged.
+The calculator imports KAMAR award nominations and YTD half-day attendance
+percentages, joins only by student ID, and counts Akoranga and Mohio separately
+once per subject. Attendance is reference-only; there are no automatic thresholds,
+weightings, quotas or award decisions. SLOs and Planner attendance marks are not
+used. Source years are separate from the roster year so 2024 nominations can be
+reviewed against a current Middle School roster with explicit historical warnings.
+Imported data and revision history live in the Tracker app's own database
+(migration `002_award_imports.sql`), not Core or Planner. Deploy the Core action
+before the Tracker release. See the Tracker repository README for imports and
+Drive file sharing requirements.
 
 **Setup Student Tracker** opens a separate setup page for the selected school
 year; the Student Tracker heading returns to student search. Global ADMIN can

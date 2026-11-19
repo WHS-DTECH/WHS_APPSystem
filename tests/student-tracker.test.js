@@ -113,6 +113,19 @@ function fixture() {
   });
   return { ...state, state, service, input: { year: 2026, departmentId, studentId: 'k:100' } };
 }
+test('Award Calculator reuses authorised Tracker filters without the name-search limit', async () => {
+  const { service, input, state } = fixture();
+  state.extraStudents = Array.from({ length: 60 }, (_, index) => ({
+    ...state.row, id_number: String(1000 + index), student_name: 'Synthetic Student ' + index
+  }));
+  const roster = await service.run(teacher, { ...input, action: 'awards-roster' });
+  assert.equal(roster.truncated, false);
+  assert.equal(roster.students.length, 61);
+  assert.equal((await service.run(teacher, { ...input, action: 'search', q: 'Student' })).students.length, 50);
+  assert.equal((await service.run(teacher, { ...input, action: 'awards-roster', yearLevel: '13' })).students.length, 0);
+  await assert.rejects(service.run(teacher, { ...input, action: 'awards-roster', departmentId: managerId }), { status: 403 });
+});
+
 test('Tracker searches linked subjects and profiles preserve uploaded timetables without exposing unrelated students', async () => {
   const { service, input, plannerCalls } = fixture();
   const results = await service.run(teacher, { ...input, action: 'search', q: 'Student' });

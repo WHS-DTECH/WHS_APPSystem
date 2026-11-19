@@ -588,7 +588,7 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
     if (!input || typeof input !== 'object' || Array.isArray(input)) throw error('Invalid Student Tracker request.');
     const { action, year } = input;
     if (!Number.isInteger(year) || year < 2000 || year > 2100) throw error('Choose a year from 2000 to 2100.');
-    if (!['setup', 'save-setup', 'save-classes', 'search', 'profile', 'attendance', 'attendance-overview', 'reports'].includes(action)) {
+    if (!['setup', 'save-setup', 'save-classes', 'search', 'awards-roster', 'profile', 'attendance', 'attendance-overview', 'reports'].includes(action)) {
       throw error('Unknown Student Tracker action.');
     }
     if (action === 'save-setup' || action === 'save-classes') {
@@ -678,7 +678,7 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       })) };
     }
     const department = departmentFor(context, input.departmentId);
-    if (action === 'search') {
+    if (action === 'search' || action === 'awards-roster') {
       if (input.q !== undefined && (typeof input.q !== 'string' || input.q.length > 100)) throw error('Enter a student name of at most 100 characters.');
       if (input.classCode !== undefined && typeof input.classCode !== 'string') throw error('Choose a linked class.');
       const classCode = input.classCode || '';
@@ -712,7 +712,7 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       if (input.term !== undefined && (!Number.isInteger(input.term) || input.term < 1 || input.term > 4)) throw error('Choose a term from 1 to 4.');
       const term = input.term;
       const query = (input.q || '').trim().toLowerCase();
-      if (!classCode && !filters.length && !yearLevel && !term && !hasGroupFilter && query.length < 2) {
+      if (action !== 'awards-roster' && !classCode && !filters.length && !yearLevel && !term && !hasGroupFilter && query.length < 2) {
         throw error('Enter at least two characters of the student name, or choose a class, subject, discipline, year level or term.');
       }
       let tables = context.tables;
@@ -770,7 +770,7 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
         }
         if (!found.has(item.id)) found.set(item.id, item);
       }
-      const browse = classCode || filters.length || yearLevel || term || hasGroupFilter;
+      const browse = action === 'awards-roster' || classCode || filters.length || yearLevel || term || hasGroupFilter;
       const foundStudents = [...found.values()].sort((a, b) => a.name.localeCompare(b.name));
       const candidates = browse ? foundStudents : foundStudents.slice(0, 50);
       const breakdowns = new Map(candidates.map(item => [item.id, { subjects: new Map(), uncertain: new Map() }]));
