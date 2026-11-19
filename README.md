@@ -1852,9 +1852,10 @@ search list, not the student's profile or attendance.
 Student timetable entries that cannot distinguish a selected class group
 are excluded from that class list and reported. Name-only searches retain their
 50-result limit. Results show each student's linked subjects by discipline across
-the selected timetable sources, even when a class filter is active. Distinct
-recorded subject codes are counted once; recorded lessons affected by missing
-teacher sources or ambiguous links are marked as uncertain rather than absence.
+the selected timetable sources, even when a class filter is active. The total is
+the number of distinct ticked subject columns, including hidden columns, not the
+number of underlying subject codes. Recorded lessons affected by missing teacher
+sources or ambiguous links are marked as uncertain rather than absence.
 This explicitly shares approved/automatic departmental teachers' relevant Planner draft reports and teaching-log
 attendance with those authorised department staff; it does not publish or change
 the original records. Unrelated students, subjects and marks are excluded.
