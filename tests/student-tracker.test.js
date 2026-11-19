@@ -892,6 +892,9 @@ test('mixed senior lines include Years 11-13 DTECH and COMP in their selected te
     ['Senior Other Line']);
   assert.deepEqual((await search({ classCode: '3-11DTECH', yearLevel: '13', term: 4 })).students.map(student => student.name),
     ['Synthetic Student']);
+  const roster = await service.assessmentRoster(teacher, { year: 2026 });
+  assert.deepEqual(roster.classes.find(item => item.classCode === '3-11DTECH').students.map(item => [item.name, item.course]),
+    [['Senior Computing', '12COMP'], ['Synthetic Student', '13DTECH']]);
   assert.equal((await service.run(teacher, { ...input, action: 'profile' })).timetables[0].lessons[0].linked, true);
   assert.deepEqual((await service.run(teacher, { ...input, action: 'attendance', term: 4 })).marks.map(mark => mark.mark), ['P']);
   state.department.name = 'Science';
@@ -1057,8 +1060,19 @@ test('course size counts distinct linked students in a course without returning 
   await assert.rejects(service.courseSize({ ...teacher, id: managerId }, { year: 2026, course: 'PIDTECH' }), { status: 403 });
 });
 
+test('assessment roster uses authorised linked classes and omits unrelated students', async () => {
+  const { service, state } = fixture();
+  state.extraStudents.push({ id_number: '300', student_name: 'Other Student', year_level: '8', mon_p1_1: 'OTHER-MATH-A' });
+  state.extraStudents.push({ id_number: '400', student_name: 'Peer Student', year_level: '8', fri_p3: 'PEER-PIDTECH-05' });
+  const roster = await service.assessmentRoster(teacher, { year: 2026 });
+  assert.equal(roster.term, null);
+  assert.deepEqual(roster.classes.map(item => item.classCode), ['PIDTECH']);
+  assert.deepEqual(roster.classes[0].students, [{ id: 'k:100', name: 'Synthetic Student', yearLevel: '8', course: 'PIDTECH' }]);
+  await assert.rejects(service.assessmentRoster({ ...teacher, id: managerId }, { year: 2026 }), { status: 403 });
+});
+
 test('Learning Area Profile bridge permits only a live Unit Library grant and no Tracker actions', async t => {
-  let allowed = true, calls = 0, subjectCalls = 0, sizeCalls = 0;
+  let allowed = true, calls = 0, subjectCalls = 0, sizeCalls = 0, rosterCalls = 0;
   const app = express(); app.use(express.json());
   app.use('/module-auth', createModuleIdentityRouter({
     dbQuery: async (sql, params) => {
@@ -1072,7 +1086,8 @@ test('Learning Area Profile bridge permits only a live Unit Library grant and no
       calls++; assert.equal(user.id, teacherId); assert.deepEqual(input, { year: 2026 });
       return { year: 2026, departments: [] };
     }, teachingSubjects: async user => { subjectCalls++; assert.equal(user.id, teacherId); return { year: 2026, classes: [] }; },
-    courseSize: async user => { sizeCalls++; assert.equal(user.id, teacherId); return { students: 0 }; } }
+    courseSize: async user => { sizeCalls++; assert.equal(user.id, teacherId); return { students: 0 }; },
+    assessmentRoster: async user => { rosterCalls++; assert.equal(user.id, teacherId); return { year: 2026, term: null, classes: [] }; } }
   }));
   const server = app.listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
@@ -1099,6 +1114,9 @@ test('Learning Area Profile bridge permits only a live Unit Library grant and no
   assert.equal((await post('whs-unit-library', 'A'.repeat(43), 'class-size')).status, 403);
   assert.equal((await post('whs-assessment-manager', 'A'.repeat(43), 'class-size')).status, 200);
   assert.equal(sizeCalls, 1);
+  assert.equal((await post('whs-unit-library', 'A'.repeat(43), 'assessment-roster')).status, 403);
+  assert.equal((await post('whs-assessment-manager', 'A'.repeat(43), 'assessment-roster')).status, 200);
+  assert.equal(rosterCalls, 1);
 });
 
 test('Tracker bridge requires a live grant for the registered Tracker client before any data access', async t => {

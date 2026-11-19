@@ -254,6 +254,19 @@ function createModuleIdentityRouter({
         'The class size could not be loaded from Student Tracker. Check KAMAR timetables and Tracker class links, then retry.' });
     }
   }));
+  router.post('/assessment-roster', wrap(async (req, res) => {
+    const user = await identity(req, res);
+    if (!user) return;
+    if (req.body.client_id?.split(':')[0] !== 'whs-assessment-manager') {
+      return deny(res, 'Assessment rosters are available only to the registered WHS Assessment Manager app.');
+    }
+    try { res.json(await tracker.assessmentRoster(user, { year: req.body.year })); }
+    catch (error) {
+      console.error('Assessment roster request failed:', error.status ? error.message : 'Data source unavailable.');
+      res.status(error.status || 502).json({ error: error.status ? error.message :
+        'Student Tracker rosters could not be loaded. Check KAMAR timetables and Tracker class links, then retry.' });
+    }
+  }));
   router.post('/learning-area-sync', wrap(async (req, res) => {
     const user = await identity(req, res);
     if (!user) return;

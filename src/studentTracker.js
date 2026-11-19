@@ -517,6 +517,40 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
     return { year, course: code, students: students.size, term: table ? table.term : null,
       linked: departments.length > 0, ambiguous };
   }
+  async function assessmentRoster(user, { year } = {}) {
+    if (!user?.roles?.some(role => ['ADMIN', 'Teacher'].includes(role))) throw error('Staff access is required.', 403);
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) throw error('Choose a year from 2000 to 2100.');
+    const context = await scope(user, year);
+    const email = typeof user.email === 'string' ? user.email.trim().toLowerCase() : '';
+    const person = context.staffIds.includes(user.id) && context.candidates.find(item => item.email === email);
+    if (!person) throw error('Your account must match one current KAMAR staff record to load your own classes.', 403);
+    const snapshots = context.tables.filter(table => table.term !== null && table.rows.length).sort((a, b) => b.term - a.term);
+    const table = context.tables.find(item => item.term === null && item.rows.length) || snapshots[0];
+    if (!table) throw error('No student timetable is available for this year. Check KAMAR uploads.', 409);
+    const classes = [], unavailable = [];
+    for (const available of context.departments) {
+      const department = { ...available, classLinks: available.classLinks.filter(link => link.teacherEmail === person.email) };
+      const missing = savedClassLinks(available, year).filter(link => link.teacherEmail === person.email).length - department.classLinks.length;
+      if (missing > 0) unavailable.push({ department: department.name, count: missing });
+      for (const code of [...new Set(department.classLinks.map(link => link.code))]) {
+        const students = new Map();
+        let ambiguous = false;
+        for (const row of table.rows) {
+          const item = student(row);
+          for (const lesson of lessons(row)) {
+            const match = classLessonMatch(department, lesson, table.term, code);
+            if (match === 'ambiguous') ambiguous = true;
+            if (match !== 'matched') continue;
+            const key = item.id + '|' + lesson.subject;
+            students.set(key, { id: item.id, name: item.name, yearLevel: item.yearLevel, course: lesson.subject });
+          }
+        }
+        classes.push({ department: department.name, classCode: code, ambiguous,
+          students: [...students.values()].sort((a, b) => a.name.localeCompare(b.name) || a.course.localeCompare(b.course)) });
+      }
+    }
+    return { year, term: table.term, classes, unavailable };
+  }
   async function scope(user, year) {
     const [departments, staff, tables] = await Promise.all([
       dbQuery('SELECT id,name,manager_ids,subjects,revision,teacher_emails,class_links FROM student_tracker_departments ORDER BY name'),
@@ -985,6 +1019,6 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
     }
     throw error('Unknown Student Tracker action.');
   }
-  return { run, learningAreas, teachingSubjects, courseSize };
+  return { run, learningAreas, teachingSubjects, courseSize, assessmentRoster };
 }
 module.exports = { createStudentTrackerService, lessons, termRows, approvedTrackerUser, matchingCourses, teacherClassCodes, subjectFamily };
