@@ -80,6 +80,8 @@ function fixture() {
     directoryQuery: async (sql, params) => {
       state.directoryCalls.push(sql);
       assert.doesNotMatch(sql, /planner_sections|planner_attendance_marks|FROM users/);
+      if (sql.includes('FROM student_details_upload WHERE')) return { rows: (state.currentDetails || [])
+        .filter(row => params[1].includes(row.id_number)) };
       if (sql.includes('FROM student_upload')) return { rows: [row,
         { id_number: '200', student_name: 'Unlinked Student', year_level: '8', mon_p1_1: 'OTHER-MATH-A' }, ...state.extraStudents] };
       if (sql.includes('FROM staff_upload')) return { rows: staff };
@@ -113,6 +115,20 @@ function fixture() {
   });
   return { ...state, state, service, input: { year: 2026, departmentId, studentId: 'k:100' } };
 }
+test('historical award identities match the current school list, not only department classes, without writes', async () => {
+  const { service, input, state } = fixture();
+  state.currentDetails = [{ id_number: '300', first_name: 'Current', last_name: 'Student',
+    year_level: '12', tutor: 'W2', timetable_class: '12A' }];
+  const result = await service.run(teacher, { ...input, action: 'award-identities',
+    studentIds: ['k:100', 'k:200', 'k:300', 'k:999'] });
+  assert.deepEqual(result.students.map(item => item.id).sort(), ['k:100', 'k:200', 'k:300']);
+  assert.equal(result.students.find(item => item.id === 'k:300').name, 'Student, Current');
+  assert.equal(state.writes.length, 0);
+  await assert.rejects(service.run(teacher, { ...input, departmentId: managerId, action: 'award-identities',
+    studentIds: ['k:100'] }), /access/);
+  await assert.rejects(service.run(teacher, { ...input, action: 'award-identities', studentIds: ['100'] }), /valid historical/);
+});
+
 test('Award Calculator reuses authorised Tracker filters without the name-search limit', async () => {
   const { service, input, state } = fixture();
   state.extraStudents = Array.from({ length: 60 }, (_, index) => ({

@@ -622,7 +622,7 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
     if (!input || typeof input !== 'object' || Array.isArray(input)) throw error('Invalid Student Tracker request.');
     const { action, year } = input;
     if (!Number.isInteger(year) || year < 2000 || year > 2100) throw error('Choose a year from 2000 to 2100.');
-    if (!['setup', 'save-setup', 'save-classes', 'search', 'awards-roster', 'profile', 'attendance', 'attendance-overview', 'reports'].includes(action)) {
+    if (!['setup', 'save-setup', 'save-classes', 'search', 'awards-roster', 'award-identities', 'profile', 'attendance', 'attendance-overview', 'reports'].includes(action)) {
       throw error('Unknown Student Tracker action.');
     }
     if (action === 'save-setup' || action === 'save-classes') {
@@ -712,6 +712,25 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       })) };
     }
     const department = departmentFor(context, input.departmentId);
+    if (action === 'award-identities') {
+      if (!Array.isArray(input.studentIds) || input.studentIds.length > 20000 ||
+          input.studentIds.some(id => typeof id !== 'string' || !/^k:[A-Za-z0-9_-]{1,60}$/.test(id))) {
+        throw error('Choose valid historical student IDs.');
+      }
+      const ids = new Set(input.studentIds);
+      const current = new Map((context.tables.find(table => table.term === null)?.rows || [])
+        .map(row => student(row)).filter(item => ids.has(item.id)).map(item => [item.id, item]));
+      const details = await directoryQuery(`SELECT id_number,first_name,last_name,year_level,tutor,timetable_class
+        FROM student_details_upload WHERE status='Current' AND upload_year=$1 AND id_number=ANY($2::text[])`,
+      [year, [...ids].map(id => id.slice(2))]);
+      for (const row of details.rows) {
+        const name = [row.last_name, row.first_name].filter(Boolean).join(', ').trim();
+        if (!name) throw error('A current student record has no name. Review KAMAR Student List.', 502);
+        current.set('k:' + String(row.id_number).trim(), { id: 'k:' + String(row.id_number).trim(), name,
+          yearLevel: String(row.year_level || ''), whanau: row.tutor || '', homeroom: row.timetable_class || '' });
+      }
+      return { year, students: [...current.values()] };
+    }
     if (action === 'search' || action === 'awards-roster') {
       if (input.q !== undefined && (typeof input.q !== 'string' || input.q.length > 100)) throw error('Enter a student name of at most 100 characters.');
       if (input.classCode !== undefined && typeof input.classCode !== 'string') throw error('Choose a linked class.');
