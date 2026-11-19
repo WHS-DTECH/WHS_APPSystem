@@ -1770,8 +1770,12 @@ The calculator imports KAMAR award nominations and YTD half-day attendance
 percentages, joins only by student ID, and counts Akoranga and Mohio separately
 once per subject. Attendance is reference-only; there are no automatic thresholds,
 weightings, quotas or award decisions. SLOs and Planner attendance marks are not
-used. Source years are separate from the roster year so 2024 nominations can be
-reviewed against a current Middle School roster with explicit historical warnings.
+used. Historical award years list students from the original source, including
+archive students and unresolved identities, rather than filtering them through
+today's classes. Core's read-only `award-identities` action checks the existing
+department access and matches requested school IDs against the current school
+list/timetable, including students outside today's department classes. It makes
+no changes to KAMAR records. Source-only identities are never matched by name.
 Imported data and revision history live in the Tracker app's own database
 (migration `002_award_imports.sql`), not Core or Planner. Deploy the Core action
 before the Tracker release. See the Tracker repository README for imports and
