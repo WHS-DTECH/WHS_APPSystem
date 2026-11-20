@@ -1612,8 +1612,15 @@ cells show the reason and remain visible in the recipient view. A KAMAR PDF
 add-only sync does not restore red corrections; manually re-ticking clears the flag.
 The check does not assess effort or perseverance, change Mohio, or write to KAMAR.
 
+In **MiddleDTECH**, the same **Calculate Attendance Criteria** button checks
+existing Akoranga nominees across the selected term's teaching classes and
+the S1 MPROG audit, regardless of class or filter. It removes only nominees
+below 90% or missing attendance; the **25% class cap is manual review only**.
+Shared students have one saved award tick. Junior homeroom cap handling is unchanged.
+
 **Check Grade criteria** checks existing Mohio nominees in both programmes in
-the selected term's class list using their End of Year SLOs. Both grades must
+the selected term's class list and the loaded S1 MPROG audit using their End
+of Year SLOs. Both grades must
 meet the minimum: Year 7 **4B**, Year 8 **4P**, Year 9 **5B**, Year 10 **5A**.
 Blank or UAG grades do not qualify. After confirmation, failing Mohio ticks
 are removed and marked red, including in recipient filters. An add-only PDF sync
