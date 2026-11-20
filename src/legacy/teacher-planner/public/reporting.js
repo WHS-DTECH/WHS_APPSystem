@@ -2,7 +2,7 @@
   'use strict';
   const schema = globalThis.plannerReportingSchema;
   const state = { cycle: 'eoy', programme: 'junior', classCode: '', part: 'slo', incomplete: false };
-  function mount(host, { el, data, year, request, ensureSaved, initialTerm = '3' }) {
+  function mount(host, { el, data, year, request, ensureSaved, ownerId, initialTerm = '3' }) {
     const records = data.records ? JSON.parse(data.records) : [];
     if (!schema.validRecords(records)) throw new Error('Saved reporting data is invalid. No report records have been changed.');
     const area = el('section', '', { class: 'paper-page reporting-page' });
@@ -52,12 +52,29 @@
     const files = el('select', '', { 'aria-label': 'KAMAR report PDF' });
     const status = el('p', '', { role: 'status' });
     const review = el('div');
-    let indexed = [], listedFolder = '';
+    let indexed = [], listedFolder = '', folderPart;
     const invalidate = () => review.replaceChildren();
+    const folderKey = part => `planner-reporting-folder:${ownerId}:${part}`;
+    function rememberFolder(link) {
+      try { globalThis.localStorage?.setItem(folderKey(folderPart), link); }
+      catch (error) { console.warn('Reporting folder could not be remembered:', error.message); }
+    }
+    function showDrive() {
+      drive.hidden = !['slo', 'values'].includes(state.part);
+      if (drive.hidden || state.part === folderPart) return;
+      folderPart = state.part;
+      indexed = []; listedFolder = ''; files.replaceChildren(); invalidate(); status.textContent = '';
+      try { folder.value = globalThis.localStorage?.getItem(folderKey(folderPart)) || ''; }
+      catch (error) {
+        folder.value = '';
+        status.textContent = 'Browser storage is unavailable. Paste the Drive folder link to continue.';
+        console.warn('Reporting folder could not be loaded:', error.message);
+      }
+    }
     folder.addEventListener('input', invalidate);
     files.addEventListener('change', invalidate);
     drive.append(el('summary', 'Google Drive sync — KAMAR reports'),
-      el('p', 'Select the report cycle and the PDF’s teaching term first. Preview one SLO or Values PDF at a time. Nothing is written to KAMAR or Drive. ' +
+      el('p', 'Select the report cycle. Batch preview checks all four teaching terms. For single-file preview, select its teaching term first. Nothing is written to KAMAR or Drive. ' +
         'If prompted, enable read-only Drive access in Kamar Uploader Attendance Admin.'), folder);
     const list = button(drive, 'List Drive PDFs', false, async () => {
       list.disabled = true;
@@ -69,6 +86,7 @@
         const result = await request('google-calendar/reporting-drive/files?' + new URLSearchParams({ folder: link }));
         if (folder.value.trim() !== link || !area.isConnected) return;
         listedFolder = link; indexed = result.files;
+        rememberFolder(link);
         files.append(el('option', 'Select a PDF', { value: '' }));
         for (const file of indexed) files.append(el('option', (file.label ? file.label + ' / ' : '') + file.name, { value: file.id }));
         files.value = '';
@@ -159,8 +177,122 @@
       } catch (error) { status.textContent = error.message; }
       finally { list.disabled = preview.disabled = false; }
     });
-    drive.append(preview, status, review);
+    drive.append(preview);
+    const batch = button(drive, 'Preview all PDFs', false, previewBatch);
+    drive.append(status, review);
     area.append(drive);
+
+    async function previewBatch() {
+      if (list.disabled || preview.disabled || batch.disabled) return;
+      invalidate();
+      const link = folder.value.trim(), part = state.part, cycle = state.cycle, snapshot = store.value;
+      if (!link || state.programme !== 'junior') {
+        status.textContent = 'Enter a Drive folder link and select JuniorDTECH before previewing.';
+        return;
+      }
+      const current = () => area.isConnected && state.part === part && state.cycle === cycle &&
+        state.programme === 'junior' && folder.value.trim() === link && store.value === snapshot;
+      const fileQuery = new URLSearchParams({ folder: link });
+      status.textContent = 'Reading Drive PDFs and all four teaching rosters…';
+      list.disabled = preview.disabled = batch.disabled = true;
+      try {
+        const [result, ...rosters] = await Promise.all([
+          request('google-calendar/reporting-drive/files?' + fileQuery),
+          ...[1, 2, 3, 4].map(term => request('attendance/classes/' + year + '?term=' + term))
+        ]);
+        if (!current()) throw new Error('The reporting view changed. Preview the batch again.');
+        rememberFolder(link);
+        const sources = result.files.filter(file => !file.label || file.label === (part === 'slo' ? 'SLOs' : 'Values'));
+        if (!sources.length || sources.length > 30) throw new Error('The folder must contain between 1 and 30 PDFs for this batch.');
+        const roster = { classes: rosters.flatMap(item => item.classes) };
+        const reports = el('ul'), changes = el('ul'), cells = new Map();
+        const detail = el('details'); detail.append(el('summary', 'Grade changes, blanks and conflicts'), changes);
+        let included = 0, skipped = 0;
+        for (const file of sources) {
+          if (!current()) throw new Error('The reporting view changed. Preview the batch again.');
+          let pdf;
+          try {
+            pdf = await request('google-calendar/reporting-drive/file/' + encodeURIComponent(file.id) + '?' +
+              new URLSearchParams({ folder: link, version: file.version }));
+          } catch (error) {
+            throw new Error(`${file.name}: ${error.message} No grades changed. Fix or remove this file and preview again.`);
+          }
+          if (Boolean(pdf.valueTerm) !== (part === 'values') || (pdf.year !== null && pdf.year !== Number(year))) {
+            skipped++;
+            reports.append(el('li', `${file.name} — skipped: different report type or assessment year.`));
+            continue;
+          }
+          const matches = planPdf(pdf, roster), matched = matches.filter(item => item.student);
+          if (matched.length) included++;
+          else skipped++;
+          const value = pdf.valueTerm ? ` · ${schema.juniorValues.find(([key]) => key === pdf.fields[0])?.[1]}` : '';
+          reports.append(el('li', `${pdf.classCode}${value} — ${file.name}: ${matched.length}/${matches.length} rows matched.`));
+          for (const item of matches) {
+            if (!item.student) {
+              changes.append(el('li', `${pdf.classCode} · ${item.name}: no unique class-roster match; unchanged.`));
+              continue;
+            }
+            for (const [field, grade] of Object.entries(item.grades)) {
+              if (!schema.pdfGradeFields.includes(field)) throw new Error('Unexpected PDF grade field.');
+              const key = JSON.stringify([item.student.id, field]);
+              if (!cells.has(key)) cells.set(key, { student: item.student, field, grades: new Set(), sources: new Set() });
+              const cell = cells.get(key);
+              cell.grades.add(grade); cell.sources.add(file.name);
+            }
+          }
+        }
+        if (!current()) throw new Error('The reporting view changed. Preview the batch again.');
+        let replacements = 0, fills = 0, conflicts = 0;
+        for (const { student, field, grades, sources } of cells.values()) {
+          const old = record(student)?.[field] || '', [grade] = grades;
+          if (grades.size > 1) {
+            conflicts++;
+            changes.append(el('li', `${student.name} · ${field}: PDFs disagree (${[...grades].map(g => g || 'blank').join(' / ')}) — ${[...sources].join(', ')}. Grade unchanged.`));
+          } else if (old !== grade) {
+            if (old && grade) replacements++;
+            if (!old && grade) fills++;
+            changes.append(el('li', `${student.name} · ${field}: ${old || 'Not entered'} → ${grade || 'blank in PDF (grade kept)'}.`));
+          }
+        }
+        review.append(el('h3', `${year} ${cycle === 'eoy' ? 'End of Year' : 'Earlier year'} · all four teaching terms`),
+          el('p', `${included} PDFs matched; ${skipped} skipped. ${replacements} grade replacements, ${fills} blank cells to fill, ${conflicts} disputed cells to leave unchanged. Check the report cycle before applying.`),
+          reports, detail);
+        if (included) button(review, 'Apply batch to Planner', false, async () => {
+          if (!current()) {
+            invalidate(); status.textContent = 'The reporting view or saved grades changed. Preview the batch again.';
+            return;
+          }
+          list.disabled = preview.disabled = batch.disabled = true;
+          try {
+            const next = new Map(records.map(row => [JSON.stringify([row.studentId, row.programme, row.cycle]), row]));
+            for (const { student, field, grades } of cells.values()) {
+              const key = JSON.stringify([student.id, 'junior', cycle]), [grade] = grades;
+              const existing = next.get(key);
+              const disputed = grades.size > 1;
+              if ((!existing || !existing.pdfConfirmed?.[field]) && (disputed || !grade)) continue;
+              const row = { ...(existing || defaultRow(student.id, 'junior', cycle, '', '')) };
+              if (disputed || !grade) setConfirmation(row, field, '');
+              else {
+                const old = row[field];
+                row[field] = grade;
+                setConfirmation(row, field, grade, old && old !== grade ? old : undefined);
+              }
+              next.set(key, row);
+            }
+            const updated = [...next.values()];
+            if (JSON.stringify(updated) !== snapshot) applyRecords(updated, defaultStore.value);
+            invalidate(); if (directory) render();
+            status.textContent = 'Checking that the Planner draft is saved…';
+            const saved = await ensureSaved();
+            status.textContent = saved ? `Batch saved to Planner: ${replacements} grades replaced, ${fills} blanks filled, ${conflicts} PDF disagreements left unchanged.` :
+              'Batch not saved. Check the Planner save message before leaving.';
+          } catch (error) { status.textContent = error.message; }
+          finally { list.disabled = preview.disabled = batch.disabled = false; }
+        });
+        status.textContent = included ? 'Batch preview ready. No grades have been changed.' : 'No PDFs matched your teaching rosters. No grades changed.';
+      } catch (error) { status.textContent = error.message; }
+      finally { list.disabled = preview.disabled = batch.disabled = false; }
+    }
 
     const normalizePdfClass = code => code.replace('MMDETCH', 'MMDTECH');
     const reportClassCode = code => normalizePdfClass(code.split('-')[1] || '');
@@ -188,19 +320,26 @@
       if (programme === 'junior' && valuesDefault === 'Dem-v2') { row.whanaungatanga = 'Dem'; row.manaakitanga = 'Dem'; }
       return row;
     }
-    function setConfirmation(row, field, grade) {
+    function setConfirmation(row, field, grade, previous) {
       if (!grade && !row.pdfConfirmed?.[field]) return;
       const confirmed = { ...row.pdfConfirmed };
+      const replaced = { ...row.pdfPrevious };
+      if (!grade || confirmed[field] !== grade) delete replaced[field];
+      if (previous) replaced[field] = previous;
       if (grade) confirmed[field] = grade;
       else delete confirmed[field];
       if (Object.keys(confirmed).length) row.pdfConfirmed = confirmed;
       else delete row.pdfConfirmed;
+      if (Object.keys(replaced).length) row.pdfPrevious = replaced;
+      else delete row.pdfPrevious;
     }
     function showConfirmation(cell, row, field) {
       const confirmed = Boolean(row?.[field] && row.pdfConfirmed?.[field] === row[field]);
-      cell.setAttribute('class', confirmed ? 'reporting-pdf-confirmed' : '');
-      cell.setAttribute('title', confirmed ? 'Confirmed against a KAMAR PDF' : '');
-      return confirmed;
+      const previous = confirmed && row.pdfPrevious?.[field];
+      cell.setAttribute('class', previous ? 'reporting-pdf-replaced' : confirmed ? 'reporting-pdf-confirmed' : '');
+      const label = previous ? `updated from ${previous} using KAMAR PDF` : confirmed ? 'confirmed against KAMAR PDF' : '';
+      cell.setAttribute('title', label);
+      return label ? ` (${label})` : '';
     }
     function addNewStudents(next, directories, valuesDefault, sloDefault, programmes = Object.keys(schema.programmes)) {
       const known = new Set(next.map(row => JSON.stringify([row.studentId, row.programme, row.cycle])));
@@ -292,12 +431,14 @@
       const previous = store.value;
       const existing = record(student), row = existing || record(student, true), old = row[field];
       const oldConfirmation = row.pdfConfirmed;
+      const oldPrevious = row.pdfPrevious;
       row[field] = value;
       if (old !== value) setConfirmation(row, field, '');
       const next = JSON.stringify(records);
       if (!schema.validContent({ records: next, valuesDefault: defaultStore.value, juniorSloDefault: sloDefaultStore.value })) {
         row[field] = old; control.value = old;
         if (oldConfirmation) row.pdfConfirmed = oldConfirmation;
+        if (oldPrevious) row.pdfPrevious = oldPrevious;
         if (!existing) records.splice(records.indexOf(row), 1);
         feedback.setAttribute('role', 'alert');
         feedback.textContent = 'This reporting entry exceeds the storage limit. The latest edit was not accepted; earlier entries are unchanged.';
@@ -306,7 +447,7 @@
       }
       store.value = next;
       const confirmed = showConfirmation(cell, row, field);
-      control.setAttribute('aria-label', label + (confirmed ? ' (confirmed against KAMAR PDF)' : ''));
+      control.setAttribute('aria-label', label + confirmed);
       store.dispatchEvent(new Event('input', { bubbles: true }));
       summary();
     }
@@ -336,7 +477,7 @@
     }
     function render() {
       updateDefaultPanels();
-      drive.hidden = state.part === 'awards';
+      showDrive();
       controls.replaceChildren(); body.replaceChildren(); classButtons.clear();
       const cycleLabel = el('label', 'Report cycle ');
       const cycle = el('select', '', { 'aria-label': 'Report cycle' });
@@ -408,7 +549,7 @@
         state.part === 'values' ? (state.programme === 'junior' ? [schema.juniorValues[Number(termSelect.value) - 1]] :
           [['kaitiakitanga', 'Kaitiakitanga'], ['rangatiratanga', 'Rangatiratanga']]) :
           [['comment', 'Report comment' + (state.cycle === 'eoy' ? ' (optional for EOY)' : ' (required)')]];
-      if (state.part !== 'comments') body.append(el('p', 'Green: confirmed against a KAMAR PDF. White: not confirmed.'));
+      if (state.part !== 'comments') body.append(el('p', 'Green: confirmed against a KAMAR PDF. Amber: a different Planner grade was replaced by KAMAR. White: not confirmed.'));
       const scroll = el('div', '', { class: 'reporting-scroll', tabindex: '0', role: 'region', 'aria-label': 'Class report entries' });
       const table = el('table', '', { class: 'reporting-table' }), head = el('tr'), tbody = el('tbody');
       head.append(el('th', 'Student', { scope: 'col' }), el('th', 'Year', { scope: 'col' }));
@@ -425,13 +566,13 @@
           const confirmed = showConfirmation(td, row, field);
           if (group.audit) {
             td.textContent = row?.[field] || 'Not entered';
-            if (confirmed) td.setAttribute('aria-label', td.textContent + ' (confirmed against KAMAR PDF)');
+            if (confirmed) td.setAttribute('aria-label', td.textContent + confirmed);
             tr.append(td);
             continue;
           }
           const controlLabel = student.name + ': ' + label;
           const control = el(field === 'comment' ? 'textarea' : 'select', '',
-            { 'aria-label': controlLabel + (confirmed ? ' (confirmed against KAMAR PDF)' : '') });
+            { 'aria-label': controlLabel + confirmed });
           if (field === 'comment') { control.maxLength = 2000; control.rows = 3; }
           else {
             const choices = state.part === 'slo' ? schema.programmes[state.programme].levels : schema.values;
