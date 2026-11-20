@@ -2,7 +2,7 @@
   'use strict';
   const schema = globalThis.plannerReportingSchema;
   const state = { cycle: 'eoy', programme: 'junior', classCode: '', part: 'slo', incomplete: false };
-  function mount(host, { el, data, year, request, initialTerm = '3' }) {
+  function mount(host, { el, data, year, request, ensureSaved, initialTerm = '3' }) {
     const records = data.records ? JSON.parse(data.records) : [];
     if (!schema.validRecords(records)) throw new Error('Saved reporting data is invalid. No report records have been changed.');
     const area = el('section', '', { class: 'paper-page reporting-page' });
@@ -111,7 +111,7 @@
             return `${field}: ${old} → ${grade || 'blank in PDF'}${grade && old === grade ? ' (matches)' : grade ? ' (differs)' : ''}`;
           }).join(' · ') : 'Not matched — unchanged')));
         review.append(rows);
-        function savePdf(applyGrades) {
+        async function savePdf(applyGrades) {
           try {
             if (!stillCurrent()) throw new Error('The reporting view or saved grades changed. Preview the PDF again.');
             const next = new Map(records.map(row => [JSON.stringify([row.studentId, row.programme, row.cycle]), row]));
@@ -133,11 +133,25 @@
             const updated = [...next.values()];
             const changed = JSON.stringify(updated) !== snapshot;
             if (changed) applyRecords(updated, defaultStore.value);
+            const teaching = groups().find(group => !group.audit && reportClassCode(group.code) === normalizePdfClass(pdf.classCode));
+            const visible = !pdf.valueTerm || String(pdf.valueTerm) === term;
+            if (teaching && visible) {
+              state.classCode = teaching.key;
+              state.part = pdf.valueTerm ? 'values' : 'slo';
+              state.incomplete = false;
+            }
             invalidate(); render();
-            status.textContent = `${confirmed} grade cells confirmed. ` +
-              (applyGrades ? '' : 'No grade values were changed. ') +
-              (changed ? 'Wait for Planner to show Autosaved before leaving.' : 'The draft was already up to date.');
+            const result = `${confirmed} grade cells confirmed for ${pdf.classCode}. ` +
+              (applyGrades ? '' : 'No grade values were changed. ');
+            const location = !visible ? `View this School Value under Term ${pdf.valueTerm}.` :
+              teaching ? `Showing ${teaching.code}.` : '';
+            list.disabled = preview.disabled = true;
+            status.textContent = result + 'Checking that the Planner draft is saved…';
+            const saved = await ensureSaved();
+            status.textContent = (saved ? result + (changed ? 'Saved to Planner. ' : 'The saved draft was already up to date. ') :
+              'Not saved to Planner. The displayed confirmations are pending. Check the Planner save message before leaving. ') + location;
           } catch (error) { status.textContent = error.message; }
+          finally { list.disabled = preview.disabled = false; }
         }
         button(review, 'Confirm matching grades only', false, () => savePdf(false));
         button(review, 'Apply matched grades', false, () => savePdf(true));
@@ -148,13 +162,13 @@
     drive.append(preview, status, review);
     area.append(drive);
 
+    const normalizePdfClass = code => code.replace('MMDETCH', 'MMDTECH');
+    const reportClassCode = code => normalizePdfClass(code.split('-')[1] || '');
     function planPdf(pdf, roster) {
       const normalize = name => name.normalize('NFC').replace(/[‘’]/g, "'").replace(/\s+/g, ' ').trim().toLowerCase();
-      const normalizeClass = code => code.replace('MMDETCH', 'MMDTECH');
       const candidates = new Map();
       for (const group of roster.classes) {
-        const code = normalizeClass(group.code.split('-')[1] || '');
-        if (code !== normalizeClass(pdf.classCode)) continue;
+        if (reportClassCode(group.code) !== normalizePdfClass(pdf.classCode)) continue;
         for (const student of group.students) if (schema.programmes.junior.years.includes(student.yearLevel)) candidates.set(student.id, student);
       }
       const seen = new Set();
@@ -322,6 +336,7 @@
     }
     function render() {
       updateDefaultPanels();
+      drive.hidden = state.part === 'awards';
       controls.replaceChildren(); body.replaceChildren(); classButtons.clear();
       const cycleLabel = el('label', 'Report cycle ');
       const cycle = el('select', '', { 'aria-label': 'Report cycle' });
@@ -350,13 +365,29 @@
       if (classes.some(group => !group.audit)) controls.append(el('strong', 'Teaching classes'), tabs);
       if (classes.some(group => group.audit)) controls.append(el('strong', 'Homeroom audit (read-only)'), auditTabs);
       const parts = el('div', '', { class: 'reporting-tabs', role: 'group', 'aria-label': 'Report part' });
-      for (const [key, label] of [['slo', '1. Student Learning Objectives'], ['values', '2. School Values'], ['comments', '3. Report Comments']]) {
+      for (const [key, label] of [['slo', '1. Student Learning Objectives'], ['values', '2. School Values'], ['comments', '3. Report Comments'], ['awards', '4. Awards']]) {
         button(parts, label, state.part === key, () => {
           state.part = key;
           render();
         });
       }
       controls.append(parts);
+      if (state.part === 'awards') {
+        body.append(el('h3', 'Kaha Mohio and Kaha Akoranga criteria'));
+        const criteria = el('ul');
+        for (const [label, id] of [
+          ['Junior/Middle (Years 7–10) — 2025 award criteria (PDF)', '1CxZBXBP6pIOPKs4TvmSSdlnlZj60yXsL'],
+          ['Senior — 2026 Kaha Akoranga and Kaha Mohio criteria (PDF)', '1zlY1_IdWcWLBCttZf3VEt5DvVEA9aVJi']
+        ]) {
+          const item = el('li');
+          item.append(el('a', label, {
+            href: `https://drive.google.com/file/d/${id}/view`, target: '_blank', rel: 'noopener noreferrer'
+          }));
+          criteria.append(item);
+        }
+        body.append(criteria, el('p', 'Criteria reference only. No awards are calculated, allocated or confirmed here yet.'));
+        return;
+      }
       const filterLabel = el('label', ' Incomplete students only');
       const filter = el('input', '', { type: 'checkbox' }); filter.checked = state.incomplete;
       filter.addEventListener('change', () => { state.incomplete = filter.checked; render(); });

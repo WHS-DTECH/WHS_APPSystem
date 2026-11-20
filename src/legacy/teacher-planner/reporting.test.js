@@ -64,7 +64,7 @@ function fixture(data = {}, fail = false, options = {}) {
   const host = el('main'), calls = [];
   const context = vm.createContext({ plannerReportingSchema: schema, Event, URLSearchParams, console, confirm: options.confirm || (() => true) });
   vm.runInContext(fs.readFileSync(path.join(__dirname, 'public', 'reporting.js'), 'utf8'), context);
-  const mountOptions = { el, data, year: 2026, request: async url => {
+  const mountOptions = { el, data, year: 2026, ensureSaved: options.ensureSaved || (async () => true), request: async url => {
     calls.push(url);
     if (fail) throw new Error('School directory unavailable');
     if (options.request) return options.request(url, directory);
@@ -94,11 +94,10 @@ test('Junior award guide uses the exact year-level thresholds and ignores missin
   ]) assert.equal(schema.juniorAwardMeetsGuide(year, level), expected, year + ' ' + level);
 });
 
-test('Reporting retains editable SLOs without the old Awards guide or extra roster requests', async () => {
+test('Reporting retains editable SLOs without extra roster requests', async () => {
   const entries = [{ ...row, coding: '4P', design: '4A' }];
   const f = fixture({ records: JSON.stringify(entries) });
   await settle();
-  assert.equal(f.find(node => node.textContent === '4. Awards'), undefined);
   assert.ok(f.control('Synthetic Junior: Computational Thinking - Coding'));
   assert.ok(f.control('Report cycle'));
   assert.deepEqual(f.calls, ['attendance/classes/2026?term=3&view=junior-audit']);
@@ -138,22 +137,24 @@ test('End of Year JuniorDTECH shows read-only homerooms alongside editable teach
 
 test('Reporting Drive confirms individual matches without replacing differences and clears confirmation on manual edit', async () => {
   const existing = { ...row, whanaungatanga: 'Exe' };
-  const f = fixture({ records: JSON.stringify([existing]) }, false, { request: async (url, directory) => {
+  let canSave = false;
+  const f = fixture({ records: JSON.stringify([existing]) }, false, { ensureSaved: async () => canSave, request: async (url, directory) => {
     if (url.startsWith('google-calendar/reporting-drive/files?')) return { files: [{ id: 'example_file', name: 'Report.pdf', label: 'SLOs', version: 'v1' }] };
     if (url.startsWith('google-calendar/reporting-drive/file/')) return { classCode: 'JDTECH', year: 2026, rows: [
       { name: 'Synthetic Junior', grades: { coding: '4B', design: '4A' } },
       { name: 'Unknown Student', grades: { coding: '4A', design: '4A' } }
     ] };
-    return directory;
+    return { ...directory, homerooms: [{ code: 'PI', students: directory.classes[2].students }] };
   } });
   await settle();
+  f.click('PI (0/1)');
   f.control('Google Drive Reports folder').value = 'https://drive.google.com/drive/folders/example_test_folder';
   await f.click('List Drive PDFs');
   f.enter('KAMAR report PDF', 'example_file');
   await f.click('Preview PDF');
   assert.ok(f.find(node => node.textContent === 'Unknown Student: Not matched — unchanged'));
   assert.equal(f.events.length, 0);
-  f.click('Confirm matching grades only');
+  await f.click('Confirm matching grades only');
   const saved = () => JSON.parse(f.find(node => node.attrs.name === 'records').value);
   const codingLabel = 'Synthetic Junior: Computational Thinking - Coding';
   const designLabel = 'Synthetic Junior: Design & Develop a Digital Outcome';
@@ -162,15 +163,33 @@ test('Reporting Drive confirms individual matches without replacing differences 
   assert.ok(f.control(codingLabel));
   assert.ok(f.control(designLabel + confirmation));
   assert.equal(f.all().filter(node => node.attrs.class === 'reporting-pdf-confirmed').length, 1);
+  assert.ok(f.find(node => node.attrs.role === 'status' && node.textContent.startsWith('Not saved to Planner.')));
   f.enter(designLabel + confirmation, '4P');
   assert.deepEqual(saved(), [{ ...existing, design: '4P' }]);
   assert.equal(f.all().filter(node => node.attrs.class === 'reporting-pdf-confirmed').length, 0);
   await f.click('Preview PDF');
-  f.click('Apply matched grades');
+  canSave = true;
+  await f.click('Apply matched grades');
   assert.deepEqual(saved(), [{ ...existing, coding: '4B', pdfConfirmed: { coding: '4B', design: '4A' } }]);
+  assert.ok(f.find(node => node.attrs.role === 'status' && node.textContent.includes('Saved to Planner.')));
   assert.deepEqual(f.events, ['input', 'input', 'input']);
   f.enter(codingLabel + confirmation, '3P');
   assert.deepEqual(saved(), [{ ...existing, pdfConfirmed: { design: '4A' } }]);
+});
+
+test('Reporting Awards shows separate Junior/Middle and Senior criteria links without changing drafts', async () => {
+  const f = fixture({ records: JSON.stringify([row]) });
+  await settle();
+  f.click('4. Awards');
+  const links = f.all().filter(node => node.tag === 'a' && node.textContent.includes('(PDF)'));
+  assert.deepEqual(links.map(node => node.textContent), [
+    'Junior/Middle (Years 7–10) — 2025 award criteria (PDF)',
+    'Senior — 2026 Kaha Akoranga and Kaha Mohio criteria (PDF)'
+  ]);
+  assert.equal(new Set(links.map(node => node.attrs.href)).size, 2);
+  assert.ok(links.every(node => /^https:\/\/drive\.google\.com\/file\/d\/[\w-]+\/view$/.test(node.attrs.href)));
+  assert.equal(f.control('Class report entries'), undefined);
+  assert.equal(f.events.length, 0);
 });
 
 test('default panels follow the selected report part without changing saved data', async () => {
