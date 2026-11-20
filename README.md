@@ -1563,6 +1563,15 @@ confirmed. Awards show confirmed recipient counts and tick with at least one
 Mohio and two Akoranga recipients. An unticked room may simply have too few
 recipients to show progress from the PDF; 7S and 8S are not eligible for awards.
 
+**Calculate Attendance Criteria** checks existing Akoranga ticks across the
+selected JuniorDTECH homeroom roster, regardless of the visible class or filter.
+After confirmation, it unticks nominees below 90% or with missing attendance,
+then keeps the highest attendance within each room's 25% cap (rounded down).
+Cutoff ties stay ticked for manual review; Unassigned has no cap. Red unchecked
+cells show the reason and remain visible in the recipient view. A KAMAR PDF
+re-sync does not restore red corrections; manually re-ticking clears the flag.
+The check does not assess effort or perseverance, change Mohio, or write to KAMAR.
+
 Both programmes assess **Computational Thinking - Coding** and **Design & Develop
 a Digital Outcome**. Junior choices are UAG, 3B, 3P, 3A, 4B, 4P, 4A; Middle choices
 are UAG, 4P, 4A, 5B, 5P, 5A, 6B. The criteria guide displays Achieved (50%),

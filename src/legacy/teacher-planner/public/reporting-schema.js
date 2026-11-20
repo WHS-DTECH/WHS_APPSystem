@@ -66,7 +66,9 @@
             key === 'pdfConfirmed' ? entry.pdfConfirmed && typeof entry.pdfConfirmed === 'object' && !Array.isArray(entry.pdfConfirmed) &&
               Object.entries(entry.pdfConfirmed).every(([award, value]) => ['mohio', 'akoranga'].includes(award) &&
                 value === true && entry[award] === true) :
-            key === 'attendance' && Number.isFinite(entry[key]) && entry[key] >= 0 && entry[key] <= 100));
+            key === 'akorangaCorrection' ? entry.akoranga !== true &&
+              ['below-attendance', 'missing-attendance', 'homeroom-cap'].includes(entry[key]) :
+              key === 'attendance' && Number.isFinite(entry[key]) && entry[key] >= 0 && entry[key] <= 100));
   }
   function validContent(content) {
     if (!content || Object.keys(content).some(key => !['records', 'valuesDefault', 'juniorSloDefault', 'awards'].includes(key)) ||
