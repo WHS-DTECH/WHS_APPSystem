@@ -25,13 +25,16 @@
       target: '_blank', rel: 'noopener noreferrer'
     });
     area.append(reference, el('p', 'Private draft judgements. These entries do not publish or write to KAMAR. ' +
-      'Class lists use the latest preserved timetable for the selected term. SLOs and comments are shared across terms within the same report cycle; JuniorDTECH school values follow the selected term.'));
+      'Class lists use the latest preserved timetable for the selected term. SLOs and comments are shared across terms within the same report cycle.'));
     const termLabel = el('label', 'Class list term ');
     const termSelect = el('select', '', { 'aria-label': 'Reporting class list term' });
     for (let i = 1; i <= 4; i++) termSelect.append(el('option', 'Term ' + i, { value: String(i) }));
     termSelect.value = /^[1-4]$/.test(String(initialTerm)) ? String(initialTerm) : '3';
     termLabel.append(termSelect); area.append(termLabel);
     const controls = el('div', '', { 'data-planner-navigation': '', class: 'reporting-controls' });
+    const setup = el('div', '', { class: 'reporting-setup' });
+    const allocation = el('aside', '', { class: 'reporting-value-allocation', 'aria-label': 'School Value allocation', hidden: '' });
+    setup.append(controls, allocation);
     const body = el('div');
     const feedback = el('p', 'Loading school classes...', { role: 'status', 'aria-live': 'polite' });
     const defaultsPanel = el('section', '', { 'data-planner-navigation': '', 'aria-label': 'School values defaults' });
@@ -47,20 +50,38 @@
       sloPanel.hidden = state.part !== 'slo';
     }
     updateDefaultPanels();
-    area.append(defaultsPanel, sloPanel, controls, feedback, body); host.append(area);
+    area.append(defaultsPanel, sloPanel, setup, feedback, body); host.append(area);
     let directory, loadNumber = 0;
+    const auditRosters = new Map();
+    let allocationReady = false, allocationPending = false, allocationError = '';
     const classButtons = new Map();
     const drive = el('details', '', { 'data-planner-navigation': '' });
     const folder = el('input', '', { type: 'url', 'aria-label': 'Google Drive Reports folder', placeholder: 'Paste the Reports folder link' });
     const files = el('select', '', { 'aria-label': 'KAMAR report PDF' });
     const status = el('p', '', { role: 'status' });
+    const savedFolder = el('span', '', { class: 'reporting-folder-status', role: 'status' });
     const review = el('div');
     let indexed = [], listedFolder = '', folderPart;
     const invalidate = () => review.replaceChildren();
     const folderKey = part => `planner-reporting-folder:${ownerId}:${part}`;
-    function rememberFolder(link) {
-      try { globalThis.localStorage?.setItem(folderKey(folderPart), link); }
-      catch (error) { console.warn('Reporting folder could not be remembered:', error.message); }
+    function showFolderStatus(input, label, key) {
+      try {
+        const saved = globalThis.localStorage?.getItem(key);
+        label.textContent = saved && saved === input.value.trim() ? 'Folder link saved in this browser' :
+          input.value.trim() ? 'Folder link not saved yet' : 'No folder link saved';
+      } catch (error) {
+        label.textContent = 'Browser storage unavailable. Folder link is not saved.';
+        console.warn('Reporting folder status could not be read:', error.message);
+      }
+    }
+    function rememberFolder(input, label, key, link) {
+      try { globalThis.localStorage?.setItem(key, link); }
+      catch (error) {
+        label.textContent = 'Folder link could not be saved in this browser.';
+        console.warn('Reporting folder could not be remembered:', error.message);
+        return;
+      }
+      showFolderStatus(input, label, key);
     }
     function showDrive() {
       drive.hidden = !['slo', 'values'].includes(state.part);
@@ -73,8 +94,9 @@
         status.textContent = 'Browser storage is unavailable. Paste the Drive folder link to continue.';
         console.warn('Reporting folder could not be loaded:', error.message);
       }
+      showFolderStatus(folder, savedFolder, folderKey(folderPart));
     }
-    folder.addEventListener('input', invalidate);
+    folder.addEventListener('input', () => { invalidate(); showFolderStatus(folder, savedFolder, folderKey(folderPart)); });
     files.addEventListener('change', invalidate);
     drive.append(el('summary', 'Google Drive sync — KAMAR reports'),
       el('p', 'Select the report cycle. Batch preview checks all four teaching terms. For single-file preview, select its teaching term first. Nothing is written to KAMAR or Drive. ' +
@@ -85,11 +107,11 @@
       indexed = []; listedFolder = ''; files.replaceChildren();
       status.textContent = 'Reading Drive folder…';
       try {
-        const link = folder.value.trim();
+        const link = folder.value.trim(), part = folderPart;
         const result = await request('google-calendar/reporting-drive/files?' + new URLSearchParams({ folder: link }));
-        if (folder.value.trim() !== link || !area.isConnected) return;
+        if (folder.value.trim() !== link || folderPart !== part || !area.isConnected) return;
         listedFolder = link; indexed = result.files;
-        rememberFolder(link);
+        rememberFolder(folder, savedFolder, folderKey(part), link);
         files.append(el('option', 'Select a PDF', { value: '' }));
         for (const file of indexed) files.append(el('option', (file.label ? file.label + ' / ' : '') + file.name, { value: file.id }));
         files.value = '';
@@ -182,19 +204,24 @@
     });
     drive.append(preview);
     const batch = button(drive, 'Preview all PDFs', false, previewBatch);
-    drive.append(status, review);
+    drive.append(savedFolder, status, review);
     area.append(drive);
 
     const attendance = el('details', '', { 'data-planner-navigation': '' });
     const attendanceFolder = el('input', '', { type: 'url', 'aria-label': 'Awards attendance Drive folder' });
     const attendanceFiles = el('select', '', { 'aria-label': 'Awards attendance CSV' });
     const attendanceStatus = el('p', '', { role: 'status' });
+    const attendanceSavedFolder = el('span', '', { class: 'reporting-folder-status', role: 'status' });
     const attendanceReview = el('div');
     let attendanceIndex = [], attendanceListedFolder = '';
     const attendanceKey = folderKey('attendance');
     try { attendanceFolder.value = globalThis.localStorage?.getItem(attendanceKey) || ''; }
     catch (error) { console.warn('Awards attendance folder could not be loaded:', error.message); }
-    attendanceFolder.addEventListener('input', () => attendanceReview.replaceChildren());
+    showFolderStatus(attendanceFolder, attendanceSavedFolder, attendanceKey);
+    attendanceFolder.addEventListener('input', () => {
+      attendanceReview.replaceChildren();
+      showFolderStatus(attendanceFolder, attendanceSavedFolder, attendanceKey);
+    });
     attendanceFiles.addEventListener('change', () => attendanceReview.replaceChildren());
     attendance.append(el('summary', 'Google Drive sync — Attendance%'),
       el('p', 'Select the KAMAR half-day attendance CSV for ' + year + '. Attendance is matched by Student ID across the reporting roster, not by name.'), attendanceFolder);
@@ -207,8 +234,7 @@
         const { files } = await request('google-calendar/reporting-awards/files?' + new URLSearchParams({ folder: link }));
         if (!area.isConnected || attendanceFolder.value.trim() !== link) return;
         attendanceListedFolder = link; attendanceIndex = files;
-        try { globalThis.localStorage?.setItem(attendanceKey, link); }
-        catch (error) { console.warn('Awards attendance folder could not be remembered:', error.message); }
+        rememberFolder(attendanceFolder, attendanceSavedFolder, attendanceKey, link);
         attendanceFiles.append(el('option', 'Select an attendance CSV', { value: '' }));
         for (const file of files) attendanceFiles.append(el('option', file.name, { value: file.id }));
         attendanceFiles.value = '';
@@ -265,7 +291,7 @@
       } catch (error) { attendanceStatus.textContent = error.message; }
       finally { listAttendance.disabled = previewAttendance.disabled = false; }
     });
-    attendance.append(attendanceStatus, attendanceReview);
+    attendance.append(attendanceSavedFolder, attendanceStatus, attendanceReview);
     area.append(attendance);
 
     function saveAwards(next) {
@@ -299,7 +325,7 @@
           ...[1, 2, 3, 4].map(term => request('attendance/classes/' + year + '?term=' + term))
         ]);
         if (!current()) throw new Error('The reporting view changed. Preview the batch again.');
-        rememberFolder(link);
+        rememberFolder(folder, savedFolder, folderKey(part), link);
         const sources = result.files.filter(file => !file.label || file.label === (part === 'slo' ? 'SLOs' : 'Values'));
         if (!sources.length || sources.length > 30) throw new Error('The folder must contain between 1 and 30 PDFs for this batch.');
         const roster = { classes: rosters.flatMap(item => item.classes) };
@@ -415,7 +441,7 @@
       const value = valuesDefault ? 'Dem' : '';
       const row = { studentId, programme, cycle, coding: slo, design: slo,
         kaitiakitanga: value, rangatiratanga: value, comment: '' };
-      if (programme === 'junior' && valuesDefault === 'Dem-v2') { row.whanaungatanga = 'Dem'; row.manaakitanga = 'Dem'; }
+      if (valuesDefault === 'Dem-v2') { row.whanaungatanga = 'Dem'; row.manaakitanga = 'Dem'; }
       return row;
     }
     function setConfirmation(row, field, grade, previous) {
@@ -471,8 +497,7 @@
         if (!area.isConnected) return;
         const next = records.map(row => {
           const updated = { ...row };
-          const keys = row.programme === 'junior' ? schema.juniorValues.map(([key]) => key) : ['kaitiakitanga', 'rangatiratanga'];
-          for (const key of keys) if (!updated[key]) updated[key] = 'Dem';
+          for (const [key] of schema.juniorValues) if (!updated[key]) updated[key] = 'Dem';
           return updated;
         });
         addNewStudents(next, lists, 'Dem-v2', sloDefaultStore.value);
@@ -559,18 +584,78 @@
       return teaching.concat((directory.homerooms || []).map(group => ({ ...group, key: 'audit:' + group.code, audit: true })));
     }
     function selected() { return groups().find(group => group.key === state.classCode); }
+    function reportTerm(group) {
+      if (state.part !== 'values' || !group?.audit) return termSelect.value;
+      const terms = allocationReady ? schema.homeroomTerms(group, auditRosters) : [];
+      return terms.length === 1 ? terms[0] : undefined;
+    }
+    function showAllocation() {
+      allocation.hidden = state.part !== 'values';
+      if (allocation.hidden) return;
+      allocation.replaceChildren(el('strong', 'School Value allocation'));
+      const table = el('table'), thead = el('thead'), tbody = el('tbody'), header = el('tr');
+      const junior = state.programme === 'junior';
+      for (const label of [junior ? 'Homeroom' : 'Semester', junior ? 'DTECH term' : 'Terms', 'School Value']) {
+        header.append(el('th', label, { scope: 'col' }));
+      }
+      thead.append(header); table.append(thead, tbody); allocation.append(table);
+      function addRow(label, terms, values) {
+        const row = el('tr');
+        row.append(el('th', label, { scope: 'row' }), el('td', terms), el('td', values)); tbody.append(row);
+      }
+      if (!junior) {
+        for (const term of [1, 3]) addRow(`Semester ${term === 1 ? 1 : 2}`, `Terms ${term} and ${term + 1}`,
+          schema.valueFields('middle', term).map(([, label]) => label).join(' / '));
+        return;
+      }
+      if (!allocationReady) {
+        allocation.append(el('p', allocationError || 'Checking the four preserved teaching timetables…', { role: 'status' }));
+        if (allocationError) button(allocation, 'Retry term allocations', false, () => {
+          allocationError = ''; showAllocation();
+        });
+        else void loadAllocations();
+      }
+      for (const room of directory.homerooms || []) {
+        const terms = allocationReady ? schema.homeroomTerms(room, auditRosters) : [];
+        addRow(room.code, terms.length ? terms.map(term => `Term ${term}`).join(' / ') : allocationReady ? 'Not verified' : '—',
+          terms.map(term => schema.juniorValues[Number(term) - 1][1]).join(' / ') || '—');
+      }
+      if (allocationReady) allocation.append(el('p', 'Only a single verified teaching term is used in the homeroom audit.'));
+    }
+    async function loadAllocations() {
+      if (allocationPending) return;
+      allocationPending = true;
+      try {
+        const missing = ['1', '2', '3', '4'].filter(term => !auditRosters.has(term));
+        await Promise.all(missing.map(async term => {
+          const roster = await request('attendance/classes/' + year + '?term=' + term + '&view=junior-audit');
+          auditRosters.set(term, roster);
+        }));
+        allocationReady = true;
+      } catch (error) {
+        allocationError = 'Could not verify the DTECH terms: ' + error.message;
+      } finally {
+        allocationPending = false;
+        if (area.isConnected && directory && state.part === 'values') render();
+      }
+    }
     function summary() {
-      const students = selected()?.students || [];
-      const count = students.filter(student => schema.complete(record(student), state.cycle, termSelect.value)).length;
+      const group = selected(), students = group?.students || [], term = reportTerm(group);
+      const count = students.filter(student => schema.complete(record(student), state.cycle, term)).length;
       for (const group of groups()) {
-        const done = group.students.filter(student => schema.complete(record(student), state.cycle, termSelect.value)).length;
+        const done = group.students.filter(student => schema.complete(record(student), state.cycle, reportTerm(group))).length;
         const tab = classButtons.get(group.key);
-        if (tab) tab.textContent = `${group.code} (${done}/${group.students.length})`;
+        if (tab) tab.textContent = group.audit && !reportTerm(group) ? `${group.code} (—/${group.students.length})` :
+          `${group.code} (${done}/${group.students.length})`;
       }
       feedback.setAttribute('role', 'status');
+      if (group?.audit && !term) {
+        feedback.textContent = 'No single DTECH teaching term is verified for this homeroom. No School Value has been selected for the audit.';
+        return;
+      }
       feedback.textContent = `${count} of ${students.length} students complete in this ${selected()?.audit ? 'homeroom' : 'class'}. ` +
-        (state.programme === 'junior' ? 'JuniorDTECH requires at least one SLO and this term’s school value. ' :
-          'MiddleDTECH requires both SLOs and both school values. ') +
+        (state.programme === 'junior' ? 'JuniorDTECH requires at least one SLO and the reporting term’s school value. ' :
+          'MiddleDTECH requires both SLOs and both values for the selected semester. ') +
         (state.cycle === 'eoy' ? 'Comments are optional for EOY.' : 'An earlier-year comment is required.');
     }
     function render() {
@@ -578,6 +663,7 @@
       showDrive();
       const awarding = state.part === 'awards';
       attendance.hidden = !awarding;
+      showAllocation();
       controls.replaceChildren(); body.replaceChildren(); classButtons.clear();
       const cycleLabel = el('label', 'Report cycle ');
       const cycle = el('select', '', { 'aria-label': 'Report cycle' });
@@ -599,7 +685,7 @@
       const tabs = el('div', '', { class: 'reporting-tabs', role: 'group', 'aria-label': 'Teaching classes' });
       const auditTabs = el('div', '', { class: 'reporting-tabs', role: 'group', 'aria-label': 'Homeroom audit' });
       for (const group of classes) {
-        const done = group.students.filter(student => schema.complete(record(student), state.cycle, termSelect.value)).length;
+        const done = group.students.filter(student => schema.complete(record(student), state.cycle, reportTerm(group))).length;
         const label = awarding ? `${group.code} (${group.students.length})` : `${group.code} (${done}/${group.students.length})`;
         classButtons.set(group.key, button(group.audit ? auditTabs : tabs, label,
           group.key === (awarding ? awardClass : state.classCode), () => {
@@ -703,9 +789,9 @@
           `Merit (70%): ${levels.slice(2, 4).join(' / ')}; Excellence (90%): ${levels.slice(4).join(' / ')}. ` +
           'Percentages are reference labels, not calculated grades. Not entered is distinct from UAG.'));
       }
+      const group = selected(), term = reportTerm(group);
       const definitions = state.part === 'slo' ? [['coding', 'Computational Thinking - Coding'], ['design', 'Design & Develop a Digital Outcome']] :
-        state.part === 'values' ? (state.programme === 'junior' ? [schema.juniorValues[Number(termSelect.value) - 1]] :
-          [['kaitiakitanga', 'Kaitiakitanga'], ['rangatiratanga', 'Rangatiratanga']]) :
+        state.part === 'values' ? schema.valueFields(state.programme, term) :
           [['comment', 'Report comment' + (state.cycle === 'eoy' ? ' (optional for EOY)' : ' (required)')]];
       if (state.part !== 'comments') body.append(el('p', 'Green: confirmed against a KAMAR PDF. Amber: a different Planner grade was replaced by KAMAR. White: not confirmed.'));
       const scroll = el('div', '', { class: 'reporting-scroll', tabindex: '0', role: 'region', 'aria-label': 'Class report entries' });
@@ -713,8 +799,7 @@
       head.append(el('th', 'Student', { scope: 'col' }), el('th', 'Year', { scope: 'col' }));
       for (const [, label] of definitions) head.append(el('th', label, { scope: 'col' }));
       const thead = el('thead'); thead.append(head); table.append(thead, tbody); scroll.append(table); body.append(scroll);
-      const group = selected();
-      const students = group.students.filter(student => !state.incomplete || !schema.complete(record(student), state.cycle, termSelect.value));
+      const students = group.students.filter(student => !state.incomplete || !schema.complete(record(student), state.cycle, term));
       for (const student of students) {
         const tr = el('tr');
         tr.append(el('th', student.name, { scope: 'row' }), el('td', student.yearLevel));
@@ -751,11 +836,13 @@
       const currentLoad = ++loadNumber;
       const selectedTerm = termSelect.value;
       directory = undefined; controls.replaceChildren(); body.replaceChildren();
+      allocation.hidden = true;
       feedback.setAttribute('role', 'status');
       feedback.textContent = 'Loading Term ' + selectedTerm + ' school classes...';
       try {
         const result = await request('attendance/classes/' + year + '?term=' + selectedTerm + '&view=junior-audit');
         if (!area.isConnected || currentLoad !== loadNumber) return;
+        auditRosters.set(selectedTerm, result);
         if (defaultStore.value || sloDefaultStore.value) {
           const next = records.map(row => ({ ...row }));
           const programmes = defaultStore.value ? Object.keys(schema.programmes) : ['junior'];

@@ -11,6 +11,25 @@
     ['rangatiratanga', 'Rangatiratanga'], ['kaitiakitanga', 'Kaitiakitanga']
   ];
   const pdfGradeFields = ['coding', 'design', ...juniorValues.map(([key]) => key)];
+  function valueFields(programme, term) {
+    const index = Number(term) - 1;
+    if (!Number.isInteger(index) || index < 0 || index > 3) return [];
+    return programme === 'junior' ? [juniorValues[index]] : juniorValues.slice(index < 2 ? 0 : 2, index < 2 ? 2 : 4);
+  }
+  function homeroomTerms(room, rosters) {
+    if (room.code === 'Unassigned') return [];
+    const ids = new Set(room.students.map(student => student.id));
+    const exact = [], cohort = [];
+    for (const [term, roster] of rosters) {
+      const classes = classGroups(roster, 'junior');
+      const matching = new Set(classes.flatMap(group => group.students.map(student => student.id)).filter(id => ids.has(id)));
+      const code = room.code.toUpperCase() + 'DTECH';
+      if (classes.some(group => (group.code.split('-')[1] || '').toUpperCase().replace('MMDETCH', 'MMDTECH') === code &&
+          group.students.some(student => ids.has(student.id)))) exact.push(term);
+      if (/^[78]S$/.test(room.code) && matching.size > ids.size / 2) cohort.push(term);
+    }
+    return exact.length ? exact : cohort;
+  }
   function juniorAwardMeetsGuide(yearLevel, level) {
     const threshold = { '7': '4P', '8': '4A' }[yearLevel];
     const levels = programmes.junior.levels;
@@ -59,8 +78,8 @@
   function complete(row, cycle, term) {
     if (!row) return false;
     const slos = row.programme === 'junior' ? row.coding || row.design : row.coding && row.design;
-    const schoolValues = row.programme === 'junior' ?
-      row[juniorValues[Number(term) - 1]?.[0]] : row.kaitiakitanga && row.rangatiratanga;
+    const fields = valueFields(row.programme, term);
+    const schoolValues = fields.length && fields.every(([key]) => row[key]);
     return Boolean(slos && schoolValues &&
       (cycle === 'eoy' || row.comment.trim()));
   }
@@ -84,7 +103,7 @@
     remaining.splice(first, 0, combined);
     return remaining;
   }
-  const schema = { programmes, values, juniorValues, pdfGradeFields, juniorAwardMeetsGuide, validRecords, validContent, complete, classGroups };
+  const schema = { programmes, values, juniorValues, valueFields, homeroomTerms, pdfGradeFields, juniorAwardMeetsGuide, validRecords, validContent, complete, classGroups };
   if (typeof module !== 'undefined' && module.exports) module.exports = schema;
   else root.plannerReportingSchema = schema;
 })(globalThis);

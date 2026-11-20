@@ -1,5 +1,12 @@
 .whs-planner { background: #eeece7; color: #303d42; font-family: "Segoe UI", sans-serif; }
 .reporting-controls { display: grid; gap: 12px; margin: 20px 0; }
+.reporting-setup { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0 24px; }
+.reporting-setup > .reporting-controls { flex: 1 1 480px; }
+.reporting-value-allocation { margin: 20px 0; padding: 10px 14px; border: 1px solid #b3c4cb; border-radius: 5px; }
+.reporting-value-allocation table { border-collapse: collapse; margin: 4px 0; }
+.reporting-value-allocation th, .reporting-value-allocation td { padding: 3px 8px; border-bottom: 1px solid #d5e0e4; text-align: left; }
+.reporting-value-allocation p { margin: 6px 0 0; font-size: .9em; }
+.reporting-folder-status { display: inline-block; margin-inline-start: 10px; font-size: .9em; color: #326046; }
 .reporting-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
 .reporting-tabs button[aria-pressed="true"] { background: #245f85; color: #fff; }
 .reporting-tabs .reporting-teaching-tab { background: #e3f1fa; color: #154967; border-color: #6094b3; }
