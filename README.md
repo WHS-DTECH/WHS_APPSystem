@@ -1560,7 +1560,9 @@ The **Reporting** section provides JuniorDTECH and MiddleDTECH programme tabs,
 then class tabs and report-part pages. A permanent
 [DTECH Assessment Criteria Google Doc](https://docs.google.com/document/d/1oA7xHQapbqE3myKKFL6T7oUMGxPbrm2BCE1rJQ51-gw/edit?usp=sharing)
 shortcut opens in a new tab. **4. Awards** links to the 2025 Junior/Middle and
-2026 Senior criteria PDFs using their existing Drive permissions. It shows the
+2026 Senior criteria PDFs and the
+[additional award criteria Google Doc](https://docs.google.com/document/d/1dJpELNWdXscLwGdWbiCYtVHjqTdY18qXDqJCjUew-Q0/edit?usp=drive_link)
+using their existing Drive permissions. It shows the
 reporting roster with Attendance%, Mohio and Akoranga. Award ticks default to
 off and are saved per student and school year in the teacher's private draft.
 They can be edited in both teaching and homeroom views. Use the award filter

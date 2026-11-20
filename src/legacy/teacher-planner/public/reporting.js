@@ -1060,13 +1060,14 @@
         criteriaSetup.append(criteriaCopy, coverageTable); body.append(criteriaSetup);
         criteriaCopy.append(el('h3', 'Kaha Mohio and Kaha Akoranga criteria'));
         const criteria = el('ul');
-        for (const [label, id] of [
-          ['Junior/Middle (Years 7–10) — 2025 award criteria (PDF)', '1CxZBXBP6pIOPKs4TvmSSdlnlZj60yXsL'],
-          ['Senior — 2026 Kaha Akoranga and Kaha Mohio criteria (PDF)', '1zlY1_IdWcWLBCttZf3VEt5DvVEA9aVJi']
+        for (const [label, href] of [
+          ['Junior/Middle (Years 7–10) — 2025 award criteria (PDF)', 'https://drive.google.com/file/d/1CxZBXBP6pIOPKs4TvmSSdlnlZj60yXsL/view'],
+          ['Senior — 2026 Kaha Akoranga and Kaha Mohio criteria (PDF)', 'https://drive.google.com/file/d/1zlY1_IdWcWLBCttZf3VEt5DvVEA9aVJi/view'],
+          ['Additional award criteria (Google Doc)', 'https://docs.google.com/document/d/1dJpELNWdXscLwGdWbiCYtVHjqTdY18qXDqJCjUew-Q0/edit?usp=drive_link']
         ]) {
           const item = el('li');
           item.append(el('a', label, {
-            href: `https://drive.google.com/file/d/${id}/view`, target: '_blank', rel: 'noopener noreferrer'
+            href, target: '_blank', rel: 'noopener noreferrer'
           }));
           criteria.append(item);
         }

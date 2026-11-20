@@ -186,7 +186,7 @@ test('Reporting Drive confirms individual matches without replacing differences 
   assert.deepEqual(saved(), [{ ...existing, pdfConfirmed: { design: '4A' } }]);
 });
 
-test('Reporting Awards shows separate Junior/Middle and Senior criteria links without changing drafts', async () => {
+test('Reporting Awards shows PDF and additional Google Doc criteria links without changing drafts', async () => {
   const f = fixture({ records: JSON.stringify([row]) });
   await settle();
   f.click('4. Awards');
@@ -197,6 +197,10 @@ test('Reporting Awards shows separate Junior/Middle and Senior criteria links wi
   ]);
   assert.equal(new Set(links.map(node => node.attrs.href)).size, 2);
   assert.ok(links.every(node => /^https:\/\/drive\.google\.com\/file\/d\/[\w-]+\/view$/.test(node.attrs.href)));
+  const additional = f.find(node => node.tag === 'a' && node.textContent === 'Additional award criteria (Google Doc)');
+  assert.equal(additional.attrs.href, 'https://docs.google.com/document/d/1dJpELNWdXscLwGdWbiCYtVHjqTdY18qXDqJCjUew-Q0/edit?usp=drive_link');
+  assert.equal(additional.attrs.target, '_blank');
+  assert.equal(additional.attrs.rel, 'noopener noreferrer');
   assert.equal(f.control('Class report entries'), undefined);
   assert.equal(f.events.length, 0);
 });
