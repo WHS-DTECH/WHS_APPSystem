@@ -481,7 +481,8 @@
     function attendanceCriteria(excluded) {
       const removals = new Map(), ties = [];
       let unassigned = 0;
-      for (const room of directory.homerooms || []) {
+      const middle = state.programme === 'middle';
+      for (const room of middle ? groups() : directory.homerooms || []) {
         if (externalAwardRoom(room.code)) continue;
         const ids = [...new Set(room.students.map(student => student.id))].filter(id => !excluded.has(id));
         const eligible = [];
@@ -492,6 +493,7 @@
           else if (entry.attendance < 90) removals.set(id, 'below-attendance');
           else eligible.push(id);
         }
+        if (middle) continue;
         if (room.code === 'Unassigned') { unassigned += eligible.length; continue; }
         const cap = Math.floor(ids.length / 4);
         if (eligible.length <= cap) continue;
@@ -1067,23 +1069,30 @@
         const awardControls = el('div', '', { class: 'reporting-tabs', 'data-planner-navigation': '' });
         button(awardControls, 'All students', !awardClass, () => { awardClass = ''; render(); });
         const excluded = externalAwardIds();
-        const roomsAvailable = state.programme === 'junior' && (directory.homerooms || []).some(room =>
-          room.code !== 'Unassigned' && !externalAwardRoom(room.code) && room.students.length);
+        const middle = state.programme === 'middle';
+        const roomsAvailable = middle ? allocationReady && groups().some(group => group.students.length) :
+          (directory.homerooms || []).some(room =>
+            room.code !== 'Unassigned' && !externalAwardRoom(room.code) && room.students.length);
         const check = roomsAvailable ? attendanceCriteria(excluded) : null;
         const tieIds = new Set(check?.ties.flatMap(tie => tie.ids));
         if (check) {
           const calculate = button(awardControls, 'Calculate Attendance Criteria', false, () =>
             applyAwardCriteria('akoranga', 'Akoranga', attendanceCriteria(excluded).removals,
-              'This uses every junior homeroom, not just the current view. Ties at the cutoff are left ticked for you to review.'));
+              middle ? 'This checks MiddleDTECH and S1 MPROG nominees, regardless of class or filter. The 25% class cap is for manual review.' :
+                'This uses every junior homeroom, not just the current view. Ties at the cutoff are left ticked for you to review.'));
           calculate.disabled = savingCriteria;
-          body.append(el('p', 'Akoranga only: at least 90% attendance; maximum 25% of each homeroom (rounded down). Check effort and perseverance separately.'));
+          body.append(el('p', middle ?
+            'Akoranga only: at least 90% attendance. Review the 25% class cap, effort and perseverance separately; no class-cap removals are automatic.' :
+            'Akoranga only: at least 90% attendance; maximum 25% of each homeroom (rounded down). Check effort and perseverance separately.'));
           if (check.unassigned) body.append(el('p', `${check.unassigned} eligible nominees have no assigned homeroom, so their cap could not be checked.`));
           for (const tie of check.ties) body.append(el('p',
             `${tie.room}: Akoranga cutoff tie at ${tie.percentage}%. Untick ${tie.excess} of the ${tie.ids.length} students marked “Cutoff tie”.`));
-        } else body.append(el('p', 'Attendance criteria require a verified JuniorDTECH homeroom roster.'));
+        } else body.append(el('p', middle ? allocationReady ? 'No verified MiddleDTECH or S1 MPROG students are available for the attendance check.' :
+          'Attendance criteria require the MiddleDTECH and S1 audit timetables to finish loading. Retry any timetable error in the progress box.' :
+          'Attendance criteria require a verified JuniorDTECH homeroom roster.'));
         const gradeCheck = button(awardControls, 'Check Grade criteria', false, () => {
           if (state.cycle === 'eoy') return applyAwardCriteria('mohio', 'Mohio', gradeCriteria(excluded),
-            'This checks End of Year SLOs for both JuniorDTECH and MiddleDTECH in the selected term’s class list, regardless of filter. Switch programmes to see the other corrections.');
+            'This checks End of Year SLOs for both JuniorDTECH and MiddleDTECH in the selected term’s class list and the loaded S1 MPROG audit, regardless of filter. Switch programmes to see the other corrections.');
         });
         gradeCheck.disabled = savingCriteria || state.cycle !== 'eoy' || (state.programme === 'middle' && !allocationReady);
         const thresholds = Object.entries(schema.endOfYearMohioGrades).map(([level, grade]) => `Year ${level}: ${grade}`).join(', ');

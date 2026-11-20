@@ -440,20 +440,73 @@ test('Attendance criteria use whole homerooms, red-flag removals and leave cutof
   assert.equal(f.find(node => node.attrs.name === 'records').value, data.records);
 });
 
+test('Middle attendance criteria cover teaching and S1 audit nominees without enforcing class caps', async () => {
+  const learner = (name, yearLevel = '9') => ({ id: 'k:' + name, name, yearLevel });
+  const [boundary, high, low, missing, former, unticked] = [
+    learner('Boundary'), learner('High', '10'), learner('Low'), learner('Missing', '10'),
+    learner('Former'), learner('Unticked')
+  ];
+  const initial = {
+    [boundary.id]: { attendance: 90, akoranga: true },
+    [high.id]: { attendance: 99, akoranga: true },
+    [low.id]: { attendance: 89.99, akoranga: true, mohio: true, pdfConfirmed: { mohio: true, akoranga: true } },
+    [missing.id]: { akoranga: true, pdfConfirmed: { akoranga: true } },
+    [former.id]: { attendance: 96, akoranga: true },
+    [unticked.id]: { attendance: 40 },
+    [row.studentId]: { attendance: 70, akoranga: true }
+  };
+  let accept = false;
+  const options = { confirm: () => accept, request: async (url, directory) => ({
+    classes: [directory.classes[0], { code: /term=[12](?:&|$)/.test(url) ? 'VP-MPROG-CW' : 'VP-MDTECH-CW',
+      students: /term=[12](?:&|$)/.test(url) ? [low, missing, former] : [boundary, high, low, unticked] }],
+    homerooms: [{ code: 'PI', students: directory.classes[0].students }]
+  }) };
+  const data = { records: JSON.stringify([row]), awards: JSON.stringify(initial) };
+  const f = fixture(data, false, options);
+  await settle(); f.click('MiddleDTECH'); await settle();
+  f.click('4. Awards');
+  f.click('S1 MPROG (3)');
+  f.enter('Filter awards', 'mohio');
+  await f.click('Calculate Attendance Criteria');
+  assert.equal(f.events.length, 0, 'Cancelling leaves every award unchanged');
+  accept = true;
+  await f.click('Calculate Attendance Criteria');
+  const stored = f.find(node => node.attrs.name === 'awards');
+  const saved = JSON.parse(stored.value);
+  assert.deepEqual(saved[low.id], { attendance: 89.99, mohio: true, pdfConfirmed: { mohio: true },
+    akorangaCorrection: 'below-attendance' });
+  assert.deepEqual(saved[missing.id], { akorangaCorrection: 'missing-attendance' });
+  for (const student of [boundary, high, former]) assert.deepEqual(saved[student.id], initial[student.id],
+    'Eligible nominees stay ticked even above the 25% class cap');
+  assert.deepEqual(saved[unticked.id], initial[unticked.id], 'No new nominations or corrections');
+  assert.deepEqual(saved[row.studentId], initial[row.studentId], 'Junior nominees are untouched');
+  assert.equal(f.all().filter(node => node.attrs.class === 'reporting-award-correction').length, 2);
+  assert.ok(f.find(node => node.textContent.includes('no class-cap removals are automatic')));
+  assert.equal(f.find(node => node.attrs.name === 'records').value, data.records);
+  const restored = fixture({ ...data, awards: stored.value }, false, options);
+  await settle(); restored.click('MiddleDTECH'); await settle(); restored.click('4. Awards');
+  const correction = restored.control('Missing: Akoranga (Attendance missing)');
+  assert.equal(correction.checked, false);
+  correction.checked = true; correction.events.change({ stopPropagation() {} });
+  assert.equal(restored.control('Missing: Akoranga').checked, true);
+});
+
 test('End of Year Mohio check uses both SLOs and the year minimum across both programme rosters', async () => {
   const learner = (id, yearLevel) => ({ id: `k:${id}`, name: id, yearLevel });
   const [y7, y8, y9, y10, uag, missing, excluded, unticked] = [
     learner('Y7', '7'), learner('Y8', '8'), learner('Y9', '9'), learner('Y10', '10'),
     learner('UAG', '10'), learner('Missing', '8'), learner('OtherSchool', '7'), learner('Unticked', '9')
   ];
+  const y9Minimum = learner('Y9Minimum', '9'), y10Below = learner('Y10Below', '10');
   const grade = (student, programme, coding, design, cycle = 'eoy') =>
     ({ ...row, studentId: student.id, programme, cycle, coding, design });
   const records = JSON.stringify([
     grade(y7, 'junior', '4B', '4A'), grade(y8, 'junior', '4A', '4B'), grade(y9, 'middle', '4A', '6B'),
     grade(y10, 'middle', '5A', '6B'), grade(uag, 'middle', '6B', 'UAG'),
-    grade(missing, 'junior', '4A', '4A', 'earlier'), grade(unticked, 'middle', '6B', '6B')
+    grade(missing, 'junior', '4A', '4A', 'earlier'), grade(unticked, 'middle', '6B', '6B'),
+    grade(y9Minimum, 'middle', '5B', '5B'), grade(y10Below, 'middle', '5A', '5P')
   ]);
-  const awards = Object.fromEntries([y7, y8, y9, y10, uag, missing, excluded].map(student => [student.id, { mohio: true }]));
+  const awards = Object.fromEntries([y7, y8, y9, y10, uag, missing, excluded, y9Minimum, y10Below].map(student => [student.id, { mohio: true }]));
   awards[y8.id] = { mohio: true, akoranga: true, attendance: 94, pdfConfirmed: { mohio: true, akoranga: true } };
   let accept = false;
   const f = fixture({ records, awards: JSON.stringify(awards) }, false, { confirm: () => accept, request: async url => {
@@ -461,7 +514,7 @@ test('End of Year Mohio check uses both SLOs and the year minimum across both pr
       name: 'Report.pdf', printYear: 2026, rows: [{ id: y8.id, yearLevel: '8', award: 'mohio' }]
     }] };
     return { classes: [{ code: 'TEST-JDTECH', students: [y7, y8] },
-      { code: 'TEST-MDTECH', students: [y9, y10, uag, unticked] }], homerooms: [
+      { code: 'TEST-MDTECH', students: [y9, y10, uag, unticked, y9Minimum, y10Below] }], homerooms: [
       { code: 'PI', students: [y7, y8, missing] }, { code: '7S', students: [excluded] }
     ] };
   } });
@@ -478,8 +531,9 @@ test('End of Year Mohio check uses both SLOs and the year minimum across both pr
   const saved = () => JSON.parse(f.find(node => node.attrs.name === 'awards').value);
   assert.deepEqual(saved()[y8.id], { akoranga: true, attendance: 94, pdfConfirmed: { akoranga: true }, mohioCorrection: 'below-slo' });
   assert.equal(saved()[y9.id].mohioCorrection, 'below-slo');
+  assert.equal(saved()[y10Below.id].mohioCorrection, 'below-slo');
   for (const student of [uag, missing]) assert.equal(saved()[student.id].mohioCorrection, 'missing-slo');
-  for (const student of [y7, y10, excluded]) assert.equal(saved()[student.id].mohio, true);
+  for (const student of [y7, y10, excluded, y9Minimum]) assert.equal(saved()[student.id].mohio, true);
   assert.equal(saved()[unticked.id], undefined);
   assert.equal(f.find(node => node.attrs.name === 'records').value, records);
   assert.equal(f.control('Y8: Mohio (SLO below 4P)').checked, false);
