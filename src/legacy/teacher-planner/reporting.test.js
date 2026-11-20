@@ -660,13 +660,16 @@ test('completion counts use the selected Junior term and both Middle semester va
 });
 
 test('Values audit follows the verified homeroom teaching term, not the class list term', async () => {
+  const sd = { id: 'k:sd', name: 'SD Student', yearLevel: '7' };
   const saved = { ...row, whanaungatanga: 'Exe', kaitiakitanga: 'Dev' };
   const f = fixture({ records: JSON.stringify([saved]) }, false, { request: async (url, directory) => {
     const students = directory.classes[0].students;
     return {
       classes: url.includes('term=1') ? [{ code: 'TEST-VEDTECH-CW', students }] :
-        url.includes('term=4') ? [{ code: 'TEST-PIDTECH-CW', students }] : [],
-      homerooms: [{ code: 'VE', students }, { code: 'TR', students: [{ id: 'k:other', name: 'Other', yearLevel: '7' }] }]
+        url.includes('term=4') ? [{ code: 'TEST-PIDTECH-CW', students }] :
+          url.includes('term=3') ? [{ code: 'TEST-SDTECH-CW', students: [sd] }] : [],
+      homerooms: [{ code: 'VE', students }, { code: 'SD', students: [sd] },
+        { code: 'TR', students: [{ id: 'k:other', name: 'Other', yearLevel: '7' }] }]
     };
   } });
   await settle();
@@ -677,6 +680,8 @@ test('Values audit follows the verified homeroom teaching term, not the class li
   const allocation = f.control('School Value allocation');
   assert.ok(f.all(allocation).some(node => node.tag === 'tr' &&
     node.children.map(cell => cell.textContent).join('|') === 'VE|Term 1|Whānaungatanga'));
+  assert.ok(f.all(allocation).some(node => node.tag === 'tr' &&
+    node.children.map(cell => cell.textContent).join('|') === 'SD|Term 3|Rangatiratanga'));
   assert.ok(f.all(allocation).some(node => node.tag === 'tr' &&
     node.children.map(cell => cell.textContent).join('|') === 'TR|Not verified|—'));
   f.click('VE (1/1)');
