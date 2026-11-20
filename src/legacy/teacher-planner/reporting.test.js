@@ -352,6 +352,62 @@ test('Attendance criteria use whole homerooms, red-flag removals and leave cutof
   assert.equal(f.find(node => node.attrs.name === 'records').value, data.records);
 });
 
+test('End of Year Mohio check uses both SLOs and the year minimum across both programme rosters', async () => {
+  const learner = (id, yearLevel) => ({ id: `k:${id}`, name: id, yearLevel });
+  const [y7, y8, y9, y10, uag, missing, excluded, unticked] = [
+    learner('Y7', '7'), learner('Y8', '8'), learner('Y9', '9'), learner('Y10', '10'),
+    learner('UAG', '10'), learner('Missing', '8'), learner('OtherSchool', '7'), learner('Unticked', '9')
+  ];
+  const grade = (student, programme, coding, design, cycle = 'eoy') =>
+    ({ ...row, studentId: student.id, programme, cycle, coding, design });
+  const records = JSON.stringify([
+    grade(y7, 'junior', '4B', '4A'), grade(y8, 'junior', '4A', '4B'), grade(y9, 'middle', '4A', '6B'),
+    grade(y10, 'middle', '5A', '6B'), grade(uag, 'middle', '6B', 'UAG'),
+    grade(missing, 'junior', '4A', '4A', 'earlier'), grade(unticked, 'middle', '6B', '6B')
+  ]);
+  const awards = Object.fromEntries([y7, y8, y9, y10, uag, missing, excluded].map(student => [student.id, { mohio: true }]));
+  awards[y8.id] = { mohio: true, akoranga: true, attendance: 94, pdfConfirmed: { mohio: true, akoranga: true } };
+  let accept = false;
+  const f = fixture({ records, awards: JSON.stringify(awards) }, false, { confirm: () => accept, request: async url => {
+    if (url.startsWith('google-calendar/reporting-award-pdfs?')) return { ignored: 0, reports: [{
+      name: 'Report.pdf', printYear: 2026, rows: [{ id: y8.id, yearLevel: '8', award: 'mohio' }]
+    }] };
+    return { classes: [{ code: 'TEST-JDTECH', students: [y7, y8] },
+      { code: 'TEST-MDTECH', students: [y9, y10, uag, unticked] }], homerooms: [
+      { code: 'PI', students: [y7, y8, missing] }, { code: '7S', students: [excluded] }
+    ] };
+  } });
+  await settle();
+  f.click('4. Awards');
+  f.enter('Report cycle', 'earlier');
+  assert.equal(f.find(node => node.textContent === 'Check Grade criteria').disabled, true);
+  f.enter('Report cycle', 'eoy');
+  f.click('TEST-JDTECH (2)');
+  await f.click('Check Grade criteria');
+  assert.equal(f.events.length, 0, 'Cancelling does not edit the draft');
+  accept = true;
+  await f.click('Check Grade criteria');
+  const saved = () => JSON.parse(f.find(node => node.attrs.name === 'awards').value);
+  assert.deepEqual(saved()[y8.id], { akoranga: true, attendance: 94, pdfConfirmed: { akoranga: true }, mohioCorrection: 'below-slo' });
+  assert.equal(saved()[y9.id].mohioCorrection, 'below-slo');
+  for (const student of [uag, missing]) assert.equal(saved()[student.id].mohioCorrection, 'missing-slo');
+  for (const student of [y7, y10, excluded]) assert.equal(saved()[student.id].mohio, true);
+  assert.equal(saved()[unticked.id], undefined);
+  assert.equal(f.find(node => node.attrs.name === 'records').value, records);
+  assert.equal(f.control('Y8: Mohio (SLO below 4P)').checked, false);
+  f.control('Award recipient PDF folder').value = 'https://drive.google.com/drive/folders/example_awards_folder';
+  await f.click('Preview award PDFs');
+  await f.click('Apply verified awards for 2026');
+  assert.equal(saved()[y8.id].mohio, undefined, 'A stale KAMAR PDF cannot restore the removed tick');
+  f.click('MiddleDTECH');
+  f.enter('Filter awards', 'mohio');
+  assert.equal(f.control('UAG: Mohio (SLO missing or UAG)').checked, false);
+  const tick = f.control('Y9: Mohio (SLO below 5B)');
+  tick.checked = true; tick.events.change({ stopPropagation() {} });
+  assert.deepEqual(saved()[y9.id], { mohio: true });
+  assert.equal(f.control('Y9: Mohio').checked, true);
+});
+
 test('Reporting batch remembers folders and applies cross-term grades without choosing between disagreeing PDFs', async () => {
   const folders = new Map(), term1 = { id: 'k:term1', name: 'Term One', yearLevel: '7' };
   const sloFolder = 'https://drive.google.com/drive/folders/example_slo_folder';
