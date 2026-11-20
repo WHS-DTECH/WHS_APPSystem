@@ -708,10 +708,54 @@ test('completion counts use the selected Junior term and both Middle semester va
   f.click('1. Student Learning Objectives');
 });
 
+test('SLO progress requires a strict student majority of PDF confirmations and refreshes on edit', async () => {
+  const second = { id: 'k:second', name: 'Student Two', yearLevel: '7' };
+  const third = { id: 'k:third', name: 'Student Three', yearLevel: '7' };
+  const f = fixture({ records: JSON.stringify([
+    { ...row, pdfConfirmed: { coding: '3P', design: '4A' }, pdfPrevious: { coding: '3B' } },
+    { ...row, studentId: second.id, pdfConfirmed: { design: '4A' } },
+    { ...row, studentId: third.id }
+  ]) }, false, { request: async (url, directory) => {
+    const [first] = directory.classes[0].students;
+    return { ...directory, homerooms: [{ code: 'VE', students: [first, second, third] },
+      { code: 'PI', students: [first, third] }] };
+  } });
+  await settle();
+  assert.equal(f.control('VE: PDF matched, 2/3 students').checked, true);
+  assert.equal(f.control('PI: PDF matched, 1/2 students').checked, false);
+  assert.equal(f.events.length, 0);
+  f.enter('Synthetic Junior: Computational Thinking - Coding (updated from 3B using KAMAR PDF)', '3A');
+  assert.equal(f.control('VE: PDF matched, 2/3 students').checked, true, 'Design still confirms this student');
+  f.enter('Synthetic Junior: Design & Develop a Digital Outcome (confirmed against KAMAR PDF)', '4P');
+  assert.equal(f.control('VE: PDF matched, 1/3 students').checked, false);
+});
+
+test('Award progress counts confirmed recipients only and excludes 7S/8S', async () => {
+  const learner = id => ({ id: `k:${id}`, name: id, yearLevel: '7' });
+  const [a, b, c, d, other] = ['a', 'b', 'c', 'd', 'other'].map(learner);
+  const f = fixture({ awards: JSON.stringify({
+    [a.id]: { mohio: true, akoranga: true, pdfConfirmed: { mohio: true, akoranga: true } },
+    [b.id]: { akoranga: true, pdfConfirmed: { akoranga: true } },
+    [c.id]: { mohio: true, akoranga: true, pdfConfirmed: { mohio: true, akoranga: true } },
+    [d.id]: { akoranga: true },
+    [other.id]: { mohio: true, akoranga: true, pdfConfirmed: { mohio: true, akoranga: true } }
+  }) }, false, { request: async (url, directory) => ({ ...directory, homerooms: [
+    { code: 'VE', students: [a, b] }, { code: 'PI', students: [c, d] },
+    { code: '7S', students: [other] }, { code: '8S', students: [] }
+  ] }) });
+  await settle();
+  f.click('4. Awards');
+  assert.equal(f.control('VE: PDF matched, 1 Mohio · 2 Akoranga').checked, true);
+  assert.equal(f.control('PI: PDF matched, 1 Mohio · 1 Akoranga').checked, false);
+  for (const room of ['7S', '8S']) assert.equal(f.control(`${room}: PDF matched, Not eligible`).checked, false);
+  assert.equal(f.events.length, 0);
+});
+
 test('Values audit follows the verified homeroom teaching term, not the class list term', async () => {
   const sd = { id: 'k:sd', name: 'SD Student', yearLevel: '7' };
-  const saved = { ...row, whanaungatanga: 'Exe', kaitiakitanga: 'Dev' };
-  const f = fixture({ records: JSON.stringify([saved]) }, false, { request: async (url, directory) => {
+  const saved = { ...row, whanaungatanga: 'Exe', kaitiakitanga: 'Dev', pdfConfirmed: { whanaungatanga: 'Exe' } };
+  const wrongTerm = { ...saved, studentId: sd.id, pdfConfirmed: { kaitiakitanga: 'Dev' } };
+  const f = fixture({ records: JSON.stringify([saved, wrongTerm]) }, false, { request: async (url, directory) => {
     const students = directory.classes[0].students;
     return {
       classes: url.includes('term=1') ? [{ code: 'TEST-VEDTECH-CW', students }] :
@@ -728,11 +772,14 @@ test('Values audit follows the verified homeroom teaching term, not the class li
   await settle();
   const allocation = f.control('School Value allocation');
   assert.ok(f.all(allocation).some(node => node.tag === 'tr' &&
-    node.children.map(cell => cell.textContent).join('|') === 'VE|Term 1|Whānaungatanga'));
+    node.children.slice(0, 3).map(cell => cell.textContent).join('|') === 'VE|Term 1|Whānaungatanga'));
   assert.ok(f.all(allocation).some(node => node.tag === 'tr' &&
-    node.children.map(cell => cell.textContent).join('|') === 'SD|Term 3|Rangatiratanga'));
+    node.children.slice(0, 3).map(cell => cell.textContent).join('|') === 'SD|Term 3|Rangatiratanga'));
   assert.ok(f.all(allocation).some(node => node.tag === 'tr' &&
-    node.children.map(cell => cell.textContent).join('|') === 'TR|Not verified|—'));
+    node.children.slice(0, 3).map(cell => cell.textContent).join('|') === 'TR|Not verified|—'));
+  assert.equal(f.control('VE: PDF matched, 1/1 students').checked, true);
+  assert.equal(f.control('SD: PDF matched, 0/1 students').checked, false);
+  assert.equal(f.control('TR: PDF matched, No single verified term').checked, false);
   f.click('VE (1/1)');
   const grid = f.control('Class report entries');
   assert.ok(f.all(grid).some(node => node.tag === 'th' && node.textContent === 'Whānaungatanga'));

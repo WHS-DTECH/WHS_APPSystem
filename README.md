@@ -1556,6 +1556,13 @@ Student ID and year-level matches and skips 7S/8S. Apply to add only the
 verified award ticks. Green marks PDF-confirmed ticks; manual and unticked
 cells stay white. Manual edits clear the edited cell's confirmation only.
 
+Junior homeroom progress ticks are read-only and use saved PDF confirmations.
+SLOs tick when more than half the room has at least one confirmed SLO; School
+Values tick when more than half has the value for its verified DTECH term
+confirmed. Awards show confirmed recipient counts and tick with at least one
+Mohio and two Akoranga recipients. An unticked room may simply have too few
+recipients to show progress from the PDF; 7S and 8S are not eligible for awards.
+
 Both programmes assess **Computational Thinking - Coding** and **Design & Develop
 a Digital Outcome**. Junior choices are UAG, 3B, 3P, 3A, 4B, 4P, 4A; Middle choices
 are UAG, 4P, 4A, 5B, 5P, 5A, 6B. The criteria guide displays Achieved (50%),
