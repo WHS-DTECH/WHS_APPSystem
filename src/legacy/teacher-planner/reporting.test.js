@@ -916,18 +916,25 @@ test('completion counts use the selected Junior term and both Middle semester va
 });
 
 test('MiddleDTECH Markbook Summary parser verifies the programme, year and grade scale', () => {
-  const items = (coding = 'G.MDTECH02.26', grade = '6B') => [
+  const items = (coding = 'G.MDTECH01.26', grade = '6B') => [
     ['Middle School', 24, 575], ['KAMAR', 24, 20], ['MDTECH', 24, 555],
     ['Computational Thinking - Coding', 310, 520], ['Design & Develop a Digital Outcome', 550, 520],
-    [coding, 349, 501], ['G.MDTECH01.26', 631, 501], ['Learner, Synthetic', 24, 462],
+    [coding, 347.695312, 501], ['G.MDTECH02.26', 629.195312, 501], ['Learner, Synthetic', 24, 462],
     [grade, 349, 463], ['5A', 631, 463], ['Male: 0, Female: 1, Students: 1', 24, 100]
   ].map(([str, x, y]) => ({ str, transform: [1, 0, 0, 1, x, y] }));
   const parse = data => parseReportingPage(data, [0, 0, 842, 595]);
   assert.deepEqual(parse(items()), { programme: 'middle', classCode: 'MDTECH', year: 2026, valueTerm: null,
     fields: ['coding', 'design'], rows: [{ name: 'Learner, Synthetic', grades: { coding: '6B', design: '5A' } }], totals: [1] });
   assert.throws(() => parse(items('G.JDTECH02.26')), /programme/);
-  assert.throws(() => parse(items('G.MDTECH02.25')), /years/);
-  assert.throws(() => parse(items('G.MDTECH02.26', '3P')), /judgement/);
+  assert.throws(() => parse(items('G.MDTECH01.25')), /years/);
+  assert.throws(() => parse(items('G.MDTECH02.26')), /assessment codes/);
+  assert.throws(() => parse(items('G.MDTECH01.26', '3P')), /judgement/);
+  const duplicate = items();
+  duplicate.push({ str: 'G.MDTECH01.26', transform: [1, 0, 0, 1, 355, 501] });
+  assert.throws(() => parse(duplicate), /assessment codes/);
+  const wrongSchool = items();
+  wrongSchool[0].str = 'Junior School';
+  assert.throws(() => parse(wrongSchool), /programme/);
 });
 
 test('SLO parser accepts a year-level header in the KAMAR class heading when it matches the assessment programme', () => {

@@ -26,13 +26,20 @@ function parseReportingPage(items, view) {
   }
   let year = null, programme = 'junior';
   if (slo) {
-    const coding = /^G\.([JM])DTECH02\.(\d{2})$/.exec(header(349, 501));
-    const design = /^G\.([JM])DTECH01\.(\d{2})$/.exec(header(631, 501));
+    const codeInColumn = (left, right) => {
+      const codes = items.filter(item => item.transform[4] > left && item.transform[4] < right &&
+        Math.abs(item.transform[5] - 501) < 1 && /^G\./.test(item.str.trim()));
+      return codes.length === 1 ? /^G\.([JM])DTECH(01|02)\.(\d{2})$/.exec(codes[0].str.trim()) : null;
+    };
+    const coding = codeInColumn(300, 510), design = codeInColumn(510, 760);
     programme = coding?.[1] === 'M' ? 'middle' : 'junior';
-    if (!coding || !design || coding[1] !== design[1] || coding[2] !== design[2] ||
+    const codingNumber = programme === 'middle' ? '01' : '02';
+    const designNumber = programme === 'middle' ? '02' : '01';
+    if (!coding || !design || coding[1] !== design[1] || coding[2] !== codingNumber || design[2] !== designNumber ||
+        coding[3] !== design[3] ||
         (yearLevel ? !schema.programmes[programme].years.includes(yearLevel) :
-          programme === 'junior' && !juniorSchool)) reject('The two DTECH assessment codes, programme, or years could not be verified.');
-    year = 2000 + Number(coding[2]);
+          programme === 'junior' ? !juniorSchool : !middleSchool)) reject('The two DTECH assessment codes, programme, or years could not be verified.');
+    year = 2000 + Number(coding[3]);
   } else if (yearLevel ? !schema.programmes.junior.years.includes(yearLevel) : !juniorSchool) {
     reject('School Values PDF matching is supported for JuniorDTECH only.');
   }
