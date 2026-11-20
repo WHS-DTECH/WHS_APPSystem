@@ -21,6 +21,8 @@
 .reporting-table td.reporting-pdf-confirmed select { background: #d7f0dc; color: #174e29; }
 .reporting-table td.reporting-pdf-replaced,
 .reporting-table td.reporting-pdf-replaced select { background: #ffebba; color: #624408; }
+.reporting-table td.reporting-award-correction { background: #fbd8db; color: #821c27; }
+.reporting-table td input[type="checkbox"] + span { margin-left: .4em; }
 .reporting-table thead th { position: sticky; top: 0; z-index: 2; background: #e2f5fc; }
 .reporting-table th:first-child { position: sticky; left: 0; min-width: 180px; z-index: 1; }
 .reporting-table thead th:first-child { z-index: 3; }

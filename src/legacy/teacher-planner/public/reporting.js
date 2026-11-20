@@ -19,6 +19,7 @@
     }
     sloDefaultStore.value = sloDefault;
     let awards = JSON.parse(awardsStore.value), awardFilter = 'all', awardClass = '';
+    let criteriaMessage = '', savingCriteria = false;
     area.append(store, defaultStore, sloDefaultStore, awardsStore, el('h2', 'Reporting - ' + year));
     const reference = el('a', 'DTECH Assessment Criteria - Google Doc', {
       href: 'https://docs.google.com/document/d/1oA7xHQapbqE3myKKFL6T7oUMGxPbrm2BCE1rJQ51-gw/edit?usp=sharing',
@@ -351,14 +352,17 @@
           recipientReview.replaceChildren();
           try {
             const next = { ...awards };
+            let held = 0;
             for (const { student, award } of matched) {
               const entry = next[student.id] || {};
+              if (award === 'akoranga' && entry.akorangaCorrection) { held++; continue; }
               next[student.id] = { ...entry, [award]: true, pdfConfirmed: { ...entry.pdfConfirmed, [award]: true } };
             }
             saveAwards(next); render();
             recipientStatus.textContent = 'Checking that award ticks are saved…';
             const saved = await ensureSaved();
-            recipientStatus.textContent = saved ? `${matched.length} PDF-confirmed award ticks saved. Other ticks and attendance were kept.` :
+            recipientStatus.textContent = saved ? `${matched.length - held} PDF-confirmed award ticks saved. Other ticks and attendance were kept.` +
+              (held ? ` ${held} red Akoranga corrections were kept unchecked.` : '') :
               'Award ticks not saved. Check the Planner save message before leaving.';
           } catch (error) { recipientStatus.textContent = error.message; }
           finally { previewRecipients.disabled = false; }
@@ -389,6 +393,45 @@
       if (encoded === awardsStore.value) return;
       awardsStore.value = encoded;
       awardsStore.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    const correctionLabels = {
+      'below-attendance': 'Attendance below 90%',
+      'missing-attendance': 'Attendance missing',
+      'homeroom-cap': '25% homeroom cap'
+    };
+    function clearAwardConfirmation(entry, key) {
+      if (!entry.pdfConfirmed?.[key]) return;
+      entry.pdfConfirmed = { ...entry.pdfConfirmed };
+      delete entry.pdfConfirmed[key];
+      if (!Object.keys(entry.pdfConfirmed).length) delete entry.pdfConfirmed;
+    }
+    function attendanceCriteria(excluded) {
+      const removals = new Map(), ties = [];
+      let unassigned = 0;
+      for (const room of directory.homerooms || []) {
+        if (externalAwardRoom(room.code)) continue;
+        const ids = [...new Set(room.students.map(student => student.id))].filter(id => !excluded.has(id));
+        const eligible = [];
+        for (const id of ids) {
+          const entry = awards[id];
+          if (entry?.akoranga !== true) continue;
+          if (entry.attendance === undefined) removals.set(id, 'missing-attendance');
+          else if (entry.attendance < 90) removals.set(id, 'below-attendance');
+          else eligible.push(id);
+        }
+        if (room.code === 'Unassigned') { unassigned += eligible.length; continue; }
+        const cap = Math.floor(ids.length / 4);
+        if (eligible.length <= cap) continue;
+        eligible.sort((a, b) => awards[b].attendance - awards[a].attendance);
+        const cutoff = cap ? awards[eligible[cap - 1]].attendance : Infinity;
+        const excess = eligible.slice(cap).filter(id => awards[id].attendance === cutoff).length;
+        for (const id of eligible.filter(id => awards[id].attendance < cutoff)) removals.set(id, 'homeroom-cap');
+        if (excess) {
+          ties.push({ room: room.code, percentage: cutoff, ids: eligible.filter(id => awards[id].attendance === cutoff), excess });
+        }
+      }
+      return { removals, ties, unassigned };
     }
 
     async function previewBatch() {
@@ -849,9 +892,50 @@
           }));
           criteria.append(item);
         }
-        body.append(criteria, el('p', 'Green: Yes confirmed against a KAMAR PDF. White: manual or unticked. Awards are not assigned to 7S or 8S.'));
+        body.append(criteria, el('p', 'Green: Yes confirmed against a KAMAR PDF. Red: Akoranga correction to review in KAMAR. White: manual or unticked. Awards are not assigned to 7S or 8S.'));
         const awardControls = el('div', '', { class: 'reporting-tabs', 'data-planner-navigation': '' });
         button(awardControls, 'All students', !awardClass, () => { awardClass = ''; render(); });
+        const excluded = externalAwardIds();
+        const roomsAvailable = state.programme === 'junior' && (directory.homerooms || []).some(room =>
+          room.code !== 'Unassigned' && !externalAwardRoom(room.code) && room.students.length);
+        const check = roomsAvailable ? attendanceCriteria(excluded) : null;
+        const tieIds = new Set(check?.ties.flatMap(tie => tie.ids));
+        if (check) {
+          const calculate = button(awardControls, 'Calculate Attendance Criteria', false, async () => {
+            const { removals } = attendanceCriteria(excluded);
+            if (removals.size && !globalThis.confirm(`Untick ${removals.size} Akoranga awards in Planner and mark them red? ` +
+                'This uses every junior homeroom, not just the current view. Ties at the cutoff are left ticked for you to review. KAMAR will not be changed.')) return;
+            awardClass = '';
+            awardFilter = 'any';
+            if (!removals.size) { criteriaMessage = 'No Akoranga ticks could be automatically removed.'; render(); return; }
+            try {
+              const next = { ...awards };
+              for (const [id, reason] of removals) {
+                const entry = { ...next[id], akorangaCorrection: reason };
+                delete entry.akoranga;
+                clearAwardConfirmation(entry, 'akoranga');
+                next[id] = entry;
+              }
+              saveAwards(next);
+              criteriaMessage = 'Checking that Akoranga corrections are saved…';
+              savingCriteria = true;
+              render();
+              criteriaMessage = await ensureSaved() ?
+                `${removals.size} Akoranga ticks removed and marked red.` :
+                'Akoranga corrections are not saved. Check the Planner save message before leaving.';
+            } catch (error) { criteriaMessage = error.message; }
+            finally {
+              savingCriteria = false;
+              if (area.isConnected && directory && state.part === 'awards') render();
+            }
+          });
+          calculate.disabled = savingCriteria;
+          body.append(el('p', 'Akoranga only: at least 90% attendance; maximum 25% of each homeroom (rounded down). Check effort and perseverance separately.'));
+          body.append(el('p', criteriaMessage, { role: 'status' }));
+          if (check.unassigned) body.append(el('p', `${check.unassigned} eligible nominees have no assigned homeroom, so their cap could not be checked.`));
+          for (const tie of check.ties) body.append(el('p',
+            `${tie.room}: Akoranga cutoff tie at ${tie.percentage}%. Untick ${tie.excess} of the ${tie.ids.length} students marked “Cutoff tie”.`));
+        } else body.append(el('p', 'Attendance criteria require a verified JuniorDTECH homeroom roster.'));
         const filter = el('select', '', { 'aria-label': 'Filter awards' });
         for (const [value, label] of [['all', 'All rows'], ['any', 'Award recipients only'], ['mohio', 'Mohio only'], ['akoranga', 'Akoranga only']]) {
           filter.append(el('option', label, { value }));
@@ -862,15 +946,17 @@
         const roster = new Map((awardClass ? classes.filter(group => group.key === awardClass) : classes)
           .flatMap(group => group.students.map(student => [student.id, student])));
         const students = [...roster.values()].sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
-        const excluded = externalAwardIds();
         const winners = (student, type) => !excluded.has(student.id) && awards[student.id]?.[type] === true;
+        const correction = student => !excluded.has(student.id) && awards[student.id]?.akorangaCorrection;
         const matchesFilter = student => awardFilter === 'all' ||
+          (awardFilter !== 'mohio' && Boolean(correction(student))) ||
           (awardFilter === 'any' ? winners(student, 'mohio') || winners(student, 'akoranga') : winners(student, awardFilter));
         const shown = students.filter(matchesFilter);
         const awardSummary = () => {
           feedback.textContent = `${students.filter(matchesFilter).length} of ${students.length} students shown · ` +
             `${students.filter(student => winners(student, 'mohio')).length} Mohio · ` +
-            `${students.filter(student => winners(student, 'akoranga')).length} Akoranga`;
+            `${students.filter(student => winners(student, 'akoranga')).length} Akoranga` +
+            (students.some(correction) ? ` · ${students.filter(correction).length} red corrections` : '');
         };
         awardSummary();
         const scroll = el('div', '', { class: 'reporting-scroll', tabindex: '0', role: 'region', 'aria-label': 'Student awards' });
@@ -885,37 +971,46 @@
             const cell = el('td'), tickLabel = `${student.name}: ${label}`;
             const tick = el('input', '', { type: 'checkbox', 'aria-label': tickLabel });
             const confirmed = winners(student, key) && entry.pdfConfirmed?.[key];
+            const reason = key === 'akoranga' && correction(student);
+            const tied = key === 'akoranga' && tieIds.has(student.id);
             tick.checked = winners(student, key);
             tick.disabled = excluded.has(student.id);
-            if (confirmed) {
+            if (reason) {
+              cell.setAttribute('class', 'reporting-award-correction');
+              cell.append(el('span', correctionLabels[reason]));
+              tick.setAttribute('aria-label', `${tickLabel} (${correctionLabels[reason]})`);
+            } else if (confirmed) {
               cell.setAttribute('class', 'reporting-pdf-confirmed');
               cell.setAttribute('title', 'Confirmed against a KAMAR award PDF');
               tick.setAttribute('aria-label', tickLabel + ' (confirmed against a KAMAR award PDF)');
             }
+            if (tied) cell.append(el('span', 'Cutoff tie'));
             tick.addEventListener('change', event => {
               event.stopPropagation();
               if (tick.disabled) return;
               const next = { ...awards }, updated = { ...next[student.id] };
               if (tick.checked) updated[key] = true;
               else delete updated[key];
-              if (updated.pdfConfirmed?.[key]) {
-                updated.pdfConfirmed = { ...updated.pdfConfirmed };
-                delete updated.pdfConfirmed[key];
-                if (!Object.keys(updated.pdfConfirmed).length) delete updated.pdfConfirmed;
+              clearAwardConfirmation(updated, key);
+              if (key === 'akoranga') {
+                if (tick.checked) delete updated.akorangaCorrection;
+                else if (tied) updated.akorangaCorrection = 'homeroom-cap';
               }
               if (Object.keys(updated).length) next[student.id] = updated;
               else delete next[student.id];
               try {
                 saveAwards(next);
-                cell.setAttribute('class', '');
-                cell.setAttribute('title', '');
-                tick.setAttribute('aria-label', tickLabel);
-                if (matchesFilter(student)) { awardSummary(); showAllocation(); }
+                if (key === 'mohio' && matchesFilter(student)) {
+                  cell.setAttribute('class', '');
+                  cell.setAttribute('title', '');
+                  tick.setAttribute('aria-label', tickLabel);
+                  awardSummary(); showAllocation();
+                }
                 else render();
               }
               catch (error) { tick.checked = !tick.checked; feedback.textContent = error.message; }
             });
-            cell.append(tick); tr.append(cell);
+            cell.prepend(tick); tr.append(cell);
           }
           tbody.append(tr);
         }

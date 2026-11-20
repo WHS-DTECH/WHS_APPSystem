@@ -290,6 +290,67 @@ test('Awards PDF confirms only matched eligible ticks and keeps manual entries a
   f.click('1. Student Learning Objectives');
 });
 
+test('Attendance criteria use whole homerooms, red-flag removals and leave cutoff ties to the teacher', async () => {
+  const learners = (prefix, length) => Array.from({ length }, (_, index) =>
+    ({ id: `k:${prefix}${index}`, name: `${prefix}${index}`, yearLevel: '7' }));
+  const pi = learners('PI', 13), sr = learners('SR', 4), external = learners('External', 1), unassigned = learners('Unknown', 1);
+  const initial = Object.fromEntries([99, 95, 95, 95, 94, 89.99, undefined].map((attendance, index) =>
+    [pi[index].id, { attendance, akoranga: true, ...(index === 5 ?
+      { mohio: true, pdfConfirmed: { mohio: true, akoranga: true } } : {}) }]));
+  initial[sr[0].id] = { attendance: 90, akoranga: true };
+  initial[sr[1].id] = { attendance: 96 };
+  initial[external[0].id] = { attendance: 74, akoranga: true };
+  initial[unassigned[0].id] = { attendance: 91, akoranga: true };
+  const data = { records: JSON.stringify([row]), awards: JSON.stringify(initial) };
+  let confirmed = false;
+  const options = { confirm: () => confirmed, request: async (url, directory) => {
+    if (url.startsWith('google-calendar/reporting-award-pdfs?')) return { ignored: 0, reports: [
+      { name: 'PI.pdf', printYear: 2026, rows: [pi[5], pi[0]].map(student =>
+        ({ id: student.id, yearLevel: '7', award: 'akoranga' })) }
+    ] };
+    return { ...directory, homerooms: [{ code: 'PI', students: pi }, { code: 'SR', students: sr },
+      { code: '7S', students: external }, { code: 'Unassigned', students: unassigned }] };
+  } };
+  const f = fixture(data, false, options);
+  await settle();
+  f.click('4. Awards');
+  f.click('SR (4)');
+  await f.click('Calculate Attendance Criteria');
+  assert.equal(f.events.length, 0, 'Cancelling does not edit the draft');
+  confirmed = true;
+  await f.click('Calculate Attendance Criteria');
+  const store = f.find(node => node.attrs.name === 'awards');
+  const saved = () => JSON.parse(store.value);
+  assert.deepEqual(saved()[pi[5].id], { attendance: 89.99, mohio: true, pdfConfirmed: { mohio: true },
+    akorangaCorrection: 'below-attendance' });
+  assert.equal(saved()[pi[6].id].akorangaCorrection, 'missing-attendance');
+  assert.equal(saved()[pi[4].id].akorangaCorrection, 'homeroom-cap');
+  assert.ok(pi.slice(0, 4).every(student => saved()[student.id].akoranga === true));
+  assert.equal(saved()[sr[0].id].akoranga, true, 'Exactly 90% is eligible');
+  assert.equal(saved()[sr[1].id].akoranga, undefined, 'Never adds a nomination');
+  assert.equal(saved()[external[0].id].akoranga, true);
+  assert.equal(saved()[unassigned[0].id].akoranga, true);
+  assert.equal(f.all().filter(node => node.attrs.class === 'reporting-award-correction').length, 3);
+  assert.ok(f.find(node => node.textContent.includes('Untick 1 of the 3 students')));
+  const tie = f.control('PI2: Akoranga');
+  tie.checked = false; tie.events.change({ stopPropagation() {} });
+  assert.equal(saved()[pi[2].id].akorangaCorrection, 'homeroom-cap');
+  assert.ok(!f.find(node => node.textContent.includes('Akoranga cutoff tie')));
+  f.control('Award recipient PDF folder').value = 'https://drive.google.com/drive/folders/example_awards_folder';
+  await f.click('Preview award PDFs');
+  await f.click('Apply verified awards for 2026');
+  assert.equal(saved()[pi[5].id].akoranga, undefined, 'An older PDF cannot restore a red correction');
+  assert.equal(saved()[pi[0].id].pdfConfirmed.akoranga, true);
+  const restored = fixture({ ...data, awards: store.value }, false, options);
+  await settle();
+  restored.click('4. Awards');
+  const red = restored.control('PI5: Akoranga (Attendance below 90%)');
+  assert.equal(red.checked, false);
+  red.checked = true; red.events.change({ stopPropagation() {} });
+  assert.equal(restored.control('PI5: Akoranga').checked, true, 'A manual re-tick clears the correction');
+  assert.equal(f.find(node => node.attrs.name === 'records').value, data.records);
+});
+
 test('Reporting batch remembers folders and applies cross-term grades without choosing between disagreeing PDFs', async () => {
   const folders = new Map(), term1 = { id: 'k:term1', name: 'Term One', yearLevel: '7' };
   const sloFolder = 'https://drive.google.com/drive/folders/example_slo_folder';
