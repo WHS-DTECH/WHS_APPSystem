@@ -11,7 +11,7 @@ function importReportingAttendance(buffer) {
   } catch {
     throw new ReportingAttendanceError('Choose a valid UTF-8 KAMAR attendance CSV.');
   }
-  const headers = rows.shift()?.map(value => value.toLowerCase()) || [];
+  const headers = rows.shift()?.map(value => value.trim().replace(/\s+/g, ' ').toLowerCase()) || [];
   const idColumn = headers.indexOf('student id');
   const gradeColumn = headers.indexOf('attendance - percentage (half-days)');
   if (idColumn < 0 || gradeColumn < 0 || new Set(headers).size !== headers.length || !rows.length || rows.length > 10000) {

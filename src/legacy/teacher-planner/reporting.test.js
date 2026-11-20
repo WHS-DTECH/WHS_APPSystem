@@ -194,7 +194,7 @@ test('Reporting Awards shows separate Junior/Middle and Senior criteria links wi
 });
 
 test('Awards attendance CSV preserves zero, ignores duplicate identical rows and rejects conflicting or invalid percentages', () => {
-  const csv = rows => Buffer.from('\ufeffStudent ID,Attendance - Percentage (Half-Days),Name\n' + rows);
+  const csv = rows => Buffer.from('\ufeffStudent ID,Attendance - Percentage  (Half-Days),Name\n' + rows);
   assert.deepEqual(importReportingAttendance(csv('001,0,"Test, One"\n001,0%,Duplicate\nk:2,92.5%,Two\n3,,Three')),
     [{ id: 'k:001', percentage: 0 }, { id: 'k:2', percentage: 92.5 }, { id: 'k:3', percentage: null }]);
   assert.throws(() => importReportingAttendance(csv('1,90,A\n1,91,A')), /conflicting/);
