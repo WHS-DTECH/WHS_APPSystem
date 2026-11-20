@@ -1549,6 +1549,12 @@ ID matches in the reporting rosters are used. Blank percentages leave saved
 attendance unchanged; missing attendance displays a dash, not 0%. The sync
 remembers its folder in the current browser and does not change award ticks
 or write to KAMAR or Drive.
+The 7S and 8S homeroom tabs and their award checkboxes are disabled on this
+page. **Google Drive sync — Award recipients** previews the KAMAR recipient PDFs
+for Digital Technologies; criteria PDFs are ignored. It deduplicates verified
+Student ID and year-level matches and skips 7S/8S. Apply to add only the
+verified award ticks. Green marks PDF-confirmed ticks; manual and unticked
+cells stay white. Manual edits clear the edited cell's confirmation only.
 
 Both programmes assess **Computational Thinking - Coding** and **Design & Develop
 a Digital Outcome**. Junior choices are UAG, 3B, 3P, 3A, 4B, 4P, 4A; Middle choices

@@ -6,6 +6,7 @@ const { TASKS_SCOPE, createGoogleTasksRouter } = require('./googleTasks');
 const { DRIVE_SCOPE, folderId, createAttendanceDriveRouter, createAttendanceDriveService } = require('./attendanceDrive');
 const { importReportingPdf, ReportingPdfError } = require('./reportingImport');
 const { importReportingAttendance, ReportingAttendanceError } = require('./reportingAttendance');
+const { importReportingAwards, ReportingAwardsError, recipientFilename } = require('./reportingAwardsImport');
 const { createAdminAttendanceRouter } = require('./adminAttendance');
 
 const SCOPES = [
@@ -250,6 +251,26 @@ function createGoogleCalendarRouter({ query, env = process.env, fetchImpl = fetc
     const file = await awardsDrive.readFile(req, awardsFolder(req), req.params.id);
     if (file.version !== req.query.version) throw new CalendarError('The CSV changed. List the files again.', 409);
     res.json({ entries: file.pdf });
+  }));
+  const recipientDrive = createAttendanceDriveService({
+    ensureConnected, access, unchanged, fetchImpl, ErrorType: CalendarError, hasScope,
+    parsePdf: importReportingAwards, pdfError: ReportingAwardsError, purpose: 'Award recipients'
+  });
+  router.get('/reporting-award-pdfs', wrap(async (req, res) => {
+    const root = folderId(req.query.folder);
+    if (!root) throw new CalendarError('Paste a Google Drive award recipient folder link.', 400);
+    const { files, connectionId } = await recipientDrive.listFiles(req, root);
+    const recipients = files.filter(file => recipientFilename.test(file.name));
+    if (recipients.length > 12) throw new CalendarError('Keep at most 12 KAMAR recipient PDFs in this folder before previewing.', 422);
+    const reports = [];
+    for (const file of recipients) {
+      const result = await recipientDrive.readFile(req, root, file.id);
+      if (result.version !== file.version || result.connectionId !== connectionId) {
+        throw new CalendarError('A PDF or the Google connection changed. Preview the folder again.', 409);
+      }
+      reports.push({ name: file.name, ...result.pdf });
+    }
+    res.json({ reports, ignored: files.length - recipients.length });
   }));
   async function reportFiles(req) {
     const root = folderId(req.query.folder);

@@ -294,6 +294,91 @@
     attendance.append(attendanceSavedFolder, attendanceStatus, attendanceReview);
     area.append(attendance);
 
+    const recipientSync = el('details', '', { 'data-planner-navigation': '' });
+    const recipientFolder = el('input', '', { type: 'url', 'aria-label': 'Award recipient PDF folder', placeholder: 'Paste the Awards folder link' });
+    const recipientSaved = el('span', '', { class: 'reporting-folder-status', role: 'status' });
+    const recipientStatus = el('p', '', { role: 'status' }), recipientReview = el('div');
+    const recipientKey = folderKey('recipients');
+    try { recipientFolder.value = globalThis.localStorage?.getItem(recipientKey) || ''; }
+    catch (error) { console.warn('Award recipient folder could not be loaded:', error.message); }
+    showFolderStatus(recipientFolder, recipientSaved, recipientKey);
+    recipientFolder.addEventListener('input', () => {
+      recipientReview.replaceChildren();
+      showFolderStatus(recipientFolder, recipientSaved, recipientKey);
+    });
+    recipientSync.append(el('summary', 'Google Drive sync — Award recipients'),
+      el('p', 'Preview KAMAR Award recipient PDFs for this school year. Only Digital Technologies recipients are matched, by Student ID and year level. Criteria PDFs are ignored.'), recipientFolder);
+    const previewRecipients = button(recipientSync, 'Preview award PDFs', false, async () => {
+      recipientReview.replaceChildren();
+      const link = recipientFolder.value.trim(), roster = directory, programme = state.programme;
+      if (!link || !roster) { recipientStatus.textContent = 'Enter the Drive Awards folder link and load the class list first.'; return; }
+      const current = () => area.isConnected && state.part === 'awards' && state.programme === programme &&
+        directory === roster && recipientFolder.value.trim() === link;
+      previewRecipients.disabled = true;
+      recipientStatus.textContent = 'Reading award recipients from Drive…';
+      try {
+        const { reports, ignored } = await request('google-calendar/reporting-award-pdfs?' + new URLSearchParams({ folder: link }));
+        if (!current()) { recipientStatus.textContent = 'The reporting view changed. Preview the PDFs again.'; return; }
+        rememberFolder(recipientFolder, recipientSaved, recipientKey, link);
+        const candidates = new Map(groups().flatMap(group => group.students.map(student => [student.id, student])));
+        const excluded = externalAwardIds(), accepted = new Map(), unmatched = new Set(), outside = new Set();
+        const detail = el('ul');
+        let validFiles = 0;
+        for (const report of reports) {
+          if (report.printYear !== Number(year)) {
+            detail.append(el('li', `${report.name} — skipped: printed in ${report.printYear}, not ${year}.`));
+            continue;
+          }
+          validFiles++;
+          let found = 0;
+          for (const row of report.rows) {
+            if (!schema.programmes[programme].years.includes(row.yearLevel)) continue;
+            const student = candidates.get(row.id);
+            const key = `${row.id}:${row.award}`;
+            if (excluded.has(row.id)) { outside.add(key); continue; }
+            if (!student || student.yearLevel !== row.yearLevel) { unmatched.add(key); continue; }
+            accepted.set(key, { student, award: row.award });
+            found++;
+          }
+          detail.append(el('li', `${report.name} — ${found} matching award rows.`));
+        }
+        const matched = [...accepted.values()];
+        recipientReview.append(el('p', `${validFiles} recipient PDFs for ${year}; ${ignored} other PDFs ignored. ` +
+          `${matched.length} unique award ticks matched; ${outside.size} ineligible 7S/8S ticks and ${unmatched.size} unmatched ticks skipped.`), detail);
+        if (matched.length) button(recipientReview, `Apply verified awards for ${year}`, false, async () => {
+          if (!current()) { recipientStatus.textContent = 'The reporting view changed. Preview the PDFs again.'; return; }
+          previewRecipients.disabled = true;
+          recipientReview.replaceChildren();
+          try {
+            const next = { ...awards };
+            for (const { student, award } of matched) {
+              const entry = next[student.id] || {};
+              next[student.id] = { ...entry, [award]: true, pdfConfirmed: { ...entry.pdfConfirmed, [award]: true } };
+            }
+            saveAwards(next); render();
+            recipientStatus.textContent = 'Checking that award ticks are saved…';
+            const saved = await ensureSaved();
+            recipientStatus.textContent = saved ? `${matched.length} PDF-confirmed award ticks saved. Other ticks and attendance were kept.` :
+              'Award ticks not saved. Check the Planner save message before leaving.';
+          } catch (error) { recipientStatus.textContent = error.message; }
+          finally { previewRecipients.disabled = false; }
+        });
+        recipientStatus.textContent = 'Preview ready. No award ticks have changed.';
+      } catch (error) { recipientStatus.textContent = error.message; }
+      finally { previewRecipients.disabled = false; }
+    });
+    recipientSync.append(recipientSaved, recipientStatus, recipientReview);
+    area.append(recipientSync);
+
+    const externalAwardRoom = code => /^(7S|8S)$/i.test(code || '');
+    function externalAwardIds() {
+      const rooms = directory.homerooms || [];
+      return new Set([
+        ...rooms.filter(group => externalAwardRoom(group.code)).flatMap(group => group.students.map(student => student.id)),
+        ...directory.classes.flatMap(group => group.students.filter(student => externalAwardRoom(student.whanau)).map(student => student.id))
+      ]);
+    }
+
     function saveAwards(next) {
       const encoded = JSON.stringify(next);
       if (!schema.validContent({ records: store.value, valuesDefault: defaultStore.value,
@@ -663,6 +748,7 @@
       showDrive();
       const awarding = state.part === 'awards';
       attendance.hidden = !awarding;
+      recipientSync.hidden = !awarding;
       showAllocation();
       controls.replaceChildren(); body.replaceChildren(); classButtons.clear();
       const cycleLabel = el('label', 'Report cycle ');
@@ -687,13 +773,17 @@
       for (const group of classes) {
         const done = group.students.filter(student => schema.complete(record(student), state.cycle, reportTerm(group))).length;
         const label = awarding ? `${group.code} (${group.students.length})` : `${group.code} (${done}/${group.students.length})`;
-        classButtons.set(group.key, button(group.audit ? auditTabs : tabs, label,
+        const blocked = awarding && group.audit && externalAwardRoom(group.code);
+        const tab = button(group.audit ? auditTabs : tabs, label,
           group.key === (awarding ? awardClass : state.classCode), () => {
+            if (blocked) return;
             if (awarding) awardClass = group.key;
             else state.classCode = group.key;
             render();
           },
-          { class: group.audit ? 'reporting-audit-tab' : 'reporting-teaching-tab' }));
+          { class: group.audit ? 'reporting-audit-tab' : 'reporting-teaching-tab' });
+        if (blocked) { tab.disabled = true; tab.setAttribute('title', 'Awards are not assigned to students at the other school.'); }
+        classButtons.set(group.key, tab);
       }
       if (classes.some(group => !group.audit)) controls.append(el('strong', 'Teaching classes'), tabs);
       if (classes.some(group => group.audit)) controls.append(el('strong', awarding ? 'Homerooms (award ticks editable)' : 'Homeroom audit (read-only)'), auditTabs);
@@ -718,7 +808,7 @@
           }));
           criteria.append(item);
         }
-        body.append(criteria, el('p', 'Awards are manual selections for this school year. The same tick appears in teaching and homeroom views.'));
+        body.append(criteria, el('p', 'Green: Yes confirmed against a KAMAR PDF. White: manual or unticked. Awards are not assigned to 7S or 8S.'));
         const awardControls = el('div', '', { class: 'reporting-tabs', 'data-planner-navigation': '' });
         button(awardControls, 'All students', !awardClass, () => { awardClass = ''; render(); });
         const filter = el('select', '', { 'aria-label': 'Filter awards' });
@@ -731,7 +821,8 @@
         const roster = new Map((awardClass ? classes.filter(group => group.key === awardClass) : classes)
           .flatMap(group => group.students.map(student => [student.id, student])));
         const students = [...roster.values()].sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
-        const winners = (student, type) => awards[student.id]?.[type] === true;
+        const excluded = externalAwardIds();
+        const winners = (student, type) => !excluded.has(student.id) && awards[student.id]?.[type] === true;
         const matchesFilter = student => awardFilter === 'all' ||
           (awardFilter === 'any' ? winners(student, 'mohio') || winners(student, 'akoranga') : winners(student, awardFilter));
         const shown = students.filter(matchesFilter);
@@ -750,23 +841,40 @@
           tr.append(el('th', student.name, { scope: 'row' }), el('td', student.yearLevel),
             el('td', entry.attendance === undefined ? '—' : `${entry.attendance}%`));
           for (const [key, label] of [['mohio', 'Mohio'], ['akoranga', 'Akoranga']]) {
-            const tick = el('input', '', { type: 'checkbox', 'aria-label': `${student.name}: ${label}` });
-            tick.checked = entry[key] === true;
+            const cell = el('td'), tickLabel = `${student.name}: ${label}`;
+            const tick = el('input', '', { type: 'checkbox', 'aria-label': tickLabel });
+            const confirmed = winners(student, key) && entry.pdfConfirmed?.[key];
+            tick.checked = winners(student, key);
+            tick.disabled = excluded.has(student.id);
+            if (confirmed) {
+              cell.setAttribute('class', 'reporting-pdf-confirmed');
+              cell.setAttribute('title', 'Confirmed against a KAMAR award PDF');
+              tick.setAttribute('aria-label', tickLabel + ' (confirmed against a KAMAR award PDF)');
+            }
             tick.addEventListener('change', event => {
               event.stopPropagation();
+              if (tick.disabled) return;
               const next = { ...awards }, updated = { ...next[student.id] };
               if (tick.checked) updated[key] = true;
               else delete updated[key];
+              if (updated.pdfConfirmed?.[key]) {
+                updated.pdfConfirmed = { ...updated.pdfConfirmed };
+                delete updated.pdfConfirmed[key];
+                if (!Object.keys(updated.pdfConfirmed).length) delete updated.pdfConfirmed;
+              }
               if (Object.keys(updated).length) next[student.id] = updated;
               else delete next[student.id];
               try {
                 saveAwards(next);
+                cell.setAttribute('class', '');
+                cell.setAttribute('title', '');
+                tick.setAttribute('aria-label', tickLabel);
                 if (matchesFilter(student)) awardSummary();
                 else render();
               }
               catch (error) { tick.checked = !tick.checked; feedback.textContent = error.message; }
             });
-            const cell = el('td'); cell.append(tick); tr.append(cell);
+            cell.append(tick); tr.append(cell);
           }
           tbody.append(tr);
         }
