@@ -889,7 +889,7 @@
         tbody = el('tbody');
         progress.append(head, tbody); allocation.append(progress);
       }
-      if ((values || !junior) && !allocationReady) {
+      if ((values || !junior || awarding) && !allocationReady) {
         allocation.append(el('p', allocationError || 'Checking the four preserved teaching timetables…', { role: 'status' }));
         if (allocationError) button(allocation, 'Retry term allocations', false, () => {
           allocationError = ''; showAllocation();
@@ -968,7 +968,7 @@
         allocationError = 'Could not verify the DTECH terms: ' + error.message;
       } finally {
         allocationPending = false;
-        if (area.isConnected && directory && (state.part === 'values' || state.programme === 'middle')) render();
+        if (area.isConnected && directory && (state.part === 'values' || state.part === 'awards' || state.programme === 'middle')) render();
       }
     }
     function summary() {
@@ -1053,7 +1053,12 @@
       }
       controls.append(parts);
       if (state.part === 'awards') {
-        body.append(el('h3', 'Kaha Mohio and Kaha Akoranga criteria'));
+        const criteriaSetup = el('div', '', { class: 'reporting-award-setup' });
+        const criteriaCopy = el('div', '', { class: 'reporting-award-criteria' });
+        const coverageTable = el('aside', '', { class: 'reporting-value-allocation reporting-award-coverage',
+          'aria-label': 'Award coverage by year level' });
+        criteriaSetup.append(criteriaCopy, coverageTable); body.append(criteriaSetup);
+        criteriaCopy.append(el('h3', 'Kaha Mohio and Kaha Akoranga criteria'));
         const criteria = el('ul');
         for (const [label, id] of [
           ['Junior/Middle (Years 7–10) — 2025 award criteria (PDF)', '1CxZBXBP6pIOPKs4TvmSSdlnlZj60yXsL'],
@@ -1065,8 +1070,10 @@
           }));
           criteria.append(item);
         }
-        body.append(criteria, el('p', 'Green: Yes confirmed against a KAMAR PDF. Red: award correction to review in KAMAR. White: manual or unticked. Awards are not assigned to 7S or 8S.'));
+        criteriaCopy.append(criteria, el('p', 'Green: Yes confirmed against a KAMAR PDF. Red: award correction to review in KAMAR. White: manual or unticked. Awards are not assigned to 7S or 8S.'));
         const awardControls = el('div', '', { class: 'reporting-tabs', 'data-planner-navigation': '' });
+        const coverageTally = el('span', '', { class: 'reporting-award-tally', 'aria-label': 'Overall award coverage',
+          role: 'status', 'aria-live': 'polite' });
         button(awardControls, 'All students', !awardClass, () => { awardClass = ''; render(); });
         const excluded = externalAwardIds();
         const middle = state.programme === 'middle';
@@ -1081,13 +1088,13 @@
               middle ? 'This checks MiddleDTECH and S1 MPROG nominees, regardless of class or filter. The 25% class cap is for manual review.' :
                 'This uses every junior homeroom, not just the current view. Ties at the cutoff are left ticked for you to review.'));
           calculate.disabled = savingCriteria;
-          body.append(el('p', middle ?
+          criteriaCopy.append(el('p', middle ?
             'Akoranga only: at least 90% attendance. Review the 25% class cap, effort and perseverance separately; no class-cap removals are automatic.' :
             'Akoranga only: at least 90% attendance; maximum 25% of each homeroom (rounded down). Check effort and perseverance separately.'));
-          if (check.unassigned) body.append(el('p', `${check.unassigned} eligible nominees have no assigned homeroom, so their cap could not be checked.`));
-          for (const tie of check.ties) body.append(el('p',
+          if (check.unassigned) criteriaCopy.append(el('p', `${check.unassigned} eligible nominees have no assigned homeroom, so their cap could not be checked.`));
+          for (const tie of check.ties) criteriaCopy.append(el('p',
             `${tie.room}: Akoranga cutoff tie at ${tie.percentage}%. Untick ${tie.excess} of the ${tie.ids.length} students marked “Cutoff tie”.`));
-        } else body.append(el('p', middle ? allocationReady ? 'No verified MiddleDTECH or S1 MPROG students are available for the attendance check.' :
+        } else criteriaCopy.append(el('p', middle ? allocationReady ? 'No verified MiddleDTECH or S1 MPROG students are available for the attendance check.' :
           'Attendance criteria require the MiddleDTECH and S1 audit timetables to finish loading. Retry any timetable error in the progress box.' :
           'Attendance criteria require a verified JuniorDTECH homeroom roster.'));
         const gradeCheck = button(awardControls, 'Check Grade criteria', false, () => {
@@ -1096,7 +1103,7 @@
         });
         gradeCheck.disabled = savingCriteria || state.cycle !== 'eoy' || (state.programme === 'middle' && !allocationReady);
         const thresholds = Object.entries(schema.endOfYearMohioGrades).map(([level, grade]) => `Year ${level}: ${grade}`).join(', ');
-        body.append(el('p', `Mohio only: both SLOs must meet the End of Year minimum (${thresholds}). Blank and UAG do not qualify.`),
+        criteriaCopy.append(el('p', `Mohio only: both SLOs must meet the End of Year minimum (${thresholds}). Blank and UAG do not qualify.`),
           el('p', criteriaMessage, { role: 'status' }));
         const filter = el('select', '', { 'aria-label': 'Filter awards' });
         for (const [value, label] of [['all', 'All rows'], ['any', 'Award recipients only'], ['mohio', 'Mohio only'], ['akoranga', 'Akoranga only']]) {
@@ -1104,7 +1111,63 @@
         }
         filter.value = awardFilter;
         filter.addEventListener('change', () => { awardFilter = filter.value; render(); });
-        awardControls.append(filter); body.append(awardControls);
+        awardControls.append(filter, coverageTally); body.append(awardControls);
+        function updateCoverage() {
+          coverageTable.replaceChildren(el('strong', 'Year-level award coverage'));
+          coverageTally.replaceChildren();
+          if (!allocationReady) {
+            const message = allocationError || 'Checking all four teaching terms for award coverage…';
+            coverageTable.append(el('p', message, { role: 'status' }));
+            coverageTally.append(el('span', 'Coverage unavailable until all four timetables are verified.'));
+            return;
+          }
+          const rosters = [...auditRosters.values()];
+          const excluded = new Set(rosters.flatMap(roster => [
+            ...(roster.homerooms || []).filter(room => externalAwardRoom(room.code)).flatMap(room => room.students.map(student => student.id)),
+            ...roster.classes.flatMap(group => group.students.filter(student => externalAwardRoom(student.whanau)).map(student => student.id))
+          ]));
+          const people = new Map();
+          for (const student of rosters.flatMap(roster => Object.keys(schema.programmes).flatMap(programme =>
+            schema.classGroups(roster, programme).flatMap(group => group.students)))) {
+            if (excluded.has(student.id)) continue;
+            if (people.has(student.id) && people.get(student.id).yearLevel !== student.yearLevel) {
+              coverageTable.append(el('p', 'Coverage unavailable: a student has conflicting year levels in the preserved timetables.', { role: 'alert' }));
+              coverageTally.append(el('span', 'Coverage unavailable: conflicting year levels.'));
+              return;
+            }
+            people.set(student.id, student);
+          }
+          const years = ['7', '8', '9', '10'].map(yearLevel => {
+            const students = [...people.values()].filter(student => student.yearLevel === yearLevel && !excluded.has(student.id));
+            return { yearLevel, total: students.length,
+              mohio: students.filter(student => awards[student.id]?.mohio === true).length,
+              akoranga: students.filter(student => awards[student.id]?.akoranga === true).length };
+          });
+          function coverageValue(tag, count, total, limit, label = '') {
+            const percent = total ? `${Number((count / total * 100).toFixed(1))}%` : '—';
+            const over = count * 100 > total * limit;
+            return el(tag, `${label}${count} / ${total} · ${percent}${over ? ` · Over ${limit}%` : ''}`,
+              { ...(over ? { class: 'reporting-coverage-over' } : {}) });
+          }
+          const table = el('table'), head = el('thead'), header = el('tr'), rows = el('tbody');
+          for (const label of ['Year', 'Mohio (20%)', 'Akoranga (25%)']) header.append(el('th', label, { scope: 'col' }));
+          head.append(header); table.append(head, rows);
+          for (const year of years) {
+            const row = el('tr');
+            row.append(el('th', year.yearLevel, { scope: 'row' }),
+              coverageValue('td', year.mohio, year.total, 20), coverageValue('td', year.akoranga, year.total, 25));
+            rows.append(row);
+          }
+          coverageTable.append(table, el('p', 'Unique students across your four teaching-term rosters; 7S/8S excluded. Not a verified whole-school cohort.'),
+            el('p', 'Coverage only, not achievement ranking or eligibility. Akoranga’s 25% cap is per class, not programme or year.'));
+          const overall = years.filter(year => schema.programmes[state.programme].years.includes(year.yearLevel))
+            .reduce((total, year) => ({ total: total.total + year.total, mohio: total.mohio + year.mohio,
+              akoranga: total.akoranga + year.akoranga }), { total: 0, mohio: 0, akoranga: 0 });
+          coverageTally.append(el('strong', `Overall ${schema.programmes[state.programme].label}`),
+            coverageValue('span', overall.mohio, overall.total, 20, 'Mohio (20%): '),
+            coverageValue('span', overall.akoranga, overall.total, 25, 'Akoranga (25%): '));
+        }
+        updateCoverage();
         const roster = new Map((awardClass ? classes.filter(group => group.key === awardClass) : classes)
           .flatMap(group => group.students.map(student => [student.id, student])));
         const students = [...roster.values()].sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
@@ -1168,7 +1231,7 @@
                   cell.setAttribute('class', '');
                   cell.setAttribute('title', '');
                   tick.setAttribute('aria-label', tickLabel);
-                  awardSummary(); showAllocation();
+                  awardSummary(); showAllocation(); updateCoverage();
                 }
                 else render();
               }
