@@ -62,9 +62,9 @@ function fixture(data = {}, fail = false, options = {}) {
     { code: 'TEST-MATH', students: [{ id: 'k:math', name: 'Not DTECH', yearLevel: '7' }] }
   ] };
   const host = el('main'), calls = [];
-  const context = vm.createContext({ plannerReportingSchema: schema, Event, URLSearchParams, console, confirm: options.confirm || (() => true) });
+  const context = vm.createContext({ plannerReportingSchema: schema, Event, URLSearchParams, console, localStorage: options.localStorage, confirm: options.confirm || (() => true) });
   vm.runInContext(fs.readFileSync(path.join(__dirname, 'public', 'reporting.js'), 'utf8'), context);
-  const mountOptions = { el, data, year: 2026, ensureSaved: options.ensureSaved || (async () => true), request: async url => {
+  const mountOptions = { el, data, year: 2026, ownerId: 'test-owner', ensureSaved: options.ensureSaved || (async () => true), request: async url => {
     calls.push(url);
     if (fail) throw new Error('School directory unavailable');
     if (options.request) return options.request(url, directory);
@@ -190,6 +190,63 @@ test('Reporting Awards shows separate Junior/Middle and Senior criteria links wi
   assert.ok(links.every(node => /^https:\/\/drive\.google\.com\/file\/d\/[\w-]+\/view$/.test(node.attrs.href)));
   assert.equal(f.control('Class report entries'), undefined);
   assert.equal(f.events.length, 0);
+});
+
+test('Reporting batch remembers folders and applies cross-term grades without choosing between disagreeing PDFs', async () => {
+  const folders = new Map(), term1 = { id: 'k:term1', name: 'Term One', yearLevel: '7' };
+  const sloFolder = 'https://drive.google.com/drive/folders/example_slo_folder';
+  const valuesFolder = 'https://drive.google.com/drive/folders/example_value_folder';
+  const original = { ...row, pdfConfirmed: { design: '4A' } };
+  const f = fixture({ records: JSON.stringify([original]) }, false, {
+    localStorage: { getItem: key => folders.get(key), setItem: (key, value) => folders.set(key, value) },
+    request: async (url, directory) => {
+      if (url.startsWith('attendance/classes/')) {
+        return url.endsWith('?term=1') ? { classes: [{ code: 'TEST-VEDTECH', students: [term1] }] } : directory;
+      }
+      if (url.startsWith('google-calendar/reporting-drive/files?')) {
+        const values = new URLSearchParams(url.split('?')[1]).get('folder') === valuesFolder;
+        return { files: (values ? ['values'] : ['first', 'second', 'term1']).map(id => ({ id, name: `${id}.pdf`, version: 'v1' })) };
+      }
+      const id = /file\/([^?]+)/.exec(url)[1];
+      if (id === 'values') return { classCode: 'VEDTECH', year: null, valueTerm: 4, fields: ['rangatiratanga'],
+        rows: [{ name: term1.name, grades: { rangatiratanga: 'Exe' } }] };
+      return { classCode: id === 'term1' ? 'VEDTECH' : 'JDTECH', year: 2026, valueTerm: null,
+        rows: [{ name: id === 'term1' ? term1.name : 'Synthetic Junior', grades: { coding: '4B', design: id === 'second' ? '4P' : '4A' } }] };
+    }
+  });
+  await settle();
+  const folder = () => f.control('Google Drive Reports folder');
+  folder().value = sloFolder;
+  await f.click('Preview all PDFs');
+  assert.equal(f.events.length, 0);
+  assert.ok(f.find(node => node.textContent.includes('PDFs disagree')));
+  await f.click('Apply batch to Planner');
+  const saved = () => JSON.parse(f.find(node => node.attrs.name === 'records').value);
+  const { pdfConfirmed, ...untouched } = original;
+  assert.deepEqual(saved()[0], { ...untouched, coding: '4B', pdfConfirmed: { coding: '4B' }, pdfPrevious: { coding: '3P' } });
+  assert.equal(saved()[1].studentId, term1.id);
+  assert.equal(saved()[1].coding, '4B');
+  assert.equal(f.all().filter(node => node.attrs.class === 'reporting-pdf-replaced').length, 1);
+  f.click('2. School Values');
+  assert.equal(folder().value, '');
+  folder().value = valuesFolder;
+  await f.click('Preview all PDFs');
+  await f.click('Apply batch to Planner');
+  assert.equal(saved()[1].rangatiratanga, 'Exe');
+  assert.equal(saved()[1].kaitiakitanga, '');
+  f.click('1. Student Learning Objectives');
+  assert.equal(folder().value, sloFolder);
+  await f.click('Preview all PDFs');
+  await f.click('Apply batch to Planner');
+  assert.equal(saved()[0].pdfPrevious.coding, '3P');
+  assert.deepEqual(f.events, ['input', 'input']);
+  f.enter('Synthetic Junior: Computational Thinking - Coding (updated from 3P using KAMAR PDF)', '3A');
+  assert.equal(saved()[0].pdfPrevious, undefined);
+  f.remount(); await settle();
+  assert.equal(folder().value, sloFolder);
+  f.click('2. School Values');
+  assert.equal(folder().value, valuesFolder);
+  f.click('1. Student Learning Objectives');
 });
 
 test('default panels follow the selected report part without changing saved data', async () => {

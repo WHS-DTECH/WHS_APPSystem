@@ -1517,6 +1517,13 @@ term, then list and preview a PDF before applying it. The preview shows exact,
 unique teaching-class matches and leaves unmatched names unchanged. A named
 School Value goes to that field even when its printed term differs from the
 teaching term. Blank PDF cells only clear grades when explicitly selected.
+The SLO and School Values pages remember their Drive folders separately in the
+current browser for your account. **Preview all PDFs** checks the selected
+report cycle against all four teaching rosters. **Apply batch to Planner**
+replaces differing nonblank grades, highlighting them in amber with the former
+grade in the tooltip. Batch sync preserves Planner grades when PDFs are blank
+or disagree, and removes earlier confirmation for those cells.
+Review skipped files and unmatched rows before applying.
 **Confirm matching grades only** compares the PDF to existing drafts without
 replacing any grades. Matching nonblank grades turn green, as do grades applied
 from the PDF. Confirmation is saved per grade cell and clears when the grade is

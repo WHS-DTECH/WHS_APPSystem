@@ -21,7 +21,7 @@
       new Set(records.map(row => JSON.stringify([row?.studentId, row?.programme, row?.cycle]))).size === records.length &&
       records.every(row => row && typeof row === 'object' && !Array.isArray(row) &&
         fields.every(key => Object.hasOwn(row, key)) &&
-        Object.keys(row).every(key => fields.includes(key) || ['whanaungatanga', 'manaakitanga', 'pdfConfirmed'].includes(key)) &&
+        Object.keys(row).every(key => fields.includes(key) || ['whanaungatanga', 'manaakitanga', 'pdfConfirmed', 'pdfPrevious'].includes(key)) &&
         typeof row.studentId === 'string' && /^k:[A-Za-z0-9_-]{1,60}$/.test(row.studentId) &&
         typeof row.programme === 'string' && Object.hasOwn(programmes, row.programme) && ['eoy', 'earlier'].includes(row.cycle) &&
         ['coding', 'design'].every(key => row[key] === '' || programmes[row.programme].levels.includes(row[key])) &&
@@ -31,7 +31,12 @@
         (row.pdfConfirmed === undefined || row.programme === 'junior' && row.pdfConfirmed &&
           typeof row.pdfConfirmed === 'object' && !Array.isArray(row.pdfConfirmed) &&
           Object.entries(row.pdfConfirmed).every(([key, grade]) => pdfGradeFields.includes(key) &&
-            typeof grade === 'string' && grade !== '' && grade === row[key])));
+            typeof grade === 'string' && grade !== '' && grade === row[key])) &&
+        (row.pdfPrevious === undefined || row.programme === 'junior' && row.pdfPrevious &&
+          typeof row.pdfPrevious === 'object' && !Array.isArray(row.pdfPrevious) &&
+          Object.entries(row.pdfPrevious).every(([key, grade]) => pdfGradeFields.includes(key) &&
+            row.pdfConfirmed?.[key] && grade !== row[key] &&
+            (['coding', 'design'].includes(key) ? programmes.junior.levels : values).includes(grade))));
   }
   function validContent(content) {
     if (!content || Object.keys(content).some(key => !['records', 'valuesDefault', 'juniorSloDefault'].includes(key)) ||

@@ -20,7 +20,7 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
 <link rel="icon" type="image/png" href="${asset('whs-logo.png')}">
 <link rel="stylesheet" href="${asset('account-controls.css')}">
 <link rel="stylesheet" href="${asset('module-shell.css')}">
-<link rel="stylesheet" href="${asset('planner.css?v=navigation-39')}">
+<link rel="stylesheet" href="${asset('planner.css?v=navigation-40')}">
 </head><body class="whs-module-shell whs-planner" data-api="${escape(baseUrl)}api/planner/" data-assets="${escape(baseUrl)}framework/" data-planner-name="${escape(displayName)}" data-user-id="${escape(userId)}" data-user-email="${escape(userEmail)}" data-core-url="${escape(coreUrl)}">
 <main class="planner-main" aria-label="${escape(title)}">
 <header class="planner-heading">
@@ -106,9 +106,9 @@ ${standalone ? `<script src="${asset('global-nav.js')}" defer></script>` : ''}
 <script src="${asset('moderation-schema.js?v=requirement-cleanup-2')}" defer></script>
 <script src="${asset('moderation.js?v=nzqa-version-8')}" defer></script>
 <script src="${asset('textarea-autosize.js')}" defer></script>
-<script src="${asset('reporting-schema.js?v=7')}" defer></script>
-<script src="${asset('reporting.js?v=11')}" defer></script>
-<script src="${asset('planner.js?v=navigation-36')}" defer></script>
+<script src="${asset('reporting-schema.js?v=8')}" defer></script>
+<script src="${asset('reporting.js?v=12')}" defer></script>
+<script src="${asset('planner.js?v=navigation-37')}" defer></script>
 </body></html>`;
 }
 
