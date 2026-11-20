@@ -299,6 +299,30 @@ test('Awards PDF confirms only matched eligible ticks and keeps manual entries a
   f.click('1. Student Learning Objectives');
 });
 
+test('Awards preview selects the newest export batch for the programme without applying it', async () => {
+  const name = stamp => `PrintSectionIndexRecipientListbySection_${stamp}.pdf`;
+  const reports = [
+    ['20261121_093959', '7'], ['20261121_100000', '7'], ['20261121_095000', '7'],
+    ['20261121_101500', '9'], ['20261131_102000', '7'], ['20261121_103000', '7', 2025],
+    ['20261121_095003', '7']
+  ];
+  const f = fixture({}, false, { request: async (url, directory) =>
+    url.startsWith('google-calendar/reporting-award-pdfs?') ? { ignored: 0, reports: reports.map(([stamp, yearLevel, printYear = 2026]) => ({
+      name: name(stamp), printYear, rows: [{ id: row.studentId, yearLevel, award: 'mohio' }]
+    })) } : directory });
+  await settle();
+  f.click('4. Awards');
+  f.control('Award recipient PDF folder').value = 'https://drive.google.com/drive/folders/example_awards_folder';
+  await f.click('Preview award PDFs');
+  const selected = () => reports.filter(([stamp]) => f.control(`Select award PDF: ${name(stamp)}`)?.checked).map(([stamp]) => stamp);
+  assert.deepEqual(selected(), ['20261121_100000', '20261121_095000', '20261121_095003']);
+  const pick = f.control(`Select award PDF: ${name('20261121_100000')}`);
+  pick.checked = false;
+  pick.events.change();
+  assert.deepEqual(selected(), ['20261121_095000', '20261121_095003']);
+  assert.equal(f.events.length, 0);
+});
+
 test('Replacing awards uses only selected corrected lists and reconciles ticks and red flags', async () => {
   const [kept, restored, removed, resolved, mismatched, outside, middle] =
     ['kept', 'restored', 'removed', 'resolved', 'mismatched', 'outside', 'middle'].map(name =>

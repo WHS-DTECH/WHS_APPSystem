@@ -1559,6 +1559,10 @@ for Digital Technologies; criteria PDFs are ignored. It deduplicates verified
 Student ID and year-level matches and skips 7S/8S. Apply to add only the
 verified award ticks. Green marks PDF-confirmed ticks; manual and unticked
 cells stay white. Manual edits clear the edited cell's confirmation only.
+Awards preview preselects the newest batch for the selected programme and
+reporting year using KAMAR filename timestamps. Starting at the newest file,
+it includes earlier exports until the gap exceeds 10 minutes. The selection
+can be changed and nothing is applied automatically.
 When correcting a prior export, select only the complete new PDFs for both
 awards and use **Replace with selected PDFs**. Review the addition, removal
 and red-flag counts before confirming. Replacement makes awards on the current
