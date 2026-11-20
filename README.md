@@ -1503,10 +1503,21 @@ its optional PostgreSQL checks require isolated disposable test databases.
 
 In **JuniorDTECH → End of Year**, the **Homeroom audit** tabs show every
 Year 7–8 student in the selected term's preserved timetable, including 7S and
-8S when present. Students without a form class appear under **Unassigned**.
+8S when present. Other homerooms use **Timetable Class** from the preserved
+KAMAR Student List for that term (e.g. JPI appears as PI), not Whānau. Students
+without a verified homeroom appear under **Unassigned**.
 The green homeroom tabs are read-only and show saved drafts and completion
 counts; the blue teaching tabs remain editable. Opening a homeroom does not
 create draft grades for students outside your teaching classes.
+
+**Google Drive sync — KAMAR reports** reads PDFs from a linked Reports folder
+and its `SLOs` and `Values` subfolders using the staff member's existing read-only
+Drive connection. Choose JuniorDTECH, the report cycle and the source teaching
+term, then list and preview a PDF before applying it. The preview shows exact,
+unique teaching-class matches and leaves unmatched names unchanged. A named
+School Value goes to that field even when its printed term differs from the
+teaching term. Blank PDF cells only clear grades when explicitly selected.
+Changes use normal Planner draft autosave; sync never writes to KAMAR or Drive.
 
 The **Reporting** section provides JuniorDTECH and MiddleDTECH programme tabs,
 then class tabs and report-part pages. A permanent

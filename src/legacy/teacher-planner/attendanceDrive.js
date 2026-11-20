@@ -19,7 +19,7 @@ function fileVersion(file) {
   return file.id + ':' + file.modifiedTime + ':' + file.md5Checksum;
 }
 function createAttendanceDriveService({ ensureConnected, access, unchanged, hasScope, fetchImpl = fetch,
-  ErrorType, parsePdf = importAttendancePdf }) {
+  ErrorType, parsePdf = importAttendancePdf, pdfError = AttendancePdfError, purpose = 'Attendance' }) {
   async function connection(req, folder) {
     if (!DRIVE_ID.test(folder || '')) throw new ErrorType('Choose a valid Drive attendance folder.', 400);
     const row = await ensureConnected(req);
@@ -137,9 +137,10 @@ function createAttendanceDriveService({ ensureConnected, access, unchanged, hasS
     let pdf;
     try { pdf = await parsePdf(Buffer.concat(chunks)); }
     catch (error) {
-      const reason = error instanceof AttendancePdfError ? error.message :
+      const reason = error instanceof pdfError ? error.message :
         'The PDF could not be decoded. Export it again from KAMAR rather than printing or scanning it.';
-      throw new ErrorType('Attendance PDF rejected: ' + reason + ' No marks from this PDF were imported.', 422);
+      throw new ErrorType(purpose + ' PDF rejected: ' + reason +
+        (purpose === 'Attendance' ? ' No marks from this PDF were imported.' : ' Nothing was imported from this PDF.'), 422);
     }
     const after = await (await google(path + fields, token)).json();
     if (!validFile(after, folder) || fileVersion(after) !== fileVersion(file)) throw new ErrorType('The Drive PDF changed while being read. Retry sync.', 409);

@@ -3,7 +3,8 @@ const express = require('express');
 const { DOCUMENT_ID, DOCS_SCOPE, documentRanges, parseDocumentEvents } = require('./googleDocEvents');
 const { validYearTerm, parseDutyDocument, dutyEvents, canManage } = require('./dutyRoster');
 const { TASKS_SCOPE, createGoogleTasksRouter } = require('./googleTasks');
-const { DRIVE_SCOPE, createAttendanceDriveRouter, createAttendanceDriveService } = require('./attendanceDrive');
+const { DRIVE_SCOPE, folderId, createAttendanceDriveRouter, createAttendanceDriveService } = require('./attendanceDrive');
+const { importReportingPdf, ReportingPdfError } = require('./reportingImport');
 const { createAdminAttendanceRouter } = require('./adminAttendance');
 
 const SCOPES = [
@@ -226,6 +227,37 @@ function createGoogleCalendarRouter({ query, env = process.env, fetchImpl = fetc
     ensureConnected, access, unchanged, fetchImpl, ErrorType: CalendarError, hasScope
   });
   router.use('/attendance-drive', createAttendanceDriveRouter({ query, service: attendanceDrive, ErrorType: CalendarError }));
+  const reportingDrive = createAttendanceDriveService({
+    ensureConnected, access, unchanged, fetchImpl, ErrorType: CalendarError, hasScope,
+    parsePdf: importReportingPdf, pdfError: ReportingPdfError, purpose: 'Reporting'
+  });
+  async function reportFiles(req) {
+    const root = folderId(req.query.folder);
+    if (!root) throw new CalendarError('Paste a Google Drive Reports folder link.', 400);
+    const pairs = await Promise.all(['SLOs', 'Values'].map(async label => ({
+      label, ...(await reportingDrive.listFiles(req, root, label))
+    })));
+    if (pairs[0].connectionId !== pairs[1].connectionId) throw new CalendarError('The Google connection changed. Reload the files.', 409);
+    const files = new Map();
+    for (const pair of pairs) for (const file of pair.files) {
+      files.set(file.id, { ...file, label: file.folderId === root ? '' : pair.label });
+    }
+    return { root, files, connectionId: pairs[0].connectionId };
+  }
+  router.get('/reporting-drive/files', wrap(async (req, res) => {
+    const { files } = await reportFiles(req);
+    res.json({ files: [...files.values()].map(({ id, name, label, version }) => ({ id, name, label, version })) });
+  }));
+  router.get('/reporting-drive/file/:id', wrap(async (req, res) => {
+    const { root, files, connectionId } = await reportFiles(req);
+    const file = files.get(req.params.id);
+    if (!file || file.version !== req.query.version) throw new CalendarError('The PDF was moved or changed. Reload the Drive files.', 409);
+    const result = await reportingDrive.readFile(req, file.folderId, file.id, root, file.label);
+    if (result.version !== file.version || result.connectionId !== connectionId) {
+      throw new CalendarError('The PDF or Google connection changed. Reload the Drive files.', 409);
+    }
+    res.json({ name: file.name, ...result.pdf });
+  }));
   if (adminAttendance?.loadTeachers && adminAttendance?.authorizeTarget && adminAttendance?.loadClasses) {
     router.use('/attendance-admin', createAdminAttendanceRouter({
       query, ...adminAttendance, driveService: attendanceDrive,

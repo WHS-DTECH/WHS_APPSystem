@@ -62,7 +62,7 @@ function fixture(data = {}, fail = false, options = {}) {
     { code: 'TEST-MATH', students: [{ id: 'k:math', name: 'Not DTECH', yearLevel: '7' }] }
   ] };
   const host = el('main'), calls = [];
-  const context = vm.createContext({ plannerReportingSchema: schema, Event, console, confirm: options.confirm || (() => true) });
+  const context = vm.createContext({ plannerReportingSchema: schema, Event, URLSearchParams, console, confirm: options.confirm || (() => true) });
   vm.runInContext(fs.readFileSync(path.join(__dirname, 'public', 'reporting.js'), 'utf8'), context);
   const mountOptions = { el, data, year: 2026, request: async url => {
     calls.push(url);
@@ -134,6 +134,28 @@ test('End of Year JuniorDTECH shows read-only homerooms alongside editable teach
   assert.equal(f.control('Homeroom audit').children[0].textContent, '8S (0/1)');
   assert.equal(f.find(node => node.attrs.name === 'records').value, JSON.stringify([row]));
   assert.equal(f.events.length, 0);
+});
+
+test('Reporting Drive preview requires Apply and preserves unrelated grades and ambiguous names', async () => {
+  const existing = { ...row, whanaungatanga: 'Exe' };
+  const f = fixture({ records: JSON.stringify([existing]) }, false, { request: async (url, directory) => {
+    if (url.startsWith('google-calendar/reporting-drive/files?')) return { files: [{ id: 'example_file', name: 'Report.pdf', label: 'SLOs', version: 'v1' }] };
+    if (url.startsWith('google-calendar/reporting-drive/file/')) return { classCode: 'JDTECH', year: 2026, rows: [
+      { name: 'Synthetic Junior', grades: { coding: '4B', design: '' } },
+      { name: 'Unknown Student', grades: { coding: '4A', design: '4A' } }
+    ] };
+    return directory;
+  } });
+  await settle();
+  f.control('Google Drive Reports folder').value = 'https://drive.google.com/drive/folders/example_test_folder';
+  await f.click('List Drive PDFs');
+  f.enter('KAMAR report PDF', 'example_file');
+  await f.click('Preview PDF');
+  assert.ok(f.find(node => node.textContent === 'Unknown Student: Not matched — unchanged'));
+  assert.equal(f.events.length, 0);
+  f.click('Apply matched grades');
+  assert.deepEqual(JSON.parse(f.find(node => node.attrs.name === 'records').value), [{ ...existing, coding: '4B' }]);
+  assert.deepEqual(f.events, ['input']);
 });
 
 test('default panels follow the selected report part without changing saved data', async () => {
