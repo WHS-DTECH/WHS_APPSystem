@@ -1517,6 +1517,11 @@ term, then list and preview a PDF before applying it. The preview shows exact,
 unique teaching-class matches and leaves unmatched names unchanged. A named
 School Value goes to that field even when its printed term differs from the
 teaching term. Blank PDF cells only clear grades when explicitly selected.
+**Confirm matching grades only** compares the PDF to existing drafts without
+replacing any grades. Matching nonblank grades turn green, as do grades applied
+from the PDF. Confirmation is saved per grade cell and clears when the grade is
+changed manually or a reviewed PDF no longer matches. Previously imported
+grades without saved confirmation can be rechecked against the original PDF.
 Changes use normal Planner draft autosave; sync never writes to KAMAR or Drive.
 
 The **Reporting** section provides JuniorDTECH and MiddleDTECH programme tabs,
