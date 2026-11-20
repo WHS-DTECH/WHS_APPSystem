@@ -896,7 +896,7 @@
               return entry?.[key] === true && entry.pdfConfirmed?.[key] === true;
             }).length;
             const mohio = count('mohio'), akoranga = count('akoranga');
-            checked = mohio >= 1 && akoranga >= 2;
+            checked = mohio + akoranga > 0;
             detail = `${mohio} Mohio · ${akoranga} Akoranga`;
           }
         } else if (values && terms.length !== 1) detail = allocationReady ? 'No single verified term' : 'Pending term check';
@@ -917,10 +917,10 @@
         addRow(room.code, [...columns, cell]);
       }
       if (values && allocationReady) allocation.append(el('p', 'Only a single verified teaching term is used in the homeroom audit.'));
-      allocation.append(el('p', awarding ? 'Yes: at least one PDF-confirmed Mohio and two PDF-confirmed Akoranga recipients.' :
+      allocation.append(el('p', awarding ? 'Yes: at least one PDF-confirmed Mohio or Akoranga recipient.' :
         !junior ? 'Yes: more than half the teaching class has both SLOs confirmed by a PDF.' :
           `Yes: more than half the homeroom has ${values ? 'its assigned value' : 'at least one SLO'} confirmed by a PDF.`));
-      if (awarding) allocation.append(el('p', 'An unticked room may have too few recipients to confirm progress from the PDF.'));
+      if (awarding) allocation.append(el('p', 'An unticked room has no PDF-confirmed recipients; it may still have been synced.'));
     }
     async function loadAllocations() {
       if (allocationPending) return;

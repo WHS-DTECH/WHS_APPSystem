@@ -1576,8 +1576,8 @@ checkbox; TR gets one starting with the 2027 reporting year.
 SLOs tick when more than half the room has at least one confirmed SLO; School
 Values tick when more than half has the value for its verified DTECH term
 confirmed. Awards show confirmed recipient counts and tick with at least one
-Mohio and two Akoranga recipients. An unticked room may simply have too few
-recipients to show progress from the PDF; 7S and 8S are not eligible for awards.
+PDF-confirmed Mohio or Akoranga recipient. An unticked room may have been
+synced without any confirmed recipients; 7S and 8S are not eligible for awards.
 The MiddleDTECH SLO box uses the selected term's teaching classes. A class
 ticks when more than half of its students have both SLOs confirmed by a PDF.
 
