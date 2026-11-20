@@ -6,6 +6,7 @@ const vm = require('node:vm');
 const schema = require('./public/reporting-schema');
 const { validKey, validContent } = require('./planner');
 const { renderShell } = require('./shell');
+const { importReportingAttendance } = require('./reportingAttendance');
 
 const row = { studentId: 'k:synthetic', programme: 'junior', cycle: 'eoy',
   coding: '3P', design: '4A', kaitiakitanga: 'Dev', rangatiratanga: 'Exe', comment: '' };
@@ -190,6 +191,54 @@ test('Reporting Awards shows separate Junior/Middle and Senior criteria links wi
   assert.ok(links.every(node => /^https:\/\/drive\.google\.com\/file\/d\/[\w-]+\/view$/.test(node.attrs.href)));
   assert.equal(f.control('Class report entries'), undefined);
   assert.equal(f.events.length, 0);
+});
+
+test('Awards attendance CSV preserves zero, ignores duplicate identical rows and rejects conflicting or invalid percentages', () => {
+  const csv = rows => Buffer.from('\ufeffStudent ID,Attendance - Percentage (Half-Days),Name\n' + rows);
+  assert.deepEqual(importReportingAttendance(csv('001,0,"Test, One"\n001,0%,Duplicate\nk:2,92.5%,Two\n3,,Three')),
+    [{ id: 'k:001', percentage: 0 }, { id: 'k:2', percentage: 92.5 }, { id: 'k:3', percentage: null }]);
+  assert.throws(() => importReportingAttendance(csv('1,90,A\n1,91,A')), /conflicting/);
+  assert.throws(() => importReportingAttendance(csv('1,101,A')), /invalid/);
+  assert.equal(validContent('reporting', { records: '[]', awards: '{"k:one":{"mohio":true,"attendance":0}}' }), true);
+  assert.equal(validContent('reporting', { records: '[]', awards: '{"k:one":{"akoranga":"yes","attendance":101}}' }), false);
+});
+
+test('Awards roster edits in homerooms, filters recipients and imports attendance by ID without touching ticks or grades', async () => {
+  const data = { records: JSON.stringify([row]) };
+  const f = fixture(data, false, { request: async (url, directory) => {
+    if (url.startsWith('google-calendar/reporting-awards/files?')) return { files: [{ id: 'csv', name: 'Attendance.csv', version: 'v1' }] };
+    if (url.startsWith('google-calendar/reporting-awards/files/')) return { entries: [
+      { id: 'k:synthetic', percentage: 0 }, { id: 'k:audit', percentage: 94.5 }, { id: 'k:other', percentage: 100 }
+    ] };
+    return { ...directory, homerooms: [{ code: '8S', students: [directory.classes[0].students[0],
+      { id: 'k:audit', name: 'Audit Student', yearLevel: '8' }] }] };
+  } });
+  await settle();
+  f.click('4. Awards');
+  assert.ok(f.control('Audit Student: Mohio'));
+  f.click('8S (2)');
+  const tick = f.control('Audit Student: Mohio');
+  assert.equal(tick.checked, false);
+  tick.checked = true; tick.events.change({ stopPropagation() {} });
+  f.enter('Filter awards', 'mohio');
+  assert.equal(f.control('Synthetic Junior: Mohio'), undefined);
+  assert.equal(f.control('Audit Student: Mohio').checked, true);
+  f.enter('Filter awards', 'akoranga');
+  assert.equal(f.control('Audit Student: Mohio'), undefined);
+  f.enter('Filter awards', 'all');
+  f.control('Awards attendance Drive folder').value = 'https://drive.google.com/drive/folders/example_attendance_folder';
+  await f.click('List attendance CSVs');
+  f.enter('Awards attendance CSV', 'csv');
+  await f.click('Preview attendance');
+  assert.equal(f.events.length, 1);
+  await f.click('Apply attendance for 2026');
+  data.awards = f.find(node => node.attrs.name === 'awards').value;
+  assert.deepEqual(JSON.parse(data.awards), { 'k:audit': { mohio: true, attendance: 94.5 }, 'k:synthetic': { attendance: 0 } });
+  assert.equal(f.find(node => node.attrs.name === 'records').value, data.records);
+  f.remount(); await settle();
+  assert.equal(f.control('Audit Student: Mohio').checked, true);
+  assert.ok(f.find(node => node.tag === 'td' && node.textContent === '0%'));
+  f.click('1. Student Learning Objectives');
 });
 
 test('Reporting batch remembers folders and applies cross-term grades without choosing between disagreeing PDFs', async () => {

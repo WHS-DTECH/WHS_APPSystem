@@ -1538,8 +1538,17 @@ The **Reporting** section provides JuniorDTECH and MiddleDTECH programme tabs,
 then class tabs and report-part pages. A permanent
 [DTECH Assessment Criteria Google Doc](https://docs.google.com/document/d/1oA7xHQapbqE3myKKFL6T7oUMGxPbrm2BCE1rJQ51-gw/edit?usp=sharing)
 shortcut opens in a new tab. **4. Awards** links to the 2025 Junior/Middle and
-2026 Senior criteria PDFs using their existing Drive permissions. It does not
-allocate or confirm awards.
+2026 Senior criteria PDFs using their existing Drive permissions. It shows the
+reporting roster with Attendance%, Mohio and Akoranga. Award ticks default to
+off and are saved per student and school year in the teacher's private draft.
+They can be edited in both teaching and homeroom views. Use the award filter
+to show either award or recipients of either. Nothing is awarded automatically.
+In **Google Drive sync — Attendance%**, list CSVs, preview the KAMAR half-day
+attendance export for the selected school year, then apply. Only exact Student
+ID matches in the reporting rosters are used. Blank percentages leave saved
+attendance unchanged; missing attendance displays a dash, not 0%. The sync
+remembers its folder in the current browser and does not change award ticks
+or write to KAMAR or Drive.
 
 Both programmes assess **Computational Thinking - Coding** and **Design & Develop
 a Digital Outcome**. Junior choices are UAG, 3B, 3P, 3A, 4B, 4P, 4A; Middle choices

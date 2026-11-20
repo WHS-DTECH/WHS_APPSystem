@@ -11,12 +11,15 @@
     const defaultStore = el('input', '', { type: 'hidden', name: 'valuesDefault' });
     defaultStore.value = data.valuesDefault || '';
     const sloDefaultStore = el('input', '', { type: 'hidden', name: 'juniorSloDefault' });
+    const awardsStore = el('input', '', { type: 'hidden', name: 'awards' });
+    awardsStore.value = data.awards ?? '{}';
     const sloDefault = data.juniorSloDefault === undefined ? '' : data.juniorSloDefault;
-    if (!schema.validContent({ records: store.value, valuesDefault: defaultStore.value, juniorSloDefault: sloDefault })) {
+    if (!schema.validContent({ records: store.value, valuesDefault: defaultStore.value, juniorSloDefault: sloDefault, awards: awardsStore.value })) {
       throw new Error('Saved reporting defaults are invalid. No report records have been changed.');
     }
     sloDefaultStore.value = sloDefault;
-    area.append(store, defaultStore, sloDefaultStore, el('h2', 'Reporting - ' + year));
+    let awards = JSON.parse(awardsStore.value), awardFilter = 'all', awardClass = '';
+    area.append(store, defaultStore, sloDefaultStore, awardsStore, el('h2', 'Reporting - ' + year));
     const reference = el('a', 'DTECH Assessment Criteria - Google Doc', {
       href: 'https://docs.google.com/document/d/1oA7xHQapbqE3myKKFL6T7oUMGxPbrm2BCE1rJQ51-gw/edit?usp=sharing',
       target: '_blank', rel: 'noopener noreferrer'
@@ -181,6 +184,101 @@
     const batch = button(drive, 'Preview all PDFs', false, previewBatch);
     drive.append(status, review);
     area.append(drive);
+
+    const attendance = el('details', '', { 'data-planner-navigation': '' });
+    const attendanceFolder = el('input', '', { type: 'url', 'aria-label': 'Awards attendance Drive folder' });
+    const attendanceFiles = el('select', '', { 'aria-label': 'Awards attendance CSV' });
+    const attendanceStatus = el('p', '', { role: 'status' });
+    const attendanceReview = el('div');
+    let attendanceIndex = [], attendanceListedFolder = '';
+    const attendanceKey = folderKey('attendance');
+    try { attendanceFolder.value = globalThis.localStorage?.getItem(attendanceKey) || ''; }
+    catch (error) { console.warn('Awards attendance folder could not be loaded:', error.message); }
+    attendanceFolder.addEventListener('input', () => attendanceReview.replaceChildren());
+    attendanceFiles.addEventListener('change', () => attendanceReview.replaceChildren());
+    attendance.append(el('summary', 'Google Drive sync — Attendance%'),
+      el('p', 'Select the KAMAR half-day attendance CSV for ' + year + '. Attendance is matched by Student ID across the reporting roster, not by name.'), attendanceFolder);
+    const listAttendance = button(attendance, 'List attendance CSVs', false, async () => {
+      attendanceIndex = []; attendanceListedFolder = ''; attendanceFiles.replaceChildren(); attendanceReview.replaceChildren();
+      const link = attendanceFolder.value.trim();
+      listAttendance.disabled = previewAttendance.disabled = true;
+      attendanceStatus.textContent = 'Reading attendance folder…';
+      try {
+        const { files } = await request('google-calendar/reporting-awards/files?' + new URLSearchParams({ folder: link }));
+        if (!area.isConnected || attendanceFolder.value.trim() !== link) return;
+        attendanceListedFolder = link; attendanceIndex = files;
+        try { globalThis.localStorage?.setItem(attendanceKey, link); }
+        catch (error) { console.warn('Awards attendance folder could not be remembered:', error.message); }
+        attendanceFiles.append(el('option', 'Select an attendance CSV', { value: '' }));
+        for (const file of files) attendanceFiles.append(el('option', file.name, { value: file.id }));
+        attendanceFiles.value = '';
+        attendanceStatus.textContent = files.length ? `${files.length} CSV files found. Choose the export for ${year}.` : 'No CSV files found in this folder.';
+      } catch (error) { attendanceStatus.textContent = error.message; }
+      finally { listAttendance.disabled = previewAttendance.disabled = false; }
+    });
+    attendance.append(attendanceFiles);
+    const previewAttendance = button(attendance, 'Preview attendance', false, async () => {
+      attendanceReview.replaceChildren();
+      const file = attendanceIndex.find(item => item.id === attendanceFiles.value);
+      const link = attendanceFolder.value.trim();
+      if (!file || link !== attendanceListedFolder) {
+        attendanceStatus.textContent = 'List the attendance folder and choose a CSV first.'; return;
+      }
+      const roster = directory, part = state.programme;
+      const current = () => area.isConnected && state.part === 'awards' && state.programme === part && directory === roster &&
+        attendanceFolder.value.trim() === link && attendanceFiles.value === file.id && attendanceIndex.includes(file);
+      listAttendance.disabled = previewAttendance.disabled = true;
+      attendanceStatus.textContent = 'Checking the CSV against the reporting roster…';
+      try {
+        const [{ entries }, ...terms] = await Promise.all([
+          request('google-calendar/reporting-awards/files/' + encodeURIComponent(file.id) + '?' +
+            new URLSearchParams({ folder: link, version: file.version })),
+          ...[1, 2, 3, 4].map(term => request('attendance/classes/' + year + '?term=' + term + '&view=junior-audit'))
+        ]);
+        if (!current()) { attendanceStatus.textContent = 'The reporting view changed. Preview the CSV again.'; return; }
+        const ids = new Set(terms.flatMap(term => Object.keys(schema.programmes).flatMap(programme =>
+          schema.classGroups(term, programme).flatMap(group => group.students.map(student => student.id)))
+          .concat((term.homerooms || []).flatMap(group => group.students.map(student => student.id)))));
+        const matched = entries.filter(entry => ids.has(entry.id));
+        const blanks = matched.filter(entry => entry.percentage === null).length;
+        attendanceReview.append(el('p', `${file.name} — ${matched.length} matched IDs (${blanks} blank); ` +
+          `${entries.length - matched.length} outside the reporting roster. Confirm this export is for ${year}. ` +
+          'Blank percentages do not overwrite a saved value.'));
+        if (matched.length > blanks) button(attendanceReview, `Apply attendance for ${year}`, false, async () => {
+          if (!current()) { attendanceStatus.textContent = 'The reporting view changed. Preview the CSV again.'; return; }
+          const next = { ...awards };
+          for (const { id, percentage } of matched) {
+            if (percentage !== null) next[id] = { ...next[id], attendance: percentage };
+          }
+          listAttendance.disabled = previewAttendance.disabled = true;
+          attendanceReview.replaceChildren();
+          try {
+            saveAwards(next); render();
+            attendanceStatus.textContent = 'Checking that attendance is saved…';
+            const saved = await ensureSaved();
+            attendanceStatus.textContent = saved ? `Attendance saved for ${matched.length - blanks} matched students.` :
+              'Attendance not saved. Check the Planner save message before leaving.';
+          } catch (error) { attendanceStatus.textContent = error.message; }
+          finally { listAttendance.disabled = previewAttendance.disabled = false; }
+        });
+        attendanceStatus.textContent = 'Preview ready. No attendance or awards have changed.';
+      } catch (error) { attendanceStatus.textContent = error.message; }
+      finally { listAttendance.disabled = previewAttendance.disabled = false; }
+    });
+    attendance.append(attendanceStatus, attendanceReview);
+    area.append(attendance);
+
+    function saveAwards(next) {
+      const encoded = JSON.stringify(next);
+      if (!schema.validContent({ records: store.value, valuesDefault: defaultStore.value,
+        juniorSloDefault: sloDefaultStore.value, awards: encoded })) {
+        throw new Error('The award changes did not pass validation or exceeded the draft storage limit.');
+      }
+      awards = next;
+      if (encoded === awardsStore.value) return;
+      awardsStore.value = encoded;
+      awardsStore.dispatchEvent(new Event('input', { bubbles: true }));
+    }
 
     async function previewBatch() {
       if (list.disabled || preview.disabled || batch.disabled) return;
@@ -354,7 +452,7 @@
     }
     function applyRecords(next, defaultValue, sloDefault = sloDefaultStore.value) {
       const encoded = JSON.stringify(next);
-      if (!schema.validContent({ records: encoded, valuesDefault: defaultValue, juniorSloDefault: sloDefault })) {
+      if (!schema.validContent({ records: encoded, valuesDefault: defaultValue, juniorSloDefault: sloDefault, awards: awardsStore.value })) {
         throw new Error('The reporting storage limit or record validation was exceeded. No report records were changed.');
       }
       records.splice(0, records.length, ...next);
@@ -435,7 +533,7 @@
       row[field] = value;
       if (old !== value) setConfirmation(row, field, '');
       const next = JSON.stringify(records);
-      if (!schema.validContent({ records: next, valuesDefault: defaultStore.value, juniorSloDefault: sloDefaultStore.value })) {
+      if (!schema.validContent({ records: next, valuesDefault: defaultStore.value, juniorSloDefault: sloDefaultStore.value, awards: awardsStore.value })) {
         row[field] = old; control.value = old;
         if (oldConfirmation) row.pdfConfirmed = oldConfirmation;
         if (oldPrevious) row.pdfPrevious = oldPrevious;
@@ -457,7 +555,7 @@
     }
     function groups() {
       const teaching = schema.classGroups(directory, state.programme).map(group => ({ ...group, key: group.code }));
-      if (state.cycle !== 'eoy' || state.programme !== 'junior') return teaching;
+      if ((state.cycle !== 'eoy' && state.part !== 'awards') || state.programme !== 'junior') return teaching;
       return teaching.concat((directory.homerooms || []).map(group => ({ ...group, key: 'audit:' + group.code, audit: true })));
     }
     function selected() { return groups().find(group => group.key === state.classCode); }
@@ -478,6 +576,8 @@
     function render() {
       updateDefaultPanels();
       showDrive();
+      const awarding = state.part === 'awards';
+      attendance.hidden = !awarding;
       controls.replaceChildren(); body.replaceChildren(); classButtons.clear();
       const cycleLabel = el('label', 'Report cycle ');
       const cycle = el('select', '', { 'aria-label': 'Report cycle' });
@@ -489,22 +589,28 @@
       const programmes = el('div', '', { class: 'reporting-tabs', role: 'group', 'aria-label': 'Programme' });
       for (const [key, programme] of Object.entries(schema.programmes)) {
         button(programmes, programme.label, state.programme === key, () => {
-          state.programme = key; state.classCode = ''; invalidate(); render();
+          state.programme = key; state.classCode = ''; awardClass = ''; invalidate(); render();
         });
       }
       controls.append(programmes);
       const classes = groups();
       if (!classes.some(group => group.key === state.classCode)) state.classCode = classes[0]?.key || '';
+      if (!classes.some(group => group.key === awardClass)) awardClass = '';
       const tabs = el('div', '', { class: 'reporting-tabs', role: 'group', 'aria-label': 'Teaching classes' });
       const auditTabs = el('div', '', { class: 'reporting-tabs', role: 'group', 'aria-label': 'Homeroom audit' });
       for (const group of classes) {
         const done = group.students.filter(student => schema.complete(record(student), state.cycle, termSelect.value)).length;
-        classButtons.set(group.key, button(group.audit ? auditTabs : tabs, `${group.code} (${done}/${group.students.length})`,
-          group.key === state.classCode, () => { state.classCode = group.key; render(); },
+        const label = awarding ? `${group.code} (${group.students.length})` : `${group.code} (${done}/${group.students.length})`;
+        classButtons.set(group.key, button(group.audit ? auditTabs : tabs, label,
+          group.key === (awarding ? awardClass : state.classCode), () => {
+            if (awarding) awardClass = group.key;
+            else state.classCode = group.key;
+            render();
+          },
           { class: group.audit ? 'reporting-audit-tab' : 'reporting-teaching-tab' }));
       }
       if (classes.some(group => !group.audit)) controls.append(el('strong', 'Teaching classes'), tabs);
-      if (classes.some(group => group.audit)) controls.append(el('strong', 'Homeroom audit (read-only)'), auditTabs);
+      if (classes.some(group => group.audit)) controls.append(el('strong', awarding ? 'Homerooms (award ticks editable)' : 'Homeroom audit (read-only)'), auditTabs);
       const parts = el('div', '', { class: 'reporting-tabs', role: 'group', 'aria-label': 'Report part' });
       for (const [key, label] of [['slo', '1. Student Learning Objectives'], ['values', '2. School Values'], ['comments', '3. Report Comments'], ['awards', '4. Awards']]) {
         button(parts, label, state.part === key, () => {
@@ -526,7 +632,59 @@
           }));
           criteria.append(item);
         }
-        body.append(criteria, el('p', 'Criteria reference only. No awards are calculated, allocated or confirmed here yet.'));
+        body.append(criteria, el('p', 'Awards are manual selections for this school year. The same tick appears in teaching and homeroom views.'));
+        const awardControls = el('div', '', { class: 'reporting-tabs', 'data-planner-navigation': '' });
+        button(awardControls, 'All students', !awardClass, () => { awardClass = ''; render(); });
+        const filter = el('select', '', { 'aria-label': 'Filter awards' });
+        for (const [value, label] of [['all', 'All rows'], ['any', 'Award recipients only'], ['mohio', 'Mohio only'], ['akoranga', 'Akoranga only']]) {
+          filter.append(el('option', label, { value }));
+        }
+        filter.value = awardFilter;
+        filter.addEventListener('change', () => { awardFilter = filter.value; render(); });
+        awardControls.append(filter); body.append(awardControls);
+        const roster = new Map((awardClass ? classes.filter(group => group.key === awardClass) : classes)
+          .flatMap(group => group.students.map(student => [student.id, student])));
+        const students = [...roster.values()].sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+        const winners = (student, type) => awards[student.id]?.[type] === true;
+        const matchesFilter = student => awardFilter === 'all' ||
+          (awardFilter === 'any' ? winners(student, 'mohio') || winners(student, 'akoranga') : winners(student, awardFilter));
+        const shown = students.filter(matchesFilter);
+        const awardSummary = () => {
+          feedback.textContent = `${students.filter(matchesFilter).length} of ${students.length} students shown · ` +
+            `${students.filter(student => winners(student, 'mohio')).length} Mohio · ` +
+            `${students.filter(student => winners(student, 'akoranga')).length} Akoranga`;
+        };
+        awardSummary();
+        const scroll = el('div', '', { class: 'reporting-scroll', tabindex: '0', role: 'region', 'aria-label': 'Student awards' });
+        const table = el('table', '', { class: 'reporting-table' }), headers = el('tr'), thead = el('thead'), tbody = el('tbody');
+        for (const label of ['Student', 'Year', 'Attendance%', 'Mohio', 'Akoranga']) headers.append(el('th', label, { scope: 'col' }));
+        thead.append(headers); table.append(thead, tbody); scroll.append(table); body.append(scroll);
+        for (const student of shown) {
+          const tr = el('tr'), entry = awards[student.id] || {};
+          tr.append(el('th', student.name, { scope: 'row' }), el('td', student.yearLevel),
+            el('td', entry.attendance === undefined ? '—' : `${entry.attendance}%`));
+          for (const [key, label] of [['mohio', 'Mohio'], ['akoranga', 'Akoranga']]) {
+            const tick = el('input', '', { type: 'checkbox', 'aria-label': `${student.name}: ${label}` });
+            tick.checked = entry[key] === true;
+            tick.addEventListener('change', event => {
+              event.stopPropagation();
+              const next = { ...awards }, updated = { ...next[student.id] };
+              if (tick.checked) updated[key] = true;
+              else delete updated[key];
+              if (Object.keys(updated).length) next[student.id] = updated;
+              else delete next[student.id];
+              try {
+                saveAwards(next);
+                if (matchesFilter(student)) awardSummary();
+                else render();
+              }
+              catch (error) { tick.checked = !tick.checked; feedback.textContent = error.message; }
+            });
+            const cell = el('td'); cell.append(tick); tr.append(cell);
+          }
+          tbody.append(tr);
+        }
+        if (!shown.length) body.append(el('p', 'No students match this award filter.'));
         return;
       }
       const filterLabel = el('label', ' Incomplete students only');
@@ -614,7 +772,7 @@
         button(controls, 'Retry loading classes', false, loadClasses);
       }
     }
-    termSelect.addEventListener('change', () => { state.classCode = ''; invalidate(); void loadClasses(); });
+    termSelect.addEventListener('change', () => { state.classCode = ''; awardClass = ''; invalidate(); void loadClasses(); });
     void loadClasses();
   }
   globalThis.plannerReporting = { mount };

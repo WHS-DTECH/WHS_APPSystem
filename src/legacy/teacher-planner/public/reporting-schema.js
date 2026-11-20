@@ -38,12 +38,22 @@
             row.pdfConfirmed?.[key] && grade !== row[key] &&
             (['coding', 'design'].includes(key) ? programmes.junior.levels : values).includes(grade))));
   }
+  function validAwards(awards) {
+    return awards && typeof awards === 'object' && !Array.isArray(awards) && Object.keys(awards).length <= 1000 &&
+      Object.entries(awards).every(([id, entry]) => /^k:[A-Za-z0-9_-]{1,60}$/.test(id) &&
+        entry && typeof entry === 'object' && !Array.isArray(entry) && Object.keys(entry).every(key =>
+          ['mohio', 'akoranga'].includes(key) ? typeof entry[key] === 'boolean' :
+            key === 'attendance' && Number.isFinite(entry[key]) && entry[key] >= 0 && entry[key] <= 100));
+  }
   function validContent(content) {
-    if (!content || Object.keys(content).some(key => !['records', 'valuesDefault', 'juniorSloDefault'].includes(key)) ||
+    if (!content || Object.keys(content).some(key => !['records', 'valuesDefault', 'juniorSloDefault', 'awards'].includes(key)) ||
+      (content.awards !== undefined && (typeof content.awards !== 'string' || content.awards.length > 100000)) ||
       (content.valuesDefault !== undefined && !['', 'Dem', 'Dem-v2'].includes(content.valuesDefault)) ||
       (content.juniorSloDefault !== undefined && !['', '3P'].includes(content.juniorSloDefault)) ||
       typeof content.records !== 'string' || content.records.length > 280000) return false;
-    try { return validRecords(JSON.parse(content.records)) && new TextEncoder().encode(JSON.stringify(content)).length <= 300000; }
+    try { return validRecords(JSON.parse(content.records)) &&
+      (content.awards === undefined || validAwards(JSON.parse(content.awards))) &&
+      new TextEncoder().encode(JSON.stringify(content)).length <= 300000; }
     catch { return false; }
   }
   function complete(row, cycle, term) {
