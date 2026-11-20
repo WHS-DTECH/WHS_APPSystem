@@ -142,7 +142,7 @@ function createAttendanceDriveService({ ensureConnected, access, unchanged, hasS
       const reason = error instanceof pdfError ? error.message : format === 'CSV' ? 'The CSV could not be decoded.' :
         'The PDF could not be decoded. Export it again from KAMAR rather than printing or scanning it.';
       throw new ErrorType(purpose + ' ' + format + ' rejected: ' + reason +
-        (purpose === 'Attendance' ? ' No marks from this PDF were imported.' : ' Nothing was imported from this PDF.'), 422);
+        (purpose === 'Attendance' ? ' No marks from this PDF were imported.' : ` Nothing was imported from this ${format}.`), 422);
     }
     const after = await (await google(path + fields, token)).json();
     if (!validFile(after, folder) || fileVersion(after) !== fileVersion(file)) throw new ErrorType(`The Drive ${format} changed while being read. Retry sync.`, 409);
