@@ -44,8 +44,10 @@ test('missing or malformed historical rosters fail explicitly instead of showing
   await assert.rejects(attendanceClasses({ email: 'synthetic@example.test' }, 2026, query, 5), /valid attendance term/);
 });
 
-test('Junior audit includes the full term roll, including 7S, 8S and unassigned students', async () => {
-  const query = async sql => sql.includes('staff_upload') ? { rows: [{ code: 'TST' }] } : { rows: [{ payload: {
+test('Junior audit uses Timetable Class, with 7S, 8S and unassigned students kept', async () => {
+  const query = async sql => sql.includes('staff_upload') ? { rows: [{ code: 'TST' }] } : { rows: [{ payload:
+    sql.includes("dataset_type='student_details'") ?
+      { headers: ['Student ID', 'Timetable Class'], rows: [['100', 'JPI'], ['300', 'JVE'], ['400', ''], ['500', '']] } : {
     headers, rows: [...payload.rows,
       ['Not Taught', '300', '7S', '7', 'OTHER-JDTECH', '', '', '', ''],
       ['Another Junior', '400', '8S', '8', '', '', '', '', ''],
@@ -53,6 +55,6 @@ test('Junior audit includes the full term roll, including 7S, 8S and unassigned 
   } }] };
   const result = await attendanceClasses({ email: 'synthetic@example.test' }, 2026, query, 4, true);
   assert.deepEqual(result.homerooms.map(group => [group.code, group.students.map(student => student.id)]),
-    [['7S', ['k:300']], ['8S', ['k:400']], ['Unassigned', ['k:500']], ['W1', ['k:100']]]);
+    [['7S', ['k:300']], ['8S', ['k:400']], ['PI', ['k:100']], ['Unassigned', ['k:500']]]);
   assert.ok(result.classes.every(group => group.students.every(student => student.id === 'k:100')));
 });

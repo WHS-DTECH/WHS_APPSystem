@@ -47,6 +47,111 @@
     area.append(defaultsPanel, sloPanel, controls, feedback, body); host.append(area);
     let directory, loadNumber = 0;
     const classButtons = new Map();
+    const drive = el('details', '', { 'data-planner-navigation': '' });
+    const folder = el('input', '', { type: 'url', 'aria-label': 'Google Drive Reports folder', placeholder: 'Paste the Reports folder link' });
+    const files = el('select', '', { 'aria-label': 'KAMAR report PDF' });
+    const status = el('p', '', { role: 'status' });
+    const review = el('div');
+    let indexed = [], listedFolder = '';
+    const invalidate = () => review.replaceChildren();
+    folder.addEventListener('input', invalidate);
+    files.addEventListener('change', invalidate);
+    drive.append(el('summary', 'Google Drive sync — KAMAR reports'),
+      el('p', 'Select the report cycle and the PDF’s teaching term first. Preview one SLO or Values PDF at a time. Nothing is written to KAMAR or Drive. ' +
+        'If prompted, enable read-only Drive access in Kamar Uploader Attendance Admin.'), folder);
+    const list = button(drive, 'List Drive PDFs', false, async () => {
+      list.disabled = true;
+      invalidate();
+      indexed = []; listedFolder = ''; files.replaceChildren();
+      status.textContent = 'Reading Drive folder…';
+      try {
+        const link = folder.value.trim();
+        const result = await request('google-calendar/reporting-drive/files?' + new URLSearchParams({ folder: link }));
+        if (folder.value.trim() !== link || !area.isConnected) return;
+        listedFolder = link; indexed = result.files;
+        files.append(el('option', 'Select a PDF', { value: '' }));
+        for (const file of indexed) files.append(el('option', (file.label ? file.label + ' / ' : '') + file.name, { value: file.id }));
+        files.value = '';
+        status.textContent = indexed.length ? `${indexed.length} PDFs found.` : 'No PDFs found in Reports, SLOs or Values.';
+      } catch (error) { status.textContent = error.message; }
+      finally { list.disabled = false; }
+    });
+    drive.append(files);
+    const preview = button(drive, 'Preview PDF', false, async () => {
+      invalidate();
+      const file = indexed.find(item => item.id === files.value);
+      if (!file || folder.value.trim() !== listedFolder || !directory || state.programme !== 'junior') {
+        status.textContent = 'List the folder and choose a PDF with JuniorDTECH and the matching teaching term selected.'; return;
+      }
+      const snapshot = store.value, roster = directory, cycle = state.cycle, term = termSelect.value;
+      const stillCurrent = () => area.isConnected && directory === roster && state.programme === 'junior' &&
+        state.cycle === cycle && termSelect.value === term && store.value === snapshot &&
+        folder.value.trim() === listedFolder && indexed.includes(file) && files.value === file.id;
+      list.disabled = preview.disabled = true;
+      status.textContent = 'Reading and matching PDF…';
+      try {
+        const pdf = await request('google-calendar/reporting-drive/file/' + encodeURIComponent(file.id) + '?' +
+          new URLSearchParams({ folder: listedFolder, version: file.version }));
+        if (!stillCurrent()) throw new Error('The reporting view changed. Preview the PDF again.');
+        if (pdf.year !== null && pdf.year !== Number(year)) throw new Error('The PDF assessment year does not match the Planner year.');
+        const matches = planPdf(pdf, roster);
+        const touched = matches.filter(item => item.student);
+        if (!touched.length) throw new Error('No exact matches in the PDF teaching class. Check the selected teaching term.');
+        const clears = el('input', '', { type: 'checkbox' });
+        const clearLabel = el('label', ' Clear saved grades where the PDF is blank'); clearLabel.prepend(clears);
+        const heading = `${pdf.classCode} · ${year} ${cycle === 'eoy' ? 'End of Year' : 'Earlier year'} · teaching Term ${term}`;
+        review.append(el('h3', heading), el('p',
+          `${touched.length} of ${matches.length} rows matched by exact name in the teaching class. ` +
+          'Unmatched or ambiguous students will not change. Check the year and cycle before applying.' +
+          (pdf.valueTerm ? ` The PDF prints Term ${pdf.valueTerm}; its named School Value will be used.` : '')), clearLabel);
+        const rows = el('ul');
+        for (const match of matches) rows.append(el('li', match.name + ': ' + (match.student ?
+          Object.entries(match.grades).map(([field, grade]) => {
+            const old = record(match.student)?.[field] || 'Not entered';
+            return `${field}: ${old} → ${grade || 'blank in PDF'}`;
+          }).join(' · ') : 'Not matched — unchanged')));
+        review.append(rows);
+        button(review, 'Apply matched grades', false, () => {
+          try {
+            if (!stillCurrent()) throw new Error('The reporting view or saved grades changed. Preview the PDF again.');
+            const next = new Map(records.map(row => [JSON.stringify([row.studentId, row.programme, row.cycle]), row]));
+            for (const { student, grades } of touched) {
+              const changes = Object.entries(grades).filter(([, value]) => value || clears.checked);
+              if (!changes.length) continue;
+              const key = JSON.stringify([student.id, 'junior', cycle]);
+              const existing = next.get(key) || defaultRow(student.id, 'junior', cycle, '', '');
+              next.set(key, { ...existing, ...Object.fromEntries(changes) });
+            }
+            applyRecords([...next.values()], defaultStore.value);
+            invalidate(); render();
+            status.textContent = 'Grades applied to the open draft. Wait for Planner to show Autosaved before leaving.';
+          } catch (error) { status.textContent = error.message; }
+        });
+        status.textContent = 'Preview ready. No grades have been changed.';
+      } catch (error) { status.textContent = error.message; }
+      finally { list.disabled = preview.disabled = false; }
+    });
+    drive.append(preview, status, review);
+    area.append(drive);
+
+    function planPdf(pdf, roster) {
+      const normalize = name => name.normalize('NFC').replace(/[‘’]/g, "'").replace(/\s+/g, ' ').trim().toLowerCase();
+      const normalizeClass = code => code.replace('MMDETCH', 'MMDTECH');
+      const candidates = new Map();
+      for (const group of roster.classes) {
+        const code = normalizeClass(group.code.split('-')[1] || '');
+        if (code !== normalizeClass(pdf.classCode)) continue;
+        for (const student of group.students) if (schema.programmes.junior.years.includes(student.yearLevel)) candidates.set(student.id, student);
+      }
+      const seen = new Set();
+      return pdf.rows.map(row => {
+        const name = normalize(row.name);
+        if (seen.has(name)) throw new Error('The PDF has duplicate student names. Nothing was imported.');
+        seen.add(name);
+        const matched = [...candidates.values()].filter(student => normalize(student.name) === name);
+        return { ...row, student: matched.length === 1 ? matched[0] : null };
+      });
+    }
     function defaultRow(studentId, programme, cycle, valuesDefault, sloDefault) {
       const slo = programme === 'junior' ? sloDefault : '';
       const value = valuesDefault ? 'Dem' : '';
@@ -184,13 +289,13 @@
       const cycle = el('select', '', { 'aria-label': 'Report cycle' });
       for (const [value, label] of [['eoy', 'End of Year'], ['earlier', 'Earlier year']]) cycle.append(el('option', label, { value }));
       cycle.value = state.cycle;
-      cycle.addEventListener('change', () => { state.cycle = cycle.value; render(); });
+      cycle.addEventListener('change', () => { state.cycle = cycle.value; invalidate(); render(); });
       cycleLabel.append(cycle);
       controls.append(cycleLabel);
       const programmes = el('div', '', { class: 'reporting-tabs', role: 'group', 'aria-label': 'Programme' });
       for (const [key, programme] of Object.entries(schema.programmes)) {
         button(programmes, programme.label, state.programme === key, () => {
-          state.programme = key; state.classCode = ''; render();
+          state.programme = key; state.classCode = ''; invalidate(); render();
         });
       }
       controls.append(programmes);
@@ -291,7 +396,7 @@
         button(controls, 'Retry loading classes', false, loadClasses);
       }
     }
-    termSelect.addEventListener('change', () => { state.classCode = ''; void loadClasses(); });
+    termSelect.addEventListener('change', () => { state.classCode = ''; invalidate(); void loadClasses(); });
     void loadClasses();
   }
   globalThis.plannerReporting = { mount };

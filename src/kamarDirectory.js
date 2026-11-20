@@ -81,11 +81,35 @@ async function attendanceClasses(user, year, directoryQuery = query, term, junio
   const classes = new Map();
   const homerooms = new Map();
   const classSlots = new Map();
+  const timetableClasses = new Map();
+  if (juniorAudit) {
+    const snapshot = await directoryQuery(`SELECT payload FROM kamar_datasets
+      WHERE school_year=$1 AND term=$2 AND dataset_type='student_details'
+      ORDER BY source_date DESC,source_time DESC,created_at DESC,id DESC LIMIT 1`, [year, term]);
+    if (snapshot.rows.length) {
+      const { headers, rows: details } = snapshot.rows[0].payload || {};
+      if (!Array.isArray(headers) || !Array.isArray(details)) throw new Error('The preserved KAMAR Student List is invalid.');
+      const keys = headers.map(key => String(key).toLowerCase().replace(/[^a-z0-9]/g, ''));
+      const id = keys.findIndex(key => ['studentid', 'idnumber'].includes(key));
+      const room = keys.findIndex(key => ['timetableclass', 'ttclass'].includes(key));
+      if (id < 0 || room < 0) throw new Error('The preserved KAMAR Student List needs Student ID and Timetable Class columns.');
+      for (const row of details) {
+        if (!Array.isArray(row) || row.length !== headers.length) throw new Error('The preserved KAMAR Student List has an invalid row.');
+        const key = String(row[id] || '').trim(), value = String(row[room] || '').trim().toUpperCase();
+        if (key && timetableClasses.has(key) && timetableClasses.get(key) !== value) {
+          throw new Error('The preserved KAMAR Student List has conflicting homerooms for a student.');
+        }
+        if (key) timetableClasses.set(key, value);
+      }
+    }
+  }
   for (const student of rows) {
     const person = { id: 'k:' + student.id_number.trim(), name: student.student_name.trim(),
       yearLevel: String(student.year_level || '').trim(), whanau: String(student.form_class || '').trim() };
     if (juniorAudit && ['7', '8'].includes(person.yearLevel)) {
-      const code = person.whanau.toUpperCase() || 'Unassigned';
+      const form = person.whanau.toUpperCase();
+      const room = timetableClasses.get(person.id.slice(2));
+      const code = /^(7S|8S)$/.test(form) ? form : (room?.replace(/^J(?=PI$|SR$|SD$|MM$|VE$|TR$)/, '') || 'Unassigned');
       if (!homerooms.has(code)) homerooms.set(code, new Map());
       homerooms.get(code).set(person.id, person);
     }
