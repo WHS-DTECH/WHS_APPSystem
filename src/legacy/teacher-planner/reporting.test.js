@@ -223,6 +223,9 @@ test('Awards roster edits in homerooms, filters recipients and imports attendanc
   } });
   await settle();
   f.click('4. Awards');
+  assert.equal(f.control('Filter awards').value, 'any');
+  assert.equal(f.control('Audit Student: Mohio'), undefined);
+  f.enter('Filter awards', 'all');
   assert.ok(f.control('Audit Student: Mohio'));
   f.click('PI (2)');
   const tick = f.control('Audit Student: Mohio');
@@ -245,6 +248,7 @@ test('Awards roster edits in homerooms, filters recipients and imports attendanc
   assert.equal(f.find(node => node.attrs.name === 'records').value, data.records);
   f.remount(); await settle();
   assert.equal(f.control('Audit Student: Mohio').checked, true);
+  f.enter('Filter awards', 'all');
   assert.ok(f.find(node => node.tag === 'td' && node.textContent === '0%'));
   f.click('1. Student Learning Objectives');
 });
@@ -281,6 +285,7 @@ test('Awards PDF confirms only matched eligible ticks and keeps manual entries a
   await settle();
   f.click('4. Awards');
   assert.equal(f.find(node => node.tag === 'button' && node.textContent === '7S (1)').disabled, true);
+  f.enter('Filter awards', 'all');
   assert.equal(f.control('Other School: Akoranga').disabled, true);
   f.control('Award recipient PDF folder').value = 'https://drive.google.com/drive/folders/example_awards_folder';
   await f.click('Preview award PDFs');
@@ -367,8 +372,10 @@ test('Replacing awards uses only selected corrected lists and reconciles ticks a
     [outside.id]: initial[outside.id],
     [middle.id]: initial[middle.id]
   });
-  assert.equal(f.control('resolved: Akoranga').checked, false);
+  assert.equal(f.control('resolved: Akoranga'), undefined);
   assert.equal(f.control('restored: Mohio (confirmed against a KAMAR award PDF)').checked, true);
+  f.enter('Filter awards', 'all');
+  assert.equal(f.control('resolved: Akoranga').checked, false);
 });
 
 test('Attendance criteria use whole homerooms, red-flag removals and leave cutoff ties to the teacher', async () => {

@@ -1547,7 +1547,8 @@ shortcut opens in a new tab. **4. Awards** links to the 2025 Junior/Middle and
 reporting roster with Attendance%, Mohio and Akoranga. Award ticks default to
 off and are saved per student and school year in the teacher's private draft.
 They can be edited in both teaching and homeroom views. Use the award filter
-to show either award or recipients of either. Nothing is awarded automatically.
+to show either award or all rows. The default is **Award recipients only**,
+which also keeps red corrections visible. Nothing is awarded automatically.
 In **Google Drive sync — Attendance%**, list CSVs, preview the KAMAR half-day
 attendance export for the selected school year, then apply. Only exact Student
 ID matches in the reporting rosters are used. Blank percentages leave saved

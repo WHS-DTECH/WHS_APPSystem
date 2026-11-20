@@ -18,7 +18,7 @@
       throw new Error('Saved reporting defaults are invalid. No report records have been changed.');
     }
     sloDefaultStore.value = sloDefault;
-    let awards = JSON.parse(awardsStore.value), awardFilter = 'all', awardClass = '';
+    let awards = JSON.parse(awardsStore.value), awardFilter = 'any', awardClass = '';
     let criteriaMessage = '', savingCriteria = false;
     area.append(store, defaultStore, sloDefaultStore, awardsStore, el('h2', 'Reporting - ' + year));
     const reference = el('a', 'DTECH Assessment Criteria - Google Doc', {
