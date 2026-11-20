@@ -23,8 +23,9 @@
     for (const [term, roster] of rosters) {
       const classes = classGroups(roster, 'junior');
       const matching = new Set(classes.flatMap(group => group.students.map(student => student.id)).filter(id => ids.has(id)));
-      const code = room.code.toUpperCase() + 'DTECH';
-      if (classes.some(group => (group.code.split('-')[1] || '').toUpperCase().replace('MMDETCH', 'MMDTECH') === code &&
+      const code = room.code.toUpperCase();
+      const subjectCodes = code === 'SD' ? ['SDTECH', 'SDDTECH'] : [code + 'DTECH'];
+      if (classes.some(group => subjectCodes.includes((group.code.split('-')[1] || '').toUpperCase().replace('MMDETCH', 'MMDTECH')) &&
           group.students.some(student => ids.has(student.id)))) exact.push(term);
       if (/^[78]S$/.test(room.code) && matching.size > ids.size / 2) cohort.push(term);
     }
