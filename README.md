@@ -1560,6 +1560,8 @@ verified award ticks. Green marks PDF-confirmed ticks; manual and unticked
 cells stay white. Manual edits clear the edited cell's confirmation only.
 
 Junior homeroom progress ticks are read-only and use saved PDF confirmations.
+VE appears directly below SR in these boxes. Unassigned has no progress
+checkbox; TR gets one starting with the 2027 reporting year.
 SLOs tick when more than half the room has at least one confirmed SLO; School
 Values tick when more than half has the value for its verified DTECH term
 confirmed. Awards show confirmed recipient counts and tick with at least one
