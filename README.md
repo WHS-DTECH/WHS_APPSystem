@@ -1566,6 +1566,10 @@ off and are saved per student and school year in the teacher's private draft.
 They can be edited in both teaching and homeroom views. Use the award filter
 to show either award or all rows. The default is **Award recipients only**,
 which also keeps red corrections visible. Nothing is awarded automatically.
+The shared Awards Drive folder accepts up to 30 KAMAR recipient PDFs, including
+Junior and Middle exports and earlier corrected lists; criteria PDFs do not
+count towards this limit. Review the automatically selected latest export
+batch before applying.
 In **Google Drive sync — Attendance%**, list CSVs, preview the KAMAR half-day
 attendance export for the selected school year, then apply. Only exact Student
 ID matches in the reporting rosters are used. Blank percentages leave saved
