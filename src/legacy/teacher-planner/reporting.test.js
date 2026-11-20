@@ -67,7 +67,7 @@ function fixture(data = {}, fail = false, options = {}) {
   const host = el('main'), calls = [];
   const context = vm.createContext({ plannerReportingSchema: schema, Event, URLSearchParams, console, localStorage: options.localStorage, confirm: options.confirm || (() => true) });
   vm.runInContext(fs.readFileSync(path.join(__dirname, 'public', 'reporting.js'), 'utf8'), context);
-  const mountOptions = { el, data, year: 2026, ownerId: 'test-owner', ensureSaved: options.ensureSaved || (async () => true), request: async url => {
+  const mountOptions = { el, data, year: options.year ?? 2026, ownerId: 'test-owner', ensureSaved: options.ensureSaved || (async () => true), request: async url => {
     calls.push(url);
     if (fail) throw new Error('School directory unavailable');
     if (options.request) return options.request(url, directory);
@@ -932,6 +932,31 @@ test('Award progress counts confirmed recipients only and excludes 7S/8S', async
   assert.equal(f.events.length, 0);
 });
 
+test('Junior progress boxes put VE below SR and omit TR checkboxes until 2027', async () => {
+  for (const year of [2026, 2027]) {
+    const f = fixture({}, false, { year, request: async (url, directory) => ({
+      ...directory, homerooms: ['7S', 'SR', 'TR', 'Unassigned', 'VE'].map(code => ({ code, students: [] }))
+    }) });
+    await settle();
+    for (const [tab, title] of [
+      ['1. Student Learning Objectives', 'SLO PDF progress'],
+      ['2. School Values', 'School Value allocation'],
+      ['4. Awards', 'Awards PDF progress']
+    ]) {
+      f.click(tab);
+      await settle();
+      const rows = f.all(f.control(title)).filter(node => node.tag === 'tr').slice(1);
+      assert.deepEqual(rows.map(node => node.children[0].textContent), ['7S', 'SR', 'VE', 'TR', 'Unassigned']);
+      const hasTick = node => f.all(node).some(child => child.attrs.type === 'checkbox');
+      assert.equal(hasTick(rows[2]), true);
+      assert.equal(hasTick(rows[3]), year === 2027);
+      assert.equal(hasTick(rows[4]), false);
+      if (year === 2026) assert.ok(rows[3].children.some(cell => cell.textContent === 'Starts in 2027'));
+    }
+    assert.equal(f.events.length, 0);
+  }
+});
+
 test('Values audit follows the verified homeroom teaching term, not the class list term', async () => {
   const sd = { id: 'k:sd', name: 'SD Student', yearLevel: '7' };
   const saved = { ...row, whanaungatanga: 'Exe', kaitiakitanga: 'Dev', pdfConfirmed: { whanaungatanga: 'Exe' } };
@@ -960,7 +985,6 @@ test('Values audit follows the verified homeroom teaching term, not the class li
     node.children.slice(0, 3).map(cell => cell.textContent).join('|') === 'TR|Not verified|—'));
   assert.equal(f.control('VE: PDF matched, 1/1 students').checked, true);
   assert.equal(f.control('SD: PDF matched, 0/1 students').checked, false);
-  assert.equal(f.control('TR: PDF matched, No single verified term').checked, false);
   f.click('VE (1/1)');
   const grid = f.control('Class report entries');
   assert.ok(f.all(grid).some(node => node.tag === 'th' && node.textContent === 'Whānaungatanga'));

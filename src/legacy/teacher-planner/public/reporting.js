@@ -801,7 +801,14 @@
         else void loadAllocations();
       }
       const excluded = awarding ? externalAwardIds() : null;
-      const rooms = junior ? directory.homerooms || [] : schema.classGroups(directory, 'middle');
+      const rooms = junior ? [...(directory.homerooms || [])] : schema.classGroups(directory, 'middle');
+      if (junior) {
+        const ve = rooms.findIndex(room => room.code === 'VE');
+        if (ve !== -1 && rooms.some(room => room.code === 'SR')) {
+          const [room] = rooms.splice(ve, 1);
+          rooms.splice(rooms.findIndex(room => room.code === 'SR') + 1, 0, room);
+        }
+      }
       if (!junior && !rooms.length) allocation.append(el('p', 'No MiddleDTECH teaching classes for this term.'));
       for (const room of rooms) {
         const terms = values && allocationReady ? schema.homeroomTerms(room, auditRosters) : [];
@@ -809,6 +816,10 @@
           el('td', terms.length ? terms.map(term => `Term ${term}`).join(' / ') : allocationReady ? 'Not verified' : '—'),
           el('td', terms.map(term => schema.juniorValues[Number(term) - 1][1]).join(' / ') || '—')
         ] : [];
+        if (junior && (room.code === 'Unassigned' || (room.code === 'TR' && Number(year) < 2027))) {
+          addRow(room.code, [...columns, el('td', room.code === 'TR' ? 'Starts in 2027' : 'Not tracked')]);
+          continue;
+        }
         let checked = false, detail;
         if (awarding) {
           if (externalAwardRoom(room.code)) detail = 'Not eligible';
