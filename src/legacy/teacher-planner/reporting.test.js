@@ -89,6 +89,12 @@ function fixture(data = {}, fail = false, options = {}) {
   return { all, find, click, control, enter, calls, events, remount };
 }
 const settle = () => new Promise(resolve => setImmediate(resolve));
+function selectAwardPdf(f, name) {
+  const pick = f.control(`Select award PDF: ${name}`);
+  assert.ok(pick && !pick.disabled);
+  pick.checked = true;
+  pick.events.change();
+}
 test('Junior award guide uses the exact year-level thresholds and ignores missing, UAG and unknown levels', () => {
   for (const [year, level, expected] of [
     ['7', '', false], ['7', 'UAG', false], ['7', '3P', false], ['7', '4B', false],
@@ -279,6 +285,8 @@ test('Awards PDF confirms only matched eligible ticks and keeps manual entries a
   f.control('Award recipient PDF folder').value = 'https://drive.google.com/drive/folders/example_awards_folder';
   await f.click('Preview award PDFs');
   assert.equal(f.events.length, 0);
+  selectAwardPdf(f, 'One.pdf');
+  selectAwardPdf(f, 'Copy.pdf');
   assert.ok(f.find(node => node.textContent.includes('1 unique award ticks matched; 1 ineligible')));
   await f.click('Apply verified awards for 2026');
   const stored = () => JSON.parse(f.find(node => node.attrs.name === 'awards').value);
@@ -289,6 +297,54 @@ test('Awards PDF confirms only matched eligible ticks and keeps manual entries a
   assert.deepEqual(stored(), { [row.studentId]: { attendance: 93, akoranga: true } });
   assert.equal(f.all().filter(node => node.attrs.class === 'reporting-pdf-confirmed').length, 0);
   f.click('1. Student Learning Objectives');
+});
+
+test('Replacing awards uses only selected corrected lists and reconciles ticks and red flags', async () => {
+  const [kept, restored, removed, resolved, mismatched, outside, middle] =
+    ['kept', 'restored', 'removed', 'resolved', 'mismatched', 'outside', 'middle'].map(name =>
+      ({ id: `k:${name}`, name, yearLevel: name === 'middle' ? '9' : '7' }));
+  const initial = {
+    [kept.id]: { mohio: true },
+    [restored.id]: { mohioCorrection: 'below-slo' },
+    [removed.id]: { mohio: true, pdfConfirmed: { mohio: true } },
+    [resolved.id]: { attendance: 87, akorangaCorrection: 'below-attendance' },
+    [mismatched.id]: { akoranga: true },
+    [outside.id]: { mohio: true },
+    [middle.id]: { akoranga: true }
+  };
+  const recipient = (student, award, yearLevel = student.yearLevel) => ({ id: student.id, yearLevel, award });
+  let confirmed = false;
+  const f = fixture({ awards: JSON.stringify(initial) }, false, { confirm: () => confirmed, request: async url => {
+    if (url.startsWith('google-calendar/reporting-award-pdfs?')) return { ignored: 0, reports: [
+      { name: 'Old.pdf', printYear: 2026, rows: [recipient(removed, 'mohio'), recipient(resolved, 'akoranga')] },
+      { name: 'Corrected.pdf', printYear: 2026, rows: [recipient(kept, 'mohio'), recipient(restored, 'mohio'),
+        recipient(mismatched, 'akoranga', '8'), recipient(outside, 'mohio')] }
+    ] };
+    return { classes: [{ code: 'TEST-MDTECH', students: [middle] }], homerooms: [
+      { code: 'PI', students: [kept, restored, removed, resolved, mismatched] }, { code: '7S', students: [outside] }
+    ] };
+  } });
+  await settle();
+  f.click('4. Awards');
+  f.control('Award recipient PDF folder').value = 'https://drive.google.com/drive/folders/example_awards_folder';
+  await f.click('Preview award PDFs');
+  assert.ok(!f.find(node => node.textContent === 'Replace with selected PDFs'));
+  selectAwardPdf(f, 'Corrected.pdf');
+  assert.ok(f.find(node => node.textContent.includes('1 ticks to add, 1 ticks to remove, 2 red flags to clear')));
+  await f.click('Replace with selected PDFs');
+  assert.equal(f.events.length, 0);
+  confirmed = true;
+  await f.click('Replace with selected PDFs');
+  assert.deepEqual(JSON.parse(f.find(node => node.attrs.name === 'awards').value), {
+    [kept.id]: { mohio: true, pdfConfirmed: { mohio: true } },
+    [restored.id]: { mohio: true, pdfConfirmed: { mohio: true } },
+    [resolved.id]: { attendance: 87 },
+    [mismatched.id]: initial[mismatched.id],
+    [outside.id]: initial[outside.id],
+    [middle.id]: initial[middle.id]
+  });
+  assert.equal(f.control('resolved: Akoranga').checked, false);
+  assert.equal(f.control('restored: Mohio (confirmed against a KAMAR award PDF)').checked, true);
 });
 
 test('Attendance criteria use whole homerooms, red-flag removals and leave cutoff ties to the teacher', async () => {
@@ -339,6 +395,7 @@ test('Attendance criteria use whole homerooms, red-flag removals and leave cutof
   assert.ok(!f.find(node => node.textContent.includes('Akoranga cutoff tie')));
   f.control('Award recipient PDF folder').value = 'https://drive.google.com/drive/folders/example_awards_folder';
   await f.click('Preview award PDFs');
+  selectAwardPdf(f, 'PI.pdf');
   await f.click('Apply verified awards for 2026');
   assert.equal(saved()[pi[5].id].akoranga, undefined, 'An older PDF cannot restore a red correction');
   assert.equal(saved()[pi[0].id].pdfConfirmed.akoranga, true);
@@ -397,6 +454,7 @@ test('End of Year Mohio check uses both SLOs and the year minimum across both pr
   assert.equal(f.control('Y8: Mohio (SLO below 4P)').checked, false);
   f.control('Award recipient PDF folder').value = 'https://drive.google.com/drive/folders/example_awards_folder';
   await f.click('Preview award PDFs');
+  selectAwardPdf(f, 'Report.pdf');
   await f.click('Apply verified awards for 2026');
   assert.equal(saved()[y8.id].mohio, undefined, 'A stale KAMAR PDF cannot restore the removed tick');
   f.click('MiddleDTECH');

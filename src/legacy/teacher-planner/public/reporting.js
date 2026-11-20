@@ -310,7 +310,7 @@
       showFolderStatus(recipientFolder, recipientSaved, recipientKey);
     });
     recipientSync.append(el('summary', 'Google Drive sync — Award recipients'),
-      el('p', 'Preview KAMAR Award recipient PDFs for this school year. Only Digital Technologies recipients are matched, by Student ID and year level. Criteria PDFs are ignored.'), recipientFolder);
+      el('p', 'Preview KAMAR Award recipient PDFs for this school year. Only Digital Technologies recipients are matched, by Student ID and year level. Criteria PDFs are ignored. Select only the corrected PDFs before replacing awards.'), recipientFolder);
     const previewRecipients = button(recipientSync, 'Preview award PDFs', false, async () => {
       recipientReview.replaceChildren();
       const link = recipientFolder.value.trim(), roster = directory, programme = state.programme;
@@ -324,16 +324,14 @@
         if (!current()) { recipientStatus.textContent = 'The reporting view changed. Preview the PDFs again.'; return; }
         rememberFolder(recipientFolder, recipientSaved, recipientKey, link);
         const candidates = new Map(groups().flatMap(group => group.students.map(student => [student.id, student])));
-        const excluded = externalAwardIds(), accepted = new Map(), unmatched = new Set(), outside = new Set();
-        const detail = el('ul');
-        let validFiles = 0;
+        const excluded = externalAwardIds(), sources = [];
+        const detail = el('ul'), review = el('div');
         for (const report of reports) {
           if (report.printYear !== Number(year)) {
             detail.append(el('li', `${report.name} — skipped: printed in ${report.printYear}, not ${year}.`));
             continue;
           }
-          validFiles++;
-          let found = 0;
+          const accepted = new Map(), unmatched = new Set(), outside = new Set();
           for (const row of report.rows) {
             if (!schema.programmes[programme].years.includes(row.yearLevel)) continue;
             const student = candidates.get(row.id);
@@ -341,35 +339,85 @@
             if (excluded.has(row.id)) { outside.add(key); continue; }
             if (!student || student.yearLevel !== row.yearLevel) { unmatched.add(key); continue; }
             accepted.set(key, { student, award: row.award });
-            found++;
           }
-          detail.append(el('li', `${report.name} — ${found} matching award rows.`));
+          const pick = el('input', '', { type: 'checkbox', 'aria-label': `Select award PDF: ${report.name}` });
+          pick.disabled = !report.rows.some(row => schema.programmes[programme].years.includes(row.yearLevel));
+          pick.addEventListener('change', updateReview);
+          const label = el('label', ` ${report.name} — ${accepted.size} matching award rows.`);
+          label.prepend(pick);
+          const item = el('li');
+          item.append(label);
+          detail.append(item);
+          sources.push({ pick, accepted, unmatched, outside });
         }
-        const matched = [...accepted.values()];
-        recipientReview.append(el('p', `${validFiles} recipient PDFs for ${year}; ${ignored} other PDFs ignored. ` +
-          `${matched.length} unique award ticks matched; ${outside.size} ineligible 7S/8S ticks and ${unmatched.size} unmatched ticks skipped.`), detail);
-        if (matched.length) button(recipientReview, `Apply verified awards for ${year}`, false, async () => {
-          if (!current()) { recipientStatus.textContent = 'The reporting view changed. Preview the PDFs again.'; return; }
-          previewRecipients.disabled = true;
-          recipientReview.replaceChildren();
-          try {
-            const next = { ...awards };
-            let held = 0;
-            for (const { student, award } of matched) {
-              const entry = next[student.id] || {};
-              if (entry[award + 'Correction']) { held++; continue; }
-              next[student.id] = { ...entry, [award]: true, pdfConfirmed: { ...entry.pdfConfirmed, [award]: true } };
-            }
-            saveAwards(next); render();
-            recipientStatus.textContent = 'Checking that award ticks are saved…';
-            const saved = await ensureSaved();
-            recipientStatus.textContent = saved ? `${matched.length - held} PDF-confirmed award ticks saved. Other ticks and attendance were kept.` +
-              (held ? ` ${held} red award corrections were kept unchecked.` : '') :
-              'Award ticks not saved. Check the Planner save message before leaving.';
-          } catch (error) { recipientStatus.textContent = error.message; }
-          finally { previewRecipients.disabled = false; }
-        });
+        recipientReview.append(el('p', `${sources.length} recipient PDFs for ${year}; ${ignored} other PDFs ignored. ` +
+          'Select the files to use. For corrected lists, leave earlier exports unselected.'), detail, review);
+        updateReview();
         recipientStatus.textContent = 'Preview ready. No award ticks have changed.';
+        function updateReview() {
+          review.replaceChildren();
+          const selected = sources.filter(({ pick }) => pick.checked);
+          if (!selected.length) { review.append(el('p', 'No award PDFs selected.')); return; }
+          const accepted = new Map(selected.flatMap(source => [...source.accepted]));
+          const unmatched = new Set(selected.flatMap(source => [...source.unmatched]));
+          const outside = new Set(selected.flatMap(source => [...source.outside]));
+          const next = { ...awards };
+          let additions = 0, removals = 0, cleared = 0;
+          for (const [id] of candidates) {
+            if (excluded.has(id)) continue;
+            const previous = awards[id];
+            const entry = { ...previous };
+            for (const award of ['mohio', 'akoranga']) {
+              const key = `${id}:${award}`;
+              if (!accepted.has(key) && unmatched.has(key)) continue;
+              if (accepted.has(key)) {
+                if (entry[award] !== true) additions++;
+                entry[award] = true;
+                entry.pdfConfirmed = { ...entry.pdfConfirmed, [award]: true };
+              } else {
+                if (entry[award] === true) removals++;
+                delete entry[award];
+                clearAwardConfirmation(entry, award);
+              }
+              if (entry[award + 'Correction']) cleared++;
+              delete entry[award + 'Correction'];
+            }
+            if (Object.keys(entry).length) next[id] = entry;
+            else delete next[id];
+          }
+          review.append(el('p', `${accepted.size} unique award ticks matched; ${outside.size} ineligible 7S/8S ticks and ${unmatched.size} unmatched ticks skipped.`));
+          if (!accepted.size) return;
+          const snapshot = awards;
+          button(review, `Apply verified awards for ${year}`, false, () => apply(false));
+          review.append(el('p', `Replacement preview for ${schema.programmes[programme].label}: ${additions} ticks to add, ` +
+            `${removals} ticks to remove, ${cleared} red flags to clear. Only use replacement with a complete set for both awards.`));
+          button(review, 'Replace with selected PDFs', false, () => apply(true));
+          async function apply(replace) {
+            if (!current()) { recipientStatus.textContent = 'The reporting view changed. Preview the PDFs again.'; return; }
+            if (awards !== snapshot) { updateReview(); recipientStatus.textContent = 'Awards changed. Review the updated preview before applying.'; return; }
+            if (replace && !globalThis.confirm(`Are these the complete corrected Mohio and Akoranga lists for ${schema.programmes[programme].label} ${year}? ` +
+              `Planner will add ${additions} ticks, remove ${removals} ticks and clear ${cleared} red flags in the current programme roster. KAMAR will not be changed.`)) return;
+            previewRecipients.disabled = true;
+            recipientReview.replaceChildren();
+            try {
+              const additive = { ...awards };
+              let held = 0;
+              if (!replace) for (const { student, award } of accepted.values()) {
+                const entry = additive[student.id] || {};
+                if (entry[award + 'Correction']) { held++; continue; }
+                additive[student.id] = { ...entry, [award]: true, pdfConfirmed: { ...entry.pdfConfirmed, [award]: true } };
+              }
+              saveAwards(replace ? next : additive); render();
+              recipientStatus.textContent = 'Checking that award ticks are saved…';
+              const saved = await ensureSaved();
+              recipientStatus.textContent = !saved ? 'Award ticks not saved. Check the Planner save message before leaving.' :
+                replace ? `Replacement saved: ${accepted.size} PDF-confirmed ticks, ${removals} ticks removed and ${cleared} red flags cleared.` :
+                  `${accepted.size - held} PDF-confirmed award ticks saved. Other ticks and attendance were kept.` +
+                  (held ? ` ${held} red award corrections were kept unchecked.` : '');
+            } catch (error) { recipientStatus.textContent = error.message; }
+            finally { previewRecipients.disabled = false; }
+          }
+        }
       } catch (error) { recipientStatus.textContent = error.message; }
       finally { previewRecipients.disabled = false; }
     });

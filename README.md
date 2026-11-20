@@ -1558,6 +1558,11 @@ for Digital Technologies; criteria PDFs are ignored. It deduplicates verified
 Student ID and year-level matches and skips 7S/8S. Apply to add only the
 verified award ticks. Green marks PDF-confirmed ticks; manual and unticked
 cells stay white. Manual edits clear the edited cell's confirmation only.
+When correcting a prior export, select only the complete new PDFs for both
+awards and use **Replace with selected PDFs**. Review the addition, removal
+and red-flag counts before confirming. Replacement makes awards on the current
+programme roster match the selected PDFs and clears resolved red flags;
+it leaves attendance, the other programme and ineligible students unchanged.
 
 Junior homeroom progress ticks are read-only and use saved PDF confirmations.
 VE appears directly below SR in these boxes. Unassigned has no progress
@@ -1576,14 +1581,14 @@ After confirmation, it unticks nominees below 90% or with missing attendance,
 then keeps the highest attendance within each room's 25% cap (rounded down).
 Cutoff ties stay ticked for manual review; Unassigned has no cap. Red unchecked
 cells show the reason and remain visible in the recipient view. A KAMAR PDF
-re-sync does not restore red corrections; manually re-ticking clears the flag.
+add-only sync does not restore red corrections; manually re-ticking clears the flag.
 The check does not assess effort or perseverance, change Mohio, or write to KAMAR.
 
 **Check Grade criteria** checks existing Mohio nominees in both programmes in
 the selected term's class list using their End of Year SLOs. Both grades must
 meet the minimum: Year 7 **4B**, Year 8 **4P**, Year 9 **5B**, Year 10 **5A**.
 Blank or UAG grades do not qualify. After confirmation, failing Mohio ticks
-are removed and marked red, including in recipient filters. A PDF re-sync
+are removed and marked red, including in recipient filters. An add-only PDF sync
 preserves these corrections; manually re-ticking clears the flag. Akoranga,
 attendance and SLO grades are unchanged, and nothing is written to KAMAR.
 
