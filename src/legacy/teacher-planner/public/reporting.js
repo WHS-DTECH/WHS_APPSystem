@@ -309,6 +309,14 @@
       recipientReview.replaceChildren();
       showFolderStatus(recipientFolder, recipientSaved, recipientKey);
     });
+    function awardExportTime(name) {
+      const stamp = /_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})\.pdf$/i.exec(name);
+      if (!stamp) return NaN;
+      const [, yyyy, mm, dd, hh, min, ss] = stamp;
+      const iso = `${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}.000Z`;
+      const time = Date.parse(iso);
+      return Number.isFinite(time) && new Date(time).toISOString() === iso ? time : NaN;
+    }
     recipientSync.append(el('summary', 'Google Drive sync — Award recipients'),
       el('p', 'Preview KAMAR Award recipient PDFs for this school year. Only Digital Technologies recipients are matched, by Student ID and year level. Criteria PDFs are ignored. Select only the corrected PDFs before replacing awards.'), recipientFolder);
     const previewRecipients = button(recipientSync, 'Preview award PDFs', false, async () => {
@@ -348,10 +356,20 @@
           const item = el('li');
           item.append(label);
           detail.append(item);
-          sources.push({ pick, accepted, unmatched, outside });
+          sources.push({ pick, accepted, unmatched, outside, time: awardExportTime(report.name) });
+        }
+        const dated = sources.filter(({ pick, time }) => !pick.disabled && Number.isFinite(time))
+          .sort((a, b) => b.time - a.time);
+        let autoSelected = 0;
+        for (const source of dated) {
+          if (autoSelected && dated[autoSelected - 1].time - source.time > 10 * 60 * 1000) break;
+          source.pick.checked = true;
+          autoSelected++;
         }
         recipientReview.append(el('p', `${sources.length} recipient PDFs for ${year}; ${ignored} other PDFs ignored. ` +
-          'Select the files to use. For corrected lists, leave earlier exports unselected.'), detail, review);
+          (autoSelected ? `Preselected ${autoSelected} from the latest export batch (up to 10 minutes between files). ` :
+            'No timestamped PDFs for this programme were preselected. ') +
+          'Review the selection before applying. For corrected lists, leave earlier exports unselected.'), detail, review);
         updateReview();
         recipientStatus.textContent = 'Preview ready. No award ticks have changed.';
         function updateReview() {
