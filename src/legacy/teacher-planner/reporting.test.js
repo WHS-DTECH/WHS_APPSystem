@@ -211,6 +211,84 @@ test('Awards attendance CSV preserves zero, ignores duplicate identical rows and
   assert.equal(validContent('reporting', { records: '[]', awards: '{"k:one":{"akoranga":"yes","attendance":101}}' }), false);
 });
 
+test('Award coverage uses all-term unique teaching cohorts and updates independently of class and filter', async () => {
+  const learners = (prefix, yearLevel, count) => Array.from({ length: count }, (_, index) =>
+    ({ id: `k:${prefix}${index}`, name: `${prefix}${index}`, yearLevel }));
+  const j7 = learners('J7', '7', 5), j8 = learners('J8', '8', 4), m9 = learners('M9', '9', 5), m10 = learners('M10', '10', 1);
+  const outside = { id: 'k:outside', name: 'Other School', yearLevel: '7', whanau: '7S' };
+  const awards = {
+    [j7[0].id]: { mohio: true, akoranga: true }, [j7[1].id]: { akoranga: true },
+    [j8[0].id]: { mohio: true, akoranga: true },
+    [m9[0].id]: { mohio: true, pdfConfirmed: { mohio: true } },
+    [m9[1].id]: { akoranga: true }, [m9[2].id]: { akoranga: true },
+    [m9[4].id]: { mohioCorrection: 'below-slo' }, [m10[0].id]: { akoranga: true },
+    [outside.id]: { mohio: true }, 'k:math': { mohio: true }
+  };
+  const data = { records: '[]', awards: JSON.stringify(awards) };
+  const f = fixture(data, false, { request: async url => {
+    const term = Number(new URLSearchParams(url.split('?')[1]).get('term'));
+    const junior = term === 1 ? [...j7.slice(0, 2), ...j8.slice(0, 2)] :
+      term === 2 ? [...j7.slice(2, 4), ...j8.slice(1, 3)] : [...j7.slice(3), ...j8.slice(2), outside];
+    const middle = term === 1 ? m9.slice(0, 3) : term === 2 ? m9.slice(2, 4) : [...m9.slice(3), ...m10];
+    return { classes: [{ code: 'VP-JDTECH-CW', students: junior },
+      { code: term < 3 ? 'VP-MPROG-CW' : 'VP-MDTECH-CW', students: middle },
+      { code: 'VP-MATH-CW', students: [{ id: 'k:math', name: 'Math', yearLevel: '7' }] }],
+    homerooms: [{ code: '7S', students: [outside] }] };
+  } });
+  await settle(); f.click('4. Awards'); await settle();
+  const rows = () => f.control('Award coverage by year level').children.find(node => node.tag === 'table')
+    .children.find(node => node.tag === 'tbody').children;
+  const cells = year => rows().find(node => node.children[0].textContent === year).children;
+  const tally = () => f.control('Overall award coverage').children.map(node => node.textContent);
+  assert.deepEqual(cells('7').map(node => node.textContent), ['7', '1 / 5 · 20%', '2 / 5 · 40% · Over 25%']);
+  assert.equal(cells('7')[1].attrs.class, undefined, 'Exactly 20% is not over the reference');
+  assert.equal(cells('8')[1].attrs.class, 'reporting-coverage-over');
+  assert.equal(cells('8')[2].textContent, '1 / 4 · 25%');
+  assert.equal(cells('8')[2].attrs.class, undefined, 'Exactly 25% is not over the reference');
+  assert.ok(tally().includes('Mohio (20%): 2 / 9 · 22.2% · Over 20%'));
+  assert.ok(tally().includes('Akoranga (25%): 3 / 9 · 33.3% · Over 25%'));
+  assert.equal(f.events.length, 0, 'Loading tallies never saves or adjusts awards');
+  assert.equal(f.find(node => node.attrs.name === 'awards').value, data.awards);
+  const unchanged = tally();
+  f.click('VP-JDTECH-CW (5)'); f.enter('Filter awards', 'all');
+  assert.deepEqual(tally(), unchanged);
+  f.click('MiddleDTECH');
+  assert.ok(tally().includes('Mohio (20%): 1 / 6 · 16.7%'));
+  assert.ok(tally().includes('Akoranga (25%): 3 / 6 · 50% · Over 25%'));
+  const tick = f.control('M93: Mohio');
+  tick.checked = true; tick.events.change({ stopPropagation() {} });
+  assert.equal(cells('9')[1].textContent, '2 / 5 · 40% · Over 20%');
+  assert.ok(tally().includes('Mohio (20%): 2 / 6 · 33.3% · Over 20%'), 'Mohio fast-path edits refresh coverage');
+  const akoranga = f.control('M100: Akoranga');
+  akoranga.checked = false; akoranga.events.change({ stopPropagation() {} });
+  assert.ok(tally().includes('Akoranga (25%): 2 / 6 · 33.3% · Over 25%'));
+  f.enter('Reporting class list term', '1'); await settle();
+  assert.ok(tally().includes('Mohio (20%): 2 / 6 · 33.3% · Over 20%'));
+  assert.equal(f.find(node => node.attrs.name === 'records').value, '[]');
+});
+
+test('Award coverage never displays partial counts when a term fails or year-level evidence conflicts', async () => {
+  let failing = true;
+  const f = fixture({ records: '[]', awards: '{}' }, false, { request: async (url, directory) => {
+    if (url.includes('term=2')) {
+      if (failing) throw new Error('Term 2 timetable missing');
+      return { classes: [{ code: 'TEST-JDTECH', students: [{ ...directory.classes[0].students[0], yearLevel: '8' }] }] };
+    }
+    return directory;
+  } });
+  await settle(); f.click('4. Awards'); await settle();
+  const coverage = () => f.control('Award coverage by year level');
+  assert.ok(coverage().children.some(node => node.textContent.includes('Term 2 timetable missing')));
+  assert.equal(coverage().children.some(node => node.tag === 'table'), false);
+  assert.ok(f.control('Overall award coverage').children.some(node => node.textContent.includes('unavailable')));
+  failing = false;
+  f.click('Retry term allocations'); await settle();
+  assert.ok(coverage().children.some(node => node.attrs.role === 'alert' && node.textContent.includes('conflicting year levels')));
+  assert.equal(coverage().children.some(node => node.tag === 'table'), false);
+  assert.equal(f.events.length, 0);
+  assert.equal(f.find(node => node.attrs.name === 'awards').value, '{}');
+});
+
 test('Awards roster edits in homerooms, filters recipients and imports attendance by ID without touching ticks or grades', async () => {
   const data = { records: JSON.stringify([row]) };
   const f = fixture(data, false, { request: async (url, directory) => {

@@ -1566,6 +1566,16 @@ off and are saved per student and school year in the teacher's private draft.
 They can be edited in both teaching and homeroom views. Use the award filter
 to show either award or all rows. The default is **Award recipients only**,
 which also keeps red corrections visible. Nothing is awarded automatically.
+The award controls show **overall programme coverage** for Mohio (20%) and
+Akoranga (25%), and the criteria area shows both tallies by Year 7–10.
+Counts use every currently ticked award (manual or PDF-confirmed), unique
+students across all four preserved teaching-term rosters, including MPROG,
+and exclude 7S/8S. They do not change with the visible class or recipient filter.
+Over-reference percentages are labelled and highlighted for manual review;
+these tallies do not enforce caps or prove achievement ranking, consistent
+above-level work, or whole-school subject coverage. Akoranga's 25% criterion
+remains per class, not per programme/year. Missing term rosters show an explicit
+unavailable message instead of a partial percentage.
 The shared Awards Drive folder accepts up to 30 KAMAR recipient PDFs, including
 Junior and Middle exports and earlier corrected lists; criteria PDFs do not
 count towards this limit. Review the automatically selected latest export

@@ -19,6 +19,12 @@
 }
 .reporting-folder-status { display: inline-block; margin-inline-start: 10px; font-size: .9em; color: #326046; }
 .reporting-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.reporting-award-setup { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 20px; margin-bottom: 16px; }
+.reporting-award-criteria { flex: 1 1 420px; }
+.reporting-award-coverage { margin: 0; max-width: 100%; }
+.reporting-award-tally { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.reporting-award-tally > span { padding: 4px 6px; border: 1px solid #b3c4cb; border-radius: 4px; }
+.reporting-coverage-over { background: #fbd8db; color: #821c27; font-weight: 600; }
 .reporting-tabs button[aria-pressed="true"] { background: #245f85; color: #fff; }
 .reporting-tabs .reporting-teaching-tab { background: #e3f1fa; color: #154967; border-color: #6094b3; }
 .reporting-tabs .reporting-teaching-tab[aria-pressed="true"] { background: #245f85; color: #fff; }
