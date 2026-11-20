@@ -108,25 +108,39 @@
         for (const match of matches) rows.append(el('li', match.name + ': ' + (match.student ?
           Object.entries(match.grades).map(([field, grade]) => {
             const old = record(match.student)?.[field] || 'Not entered';
-            return `${field}: ${old} → ${grade || 'blank in PDF'}`;
+            return `${field}: ${old} → ${grade || 'blank in PDF'}${grade && old === grade ? ' (matches)' : grade ? ' (differs)' : ''}`;
           }).join(' · ') : 'Not matched — unchanged')));
         review.append(rows);
-        button(review, 'Apply matched grades', false, () => {
+        function savePdf(applyGrades) {
           try {
             if (!stillCurrent()) throw new Error('The reporting view or saved grades changed. Preview the PDF again.');
             const next = new Map(records.map(row => [JSON.stringify([row.studentId, row.programme, row.cycle]), row]));
+            let confirmed = 0;
             for (const { student, grades } of touched) {
-              const changes = Object.entries(grades).filter(([, value]) => value || clears.checked);
-              if (!changes.length) continue;
               const key = JSON.stringify([student.id, 'junior', cycle]);
-              const existing = next.get(key) || defaultRow(student.id, 'junior', cycle, '', '');
-              next.set(key, { ...existing, ...Object.fromEntries(changes) });
+              const existing = next.get(key);
+              if (!existing && (!applyGrades || !Object.values(grades).some(Boolean))) continue;
+              const row = { ...(existing || defaultRow(student.id, 'junior', cycle, '', '')) };
+              for (const [field, grade] of Object.entries(grades)) {
+                if (!schema.pdfGradeFields.includes(field)) throw new Error('Unexpected PDF grade field.');
+                if (applyGrades && (grade || clears.checked)) row[field] = grade;
+                const match = grade && row[field] === grade;
+                setConfirmation(row, field, match ? grade : '');
+                if (match) confirmed++;
+              }
+              next.set(key, row);
             }
-            applyRecords([...next.values()], defaultStore.value);
+            const updated = [...next.values()];
+            const changed = JSON.stringify(updated) !== snapshot;
+            if (changed) applyRecords(updated, defaultStore.value);
             invalidate(); render();
-            status.textContent = 'Grades applied to the open draft. Wait for Planner to show Autosaved before leaving.';
+            status.textContent = `${confirmed} grade cells confirmed. ` +
+              (applyGrades ? '' : 'No grade values were changed. ') +
+              (changed ? 'Wait for Planner to show Autosaved before leaving.' : 'The draft was already up to date.');
           } catch (error) { status.textContent = error.message; }
-        });
+        }
+        button(review, 'Confirm matching grades only', false, () => savePdf(false));
+        button(review, 'Apply matched grades', false, () => savePdf(true));
         status.textContent = 'Preview ready. No grades have been changed.';
       } catch (error) { status.textContent = error.message; }
       finally { list.disabled = preview.disabled = false; }
@@ -159,6 +173,20 @@
         kaitiakitanga: value, rangatiratanga: value, comment: '' };
       if (programme === 'junior' && valuesDefault === 'Dem-v2') { row.whanaungatanga = 'Dem'; row.manaakitanga = 'Dem'; }
       return row;
+    }
+    function setConfirmation(row, field, grade) {
+      if (!grade && !row.pdfConfirmed?.[field]) return;
+      const confirmed = { ...row.pdfConfirmed };
+      if (grade) confirmed[field] = grade;
+      else delete confirmed[field];
+      if (Object.keys(confirmed).length) row.pdfConfirmed = confirmed;
+      else delete row.pdfConfirmed;
+    }
+    function showConfirmation(cell, row, field) {
+      const confirmed = Boolean(row?.[field] && row.pdfConfirmed?.[field] === row[field]);
+      cell.setAttribute('class', confirmed ? 'reporting-pdf-confirmed' : '');
+      cell.setAttribute('title', confirmed ? 'Confirmed against a KAMAR PDF' : '');
+      return confirmed;
     }
     function addNewStudents(next, directories, valuesDefault, sloDefault, programmes = Object.keys(schema.programmes)) {
       const known = new Set(next.map(row => JSON.stringify([row.studentId, row.programme, row.cycle])));
@@ -219,7 +247,12 @@
       try {
         const lists = await Promise.all([1, 2, 3, 4].map(term => request('attendance/classes/' + year + '?term=' + term)));
         if (!area.isConnected) return;
-        const next = records.map(row => row.programme === 'junior' ? { ...row, coding: '3P', design: '3P' } : { ...row });
+        const next = records.map(row => {
+          if (row.programme !== 'junior') return row;
+          const updated = { ...row, coding: '3P', design: '3P' };
+          for (const field of ['coding', 'design']) if (row[field] !== updated[field]) setConfirmation(updated, field, '');
+          return updated;
+        });
         addNewStudents(next, lists, defaultStore.value, '3P', ['junior']);
         applyRecords(next, defaultStore.value, '3P');
         applied = true;
@@ -241,13 +274,16 @@
       }
       return row;
     }
-    function update(student, field, value, control) {
+    function update(student, field, value, control, cell, label) {
       const previous = store.value;
       const existing = record(student), row = existing || record(student, true), old = row[field];
+      const oldConfirmation = row.pdfConfirmed;
       row[field] = value;
+      if (old !== value) setConfirmation(row, field, '');
       const next = JSON.stringify(records);
       if (!schema.validContent({ records: next, valuesDefault: defaultStore.value, juniorSloDefault: sloDefaultStore.value })) {
         row[field] = old; control.value = old;
+        if (oldConfirmation) row.pdfConfirmed = oldConfirmation;
         if (!existing) records.splice(records.indexOf(row), 1);
         feedback.setAttribute('role', 'alert');
         feedback.textContent = 'This reporting entry exceeds the storage limit. The latest edit was not accepted; earlier entries are unchanged.';
@@ -255,6 +291,8 @@
         return;
       }
       store.value = next;
+      const confirmed = showConfirmation(cell, row, field);
+      control.setAttribute('aria-label', label + (confirmed ? ' (confirmed against KAMAR PDF)' : ''));
       store.dispatchEvent(new Event('input', { bubbles: true }));
       summary();
     }
@@ -339,6 +377,7 @@
         state.part === 'values' ? (state.programme === 'junior' ? [schema.juniorValues[Number(termSelect.value) - 1]] :
           [['kaitiakitanga', 'Kaitiakitanga'], ['rangatiratanga', 'Rangatiratanga']]) :
           [['comment', 'Report comment' + (state.cycle === 'eoy' ? ' (optional for EOY)' : ' (required)')]];
+      if (state.part !== 'comments') body.append(el('p', 'Green: confirmed against a KAMAR PDF. White: not confirmed.'));
       const scroll = el('div', '', { class: 'reporting-scroll', tabindex: '0', role: 'region', 'aria-label': 'Class report entries' });
       const table = el('table', '', { class: 'reporting-table' }), head = el('tr'), tbody = el('tbody');
       head.append(el('th', 'Student', { scope: 'col' }), el('th', 'Year', { scope: 'col' }));
@@ -350,20 +389,27 @@
         const tr = el('tr');
         tr.append(el('th', student.name, { scope: 'row' }), el('td', student.yearLevel));
         for (const [field, label] of definitions) {
+          const row = record(student);
+          const td = el('td');
+          const confirmed = showConfirmation(td, row, field);
           if (group.audit) {
-            tr.append(el('td', record(student)?.[field] || 'Not entered'));
+            td.textContent = row?.[field] || 'Not entered';
+            if (confirmed) td.setAttribute('aria-label', td.textContent + ' (confirmed against KAMAR PDF)');
+            tr.append(td);
             continue;
           }
-          const td = el('td'), control = el(field === 'comment' ? 'textarea' : 'select', '', { 'aria-label': student.name + ': ' + label });
+          const controlLabel = student.name + ': ' + label;
+          const control = el(field === 'comment' ? 'textarea' : 'select', '',
+            { 'aria-label': controlLabel + (confirmed ? ' (confirmed against KAMAR PDF)' : '') });
           if (field === 'comment') { control.maxLength = 2000; control.rows = 3; }
           else {
             const choices = state.part === 'slo' ? schema.programmes[state.programme].levels : schema.values;
             control.append(el('option', 'Not entered', { value: '' }));
             for (const choice of choices) control.append(el('option', choice, { value: choice }));
           }
-          control.value = record(student)?.[field] || '';
+          control.value = row?.[field] || '';
           control.addEventListener(field === 'comment' ? 'input' : 'change', event => {
-            event.stopPropagation(); update(student, field, control.value, control);
+            event.stopPropagation(); update(student, field, control.value, control, td, controlLabel);
           });
           td.append(control); tr.append(td);
         }

@@ -136,12 +136,12 @@ test('End of Year JuniorDTECH shows read-only homerooms alongside editable teach
   assert.equal(f.events.length, 0);
 });
 
-test('Reporting Drive preview requires Apply and preserves unrelated grades and ambiguous names', async () => {
+test('Reporting Drive confirms individual matches without replacing differences and clears confirmation on manual edit', async () => {
   const existing = { ...row, whanaungatanga: 'Exe' };
   const f = fixture({ records: JSON.stringify([existing]) }, false, { request: async (url, directory) => {
     if (url.startsWith('google-calendar/reporting-drive/files?')) return { files: [{ id: 'example_file', name: 'Report.pdf', label: 'SLOs', version: 'v1' }] };
     if (url.startsWith('google-calendar/reporting-drive/file/')) return { classCode: 'JDTECH', year: 2026, rows: [
-      { name: 'Synthetic Junior', grades: { coding: '4B', design: '' } },
+      { name: 'Synthetic Junior', grades: { coding: '4B', design: '4A' } },
       { name: 'Unknown Student', grades: { coding: '4A', design: '4A' } }
     ] };
     return directory;
@@ -153,9 +153,24 @@ test('Reporting Drive preview requires Apply and preserves unrelated grades and 
   await f.click('Preview PDF');
   assert.ok(f.find(node => node.textContent === 'Unknown Student: Not matched — unchanged'));
   assert.equal(f.events.length, 0);
+  f.click('Confirm matching grades only');
+  const saved = () => JSON.parse(f.find(node => node.attrs.name === 'records').value);
+  const codingLabel = 'Synthetic Junior: Computational Thinking - Coding';
+  const designLabel = 'Synthetic Junior: Design & Develop a Digital Outcome';
+  const confirmation = ' (confirmed against KAMAR PDF)';
+  assert.deepEqual(saved(), [{ ...existing, pdfConfirmed: { design: '4A' } }]);
+  assert.ok(f.control(codingLabel));
+  assert.ok(f.control(designLabel + confirmation));
+  assert.equal(f.all().filter(node => node.attrs.class === 'reporting-pdf-confirmed').length, 1);
+  f.enter(designLabel + confirmation, '4P');
+  assert.deepEqual(saved(), [{ ...existing, design: '4P' }]);
+  assert.equal(f.all().filter(node => node.attrs.class === 'reporting-pdf-confirmed').length, 0);
+  await f.click('Preview PDF');
   f.click('Apply matched grades');
-  assert.deepEqual(JSON.parse(f.find(node => node.attrs.name === 'records').value), [{ ...existing, coding: '4B' }]);
-  assert.deepEqual(f.events, ['input']);
+  assert.deepEqual(saved(), [{ ...existing, coding: '4B', pdfConfirmed: { coding: '4B', design: '4A' } }]);
+  assert.deepEqual(f.events, ['input', 'input', 'input']);
+  f.enter(codingLabel + confirmation, '3P');
+  assert.deepEqual(saved(), [{ ...existing, pdfConfirmed: { design: '4A' } }]);
 });
 
 test('default panels follow the selected report part without changing saved data', async () => {
