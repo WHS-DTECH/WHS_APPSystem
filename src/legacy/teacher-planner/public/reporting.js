@@ -658,6 +658,7 @@
       control.setAttribute('aria-label', label + confirmed);
       store.dispatchEvent(new Event('input', { bubbles: true }));
       summary();
+      showAllocation();
     }
     function button(parent, label, active, action, attrs = {}) {
       const node = el('button', label, { type: 'button', 'aria-pressed': String(active), ...attrs });
@@ -675,37 +676,77 @@
       return terms.length === 1 ? terms[0] : undefined;
     }
     function showAllocation() {
-      allocation.hidden = state.part !== 'values';
+      const values = state.part === 'values', awarding = state.part === 'awards', junior = state.programme === 'junior';
+      allocation.hidden = !values && (!junior || !(state.part === 'slo' || awarding));
       if (allocation.hidden) return;
-      allocation.replaceChildren(el('strong', 'School Value allocation'));
+      const title = values ? 'School Value allocation' : awarding ? 'Awards PDF progress' : 'SLO PDF progress';
+      allocation.setAttribute('aria-label', title);
+      allocation.replaceChildren(el('strong', title));
       const table = el('table'), thead = el('thead'), tbody = el('tbody'), header = el('tr');
-      const junior = state.programme === 'junior';
-      for (const label of [junior ? 'Homeroom' : 'Semester', junior ? 'DTECH term' : 'Terms', 'School Value']) {
+      const labels = values ? [junior ? 'Homeroom' : 'Semester', junior ? 'DTECH term' : 'Terms', 'School Value'] : ['Homeroom'];
+      if (junior) labels.push('PDF matched');
+      for (const label of labels) {
         header.append(el('th', label, { scope: 'col' }));
       }
       thead.append(header); table.append(thead, tbody); allocation.append(table);
-      function addRow(label, terms, values) {
+      function addRow(label, columns) {
         const row = el('tr');
-        row.append(el('th', label, { scope: 'row' }), el('td', terms), el('td', values)); tbody.append(row);
+        row.append(el('th', label, { scope: 'row' }), ...columns); tbody.append(row);
       }
       if (!junior) {
-        for (const term of [1, 3]) addRow(`Semester ${term === 1 ? 1 : 2}`, `Terms ${term} and ${term + 1}`,
-          schema.valueFields('middle', term).map(([, label]) => label).join(' / '));
+        for (const term of [1, 3]) addRow(`Semester ${term === 1 ? 1 : 2}`, [
+          el('td', `Terms ${term} and ${term + 1}`),
+          el('td', schema.valueFields('middle', term).map(([, label]) => label).join(' / '))
+        ]);
         return;
       }
-      if (!allocationReady) {
+      if (values && !allocationReady) {
         allocation.append(el('p', allocationError || 'Checking the four preserved teaching timetables…', { role: 'status' }));
         if (allocationError) button(allocation, 'Retry term allocations', false, () => {
           allocationError = ''; showAllocation();
         });
         else void loadAllocations();
       }
+      const excluded = awarding ? externalAwardIds() : null;
       for (const room of directory.homerooms || []) {
-        const terms = allocationReady ? schema.homeroomTerms(room, auditRosters) : [];
-        addRow(room.code, terms.length ? terms.map(term => `Term ${term}`).join(' / ') : allocationReady ? 'Not verified' : '—',
-          terms.map(term => schema.juniorValues[Number(term) - 1][1]).join(' / ') || '—');
+        const terms = values && allocationReady ? schema.homeroomTerms(room, auditRosters) : [];
+        const columns = values ? [
+          el('td', terms.length ? terms.map(term => `Term ${term}`).join(' / ') : allocationReady ? 'Not verified' : '—'),
+          el('td', terms.map(term => schema.juniorValues[Number(term) - 1][1]).join(' / ') || '—')
+        ] : [];
+        let checked = false, detail;
+        if (awarding) {
+          if (externalAwardRoom(room.code)) detail = 'Not eligible';
+          else {
+            const students = room.students.filter(student => !excluded.has(student.id));
+            const count = key => students.filter(student => {
+              const entry = awards[student.id];
+              return entry?.[key] === true && entry.pdfConfirmed?.[key] === true;
+            }).length;
+            const mohio = count('mohio'), akoranga = count('akoranga');
+            checked = mohio >= 1 && akoranga >= 2;
+            detail = `${mohio} Mohio · ${akoranga} Akoranga`;
+          }
+        } else if (values && terms.length !== 1) detail = allocationReady ? 'No single verified term' : 'Pending term check';
+        else {
+          const fields = values ? schema.valueFields('junior', terms[0]).map(([key]) => key) : ['coding', 'design'];
+          const matched = room.students.filter(student => {
+            const row = record(student);
+            return fields.some(field => row?.[field] && row.pdfConfirmed?.[field] === row[field]);
+          }).length;
+          checked = matched > room.students.length / 2;
+          detail = `${matched}/${room.students.length} students`;
+        }
+        const cell = el('td'), tick = el('input', '', { type: 'checkbox', disabled: '',
+          'aria-label': `${room.code}: PDF matched, ${detail}` });
+        tick.checked = checked;
+        cell.append(tick, el('span', ` ${detail}`));
+        addRow(room.code, [...columns, cell]);
       }
-      if (allocationReady) allocation.append(el('p', 'Only a single verified teaching term is used in the homeroom audit.'));
+      if (values && allocationReady) allocation.append(el('p', 'Only a single verified teaching term is used in the homeroom audit.'));
+      allocation.append(el('p', awarding ? 'Yes: at least one PDF-confirmed Mohio and two PDF-confirmed Akoranga recipients.' :
+        `Yes: more than half the homeroom has ${values ? 'its assigned value' : 'at least one SLO'} confirmed by a PDF.`));
+      if (awarding) allocation.append(el('p', 'An unticked room may have too few recipients to confirm progress from the PDF.'));
     }
     async function loadAllocations() {
       if (allocationPending) return;
@@ -869,7 +910,7 @@
                 cell.setAttribute('class', '');
                 cell.setAttribute('title', '');
                 tick.setAttribute('aria-label', tickLabel);
-                if (matchesFilter(student)) awardSummary();
+                if (matchesFilter(student)) { awardSummary(); showAllocation(); }
                 else render();
               }
               catch (error) { tick.checked = !tick.checked; feedback.textContent = error.message; }
