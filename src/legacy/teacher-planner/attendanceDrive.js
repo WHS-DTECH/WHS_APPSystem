@@ -19,7 +19,8 @@ function fileVersion(file) {
   return file.id + ':' + file.modifiedTime + ':' + file.md5Checksum;
 }
 function createAttendanceDriveService({ ensureConnected, access, unchanged, hasScope, fetchImpl = fetch,
-  ErrorType, parsePdf = importAttendancePdf, pdfError = AttendancePdfError, purpose = 'Attendance' }) {
+  ErrorType, parsePdf = importAttendancePdf, pdfError = AttendancePdfError, purpose = 'Attendance',
+  mimeType = 'application/pdf', format = 'PDF', maxSize = MAX_PDF }) {
   async function connection(req, folder) {
     if (!DRIVE_ID.test(folder || '')) throw new ErrorType('Choose a valid Drive attendance folder.', 400);
     const row = await ensureConnected(req);
@@ -40,11 +41,11 @@ function createAttendanceDriveService({ ensureConnected, access, unchanged, hasS
     return response;
   }
   function validFile(file, folder, checkSize = true) {
-    return file && DRIVE_ID.test(file.id) && file.mimeType === 'application/pdf' && file.trashed === false &&
+    return file && DRIVE_ID.test(file.id) && file.mimeType === mimeType && file.trashed === false &&
       file.parents?.includes(folder) && typeof file.name === 'string' && file.name.length <= 500 &&
       typeof file.modifiedTime === 'string' && Number.isFinite(Date.parse(file.modifiedTime)) &&
       typeof file.md5Checksum === 'string' && /^[a-f0-9]{32}$/i.test(file.md5Checksum) &&
-      /^\d+$/.test(file.size) && (!checkSize || Number(file.size) <= MAX_PDF);
+      /^\d+$/.test(file.size) && (!checkSize || Number(file.size) <= maxSize);
   }
   async function listFiles(req, folderIdValue, staffCode) {
     const { row, folder, token } = await connection(req, folderIdValue);
@@ -64,13 +65,13 @@ function createAttendanceDriveService({ ensureConnected, access, unchanged, hasS
         });
         const result = await (await google('files?' + params, token)).json();
         if (!Array.isArray(result.files) || result.files.some(child => !validate(child))) {
-          throw new ErrorType('Drive returned unreadable folder or PDF metadata. Check the folder before syncing.', 422);
+          throw new ErrorType(`Drive returned unreadable folder or ${format} metadata. Check the folder before syncing.`, 422);
         }
         children.push(...result.files);
         pageToken = result.nextPageToken;
         if (!pageToken) break;
       }
-      if (pageToken) throw new ErrorType('The attendance folder contains too many items. Keep at most 1,000 PDFs or subfolders per folder.', 422);
+      if (pageToken) throw new ErrorType(`The attendance folder contains too many items. Keep at most 1,000 ${format}s or subfolders per folder.`, 422);
       return children;
     }
     let staffFolder = null;
@@ -87,7 +88,7 @@ function createAttendanceDriveService({ ensureConnected, access, unchanged, hasS
     }
     const files = [];
     for (const parent of [folder, ...(staffFolder ? [staffFolder.id] : [])]) {
-      const children = await listChildren(parent, 'application/pdf',
+      const children = await listChildren(parent, mimeType,
         'id,name,mimeType,modifiedTime,md5Checksum,size,parents,trashed', item => validFile(item, parent, false));
       files.push(...children.map(file => ({ id: file.id, name: file.name, version: fileVersion(file), folderId: parent })));
     }
@@ -96,7 +97,7 @@ function createAttendanceDriveService({ ensureConnected, access, unchanged, hasS
       ...(staffCode !== undefined ? { staffFolder: staffFolder?.name || null } : {}) };
   }
   async function readFile(req, folderIdValue, fileId, parentFolderId, staffCode) {
-    if (!DRIVE_ID.test(fileId || '')) throw new ErrorType('Choose a valid Drive PDF.', 400);
+    if (!DRIVE_ID.test(fileId || '')) throw new ErrorType(`Choose a valid Drive ${format}.`, 400);
     const { row, folder, token } = await connection(req, folderIdValue);
     async function checkParent() {
       if (parentFolderId === undefined || parentFolderId === folder) return;
@@ -113,11 +114,12 @@ function createAttendanceDriveService({ ensureConnected, access, unchanged, hasS
     const path = 'files/' + fileId;
     const fields = '?fields=id,name,mimeType,modifiedTime,md5Checksum,size,parents,trashed&supportsAllDrives=true';
     const file = await (await google(path + fields, token)).json();
-    if (!validFile(file, folder)) throw new ErrorType('This file is not an eligible PDF in your configured attendance folder (maximum 5 MB).', 422);
+    const sizeLabel = `${maxSize / (1024 * 1024)} MB`;
+    if (!validFile(file, folder)) throw new ErrorType(`This file is not an eligible ${format} in your configured attendance folder (maximum ${sizeLabel}).`, 422);
     const response = await google(path + '?alt=media&supportsAllDrives=true', token);
-    if (Number(response.headers.get('content-length')) > MAX_PDF) {
+    if (Number(response.headers.get('content-length')) > maxSize) {
       await response.body?.cancel();
-      throw new ErrorType('Attendance PDFs must be no larger than 5 MB.', 422);
+      throw new ErrorType(`Attendance ${format}s must be no larger than ${sizeLabel}.`, 422);
     }
     const chunks = [];
     let length = 0;
@@ -127,9 +129,9 @@ function createAttendanceDriveService({ ensureConnected, access, unchanged, hasS
         const { done, value } = await reader.read();
         if (done) break;
         length += value.length;
-        if (length > MAX_PDF) {
+        if (length > maxSize) {
           await reader.cancel();
-          throw new ErrorType('Attendance PDFs must be no larger than 5 MB.', 422);
+          throw new ErrorType(`Attendance ${format}s must be no larger than ${sizeLabel}.`, 422);
         }
         chunks.push(Buffer.from(value));
       }
@@ -137,13 +139,13 @@ function createAttendanceDriveService({ ensureConnected, access, unchanged, hasS
     let pdf;
     try { pdf = await parsePdf(Buffer.concat(chunks)); }
     catch (error) {
-      const reason = error instanceof pdfError ? error.message :
+      const reason = error instanceof pdfError ? error.message : format === 'CSV' ? 'The CSV could not be decoded.' :
         'The PDF could not be decoded. Export it again from KAMAR rather than printing or scanning it.';
-      throw new ErrorType(purpose + ' PDF rejected: ' + reason +
+      throw new ErrorType(purpose + ' ' + format + ' rejected: ' + reason +
         (purpose === 'Attendance' ? ' No marks from this PDF were imported.' : ' Nothing was imported from this PDF.'), 422);
     }
     const after = await (await google(path + fields, token)).json();
-    if (!validFile(after, folder) || fileVersion(after) !== fileVersion(file)) throw new ErrorType('The Drive PDF changed while being read. Retry sync.', 409);
+    if (!validFile(after, folder) || fileVersion(after) !== fileVersion(file)) throw new ErrorType(`The Drive ${format} changed while being read. Retry sync.`, 409);
     await checkParent();
     await unchanged(row);
     return { pdf, version: fileVersion(file), accountId: row.google_subject, connectionId: row.connection_id };

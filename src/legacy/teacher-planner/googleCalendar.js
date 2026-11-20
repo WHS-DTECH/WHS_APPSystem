@@ -5,6 +5,7 @@ const { validYearTerm, parseDutyDocument, dutyEvents, canManage } = require('./d
 const { TASKS_SCOPE, createGoogleTasksRouter } = require('./googleTasks');
 const { DRIVE_SCOPE, folderId, createAttendanceDriveRouter, createAttendanceDriveService } = require('./attendanceDrive');
 const { importReportingPdf, ReportingPdfError } = require('./reportingImport');
+const { importReportingAttendance, ReportingAttendanceError } = require('./reportingAttendance');
 const { createAdminAttendanceRouter } = require('./adminAttendance');
 
 const SCOPES = [
@@ -231,6 +232,25 @@ function createGoogleCalendarRouter({ query, env = process.env, fetchImpl = fetc
     ensureConnected, access, unchanged, fetchImpl, ErrorType: CalendarError, hasScope,
     parsePdf: importReportingPdf, pdfError: ReportingPdfError, purpose: 'Reporting'
   });
+  const awardsDrive = createAttendanceDriveService({
+    ensureConnected, access, unchanged, fetchImpl, ErrorType: CalendarError, hasScope,
+    parsePdf: importReportingAttendance, pdfError: ReportingAttendanceError, purpose: 'Awards attendance',
+    mimeType: 'text/csv', format: 'CSV', maxSize: 2 * 1024 * 1024
+  });
+  function awardsFolder(req) {
+    const id = folderId(req.query.folder);
+    if (!id) throw new CalendarError('Paste a Google Drive attendance folder link.', 400);
+    return id;
+  }
+  router.get('/reporting-awards/files', wrap(async (req, res) => {
+    const { files } = await awardsDrive.listFiles(req, awardsFolder(req));
+    res.json({ files: files.map(({ id, name, version }) => ({ id, name, version })) });
+  }));
+  router.get('/reporting-awards/files/:id', wrap(async (req, res) => {
+    const file = await awardsDrive.readFile(req, awardsFolder(req), req.params.id);
+    if (file.version !== req.query.version) throw new CalendarError('The CSV changed. List the files again.', 409);
+    res.json({ entries: file.pdf });
+  }));
   async function reportFiles(req) {
     const root = folderId(req.query.folder);
     if (!root) throw new CalendarError('Paste a Google Drive Reports folder link.', 400);
