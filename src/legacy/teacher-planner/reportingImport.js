@@ -11,12 +11,13 @@ function parseReportingPage(items, view) {
   const header = (x, y) => items.find(item => at(item, x, y))?.str.trim() || '';
   const juniorSchool = items.some(item => item.str === 'Junior School');
   const middleSchool = items.some(item => item.str === 'Middle School');
-  if (Math.abs(view[2] - 842) > 2 || Math.abs(view[3] - 595) > 2 ||
-    !(juniorSchool || middleSchool) || !items.some(item => item.str === 'KAMAR')) {
-    reject('Choose a landscape Junior or Middle School KAMAR report PDF.');
-  }
   const slo = items.some(item => item.str === 'Computational Thinking - Coding') &&
     items.some(item => item.str === 'Design & Develop a Digital Outcome');
+  const yearLevel = /^Year (7|8|9|10)$/.exec(header(24, 542))?.[1];
+  if (Math.abs(view[2] - 842) > 2 || Math.abs(view[3] - 595) > 2 ||
+    !(juniorSchool || middleSchool || (slo && yearLevel)) || !items.some(item => item.str === 'KAMAR')) {
+    reject('Choose a landscape Junior or Middle School KAMAR report PDF.');
+  }
   const values = /^(?:Term\s*|T)([1-4])\s+([\p{L}]+)$/iu.exec(header(46, 494));
   const field = values?.[2].toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
   const classCode = header(slo ? 24 : 49, slo ? 555 : 530).toUpperCase();
@@ -27,9 +28,10 @@ function parseReportingPage(items, view) {
   if (slo) {
     const coding = /^G\.([JM])DTECH02\.(\d{2})$/.exec(header(349, 501));
     const design = /^G\.([JM])DTECH01\.(\d{2})$/.exec(header(631, 501));
+    programme = coding?.[1] === 'M' ? 'middle' : 'junior';
     if (!coding || !design || coding[1] !== design[1] || coding[2] !== design[2] ||
-        (coding[1] === 'J' && !juniorSchool)) reject('The two DTECH assessment codes, programme, or years could not be verified.');
-    programme = coding[1] === 'M' ? 'middle' : 'junior';
+        (yearLevel ? !schema.programmes[programme].years.includes(yearLevel) :
+          programme === 'junior' && !juniorSchool)) reject('The two DTECH assessment codes, programme, or years could not be verified.');
     year = 2000 + Number(coding[2]);
   } else if (!juniorSchool) reject('School Values PDF matching is supported for JuniorDTECH only.');
   const start = slo ? 462 : 450, spacing = slo ? 23 : 36;

@@ -899,6 +899,20 @@ test('MiddleDTECH Markbook Summary parser verifies the programme, year and grade
   assert.throws(() => parse(items('G.MDTECH02.26', '3P')), /judgement/);
 });
 
+test('SLO parser accepts a year-level header in the KAMAR class heading when it matches the assessment programme', () => {
+  const items = (year, y = 542) => [
+    [`Year ${year}`, 24, y], ['KAMAR', 21, 25], ['PIDTECH', 24, 555],
+    ['Computational Thinking - Coding', 310, 520], ['Design & Develop a Digital Outcome', 550, 520],
+    ['G.JDTECH02.26', 349.11, 501], ['G.JDTECH01.26', 630.61, 501], ['Learner, Synthetic', 24, 462],
+    ['4B', 349, 463], ['4P', 631, 463], ['Male: 0, Female: 1, Students: 1', 25, 348]
+  ].map(([str, x, y]) => ({ str, transform: [1, 0, 0, 1, x, y] }));
+  const parse = data => parseReportingPage(data, [0, 0, 842, 595]);
+  assert.deepEqual(parse(items(7)), { programme: 'junior', classCode: 'PIDTECH', year: 2026, valueTerm: null,
+    fields: ['coding', 'design'], rows: [{ name: 'Learner, Synthetic', grades: { coding: '4B', design: '4P' } }], totals: [1] });
+  assert.throws(() => parse(items(9)), /programme/);
+  assert.throws(() => parse(items(7, 300)), /landscape/);
+});
+
 test('MiddleDTECH SLO sync skips Junior PDFs and tracks students with both SLOs confirmed', async () => {
   const first = { ...row, studentId: 'k:middle', programme: 'middle', coding: '5A', design: '5P' };
   const second = { ...first, studentId: 'k:second', pdfConfirmed: { coding: '5A' } };
