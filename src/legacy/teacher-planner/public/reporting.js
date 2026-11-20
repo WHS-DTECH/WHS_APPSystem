@@ -357,14 +357,14 @@
             let held = 0;
             for (const { student, award } of matched) {
               const entry = next[student.id] || {};
-              if (award === 'akoranga' && entry.akorangaCorrection) { held++; continue; }
+              if (entry[award + 'Correction']) { held++; continue; }
               next[student.id] = { ...entry, [award]: true, pdfConfirmed: { ...entry.pdfConfirmed, [award]: true } };
             }
             saveAwards(next); render();
             recipientStatus.textContent = 'Checking that award ticks are saved…';
             const saved = await ensureSaved();
             recipientStatus.textContent = saved ? `${matched.length - held} PDF-confirmed award ticks saved. Other ticks and attendance were kept.` +
-              (held ? ` ${held} red Akoranga corrections were kept unchecked.` : '') :
+              (held ? ` ${held} red award corrections were kept unchecked.` : '') :
               'Award ticks not saved. Check the Planner save message before leaving.';
           } catch (error) { recipientStatus.textContent = error.message; }
           finally { previewRecipients.disabled = false; }
@@ -434,6 +434,53 @@
         }
       }
       return { removals, ties, unassigned };
+    }
+    function gradeCriteria(excluded) {
+      const removals = new Map(), checked = new Set();
+      const eoy = new Map(records.filter(row => row.cycle === 'eoy')
+        .map(row => [JSON.stringify([row.studentId, row.programme]), row]));
+      for (const [programme, { levels, years }] of Object.entries(schema.programmes)) {
+        const groups = schema.classGroups(directory, programme);
+        if (programme === 'junior') groups.push(...(directory.homerooms || []));
+        for (const { students } of groups) for (const { id, yearLevel } of students) {
+          if (excluded.has(id) || checked.has(id) || awards[id]?.mohio !== true || !years.includes(yearLevel)) continue;
+          checked.add(id);
+          const row = eoy.get(JSON.stringify([id, programme]));
+          const grades = [row?.coding, row?.design];
+          const threshold = levels.indexOf(schema.endOfYearMohioGrades[yearLevel]);
+          if (grades.some(grade => !grade || grade === 'UAG')) removals.set(id, 'missing-slo');
+          else if (grades.some(grade => levels.indexOf(grade) < threshold)) removals.set(id, 'below-slo');
+        }
+      }
+      return removals;
+    }
+    async function applyAwardCriteria(key, label, removals, scope) {
+      if (savingCriteria || (removals.size && !globalThis.confirm(
+        `Untick ${removals.size} ${label} awards in Planner and mark them red? ${scope} KAMAR will not be changed.`
+      ))) return;
+      awardClass = '';
+      awardFilter = 'any';
+      if (!removals.size) { criteriaMessage = `No ${label} ticks could be automatically removed.`; render(); return; }
+      try {
+        const next = { ...awards };
+        for (const [id, reason] of removals) {
+          const entry = { ...next[id], [key + 'Correction']: reason };
+          delete entry[key];
+          clearAwardConfirmation(entry, key);
+          next[id] = entry;
+        }
+        saveAwards(next);
+        criteriaMessage = `Checking that ${label} corrections are saved…`;
+        savingCriteria = true;
+        render();
+        criteriaMessage = await ensureSaved() ?
+          `${removals.size} ${label} ticks removed and marked red.` :
+          `${label} corrections are not saved. Check the Planner save message before leaving.`;
+      } catch (error) { criteriaMessage = error.message; }
+      finally {
+        savingCriteria = false;
+        if (area.isConnected && directory && state.part === 'awards') render();
+      }
     }
 
     async function previewBatch() {
@@ -899,7 +946,7 @@
           }));
           criteria.append(item);
         }
-        body.append(criteria, el('p', 'Green: Yes confirmed against a KAMAR PDF. Red: Akoranga correction to review in KAMAR. White: manual or unticked. Awards are not assigned to 7S or 8S.'));
+        body.append(criteria, el('p', 'Green: Yes confirmed against a KAMAR PDF. Red: award correction to review in KAMAR. White: manual or unticked. Awards are not assigned to 7S or 8S.'));
         const awardControls = el('div', '', { class: 'reporting-tabs', 'data-planner-navigation': '' });
         button(awardControls, 'All students', !awardClass, () => { awardClass = ''; render(); });
         const excluded = externalAwardIds();
@@ -908,41 +955,23 @@
         const check = roomsAvailable ? attendanceCriteria(excluded) : null;
         const tieIds = new Set(check?.ties.flatMap(tie => tie.ids));
         if (check) {
-          const calculate = button(awardControls, 'Calculate Attendance Criteria', false, async () => {
-            const { removals } = attendanceCriteria(excluded);
-            if (removals.size && !globalThis.confirm(`Untick ${removals.size} Akoranga awards in Planner and mark them red? ` +
-                'This uses every junior homeroom, not just the current view. Ties at the cutoff are left ticked for you to review. KAMAR will not be changed.')) return;
-            awardClass = '';
-            awardFilter = 'any';
-            if (!removals.size) { criteriaMessage = 'No Akoranga ticks could be automatically removed.'; render(); return; }
-            try {
-              const next = { ...awards };
-              for (const [id, reason] of removals) {
-                const entry = { ...next[id], akorangaCorrection: reason };
-                delete entry.akoranga;
-                clearAwardConfirmation(entry, 'akoranga');
-                next[id] = entry;
-              }
-              saveAwards(next);
-              criteriaMessage = 'Checking that Akoranga corrections are saved…';
-              savingCriteria = true;
-              render();
-              criteriaMessage = await ensureSaved() ?
-                `${removals.size} Akoranga ticks removed and marked red.` :
-                'Akoranga corrections are not saved. Check the Planner save message before leaving.';
-            } catch (error) { criteriaMessage = error.message; }
-            finally {
-              savingCriteria = false;
-              if (area.isConnected && directory && state.part === 'awards') render();
-            }
-          });
+          const calculate = button(awardControls, 'Calculate Attendance Criteria', false, () =>
+            applyAwardCriteria('akoranga', 'Akoranga', attendanceCriteria(excluded).removals,
+              'This uses every junior homeroom, not just the current view. Ties at the cutoff are left ticked for you to review.'));
           calculate.disabled = savingCriteria;
           body.append(el('p', 'Akoranga only: at least 90% attendance; maximum 25% of each homeroom (rounded down). Check effort and perseverance separately.'));
-          body.append(el('p', criteriaMessage, { role: 'status' }));
           if (check.unassigned) body.append(el('p', `${check.unassigned} eligible nominees have no assigned homeroom, so their cap could not be checked.`));
           for (const tie of check.ties) body.append(el('p',
             `${tie.room}: Akoranga cutoff tie at ${tie.percentage}%. Untick ${tie.excess} of the ${tie.ids.length} students marked “Cutoff tie”.`));
         } else body.append(el('p', 'Attendance criteria require a verified JuniorDTECH homeroom roster.'));
+        const gradeCheck = button(awardControls, 'Check Grade criteria', false, () => {
+          if (state.cycle === 'eoy') return applyAwardCriteria('mohio', 'Mohio', gradeCriteria(excluded),
+            'This checks End of Year SLOs for both JuniorDTECH and MiddleDTECH in the selected term’s class list, regardless of filter. Switch programmes to see the other corrections.');
+        });
+        gradeCheck.disabled = savingCriteria || state.cycle !== 'eoy';
+        const thresholds = Object.entries(schema.endOfYearMohioGrades).map(([level, grade]) => `Year ${level}: ${grade}`).join(', ');
+        body.append(el('p', `Mohio only: both SLOs must meet the End of Year minimum (${thresholds}). Blank and UAG do not qualify.`),
+          el('p', criteriaMessage, { role: 'status' }));
         const filter = el('select', '', { 'aria-label': 'Filter awards' });
         for (const [value, label] of [['all', 'All rows'], ['any', 'Award recipients only'], ['mohio', 'Mohio only'], ['akoranga', 'Akoranga only']]) {
           filter.append(el('option', label, { value }));
@@ -954,16 +983,18 @@
           .flatMap(group => group.students.map(student => [student.id, student])));
         const students = [...roster.values()].sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
         const winners = (student, type) => !excluded.has(student.id) && awards[student.id]?.[type] === true;
-        const correction = student => !excluded.has(student.id) && awards[student.id]?.akorangaCorrection;
+        const correction = (student, key) => !excluded.has(student.id) && awards[student.id]?.[key + 'Correction'];
+        const matchesAward = (student, key) => winners(student, key) || correction(student, key);
         const matchesFilter = student => awardFilter === 'all' ||
-          (awardFilter !== 'mohio' && Boolean(correction(student))) ||
-          (awardFilter === 'any' ? winners(student, 'mohio') || winners(student, 'akoranga') : winners(student, awardFilter));
+          (awardFilter === 'any' ? matchesAward(student, 'mohio') || matchesAward(student, 'akoranga') : matchesAward(student, awardFilter));
         const shown = students.filter(matchesFilter);
         const awardSummary = () => {
+          const count = students.reduce((total, student) =>
+            total + Number(Boolean(correction(student, 'mohio'))) + Number(Boolean(correction(student, 'akoranga'))), 0);
           feedback.textContent = `${students.filter(matchesFilter).length} of ${students.length} students shown · ` +
             `${students.filter(student => winners(student, 'mohio')).length} Mohio · ` +
             `${students.filter(student => winners(student, 'akoranga')).length} Akoranga` +
-            (students.some(correction) ? ` · ${students.filter(correction).length} red corrections` : '');
+            (count ? ` · ${count} red corrections` : '');
         };
         awardSummary();
         const scroll = el('div', '', { class: 'reporting-scroll', tabindex: '0', role: 'region', 'aria-label': 'Student awards' });
@@ -978,14 +1009,16 @@
             const cell = el('td'), tickLabel = `${student.name}: ${label}`;
             const tick = el('input', '', { type: 'checkbox', 'aria-label': tickLabel });
             const confirmed = winners(student, key) && entry.pdfConfirmed?.[key];
-            const reason = key === 'akoranga' && correction(student);
+            const reason = correction(student, key);
             const tied = key === 'akoranga' && tieIds.has(student.id);
             tick.checked = winners(student, key);
             tick.disabled = excluded.has(student.id);
             if (reason) {
+              const label = reason === 'below-slo' ? `SLO below ${schema.endOfYearMohioGrades[student.yearLevel]}` :
+                reason === 'missing-slo' ? 'SLO missing or UAG' : correctionLabels[reason];
               cell.setAttribute('class', 'reporting-award-correction');
-              cell.append(el('span', correctionLabels[reason]));
-              tick.setAttribute('aria-label', `${tickLabel} (${correctionLabels[reason]})`);
+              cell.append(el('span', label));
+              tick.setAttribute('aria-label', `${tickLabel} (${label})`);
             } else if (confirmed) {
               cell.setAttribute('class', 'reporting-pdf-confirmed');
               cell.setAttribute('title', 'Confirmed against a KAMAR award PDF');
@@ -999,15 +1032,13 @@
               if (tick.checked) updated[key] = true;
               else delete updated[key];
               clearAwardConfirmation(updated, key);
-              if (key === 'akoranga') {
-                if (tick.checked) delete updated.akorangaCorrection;
-                else if (tied) updated.akorangaCorrection = 'homeroom-cap';
-              }
+              if (tick.checked) delete updated[key + 'Correction'];
+              else if (tied) updated.akorangaCorrection = 'homeroom-cap';
               if (Object.keys(updated).length) next[student.id] = updated;
               else delete next[student.id];
               try {
                 saveAwards(next);
-                if (key === 'mohio' && matchesFilter(student)) {
+                if (key === 'mohio' && !reason && matchesFilter(student)) {
                   cell.setAttribute('class', '');
                   cell.setAttribute('title', '');
                   tick.setAttribute('aria-label', tickLabel);

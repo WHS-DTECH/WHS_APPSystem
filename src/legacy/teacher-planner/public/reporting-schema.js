@@ -5,6 +5,7 @@
     middle: { label: 'MiddleDTECH', years: ['9', '10'], levels: ['UAG', '4P', '4A', '5B', '5P', '5A', '6B'] }
   };
   const values = ['Dev', 'Dem', 'Exe'];
+  const endOfYearMohioGrades = { '7': '4B', '8': '4P', '9': '5B', '10': '5A' };
   const fields = ['studentId', 'programme', 'cycle', 'coding', 'design', 'kaitiakitanga', 'rangatiratanga', 'comment'];
   const juniorValues = [
     ['whanaungatanga', 'Whānaungatanga'], ['manaakitanga', 'Manaakitanga'],
@@ -70,6 +71,8 @@
                 value === true && entry[award] === true) :
             key === 'akorangaCorrection' ? entry.akoranga !== true &&
               ['below-attendance', 'missing-attendance', 'homeroom-cap'].includes(entry[key]) :
+            key === 'mohioCorrection' ? entry.mohio !== true &&
+              ['below-slo', 'missing-slo'].includes(entry[key]) :
               key === 'attendance' && Number.isFinite(entry[key]) && entry[key] >= 0 && entry[key] <= 100));
   }
   function validContent(content) {
@@ -111,7 +114,8 @@
     remaining.splice(first, 0, combined);
     return remaining;
   }
-  const schema = { programmes, values, juniorValues, valueFields, homeroomTerms, pdfGradeFields, supportsPdfGrade, juniorAwardMeetsGuide, validRecords, validContent, complete, classGroups };
+  const schema = { programmes, values, juniorValues, valueFields, homeroomTerms, pdfGradeFields, supportsPdfGrade, juniorAwardMeetsGuide,
+    endOfYearMohioGrades, validRecords, validContent, complete, classGroups };
   if (typeof module !== 'undefined' && module.exports) module.exports = schema;
   else root.plannerReportingSchema = schema;
 })(globalThis);

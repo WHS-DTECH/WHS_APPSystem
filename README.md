@@ -1577,6 +1577,14 @@ cells show the reason and remain visible in the recipient view. A KAMAR PDF
 re-sync does not restore red corrections; manually re-ticking clears the flag.
 The check does not assess effort or perseverance, change Mohio, or write to KAMAR.
 
+**Check Grade criteria** checks existing Mohio nominees in both programmes in
+the selected term's class list using their End of Year SLOs. Both grades must
+meet the minimum: Year 7 **4B**, Year 8 **4P**, Year 9 **5B**, Year 10 **5A**.
+Blank or UAG grades do not qualify. After confirmation, failing Mohio ticks
+are removed and marked red, including in recipient filters. A PDF re-sync
+preserves these corrections; manually re-ticking clears the flag. Akoranga,
+attendance and SLO grades are unchanged, and nothing is written to KAMAR.
+
 Both programmes assess **Computational Thinking - Coding** and **Design & Develop
 a Digital Outcome**. Junior choices are UAG, 3B, 3P, 3A, 4B, 4P, 4A; Middle choices
 are UAG, 4P, 4A, 5B, 5P, 5A, 6B. The criteria guide displays Achieved (50%),

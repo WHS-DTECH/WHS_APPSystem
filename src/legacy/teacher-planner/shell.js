@@ -106,8 +106,8 @@ ${standalone ? `<script src="${asset('global-nav.js')}" defer></script>` : ''}
 <script src="${asset('moderation-schema.js?v=requirement-cleanup-2')}" defer></script>
 <script src="${asset('moderation.js?v=nzqa-version-8')}" defer></script>
 <script src="${asset('textarea-autosize.js')}" defer></script>
-<script src="${asset('reporting-schema.js?v=14')}" defer></script>
-<script src="${asset('reporting.js?v=18')}" defer></script>
+<script src="${asset('reporting-schema.js?v=15')}" defer></script>
+<script src="${asset('reporting.js?v=19')}" defer></script>
 <script src="${asset('planner.js?v=navigation-37')}" defer></script>
 </body></html>`;
 }
