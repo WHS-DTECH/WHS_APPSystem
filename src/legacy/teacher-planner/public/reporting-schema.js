@@ -11,6 +11,8 @@
     ['rangatiratanga', 'Rangatiratanga'], ['kaitiakitanga', 'Kaitiakitanga']
   ];
   const pdfGradeFields = ['coding', 'design', ...juniorValues.map(([key]) => key)];
+  const supportsPdfGrade = (programme, field) => programme === 'junior' ? pdfGradeFields.includes(field) :
+    programme === 'middle' && ['coding', 'design'].includes(field);
   function valueFields(programme, term) {
     const index = Number(term) - 1;
     if (!Number.isInteger(index) || index < 0 || index > 3) return [];
@@ -48,15 +50,15 @@
         ['kaitiakitanga', 'rangatiratanga'].every(key => row[key] === '' || values.includes(row[key])) &&
         ['whanaungatanga', 'manaakitanga'].every(key => row[key] === undefined || row[key] === '' || values.includes(row[key])) &&
         typeof row.comment === 'string' && row.comment.length <= 2000 &&
-        (row.pdfConfirmed === undefined || row.programme === 'junior' && row.pdfConfirmed &&
+        (row.pdfConfirmed === undefined || row.pdfConfirmed &&
           typeof row.pdfConfirmed === 'object' && !Array.isArray(row.pdfConfirmed) &&
-          Object.entries(row.pdfConfirmed).every(([key, grade]) => pdfGradeFields.includes(key) &&
+          Object.entries(row.pdfConfirmed).every(([key, grade]) => supportsPdfGrade(row.programme, key) &&
             typeof grade === 'string' && grade !== '' && grade === row[key])) &&
-        (row.pdfPrevious === undefined || row.programme === 'junior' && row.pdfPrevious &&
+        (row.pdfPrevious === undefined || row.pdfPrevious &&
           typeof row.pdfPrevious === 'object' && !Array.isArray(row.pdfPrevious) &&
-          Object.entries(row.pdfPrevious).every(([key, grade]) => pdfGradeFields.includes(key) &&
+          Object.entries(row.pdfPrevious).every(([key, grade]) => supportsPdfGrade(row.programme, key) &&
             row.pdfConfirmed?.[key] && grade !== row[key] &&
-            (['coding', 'design'].includes(key) ? programmes.junior.levels : values).includes(grade))));
+            (['coding', 'design'].includes(key) ? programmes[row.programme].levels : values).includes(grade))));
   }
   function validAwards(awards) {
     return awards && typeof awards === 'object' && !Array.isArray(awards) && Object.keys(awards).length <= 1000 &&
@@ -109,7 +111,7 @@
     remaining.splice(first, 0, combined);
     return remaining;
   }
-  const schema = { programmes, values, juniorValues, valueFields, homeroomTerms, pdfGradeFields, juniorAwardMeetsGuide, validRecords, validContent, complete, classGroups };
+  const schema = { programmes, values, juniorValues, valueFields, homeroomTerms, pdfGradeFields, supportsPdfGrade, juniorAwardMeetsGuide, validRecords, validContent, complete, classGroups };
   if (typeof module !== 'undefined' && module.exports) module.exports = schema;
   else root.plannerReportingSchema = schema;
 })(globalThis);

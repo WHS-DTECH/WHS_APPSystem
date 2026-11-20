@@ -6,6 +6,17 @@
 .reporting-value-allocation table { border-collapse: collapse; margin: 4px 0; }
 .reporting-value-allocation th, .reporting-value-allocation td { padding: 3px 8px; border-bottom: 1px solid #d5e0e4; text-align: left; }
 .reporting-value-allocation p { margin: 6px 0 0; font-size: .9em; }
+.reporting-value-allocation input.reporting-progress-tick {
+  appearance: none; box-sizing: border-box; width: 18px; height: 18px; margin: 0 4px 0 0;
+  vertical-align: middle; border: 2px solid #718690; border-radius: 4px; background: #fff; opacity: 1;
+}
+.reporting-value-allocation input.reporting-progress-tick:checked {
+  border-color: #17613c; background: #17613c center / 14px no-repeat
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m3 8 3 3 7-7' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+@media (forced-colors: active) {
+  .reporting-value-allocation input.reporting-progress-tick { appearance: auto; }
+}
 .reporting-folder-status { display: inline-block; margin-inline-start: 10px; font-size: .9em; color: #326046; }
 .reporting-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
 .reporting-tabs button[aria-pressed="true"] { background: #245f85; color: #fff; }

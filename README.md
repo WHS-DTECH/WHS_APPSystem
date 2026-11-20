@@ -1512,8 +1512,11 @@ create draft grades for students outside your teaching classes.
 
 **Google Drive sync — KAMAR reports** reads PDFs from a linked Reports folder
 and its `SLOs` and `Values` subfolders using the staff member's existing read-only
-Drive connection. Choose JuniorDTECH, the report cycle and the source teaching
-term, then list and preview a PDF before applying it. The preview shows exact,
+Drive connection. SLO matching supports JuniorDTECH and MiddleDTECH Markbook
+Summary exports; School Values matching is JuniorDTECH only. Choose the
+programme, report cycle and source teaching term, then list and preview a PDF
+before applying it. A shared folder can contain both programmes; the batch
+skips reports from the other programme. The preview shows exact,
 unique teaching-class matches and leaves unmatched names unchanged. A named
 School Value goes to that field even when its printed term differs from the
 teaching term. Blank PDF cells only clear grades when explicitly selected.
@@ -1562,6 +1565,8 @@ Values tick when more than half has the value for its verified DTECH term
 confirmed. Awards show confirmed recipient counts and tick with at least one
 Mohio and two Akoranga recipients. An unticked room may simply have too few
 recipients to show progress from the PDF; 7S and 8S are not eligible for awards.
+The MiddleDTECH SLO box uses the selected term's teaching classes. A class
+ticks when more than half of its students have both SLOs confirmed by a PDF.
 
 **Calculate Attendance Criteria** checks existing Akoranga ticks across the
 selected JuniorDTECH homeroom roster, regardless of the visible class or filter.
