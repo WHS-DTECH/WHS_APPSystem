@@ -1554,9 +1554,15 @@ Both programmes assess **Computational Thinking - Coding** and **Design & Develo
 a Digital Outcome**. Junior choices are UAG, 3B, 3P, 3A, 4B, 4P, 4A; Middle choices
 are UAG, 4P, 4A, 5B, 5P, 5A, 6B. The criteria guide displays Achieved (50%),
 Merit (70%) and Excellence (90%) bands without automatically calculating a grade.
-School values use Dev / Dem / Exe. JuniorDTECH shows one value for the selected
-term: Term 1 Whānaungatanga, Term 2 Manaakitanga, Term 3 Rangatiratanga and
-Term 4 Kaitiakitanga. MiddleDTECH shows both Kaitiakitanga and Rangatiratanga.
+School values use Dev / Dem / Exe. The **School Values** page shows a term
+allocation beside the reporting controls. JuniorDTECH teaching tabs use the
+selected term, while homeroom audit tabs show the value for the room's verified
+DTECH teaching term: Term 1 Whānaungatanga, Term 2 Manaakitanga, Term 3
+Rangatiratanga and Term 4 Kaitiakitanga. Rooms without a single verified term
+show no audit value. MiddleDTECH shows Whānaungatanga and Manaakitanga in
+Semester 1, and Rangatiratanga and Kaitiakitanga in Semester 2, using the
+selected class list term. This display does not move or replace saved grades.
+Drive sync shows whether each folder link is saved in this browser.
 Not entered is separate from UAG and remains incomplete. Completion requires at
 least one SLO and the selected term's value for JuniorDTECH, or both SLOs and
 both values for MiddleDTECH. The earlier-year cycle additionally requires a report comment.

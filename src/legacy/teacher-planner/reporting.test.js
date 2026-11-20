@@ -293,6 +293,9 @@ test('Reporting batch remembers folders and applies cross-term grades without ch
   assert.equal(saved()[0].pdfPrevious, undefined);
   f.remount(); await settle();
   assert.equal(folder().value, sloFolder);
+  assert.ok(f.find(node => node.attrs.class === 'reporting-folder-status' && node.textContent === 'Folder link saved in this browser'));
+  f.enter('Google Drive Reports folder', sloFolder + '?changed=1');
+  assert.ok(f.find(node => node.attrs.class === 'reporting-folder-status' && node.textContent === 'Folder link not saved yet'));
   f.click('2. School Values');
   assert.equal(folder().value, valuesFolder);
   f.click('1. Student Learning Objectives');
@@ -577,7 +580,7 @@ test('one-time default fills blanks, preserves choices, and defaults future clas
   const junior = saved.find(entry => entry.studentId === row.studentId && entry.cycle === 'eoy');
   assert.deepEqual(junior, { ...existing, kaitiakitanga: 'Dem', whanaungatanga: 'Dem', manaakitanga: 'Dem' });
   assert.deepEqual(saved.find(entry => entry.studentId === middle.studentId && entry.cycle === 'eoy'),
-    { ...middle, rangatiratanga: 'Dem' });
+    { ...middle, rangatiratanga: 'Dem', whanaungatanga: 'Dem', manaakitanga: 'Dem' });
   assert.equal(f.find(node => node.attrs.name === 'valuesDefault').value, 'Dem-v2');
   f.click('2. School Values');
   f.enter('Synthetic Junior: Rangatiratanga', '');
@@ -619,7 +622,7 @@ test('one-time default fills blanks, preserves choices, and defaults future clas
   assert.equal(restored.events.length, 0);
 });
 
-test('completion counts use the selected Junior term and both Middle values and SLOs', async () => {
+test('completion counts use the selected Junior term and both Middle semester values and SLOs', async () => {
   const junior = { ...row, design: '', whanaungatanga: 'Dem', manaakitanga: '', rangatiratanga: 'Exe' };
   const middle = { ...row, studentId: 'k:middle', programme: 'middle', coding: '5A', design: '' };
   const f = fixture({ records: JSON.stringify([junior, middle]) });
@@ -638,11 +641,52 @@ test('completion counts use the selected Junior term and both Middle values and 
   f.control('Report cycle').value = 'eoy'; f.control('Report cycle').events.change();
   f.click('MiddleDTECH');
   assert.ok(f.find(node => node.textContent === 'TEST-MDTECH (0/1)'));
-  assert.ok(f.control('Synthetic Middle: Kaitiakitanga'));
-  assert.ok(f.control('Synthetic Middle: Rangatiratanga'));
+  assert.ok(f.control('Synthetic Middle: Whānaungatanga'));
+  assert.ok(f.control('Synthetic Middle: Manaakitanga'));
+  assert.equal(f.control('Synthetic Middle: Kaitiakitanga'), undefined);
   f.click('1. Student Learning Objectives');
   f.enter('Synthetic Middle: Design & Develop a Digital Outcome', '5P');
+  assert.ok(f.find(node => node.textContent === 'TEST-MDTECH (0/1)'));
+  f.click('2. School Values');
+  f.enter('Synthetic Middle: Whānaungatanga', 'Dem');
+  f.enter('Synthetic Middle: Manaakitanga', 'Exe');
   assert.ok(f.find(node => node.textContent === 'TEST-MDTECH (1/1)'));
+  f.enter('Reporting class list term', '4');
+  await settle();
+  assert.equal(f.control('Synthetic Middle: Kaitiakitanga').value, 'Dev');
+  assert.equal(f.control('Synthetic Middle: Rangatiratanga').value, 'Exe');
+  f.click('JuniorDTECH');
+  f.click('1. Student Learning Objectives');
+});
+
+test('Values audit follows the verified homeroom teaching term, not the class list term', async () => {
+  const saved = { ...row, whanaungatanga: 'Exe', kaitiakitanga: 'Dev' };
+  const f = fixture({ records: JSON.stringify([saved]) }, false, { request: async (url, directory) => {
+    const students = directory.classes[0].students;
+    return {
+      classes: url.includes('term=1') ? [{ code: 'TEST-VEDTECH-CW', students }] :
+        url.includes('term=4') ? [{ code: 'TEST-PIDTECH-CW', students }] : [],
+      homerooms: [{ code: 'VE', students }, { code: 'TR', students: [{ id: 'k:other', name: 'Other', yearLevel: '7' }] }]
+    };
+  } });
+  await settle();
+  f.enter('Reporting class list term', '4');
+  await settle();
+  f.click('2. School Values');
+  await settle();
+  const allocation = f.control('School Value allocation');
+  assert.ok(f.all(allocation).some(node => node.tag === 'tr' &&
+    node.children.map(cell => cell.textContent).join('|') === 'VE|Term 1|Whānaungatanga'));
+  assert.ok(f.all(allocation).some(node => node.tag === 'tr' &&
+    node.children.map(cell => cell.textContent).join('|') === 'TR|Not verified|—'));
+  f.click('VE (1/1)');
+  const grid = f.control('Class report entries');
+  assert.ok(f.all(grid).some(node => node.tag === 'th' && node.textContent === 'Whānaungatanga'));
+  assert.ok(f.all(grid).some(node => node.tag === 'td' && node.textContent === 'Exe'));
+  f.click('TR (—/1)');
+  assert.ok(f.find(node => node.textContent.includes('No single DTECH teaching term')));
+  assert.equal(f.events.length, 0);
+  f.click('1. Student Learning Objectives');
 });
 
 test('failed or cancelled school values default leaves all existing records and defaults unchanged', async () => {
