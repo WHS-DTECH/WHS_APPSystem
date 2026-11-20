@@ -13,9 +13,9 @@ function parseReportingPage(items, view) {
   const middleSchool = items.some(item => item.str === 'Middle School');
   const slo = items.some(item => item.str === 'Computational Thinking - Coding') &&
     items.some(item => item.str === 'Design & Develop a Digital Outcome');
-  const yearLevel = /^Year (7|8|9|10)$/.exec(header(24, 542))?.[1];
+  const yearLevel = /^Year (7|8|9|10)$/.exec(header(slo ? 24 : 49, slo ? 542 : 517))?.[1];
   if (Math.abs(view[2] - 842) > 2 || Math.abs(view[3] - 595) > 2 ||
-    !(juniorSchool || middleSchool || (slo && yearLevel)) || !items.some(item => item.str === 'KAMAR')) {
+    !(juniorSchool || middleSchool || yearLevel) || !items.some(item => item.str === 'KAMAR')) {
     reject('Choose a landscape Junior or Middle School KAMAR report PDF.');
   }
   const values = /^(?:Term\s*|T)([1-4])\s+([\p{L}]+)$/iu.exec(header(46, 494));
@@ -33,7 +33,9 @@ function parseReportingPage(items, view) {
         (yearLevel ? !schema.programmes[programme].years.includes(yearLevel) :
           programme === 'junior' && !juniorSchool)) reject('The two DTECH assessment codes, programme, or years could not be verified.');
     year = 2000 + Number(coding[2]);
-  } else if (!juniorSchool) reject('School Values PDF matching is supported for JuniorDTECH only.');
+  } else if (yearLevel ? !schema.programmes.junior.years.includes(yearLevel) : !juniorSchool) {
+    reject('School Values PDF matching is supported for JuniorDTECH only.');
+  }
   const start = slo ? 462 : 450, spacing = slo ? 23 : 36;
   const names = items.filter(item => at(item, slo ? 24 : 49) && item.transform[5] <= start + 0.1 &&
     item.transform[5] >= (slo ? 48 : 85) && !/^Male: \d+, Female: \d+, Students: \d+$/.test(item.str))

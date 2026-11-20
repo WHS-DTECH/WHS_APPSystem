@@ -937,6 +937,17 @@ test('SLO parser accepts a year-level header in the KAMAR class heading when it 
   assert.throws(() => parse(items(7, 300)), /landscape/);
 });
 
+test('Values parser accepts a Year 7 heading but rejects a MiddleDTECH year level', () => {
+  const parse = level => parseReportingPage([
+    [`Year ${level}`, 49, 517], ['KAMAR', 46, 49], ['PIDTECH', 49, 530],
+    ['Term 4 Kaitiakitanga', 46, 494], ['Learner, Synthetic', 49, 450],
+    ['Demonstrates Kaitiakitanga', 400, 440.5], ['Male: 0, Female: 1, Students: 1', 50, 376]
+  ].map(([str, x, y]) => ({ str, transform: [1, 0, 0, 1, x, y] })), [0, 0, 842, 595]);
+  assert.deepEqual(parse(7), { programme: 'junior', classCode: 'PIDTECH', year: null, valueTerm: 4,
+    fields: ['kaitiakitanga'], rows: [{ name: 'Learner, Synthetic', grades: { kaitiakitanga: 'Dem' } }], totals: [1] });
+  assert.throws(() => parse(9), /JuniorDTECH only/);
+});
+
 test('MiddleDTECH SLO sync skips Junior PDFs and tracks students with both SLOs confirmed', async () => {
   const first = { ...row, studentId: 'k:middle', programme: 'middle', coding: '5A', design: '5P' };
   const second = { ...first, studentId: 'k:second', pdfConfirmed: { coding: '5A' } };

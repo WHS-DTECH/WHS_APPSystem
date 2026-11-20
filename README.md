@@ -1514,7 +1514,8 @@ create draft grades for students outside your teaching classes.
 and its `SLOs` and `Values` subfolders using the staff member's existing read-only
 Drive connection. SLO matching supports JuniorDTECH and MiddleDTECH Markbook
 Summary exports, including those headed with a specific year level instead of
-the school division. School Values matching is JuniorDTECH only. Choose the
+the school division. School Values matching is JuniorDTECH only and accepts
+both Junior School and Year 7/8 headings. Choose the
 programme, report cycle and source teaching term, then list and preview a PDF
 before applying it. A shared folder can contain both programmes; the batch
 skips reports from the other programme. The preview shows exact,
