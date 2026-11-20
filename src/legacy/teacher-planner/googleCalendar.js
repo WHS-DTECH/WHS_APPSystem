@@ -261,7 +261,7 @@ function createGoogleCalendarRouter({ query, env = process.env, fetchImpl = fetc
     if (!root) throw new CalendarError('Paste a Google Drive award recipient folder link.', 400);
     const { files, connectionId } = await recipientDrive.listFiles(req, root);
     const recipients = files.filter(file => recipientFilename.test(file.name));
-    if (recipients.length > 12) throw new CalendarError('Keep at most 12 KAMAR recipient PDFs in this folder before previewing.', 422);
+    if (recipients.length > 30) throw new CalendarError('Keep at most 30 KAMAR recipient PDFs in this shared Junior/Middle folder before previewing.', 422);
     const reports = [];
     for (const file of recipients) {
       const result = await recipientDrive.readFile(req, root, file.id);

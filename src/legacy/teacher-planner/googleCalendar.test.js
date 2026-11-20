@@ -276,6 +276,60 @@ test('Google mutations inherit planner CSRF protection even before credentials a
   } finally { await new Promise(resolve => server.close(resolve)); }
 });
 
+test('Awards preview reads a shared Junior/Middle folder beyond 12 exports while retaining a bounded limit and version checks', async () => {
+  const drive = require('./attendanceDrive'), originalFactory = drive.createAttendanceDriveService;
+  const calendarPath = require.resolve('./googleCalendar'), originalModule = require.cache[calendarPath];
+  let count = 13, changed = false, reads = 0, router;
+  const files = () => Array.from({ length: count }, (_, index) => ({
+    id: `fixture_award_${index}`, name: `PrintSectionIndexRecipientListbySection_20261121_1204${String(index).padStart(2, '0')}.pdf`,
+    version: 'v1'
+  }));
+  drive.createAttendanceDriveService = options => options.purpose === 'Award recipients' ? {
+    listFiles: async () => ({ connectionId: 'fixture-connection', files: [
+      ...files(), { id: 'fixture_criteria', name: 'Award criteria.pdf', version: 'v1' }
+    ] }),
+    readFile: async () => {
+      reads++;
+      return { connectionId: 'fixture-connection', version: changed ? 'v2' : 'v1',
+        pdf: { printYear: 2026, rows: [{ id: 'k:123', yearLevel: '9', award: 'mohio' }] } };
+    }
+  } : originalFactory(options);
+  delete require.cache[calendarPath];
+  try {
+    router = require('./googleCalendar').createGoogleCalendarRouter({ query: async () => ({ rows: [] }), env });
+  } finally {
+    drive.createAttendanceDriveService = originalFactory;
+    require.cache[calendarPath] = originalModule;
+  }
+  const app = express();
+  app.use((req, res, next) => { req.user = { id: crypto.randomUUID() }; next(); });
+  app.use('/google-calendar', router);
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  const url = `http://127.0.0.1:${server.address().port}/google-calendar/reporting-award-pdfs?folder=fixture_awards_folder`;
+  try {
+    for (count of [13, 30]) {
+      reads = 0;
+      const response = await fetch(url);
+      assert.equal(response.status, 200);
+      const body = await response.json();
+      assert.equal(body.reports.length, count);
+      assert.equal(reads, count);
+      assert.equal(body.ignored, 1);
+      assert.deepEqual(body.reports[0].rows, [{ id: 'k:123', yearLevel: '9', award: 'mohio' }]);
+    }
+    count = 31; reads = 0;
+    const overLimit = await fetch(url);
+    assert.equal(overLimit.status, 422);
+    assert.match((await overLimit.json()).error, /at most 30/);
+    assert.equal(reads, 0);
+    count = 13; changed = true;
+    const stale = await fetch(url);
+    assert.equal(stale.status, 409);
+    assert.match((await stale.json()).error, /changed/);
+  } finally { await new Promise(resolve => server.close(resolve)); }
+});
+
 test('Term Google calendar opens the current NZ week, navigates, shows overflow details and exposes retries', async () => {
   const source = await fs.readFile(path.join(__dirname, 'public', 'planner.js'), 'utf8');
   const ui = await fs.readFile(path.join(__dirname, 'public', 'google-calendar.js'), 'utf8');
