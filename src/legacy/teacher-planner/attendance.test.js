@@ -1021,10 +1021,14 @@ async function fixture(t, query) {
     if (req.get('x-user')) req.user = { id: req.get('x-user'), roles: [req.get('x-role') || 'Teacher'] };
     next();
   });
-  app.use(createModuleRouter({ query, loadClasses: async (_req, year) => {
+  app.use(createModuleRouter({ query, loadClasses: async (_req, year, term, juniorAudit) => {
     assert.equal(year, 2026);
     if (directoryFails) throw new Error('Directory unavailable');
-    return { staffCode: 'TEST', classes: [{ code: '11TEST', students: group.students }] };
+    if (juniorAudit) assert.equal(term, 4);
+    return { staffCode: 'TEST', classes: [{ code: '11TEST', students: group.students }],
+      ...(juniorAudit ? { homerooms: [{ code: '7S', students: [
+        { id: 'k:700', name: 'Synthetic Junior', yearLevel: '7', whanau: '7S' }
+      ] }] } : {}) };
   } }));
   const server = app.listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
@@ -1170,7 +1174,13 @@ test('attendance API requires sign-in, CSRF, ownership and revisions without cha
   assert.equal((await (await fetch(base + 'attendance/2026/week/2026-10-26', { headers: otherHeaders })).json()).marks.length, 0);
   assert.equal((await fetch(base + 'attendance/2026/week/2026-10-27', { headers })).status, 400);
   assert.equal((await fetch(base + 'attendance/classes/2026', { headers })).status, 200);
-  assert.equal((await fetch(base + 'attendance/classes/2026?term=3', { headers })).status, 200);
+  const classes = await fetch(base + 'attendance/classes/2026?term=3', { headers });
+  assert.equal(classes.status, 200);
+  assert.equal((await classes.json()).homerooms, undefined);
+  const audit = await fetch(base + 'attendance/classes/2026?term=4&view=junior-audit', { headers });
+  assert.equal(audit.status, 200);
+  assert.equal((await audit.json()).homerooms[0].code, '7S');
+  assert.equal((await fetch(base + 'attendance/classes/2026?view=junior-audit', { headers })).status, 400);
   for (const invalid of ['0', '5', '3.0', 'abc']) {
     assert.equal((await fetch(base + 'attendance/classes/2026?term=' + invalid, { headers })).status, 400);
   }

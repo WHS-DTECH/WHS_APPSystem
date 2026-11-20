@@ -2,6 +2,10 @@
 .reporting-controls { display: grid; gap: 12px; margin: 20px 0; }
 .reporting-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
 .reporting-tabs button[aria-pressed="true"] { background: #245f85; color: #fff; }
+.reporting-tabs .reporting-teaching-tab { background: #e3f1fa; color: #154967; border-color: #6094b3; }
+.reporting-tabs .reporting-teaching-tab[aria-pressed="true"] { background: #245f85; color: #fff; }
+.reporting-tabs .reporting-audit-tab { background: #edf5ec; color: #254c36; border-color: #71957a; }
+.reporting-tabs .reporting-audit-tab[aria-pressed="true"] { background: #326046; color: #fff; }
 .reporting-scroll { max-height: 65vh; overflow: auto; border: 1px solid #b3c4cb; }
 .reporting-table { width: 100%; border-collapse: separate; border-spacing: 0; }
 .reporting-table th, .reporting-table td { padding: 12px; border-bottom: 1px solid #b3c4cb; text-align: left; background: #fff; }

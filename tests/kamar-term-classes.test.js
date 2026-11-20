@@ -43,3 +43,16 @@ test('missing or malformed historical rosters fail explicitly instead of showing
   await assert.rejects(attendanceClasses({ email: 'synthetic@example.test' }, 2026, malformed, 3), /missing required columns/);
   await assert.rejects(attendanceClasses({ email: 'synthetic@example.test' }, 2026, query, 5), /valid attendance term/);
 });
+
+test('Junior audit includes the full term roll, including 7S, 8S and unassigned students', async () => {
+  const query = async sql => sql.includes('staff_upload') ? { rows: [{ code: 'TST' }] } : { rows: [{ payload: {
+    headers, rows: [...payload.rows,
+      ['Not Taught', '300', '7S', '7', 'OTHER-JDTECH', '', '', '', ''],
+      ['Another Junior', '400', '8S', '8', '', '', '', '', ''],
+      ['No Homeroom', '500', '', '7', '', '', '', '', '']]
+  } }] };
+  const result = await attendanceClasses({ email: 'synthetic@example.test' }, 2026, query, 4, true);
+  assert.deepEqual(result.homerooms.map(group => [group.code, group.students.map(student => student.id)]),
+    [['7S', ['k:300']], ['8S', ['k:400']], ['Unassigned', ['k:500']], ['W1', ['k:100']]]);
+  assert.ok(result.classes.every(group => group.students.every(student => student.id === 'k:100')));
+});

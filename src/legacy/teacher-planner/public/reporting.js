@@ -153,22 +153,26 @@
       store.dispatchEvent(new Event('input', { bubbles: true }));
       summary();
     }
-    function button(parent, label, active, action) {
-      const node = el('button', label, { type: 'button', 'aria-pressed': String(active) });
+    function button(parent, label, active, action, attrs = {}) {
+      const node = el('button', label, { type: 'button', 'aria-pressed': String(active), ...attrs });
       node.addEventListener('click', action); parent.append(node); return node;
     }
-    function groups() { return schema.classGroups(directory, state.programme); }
-    function selected() { return groups().find(group => group.code === state.classCode); }
+    function groups() {
+      const teaching = schema.classGroups(directory, state.programme).map(group => ({ ...group, key: group.code }));
+      if (state.cycle !== 'eoy' || state.programme !== 'junior') return teaching;
+      return teaching.concat((directory.homerooms || []).map(group => ({ ...group, key: 'audit:' + group.code, audit: true })));
+    }
+    function selected() { return groups().find(group => group.key === state.classCode); }
     function summary() {
       const students = selected()?.students || [];
       const count = students.filter(student => schema.complete(record(student), state.cycle, termSelect.value)).length;
       for (const group of groups()) {
         const done = group.students.filter(student => schema.complete(record(student), state.cycle, termSelect.value)).length;
-        const tab = classButtons.get(group.code);
+        const tab = classButtons.get(group.key);
         if (tab) tab.textContent = `${group.code} (${done}/${group.students.length})`;
       }
       feedback.setAttribute('role', 'status');
-      feedback.textContent = `${count} of ${students.length} students complete in this class. ` +
+      feedback.textContent = `${count} of ${students.length} students complete in this ${selected()?.audit ? 'homeroom' : 'class'}. ` +
         (state.programme === 'junior' ? 'JuniorDTECH requires at least one SLO and this term’s school value. ' :
           'MiddleDTECH requires both SLOs and both school values. ') +
         (state.cycle === 'eoy' ? 'Comments are optional for EOY.' : 'An earlier-year comment is required.');
@@ -191,14 +195,17 @@
       }
       controls.append(programmes);
       const classes = groups();
-      if (!classes.some(group => group.code === state.classCode)) state.classCode = classes[0]?.code || '';
-      const tabs = el('div', '', { class: 'reporting-tabs', role: 'group', 'aria-label': 'Class' });
+      if (!classes.some(group => group.key === state.classCode)) state.classCode = classes[0]?.key || '';
+      const tabs = el('div', '', { class: 'reporting-tabs', role: 'group', 'aria-label': 'Teaching classes' });
+      const auditTabs = el('div', '', { class: 'reporting-tabs', role: 'group', 'aria-label': 'Homeroom audit' });
       for (const group of classes) {
         const done = group.students.filter(student => schema.complete(record(student), state.cycle, termSelect.value)).length;
-        classButtons.set(group.code, button(tabs, `${group.code} (${done}/${group.students.length})`, group.code === state.classCode,
-          () => { state.classCode = group.code; render(); }));
+        classButtons.set(group.key, button(group.audit ? auditTabs : tabs, `${group.code} (${done}/${group.students.length})`,
+          group.key === state.classCode, () => { state.classCode = group.key; render(); },
+          { class: group.audit ? 'reporting-audit-tab' : 'reporting-teaching-tab' }));
       }
-      controls.append(tabs);
+      if (classes.some(group => !group.audit)) controls.append(el('strong', 'Teaching classes'), tabs);
+      if (classes.some(group => group.audit)) controls.append(el('strong', 'Homeroom audit (read-only)'), auditTabs);
       const parts = el('div', '', { class: 'reporting-tabs', role: 'group', 'aria-label': 'Report part' });
       for (const [key, label] of [['slo', '1. Student Learning Objectives'], ['values', '2. School Values'], ['comments', '3. Report Comments']]) {
         button(parts, label, state.part === key, () => {
@@ -232,11 +239,16 @@
       head.append(el('th', 'Student', { scope: 'col' }), el('th', 'Year', { scope: 'col' }));
       for (const [, label] of definitions) head.append(el('th', label, { scope: 'col' }));
       const thead = el('thead'); thead.append(head); table.append(thead, tbody); scroll.append(table); body.append(scroll);
-      const students = selected().students.filter(student => !state.incomplete || !schema.complete(record(student), state.cycle, termSelect.value));
+      const group = selected();
+      const students = group.students.filter(student => !state.incomplete || !schema.complete(record(student), state.cycle, termSelect.value));
       for (const student of students) {
         const tr = el('tr');
         tr.append(el('th', student.name, { scope: 'row' }), el('td', student.yearLevel));
         for (const [field, label] of definitions) {
+          if (group.audit) {
+            tr.append(el('td', record(student)?.[field] || 'Not entered'));
+            continue;
+          }
           const td = el('td'), control = el(field === 'comment' ? 'textarea' : 'select', '', { 'aria-label': student.name + ': ' + label });
           if (field === 'comment') { control.maxLength = 2000; control.rows = 3; }
           else {
@@ -261,7 +273,7 @@
       feedback.setAttribute('role', 'status');
       feedback.textContent = 'Loading Term ' + selectedTerm + ' school classes...';
       try {
-        const result = await request('attendance/classes/' + year + '?term=' + selectedTerm);
+        const result = await request('attendance/classes/' + year + '?term=' + selectedTerm + '&view=junior-audit');
         if (!area.isConnected || currentLoad !== loadNumber) return;
         if (defaultStore.value || sloDefaultStore.value) {
           const next = records.map(row => ({ ...row }));
