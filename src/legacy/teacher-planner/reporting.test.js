@@ -1024,17 +1024,20 @@ test('Award progress counts confirmed recipients only and excludes 7S/8S', async
   const f = fixture({ awards: JSON.stringify({
     [a.id]: { mohio: true, akoranga: true, pdfConfirmed: { mohio: true, akoranga: true } },
     [b.id]: { akoranga: true, pdfConfirmed: { akoranga: true } },
-    [c.id]: { mohio: true, akoranga: true, pdfConfirmed: { mohio: true, akoranga: true } },
+    [c.id]: { mohio: true, pdfConfirmed: { mohio: true } },
     [d.id]: { akoranga: true },
     [other.id]: { mohio: true, akoranga: true, pdfConfirmed: { mohio: true, akoranga: true } }
   }) }, false, { request: async (url, directory) => ({ ...directory, homerooms: [
-    { code: 'VE', students: [a, b] }, { code: 'PI', students: [c, d] },
+    { code: 'VE', students: [a] }, { code: 'PI', students: [c] },
+    { code: 'SR', students: [b] }, { code: 'MM', students: [d] },
     { code: '7S', students: [other] }, { code: '8S', students: [] }
   ] }) });
   await settle();
   f.click('4. Awards');
-  assert.equal(f.control('VE: PDF matched, 1 Mohio · 2 Akoranga').checked, true);
-  assert.equal(f.control('PI: PDF matched, 1 Mohio · 1 Akoranga').checked, false);
+  assert.equal(f.control('VE: PDF matched, 1 Mohio · 1 Akoranga').checked, true);
+  assert.equal(f.control('PI: PDF matched, 1 Mohio · 0 Akoranga').checked, true);
+  assert.equal(f.control('SR: PDF matched, 0 Mohio · 1 Akoranga').checked, true);
+  assert.equal(f.control('MM: PDF matched, 0 Mohio · 0 Akoranga').checked, false);
   for (const room of ['7S', '8S']) assert.equal(f.control(`${room}: PDF matched, Not eligible`).checked, false);
   assert.equal(f.events.length, 0);
 });
