@@ -63,6 +63,9 @@
       Object.entries(awards).every(([id, entry]) => /^k:[A-Za-z0-9_-]{1,60}$/.test(id) &&
         entry && typeof entry === 'object' && !Array.isArray(entry) && Object.keys(entry).every(key =>
           ['mohio', 'akoranga'].includes(key) ? typeof entry[key] === 'boolean' :
+            key === 'pdfConfirmed' ? entry.pdfConfirmed && typeof entry.pdfConfirmed === 'object' && !Array.isArray(entry.pdfConfirmed) &&
+              Object.entries(entry.pdfConfirmed).every(([award, value]) => ['mohio', 'akoranga'].includes(award) &&
+                value === true && entry[award] === true) :
             key === 'attendance' && Number.isFinite(entry[key]) && entry[key] >= 0 && entry[key] <= 100));
   }
   function validContent(content) {

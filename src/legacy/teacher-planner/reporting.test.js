@@ -7,6 +7,7 @@ const schema = require('./public/reporting-schema');
 const { validKey, validContent } = require('./planner');
 const { renderShell } = require('./shell');
 const { importReportingAttendance } = require('./reportingAttendance');
+const { parseAwardPage } = require('./reportingAwardsImport');
 
 const row = { studentId: 'k:synthetic', programme: 'junior', cycle: 'eoy',
   coding: '3P', design: '4A', kaitiakitanga: 'Dev', rangatiratanga: 'Exe', comment: '' };
@@ -210,13 +211,13 @@ test('Awards roster edits in homerooms, filters recipients and imports attendanc
     if (url.startsWith('google-calendar/reporting-awards/files/')) return { entries: [
       { id: 'k:synthetic', percentage: 0 }, { id: 'k:audit', percentage: 94.5 }, { id: 'k:other', percentage: 100 }
     ] };
-    return { ...directory, homerooms: [{ code: '8S', students: [directory.classes[0].students[0],
+    return { ...directory, homerooms: [{ code: 'PI', students: [directory.classes[0].students[0],
       { id: 'k:audit', name: 'Audit Student', yearLevel: '8' }] }] };
   } });
   await settle();
   f.click('4. Awards');
   assert.ok(f.control('Audit Student: Mohio'));
-  f.click('8S (2)');
+  f.click('PI (2)');
   const tick = f.control('Audit Student: Mohio');
   assert.equal(tick.checked, false);
   tick.checked = true; tick.events.change({ stopPropagation() {} });
@@ -238,6 +239,54 @@ test('Awards roster edits in homerooms, filters recipients and imports attendanc
   f.remount(); await settle();
   assert.equal(f.control('Audit Student: Mohio').checked, true);
   assert.ok(f.find(node => node.tag === 'td' && node.textContent === '0%'));
+  f.click('1. Student Learning Objectives');
+});
+
+test('KAMAR recipient PDF parsing uses the award heading, Student ID and Digital Technologies subject', () => {
+  const item = (x, y, str) => ({ str, transform: [1, 0, 0, 1, x, y] });
+  const rows = [
+    item(240, 818, 'Junior Awards'), item(25, 785, 'Junior School Kaha Mōhio'),
+    item(31, 766, '00123'), item(102, 766, 'Student, Test'), item(273, 766, '7'), item(352, 766, 'Digital Technologies'),
+    item(31, 749, '12345'), item(273, 749, '7'), item(352, 749, 'Mathematics'),
+    item(25, 730, 'Junior School Kaha Akoranga'), item(31, 710, '23456'), item(273, 710, '8'), item(352, 710, 'Digital Technology'),
+    item(19, 7, 'KAMAR'), item(526, 5, '21/11/2026')
+  ];
+  assert.deepEqual(parseAwardPage(rows), { printYear: 2026, section: 'akoranga', rows: [
+    { id: 'k:00123', yearLevel: '7', award: 'mohio' }, { id: 'k:23456', yearLevel: '8', award: 'akoranga' }
+  ] });
+  assert.throws(() => parseAwardPage(rows.filter(row => row.str !== '00123')), /no verified/);
+});
+
+test('Awards PDF confirms only matched eligible ticks and keeps manual entries and attendance', async () => {
+  const data = { records: JSON.stringify([row]), awards: JSON.stringify({ [row.studentId]: { attendance: 93, akoranga: true } }) };
+  const outside = { id: 'k:outside', name: 'Other School', yearLevel: '7' };
+  const selection = [
+    { id: row.studentId, yearLevel: '7', award: 'mohio' },
+    { id: outside.id, yearLevel: '7', award: 'akoranga' },
+    { id: row.studentId, yearLevel: '8', award: 'akoranga' }
+  ];
+  const f = fixture(data, false, { request: async (url, directory) => {
+    if (url.startsWith('google-calendar/reporting-award-pdfs?')) return { ignored: 2, reports: [
+      { name: 'One.pdf', printYear: 2026, rows: selection }, { name: 'Copy.pdf', printYear: 2026, rows: selection }
+    ] };
+    return { ...directory, homerooms: [{ code: '7S', students: [outside] }] };
+  } });
+  await settle();
+  f.click('4. Awards');
+  assert.equal(f.find(node => node.tag === 'button' && node.textContent === '7S (1)').disabled, true);
+  assert.equal(f.control('Other School: Akoranga').disabled, true);
+  f.control('Award recipient PDF folder').value = 'https://drive.google.com/drive/folders/example_awards_folder';
+  await f.click('Preview award PDFs');
+  assert.equal(f.events.length, 0);
+  assert.ok(f.find(node => node.textContent.includes('1 unique award ticks matched; 1 ineligible')));
+  await f.click('Apply verified awards for 2026');
+  const stored = () => JSON.parse(f.find(node => node.attrs.name === 'awards').value);
+  assert.deepEqual(stored(), { [row.studentId]: { attendance: 93, akoranga: true, mohio: true, pdfConfirmed: { mohio: true } } });
+  assert.equal(f.all().filter(node => node.attrs.class === 'reporting-pdf-confirmed').length, 1);
+  const tick = f.control('Synthetic Junior: Mohio (confirmed against a KAMAR award PDF)');
+  tick.checked = false; tick.events.change({ stopPropagation() {} });
+  assert.deepEqual(stored(), { [row.studentId]: { attendance: 93, akoranga: true } });
+  assert.equal(f.all().filter(node => node.attrs.class === 'reporting-pdf-confirmed').length, 0);
   f.click('1. Student Learning Objectives');
 });
 
