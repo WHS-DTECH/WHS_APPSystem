@@ -141,13 +141,21 @@ function createAttendanceRouter({ query, loadClasses }) {
     const year = Number(req.params.year);
     if (!/^\d{4}$/.test(req.params.year) || year < 2000 || year > 2100) return reject(res, 'Choose a valid attendance year.');
     if (req.query.term !== undefined && !/^[1-4]$/.test(req.query.term)) return reject(res, 'Choose a valid attendance term.');
+    const juniorAudit = req.query.view === 'junior-audit';
+    if (req.query.view !== undefined && (!juniorAudit || typeof req.query.term !== 'string')) {
+      return reject(res, 'Choose a term for the JuniorDTECH audit.');
+    }
     try {
       if (!loadClasses) throw new Error('The school class-list connection is not configured.');
-      const directory = await loadClasses(req, year, req.query.term === undefined ? undefined : Number(req.query.term));
+      const directory = await loadClasses(req, year, req.query.term === undefined ? undefined : Number(req.query.term), juniorAudit);
       if (!text(directory?.staffCode, 60)) {
         throw new Error('The school class-list connection has no matched staff code. Deploy the updated Global Control staff matching bridge, then retry.');
       }
-      if (!keys(directory, ['classes', 'staffCode']) || !Array.isArray(directory.classes) ||
+      if (!keys(directory, juniorAudit ? ['classes', 'staffCode', 'homerooms'] : ['classes', 'staffCode']) ||
+        (juniorAudit && (!Array.isArray(directory.homerooms) || !directory.homerooms.every(group =>
+          keys(group, ['code', 'students']) && text(group.code, 120) && Array.isArray(group.students) &&
+          group.students.every(student => directoryStudent(student) && ['7', '8'].includes(student.yearLevel))))) ||
+        !Array.isArray(directory.classes) ||
         !directory.classes.every(group => keys(group, ['code', 'students', 'slots']) && text(group.code, 120) &&
           Array.isArray(group.students) && group.students.every(directoryStudent) &&
           (group.slots === undefined || Array.isArray(group.slots) && unique(group.slots) &&

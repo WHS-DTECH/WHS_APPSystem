@@ -35,7 +35,7 @@ async function staffDirectory(user, { includeEmails = false } = {}, directoryQue
   return { staff: result.rows, departments: await loadDepartments(dbQuery, result.rows) };
 }
 
-async function attendanceClasses(user, year, directoryQuery = query, term) {
+async function attendanceClasses(user, year, directoryQuery = query, term, juniorAudit = false) {
   if (!Number.isInteger(year) || year < 2000 || year > 2100) {
     throw Object.assign(new Error('Choose a valid attendance year.'), { status: 400 });
   }
@@ -69,7 +69,8 @@ async function attendanceClasses(user, year, directoryQuery = query, term) {
     const payload = snapshot.rows[0].payload;
     if (!payload || !Array.isArray(payload.headers) || !Array.isArray(payload.rows)) throw new Error('Preserved student timetable is invalid.');
     const map = buildStudentHeaderMap(payload.headers);
-    if (!['student_name', 'id_number', 'year_level'].every(key => [...map.values()].includes(key)) ||
+    const required = ['student_name', 'id_number', 'year_level', ...(juniorAudit ? ['form_class'] : [])];
+    if (!required.every(key => [...map.values()].includes(key)) ||
         !columns.some(key => [...map.values()].includes(key))) throw new Error('Preserved student timetable is missing required columns.');
     rows = payload.rows.map(row => {
       if (!Array.isArray(row) || row.length !== payload.headers.length) throw new Error('Preserved student timetable contains an invalid row.');
@@ -78,8 +79,16 @@ async function attendanceClasses(user, year, directoryQuery = query, term) {
       .sort((a, b) => a.student_name.localeCompare(b.student_name) || a.id_number.localeCompare(b.id_number));
   }
   const classes = new Map();
+  const homerooms = new Map();
   const classSlots = new Map();
   for (const student of rows) {
+    const person = { id: 'k:' + student.id_number.trim(), name: student.student_name.trim(),
+      yearLevel: String(student.year_level || '').trim(), whanau: String(student.form_class || '').trim() };
+    if (juniorAudit && ['7', '8'].includes(person.yearLevel)) {
+      const code = person.whanau.toUpperCase() || 'Unassigned';
+      if (!homerooms.has(code)) homerooms.set(code, new Map());
+      homerooms.get(code).set(person.id, person);
+    }
     for (const key of columns) {
       const code = student[key]?.trim();
       if (!code) continue;
@@ -87,12 +96,13 @@ async function attendanceClasses(user, year, directoryQuery = query, term) {
       if (separator < 1 || !code.slice(0, separator).toUpperCase().split('/').map(value => value.trim()).includes(staffCode)) continue;
       if (!classes.has(code)) { classes.set(code, new Map()); classSlots.set(code, new Set()); }
       classSlots.get(code).add(key);
-      classes.get(code).set(student.id_number, { id: 'k:' + student.id_number.trim(), name: student.student_name.trim(),
-        yearLevel: String(student.year_level || '').trim(), whanau: String(student.form_class || '').trim() });
+      classes.get(code).set(student.id_number, person);
     }
   }
   return { staffCode, classes: [...classes].sort(([a], [b]) => a.localeCompare(b))
-    .map(([code, students]) => ({ code, students: [...students.values()], slots: [...classSlots.get(code)].sort() })) };
+    .map(([code, students]) => ({ code, students: [...students.values()], slots: [...classSlots.get(code)].sort() })),
+    ...(juniorAudit ? { homerooms: [...homerooms].sort(([a], [b]) => a.localeCompare(b))
+      .map(([code, students]) => ({ code, students: [...students.values()] })) } : {}) };
 }
 
 module.exports = { currentDirectory, classifyPeople, staffDirectory, attendanceClasses };

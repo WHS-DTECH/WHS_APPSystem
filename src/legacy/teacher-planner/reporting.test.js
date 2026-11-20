@@ -101,8 +101,38 @@ test('Reporting retains editable SLOs without the old Awards guide or extra rost
   assert.equal(f.find(node => node.textContent === '4. Awards'), undefined);
   assert.ok(f.control('Synthetic Junior: Computational Thinking - Coding'));
   assert.ok(f.control('Report cycle'));
-  assert.deepEqual(f.calls, ['attendance/classes/2026?term=3']);
+  assert.deepEqual(f.calls, ['attendance/classes/2026?term=3&view=junior-audit']);
   assert.equal(f.find(node => node.attrs.name === 'records').value, JSON.stringify(entries));
+  assert.equal(f.events.length, 0);
+});
+
+test('End of Year JuniorDTECH shows read-only homerooms alongside editable teaching classes', async () => {
+  const f = fixture({ records: JSON.stringify([row]) }, false, { request: async (url, directory) => ({
+    ...directory, homerooms: url.includes('term=4') ? [{ code: '8S', students: [
+      { id: 'k:other', name: 'Student Not Taught', yearLevel: '8' }
+    ] }] : [{ code: '7S', students: [...directory.classes[0].students,
+      { id: 'k:other', name: 'Student Not Taught', yearLevel: '7' }] }]
+  }) });
+  await settle();
+  assert.ok(f.control('Synthetic Junior: Computational Thinking - Coding'));
+  const teaching = f.control('Teaching classes').children[0];
+  const audit = f.control('Homeroom audit').children[0];
+  assert.notEqual(teaching.attrs.class, audit.attrs.class);
+  f.click('7S (1/2)');
+  assert.equal(f.control('Synthetic Junior: Computational Thinking - Coding'), undefined);
+  assert.ok(f.find(node => node.tag === 'td' && node.textContent === '4A'));
+  assert.ok(f.find(node => node.tag === 'th' && node.textContent === 'Student Not Taught'));
+  assert.ok(f.find(node => node.tag === 'td' && node.textContent === 'Not entered'));
+  f.enter('Report cycle', 'earlier');
+  assert.equal(f.control('Homeroom audit'), undefined);
+  f.enter('Report cycle', 'eoy');
+  f.click('MiddleDTECH');
+  assert.equal(f.control('Homeroom audit'), undefined);
+  f.click('JuniorDTECH');
+  f.enter('Reporting class list term', '4');
+  await settle();
+  assert.equal(f.control('Homeroom audit').children[0].textContent, '8S (0/1)');
+  assert.equal(f.find(node => node.attrs.name === 'records').value, JSON.stringify([row]));
   assert.equal(f.events.length, 0);
 });
 
@@ -291,7 +321,7 @@ test('Dem defaults do not duplicate students present in both PIDTECH rooms', asy
 test('reporting grids preserve student, programme and cycle entries and emit autosave edits', async () => {
   const f = fixture();
   await settle();
-  assert.deepEqual(f.calls, ['attendance/classes/2026?term=3'], 'No attendance marks or timetable requests');
+  assert.deepEqual(f.calls, ['attendance/classes/2026?term=3&view=junior-audit'], 'No attendance marks or timetable requests');
   assert.equal(f.find(node => node.textContent === 'Not DTECH'), undefined);
   const codingLabel = 'Synthetic Junior: Computational Thinking - Coding';
   assert.deepEqual(f.control(codingLabel).children.map(node => node.attrs.value), ['', ...schema.programmes.junior.levels]);
@@ -299,7 +329,7 @@ test('reporting grids preserve student, programme and cycle entries and emit aut
   f.control('Reporting class list term').value = '4';
   f.control('Reporting class list term').events.change();
   await settle();
-  assert.equal(f.calls[1], 'attendance/classes/2026?term=4');
+  assert.equal(f.calls[1], 'attendance/classes/2026?term=4&view=junior-audit');
   assert.equal(f.control(codingLabel).value, '3P', 'Report judgements are shared across terms within the same cycle');
   f.enter('Synthetic Junior: Design & Develop a Digital Outcome', '4A');
   f.click('2. School Values');

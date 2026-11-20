@@ -1501,6 +1501,13 @@ its optional PostgreSQL checks require isolated disposable test databases.
 
 ### Reporting
 
+In **JuniorDTECH → End of Year**, the **Homeroom audit** tabs show every
+Year 7–8 student in the selected term's preserved timetable, including 7S and
+8S when present. Students without a form class appear under **Unassigned**.
+The green homeroom tabs are read-only and show saved drafts and completion
+counts; the blue teaching tabs remain editable. Opening a homeroom does not
+create draft grades for students outside your teaching classes.
+
 The **Reporting** section provides JuniorDTECH and MiddleDTECH programme tabs,
 then class tabs and report-part pages. A permanent
 [DTECH Assessment Criteria Google Doc](https://docs.google.com/document/d/1oA7xHQapbqE3myKKFL6T7oUMGxPbrm2BCE1rJQ51-gw/edit?usp=sharing)
