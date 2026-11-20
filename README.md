@@ -1522,12 +1522,17 @@ replacing any grades. Matching nonblank grades turn green, as do grades applied
 from the PDF. Confirmation is saved per grade cell and clears when the grade is
 changed manually or a reviewed PDF no longer matches. Previously imported
 grades without saved confirmation can be rechecked against the original PDF.
-Changes use normal Planner draft autosave; sync never writes to KAMAR or Drive.
+After confirmation, Reporting opens the matching teaching tab and grade view
+when available, and reports whether the Planner save succeeded. A School Value
+printed for a different term is visible under that term. Sync never writes to
+KAMAR or Drive.
 
 The **Reporting** section provides JuniorDTECH and MiddleDTECH programme tabs,
 then class tabs and report-part pages. A permanent
 [DTECH Assessment Criteria Google Doc](https://docs.google.com/document/d/1oA7xHQapbqE3myKKFL6T7oUMGxPbrm2BCE1rJQ51-gw/edit?usp=sharing)
-shortcut opens in a new tab.
+shortcut opens in a new tab. **4. Awards** links to the 2025 Junior/Middle and
+2026 Senior criteria PDFs using their existing Drive permissions. It does not
+allocate or confirm awards.
 
 Both programmes assess **Computational Thinking - Coding** and **Design & Develop
 a Digital Outcome**. Junior choices are UAG, 3B, 3P, 3A, 4B, 4P, 4A; Middle choices
