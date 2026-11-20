@@ -2,7 +2,8 @@ const parsePdf = require('pdf-parse/lib/pdf-parse');
 const schema = require('./public/reporting-schema');
 
 class ReportingPdfError extends Error {}
-const valueCodes = { developing: 'Dev', demonstrates: 'Dem', exemplifies: 'Exe' };
+const valueCodes = { developing: 'Dev', demonstrates: 'Dem', exemplifies: 'Exe',
+  demonstrating: 'Dem', exemplifying: 'Exe' };
 
 function parseReportingPage(items, view) {
   const reject = message => { throw new ReportingPdfError(message); };
@@ -18,10 +19,23 @@ function parseReportingPage(items, view) {
     !(juniorSchool || middleSchool || yearLevel) || !items.some(item => item.str === 'KAMAR')) {
     reject('Choose a landscape Junior or Middle School KAMAR report PDF.');
   }
-  const values = /^(?:Term\s*|T)([1-4])\s+([\p{L}]+)$/iu.exec(header(46, 494));
+  const values = /^(?:Term\s*|T)([1-4])\s+(?:Values\s+)?([\p{L}]+)$/iu.exec(header(46, 494));
+  const gridYear = /^(\d{4}) Lb$/.exec(header(46, 494))?.[1];
+  const grid = !slo && Boolean(gridYear);
+  const gridColumns = [
+    ['manaakitanga', 'Manaakitanga', 275.879883, 250, 380],
+    ['whanaungatanga', 'Whanaungatanga', 406.228027, 380, 520],
+    ['rangatiratanga', 'Rangatiratanga', 549.881836, 520, 660],
+    ['kaitiakitanga', 'Kaitiakitanga', 693.748047, 660, 800]
+  ];
+  if (grid && (header(296, 516) !== gridYear.slice(2) + 'LB' || !middleSchool ||
+      gridColumns.some(([, label, x]) => header(x, 467.5) !== label))) {
+    reject('The multi-column School Values heading or year could not be verified.');
+  }
   const field = values?.[2].toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
   const classCode = header(slo ? 24 : 49, slo ? 555 : 530).toUpperCase();
-  if (!/^[A-Z0-9]+DTECH$/.test(classCode) || (!slo && !schema.juniorValues.some(([key]) => key === field))) {
+  if (!/^(?:[A-Z0-9]+DTECH|MPROG)$/.test(classCode) ||
+      (!slo && !grid && !schema.juniorValues.some(([key]) => key === field))) {
     reject('The teaching class or School Value heading was not recognised.');
   }
   let year = null, programme = 'junior';
@@ -29,19 +43,23 @@ function parseReportingPage(items, view) {
     const codeInColumn = (left, right) => {
       const codes = items.filter(item => item.transform[4] > left && item.transform[4] < right &&
         Math.abs(item.transform[5] - 501) < 1 && /^G\./.test(item.str.trim()));
-      return codes.length === 1 ? /^G\.([JM])DTECH(01|02)\.(\d{2})$/.exec(codes[0].str.trim()) : null;
+      return codes.length === 1 ? /^G\.(JDTECH|MDTECH|MPROG)(01|02)\.(\d{2})$/.exec(codes[0].str.trim()) : null;
     };
     const coding = codeInColumn(300, 510), design = codeInColumn(510, 760);
-    programme = coding?.[1] === 'M' ? 'middle' : 'junior';
+    programme = coding?.[1] === 'JDTECH' ? 'junior' : 'middle';
     const codingNumber = programme === 'middle' ? '01' : '02';
     const designNumber = programme === 'middle' ? '02' : '01';
-    if (!coding || !design || coding[1] !== design[1] || coding[2] !== codingNumber || design[2] !== designNumber ||
+    if (!coding || !design || coding[1] !== design[1] || (coding[1] === 'MPROG') !== (classCode === 'MPROG') ||
+        coding[2] !== codingNumber || design[2] !== designNumber ||
         coding[3] !== design[3] ||
         (yearLevel ? !schema.programmes[programme].years.includes(yearLevel) :
           programme === 'junior' ? !juniorSchool : !middleSchool)) reject('The two DTECH assessment codes, programme, or years could not be verified.');
     year = 2000 + Number(coding[3]);
-  } else if (yearLevel ? !schema.programmes.junior.years.includes(yearLevel) : !juniorSchool) {
-    reject('School Values PDF matching is supported for JuniorDTECH only.');
+  } else {
+    programme = middleSchool || ['9', '10'].includes(yearLevel) ? 'middle' : 'junior';
+    if ((yearLevel && !schema.programmes[programme].years.includes(yearLevel)) ||
+        (classCode === 'MPROG' && programme !== 'middle')) reject('The School Values programme could not be verified.');
+    if (grid) year = Number(gridYear);
   }
   const start = slo ? 462 : 450, spacing = slo ? 23 : 36;
   const names = items.filter(item => at(item, slo ? 24 : 49) && item.transform[5] <= start + 0.1 &&
@@ -54,26 +72,29 @@ function parseReportingPage(items, view) {
     });
   if (!names.length || names.some((item, index) => Math.abs(item.transform[5] - (start - index * spacing)) > 0.6 ||
     !/^[^,\d:]{1,85},\s*[^,\d:]{1,85}$/.test(item.str.trim()))) reject('The student rows were not recognised.');
-  const fields = slo ? ['coding', 'design'] : [field];
+  const fields = slo ? ['coding', 'design'] : grid ? gridColumns.map(([key]) => key) : [field];
   const rows = names.map(item => ({ name: item.str.trim(), grades: Object.fromEntries(fields.map(key => [key, ''])) }));
   const seen = new Set();
   for (const item of items) {
     const [x, y] = item.transform.slice(4);
-    if (!(x > (slo ? 300 : 360) && x < (slo ? 760 : 650) && y > (slo ? 45 : 75) && y < (slo ? 480 : 455))) continue;
+    if (!(x > (slo ? 300 : grid ? 250 : 360) && x < (slo ? 760 : grid ? 800 : 650) &&
+        y > (slo ? 45 : 75) && y < (slo ? 480 : 455))) continue;
     const index = names.findIndex(name => Math.abs(y - name.transform[5] - (slo ? 1 : -9.5)) < 0.6);
-    const key = slo ? (x < 510 ? 'coding' : 'design') : field;
+    const key = slo ? (x < 510 ? 'coding' : 'design') :
+      grid ? gridColumns.find(([, , , left, right]) => x > left && x < right)?.[0] : field;
     const text = item.str.trim().toLowerCase();
     const judgment = /^(\w+)\s+([\p{L}]+)$/iu.exec(text);
-    const grade = text === 'not entered' ? '' : slo ? text.toUpperCase() :
+    const grade = text === 'not entered' ? '' : slo ? text.toUpperCase() : grid ? valueCodes[text] :
       judgment?.[2].normalize('NFD').replace(/\p{M}/gu, '') === field ? valueCodes[judgment[1]] : undefined;
-    if (index < 0 || seen.has(index + ':' + key) ||
+    if (index < 0 || !key || seen.has(index + ':' + key) ||
       !(slo ? ['', ...schema.programmes[programme].levels] : ['', ...schema.values]).includes(grade)) {
       reject('A judgement or its position was not recognised. No grades were changed.');
     }
     seen.add(index + ':' + key);
     rows[index].grades[key] = grade;
   }
-  return { classCode, programme, year, fields, valueTerm: values ? Number(values[1]) : null, rows,
+  return { classCode, programme, year, fields, ...(grid ? { grid: true } : {}),
+    valueTerm: values ? Number(values[1]) : null, rows,
     totals: items.map(item => /^Male: \d+, Female: \d+, Students: (\d+)$/.exec(item.str)).filter(Boolean).map(match => Number(match[1])) };
 }
 
@@ -91,14 +112,18 @@ async function importReportingPdf(buffer) {
   if (error) throw error;
   const first = pages[0];
   if (!first || doc.numpages !== pages.length || pages.length > 20 || pages.some(page =>
-    page.classCode !== first.classCode || page.programme !== first.programme || page.year !== first.year || page.valueTerm !== first.valueTerm ||
+    page.classCode !== first.classCode || page.programme !== first.programme || page.year !== first.year || page.grid !== first.grid || page.valueTerm !== first.valueTerm ||
     page.fields.join() !== first.fields.join())) throw new ReportingPdfError('The PDF must contain one consistent class report, at most 20 pages.');
   const rows = pages.flatMap(page => page.rows), totals = pages.flatMap(page => page.totals);
   if (totals.length !== 1 || totals[0] !== rows.length ||
     new Set(rows.map(row => row.name.normalize('NFC').toLowerCase())).size !== rows.length) {
     throw new ReportingPdfError('The PDF student count or names could not be verified.');
   }
-  return { classCode: first.classCode, programme: first.programme, year: first.year, fields: first.fields, valueTerm: first.valueTerm, rows };
+  const fields = first.grid ? first.fields.filter(field => rows.some(row => row.grades[field])) : first.fields;
+  if (!fields.length) throw new ReportingPdfError('The School Values grid has no populated judgement columns. Nothing was imported.');
+  return { classCode: first.classCode, programme: first.programme, year: first.year, fields,
+    valueTerm: first.grid && fields.length === 1 ? schema.juniorValues.findIndex(([key]) => key === fields[0]) + 1 : first.valueTerm,
+    rows: rows.map(row => ({ ...row, grades: Object.fromEntries(fields.map(field => [field, row.grades[field]])) })) };
 }
 
 module.exports = { importReportingPdf, parseReportingPage, ReportingPdfError };

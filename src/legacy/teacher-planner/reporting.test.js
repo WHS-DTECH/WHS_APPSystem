@@ -928,7 +928,7 @@ test('MiddleDTECH Markbook Summary parser verifies the programme, year and grade
   assert.throws(() => parse(items('G.JDTECH02.26')), /programme/);
   assert.throws(() => parse(items('G.MDTECH01.25')), /years/);
   assert.throws(() => parse(items('G.MDTECH02.26')), /assessment codes/);
-  assert.throws(() => parse(items('G.MDTECH01.26', '3P')), /judgement/);
+  assert.throws(() => parse(items('G.MDTECH01.26', '2P')), /judgement/);
   const duplicate = items();
   duplicate.push({ str: 'G.MDTECH01.26', transform: [1, 0, 0, 1, 355, 501] });
   assert.throws(() => parse(duplicate), /assessment codes/);
@@ -951,7 +951,7 @@ test('SLO parser accepts a year-level header in the KAMAR class heading when it 
   assert.throws(() => parse(items(7, 300)), /landscape/);
 });
 
-test('Values parser accepts a Year 7 heading but rejects a MiddleDTECH year level', () => {
+test('Values parser verifies Junior and Middle year-level headings', () => {
   const parse = level => parseReportingPage([
     [`Year ${level}`, 49, 517], ['KAMAR', 46, 49], ['PIDTECH', 49, 530],
     ['Term 4 Kaitiakitanga', 46, 494], ['Learner, Synthetic', 49, 450],
@@ -959,7 +959,135 @@ test('Values parser accepts a Year 7 heading but rejects a MiddleDTECH year leve
   ].map(([str, x, y]) => ({ str, transform: [1, 0, 0, 1, x, y] })), [0, 0, 842, 595]);
   assert.deepEqual(parse(7), { programme: 'junior', classCode: 'PIDTECH', year: null, valueTerm: 4,
     fields: ['kaitiakitanga'], rows: [{ name: 'Learner, Synthetic', grades: { kaitiakitanga: 'Dem' } }], totals: [1] });
-  assert.throws(() => parse(9), /JuniorDTECH only/);
+  assert.equal(parse(9).programme, 'middle');
+});
+
+test('MPROG SLOs verify their own codes and retain below-target grades', () => {
+  const items = [
+    ['Middle School', 24, 542], ['KAMAR', 21, 25], ['MPROG', 24, 555],
+    ['Computational Thinking - Coding', 319, 491], ['Design & Develop a Digital Outcome', 594, 491],
+    ['G.MPROG01.26', 349.904297, 501], ['G.MPROG02.26', 631.404297, 501],
+    ['Learner, Synthetic', 24, 462], ['4B', 372, 463], ['3A', 654, 463],
+    ['Male: 1, Female: 0, Students: 1', 25, 100]
+  ].map(([str, x, y]) => ({ str, transform: [1, 0, 0, 1, x, y] }));
+  const parsed = parseReportingPage(items, [0, 0, 842, 595]);
+  assert.equal(parsed.programme, 'middle');
+  assert.deepEqual(parsed.rows[0].grades, { coding: '4B', design: '3A' });
+  assert.equal(schema.validRecords([{ ...row, programme: 'middle', ...parsed.rows[0].grades }]), true);
+  items[4].str = 'An unrelated assessment';
+  assert.throws(() => parseReportingPage(items, [0, 0, 842, 595]), /heading/);
+});
+
+function valuesGridItems() {
+  return [
+    ['Middle School', 49, 517], ['KAMAR', 46, 49], ['MDTECH', 49, 530],
+    ['2026 Lb', 46, 494], ['26LB', 296, 516],
+    ['Manaakitanga', 275.879883, 467.5], ['Whanaungatanga', 406.228027, 467.5],
+    ['Rangatiratanga', 549.881836, 467.5], ['Kaitiakitanga', 693.748047, 467.5],
+    ['Learner, Synthetic', 49, 450], ['VP', 221, 429], ['Exemplifying', 694.062988, 440.5],
+    ['Male: 1, Female: 0, Students: 1', 50, 100]
+  ].map(([str, x, y]) => ({ str, transform: [1, 0, 0, 1, x, y] }));
+}
+
+test('Middle Values grid uses the named column and rejects unverified headings and judgements', () => {
+  const items = valuesGridItems(), parse = () => parseReportingPage(items, [0, 0, 842, 595]);
+  const result = parse();
+  assert.deepEqual(result.rows[0].grades, { manaakitanga: '', whanaungatanga: '', rangatiratanga: '', kaitiakitanga: 'Exe' });
+  assert.equal(result.year, 2026);
+  items[8].str = 'An unknown value';
+  assert.throws(parse, /heading/);
+  items[8].str = 'Kaitiakitanga';
+  items[11].str = 'Achieved';
+  assert.throws(parse, /judgement/);
+});
+
+test('Values grid import omits wholly empty columns across all pages', async () => {
+  const parsePath = require.resolve('pdf-parse/lib/pdf-parse');
+  const original = require.cache[parsePath].exports;
+  const importPath = require.resolve('./reportingImport');
+  const originalImporter = require.cache[importPath];
+  require.cache[parsePath].exports = async (buffer, options) => {
+    const first = valuesGridItems();
+    first.splice(-1, 1);
+    const second = valuesGridItems();
+    second[9].str = 'Learner, Second';
+    second[11].str = 'Demonstrating';
+    second[12].str = 'Male: 2, Female: 0, Students: 2';
+    for (const items of [first, second]) await options.pagerender({
+      view: [0, 0, 842, 595], getTextContent: async () => ({ items })
+    });
+    return { numpages: 2 };
+  };
+  delete require.cache[importPath];
+  try {
+    const result = await require('./reportingImport').importReportingPdf(Buffer.from('%PDF-synthetic'));
+    assert.deepEqual(result.fields, ['kaitiakitanga']);
+    assert.equal(result.valueTerm, 4);
+    assert.deepEqual(result.rows.map(row => row.grades), [{ kaitiakitanga: 'Exe' }, { kaitiakitanga: 'Dem' }]);
+  } finally {
+    require.cache[parsePath].exports = original;
+    require.cache[importPath] = originalImporter;
+  }
+});
+
+test('Middle Values reuse Drive folders and S1 MPROG audit supports confirmations and awards', async () => {
+  const former = { id: 'k:former', name: 'S1 Learner', yearLevel: '9' };
+  const current = { id: 'k:middle', name: 'Current Learner', yearLevel: '10' };
+  const previous = { ...row, studentId: current.id, programme: 'middle', coding: '5P',
+    kaitiakitanga: 'Dev', rangatiratanga: 'Dem', pdfConfirmed: { rangatiratanga: 'Dem' } };
+  const stored = new Map([['planner-reporting-folder:test-owner:values', 'https://drive.google.com/drive/folders/shared_values_folder']]);
+  const f = fixture({ records: JSON.stringify([previous]) }, false, {
+    localStorage: { getItem: key => stored.get(key), setItem: (key, value) => stored.set(key, value) },
+    request: async url => {
+      if (url.startsWith('google-calendar/reporting-drive/files?')) return { files: ['t1', 't2', 'grid'].map(id => ({
+        id, name: `${id}.pdf`, label: 'Values', version: 'v1'
+      })) };
+      if (url.startsWith('google-calendar/reporting-drive/file/')) {
+        const grid = url.includes('/grid?'), t1 = url.includes('/t1?');
+        const field = grid ? 'kaitiakitanga' : t1 ? 'whanaungatanga' : 'manaakitanga';
+        return { classCode: grid ? 'MDTECH' : 'MPROG', programme: 'middle', year: grid ? 2026 : null,
+          valueTerm: grid ? 4 : t1 ? 1 : 2, fields: [field], rows: [
+            { name: grid ? current.name : former.name, grades: { [field]: 'Exe' } }
+          ] };
+      }
+      if (url.startsWith('google-calendar/reporting-award-pdfs?')) return { ignored: 0, reports: [
+        { name: 'S1.pdf', printYear: 2026, rows: [{ id: former.id, yearLevel: '9', award: 'mohio' }] }
+      ] };
+      return { classes: [{ code: /term=[12](?:&|$)/.test(url) ? 'VP-MPROG-CW' : 'VP-MDTECH-CW',
+        students: [/term=[12](?:&|$)/.test(url) ? former : current] }], homerooms: [] };
+    }
+  });
+  await settle();
+  f.click('MiddleDTECH');
+  assert.equal(f.find(node => node.tag === 'button' && node.textContent === 'Preview award PDFs').disabled, true);
+  await settle();
+  assert.ok(f.find(node => node.tag === 'button' && node.textContent === 'S1 MPROG (0/1)'));
+  f.click('2. School Values');
+  assert.equal(f.control('Google Drive Reports folder').value, stored.get('planner-reporting-folder:test-owner:values'));
+  const progress = () => f.control('S1 MPROG: PDF matched, 1/1 students');
+  await f.click('Preview all PDFs');
+  assert.ok(f.find(node => node.textContent.includes('3 PDFs matched; 0 skipped')));
+  await f.click('Apply batch to Planner');
+  assert.equal(progress().checked, true);
+  const saved = () => JSON.parse(f.find(node => node.attrs.name === 'records').value);
+  assert.equal(saved().find(r => r.studentId === current.id).rangatiratanga, 'Dem');
+  assert.equal(saved().find(r => r.studentId === current.id).pdfConfirmed.rangatiratanga, 'Dem');
+  assert.equal(saved().find(r => r.studentId === current.id).pdfPrevious.kaitiakitanga, 'Dev');
+  assert.equal(saved().find(r => r.studentId === former.id).pdfConfirmed.manaakitanga, 'Exe');
+  f.click('S1 MPROG (0/1)');
+  assert.equal(f.control('S1 Learner: Manaakitanga'), undefined, 'S1 grade audit is read-only');
+  assert.ok(f.find(node => node.tag === 'th' && node.textContent === 'Whānaungatanga'));
+  f.click('4. Awards');
+  f.control('Award recipient PDF folder').value = 'https://drive.google.com/drive/folders/shared_awards_folder';
+  await f.click('Preview award PDFs');
+  selectAwardPdf(f, 'S1.pdf');
+  await f.click('Apply verified awards for 2026');
+  assert.equal(f.control('S1 MPROG: PDF matched, 1 Mohio · 0 Akoranga').checked, true);
+  f.click('S1 MPROG (1)');
+  const tick = f.control('S1 Learner: Mohio (confirmed against a KAMAR award PDF)');
+  assert.equal(tick.checked, true);
+  tick.checked = false; tick.events.change({ stopPropagation() {} });
+  assert.equal(JSON.parse(f.find(node => node.attrs.name === 'awards').value)[former.id], undefined);
 });
 
 test('MiddleDTECH SLO sync skips Junior PDFs and tracks students with both SLOs confirmed', async () => {
