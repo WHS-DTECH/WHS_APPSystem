@@ -2,7 +2,7 @@
   'use strict';
   const programmes = {
     junior: { label: 'JuniorDTECH', years: ['7', '8'], levels: ['UAG', '3B', '3P', '3A', '4B', '4P', '4A'] },
-    middle: { label: 'MiddleDTECH', years: ['9', '10'], levels: ['UAG', '4P', '4A', '5B', '5P', '5A', '6B'] }
+    middle: { label: 'MiddleDTECH', years: ['9', '10'], levels: ['UAG', '3P', '3A', '4B', '4P', '4A', '5B', '5P', '5A', '6B'] }
   };
   const values = ['Dev', 'Dem', 'Exe'];
   const endOfYearMohioGrades = { '7': '4B', '8': '4P', '9': '5B', '10': '5A' };
@@ -12,8 +12,7 @@
     ['rangatiratanga', 'Rangatiratanga'], ['kaitiakitanga', 'Kaitiakitanga']
   ];
   const pdfGradeFields = ['coding', 'design', ...juniorValues.map(([key]) => key)];
-  const supportsPdfGrade = (programme, field) => programme === 'junior' ? pdfGradeFields.includes(field) :
-    programme === 'middle' && ['coding', 'design'].includes(field);
+  const supportsPdfGrade = (programme, field) => ['junior', 'middle'].includes(programme) && pdfGradeFields.includes(field);
   function valueFields(programme, term) {
     const index = Number(term) - 1;
     if (!Number.isInteger(index) || index < 0 || index > 3) return [];
@@ -95,7 +94,8 @@
       (cycle === 'eoy' || row.comment.trim()));
   }
   function classGroups(directory, programme) {
-    const groups = directory.classes.filter(group => /DTECH/i.test(group.code)).map(group => ({
+    const groups = directory.classes.filter(group => /DTECH/i.test(group.code) ||
+      (programme === 'middle' && /(?:^|-)MPROG(?:-|$)/i.test(group.code))).map(group => ({
       code: group.code,
       students: group.students.filter(student => programmes[programme].years.includes(student.yearLevel))
         .sort((a, b) => a.name.localeCompare(b.name))

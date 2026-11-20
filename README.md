@@ -1510,13 +1510,23 @@ The green homeroom tabs are read-only and show saved drafts and completion
 counts; the blue teaching tabs remain editable. Opening a homeroom does not
 create draft grades for students outside your teaching classes.
 
+In **MiddleDTECH → End of Year**, **S1 MPROG** provides the same read-only
+grade audit, using the latest preserved Semester 1 roster (Term 2, or Term 1
+if no MPROG class is present in Term 2). It remains available alongside the
+selected term's teaching classes. Its School Values are Whānaungatanga and
+Manaakitanga, even when Term 3 or 4 is selected. Awards are editable in the S1
+audit and its students are included in award PDF matching and grade checks.
+The progress box reports timetable-loading failures; retry before syncing awards.
+
 **Google Drive sync — KAMAR reports** reads PDFs from a linked Reports folder
 and its `SLOs` and `Values` subfolders using the staff member's existing read-only
 Drive connection. SLO matching supports JuniorDTECH and MiddleDTECH Markbook
 Summary exports, including those headed with a specific year level instead of
-the school division. School Values matching is JuniorDTECH only and accepts
-both Junior School and Year 7/8 headings. Junior uses JDTECH02 for Coding and JDTECH01 for
-Design; Middle uses MDTECH01 for Coding and MDTECH02 for Design. Choose the
+the school division. School Values matching supports both programmes and their
+year-level headings. Junior uses JDTECH02 for Coding and JDTECH01 for Design;
+Middle uses MDTECH01/MPROG01 for Coding and MDTECH02/MPROG02 for Design.
+MPROG exports can contain below-target 3P, 3A and 4B grades: these are retained
+exactly, not raised to a target grade. Mohio minimums are unchanged. Choose the
 programme, report cycle and source teaching term, then list and preview a PDF
 before applying it. A shared folder can contain both programmes; the batch
 skips reports from the other programme. The preview shows exact,
@@ -1524,7 +1534,13 @@ unique teaching-class matches and leaves unmatched names unchanged. A named
 School Value goes to that field even when its printed term differs from the
 teaching term. Blank PDF cells only clear grades when explicitly selected.
 The SLO and School Values pages remember their Drive folders separately in the
-current browser for your account. **Preview all PDFs** checks the selected
+current browser for your account, using the same saved share links for Junior
+and Middle reports.
+The verified Middle `2026 Lb` / `26LB` multi-column Values layout is also
+supported: its named columns map Developing, Demonstrating and Exemplifying
+to Dev, Dem and Exe. Wholly empty columns are omitted, so a Kaitiakitanga-only
+grid cannot clear the other Values or their confirmations.
+**Preview all PDFs** checks the selected
 report cycle against all four teaching rosters. **Apply batch to Planner**
 replaces differing nonblank grades, highlighting them in amber with the former
 grade in the tooltip. Batch sync preserves Planner grades when PDFs are blank

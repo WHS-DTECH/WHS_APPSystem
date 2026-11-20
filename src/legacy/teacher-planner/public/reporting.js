@@ -85,7 +85,7 @@
       showFolderStatus(input, label, key);
     }
     function showDrive() {
-      drive.hidden = state.part !== 'slo' && !(state.part === 'values' && state.programme === 'junior');
+      drive.hidden = state.part !== 'slo' && state.part !== 'values';
       if (drive.hidden || state.part === folderPart) return;
       folderPart = state.part;
       indexed = []; listedFolder = ''; files.replaceChildren(); invalidate(); status.textContent = '';
@@ -140,7 +140,7 @@
         if (!stillCurrent()) throw new Error('The reporting view changed. Preview the PDF again.');
         if (pdf.programme !== programme) throw new Error('The PDF programme does not match the selected Planner programme.');
         if (pdf.year !== null && pdf.year !== Number(year)) throw new Error('The PDF assessment year does not match the Planner year.');
-        const matches = planPdf(pdf, roster);
+        const matches = planPdf(pdf, { classes: [...roster.classes, ...(programme === 'middle' ? middleAuditGroups() : [])] });
         const touched = matches.filter(item => item.student);
         if (!touched.length) throw new Error('No exact matches in the PDF teaching class. Check the selected teaching term.');
         const clears = el('input', '', { type: 'checkbox' });
@@ -179,11 +179,12 @@
             const updated = [...next.values()];
             const changed = JSON.stringify(updated) !== snapshot;
             if (changed) applyRecords(updated, defaultStore.value);
-            const teaching = groups().find(group => !group.audit && reportClassCode(group.code) === normalizePdfClass(pdf.classCode));
-            const visible = !pdf.valueTerm || String(pdf.valueTerm) === term;
+            const teaching = groups().find(group => reportClassCode(group.code) === normalizePdfClass(pdf.classCode));
+            const visible = !isValuesPdf(pdf) || (pdf.fields || Object.keys(pdf.rows[0].grades)).every(field =>
+              schema.valueFields(programme, teaching?.sourceTerm || term).some(([key]) => key === field));
             if (teaching && visible) {
               state.classCode = teaching.key;
-              state.part = pdf.valueTerm ? 'values' : 'slo';
+              state.part = isValuesPdf(pdf) ? 'values' : 'slo';
               state.incomplete = false;
             }
             invalidate(); render();
@@ -323,6 +324,9 @@
       recipientReview.replaceChildren();
       const link = recipientFolder.value.trim(), roster = directory, programme = state.programme;
       if (!link || !roster) { recipientStatus.textContent = 'Enter the Drive Awards folder link and load the class list first.'; return; }
+      if (programme === 'middle' && !allocationReady) {
+        recipientStatus.textContent = 'Wait for the S1 audit timetable check, or retry it in the progress box before previewing awards.'; return;
+      }
       const current = () => area.isConnected && state.part === 'awards' && state.programme === programme &&
         directory === roster && recipientFolder.value.trim() === link;
       previewRecipients.disabled = true;
@@ -507,6 +511,7 @@
         .map(row => [JSON.stringify([row.studentId, row.programme]), row]));
       for (const [programme, { levels, years }] of Object.entries(schema.programmes)) {
         const groups = schema.classGroups(directory, programme);
+        if (programme === 'middle') groups.push(...middleAuditGroups());
         if (programme === 'junior') groups.push(...(directory.homerooms || []));
         for (const { students } of groups) for (const { id, yearLevel } of students) {
           if (excluded.has(id) || checked.has(id) || awards[id]?.mohio !== true || !years.includes(yearLevel)) continue;
@@ -584,7 +589,7 @@
           } catch (error) {
             throw new Error(`${file.name}: ${error.message} No grades changed. Fix or remove this file and preview again.`);
           }
-          if (pdf.programme !== programme || Boolean(pdf.valueTerm) !== (part === 'values') || (pdf.year !== null && pdf.year !== Number(year))) {
+          if (pdf.programme !== programme || isValuesPdf(pdf) !== (part === 'values') || (pdf.year !== null && pdf.year !== Number(year))) {
             skipped++;
             reports.append(el('li', `${file.name} — skipped: different programme, report type, or assessment year.`));
             continue;
@@ -592,7 +597,7 @@
           const matches = planPdf(pdf, roster), matched = matches.filter(item => item.student);
           if (matched.length) included++;
           else skipped++;
-          const value = pdf.valueTerm ? ` · ${schema.juniorValues.find(([key]) => key === pdf.fields[0])?.[1]}` : '';
+          const value = isValuesPdf(pdf) ? ` · ${pdf.fields.map(key => schema.juniorValues.find(([field]) => field === key)?.[1]).join(' / ')}` : '';
           reports.append(el('li', `${pdf.classCode}${value} — ${file.name}: ${matched.length}/${matches.length} rows matched.`));
           for (const item of matches) {
             if (!item.student) {
@@ -663,6 +668,9 @@
 
     const normalizePdfClass = code => code.replace('MMDETCH', 'MMDTECH');
     const reportClassCode = code => normalizePdfClass(code.split('-')[1] || '');
+    function isValuesPdf(pdf) {
+      return Boolean(pdf.valueTerm || pdf.fields?.some(field => schema.juniorValues.some(([key]) => key === field)));
+    }
     function planPdf(pdf, roster) {
       const normalize = name => name.normalize('NFC').replace(/[‘’]/g, "'").replace(/\s+/g, ' ').trim().toLowerCase();
       const candidates = new Map();
@@ -824,23 +832,38 @@
     }
     function groups() {
       const teaching = schema.classGroups(directory, state.programme).map(group => ({ ...group, key: group.code }));
-      if ((state.cycle !== 'eoy' && state.part !== 'awards') || state.programme !== 'junior') return teaching;
+      if (state.cycle !== 'eoy' && state.part !== 'awards') return teaching;
+      if (state.programme === 'middle') return teaching.concat(middleAuditGroups());
       return teaching.concat((directory.homerooms || []).map(group => ({ ...group, key: 'audit:' + group.code, audit: true })));
+    }
+    function middleAuditGroups() {
+      if (!allocationReady) return [];
+      const classes = new Map();
+      for (const term of ['2', '1']) {
+        for (const group of schema.classGroups(auditRosters.get(term), 'middle')) {
+          if (!/(?:^|-)MPROG(?:-|$)/i.test(group.code) || classes.has(group.code)) continue;
+          classes.set(group.code, { ...group, key: 'audit:s1:' + group.code, audit: true, sourceTerm: term,
+            label: 'S1 MPROG' });
+        }
+      }
+      return [...classes.values()];
     }
     function selected() { return groups().find(group => group.key === state.classCode); }
     function reportTerm(group) {
+      if (group?.sourceTerm) return group.sourceTerm;
       if (state.part !== 'values' || !group?.audit) return termSelect.value;
       const terms = allocationReady ? schema.homeroomTerms(group, auditRosters) : [];
       return terms.length === 1 ? terms[0] : undefined;
     }
     function showAllocation() {
       const values = state.part === 'values', awarding = state.part === 'awards', junior = state.programme === 'junior';
-      allocation.hidden = !(values || state.part === 'slo' || (awarding && junior));
+      allocation.hidden = !(values || state.part === 'slo' || awarding);
       if (allocation.hidden) return;
       const title = values ? 'School Value allocation' : awarding ? 'Awards PDF progress' : 'SLO PDF progress';
       allocation.setAttribute('aria-label', title);
       allocation.replaceChildren(el('strong', title));
-      const table = el('table'), thead = el('thead'), tbody = el('tbody'), header = el('tr');
+      const table = el('table'), thead = el('thead'), header = el('tr');
+      let tbody = el('tbody');
       const labels = values ? [junior ? 'Homeroom' : 'Semester', junior ? 'DTECH term' : 'Terms', 'School Value'] :
         [junior ? 'Homeroom' : 'Teaching class'];
       if (junior || !values) labels.push('PDF matched');
@@ -857,9 +880,14 @@
           el('td', `Terms ${term} and ${term + 1}`),
           el('td', schema.valueFields('middle', term).map(([, label]) => label).join(' / '))
         ]);
-        return;
+        allocation.append(el('strong', 'School Values PDF progress'));
+        const progress = el('table'), progressHead = el('tr');
+        for (const label of ['Teaching class', 'Semester', 'PDF matched']) progressHead.append(el('th', label, { scope: 'col' }));
+        const head = el('thead'); head.append(progressHead);
+        tbody = el('tbody');
+        progress.append(head, tbody); allocation.append(progress);
       }
-      if (values && !allocationReady) {
+      if ((values || !junior) && !allocationReady) {
         allocation.append(el('p', allocationError || 'Checking the four preserved teaching timetables…', { role: 'status' }));
         if (allocationError) button(allocation, 'Retry term allocations', false, () => {
           allocationError = ''; showAllocation();
@@ -867,7 +895,8 @@
         else void loadAllocations();
       }
       const excluded = awarding ? externalAwardIds() : null;
-      const rooms = junior ? [...(directory.homerooms || [])] : schema.classGroups(directory, 'middle');
+      const rooms = junior ? [...(directory.homerooms || [])] :
+        [...schema.classGroups(directory, 'middle'), ...middleAuditGroups()];
       if (junior) {
         const ve = rooms.findIndex(room => room.code === 'VE');
         if (ve !== -1 && rooms.some(room => room.code === 'SR')) {
@@ -878,7 +907,7 @@
       if (!junior && !rooms.length) allocation.append(el('p', 'No MiddleDTECH teaching classes for this term.'));
       for (const room of rooms) {
         const terms = values && allocationReady ? schema.homeroomTerms(room, auditRosters) : [];
-        const columns = values ? [
+        const columns = values && !junior ? [el('td', `Semester ${Number(room.sourceTerm || termSelect.value) < 3 ? 1 : 2}`)] : values ? [
           el('td', terms.length ? terms.map(term => `Term ${term}`).join(' / ') : allocationReady ? 'Not verified' : '—'),
           el('td', terms.map(term => schema.juniorValues[Number(term) - 1][1]).join(' / ') || '—')
         ] : [];
@@ -899,9 +928,10 @@
             checked = mohio + akoranga > 0;
             detail = `${mohio} Mohio · ${akoranga} Akoranga`;
           }
-        } else if (values && terms.length !== 1) detail = allocationReady ? 'No single verified term' : 'Pending term check';
+        } else if (values && junior && terms.length !== 1) detail = allocationReady ? 'No single verified term' : 'Pending term check';
         else {
-          const fields = values ? schema.valueFields('junior', terms[0]).map(([key]) => key) : ['coding', 'design'];
+          const fields = values ? schema.valueFields(state.programme, junior ? terms[0] : room.sourceTerm || termSelect.value)
+            .map(([key]) => key) : ['coding', 'design'];
           const matched = room.students.filter(student => {
             const row = record(student);
             const confirmed = field => row?.[field] && row.pdfConfirmed?.[field] === row[field];
@@ -911,14 +941,14 @@
           detail = `${matched}/${room.students.length} students`;
         }
         const cell = el('td'), tick = el('input', '', { type: 'checkbox', disabled: '', class: 'reporting-progress-tick',
-          'aria-label': `${room.code}: PDF matched, ${detail}` });
+          'aria-label': `${room.label || room.code}: PDF matched, ${detail}` });
         tick.checked = checked;
         cell.append(tick, el('span', ` ${detail}`));
-        addRow(room.code, [...columns, cell]);
+        addRow(room.label || room.code, [...columns, cell]);
       }
-      if (values && allocationReady) allocation.append(el('p', 'Only a single verified teaching term is used in the homeroom audit.'));
+      if (values && junior && allocationReady) allocation.append(el('p', 'Only a single verified teaching term is used in the homeroom audit.'));
       allocation.append(el('p', awarding ? 'Yes: at least one PDF-confirmed Mohio or Akoranga recipient.' :
-        !junior ? 'Yes: more than half the teaching class has both SLOs confirmed by a PDF.' :
+        !junior ? `Yes: more than half the teaching class has both ${values ? 'semester values' : 'SLOs'} confirmed by a PDF.` :
           `Yes: more than half the homeroom has ${values ? 'its assigned value' : 'at least one SLO'} confirmed by a PDF.`));
       if (awarding) allocation.append(el('p', 'An unticked room has no PDF-confirmed recipients; it may still have been synced.'));
     }
@@ -936,7 +966,7 @@
         allocationError = 'Could not verify the DTECH terms: ' + error.message;
       } finally {
         allocationPending = false;
-        if (area.isConnected && directory && state.part === 'values') render();
+        if (area.isConnected && directory && (state.part === 'values' || state.programme === 'middle')) render();
       }
     }
     function summary() {
@@ -945,15 +975,15 @@
       for (const group of groups()) {
         const done = group.students.filter(student => schema.complete(record(student), state.cycle, reportTerm(group))).length;
         const tab = classButtons.get(group.key);
-        if (tab) tab.textContent = group.audit && !reportTerm(group) ? `${group.code} (—/${group.students.length})` :
-          `${group.code} (${done}/${group.students.length})`;
+        if (tab) tab.textContent = group.audit && !reportTerm(group) ? `${group.label || group.code} (—/${group.students.length})` :
+          `${group.label || group.code} (${done}/${group.students.length})`;
       }
       feedback.setAttribute('role', 'status');
       if (group?.audit && !term) {
         feedback.textContent = 'No single DTECH teaching term is verified for this homeroom. No School Value has been selected for the audit.';
         return;
       }
-      feedback.textContent = `${count} of ${students.length} students complete in this ${selected()?.audit ? 'homeroom' : 'class'}. ` +
+      feedback.textContent = `${count} of ${students.length} students complete in this ${group?.sourceTerm ? 'S1 audit' : group?.audit ? 'homeroom' : 'class'}. ` +
         (state.programme === 'junior' ? 'JuniorDTECH requires at least one SLO and the reporting term’s school value. ' :
           'MiddleDTECH requires both SLOs and both values for the selected semester. ') +
         (state.cycle === 'eoy' ? 'Comments are optional for EOY.' : 'An earlier-year comment is required.');
@@ -965,6 +995,8 @@
       attendance.hidden = !awarding;
       recipientSync.hidden = !awarding;
       showAllocation();
+      if (state.programme === 'middle' && !allocationReady && !allocationPending && !allocationError) void loadAllocations();
+      previewRecipients.disabled = state.programme === 'middle' && !allocationReady;
       controls.replaceChildren(); body.replaceChildren(); classButtons.clear();
       const cycleLabel = el('label', 'Report cycle ');
       const cycle = el('select', '', { 'aria-label': 'Report cycle' });
@@ -987,7 +1019,7 @@
       const auditTabs = el('div', '', { class: 'reporting-tabs', role: 'group', 'aria-label': 'Homeroom audit' });
       for (const group of classes) {
         const done = group.students.filter(student => schema.complete(record(student), state.cycle, reportTerm(group))).length;
-        const label = awarding ? `${group.code} (${group.students.length})` : `${group.code} (${done}/${group.students.length})`;
+        const label = awarding ? `${group.label || group.code} (${group.students.length})` : `${group.label || group.code} (${done}/${group.students.length})`;
         const blocked = awarding && group.audit && externalAwardRoom(group.code);
         const tab = button(group.audit ? auditTabs : tabs, label,
           group.key === (awarding ? awardClass : state.classCode), () => {
@@ -1001,7 +1033,15 @@
         classButtons.set(group.key, tab);
       }
       if (classes.some(group => !group.audit)) controls.append(el('strong', 'Teaching classes'), tabs);
-      if (classes.some(group => group.audit)) controls.append(el('strong', awarding ? 'Homerooms (award ticks editable)' : 'Homeroom audit (read-only)'), auditTabs);
+      if (classes.some(group => group.audit)) controls.append(el('strong', state.programme === 'middle' ?
+        awarding ? 'S1 audit (award ticks editable)' : 'S1 audit (read-only)' :
+        awarding ? 'Homerooms (award ticks editable)' : 'Homeroom audit (read-only)'), auditTabs);
+      if (state.programme === 'middle' && state.part === 'comments' && !allocationReady) {
+        controls.append(el('p', allocationError || 'Checking the S1 MPROG audit timetable…', { role: 'status' }));
+        if (allocationError) button(controls, 'Retry S1 audit', false, () => {
+          allocationError = ''; void loadAllocations();
+        });
+      }
       const parts = el('div', '', { class: 'reporting-tabs', role: 'group', 'aria-label': 'Report part' });
       for (const [key, label] of [['slo', '1. Student Learning Objectives'], ['values', '2. School Values'], ['comments', '3. Report Comments'], ['awards', '4. Awards']]) {
         button(parts, label, state.part === key, () => {
@@ -1045,7 +1085,7 @@
           if (state.cycle === 'eoy') return applyAwardCriteria('mohio', 'Mohio', gradeCriteria(excluded),
             'This checks End of Year SLOs for both JuniorDTECH and MiddleDTECH in the selected term’s class list, regardless of filter. Switch programmes to see the other corrections.');
         });
-        gradeCheck.disabled = savingCriteria || state.cycle !== 'eoy';
+        gradeCheck.disabled = savingCriteria || state.cycle !== 'eoy' || (state.programme === 'middle' && !allocationReady);
         const thresholds = Object.entries(schema.endOfYearMohioGrades).map(([level, grade]) => `Year ${level}: ${grade}`).join(', ');
         body.append(el('p', `Mohio only: both SLOs must meet the End of Year minimum (${thresholds}). Blank and UAG do not qualify.`),
           el('p', criteriaMessage, { role: 'status' }));
