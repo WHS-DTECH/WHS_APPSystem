@@ -8,6 +8,7 @@ const { validKey, validContent } = require('./planner');
 const { renderShell } = require('./shell');
 const { importReportingAttendance } = require('./reportingAttendance');
 const { parseAwardPage } = require('./reportingAwardsImport');
+const { parseReportingPage } = require('./reportingImport');
 
 const row = { studentId: 'k:synthetic', programme: 'junior', cycle: 'eoy',
   coding: '3P', design: '4A', kaitiakitanga: 'Dev', rangatiratanga: 'Exe', comment: '' };
@@ -142,7 +143,7 @@ test('Reporting Drive confirms individual matches without replacing differences 
   let canSave = false;
   const f = fixture({ records: JSON.stringify([existing]) }, false, { ensureSaved: async () => canSave, request: async (url, directory) => {
     if (url.startsWith('google-calendar/reporting-drive/files?')) return { files: [{ id: 'example_file', name: 'Report.pdf', label: 'SLOs', version: 'v1' }] };
-    if (url.startsWith('google-calendar/reporting-drive/file/')) return { classCode: 'JDTECH', year: 2026, rows: [
+    if (url.startsWith('google-calendar/reporting-drive/file/')) return { classCode: 'JDTECH', programme: 'junior', year: 2026, rows: [
       { name: 'Synthetic Junior', grades: { coding: '4B', design: '4A' } },
       { name: 'Unknown Student', grades: { coding: '4A', design: '4A' } }
     ] };
@@ -367,9 +368,9 @@ test('Reporting batch remembers folders and applies cross-term grades without ch
         return { files: (values ? ['values'] : ['first', 'second', 'term1']).map(id => ({ id, name: `${id}.pdf`, version: 'v1' })) };
       }
       const id = /file\/([^?]+)/.exec(url)[1];
-      if (id === 'values') return { classCode: 'VEDTECH', year: null, valueTerm: 4, fields: ['rangatiratanga'],
+      if (id === 'values') return { classCode: 'VEDTECH', programme: 'junior', year: null, valueTerm: 4, fields: ['rangatiratanga'],
         rows: [{ name: term1.name, grades: { rangatiratanga: 'Exe' } }] };
-      return { classCode: id === 'term1' ? 'VEDTECH' : 'JDTECH', year: 2026, valueTerm: null,
+      return { classCode: id === 'term1' ? 'VEDTECH' : 'JDTECH', programme: 'junior', year: 2026, valueTerm: null,
         rows: [{ name: id === 'term1' ? term1.name : 'Synthetic Junior', grades: { coding: '4B', design: id === 'second' ? '4P' : '4A' } }] };
     }
   });
@@ -767,6 +768,69 @@ test('completion counts use the selected Junior term and both Middle semester va
   assert.equal(f.control('Synthetic Middle: Rangatiratanga').value, 'Exe');
   f.click('JuniorDTECH');
   f.click('1. Student Learning Objectives');
+});
+
+test('MiddleDTECH Markbook Summary parser verifies the programme, year and grade scale', () => {
+  const items = (coding = 'G.MDTECH02.26', grade = '6B') => [
+    ['Middle School', 24, 575], ['KAMAR', 24, 20], ['MDTECH', 24, 555],
+    ['Computational Thinking - Coding', 310, 520], ['Design & Develop a Digital Outcome', 550, 520],
+    [coding, 349, 501], ['G.MDTECH01.26', 631, 501], ['Learner, Synthetic', 24, 462],
+    [grade, 349, 463], ['5A', 631, 463], ['Male: 0, Female: 1, Students: 1', 24, 100]
+  ].map(([str, x, y]) => ({ str, transform: [1, 0, 0, 1, x, y] }));
+  const parse = data => parseReportingPage(data, [0, 0, 842, 595]);
+  assert.deepEqual(parse(items()), { programme: 'middle', classCode: 'MDTECH', year: 2026, valueTerm: null,
+    fields: ['coding', 'design'], rows: [{ name: 'Learner, Synthetic', grades: { coding: '6B', design: '5A' } }], totals: [1] });
+  assert.throws(() => parse(items('G.JDTECH02.26')), /programme/);
+  assert.throws(() => parse(items('G.MDTECH02.25')), /years/);
+  assert.throws(() => parse(items('G.MDTECH02.26', '3P')), /judgement/);
+});
+
+test('MiddleDTECH SLO sync skips Junior PDFs and tracks students with both SLOs confirmed', async () => {
+  const first = { ...row, studentId: 'k:middle', programme: 'middle', coding: '5A', design: '5P' };
+  const second = { ...first, studentId: 'k:second', pdfConfirmed: { coding: '5A' } };
+  const third = { ...first, studentId: 'k:third', pdfConfirmed: { coding: '5A', design: '5P' } };
+  const f = fixture({ records: JSON.stringify([row, first, second, third]) }, false, { request: async (url, directory) => {
+    if (url.startsWith('google-calendar/reporting-drive/files?')) return { files: ['junior', 'middle'].map(id => ({
+      id, name: `${id}.pdf`, label: 'SLOs', version: 'v1'
+    })) };
+    if (url.startsWith('google-calendar/reporting-drive/file/')) {
+      const programme = url.includes('/file/middle?') ? 'middle' : 'junior';
+      return { classCode: 'MDTECH', programme, year: 2026, valueTerm: null, rows: [
+        { name: 'Synthetic Middle', grades: { coding: '6B', design: '5P' } }
+      ] };
+    }
+    directory.classes[1].students = [directory.classes[1].students[0],
+      { id: second.studentId, name: 'Middle Two', yearLevel: '10' }, { id: third.studentId, name: 'Middle Three', yearLevel: '10' }];
+    return directory;
+  } });
+  await settle();
+  f.click('MiddleDTECH');
+  const progress = count => f.control(`TEST-MDTECH: PDF matched, ${count}/3 students`);
+  assert.equal(progress(1).checked, false);
+  assert.equal(progress(1).attrs.class, 'reporting-progress-tick');
+  assert.ok(Object.hasOwn(progress(1).attrs, 'disabled'));
+  f.enter('Google Drive Reports folder', 'https://drive.google.com/drive/folders/example_middle_folder');
+  await f.click('List Drive PDFs');
+  const picker = f.control('KAMAR report PDF');
+  picker.value = 'junior';
+  await f.click('Preview PDF');
+  assert.ok(f.find(node => node.textContent.includes('PDF programme does not match')));
+  assert.equal(f.events.length, 0);
+  picker.value = 'middle';
+  await f.click('Preview PDF');
+  await f.click('Confirm matching grades only');
+  assert.equal(progress(1).checked, false, 'Only one matching grade is not enough for MiddleDTECH');
+  await f.click('Preview all PDFs');
+  assert.ok(f.find(node => node.textContent.includes('1 PDFs matched; 1 skipped')));
+  await f.click('Apply batch to Planner');
+  assert.equal(progress(2).checked, true);
+  const saved = JSON.parse(f.find(node => node.attrs.name === 'records').value);
+  assert.deepEqual(saved.find(entry => entry.studentId === first.studentId), {
+    ...first, coding: '6B', pdfConfirmed: { design: '5P', coding: '6B' }, pdfPrevious: { coding: '5A' }
+  });
+  assert.deepEqual(saved.find(entry => entry.programme === 'junior'), row);
+  f.enter('Synthetic Middle: Computational Thinking - Coding (updated from 5A using KAMAR PDF)', '5P');
+  assert.equal(progress(1).checked, false);
 });
 
 test('SLO progress requires a strict student majority of PDF confirmations and refreshes on edit', async () => {

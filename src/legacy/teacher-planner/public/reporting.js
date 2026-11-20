@@ -85,7 +85,7 @@
       showFolderStatus(input, label, key);
     }
     function showDrive() {
-      drive.hidden = !['slo', 'values'].includes(state.part);
+      drive.hidden = state.part !== 'slo' && !(state.part === 'values' && state.programme === 'junior');
       if (drive.hidden || state.part === folderPart) return;
       folderPart = state.part;
       indexed = []; listedFolder = ''; files.replaceChildren(); invalidate(); status.textContent = '';
@@ -124,11 +124,12 @@
     const preview = button(drive, 'Preview PDF', false, async () => {
       invalidate();
       const file = indexed.find(item => item.id === files.value);
-      if (!file || folder.value.trim() !== listedFolder || !directory || state.programme !== 'junior') {
-        status.textContent = 'List the folder and choose a PDF with JuniorDTECH and the matching teaching term selected.'; return;
+      if (!file || folder.value.trim() !== listedFolder || !directory || drive.hidden) {
+        status.textContent = 'List the folder and choose a PDF with the matching programme and teaching term selected.'; return;
       }
       const snapshot = store.value, roster = directory, cycle = state.cycle, term = termSelect.value;
-      const stillCurrent = () => area.isConnected && directory === roster && state.programme === 'junior' &&
+      const { programme, part } = state;
+      const stillCurrent = () => area.isConnected && directory === roster && state.programme === programme && state.part === part &&
         state.cycle === cycle && termSelect.value === term && store.value === snapshot &&
         folder.value.trim() === listedFolder && indexed.includes(file) && files.value === file.id;
       list.disabled = preview.disabled = true;
@@ -137,6 +138,7 @@
         const pdf = await request('google-calendar/reporting-drive/file/' + encodeURIComponent(file.id) + '?' +
           new URLSearchParams({ folder: listedFolder, version: file.version }));
         if (!stillCurrent()) throw new Error('The reporting view changed. Preview the PDF again.');
+        if (pdf.programme !== programme) throw new Error('The PDF programme does not match the selected Planner programme.');
         if (pdf.year !== null && pdf.year !== Number(year)) throw new Error('The PDF assessment year does not match the Planner year.');
         const matches = planPdf(pdf, roster);
         const touched = matches.filter(item => item.student);
@@ -161,12 +163,12 @@
             const next = new Map(records.map(row => [JSON.stringify([row.studentId, row.programme, row.cycle]), row]));
             let confirmed = 0;
             for (const { student, grades } of touched) {
-              const key = JSON.stringify([student.id, 'junior', cycle]);
+              const key = JSON.stringify([student.id, programme, cycle]);
               const existing = next.get(key);
               if (!existing && (!applyGrades || !Object.values(grades).some(Boolean))) continue;
-              const row = { ...(existing || defaultRow(student.id, 'junior', cycle, '', '')) };
+              const row = { ...(existing || defaultRow(student.id, programme, cycle, '', '')) };
               for (const [field, grade] of Object.entries(grades)) {
-                if (!schema.pdfGradeFields.includes(field)) throw new Error('Unexpected PDF grade field.');
+                if (!schema.supportsPdfGrade(programme, field)) throw new Error('Unexpected PDF grade field.');
                 if (applyGrades && (grade || clears.checked)) row[field] = grade;
                 const match = grade && row[field] === grade;
                 setConfirmation(row, field, match ? grade : '');
@@ -437,13 +439,13 @@
     async function previewBatch() {
       if (list.disabled || preview.disabled || batch.disabled) return;
       invalidate();
-      const link = folder.value.trim(), part = state.part, cycle = state.cycle, snapshot = store.value;
-      if (!link || state.programme !== 'junior') {
-        status.textContent = 'Enter a Drive folder link and select JuniorDTECH before previewing.';
+      const link = folder.value.trim(), { part, programme, cycle } = state, snapshot = store.value;
+      if (!link || drive.hidden) {
+        status.textContent = 'Enter a Drive folder link and select a supported reporting page before previewing.';
         return;
       }
       const current = () => area.isConnected && state.part === part && state.cycle === cycle &&
-        state.programme === 'junior' && folder.value.trim() === link && store.value === snapshot;
+        state.programme === programme && folder.value.trim() === link && store.value === snapshot;
       const fileQuery = new URLSearchParams({ folder: link });
       status.textContent = 'Reading Drive PDFs and all four teaching rosters…';
       list.disabled = preview.disabled = batch.disabled = true;
@@ -469,9 +471,9 @@
           } catch (error) {
             throw new Error(`${file.name}: ${error.message} No grades changed. Fix or remove this file and preview again.`);
           }
-          if (Boolean(pdf.valueTerm) !== (part === 'values') || (pdf.year !== null && pdf.year !== Number(year))) {
+          if (pdf.programme !== programme || Boolean(pdf.valueTerm) !== (part === 'values') || (pdf.year !== null && pdf.year !== Number(year))) {
             skipped++;
-            reports.append(el('li', `${file.name} — skipped: different report type or assessment year.`));
+            reports.append(el('li', `${file.name} — skipped: different programme, report type, or assessment year.`));
             continue;
           }
           const matches = planPdf(pdf, roster), matched = matches.filter(item => item.student);
@@ -485,7 +487,7 @@
               continue;
             }
             for (const [field, grade] of Object.entries(item.grades)) {
-              if (!schema.pdfGradeFields.includes(field)) throw new Error('Unexpected PDF grade field.');
+              if (!schema.supportsPdfGrade(programme, field)) throw new Error('Unexpected PDF grade field.');
               const key = JSON.stringify([item.student.id, field]);
               if (!cells.has(key)) cells.set(key, { student: item.student, field, grades: new Set(), sources: new Set() });
               const cell = cells.get(key);
@@ -518,11 +520,11 @@
           try {
             const next = new Map(records.map(row => [JSON.stringify([row.studentId, row.programme, row.cycle]), row]));
             for (const { student, field, grades } of cells.values()) {
-              const key = JSON.stringify([student.id, 'junior', cycle]), [grade] = grades;
+              const key = JSON.stringify([student.id, programme, cycle]), [grade] = grades;
               const existing = next.get(key);
               const disputed = grades.size > 1;
               if ((!existing || !existing.pdfConfirmed?.[field]) && (disputed || !grade)) continue;
-              const row = { ...(existing || defaultRow(student.id, 'junior', cycle, '', '')) };
+              const row = { ...(existing || defaultRow(student.id, programme, cycle, '', '')) };
               if (disputed || !grade) setConfirmation(row, field, '');
               else {
                 const old = row[field];
@@ -553,7 +555,7 @@
       const candidates = new Map();
       for (const group of roster.classes) {
         if (reportClassCode(group.code) !== normalizePdfClass(pdf.classCode)) continue;
-        for (const student of group.students) if (schema.programmes.junior.years.includes(student.yearLevel)) candidates.set(student.id, student);
+        for (const student of group.students) if (schema.programmes[pdf.programme].years.includes(student.yearLevel)) candidates.set(student.id, student);
       }
       const seen = new Set();
       return pdf.rows.map(row => {
@@ -720,14 +722,15 @@
     }
     function showAllocation() {
       const values = state.part === 'values', awarding = state.part === 'awards', junior = state.programme === 'junior';
-      allocation.hidden = !values && (!junior || !(state.part === 'slo' || awarding));
+      allocation.hidden = !(values || state.part === 'slo' || (awarding && junior));
       if (allocation.hidden) return;
       const title = values ? 'School Value allocation' : awarding ? 'Awards PDF progress' : 'SLO PDF progress';
       allocation.setAttribute('aria-label', title);
       allocation.replaceChildren(el('strong', title));
       const table = el('table'), thead = el('thead'), tbody = el('tbody'), header = el('tr');
-      const labels = values ? [junior ? 'Homeroom' : 'Semester', junior ? 'DTECH term' : 'Terms', 'School Value'] : ['Homeroom'];
-      if (junior) labels.push('PDF matched');
+      const labels = values ? [junior ? 'Homeroom' : 'Semester', junior ? 'DTECH term' : 'Terms', 'School Value'] :
+        [junior ? 'Homeroom' : 'Teaching class'];
+      if (junior || !values) labels.push('PDF matched');
       for (const label of labels) {
         header.append(el('th', label, { scope: 'col' }));
       }
@@ -736,7 +739,7 @@
         const row = el('tr');
         row.append(el('th', label, { scope: 'row' }), ...columns); tbody.append(row);
       }
-      if (!junior) {
+      if (!junior && values) {
         for (const term of [1, 3]) addRow(`Semester ${term === 1 ? 1 : 2}`, [
           el('td', `Terms ${term} and ${term + 1}`),
           el('td', schema.valueFields('middle', term).map(([, label]) => label).join(' / '))
@@ -751,7 +754,9 @@
         else void loadAllocations();
       }
       const excluded = awarding ? externalAwardIds() : null;
-      for (const room of directory.homerooms || []) {
+      const rooms = junior ? directory.homerooms || [] : schema.classGroups(directory, 'middle');
+      if (!junior && !rooms.length) allocation.append(el('p', 'No MiddleDTECH teaching classes for this term.'));
+      for (const room of rooms) {
         const terms = values && allocationReady ? schema.homeroomTerms(room, auditRosters) : [];
         const columns = values ? [
           el('td', terms.length ? terms.map(term => `Term ${term}`).join(' / ') : allocationReady ? 'Not verified' : '—'),
@@ -775,12 +780,13 @@
           const fields = values ? schema.valueFields('junior', terms[0]).map(([key]) => key) : ['coding', 'design'];
           const matched = room.students.filter(student => {
             const row = record(student);
-            return fields.some(field => row?.[field] && row.pdfConfirmed?.[field] === row[field]);
+            const confirmed = field => row?.[field] && row.pdfConfirmed?.[field] === row[field];
+            return junior ? fields.some(confirmed) : fields.every(confirmed);
           }).length;
           checked = matched > room.students.length / 2;
           detail = `${matched}/${room.students.length} students`;
         }
-        const cell = el('td'), tick = el('input', '', { type: 'checkbox', disabled: '',
+        const cell = el('td'), tick = el('input', '', { type: 'checkbox', disabled: '', class: 'reporting-progress-tick',
           'aria-label': `${room.code}: PDF matched, ${detail}` });
         tick.checked = checked;
         cell.append(tick, el('span', ` ${detail}`));
@@ -788,7 +794,8 @@
       }
       if (values && allocationReady) allocation.append(el('p', 'Only a single verified teaching term is used in the homeroom audit.'));
       allocation.append(el('p', awarding ? 'Yes: at least one PDF-confirmed Mohio and two PDF-confirmed Akoranga recipients.' :
-        `Yes: more than half the homeroom has ${values ? 'its assigned value' : 'at least one SLO'} confirmed by a PDF.`));
+        !junior ? 'Yes: more than half the teaching class has both SLOs confirmed by a PDF.' :
+          `Yes: more than half the homeroom has ${values ? 'its assigned value' : 'at least one SLO'} confirmed by a PDF.`));
       if (awarding) allocation.append(el('p', 'An unticked room may have too few recipients to confirm progress from the PDF.'));
     }
     async function loadAllocations() {
