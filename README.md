@@ -1927,6 +1927,21 @@ Imported data and revision history live in the Tracker app's own database
 before the Tracker release. See the Tracker repository README for imports and
 Drive file sharing requirements.
 
+**Department Awards Audit** is a separate read-only page in the independent
+Tracker app, linked directly beneath **Setup Student Tracker**. Core's
+`department-audit-roster`, `department-audit-files` and `department-audit-file`
+actions recheck verified HoLA/ADMIN authority on every request. They expose
+preserved Years 7-10 teaching rosters and bounded KAMAR PDF text evidence through
+the requester's existing encrypted Teacher Planner Google connection; credentials
+never leave Core. No private reporting drafts or attendance marks are read.
+The root and direct `TEXT`, `WOOD & DVC`, `FOOD`, `DTECH` folders may contain mixed
+PDF types. Connection IDs, folder membership and file versions are checked;
+limits are 200 files, 5 MB per PDF and 20 pages. Conflicting roster years are
+flagged rather than silently assigned. The Tracker UI validates actual PDF
+headings, columns, rows and totals, retains unmatched evidence, and separates
+blank entries from missing evidence. It never writes to KAMAR, Drive or Planner.
+See the independent Tracker README for audit status and exact award-tick rules.
+
 **Setup Student Tracker** opens a separate setup page for the selected school
 year; the Student Tracker heading returns to student search. Global ADMIN can
 open **+ Add Department** to create a department without displaying a blank

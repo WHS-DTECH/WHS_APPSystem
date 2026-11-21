@@ -137,6 +137,20 @@ test('Department PDF audit is manager-only, uses preserved rosters and never rea
   assert.equal(state.auditCalls.length, 1, 'Authority is checked before any PDF access');
 });
 
+test('department audit flags conflicting year evidence instead of choosing the last roster row', async () => {
+  const { service, input, state } = fixture();
+  state.studentHistory = [{ term: 4, payload: {
+    headers: ['Student Name', 'ID Number', 'Year Level', 'Mon P1'],
+    rows: [['Synthetic Student', '100', '7', 'TST-PIDTECH-CW']]
+  } }];
+  const roster = await service.run({ id: peerId, email: 'peer@example.test', roles: ['Teacher'] },
+    { ...input, action: 'department-audit-roster' });
+  assert.deepEqual(roster.conflictingYearIds, ['k:100']);
+  assert.ok(roster.juniorCohorts.every(cohort => !cohort.ids.includes('k:100')));
+  assert.equal(state.writes.length, 0);
+  assert.equal(state.plannerCalls.length, 0);
+});
+
 test('historical award identities match the current school list, not only department classes, without writes', async () => {
   const { service, input, state } = fixture();
   state.currentDetails = [{ id_number: '300', first_name: 'Current', last_name: 'Student',
