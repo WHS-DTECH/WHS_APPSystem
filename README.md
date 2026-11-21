@@ -1570,14 +1570,21 @@ to show either award or all rows. The default is **Award recipients only**,
 which also keeps red corrections visible. Nothing is awarded automatically.
 The award controls show **overall programme coverage** for Mohio (20%) and
 Akoranga (25%), and the criteria area shows both tallies by Year 7–10.
-Counts use every currently ticked award (manual or PDF-confirmed), unique
-students across all four preserved teaching-term rosters, including MPROG,
-and exclude 7S/8S. They do not change with the visible class or recipient filter.
+Counts use every currently ticked award (manual or PDF-confirmed) and deduplicate
+Student IDs across all four preserved terms, excluding 7S/8S. Junior denominators
+use the full eligible Year 7 and Year 8 homeroom cohorts, not just the teacher's
+DTECH classes; their Mohio 20% references remain separate by year. Junior overall
+Mohio coverage is descriptive, not a combined limit. As confirmed by the HoLA,
+Middle uses all unique DTECH/MPROG students taught across Years 9–10 for one
+combined Mohio 20% reference. Its year rows are descriptive breakdowns, with a
+separate **Middle total (20%)** row showing the combined reference.
+Counts do not change with the visible class or recipient filter.
 Over-reference percentages are labelled and highlighted for manual review;
 these tallies do not enforce caps or prove achievement ranking, consistent
-above-level work, or whole-school subject coverage. Akoranga's 25% criterion
+above-level work, or eligibility. Akoranga's 25% criterion
 remains per class, not per programme/year. Missing term rosters show an explicit
-unavailable message instead of a partial percentage.
+unavailable message instead of a partial percentage. Missing full homeroom
+rosters make Junior coverage explicitly unavailable, never a teaching-only fallback.
 The shared Awards Drive folder accepts up to 30 KAMAR recipient PDFs, including
 Junior and Middle exports and earlier corrected lists; criteria PDFs do not
 count towards this limit. Review the automatically selected latest export

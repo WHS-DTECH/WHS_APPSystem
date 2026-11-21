@@ -1114,7 +1114,7 @@
         filter.addEventListener('change', () => { awardFilter = filter.value; render(); });
         awardControls.append(filter, coverageTally); body.append(awardControls);
         function updateCoverage() {
-          coverageTable.replaceChildren(el('strong', 'Year-level award coverage'));
+          coverageTable.replaceChildren(el('strong', 'Award coverage and cohort basis'));
           coverageTally.replaceChildren();
           if (!allocationReady) {
             const message = allocationError || 'Checking all four teaching terms for award coverage…';
@@ -1123,13 +1123,16 @@
             return;
           }
           const rosters = [...auditRosters.values()];
+          const juniorAvailable = rosters.every(roster => Array.isArray(roster.homerooms));
           const excluded = new Set(rosters.flatMap(roster => [
             ...(roster.homerooms || []).filter(room => externalAwardRoom(room.code)).flatMap(room => room.students.map(student => student.id)),
             ...roster.classes.flatMap(group => group.students.filter(student => externalAwardRoom(student.whanau)).map(student => student.id))
           ]));
           const people = new Map();
-          for (const student of rosters.flatMap(roster => Object.keys(schema.programmes).flatMap(programme =>
-            schema.classGroups(roster, programme).flatMap(group => group.students)))) {
+          for (const student of rosters.flatMap(roster => [
+            ...(roster.homerooms || []).flatMap(room => room.students.filter(student => ['7', '8'].includes(student.yearLevel))),
+            ...schema.classGroups(roster, 'middle').flatMap(group => group.students)
+          ])) {
             if (excluded.has(student.id)) continue;
             if (people.has(student.id) && people.get(student.id).yearLevel !== student.yearLevel) {
               coverageTable.append(el('p', 'Coverage unavailable: a student has conflicting year levels in the preserved timetables.', { role: 'alert' }));
@@ -1140,32 +1143,49 @@
           }
           const years = ['7', '8', '9', '10'].map(yearLevel => {
             const students = [...people.values()].filter(student => student.yearLevel === yearLevel && !excluded.has(student.id));
-            return { yearLevel, total: students.length,
+            return { yearLevel, available: !['7', '8'].includes(yearLevel) || juniorAvailable, total: students.length,
               mohio: students.filter(student => awards[student.id]?.mohio === true).length,
               akoranga: students.filter(student => awards[student.id]?.akoranga === true).length };
           });
           function coverageValue(tag, count, total, limit, label = '') {
             const percent = total ? `${Number((count / total * 100).toFixed(1))}%` : '—';
-            const over = count * 100 > total * limit;
+            const over = limit !== null && count * 100 > total * limit;
             return el(tag, `${label}${count} / ${total} · ${percent}${over ? ` · Over ${limit}%` : ''}`,
               { ...(over ? { class: 'reporting-coverage-over' } : {}) });
           }
           const table = el('table'), head = el('thead'), header = el('tr'), rows = el('tbody');
-          for (const label of ['Year', 'Mohio (20%)', 'Akoranga (25%)']) header.append(el('th', label, { scope: 'col' }));
+          for (const label of ['Cohort', 'Mohio coverage', 'Akoranga (25%)']) header.append(el('th', label, { scope: 'col' }));
           head.append(header); table.append(head, rows);
           for (const year of years) {
             const row = el('tr');
-            row.append(el('th', year.yearLevel, { scope: 'row' }),
-              coverageValue('td', year.mohio, year.total, 20), coverageValue('td', year.akoranga, year.total, 25));
+            row.append(el('th', year.yearLevel, { scope: 'row' }));
+            row.append(...(year.available ? [
+              coverageValue('td', year.mohio, year.total, ['7', '8'].includes(year.yearLevel) ? 20 : null),
+              coverageValue('td', year.akoranga, year.total, 25)
+            ] : [el('td', 'Unavailable'), el('td', 'Unavailable')]));
             rows.append(row);
           }
-          coverageTable.append(table, el('p', 'Unique students across your four teaching-term rosters; 7S/8S excluded. Not a verified whole-school cohort.'),
-            el('p', 'Coverage only, not achievement ranking or eligibility. Akoranga’s 25% cap is per class, not programme or year.'));
-          const overall = years.filter(year => schema.programmes[state.programme].years.includes(year.yearLevel))
+          const totalFor = programme => years.filter(year => schema.programmes[programme].years.includes(year.yearLevel))
             .reduce((total, year) => ({ total: total.total + year.total, mohio: total.mohio + year.mohio,
               akoranga: total.akoranga + year.akoranga }), { total: 0, mohio: 0, akoranga: 0 });
+          const middleTotal = totalFor('middle'), middleRow = el('tr');
+          middleRow.append(el('th', 'Middle total (20%)', { scope: 'row' }),
+            coverageValue('td', middleTotal.mohio, middleTotal.total, 20),
+            coverageValue('td', middleTotal.akoranga, middleTotal.total, 25));
+          rows.append(middleRow);
+          coverageTable.append(table,
+            el('p', 'Junior: full eligible Year 7 and Year 8 homeroom cohorts, with a 20% Mohio reference per year.'),
+            el('p', 'Middle: all unique DTECH/MPROG students taught across Years 9–10, with one combined 20% Mohio reference. Middle year rows are breakdowns, not separate limits.'),
+            el('p', 'Each student counts once across all four terms; 7S/8S excluded. Coverage does not prove achievement ranking or eligibility. Akoranga’s 25% cap remains per class.'));
+          if (!juniorAvailable) coverageTable.append(el('p', 'Junior coverage unavailable: full homeroom rosters are missing.', { role: 'alert' }));
+          if (state.programme === 'junior' && !juniorAvailable) {
+            coverageTally.append(el('span', 'Junior coverage unavailable: full homeroom rosters are missing.'));
+            return;
+          }
+          const overall = totalFor(state.programme);
           coverageTally.append(el('strong', `Overall ${schema.programmes[state.programme].label}`),
-            coverageValue('span', overall.mohio, overall.total, 20, 'Mohio (20%): '),
+            coverageValue('span', overall.mohio, overall.total, middle ? 20 : null,
+              middle ? 'Mohio (20%): ' : 'Mohio (year-level 20%): '),
             coverageValue('span', overall.akoranga, overall.total, 25, 'Akoranga (25%): '));
         }
         updateCoverage();
