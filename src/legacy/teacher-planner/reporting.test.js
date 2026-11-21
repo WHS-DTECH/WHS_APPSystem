@@ -215,10 +215,11 @@ test('Awards attendance CSV preserves zero, ignores duplicate identical rows and
   assert.equal(validContent('reporting', { records: '[]', awards: '{"k:one":{"akoranga":"yes","attendance":101}}' }), false);
 });
 
-test('Award coverage uses all-term unique teaching cohorts and updates independently of class and filter', async () => {
+test('Award coverage uses full Junior cohorts and a combined Middle reference independently of class and filter', async () => {
   const learners = (prefix, yearLevel, count) => Array.from({ length: count }, (_, index) =>
     ({ id: `k:${prefix}${index}`, name: `${prefix}${index}`, yearLevel }));
-  const j7 = learners('J7', '7', 5), j8 = learners('J8', '8', 4), m9 = learners('M9', '9', 5), m10 = learners('M10', '10', 1);
+  const j7 = learners('J7', '7', 5), j8 = learners('J8', '8', 4), m9 = learners('M9', '9', 5), m10 = learners('M10', '10', 5);
+  const otherJunior = { id: 'k:math', name: 'Math', yearLevel: '7' };
   const outside = { id: 'k:outside', name: 'Other School', yearLevel: '7', whanau: '7S' };
   const awards = {
     [j7[0].id]: { mohio: true, akoranga: true }, [j7[1].id]: { akoranga: true },
@@ -236,38 +237,47 @@ test('Award coverage uses all-term unique teaching cohorts and updates independe
     const middle = term === 1 ? m9.slice(0, 3) : term === 2 ? m9.slice(2, 4) : [...m9.slice(3), ...m10];
     return { classes: [{ code: 'VP-JDTECH-CW', students: junior },
       { code: term < 3 ? 'VP-MPROG-CW' : 'VP-MDTECH-CW', students: middle },
-      { code: 'VP-MATH-CW', students: [{ id: 'k:math', name: 'Math', yearLevel: '7' }] }],
-    homerooms: [{ code: '7S', students: [outside] }] };
+      { code: 'VP-MATH-CW', students: [otherJunior] }],
+    homerooms: [{ code: 'PI', students: [...junior, otherJunior] }, { code: '7S', students: [outside] }] };
   } });
   await settle(); f.click('4. Awards'); await settle();
   const rows = () => f.control('Award coverage by year level').children.find(node => node.tag === 'table')
     .children.find(node => node.tag === 'tbody').children;
   const cells = year => rows().find(node => node.children[0].textContent === year).children;
   const tally = () => f.control('Overall award coverage').children.map(node => node.textContent);
-  assert.deepEqual(cells('7').map(node => node.textContent), ['7', '1 / 5 · 20%', '2 / 5 · 40% · Over 25%']);
-  assert.equal(cells('7')[1].attrs.class, undefined, 'Exactly 20% is not over the reference');
+  assert.deepEqual(cells('7').map(node => node.textContent), ['7', '2 / 6 · 33.3% · Over 20%', '2 / 6 · 33.3% · Over 25%']);
+  assert.equal(cells('7')[1].attrs.class, 'reporting-coverage-over', 'Junior students outside the teacher’s classes are included');
   assert.equal(cells('8')[1].attrs.class, 'reporting-coverage-over');
   assert.equal(cells('8')[2].textContent, '1 / 4 · 25%');
   assert.equal(cells('8')[2].attrs.class, undefined, 'Exactly 25% is not over the reference');
-  assert.ok(tally().includes('Mohio (20%): 2 / 9 · 22.2% · Over 20%'));
-  assert.ok(tally().includes('Akoranga (25%): 3 / 9 · 33.3% · Over 25%'));
+  assert.ok(tally().includes('Mohio (year-level 20%): 3 / 10 · 30%'));
+  assert.ok(tally().includes('Akoranga (25%): 3 / 10 · 30% · Over 25%'));
+  assert.equal(f.control('Overall award coverage').children[1].attrs.class, undefined, 'Junior overall coverage is not a combined Mohio limit');
   assert.equal(f.events.length, 0, 'Loading tallies never saves or adjusts awards');
   assert.equal(f.find(node => node.attrs.name === 'awards').value, data.awards);
   const unchanged = tally();
   f.click('VP-JDTECH-CW (5)'); f.enter('Filter awards', 'all');
   assert.deepEqual(tally(), unchanged);
   f.click('MiddleDTECH');
-  assert.ok(tally().includes('Mohio (20%): 1 / 6 · 16.7%'));
-  assert.ok(tally().includes('Akoranga (25%): 3 / 6 · 50% · Over 25%'));
+  assert.ok(tally().includes('Mohio (20%): 1 / 10 · 10%'));
+  assert.ok(tally().includes('Akoranga (25%): 3 / 10 · 30% · Over 25%'));
   const tick = f.control('M93: Mohio');
   tick.checked = true; tick.events.change({ stopPropagation() {} });
-  assert.equal(cells('9')[1].textContent, '2 / 5 · 40% · Over 20%');
-  assert.ok(tally().includes('Mohio (20%): 2 / 6 · 33.3% · Over 20%'), 'Mohio fast-path edits refresh coverage');
+  assert.equal(cells('9')[1].textContent, '2 / 5 · 40%');
+  assert.equal(cells('9')[1].attrs.class, undefined, 'Middle year breakdowns do not apply separate limits');
+  assert.equal(cells('Middle total (20%)')[1].textContent, '2 / 10 · 20%');
+  assert.equal(cells('Middle total (20%)')[1].attrs.class, undefined, 'Exactly 20% is not over the combined reference');
+  assert.ok(tally().includes('Mohio (20%): 2 / 10 · 20%'), 'Mohio fast-path edits refresh coverage');
   const akoranga = f.control('M100: Akoranga');
   akoranga.checked = false; akoranga.events.change({ stopPropagation() {} });
-  assert.ok(tally().includes('Akoranga (25%): 2 / 6 · 33.3% · Over 25%'));
+  assert.ok(tally().includes('Akoranga (25%): 2 / 10 · 20%'));
+  f.enter('Filter awards', 'all');
+  const extra = f.control('M92: Mohio');
+  extra.checked = true; extra.events.change({ stopPropagation() {} });
+  assert.equal(cells('Middle total (20%)')[1].attrs.class, 'reporting-coverage-over');
+  assert.ok(tally().includes('Mohio (20%): 3 / 10 · 30% · Over 20%'));
   f.enter('Reporting class list term', '1'); await settle();
-  assert.ok(tally().includes('Mohio (20%): 2 / 6 · 33.3% · Over 20%'));
+  assert.ok(tally().includes('Mohio (20%): 3 / 10 · 30% · Over 20%'));
   assert.equal(f.find(node => node.attrs.name === 'records').value, '[]');
 });
 
@@ -276,9 +286,9 @@ test('Award coverage never displays partial counts when a term fails or year-lev
   const f = fixture({ records: '[]', awards: '{}' }, false, { request: async (url, directory) => {
     if (url.includes('term=2')) {
       if (failing) throw new Error('Term 2 timetable missing');
-      return { classes: [{ code: 'TEST-JDTECH', students: [{ ...directory.classes[0].students[0], yearLevel: '8' }] }] };
+      return { classes: [], homerooms: [{ code: 'PI', students: [{ ...directory.classes[0].students[0], yearLevel: '8' }] }] };
     }
-    return directory;
+    return { ...directory, homerooms: [{ code: 'PI', students: directory.classes[0].students }] };
   } });
   await settle(); f.click('4. Awards'); await settle();
   const coverage = () => f.control('Award coverage by year level');
@@ -291,6 +301,22 @@ test('Award coverage never displays partial counts when a term fails or year-lev
   assert.equal(coverage().children.some(node => node.tag === 'table'), false);
   assert.equal(f.events.length, 0);
   assert.equal(f.find(node => node.attrs.name === 'awards').value, '{}');
+});
+
+test('Missing full Junior homeroom rosters never falls back to a partial teaching cohort', async () => {
+  const f = fixture({ records: '[]', awards: '{}' }, false, { request: async (url, directory) => {
+    const { homerooms, ...teachingOnly } = directory;
+    return teachingOnly;
+  } });
+  await settle(); f.click('4. Awards'); await settle();
+  const coverage = f.control('Award coverage by year level');
+  assert.ok(coverage.children.some(node => node.attrs.role === 'alert' && node.textContent.includes('full homeroom rosters are missing')));
+  assert.ok(f.control('Overall award coverage').children.some(node => node.textContent.includes('unavailable')));
+  const rows = coverage.children.find(node => node.tag === 'table').children.find(node => node.tag === 'tbody').children;
+  assert.equal(rows.find(node => node.children[0].textContent === '7').children[1].textContent, 'Unavailable');
+  f.click('MiddleDTECH');
+  assert.ok(f.control('Overall award coverage').children.some(node => node.textContent.startsWith('Mohio (20%):')));
+  assert.equal(f.events.length, 0);
 });
 
 test('Awards roster edits in homerooms, filters recipients and imports attendance by ID without touching ticks or grades', async () => {
