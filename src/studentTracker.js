@@ -552,11 +552,11 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
     }
     return { year, term: table.term, classes, unavailable };
   }
-  async function scope(user, year) {
+  async function scope(user, year, includeStudentTimetables = true) {
     const [departments, staff, tables] = await Promise.all([
       dbQuery('SELECT id,name,manager_ids,subjects,revision,teacher_emails,class_links FROM student_tracker_departments ORDER BY name'),
       staffRows(),
-      timetables(year)
+      includeStudentTimetables ? timetables(year) : []
     ]);
     const leaders = await leadership(staff);
     if (!user.roles.includes('ADMIN') && !leaders.staffIds.includes(user.id)) {
@@ -689,7 +689,7 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       }
       return { saved: true };
     }
-    const context = await scope(user, year);
+    const context = await scope(user, year, !['setup', 'department-audit-files', 'department-audit-file'].includes(action));
     if (action === 'setup') {
       const manageable = context.admin || context.departments.some(item => item.manager_ids.includes(user.id));
       const publicClass = lesson => ({ ...lesson, sources: lesson.sources.map(({ term, slot }) => ({ term, slot })) });
@@ -720,14 +720,19 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       }
       if (action !== 'department-audit-roster') return auditReader({ user, input, query: planner, env });
       const groups = [];
-      for (const table of context.tables.filter(table => table.term !== null)) for (const link of department.classLinks) {
-        const students = table.rows.filter(row => ['7', '8', '9', '10'].includes(student(row).yearLevel) &&
-          lessons(row).some(lesson => linkedLessonMatch(department, link, lesson, table.term) === 'matched')).map(student);
-        if (students.length) groups.push({
-          key: link.staffCode + ':' + link.code + ':' + table.term, teacher: link.teacherName, staffCode: link.staffCode,
-          code: link.code, subject: discipline(link.code), term: table.term,
-          students: [...new Map(students.map(person => [person.id, person])).values()]
-        });
+      for (const table of context.tables.filter(table => table.term !== null)) {
+        const rows = table.rows.map(row => ({ student: student(row), row }))
+          .filter(item => ['7', '8', '9', '10'].includes(item.student.yearLevel))
+          .map(item => ({ student: item.student, lessons: lessons(item.row) }));
+        for (const link of department.classLinks) {
+          const students = rows.filter(item => item.lessons.some(lesson =>
+            linkedLessonMatch(department, link, lesson, table.term) === 'matched')).map(item => item.student);
+          if (students.length) groups.push({
+            key: link.staffCode + ':' + link.code + ':' + table.term, teacher: link.teacherName, staffCode: link.staffCode,
+            code: link.code, subject: discipline(link.code), term: table.term,
+            students: [...new Map(students.map(person => [person.id, person])).values()]
+          });
+        }
       }
       const excluded = new Set(context.tables.flatMap(table => table.rows.filter(row =>
         /^(7S|8S)$/i.test(String(row.form_class || '').trim())).map(row => student(row).id)));
