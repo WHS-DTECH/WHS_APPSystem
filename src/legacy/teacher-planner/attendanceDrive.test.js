@@ -151,6 +151,45 @@ test('admin Drive listing reads direct PDFs and only the uniquely matching staff
   await assert.rejects(service.listFiles({}, folder, 'WY'), /Multiple Drive folders/);
   await assert.rejects(service.listFiles({}, folder, ''), /no valid staff code/);
 });
+test('department folder aliases work for listing and reads without accepting ambiguous or unrelated folders', async () => {
+  const woodFolder = 'synthetic_wood_folder';
+  const otherFolder = 'synthetic_other_folder';
+  const woodFile = { ...file, parents: [woodFolder] };
+  const folderItem = (id, name) => ({ id, name, mimeType: 'application/vnd.google-apps.folder',
+    parents: [folder], trashed: false });
+  let name = 'WOOD', duplicate = false;
+  const service = createAttendanceDriveService({
+    ensureConnected: async () => ({ connection_id: 'connection-test', google_subject: 'google-test' }),
+    access: async () => 'synthetic-token', hasScope: () => true, unchanged: async () => {},
+    ErrorType: DriveError, parsePdf: async () => ({ rows: [] }),
+    folderAliases: new Map([['WOOD & DVC', ['WOOD']]]),
+    fetchImpl: async urlString => {
+      const url = new URL(urlString);
+      if (url.pathname.endsWith('/' + folder)) return Response.json(folderItem(folder, 'Department'));
+      if (url.pathname.endsWith('/' + woodFolder)) return Response.json(folderItem(woodFolder, name));
+      if (url.pathname.endsWith('/files')) {
+        const q = url.searchParams.get('q');
+        if (q.includes('application/vnd.google-apps.folder')) return Response.json({ files: [
+          folderItem(woodFolder, name), folderItem(otherFolder, duplicate ? 'WOOD & DVC' : 'FOOD')
+        ] });
+        return Response.json({ files: q.includes("'" + woodFolder + "' in parents") ? [woodFile] : [] });
+      }
+      if (url.searchParams.get('alt') === 'media') return new Response('%PDF-test');
+      return Response.json(woodFile);
+    }
+  });
+  for (name of ['WOOD', ' wood ', 'WOOD & DVC']) {
+    const listing = await service.listFiles({}, folder, 'WOOD & DVC');
+    assert.equal(listing.staffFolder, name);
+    assert.deepEqual(listing.files.map(item => item.id), [woodFile.id]);
+    assert.equal((await service.readFile({}, woodFolder, woodFile.id, folder, 'WOOD & DVC')).version.includes(woodFile.id), true);
+  }
+  name = 'FOOD';
+  await assert.rejects(service.readFile({}, woodFolder, woodFile.id, folder, 'WOOD & DVC'), /staff-code folder moved/);
+  assert.equal((await service.listFiles({}, folder, 'WOOD & DVC')).staffFolder, null);
+  name = 'WOOD'; duplicate = true;
+  await assert.rejects(service.listFiles({}, folder, 'WOOD & DVC'), /Multiple Drive folders/);
+});
 test('Drive consent is opt-in and reconnect retains previously granted scopes', async t => {
   const env = {
     GOOGLE_CALENDAR_CLIENT_ID: 'synthetic-client', GOOGLE_CALENDAR_CLIENT_SECRET: 'synthetic-secret',

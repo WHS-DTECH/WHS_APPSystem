@@ -1942,7 +1942,10 @@ This avoids repeated roster work during concurrent PDF downloads. Unexpected
 bridge failures log the action and safe error name/code without private query
 data; unsuccessful checks still return an explicit error.
 The root and direct `TEXT`, `WOOD & DVC`, `FOOD`, `DTECH` folders may contain mixed
-PDF types. Connection IDs, folder membership and file versions are checked;
+PDF types. The Wood & DVC folder may also be named `WOOD`; both listing and PDF
+reads accept that name. If both names exist, the audit reports an ambiguous folder
+rather than selecting one silently. Attendance staff-folder matching is unchanged.
+Connection IDs, folder membership and file versions are checked;
 limits are 200 files, 5 MB per PDF and 20 pages. Conflicting roster years are
 flagged rather than silently assigned. The Tracker UI validates actual PDF
 headings, columns, rows and totals, retains unmatched evidence, and separates

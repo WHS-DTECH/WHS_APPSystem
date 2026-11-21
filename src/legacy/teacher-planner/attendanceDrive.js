@@ -20,7 +20,12 @@ function fileVersion(file) {
 }
 function createAttendanceDriveService({ ensureConnected, access, unchanged, hasScope, fetchImpl = fetch,
   ErrorType, parsePdf = importAttendancePdf, pdfError = AttendancePdfError, purpose = 'Attendance',
-  mimeType = 'application/pdf', format = 'PDF', maxSize = MAX_PDF }) {
+  mimeType = 'application/pdf', format = 'PDF', maxSize = MAX_PDF, folderAliases = new Map() }) {
+  const folderName = name => name.trim().toUpperCase();
+  function matchesFolder(name, staffCode) {
+    return [staffCode, ...(folderAliases.get(folderName(staffCode)) || [])]
+      .some(candidate => folderName(candidate) === folderName(name));
+  }
   async function connection(req, folder) {
     if (!DRIVE_ID.test(folder || '')) throw new ErrorType('Choose a valid Drive attendance folder.', 400);
     const row = await ensureConnected(req);
@@ -82,7 +87,7 @@ function createAttendanceDriveService({ ensureConnected, access, unchanged, hasS
       const folders = await listChildren(folder, FOLDER_MIME, 'id,name,mimeType,parents,trashed', item =>
         item && DRIVE_ID.test(item.id) && typeof item.name === 'string' && item.name.length <= 500 &&
         item.mimeType === FOLDER_MIME && item.trashed === false && item.parents?.includes(folder));
-      const matches = folders.filter(item => item.name.trim().toUpperCase() === staffCode.trim().toUpperCase());
+      const matches = folders.filter(item => matchesFolder(item.name, staffCode));
       if (matches.length > 1) throw new ErrorType('Multiple Drive folders match the selected staff code. Keep only one matching folder and retry.', 409);
       staffFolder = matches[0] || null;
     }
@@ -106,7 +111,7 @@ function createAttendanceDriveService({ ensureConnected, access, unchanged, hasS
         '?fields=id,name,mimeType,parents,trashed&supportsAllDrives=true', token)).json();
       if (metadata.id !== folder || metadata.mimeType !== FOLDER_MIME || metadata.trashed !== false ||
           !metadata.parents?.includes(parentFolderId) || typeof staffCode !== 'string' ||
-          typeof metadata.name !== 'string' || metadata.name.trim().toUpperCase() !== staffCode.trim().toUpperCase()) {
+          typeof metadata.name !== 'string' || !matchesFolder(metadata.name, staffCode)) {
         throw new ErrorType('The staff-code folder moved, was renamed or is no longer available. Retry attendance sync.', 409);
       }
     }

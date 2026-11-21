@@ -14,6 +14,7 @@ async function readDepartmentAudit({ user, input, query, env, fetchImpl = fetch 
   if (!connection.config) throw new DepartmentAuditError('Google Drive access is not configured in Teacher Planner.', 503);
   const service = createAttendanceDriveService({
     ...connection, fetchImpl, ErrorType: DepartmentAuditError, purpose: 'Department audit',
+    folderAliases: new Map([['WOOD & DVC', ['WOOD']]]),
     parsePdf: importDepartmentPdf, pdfError: DepartmentPdfError,
     hasScope: row => (decryptTokens(row.encrypted_tokens, connection.config.key, row.owner_id).scopes || []).includes(DRIVE_SCOPE)
   });
