@@ -79,10 +79,8 @@ function normaliseEvent(event, calendar) {
     allDay, location: event.location || '', description: event.description || '',
     calendar: calendar.summary, htmlLink };
 }
-function createGoogleCalendarRouter({ query, env = process.env, fetchImpl = fetch, loadSchoolCalendar, adminAttendance }) {
+function createGoogleCalendarAccess({ query, env = process.env, fetchImpl = fetch }) {
   const config = configuration(env);
-  const router = express.Router();
-  const saveSession = req => new Promise((resolve, reject) => req.session.save(error => error ? reject(error) : resolve()));
   const read = async owner => (await query('SELECT * FROM google_calendar_connections WHERE owner_id=$1', [owner])).rows[0];
   const ensureConnected = async req => {
     const row = await read(req.user.id);
@@ -122,6 +120,12 @@ function createGoogleCalendarRouter({ query, env = process.env, fetchImpl = fetc
     if (!saved.rows.length) throw new CalendarError('Your Google connection changed. Reload the calendar.', 409);
     return next.accessToken;
   }
+  return { config, read, ensureConnected, unchanged, google, tokenRequest, access };
+}
+function createGoogleCalendarRouter({ query, env = process.env, fetchImpl = fetch, loadSchoolCalendar, adminAttendance }) {
+  const { config, read, ensureConnected, unchanged, google, tokenRequest, access } = createGoogleCalendarAccess({ query, env, fetchImpl });
+  const router = express.Router();
+  const saveSession = req => new Promise((resolve, reject) => req.session.save(error => error ? reject(error) : resolve()));
   async function pages(path, accessToken, params, maxPages) {
     const items = [];
     let pageToken;
@@ -457,4 +461,4 @@ function createGoogleCalendarRouter({ query, env = process.env, fetchImpl = fetc
   }));
   return router;
 }
-module.exports = { createGoogleCalendarRouter, configuration, encryptTokens, decryptTokens, nzMidnight, normaliseEvent, SCOPES };
+module.exports = { createGoogleCalendarRouter, createGoogleCalendarAccess, configuration, encryptTokens, decryptTokens, nzMidnight, normaliseEvent, SCOPES };
