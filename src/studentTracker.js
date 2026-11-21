@@ -6,6 +6,7 @@ const { loadDepartments, normaliseDirectoryName } = require('./legacy/kamar-uplo
 const { JUNIOR_DTECH_CLASS_CODES } = require('./legacy/dtech-hub/learning-sites-assessment');
 const { loadCalendarYear, deriveTermDates } = require('./legacy/teacher-planner/kamarCalendar');
 const { loadLearningSiteUnits } = require('./learningSiteUnits');
+const { readDepartmentAudit } = require('./departmentAudit');
 
 const UUID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 const columns = ['mon', 'tue', 'wed', 'thu', 'fri']
@@ -215,7 +216,7 @@ function termRows(payload) {
     return mapStudentRow(row, map);
   }).filter(row => row.id_number && row.student_name);
 }
-function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, env = process.env,
+function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, env = process.env, auditReader = readDepartmentAudit,
   loadKamarTermDates = async year => deriveTermDates((await loadCalendarYear(year)).events, year),
   today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Pacific/Auckland', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()) }) {
   let pool;
@@ -622,7 +623,8 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
     if (!input || typeof input !== 'object' || Array.isArray(input)) throw error('Invalid Student Tracker request.');
     const { action, year } = input;
     if (!Number.isInteger(year) || year < 2000 || year > 2100) throw error('Choose a year from 2000 to 2100.');
-    if (!['setup', 'save-setup', 'save-classes', 'search', 'awards-roster', 'award-identities', 'profile', 'attendance', 'attendance-overview', 'reports'].includes(action)) {
+    if (!['setup', 'save-setup', 'save-classes', 'search', 'awards-roster', 'award-identities', 'department-audit-roster',
+      'department-audit-files', 'department-audit-file', 'profile', 'attendance', 'attendance-overview', 'reports'].includes(action)) {
       throw error('Unknown Student Tracker action.');
     }
     if (action === 'save-setup' || action === 'save-classes') {
@@ -712,6 +714,30 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       })) };
     }
     const department = departmentFor(context, input.departmentId);
+    if (action.startsWith('department-audit-')) {
+      if (!context.admin && !department.manager_ids.includes(user.id)) {
+        throw error('Department Awards Audit requires verified department HoLA or Global ADMIN access.', 403);
+      }
+      if (action !== 'department-audit-roster') return auditReader({ user, input, query: planner, env });
+      const groups = [];
+      for (const table of context.tables.filter(table => table.term !== null)) for (const link of department.classLinks) {
+        const students = table.rows.filter(row => ['7', '8', '9', '10'].includes(student(row).yearLevel) &&
+          lessons(row).some(lesson => linkedLessonMatch(department, link, lesson, table.term) === 'matched')).map(student);
+        if (students.length) groups.push({
+          key: link.staffCode + ':' + link.code + ':' + table.term, teacher: link.teacherName, staffCode: link.staffCode,
+          code: link.code, subject: discipline(link.code), term: table.term,
+          students: [...new Map(students.map(person => [person.id, person])).values()]
+        });
+      }
+      const excluded = new Set(context.tables.flatMap(table => table.rows.filter(row =>
+        /^(7S|8S)$/i.test(String(row.form_class || '').trim())).map(row => student(row).id)));
+      const juniors = new Map(context.tables.flatMap(table => table.rows.map(student))
+        .filter(person => ['7', '8'].includes(person.yearLevel) && !excluded.has(person.id)).map(person => [person.id, person]));
+      return { year, department: department.name, groups,
+        juniorCohorts: ['7', '8'].map(yearLevel => ({ yearLevel, ids: [...juniors.values()].filter(person => person.yearLevel === yearLevel).map(person => person.id) })),
+        excludedAwardIds: [...excluded], missingTerms: [1, 2, 3, 4].filter(term => !context.tables.some(table => table.term === term)),
+        unavailableClassCount: department.unavailableClassCount };
+    }
     if (action === 'award-identities') {
       if (!Array.isArray(input.studentIds) || input.studentIds.length > 20000 ||
           input.studentIds.some(id => typeof id !== 'string' || !/^k:[A-Za-z0-9_-]{1,60}$/.test(id))) {

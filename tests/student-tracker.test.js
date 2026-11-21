@@ -47,6 +47,7 @@ function fixture() {
       { owner_id: teacherId, date: '2026-11-10', period: 'p2', mark: 'A' }
     ] };
   const service = createStudentTrackerService({
+    auditReader: async request => { (state.auditCalls ||= []).push(request); return { files: [] }; },
     today: () => '2026-11-13',
     loadKamarTermDates: async () => state.kamarDates,
     dbQuery: async (sql, params) => {
@@ -115,6 +116,27 @@ function fixture() {
   });
   return { ...state, state, service, input: { year: 2026, departmentId, studentId: 'k:100' } };
 }
+test('Department PDF audit is manager-only, uses preserved rosters and never reads private report drafts', async () => {
+  const { service, input, state } = fixture();
+  const manager = { id: peerId, email: 'peer@example.test', roles: ['Teacher'] };
+  await assert.rejects(service.run(teacher, { ...input, action: 'department-audit-files' }), { status: 403 });
+  await assert.rejects(service.run({ ...teacher, id: managerId }, { ...input, action: 'department-audit-roster' }), { status: 403 });
+  state.teacherHistory = [{ term: 4, payload: { headers: ['Teacher', 'Mon P1', 'Fri P3'],
+    rows: [['TST', 'PIDTECH-CW', ''], ['PEER', '', 'PIDTECH-05']] } }];
+  const roster = await service.run(manager, { ...input, action: 'department-audit-roster' });
+  assert.ok(roster.groups.length);
+  assert.ok(roster.groups.every(group => group.term === 4));
+  assert.deepEqual(roster.missingTerms, [1, 2, 3]);
+  assert.deepEqual(roster.juniorCohorts.find(cohort => cohort.yearLevel === '8').ids.sort(), ['k:100', 'k:200']);
+  await service.run(manager, { ...input, action: 'department-audit-files', folder: 'synthetic-folder' });
+  assert.equal(state.auditCalls[0].user.id, peerId);
+  assert.equal(state.plannerCalls.length, 0);
+  assert.equal(state.writes.length, 0);
+  state.accounts.find(account => account.id === peerId).lead_teacher = false;
+  await assert.rejects(service.run(manager, { ...input, action: 'department-audit-file' }), { status: 403 });
+  assert.equal(state.auditCalls.length, 1, 'Authority is checked before any PDF access');
+});
+
 test('historical award identities match the current school list, not only department classes, without writes', async () => {
   const { service, input, state } = fixture();
   state.currentDetails = [{ id_number: '300', first_name: 'Current', last_name: 'Student',
