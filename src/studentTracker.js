@@ -731,11 +731,20 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       }
       const excluded = new Set(context.tables.flatMap(table => table.rows.filter(row =>
         /^(7S|8S)$/i.test(String(row.form_class || '').trim())).map(row => student(row).id)));
-      const juniors = new Map(context.tables.flatMap(table => table.rows.map(student))
-        .filter(person => ['7', '8'].includes(person.yearLevel) && !excluded.has(person.id)).map(person => [person.id, person]));
+      const evidence = context.tables.flatMap(table => table.rows.map(student));
+      const yearsById = new Map();
+      for (const person of evidence) {
+        if (!yearsById.has(person.id)) yearsById.set(person.id, new Set());
+        if (person.yearLevel) yearsById.get(person.id).add(person.yearLevel);
+      }
+      const conflictingYearIds = [...yearsById].filter(([, levels]) => levels.size > 1).map(([id]) => id);
+      const conflicts = new Set(conflictingYearIds);
+      const juniors = new Map(evidence.filter(person =>
+        ['7', '8'].includes(person.yearLevel) && !excluded.has(person.id) && !conflicts.has(person.id)).map(person => [person.id, person]));
       return { year, department: department.name, groups,
         juniorCohorts: ['7', '8'].map(yearLevel => ({ yearLevel, ids: [...juniors.values()].filter(person => person.yearLevel === yearLevel).map(person => person.id) })),
-        excludedAwardIds: [...excluded], missingTerms: [1, 2, 3, 4].filter(term => !context.tables.some(table => table.term === term)),
+        excludedAwardIds: [...excluded], conflictingYearIds,
+        missingTerms: [1, 2, 3, 4].filter(term => !context.tables.some(table => table.term === term)),
         unavailableClassCount: department.unavailableClassCount };
     }
     if (action === 'award-identities') {
