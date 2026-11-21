@@ -151,6 +151,21 @@ test('department audit flags conflicting year evidence instead of choosing the l
   assert.equal(state.plannerCalls.length, 0);
 });
 
+test('setup and PDF access do not reload student timetables but still verify current management', async () => {
+  const { service, input, state } = fixture();
+  const manager = { id: peerId, email: 'peer@example.test', roles: ['Teacher'] };
+  state.studentHistory = [{ term: 4, payload: null }];
+  await service.run(manager, { ...input, action: 'setup' });
+  await service.run(manager, { ...input, action: 'department-audit-files' });
+  await service.run(manager, { ...input, action: 'department-audit-file' });
+  assert.ok(state.directoryCalls.every(sql => !sql.includes('FROM student_upload') && !sql.includes("dataset_type='student_timetable'")));
+  assert.equal(state.auditCalls.length, 2);
+  await assert.rejects(service.run(manager, { ...input, action: 'department-audit-roster' }), /preserved KAMAR timetable is invalid/);
+  state.accounts.find(account => account.id === peerId).lead_teacher = false;
+  await assert.rejects(service.run(manager, { ...input, action: 'department-audit-file' }), { status: 403 });
+  assert.equal(state.auditCalls.length, 2);
+});
+
 test('historical award identities match the current school list, not only department classes, without writes', async () => {
   const { service, input, state } = fixture();
   state.currentDetails = [{ id_number: '300', first_name: 'Current', last_name: 'Student',

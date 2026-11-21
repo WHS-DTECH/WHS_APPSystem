@@ -1934,6 +1934,13 @@ actions recheck verified HoLA/ADMIN authority on every request. They expose
 preserved Years 7-10 teaching rosters and bounded KAMAR PDF text evidence through
 the requester's existing encrypted Teacher Planner Google connection; credentials
 never leave Core. No private reporting drafts or attendance marks are read.
+Setup and PDF file authorisation do not reload student timetables; current staff,
+leadership and available teacher/class links are still verified on each request.
+The roster action alone loads student timetable evidence and parses each
+student's lessons once per preserved term, reusing them across linked classes.
+This avoids repeated roster work during concurrent PDF downloads. Unexpected
+bridge failures log the action and safe error name/code without private query
+data; unsuccessful checks still return an explicit error.
 The root and direct `TEXT`, `WOOD & DVC`, `FOOD`, `DTECH` folders may contain mixed
 PDF types. Connection IDs, folder membership and file versions are checked;
 limits are 200 files, 5 MB per PDF and 20 pages. Conflicting roster years are

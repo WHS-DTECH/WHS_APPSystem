@@ -210,7 +210,10 @@ function createModuleIdentityRouter({
     }
     try { res.json(await tracker.run(user, req.body)); }
     catch (error) {
-      console.error('Student Tracker request failed:', error.status ? error.message : 'Data source unavailable.');
+      console.error('Student Tracker request failed:', {
+        action: req.body.action, name: error.name, code: error.code || null,
+        message: error.status ? error.message : 'Data source unavailable.'
+      });
       res.status(error.status || 502).json({ error: error.status ? error.message :
         'Student Tracker data could not be loaded. Check the Kamar Uploader, Tracker setup and Planner database, then retry.' });
     }
