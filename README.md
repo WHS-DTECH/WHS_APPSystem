@@ -1760,12 +1760,22 @@ Public discovery is at
 `/.well-known/oauth-protected-resource/integrations/teacher-planner/mcp` and
 `/.well-known/oauth-authorization-server`. The OAuth resource identifier is the
 full HTTPS MCP endpoint and must be sent in both authorisation and token
-requests. Tokens are one-hour, audience-bound `planner:read` grants stored
+requests. New tokens are eight-hour (28,800 seconds), audience-bound `planner:read` grants stored
 hashed in Core. PKCE, one-use five-minute codes, exact callback validation,
 session-bound CSRF-protected consent and active school/module authorisation
 are enforced. Browser cookies alone do not authorise MCP requests. No refresh
 tokens are issued in this pilot: reconnect after expiry. Token revocation is
 available at `POST /integrations/teacher-planner/oauth/revoke`.
+
+Core migration `058_teacher_planner_mcp_token_lifetime.sql` updates the default
+for future grants; token issuance explicitly uses the same lifetime as
+`expires_in`. Existing one-hour grants are not extended: reconnect once after
+deployment to receive an eight-hour grant. Expiry is absolute, not renewed by
+activity, and an expired token is rejected with HTTP 401, including at the expiry
+instant. ChatGPT can use a new grant for eight hours without a scheduled school
+sign-in, provided access is not revoked, the school/module account remains active,
+and ChatGPT retains the connection. This does not guarantee third-party session
+behaviour or uptime. Existing Google token renewal is unchanged.
 
 The consent page's form policy permits only this site and the configured ChatGPT
 callback, including the redirect after approval. Its `same-origin` referrer policy

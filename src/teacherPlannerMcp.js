@@ -21,7 +21,7 @@ const PREFIX = '/integrations/teacher-planner';
 const MCP_PATH = PREFIX + '/mcp';
 const SCOPE = 'planner:read';
 const CLIENT_ID = 'teacher-planner-chatgpt';
-const TOKEN_SECONDS = 3600;
+const TOKEN_SECONDS = 28800;
 const hash = value => crypto.createHash('sha256').update(value).digest('base64url');
 const opaque = value => typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value);
 const yearSchema = z.number().int().min(2000).max(2100);
@@ -133,11 +133,12 @@ function createProvider({ query, authorizeUser, origin, resource, callback }) {
         RETURNING user_id`, [hash(code), registered.client_id, redirectUri, resource.href])).rows[0];
       if (!row || !await authorizeUser(row.user_id)) throw new InvalidGrantError('Planner authorisation expired or was withdrawn.');
       const token = crypto.randomBytes(32).toString('base64url');
-      await query(`INSERT INTO teacher_planner_mcp_grants(token_hash,user_id,client_id,resource,scope)
-        VALUES($1,$2,$3,$4,$5)`, [hash(token), row.user_id, registered.client_id, resource.href, SCOPE]);
+      await query(`INSERT INTO teacher_planner_mcp_grants(token_hash,user_id,client_id,resource,scope,expires_at)
+        VALUES($1,$2,$3,$4,$5,NOW() + $6 * INTERVAL '1 second')`,
+      [hash(token), row.user_id, registered.client_id, resource.href, SCOPE, TOKEN_SECONDS]);
       return { access_token: token, token_type: 'Bearer', expires_in: TOKEN_SECONDS, scope: SCOPE };
     }),
-    exchangeRefreshToken: async () => { throw new UnsupportedGrantTypeError('Reconnect after the one-hour read-only grant expires.'); },
+    exchangeRefreshToken: async () => { throw new UnsupportedGrantTypeError('Reconnect after the eight-hour read-only grant expires.'); },
     verifyAccessToken: guard(async token => {
       if (!opaque(token)) throw new InvalidTokenError('Invalid Planner token.');
       const row = (await query(`SELECT user_id,client_id,resource,scope,expires_at FROM teacher_planner_mcp_grants
