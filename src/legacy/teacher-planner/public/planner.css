@@ -127,10 +127,33 @@
 .teaching-slot-detail h4 { margin: 6px 0 12px; font-size: 20px; }
 .teaching-slot-detail p, .teaching-slot-support h4, .teaching-slot-support p { margin: 6px 0; }
 .teaching-slot-support { background: #f4f8fa; }
+.teaching-slot-session-support { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; margin-top: 12px; }
+.teaching-slot-session-support [data-session-panel="preparation"] { grid-column: 1; }
+.teaching-slot-session-support [data-session-panel="continuation"] { grid-column: 2; }
+.teaching-slot-detail-heading { display: flex; align-items: center; gap: 12px; }
+.teaching-slot-detail-heading h4 { flex: 1; margin: 0; font-size: 26px; line-height: 1.25; }
+.teaching-resource-icon { font-size: 32px; }
+.teaching-slot-detail-labels { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; font-size: 13px; font-weight: 700; }
+.teaching-slot-type-label, .teaching-slot-reminder { padding: 4px 9px; border-radius: 4px; background: #eaf2f8; color: #173e54; }
+.teaching-slot-reminder { background: #fff0c6; color: #715100; }
+.teaching-slot-detail .teaching-activity-description { margin: 12px 0 16px; font-size: 17px; line-height: 1.5; }
+.teaching-resource-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.teaching-resource-section { --resource-colour: #245f85; --resource-background: #eaf2f8; min-width: 0; border: 1px solid #b3c4cb; border-radius: 5px; overflow-wrap: anywhere; }
+.teaching-resource-section[data-resource-category="print"] { --resource-colour: #00665b; --resource-background: #e1f3ef; }
+.teaching-resource-section[data-resource-category="lesson"] { --resource-colour: #68418a; --resource-background: #f2eafa; }
+.teaching-resource-section[data-resource-category="unit"] { --resource-colour: #924500; --resource-background: #fff0df; }
+.teaching-resource-section h5 { display: flex; align-items: center; gap: 6px; margin: 0; padding: 9px 12px; border-left: 4px solid var(--resource-colour); background: var(--resource-background); color: var(--resource-colour); font-size: 15px; }
+.teaching-resource-section .teaching-slot-resources { display: grid; gap: 8px; list-style: none; margin: 0; padding: 10px; }
+.teaching-resource-section .teaching-resource-link, .teaching-resource-unavailable { display: block; padding: 10px 12px; border: 1px solid #b3c4cb; border-radius: 4px; background: #fff; color: var(--resource-colour); font-size: 16px; font-weight: 700; line-height: 1.4; text-decoration: none; }
+.teaching-resource-section .teaching-resource-link:hover { background: var(--resource-background); }
+.teaching-resource-section .teaching-resource-link:focus-visible { outline: 3px solid #376783; outline-offset: 2px; }
+.teaching-resource-unavailable { font-weight: 400; color: #626f76; }
 @media (max-width: 800px) {
   .teaching-slot-header { flex-direction: column; }
   .teaching-slot-source { text-align: left; }
   .teaching-slot-workspace { grid-template-columns: minmax(0, 1fr); }
+  .teaching-slot-session-support, .teaching-resource-grid { grid-template-columns: minmax(0, 1fr); }
+  .teaching-slot-session-support [data-session-panel] { grid-column: 1; }
 }
 .term-trello-panel > p { font-size: 13px; }
 .term-trello-panel [role="alert"] { color: #8e230c; background: #fff0eb; padding: 8px; }
