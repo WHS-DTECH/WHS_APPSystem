@@ -55,6 +55,7 @@
   let saveInFlight;
   let periodDate = '', periodSlot = 'p1', selectedDay = 0, invalidPeriodLink = false;
   let activityRecord = '';
+  let sessionPlanner, sessionAddress;
   let canManageSchoolSettings = false;
   let setupTab = 0;
   let setupAttendanceReady;
@@ -126,7 +127,7 @@
     status.textContent = message;
   }
   function key() { return section === 'activity' ? activityRecord : section === 'moderation' ? moderationRecord || 'main' : section === 'period' ? periodDate + '_' + periodSlot : section === 'week' ? week : section === 'term' ? term : 'main'; }
-  function address() { return section === 'setup' ? api + 'school-settings/' + year :
+  function address() { return section === 'period' && sessionAddress ? api + sessionAddress : section === 'setup' ? api + 'school-settings/' + year :
     api + (['period', 'activity'].includes(section) ? periodDate.slice(0, 4) : year) + '/' + section + '/' + key(); }
   function viewFragment(overrides = {}) {
     return new URLSearchParams({ section, year, week, term, day: selectedDay,
@@ -955,6 +956,37 @@
         setupTab = 3; section = 'setup'; load();
       },
       request: async () => { await refreshSession(); return request(api + 'google-drive/config'); }
+    });
+  }
+  function mountTeachingSession(data, legacy) {
+    content.dataset.view = 'period';
+    sessionAddress = 'sessions/' + periodDate + '/' + periodSlot;
+    sessionPlanner = globalThis.plannerTeachingSession.mount(content, { ...data, legacy }, {
+      el,
+      back: () => navigatePlannerSection('timetable'),
+      openRoutine: async id => {
+        if (!await ensureSaved()) return;
+        activityRecord = id; section = 'activity'; await load();
+      },
+      confirm: async () => {
+        if (await ensureSaved()) await saveEntry(false, true);
+      },
+      checkpoint: async (note, checkpointRevision) => {
+        if (!await ensureSaved()) throw new Error('Save the current session draft before confirming the checkpoint.');
+        await refreshSession();
+        return request(api + 'sessions/context/2026', { method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'x-planner-csrf': csrf },
+          body: JSON.stringify({ note, revision: checkpointRevision }) });
+      },
+      legacy: async () => {
+        if (!await ensureSaved()) return;
+        sessionPlanner = undefined; sessionAddress = undefined; revision = legacy.revision;
+        content.replaceChildren(); renderPeriod(legacy.content);
+        const back = el('button', 'Return to JPI session plan', { type: 'button', 'data-planner-navigation': '' });
+        back.addEventListener('click', async () => { if (await ensureSaved()) await load(); });
+        content.prepend(back);
+        notice('Original Period notes. These save separately; the JPI session plan is retained.');
+      }
     });
   }
   function weeklyTable(data, indexes, showTimes) {
@@ -2472,7 +2504,16 @@
           });
         },
         renderWeek: renderKamarWeek, sunday: kamarSunday, today: kamarToday, weekDates: kamarWeekDates,
-        dayEvents: kamarEventsForDay, hourEvents: kamarHourEvents, hourLabel: kamarHourLabel, date, iso
+        dayEvents: kamarEventsForDay, hourEvents: kamarHourEvents, hourLabel: kamarHourLabel, date, iso,
+        openSession: async event => {
+          if (!await ensureSaved()) return;
+          const value = event.start.endsWith('Z') ? new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Pacific/Auckland', year: 'numeric', month: '2-digit', day: '2-digit'
+          }).format(new Date(event.start)) : event.start.slice(0, 10);
+          section = 'period'; periodDate = value; periodSlot = 'p2'; year = Number(value.slice(0, 4));
+          yearInput.value = year; updateYearBadge(); week = monday(value);
+          selectedDay = (date(value).getUTCDay() + 6) % 7; await load();
+        }
       });
       return;
     }
@@ -2599,6 +2640,7 @@
     return weeklyTimetableEntries(feeds.flatMap(feed => feed.events), selectedWeek, Infinity);
   }
   async function load() {
+    sessionPlanner = undefined; sessionAddress = undefined;
     setupAttendanceReady = undefined;
     if (section === 'attendanceImport') { section = 'setup'; setupTab = 5; }
     const dutyRefresh = document.getElementById?.('refresh-weekly-duties');
@@ -2663,7 +2705,28 @@
       const data = await request(address());
       if (section === 'activity' && !data.revision) throw new Error('This activity is unavailable. Use the Period Planner to create or link an activity.');
       if (section === 'setup') canManageSchoolSettings = data.canEdit === true;
-      revision = data.revision; savedTermContent = section === 'term' ? { ...data.content } : {}; render(data.content); loaded = true;
+      revision = data.revision; savedTermContent = section === 'term' ? { ...data.content } : {};
+      if (section === 'period' && periodSlot === 'p2' && periodDate >= '2026-11-23' && periodDate <= '2026-12-31') {
+        let pilot;
+        try { pilot = await request(api + 'sessions/' + periodDate + '/' + periodSlot); }
+        catch (error) {
+          console.error('JPI session load failed:', error);
+          render(data.content); loaded = true; retry.hidden = false;
+          notice('The JPI session workspace could not load: ' + error.message +
+            ' Original Period notes remain available and save separately. Use Retry loading to reopen the session workspace.', true);
+          return;
+        }
+        if (pilot.available) {
+          revision = pilot.revision; mountTeachingSession(pilot, data);
+          loaded = true;
+          notice((pilot.updated_at ? 'Session loaded. Last saved ' + new Date(pilot.updated_at).toLocaleString('en-NZ') :
+            'JPI draft from your timetable. Opening it has not saved a record.') +
+            ' Plans autosave; outcomes require explicit confirmation.');
+          return;
+        }
+        render(data.content); loaded = true; notice(pilot.reason); return;
+      }
+      render(data.content); loaded = true;
       if (section === 'year') await loadSchoolCalendar();
       if (['year', 'week', 'term'].includes(section)) await loadSharedDates(termDates);
       if (!dirty) notice(section === 'setup' ? (data.updated_at ? 'School-wide setup loaded. Last saved ' + new Date(data.updated_at).toLocaleString('en-NZ') : 'School-wide setup has not been published. Add confirmed dates or load the opening schedule, then save.') :
@@ -2705,7 +2768,7 @@
     for (const area of content.querySelectorAll('.term-auto-expand')) expandTermArea(area);
     alignWeekRows(content.querySelector('.weekly-spread'));
   });
-  async function saveEntry(automatic = false) {
+  async function saveEntry(automatic = false, confirmProgress = false) {
     if (section === 'timetable' || busy || !loaded || (section === 'setup' && (!canManageSchoolSettings || content.querySelector('#setup-sheet-0')?.hidden))) return;
     clearTimeout(autosaveTimer);
     if (!form.reportValidity()) {
@@ -2713,9 +2776,9 @@
       return;
     }
     const version = editVersion;
-    const data = section === 'term' ? { ...savedTermContent } : {}, cells = {};
+    const data = sessionPlanner ? sessionPlanner.read() : section === 'term' ? { ...savedTermContent } : {}, cells = {};
     const formData = new FormData(form);
-    for (const [name, value] of formData) {
+    for (const [name, value] of sessionPlanner ? [] : formData) {
       if (section === 'setup' && name.startsWith('event')) continue;
       if (section === 'learning' && name === 'types') continue;
       if (name.includes(':')) cells[name] = value;
@@ -2741,8 +2804,9 @@
     saveInFlight = new Promise(resolve => { finishSave = resolve; });
     try {
       await refreshSession();
-      const result = await request(address(), { method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-planner-csrf': csrf }, body: JSON.stringify({ content: data, revision }) });
+      const result = await request(address() + (sessionPlanner && confirmProgress ? '?confirm=true' : ''), { method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-planner-csrf': csrf }, body: JSON.stringify({ content: data, revision }) });
       revision = result.revision; dirty = version !== editVersion; succeeded = true;
+      sessionPlanner?.saved(result);
       if (section === 'term') savedTermContent = data;
       if (autosaves()) autosavePaused = false;
       notice(dirty ? 'Latest changes are waiting to autosave...' : (automatic ? 'Autosaved ' : 'Saved ') + new Date(result.updated_at).toLocaleString('en-NZ') + (section === 'setup' ? '. School-wide dates published for all planners in ' + year + '.' : '. To the database, private to your account.'));

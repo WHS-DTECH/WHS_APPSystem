@@ -1759,8 +1759,57 @@ authentication are unchanged. Existing KAMAR subscriptions remain Google Calenda
 sources; their refresh timing is controlled by Google. Calendar choices are saved
 privately to the school account and are not copied or reset by switching views.
 The new `#section=timetable` view does not load or save a Planner planning record,
-and adds no lesson-planning or task-management features. Year and Weekly Planner
-layouts and the separate MCP connection are unchanged.
+and does not store lesson plans inside the calendar. JPI events can open the
+separate Period Planner pilot described below. Year and Weekly Planner layouts
+and the separate MCP connection are unchanged.
+
+### JPI Period Planner pilot
+
+The added Period Planner is a separate session workspace; the original Year,
+Term and Weekly Planner designs are unchanged. The initial pilot opens JPI
+JuniorDTECH Period 2 from **23 November 2026** through the end of 2026. Other
+classes and periods retain the existing Period Planner. Open a JPI event's
+**Open JPI session plan** action in Teacher Timetable, or use
+`#section=period&year=2026&week=2026-11-23&term=4&day=0&date=2026-11-23&slot=p2`.
+The server requires the signed-in owner's existing CW Routine and exactly one
+JPI occurrence at 10:00-11:00 in their personal KAMAR feed. Ambiguous or unavailable
+feeds do not generate a guessed plan. Whanau, observation, meeting and duty types
+are supported by the storage model, but their workflows are not enabled.
+
+Run `npm run db:migrate:planner` against the **separate Teacher Planner database**
+before enabling the pilot; migration `015_teaching_sessions.sql` adds
+`planner_class_contexts` and `planner_sessions`. No existing record is converted
+or deleted. Original Period notes remain accessible and editable separately.
+An occurrence cannot create duplicate records for the same owner/date/group/slot.
+The embedded host checks its existing schema but does not run this migration.
+
+The pilot reuses the owner's saved CW Routine and the checked-in DTECH-HUB Binary
+Piano catalogue/lesson/resource links; it does not copy lesson instructions into
+each period or create another content library. Its initial decoding sequence is
+an editable draft, not evidence of completed learning. The teacher-reported
+starting checkpoint must be corrected/confirmed explicitly and is not assigned
+an invented historical teaching date.
+
+**Notes** is always the initial tab. **Trello** is explicitly unconfigured; it
+does not request the Term board, create cards or add Trello credentials.
+Switching tabs preserves the same draft controls and normal Planner autosaving.
+Each activity stores its stable ID, lesson reference, planned minutes, optional
+actual minutes, progress status and optional teaching note. Durations accept
+0-1440 minutes; blank is stored as `null`, including actual time. Actual duration
+is never inferred from a period, a routine or an estimated duration.
+
+Draft status edits autosave but only **Confirm session progress** updates the
+confirmed snapshot. Future sessions cannot be confirmed. Unconfirmed sessions
+stay visible; continuation uses confirmed outcomes only, retains activity IDs,
+excludes completed activities and clears actual timing for the next session.
+Edited future plans are never silently regenerated when an older session is
+confirmed. Later evaluation is optional and does not itself confirm progress.
+Year/group/owner scope keeps JPI separate from JSR and future cohorts.
+
+`/api/planner/sessions/:date/p2` and `/api/planner/sessions/context/2026` use the
+existing school authentication, CSRF and optimistic revisions. Conflicting saves
+return 409 and retain the browser draft. These endpoints are not MCP tools;
+MCP OAuth, its read-only tools and permissions remain unchanged.
 
 Configure only on the main Core Render service:
 

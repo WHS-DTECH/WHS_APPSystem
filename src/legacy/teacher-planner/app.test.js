@@ -155,7 +155,7 @@ test('weekly navigation is disabled throughout saving and restored after success
     let finishSession;
     const session = new Promise(resolve => { finishSession = resolve; });
     const context = {
-      section: 'week', busy: false, loaded: true, dirty: true, editVersion: 0, revision: 1,
+      section: 'week', busy: false, loaded: true, dirty: true, editVersion: 0, revision: 1, sessionPlanner: undefined,
       selectors: { querySelectorAll: () => controls, setAttribute() {} },
       form: { reportValidity: () => true }, FormData: class { *[Symbol.iterator]() {} },
       content: { querySelectorAll: () => [] }, save: {}, csrf: 'fixture',
@@ -872,11 +872,12 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(embedded, /href="\/launchpad\/apps\/relief-plan"/);
   assert.match(embedded, /href="\/launchpad\/apps\/whs-unit-library"/);
   assert.match(embedded, /href="\/launchpad\/apps\/whs-assessment-manager"/);
-  assert.match(html, /planner\.css\?v=trello-labels-6px-1/);
-  assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=teacher-timetable-1"'));
-  assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=teacher-timetable-1"'));
+  assert.match(html, /planner\.css\?v=jpi-session-1/);
+  assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=jpi-session-1"'));
+  assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=jpi-session-1"'));
   const trelloScript = html.indexOf('src="/planner/framework/term-trello.js?v=trello-labels-1"');
-  assert.ok(trelloScript >= 0 && trelloScript < html.indexOf('src="/planner/framework/planner.js?v=teacher-timetable-1"'));
+  assert.ok(trelloScript >= 0 && trelloScript < html.indexOf('src="/planner/framework/planner.js?v=jpi-session-1"'));
+  assert.ok(html.indexOf('src="/planner/framework/teaching-session.js?v=jpi-session-1"') < html.indexOf('src="/planner/framework/planner.js?v=jpi-session-1"'));
   const heading = html.match(/<header class="planner-heading">([\s\S]*?)<\/header>/)[1];
   for (const id of ['planner-year', 'open-year', 'print-planner']) {
     assert.match(heading, new RegExp('id="' + id + '"'));
@@ -959,7 +960,7 @@ test('module denies anonymous/student access and accepts a supplied teacher iden
     assert.match(html, /Last Updated:/);
     assert.match(html, /id="planner-year"[^>]*value="2026"/);
     assert.match(html, /data-api="\/module\/api\/planner\/"/);
-    assert.match(html, /src="\/module\/framework\/planner\.js\?v=teacher-timetable-1"/);
+    assert.match(html, /src="\/module\/framework\/planner\.js\?v=jpi-session-1"/);
     assert.match(html, /Weekly planner/);
     assert.match(html, /Professional learning/);
     assert.ok(!html.includes('name="whs-global-control"'));

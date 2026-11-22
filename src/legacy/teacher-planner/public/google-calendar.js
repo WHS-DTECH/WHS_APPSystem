@@ -108,6 +108,13 @@
         if (event.location) item.append(el('p', event.location));
         if (event.description) item.append(el('p', event.description, { class: 'kamar-description' }));
         if (event.htmlLink) item.append(el('a', 'Open event in Google Calendar', { href: event.htmlLink, target: '_blank', rel: 'noopener noreferrer' }));
+        const day = event.start.endsWith('Z') ? new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'Pacific/Auckland', year: 'numeric', month: '2-digit', day: '2-digit'
+        }).format(new Date(event.start)) : event.start.slice(0, 10);
+        if (helpers.openSession && /^PIDTECH\s*\(JPI\)$/i.test(event.title.trim()) && day >= '2026-11-23' && day <= '2026-12-31') {
+          const plan = el('button', 'Open JPI session plan', { type: 'button' });
+          plan.addEventListener('click', () => helpers.openSession(event)); item.append(plan);
+        }
         panel.append(item);
       }
       for (const node of buttons) node.setAttribute('aria-pressed', String(node.dataset.date === value &&
