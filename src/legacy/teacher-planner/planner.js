@@ -13,6 +13,7 @@ const { documents: moderationDocuments } = require('./public/moderation-schema')
 const holidayRegions = require('./public/holiday-regions');
 const { findNzqaReferences } = require('./nzqaReferences');
 const reporting = require('./public/reporting-schema');
+const { validSlot } = require('./public/session-schema');
 
 const FIELDS = {
   preferences: ['anniversaryRegion'],
@@ -44,8 +45,8 @@ function validKey(year, section, key) {
   if (section === 'moderation') return key === 'main' || UUID.test(key);
   if (section === 'activity') return UUID.test(key);
   if (section === 'period') {
-    const match = /^(\d{4}-\d{2}-\d{2})_(p[1-5])$/.exec(key);
-    return Boolean(match && validDate(match[1]) && Number(match[1].slice(0, 4)) === year &&
+    const match = /^(\d{4}-\d{2}-\d{2})_(.+)$/.exec(key);
+    return Boolean(match && validSlot(match[2]) && validDate(match[1]) && Number(match[1].slice(0, 4)) === year &&
       [1, 2, 3, 4, 5].includes(new Date(match[1] + 'T00:00:00Z').getUTCDay()));
   }
   if (section === 'week') {
@@ -125,7 +126,7 @@ function validContent(section, content) {
   return Buffer.byteLength(JSON.stringify(content)) <= 300000;
 }
 function createPlannerRouter({ query, searchStandards = searchNzqaStandards, loadStaff, loadSchoolCalendar, loadClasses,
-  loadAdminTeachers, authorizeAttendanceTarget, findReferences = findNzqaReferences, env = process.env, teachingSessions }) {
+  loadAdminTeachers, authorizeAttendanceTarget, findReferences = findNzqaReferences, env = process.env, teachingSessions, teachingDayTrello }) {
   const router = express.Router();
   router.use('/moderation/import/:type', express.raw({ type: DOCX, limit: '8mb' }));
   router.use(express.json({ limit: '320kb' }));
@@ -145,6 +146,7 @@ function createPlannerRouter({ query, searchStandards = searchNzqaStandards, loa
   router.get('/session', (req, res) => res.json({ csrf: req.session.plannerCsrf, userId: req.user.id,
     canManageSchoolSettings: Boolean(canManageSettings(req.user)) }));
   router.use('/trello', require('./termTrello').createTermTrelloRouter({ env }));
+  router.use('/teaching-day-trello', require('./teachingDayTrello').createTeachingDayTrelloRouter({ ...teachingDayTrello, env }));
   router.use('/sessions', require('./teachingSessions').createTeachingSessionsRouter({ ...teachingSessions, query }));
   router.use('/duty-roster', require('./dutyRoster').createDutyRosterRouter({ query, loadStaff }));
   router.use('/attendance', require('./attendance').createAttendanceRouter({ query, loadClasses }));

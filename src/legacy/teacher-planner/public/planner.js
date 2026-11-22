@@ -56,6 +56,7 @@
   let periodDate = '', periodSlot = 'p1', selectedDay = 0, invalidPeriodLink = false;
   let activityRecord = '';
   let sessionPlanner, sessionAddress;
+  let manualSessionDraft;
   let canManageSchoolSettings = false;
   let setupTab = 0;
   let setupAttendanceReady;
@@ -95,7 +96,7 @@
   if (/^\d{4}-\d{2}-\d{2}$/.test(restoredPeriod) && Number.isFinite(date(restoredPeriod).getTime()) &&
       iso(date(restoredPeriod)) === restoredPeriod && Number(restoredPeriod.slice(0, 4)) >= 2000 &&
       Number(restoredPeriod.slice(0, 4)) <= 2100 && [1, 2, 3, 4, 5].includes(date(restoredPeriod).getUTCDay()) &&
-      /^p[1-5]$/.test(restored.get('slot') || '')) {
+      globalThis.plannerSessionSchema.validSlot(restored.get('slot'))) {
     periodDate = restoredPeriod; periodSlot = restored.get('slot');
   } else if (['period', 'activity'].includes(section)) { section = 'week'; invalidPeriodLink = true; }
   if (section === 'activity' && !activityRecord) { section = 'period'; invalidPeriodLink = true; }
@@ -895,7 +896,7 @@
       if (!canLeave()) return;
       section = activity ? 'period' : 'week'; await load();
     });
-    const slot = slots.find(item => item[0] === periodSlot);
+    const slot = slots.find(item => item[0] === periodSlot) || [periodSlot, 'Manual session', 'Time recorded in session plan'];
     page.append(back, el('h2', activity ? 'Activity details' : 'Period Planner', { class: 'paper-heading' }),
       el('p', activity ? 'Reusable activity for ' + periodDate.slice(0, 4) + '. Changes to these details are shared by every period that links this activity. Period notes remain separate.' :
         new Intl.DateTimeFormat('en-NZ', { dateStyle: 'full', timeZone: 'UTC' }).format(date(periodDate)) +
@@ -963,7 +964,10 @@
     sessionAddress = 'sessions/' + periodDate + '/' + periodSlot;
     sessionPlanner = globalThis.plannerTeachingSession.mount(content, { ...data, legacy }, {
       el,
-      back: () => navigatePlannerSection('timetable'),
+      back: async () => { if (await ensureSaved()) navigatePlannerSection('timetable'); },
+      teachingDay: async value => {
+        await refreshSession(); return request(api + 'teaching-day-trello/' + value);
+      },
       openRoutine: async id => {
         if (!await ensureSaved()) return;
         activityRecord = id; section = 'activity'; await load();
@@ -982,12 +986,78 @@
         if (!await ensureSaved()) return;
         sessionPlanner = undefined; sessionAddress = undefined; revision = legacy.revision;
         content.replaceChildren(); renderPeriod(legacy.content);
-        const back = el('button', 'Return to JPI session plan', { type: 'button', 'data-planner-navigation': '' });
+        const back = el('button', 'Return to session plan', { type: 'button', 'data-planner-navigation': '' });
         back.addEventListener('click', async () => { if (await ensureSaved()) await load(); });
         content.prepend(back);
-        notice('Original Period notes. These save separately; the JPI session plan is retained.');
+        notice('Original Period notes. These save separately; the session plan is retained.');
       }
     });
+  }
+  async function openSessionPlan(value, slot, draft) {
+    if (!await ensureSaved()) return;
+    if (busy) { notice('Your planner is still loading. Wait before opening another session.'); return; }
+    if (!globalThis.plannerSessionSchema.validSlot(slot) || !/^\d{4}-\d{2}-\d{2}$/.test(value) ||
+      !Number.isFinite(date(value).getTime()) || iso(date(value)) !== value ||
+      ![1, 2, 3, 4, 5].includes(date(value).getUTCDay())) {
+      notice('Choose a valid weekday session date.', true); return;
+    }
+    manualSessionDraft = draft ? { date: value, slot, session: draft } : undefined;
+    section = 'period'; periodDate = value; periodSlot = slot; year = Number(value.slice(0, 4));
+    yearInput.value = year; updateYearBadge(); week = monday(value);
+    selectedDay = (date(value).getUTCDay() + 6) % 7; await load();
+  }
+  function mountSessionLauncher(host) {
+    const panel = el('section', '', { class: 'session-section', 'aria-label': 'Daily session plans', 'data-planner-navigation': '' });
+    panel.append(el('h3', 'Daily session plans'),
+      el('p', 'Open a scheduled slot or record a private commitment. Plans never modify KAMAR or Google Calendar.'));
+    const label = el('label', 'Session date ');
+    const day = el('input', '', { type: 'date', min: '2000-01-01', max: '2100-12-31', required: '' });
+    day.value = periodDate || localDate; label.append(day); panel.append(label);
+    const choices = el('div', '', { class: 'planner-nav-buttons' });
+    for (const [slot, name] of globalThis.plannerSessionSchema.slots) {
+      const open = el('button', 'Open ' + name, { type: 'button' });
+      open.addEventListener('click', () => { if (day.reportValidity()) openSessionPlan(day.value, slot); });
+      choices.append(open);
+    }
+    panel.append(choices);
+    const manual = el('details'); manual.append(el('summary', 'Record a manual commitment'));
+    const titleLabel = el('label', 'Commitment title ');
+    const title = el('input', '', { type: 'text', maxlength: '200' }); titleLabel.append(title);
+    const typeLabel = el('label', 'Commitment type ');
+    const type = el('select');
+    for (const value of globalThis.plannerSessionSchema.types) type.append(el('option', value, { value }));
+    type.value = 'meeting'; typeLabel.append(type);
+    const create = el('button', 'Open manual session plan', { type: 'button' });
+    create.addEventListener('click', () => {
+      if (!day.reportValidity()) return;
+      if (!title.value.trim()) { notice('Enter a title for the manual commitment.', true); title.focus(); return; }
+      openSessionPlan(day.value, 'manual-' + crypto.randomUUID(), {
+        title: title.value.trim(), type: type.value, startTime: '', endTime: ''
+      });
+    });
+    manual.append(titleLabel, typeLabel, create); panel.append(manual);
+    const saved = el('div'), message = el('p', '', { role: 'status' }); panel.append(saved, message);
+    let version = 0;
+    async function list() {
+      const current = ++version; saved.replaceChildren();
+      message.setAttribute('role', 'status');
+      message.textContent = 'Loading private commitments...';
+      try {
+        if (!day.reportValidity()) { message.textContent = 'Choose a valid session date.'; return; }
+        const result = await request(api + 'sessions/' + day.value);
+        if (current !== version || !panel.isConnected) return;
+        message.textContent = result.sessions.length ? 'Saved manual commitments' : 'No saved manual commitments for this date.';
+        for (const session of result.sessions) {
+          const open = el('button', session.title, { type: 'button' });
+          open.addEventListener('click', () => openSessionPlan(day.value, session.slot_key));
+          saved.append(open);
+        }
+      } catch (error) {
+        if (current !== version || !panel.isConnected) return;
+        message.setAttribute('role', 'alert'); message.textContent = error.message;
+      }
+    }
+    day.addEventListener('change', list); host.append(panel); list();
   }
   function weeklyTable(data, indexes, showTimes) {
     const table = el('table', '', { class: 'planner-week' });
@@ -2494,6 +2564,7 @@
       const calendar = el('section');
       panel.append(el('h2', 'Teacher Timetable', { class: 'paper-heading' }), calendar);
       content.append(panel);
+      mountSessionLauncher(panel);
       globalThis.plannerGoogleCalendar.mount(calendar, {
         el, request: async path => { await refreshSession(); return request(api + path); },
         mutate: async (path, method, body) => {
@@ -2505,14 +2576,11 @@
         },
         renderWeek: renderKamarWeek, sunday: kamarSunday, today: kamarToday, weekDates: kamarWeekDates,
         dayEvents: kamarEventsForDay, hourEvents: kamarHourEvents, hourLabel: kamarHourLabel, date, iso,
-        openSession: async event => {
-          if (!await ensureSaved()) return;
+        openSession: async (event, slot) => {
           const value = event.start.endsWith('Z') ? new Intl.DateTimeFormat('en-CA', {
             timeZone: 'Pacific/Auckland', year: 'numeric', month: '2-digit', day: '2-digit'
           }).format(new Date(event.start)) : event.start.slice(0, 10);
-          section = 'period'; periodDate = value; periodSlot = 'p2'; year = Number(value.slice(0, 4));
-          yearInput.value = year; updateYearBadge(); week = monday(value);
-          selectedDay = (date(value).getUTCDay() + 6) % 7; await load();
+          await openSessionPlan(value, slot);
         }
       });
       return;
@@ -2706,22 +2774,25 @@
       if (section === 'activity' && !data.revision) throw new Error('This activity is unavailable. Use the Period Planner to create or link an activity.');
       if (section === 'setup') canManageSchoolSettings = data.canEdit === true;
       revision = data.revision; savedTermContent = section === 'term' ? { ...data.content } : {};
-      if (section === 'period' && periodSlot === 'p2' && periodDate >= '2026-11-23' && periodDate <= '2026-12-31') {
+      if (section === 'period') {
         let pilot;
         try { pilot = await request(api + 'sessions/' + periodDate + '/' + periodSlot); }
         catch (error) {
-          console.error('JPI session load failed:', error);
+          console.error('Session load failed:', error);
           render(data.content); loaded = true; retry.hidden = false;
-          notice('The JPI session workspace could not load: ' + error.message +
+          notice('The session workspace could not load: ' + error.message +
             ' Original Period notes remain available and save separately. Use Retry loading to reopen the session workspace.', true);
           return;
         }
         if (pilot.available) {
+          const draft = manualSessionDraft?.date === periodDate && manualSessionDraft.slot === periodSlot ? manualSessionDraft : null;
+          if (draft && !pilot.teaching && !pilot.revision) pilot.content.session = draft.session;
           revision = pilot.revision; mountTeachingSession(pilot, data);
           loaded = true;
           notice((pilot.updated_at ? 'Session loaded. Last saved ' + new Date(pilot.updated_at).toLocaleString('en-NZ') :
-            'JPI draft from your timetable. Opening it has not saved a record.') +
-            ' Plans autosave; outcomes require explicit confirmation.');
+            'Session draft. Opening it has not saved a record.') +
+            (pilot.teaching ? ' Plans autosave; outcomes require explicit confirmation.' : ' Notes autosave; no class progress is inferred.'));
+          if (draft) { manualSessionDraft = undefined; content.dispatchEvent(new Event('input', { bubbles: true })); }
           return;
         }
         render(data.content); loaded = true; notice(pilot.reason); return;

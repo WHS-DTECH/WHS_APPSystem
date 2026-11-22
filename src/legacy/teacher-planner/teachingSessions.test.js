@@ -24,7 +24,11 @@ async function fixture(t) {
     } }] : [] };
     const context = sql.includes('planner_class_contexts');
     const store = context ? checkpoints : records;
-    const key = context ? params.slice(0, 3).join('|') : [params[0], params[1], params[sql.startsWith('SELECT') ? 2 : 3]].join('|');
+    if (sql.includes("slot_key LIKE 'manual-%'")) return { rows: [...records.values()]
+      .filter(row => row.owner_id === params[0] && row.date === params[1] && row.slot_key.startsWith('manual-'))
+      .map(row => ({ slot_key: row.slot_key, title: row.content.session.title, session_type: row.session_type })) };
+    const select = sql.startsWith('SELECT');
+    const key = context ? params.slice(0, 3).join('|') : [params[0], params[1], params[select ? 2 : 3], params[select ? 3 : 4]].join('|');
     const existing = store.get(key);
     if (sql.startsWith('SELECT')) {
       if (!context && sql.includes('session_date <')) return { rows: [...records.values()]
@@ -33,13 +37,15 @@ async function fixture(t) {
       return { rows: existing ? [structuredClone(existing)] : [] };
     }
     const insert = sql.startsWith('INSERT');
-    const revision = params[context ? 4 : 7];
+    const generic = sql.includes('content,slot_key') || sql.includes('session_type=$8');
+    const revision = params[context ? 4 : generic ? 8 : 7];
     if (insert && existing || !insert && (!existing || existing.revision !== revision)) return { rows: [] };
     const row = context ? { checkpoint_note: params[3], confirmed_at: clock.toISOString() } : {
       owner_id: params[0], group_key: params[4], date: params[3], session_date: new Date(params[3] + 'T00:00:00Z'),
       occurrence_id: params[2], content: JSON.parse(params[5]), updated_at: clock.toISOString(),
-      confirmed_content: params[6] ? JSON.parse(params[5]) : existing?.confirmed_content || null,
-      confirmed_at: params[6] ? clock.toISOString() : existing?.confirmed_at || null
+      slot_key: generic ? params[6] : 'p2', session_type: generic ? params[7] : 'teaching',
+      confirmed_content: !generic && params[6] ? JSON.parse(params[5]) : existing?.confirmed_content || null,
+      confirmed_at: !generic && params[6] ? clock.toISOString() : existing?.confirmed_at || null
     };
     row.revision = (existing?.revision || 0) + 1;
     store.set(key, structuredClone(row));
@@ -53,10 +59,10 @@ async function fixture(t) {
   });
   app.use(createModuleRouter({ query, teachingSessions: {
     now: () => clock,
-    timetable: async () => ({ events: ['2026-11-23', '2026-11-30'].map(day => ({
+    timetable: async () => ({ events: ['2026-11-23', '2026-11-30'].flatMap(day => [{
       id: day + '-jpi-' + sourceVersion, title: 'PIDTECH (JPI)', allDay: false,
       start: day + 'T10:00:00', end: day + 'T11:00:00', location: '05'
-    })) })
+    }, { id: day + '-whanau', title: 'WHANAU (9WHAU)', start: day + 'T08:45:00', end: day + 'T09:00:00', location: 'CW' }]) })
   } }));
   const server = app.listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
@@ -96,7 +102,9 @@ test('JPI session roundtrip preserves explicit timing and confirmation, prevents
   const f = await fixture(t), path = 'sessions/2026-11-23/p2';
   assert.equal((await fetch(f.base + path)).status, 401);
   const other = await fetch(f.base + path, { headers: { ...f.headers, 'x-test-user': OTHER } });
-  assert.equal((await other.json()).available, false);
+  const otherPlan = await other.json();
+  assert.equal(otherPlan.available, true);
+  assert.equal(otherPlan.teaching, undefined, 'other owners do not receive this owner-private teaching context');
   let plan = await f.get(path);
   assert.equal(plan.event.className, 'JPI');
   assert.equal(plan.event.location, '05');
@@ -152,8 +160,54 @@ test('future confirmations are rejected and late confirmations do not rewrite an
   assert.equal((await f.put(path + '?confirm=true', first.content, 0)).status, 200);
   const reopened = await f.get('sessions/2026-11-30/p2');
   assert.deepEqual(reopened.content, next.content);
-  assert.equal((await fetch(f.base + 'sessions/2027-01-04/p2', { headers: f.headers })).status, 400);
-  assert.equal((await fetch(f.base + 'sessions/2026-11-23/whanau', { headers: f.headers })).status, 400);
+  assert.equal((await f.get('sessions/2027-01-04/p2')).teaching, undefined);
+  assert.equal((await f.get('sessions/2026-11-23/whanau')).teaching, undefined);
+});
+
+test('Whanau saves and reopens independently of P1, with revisions and no class-progress linkage', async t => {
+  const f = await fixture(t), whanau = 'sessions/2026-11-23/whanau', p1 = 'sessions/2026-11-23/p1';
+  const first = await f.get(p1), plan = await f.get(whanau);
+  assert.equal(plan.event.title, 'WHANAU (9WHAU)');
+  assert.equal(plan.event.classKey, '9WHAU');
+  assert.equal(plan.content.session.type, 'whanau');
+  assert.equal(plan.content.session.startTime, '08:45');
+  first.content.note = 'P1 observation preparation';
+  first.content.session.type = 'observation';
+  assert.equal((await f.put(p1, first.content, 0)).status, 200);
+  plan.content.note = 'Whanau notices and routine';
+  assert.equal((await f.put(whanau, plan.content, 0)).status, 200);
+  assert.equal((await f.put(whanau, plan.content, 0)).status, 409);
+  const reopened = await f.get(whanau);
+  assert.equal(reopened.content.note, plan.content.note);
+  assert.equal(reopened.revision, 1);
+  assert.equal((await f.get(p1)).content.note, first.content.note);
+  assert.equal((await f.get(p1)).revision, 1);
+  assert.equal((await f.put(whanau + '?confirm=true', plan.content, 1)).status, 400);
+  const forged = { ...plan.content, activities: draft([]).activities };
+  assert.equal((await f.put(whanau, forged, 1)).status, 400);
+  assert.equal(f.checkpoints.size, 0);
+  assert.equal((await f.get('sessions/2026-11-30/p2')).previous.length, 0);
+  const other = await fetch(f.base + whanau, { headers: { ...f.headers, 'x-test-user': OTHER } });
+  assert.equal((await other.json()).content.note, '', 'session notes are owner-private');
+});
+
+test('manual commitments use independent stable IDs, can be reopened and never write calendar or class records', async t => {
+  const f = await fixture(t), slot = 'manual-' + crypto.randomUUID(), path = 'sessions/2026-11-23/' + slot;
+  const plan = await f.get(path);
+  assert.equal(plan.event.source, 'manual');
+  Object.assign(plan.content.session, { title: 'Library duty', type: 'duty', startTime: '13:30', endTime: '13:50' });
+  plan.content.note = 'Duty arrangements';
+  assert.equal((await f.put(path, plan.content, 0)).status, 200);
+  assert.deepEqual((await f.get(path)).content, plan.content);
+  const list = await f.get('sessions/2026-11-23');
+  assert.equal(list.sessions[0].slot_key, slot);
+  assert.equal(list.sessions[0].title, 'Library duty');
+  plan.content.session.type = 'meeting';
+  assert.equal((await f.put(path, plan.content, 1)).status, 200);
+  assert.equal((await f.put(path, plan.content, 1)).status, 409);
+  plan.content.session.startTime = '25:00';
+  assert.equal((await f.put(path, plan.content, 2)).status, 400);
+  assert.ok(!f.statements.some(sql => /(?:INSERT INTO|UPDATE|DELETE FROM) (?:teacher_calendar|planner_class_contexts|planner_sections)/.test(sql)));
 });
 
 test('the initial JPI checkpoint requires explicit confirmation and revision protection', async t => {
@@ -230,4 +284,26 @@ test('PostgreSQL keeps the teaching date and nullable timing when reopening and 
   assert.equal(next.previous[0].session_date, '2026-11-23');
   assert.equal(next.content.activities[0].actualMinutes, null);
   assert.equal(next.content.activities[0].id, plan.content.activities[0].id);
+  const generic = async slot => (await fetch(base + 'sessions/2026-11-23/' + slot, { headers })).json();
+  const save = (slot, content, revision) => fetch(base + 'sessions/2026-11-23/' + slot, { method: 'PUT', headers,
+    body: JSON.stringify({ content, revision }) });
+  const whanau = await generic('whanau'), observation = await generic('p1');
+  whanau.content.note = 'Whanau-only notes';
+  observation.content.note = 'Observation-only notes'; observation.content.session.type = 'observation';
+  assert.equal((await save('p1', observation.content, 0)).status, 200);
+  assert.equal((await save('whanau', whanau.content, 0)).status, 200);
+  assert.equal((await save('whanau', whanau.content, 0)).status, 409);
+  assert.equal((await generic('whanau')).content.note, 'Whanau-only notes');
+  assert.equal((await generic('p1')).content.note, 'Observation-only notes');
+  whanau.content.note = 'Updated Whanau notes';
+  assert.equal((await save('whanau', whanau.content, 1)).status, 200);
+  assert.equal((await generic('whanau')).content.note, 'Updated Whanau notes');
+  assert.equal((await generic('p1')).content.note, 'Observation-only notes');
+  assert.equal((await generic('p2')).revision, 1, 'Whanau does not change JPI progress');
+  const manual = 'manual-' + crypto.randomUUID(), duty = await generic(manual);
+  duty.content.session.title = 'Private duty'; duty.content.session.type = 'duty';
+  assert.equal((await save(manual, duty.content, 0)).status, 200);
+  assert.equal((await generic(manual)).content.session.type, 'duty');
+  const untouched = await pool.query("SELECT count(*)::integer AS count FROM planner_sessions WHERE session_type <> 'teaching' AND (confirmed_content IS NOT NULL OR lesson_id IS NOT NULL OR unit_id IS NOT NULL)");
+  assert.equal(untouched.rows[0].count, 0);
 });

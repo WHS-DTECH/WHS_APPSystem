@@ -1759,8 +1759,9 @@ authentication are unchanged. Existing KAMAR subscriptions remain Google Calenda
 sources; their refresh timing is controlled by Google. Calendar choices are saved
 privately to the school account and are not copied or reset by switching views.
 The new `#section=timetable` view does not load or save a Planner planning record,
-and does not store lesson plans inside the calendar. JPI events can open the
-separate Period Planner pilot described below. Year and Weekly Planner layouts
+and does not store lesson plans inside the calendar. Scheduled events can open
+their separate session plan; the daily launcher also opens Whanau/P1-P5 and
+private manual commitments. Year and Weekly Planner layouts
 and the separate MCP connection are unchanged.
 
 ### JPI Period Planner pilot
@@ -1768,13 +1769,25 @@ and the separate MCP connection are unchanged.
 The added Period Planner is a separate session workspace; the original Year,
 Term and Weekly Planner designs are unchanged. The initial pilot opens JPI
 JuniorDTECH Period 2 from **23 November 2026** through the end of 2026. Other
-classes and periods retain the existing Period Planner. Open a JPI event's
+classes and periods have Notes-only session plans without inferred class progress. Open a JPI event's
 **Open JPI session plan** action in Teacher Timetable, or use
 `#section=period&year=2026&week=2026-11-23&term=4&day=0&date=2026-11-23&slot=p2`.
 The server requires the signed-in owner's existing CW Routine and exactly one
 JPI occurrence at 10:00-11:00 in their personal KAMAR feed. Ambiguous or unavailable
-feeds do not generate a guessed plan. Whanau, observation, meeting and duty types
-are supported by the storage model, but their workflows are not enabled.
+feeds do not generate a guessed class. Teaching, Whanau, observation, meeting and
+duty plans share the same session workspace, Notes/Trello toggle, private storage,
+autosave and optimistic conflict handling. Only verified JPI Period 2 has the
+complete linked-lesson and confirmed class-progress workflow.
+
+Whanau uses the separate identifier `whanau`, never `p1`; existing `p1`-`p5`
+identifiers and saved records are unchanged. Manual commitments use stable
+`manual-<UUID>` identifiers, so multiple commitments can have independent plans
+on one date without editing KAMAR or Google Calendar. The Teacher Timetable
+daily launcher lists saved manual commitments and supports weekday session
+dates from 2000 to 2100. Session types provide appropriate Notes prompts and
+optional planned start/end times; no actual activity duration is inferred.
+For the first Whanau test, use
+`#section=period&year=2026&date=2026-11-23&slot=whanau`.
 
 Run `npm run db:migrate:planner` against the **separate Teacher Planner database**
 before enabling the pilot; migration `015_teaching_sessions.sql` adds
@@ -1790,9 +1803,20 @@ an editable draft, not evidence of completed learning. The teacher-reported
 starting checkpoint must be corrected/confirmed explicitly and is not assigned
 an invented historical teaching date.
 
-**Notes** is always the initial tab. **Trello** is explicitly unconfigured; it
-does not request the Term board, create cards or add Trello credentials.
+**Notes** is always the initial tab. **Trello** displays the optional read-only
+Current Teaching Day feed described below; it does not request the Term board,
+create cards or add browser-side Trello credentials.
 Switching tabs preserves the same draft controls and normal Planner autosaving.
+Activity titles and status controls use compact rows; existing timing and
+teaching-note controls are under expandable details. This presentation adds no
+fields and does not change saved content or progress confirmation.
+
+Planner Notes, lesson records and confirmed classroom progress remain
+authoritative. Trello data must not populate, overwrite or confirm them, and
+Trello task completion is not evidence of classroom completion. ChatGPT and all
+Trello updates remain outside the Planner. No AI processing, Planner-to-Trello
+writes, new MCP tools or additional MCP permissions are part of this integration.
+
 Each activity stores its stable ID, lesson reference, planned minutes, optional
 actual minutes, progress status and optional teaching note. Durations accept
 0-1440 minutes; blank is stored as `null`, including actual time. Actual duration
@@ -1806,10 +1830,89 @@ Edited future plans are never silently regenerated when an older session is
 confirmed. Later evaluation is optional and does not itself confirm progress.
 Year/group/owner scope keeps JPI separate from JSR and future cohorts.
 
-`/api/planner/sessions/:date/p2` and `/api/planner/sessions/context/2026` use the
+`/api/planner/sessions/:date/:slot`, the private manual-session list at
+`/api/planner/sessions/:date`, and `/api/planner/sessions/context/2026` use the
 existing school authentication, CSRF and optimistic revisions. Conflicting saves
 return 409 and retain the browser draft. These endpoints are not MCP tools;
 MCP OAuth, its read-only tools and permissions remain unchanged.
+
+### Current Teaching Day - informational Trello feed
+
+Set these **non-secret source IDs** on the main Core Render service:
+
+```dotenv
+TEACHER_PLANNER_TEACHING_TRELLO_BOARD_ID=6b0286099da18b3599a6940e
+TEACHER_PLANNER_TEACHING_TRELLO_LIST_ID=6b02860d27edaa3359a950a5
+```
+
+The feed reuses `TEACHER_PLANNER_TRELLO_OWNER_ID` and the server-side read-only
+Trello API key/token configured below. That token must authorise the new teaching
+board; a token limited to the Term board will not suffice. No credentials enter
+browser code. The owner-only `GET /api/planner/teaching-day-trello/:date` verifies
+board access, a read-only token, and the configured active list's board membership
+and name `CURRENT TEACHING DAY`. It never searches another list or writes Trello
+or Planner records.
+
+Opening Notes makes no feed request. Opening Trello loads a compact list of
+student-facing teaching/Whanau cards for the selected session date, in timetable
+slot order. Refresh reads Trello again. Preparation status, lesson intentions,
+readable description, named HTTPS resource links and last update are informational.
+Missing configuration, empty lists, upstream failures and metadata problems are
+reported inside Trello and cannot block Notes/autosaving. Invalid or duplicate
+references are not guessed. Observations, meetings and duties are excluded.
+
+Cards may persist and be maintained externally; the Planner does not require or
+create a card per period. ChatGPT/Trello must maintain exactly one block below
+in each displayed card's description. Keep other preparation, activities,
+resources, task-status reports and AI-generated notes outside the block.
+Named resources use `[Resource name](https://...)` Markdown links.
+
+**Exact JPI example:**
+
+```whs-teaching-session-v1
+{
+  "schema_version": 1,
+  "teaching_date": "2026-11-23",
+  "session_slot": "p2",
+  "class_key": "JPI",
+  "session_type": "teaching",
+  "display_name": "JPI - JuniorDTECH",
+  "start_time": "10:00",
+  "end_time": "11:00",
+  "lesson_title": "Binary Piano",
+  "preparation_status": "Not recorded",
+  "home_list": "6b02860d27edaa3359a950a5"
+}
+```
+
+**Exact Whanau example:**
+
+```whs-teaching-session-v1
+{
+  "schema_version": 1,
+  "teaching_date": "2026-11-23",
+  "session_slot": "whanau",
+  "class_key": "9WHAU",
+  "session_type": "whanau",
+  "display_name": "Whanau - 9WHAU",
+  "start_time": "08:45",
+  "end_time": "09:00",
+  "lesson_title": "Whanau routine and notices",
+  "preparation_status": "Not recorded",
+  "home_list": "6b02860d27edaa3359a950a5"
+}
+```
+
+All eleven fields are required; do not add keys or duplicate the metadata block.
+Use schema version 1, valid ISO dates, `whanau` or `p1`-`p5` slots, exact uppercase
+timetable homeroom/class keys, and 24-character lowercase Trello list IDs.
+`session_type` must be `whanau` for the Whanau slot and `teaching` otherwise.
+Times are NZ local `HH:mm` values, not UTC timestamps or inferred actual durations.
+Preparation status is descriptive text maintained in Trello, not Planner progress.
+`home_list` records where the card normally belongs; substitute its actual home
+list ID if different from these examples. The Planner never uses it to move cards.
+Card matching uses teaching date, slot, class key and type from metadata against
+the verified Planner session, not card titles or labels. JPI and 9WHAU are separate.
 
 Configure only on the main Core Render service:
 

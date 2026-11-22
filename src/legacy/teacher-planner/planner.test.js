@@ -101,8 +101,8 @@ test('planner rejects malformed fields and oversized data', () => {
 });
 
 test('period plans validate actual teaching dates, stable period keys and private fields', () => {
-  for (const slot of ['p1', 'p2', 'p3', 'p4', 'p5']) assert.equal(validKey(2026, 'period', '2026-10-19_' + slot), true);
-  for (const key of ['2026-10-17_p1', '2026-10-18_p1', '2026-02-30_p2', '2026-10-19_whanau',
+  for (const slot of ['whanau', 'p1', 'p2', 'p3', 'p4', 'p5', 'manual-aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa']) assert.equal(validKey(2026, 'period', '2026-10-19_' + slot), true);
+  for (const key of ['2026-10-17_p1', '2026-10-18_p1', '2026-02-30_p2', '2026-10-19_manual-bad',
     '2026-10-19_p6', '2026-10-19', '2026-10-19_p1_extra', '2025-12-31_p1']) {
     assert.equal(validKey(2026, 'period', key), false, key);
   }

@@ -71,9 +71,21 @@
 .session-field input, .session-field select, .session-field textarea { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #b3c4cb; border-radius: 4px; font: inherit; color: #31586c; background: #fff; }
 .session-field textarea { min-height: 70px; }
 .session-timing { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.session-activity { border-left: 4px solid #376783; padding: 8px 12px; margin: 14px 0; background: #f4f8fa; }
+.session-activity { border-left: 4px solid #376783; padding: 8px 12px; margin: 8px 0; background: #f4f8fa; }
+.session-activity-header { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 15rem); gap: 12px; }
+.session-activity-header .session-field { margin: 0; font-size: 13px; }
+.session-activity-header input, .session-activity-header select { padding: 6px; }
+.session-activity-details { margin-top: 6px; }
+.session-activity-details summary { cursor: pointer; }
+@media (max-width: 600px) {
+  .session-activity-header { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+}
 .session-preserved-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 .session-warning { border-left: 4px solid #986b00; padding: 8px; color: #624408; background: #fff4d6; }
+.teaching-day-card { padding: 10px 12px; margin: 8px 0; border: 1px solid #b3c4cb; border-left: 4px solid #b3c4cb; background: #fff; overflow-wrap: anywhere; }
+.teaching-day-card h4, .teaching-day-card p { margin: 6px 0; }
+.teaching-day-card-current { border-left-color: #376783; }
+.teaching-day-current-label { font-weight: bold; color: #31586c; }
 .term-trello-panel > p { font-size: 13px; }
 .term-trello-panel [role="alert"] { color: #8e230c; background: #fff0eb; padding: 8px; }
 .term-trello-cards { list-style: none; padding: 0; }

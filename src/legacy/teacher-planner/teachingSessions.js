@@ -2,6 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const { loadTimetable, eventDate } = require('./kamarCalendar');
 const { loadTeachingContent } = require('./teachingContent');
+const { slots, types, validSlot } = require('./public/session-schema');
 
 const GROUP = 'PIDTECH:JPI';
 const ROUTINE = '33455e9a-0354-4663-bee6-d69943c4e24b';
@@ -25,6 +26,24 @@ function validContent(content) {
     string(item.title, 200) && item.title.trim() && minutes(item.plannedMinutes) && minutes(item.actualMinutes) &&
     STATUSES.includes(item.status) && string(item.teachingNote, 4000)) &&
     new Set(content.activities.map(item => item.id)).size === content.activities.length;
+}
+function validSessionContent(content, slot) {
+  const time = value => typeof value === 'string' && (value === '' || /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value));
+  const session = content?.session;
+  return Boolean(content && Object.keys(content).sort().join(',') === 'activities,evaluation,note,session' &&
+    typeof content.note === 'string' && content.note.length <= 20000 &&
+    typeof content.evaluation === 'string' && content.evaluation.length <= 20000 &&
+    Array.isArray(content.activities) && content.activities.length === 0 &&
+    session && Object.keys(session).sort().join(',') === 'endTime,startTime,title,type' &&
+    typeof session.title === 'string' && session.title.trim() && session.title.length <= 200 &&
+    types.includes(session.type) && (slot !== 'whanau' || session.type === 'whanau') &&
+    time(session.startTime) && time(session.endTime) &&
+    (!session.startTime || !session.endTime || session.startTime < session.endTime));
+}
+function clock(time) {
+  return time.endsWith('Z') ? new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Pacific/Auckland', hour: '2-digit', minute: '2-digit'
+  }).format(new Date(time)) : time.slice(11, 16);
 }
 function progressContent(content) {
   return content?.activities || [];
@@ -64,31 +83,83 @@ function createTeachingSessionsRouter({ query, timetable = loadTimetable, conten
       WHERE owner_id=$1 AND year=$2 AND section='activity' AND entry_key=$3`, [owner, year, ROUTINE]);
     return result.rows[0]?.content;
   }
-  async function occurrence(owner, value) {
+  async function timetableEvents(owner, value) {
     const settings = await query('SELECT subscription_url FROM teacher_calendar_settings WHERE owner_id=$1', [owner]);
-    if (!settings.rows[0]?.subscription_url) {
-      throw Object.assign(new Error('Save your personal KAMAR timetable connection before opening the JPI pilot.'), { status: 409 });
-    }
+    if (!settings.rows[0]?.subscription_url) return null;
     let feed;
-    try { feed = await timetable(settings.rows[0].subscription_url, 2026, Number(value.slice(5, 7))); }
+    try { feed = await timetable(settings.rows[0].subscription_url, Number(value.slice(0, 4)), Number(value.slice(5, 7))); }
     catch {
-      console.error('JPI pilot timetable could not be loaded.');
+      console.error('Session timetable could not be loaded.');
       throw Object.assign(new Error('The private KAMAR timetable could not be loaded. Retry without changing your plan.'), { status: 502 });
     }
-    const candidates = feed.events.filter(event => !event.allDay && eventDate(event.start) === value &&
+    return feed.events.filter(event => !event.allDay && eventDate(event.start) === value);
+  }
+  async function occurrence(owner, value, events) {
+    const candidates = (events ?? await timetableEvents(owner, value) ?? []).filter(event =>
       /^PIDTECH\s*\(JPI\)$/i.test(event.title.trim()));
     if (candidates.length !== 1) {
       if (!candidates.length) return null;
       throw Object.assign(new Error('More than one JPI occurrence matches this date. No session was selected; check the timetable.'), { status: 409 });
     }
     const event = candidates[0];
-    const clock = time => time.endsWith('Z') ? new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Pacific/Auckland', hour: '2-digit', minute: '2-digit'
-    }).format(new Date(time)) : time.slice(11, 16);
     if (clock(event.start) !== '10:00' || clock(event.end) !== '11:00') return null;
     return { id: event.id, date: value, start: event.start, end: event.end, location: event.location,
-      title: event.title, className: 'JPI', course: 'JuniorDTECH', groupKey: GROUP, type: 'teaching', slot: 'p2' };
+      title: event.title, className: 'JPI', classKey: 'JPI', course: 'JuniorDTECH', groupKey: GROUP, type: 'teaching', slot: 'p2' };
   }
+  async function genericPlan(req, res) {
+    const { date: value, slot } = req.params, owner = req.user.id, year = Number(value.slice(0, 4));
+    const group = 'session:' + slot, id = 'session:' + value + ':' + slot;
+    const definition = slots.find(item => item[0] === slot);
+    if (req.method === 'GET') {
+      const record = await query(`SELECT content,revision,updated_at FROM planner_sessions
+        WHERE owner_id=$1 AND year=$2 AND session_date=$3 AND group_key=$4 AND slot_key=$5`, [owner, year, value, group, slot]);
+      const events = definition ? await timetableEvents(owner, value) : null;
+      const matches = (events || []).filter(event => clock(event.start) === definition[2] && clock(event.end) === definition[3]);
+      if (matches.length > 1) throw Object.assign(new Error('Multiple timetable events match this session. No class was guessed. Check the timetable before planning.'), { status: 409 });
+      const event = matches[0], row = record.rows[0];
+      const session = row?.content.session || {
+        title: event?.title || definition?.[1] || 'Manual commitment',
+        type: slot === 'whanau' ? 'whanau' : event ? 'teaching' : 'meeting',
+        startTime: event ? clock(event.start) : definition?.[2] || '',
+        endTime: event ? clock(event.end) : definition?.[3] || ''
+      };
+      return res.json({ available: true, event: { date: value, slot, label: definition?.[1] || 'Manual session',
+        title: event?.title || session.title, location: event?.location || '',
+        classKey: event && /^[^(]+\(([A-Z0-9_-]+)\)$/i.exec(event.title.trim())?.[1].toUpperCase() || null,
+        source: event ? 'KAMAR' : 'manual' },
+        content: row?.content || { note: '', evaluation: '', activities: [], session },
+        revision: row?.revision || 0, updated_at: row?.updated_at || null });
+    }
+    const body = req.body;
+    if (!body || Object.keys(body).sort().join(',') !== 'content,revision' ||
+      !Number.isInteger(body.revision) || body.revision < 0 || !validSessionContent(body.content, slot) ||
+      Object.keys(req.query).length) {
+      console.warn('Session notes rejected.');
+      return res.status(400).json({ error: 'Check the session title, type, times and notes. Class-progress confirmation is available only in the verified JPI teaching pilot.' });
+    }
+    const params = [owner, year, id, value, group, JSON.stringify(body.content), slot, body.content.session.type];
+    const result = body.revision === 0
+      ? await query(`INSERT INTO planner_sessions(owner_id,year,occurrence_id,session_date,group_key,content,slot_key,session_type)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT DO NOTHING RETURNING content,revision,updated_at`, params)
+      : await query(`UPDATE planner_sessions SET content=$6,occurrence_id=$3,session_type=$8,revision=revision+1,updated_at=NOW()
+        WHERE owner_id=$1 AND year=$2 AND session_date=$4 AND group_key=$5 AND slot_key=$7 AND revision=$9
+        RETURNING content,revision,updated_at`, [...params, body.revision]);
+    if (!result.rows.length) return res.status(409).json({ error: 'This session changed in another tab. Your draft is retained; copy it and reload before saving.' });
+    return res.json(result.rows[0]);
+  }
+  router.get('/:date', async (req, res, next) => {
+    if (!validDate(req.params.date) || Number(req.params.date.slice(0, 4)) < 2000 ||
+      Number(req.params.date.slice(0, 4)) > 2100) {
+      console.warn('Session listing date rejected.');
+      return res.status(400).json({ error: 'Choose a valid session date from 2000 to 2100.' });
+    }
+    try {
+      const result = await query(`SELECT slot_key,session_type,content->'session'->>'title' AS title
+        FROM planner_sessions WHERE owner_id=$1 AND session_date=$2 AND slot_key LIKE 'manual-%'
+        ORDER BY occurrence_id`, [req.user.id, req.params.date]);
+      res.json({ sessions: result.rows });
+    } catch (error) { next(error); }
+  });
   router.put('/context/:year', async (req, res, next) => {
     if (req.params.year !== '2026' || !Number.isInteger(req.body?.revision) || req.body.revision < 0 ||
         typeof req.body?.note !== 'string' || !req.body.note.trim() || req.body.note.length > 20000 ||
@@ -112,22 +183,18 @@ function createTeachingSessionsRouter({ query, timetable = loadTimetable, conten
   });
   router.all('/:date/:slot', async (req, res, next) => {
     const value = req.params.date;
-    if (!validDate(value) || value < '2026-11-23' || value > '2026-12-31' || req.params.slot !== 'p2') {
-      console.warn('JPI session address rejected.');
-      return res.status(400).json({ error: 'This pilot supports JPI Period 2 from 23 November 2026 only.' });
+    if (!validDate(value) || Number(value.slice(0, 4)) < 2000 || Number(value.slice(0, 4)) > 2100 ||
+      ![1, 2, 3, 4, 5].includes(new Date(value).getUTCDay()) || !validSlot(req.params.slot)) {
+      console.warn('Session address rejected.');
+      return res.status(400).json({ error: 'Choose a weekday session: Whanau, P1-P5, or a manual commitment.' });
     }
-    if (!['GET', 'PUT'].includes(req.method)) return res.status(405).set('Allow', 'GET, PUT').json({ error: 'Use GET or PUT for JPI session plans.' });
+    if (!['GET', 'PUT'].includes(req.method)) return res.status(405).set('Allow', 'GET, PUT').json({ error: 'Use GET or PUT for session plans.' });
     try {
-      const owner = req.user.id, existingRoutine = await routine(owner, 2026);
-      if (!existingRoutine) {
-        if (req.method === 'GET') return res.json({ available: false, reason: 'The JPI pilot requires your existing CW Routine. Original Period notes remain available.' });
-        return res.status(403).json({ error: 'The existing owner-private CW Routine is required for this pilot.' });
-      }
-      const event = await occurrence(owner, value);
-      if (!event) {
-        if (req.method === 'GET') return res.json({ available: false, reason: 'No JPI Period 2 occurrence matches this date. Original Period notes remain available.' });
-        return res.status(403).json({ error: 'Your timetable does not identify one JPI Period 2 session on this date.' });
-      }
+      const owner = req.user.id;
+      const pilotDate = req.params.slot === 'p2' && value >= '2026-11-23' && value <= '2026-12-31';
+      const existingRoutine = pilotDate ? await routine(owner, 2026) : null;
+      const event = existingRoutine ? await occurrence(owner, value) : null;
+      if (!event) return await genericPlan(req, res);
       if (req.method === 'GET') {
         const [record, checkpoint, history, teaching] = await Promise.all([
           query(`SELECT content,revision,updated_at,confirmed_content,confirmed_at FROM planner_sessions
@@ -135,6 +202,7 @@ function createTeachingSessionsRouter({ query, timetable = loadTimetable, conten
           query('SELECT checkpoint_note,revision,confirmed_at FROM planner_class_contexts WHERE owner_id=$1 AND year=$2 AND group_key=$3', [owner, 2026, GROUP]),
           query(`SELECT session_date::text AS session_date,content,confirmed_content,confirmed_at FROM planner_sessions
             WHERE owner_id=$1 AND year=$2 AND group_key=$3 AND session_date < $4
+              AND session_type='teaching' AND slot_key='p2' AND unit_id='binary-and-data' AND lesson_id='lesson-binary-piano'
             ORDER BY session_date,occurrence_id`, [owner, 2026, GROUP, value]),
           content()
         ]);
@@ -180,4 +248,4 @@ function createTeachingSessionsRouter({ query, timetable = loadTimetable, conten
   return router;
 }
 
-module.exports = { createTeachingSessionsRouter, validContent, draft, nextActivities };
+module.exports = { createTeachingSessionsRouter, validContent, validSessionContent, draft, nextActivities };

@@ -111,9 +111,15 @@
         const day = event.start.endsWith('Z') ? new Intl.DateTimeFormat('en-CA', {
           timeZone: 'Pacific/Auckland', year: 'numeric', month: '2-digit', day: '2-digit'
         }).format(new Date(event.start)) : event.start.slice(0, 10);
-        if (helpers.openSession && /^PIDTECH\s*\(JPI\)$/i.test(event.title.trim()) && day >= '2026-11-23' && day <= '2026-12-31') {
-          const plan = el('button', 'Open JPI session plan', { type: 'button' });
-          plan.addEventListener('click', () => helpers.openSession(event)); item.append(plan);
+        const clock = time => time.endsWith('Z') ? new Intl.DateTimeFormat('en-GB', {
+          timeZone: 'Pacific/Auckland', hour: '2-digit', minute: '2-digit'
+        }).format(new Date(time)) : time.slice(11, 16);
+        const slot = !event.allDay && globalThis.plannerSessionSchema?.slots.find(slot =>
+          clock(event.start) === slot[2] && clock(event.end) === slot[3]);
+        if (helpers.openSession && slot) {
+          const plan = el('button', /^PIDTECH\s*\(JPI\)$/i.test(event.title.trim()) && slot[0] === 'p2' &&
+            day >= '2026-11-23' && day <= '2026-12-31' ? 'Open JPI session plan' : 'Open ' + slot[1] + ' session plan', { type: 'button' });
+          plan.addEventListener('click', () => helpers.openSession(event, slot[0])); item.append(plan);
         }
         panel.append(item);
       }
