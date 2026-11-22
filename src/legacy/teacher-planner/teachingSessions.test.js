@@ -15,7 +15,7 @@ const OTHER = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 
 async function fixture(t) {
   const records = new Map(), checkpoints = new Map(), statements = [];
-  let clock = new Date('2026-11-24T00:00:00Z'), sourceVersion = 1;
+  let clock = new Date('2026-11-24T00:00:00Z'), sourceVersion = 1, timetableReads = 0, classAvailable = true;
   const query = async (sql, params) => {
     statements.push(sql);
     if (sql.includes('teacher_calendar_settings')) return { rows: [{ subscription_url: 'https://synthetic.invalid/timetable' }] };
@@ -59,10 +59,11 @@ async function fixture(t) {
   });
   app.use(createModuleRouter({ query, teachingSessions: {
     now: () => clock,
-    timetable: async () => ({ events: ['2026-11-23', '2026-11-30'].flatMap(day => [{
+    timetable: async () => { timetableReads++; return { events: ['2026-11-23', '2026-11-30'].flatMap(day => [{
       id: day + '-jpi-' + sourceVersion, title: 'PIDTECH (JPI)', allDay: false,
       start: day + 'T10:00:00', end: day + 'T11:00:00', location: '05'
-    }, { id: day + '-whanau', title: 'WHANAU (9WHAU)', start: day + 'T08:45:00', end: day + 'T09:00:00', location: 'CW' }]) })
+    }, { id: day + '-whanau', title: 'WHANAU (9WHAU)', start: day + 'T08:45:00', end: day + 'T09:00:00', location: 'CW' }])
+      .filter(event => classAvailable || !event.title.includes('JPI')) }; }
   } }));
   const server = app.listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
@@ -79,6 +80,7 @@ async function fixture(t) {
   const put = (path, content, revision, extra = {}) => fetch(base + path, { method: 'PUT',
     headers: { ...headers, ...extra }, body: JSON.stringify({ content, revision }) });
   return { records, checkpoints, statements, base, headers, get, put,
+    timetableReads: () => timetableReads, removeClass: () => { classAvailable = false; },
     time: value => { clock = new Date(value); }, changeSource: () => { sourceVersion++; } };
 }
 
@@ -96,6 +98,28 @@ test('activity timing is explicit and optional, with unique activities and valid
     { ...content, activities: [{ ...content.activities[0], sourceId: 'student-record' }] },
     { ...content, activities: [{ ...content.activities[0], status: 'elapsed' }] }
   ]) assert.equal(validContent(invalid), false);
+});
+test('session GETs reuse an owner-private timetable briefly but writes recheck the current class and records stay fresh', async t => {
+  const f = await fixture(t), path = 'sessions/2026-11-23/p2';
+  await f.get('sessions/2026-11-23/whanau');
+  const plan = await f.get(path);
+  assert.equal(f.timetableReads(), 1);
+  const other = await fetch(f.base + path, { headers: { ...f.headers, 'x-test-user': OTHER } });
+  assert.equal(other.status, 200);
+  assert.equal(f.timetableReads(), 2, 'another owner cannot reuse the private feed');
+  plan.content.note = 'A current saved note';
+  assert.equal((await f.put(path, plan.content, 0)).status, 200);
+  assert.equal(f.timetableReads(), 3, 'writes bypass the read cache');
+  assert.equal((await f.get(path)).content.note, plan.content.note, 'Planner records are never cached');
+  assert.equal(f.timetableReads(), 3);
+  f.time('2026-11-24T00:00:31Z');
+  await f.get(path);
+  assert.equal(f.timetableReads(), 4, 'read cache expires after thirty seconds');
+  f.removeClass();
+  plan.content.activities[0].status = 'completed';
+  assert.equal((await f.put(path + '?confirm=true', plan.content, 1)).status, 400);
+  assert.equal(f.timetableReads(), 5);
+  assert.equal([...f.records.values()][0].confirmed_at, null, 'cached timetable context cannot authorise progress confirmation');
 });
 
 test('JPI session roundtrip preserves explicit timing and confirmation, prevents conflicts and isolates owners', async t => {

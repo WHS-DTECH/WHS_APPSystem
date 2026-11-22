@@ -235,7 +235,7 @@ test('dashboard selects stable card IDs and shows only the selected preparation 
 });
 test('dashboard session switching changes its card and record address only after the current draft saves', async () => {
   let saved = false, loads = 0;
-  const context = { ensureSaved: async () => saved, busy: false, selectedTeachingCard: 'old-card',
+  const context = { ensureSaved: async () => saved, busy: false, selectedTeachingCard: 'old-card', dashboardMode: false,
     periodDate: '2026-11-23', periodSlot: 'p2', yearInput: {}, updateYearBadge() {},
     plannerSessionSchema: require('./public/session-schema'), date: value => new Date(value + 'T00:00:00Z'),
     iso: value => value.toISOString().slice(0, 10), monday: value => value, load: async () => loads++ };
@@ -250,6 +250,75 @@ test('dashboard session switching changes its card and record address only after
   assert.equal(context.periodSlot, 'whanau');
   assert.equal(context.selectedTeachingCard, 'new-card');
   assert.equal(loads, 1);
+});
+test('dashboard retains its sidebar and Trello feed when selecting another session', async () => {
+  const context = {};
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-day-trello'), 'utf8'), context);
+  const descend = host => [host, ...host.children.filter(child => typeof child === 'object').flatMap(descend)];
+  const feed = { status: 'ok', issues: [], cards: ['9WHAU', 'JPI'].map((key, index) => ({
+    id: String(index).repeat(24), name: key, description: key + ' preparation', resources: [],
+    updatedAt: '2026-11-22T05:00:00Z', url: 'https://trello.com/c/AbCd1234',
+    metadata: { class_key: key, session_slot: index ? 'p2' : 'whanau', display_name: key,
+      start_time: index ? '10:00' : '08:45', lesson_title: key, preparation_status: 'See card' }
+  })) };
+  let reads = 0; const host = node();
+  const dashboard = context.plannerTeachingDayTrello.dashboard(host, {
+    date: '2026-11-23', slot: 'whanau', classKey: '9WHAU', cardId: feed.cards[0].id
+  }, { el: node, select() {}, request: async () => { reads++; return feed; } });
+  await flush();
+  const left = host.children[0].children[1].children[0], cards = left.children[4];
+  cards.querySelectorAll = () => cards.children.filter(item => item.attrs['data-card-id']);
+  left.querySelectorAll = () => descend(left).filter(item => item.tag === 'button');
+  const originalButtons = [...cards.children], trello = node();
+  dashboard.showTrello(trello);
+  dashboard.setBusy(true);
+  assert.equal(dashboard.workspace.inert, true);
+  assert.ok(left.querySelectorAll().every(button => button.disabled));
+  dashboard.selectSession({ slot: 'p2', classKey: 'JPI', cardId: feed.cards[1].id });
+  dashboard.setBusy(false);
+  assert.equal(dashboard.workspace.inert, false);
+  assert.equal(reads, 1);
+  assert.ok(cards.children.every((button, i) => button === originalButtons[i]));
+  assert.equal(cards.children[0].attrs['aria-pressed'], 'false');
+  assert.equal(cards.children[1].attrs['aria-pressed'], 'true');
+  assert.equal(descend(trello).find(item => item.tag === 'h4').textContent, 'JPI');
+});
+test('fast dashboard switching fetches fresh records concurrently and preserves the previous workspace on read failure', async () => {
+  const calls = [], pending = [], locks = [], mounts = [];
+  const previousPlanner = { read: () => ({ note: 'Previous saved Notes' }) };
+  const context = {
+    api: '/api/planner/', busy: false, loaded: true, dirty: false, save: {}, retry: {},
+    periodDate: '2026-11-23', periodSlot: 'whanau', selectedTeachingCard: 'old-card', sessionPlanner: previousPlanner,
+    teachingDashboard: { setBusy: value => locks.push(value) },
+    notice() {}, console: { error() {} }, history: { replaceState() {} }, viewFragment: () => '',
+    request: url => { calls.push(url); return new Promise((resolve, reject) => pending.push({ resolve, reject })); },
+    mountTeachingSession: (data, legacy) => { mounts.push([data, legacy]); context.sessionPlanner = { read: () => data.content }; }
+  };
+  vm.runInNewContext(source.slice(source.indexOf('  async function switchDashboardSession('),
+    source.indexOf('  async function openSessionPlan(')), context);
+  const success = context.switchDashboardSession('2026-11-23', 'p2', 'new-card');
+  assert.equal(calls.length, 2, 'both GET requests start before either completes');
+  assert.equal(context.periodSlot, 'whanau');
+  assert.equal(context.sessionPlanner, previousPlanner);
+  pending[0].resolve({ revision: 4, content: { title: 'Legacy title' } });
+  pending[1].resolve({ available: true, revision: 7, content: { note: 'Latest authoritative Notes' } });
+  await success;
+  assert.equal(context.periodSlot, 'p2');
+  assert.equal(context.revision, 7);
+  assert.equal(context.sessionPlanner.read().note, 'Latest authoritative Notes');
+  assert.equal(mounts[0][1].revision, 4);
+  assert.deepEqual(locks, [true, false]);
+  const current = context.sessionPlanner;
+  const failure = context.switchDashboardSession('2026-11-23', 'whanau', 'other-card');
+  pending[2].reject(new Error('Session unavailable'));
+  pending[3].resolve({ available: true });
+  await failure;
+  assert.equal(context.sessionPlanner, current);
+  assert.equal(context.periodSlot, 'p2');
+  assert.equal(context.selectedTeachingCard, 'new-card');
+  assert.equal(context.busy, false);
+  assert.equal(context.loaded, true);
+  assert.equal(context.retry.hidden, false);
 });
 test('activity instructions format saved lines as bullets without duplicating markers or changing blank lines', () => {
   const notices = [], field = node();
