@@ -182,6 +182,55 @@ test('slot resources use explicit safe URLs or unique verified programme links a
     assert.equal(slotDescendants(view).filter(item => item.tag === 'a' && item.attrs.href === slotProgramme.teaching.lesson.url).length, 1);
   }
 });
+test('one Minecraft slot displays multiple named resources independently without changing the teaching sequence', () => {
+  const renderer = require('./public/teaching-slots'), card = teachingSlotFixture();
+  const urls = [
+    'https://dtech-hub2.onrender.com/practical-skills/kit-worksheet.html?kit=kit-minecraft',
+    'https://dtech-hub2.onrender.com/practical-skills/kit-worksheet.html?kit=kit-minecraft-builder-kit'
+  ];
+  card.description = card.description.replace(
+    'Resource: Existing CW Routine → Minecraft\nResource URL: unresolved\nDetails: Continue the established Minecraft routine.',
+    'Details: Students access the appropriate Minecraft Kit for their current stage.\n\nResources:\n' +
+    '- Minecraft Player Kit | ' + urls[0] + '\n- Minecraft Builder Kit | ' + urls[1] +
+    '\n- Unsafe Kit | javascript:alert(1)\n- Missing Kit |\n- Another missing Kit');
+  const original = JSON.stringify(card), parsed = renderer.parse(card.description);
+  assert.equal(parsed.slots.length, 4);
+  assert.deepEqual(parsed.slots[1].resources.slice(0, 2).map(resource => resource.resourceUrl), urls);
+  assert.equal(parsed.slots[1].details.trim(), 'Students access the appropriate Minecraft Kit for their current stage.');
+  const view = renderer.render(node, card, slotProgramme);
+  const slots = slotDescendants(view).filter(item => item.attrs.class === 'teaching-slot');
+  slots[1].events.click();
+  const panel = slotDescendants(view).find(item => item.attrs.class === 'teaching-slot-detail');
+  const links = slotDescendants(panel).filter(item => item.tag === 'a');
+  assert.deepEqual(links.map(link => link.textContent), ['Minecraft Player Kit', 'Minecraft Builder Kit']);
+  assert.deepEqual(links.map(link => link.attrs.href), urls, 'retain each exact query parameter');
+  assert.ok(links.every(link => link.attrs.target === '_blank' && link.attrs.rel === 'noopener noreferrer'));
+  assert.equal(panel.children[2].textContent, 'Resources');
+  assert.equal(slotDescendants(panel).filter(item => item.textContent.includes('Link unavailable')).length, 3);
+  assert.ok(!slotDescendants(panel).some(item => /https?:\/\//.test(item.textContent)), 'URLs are not classroom labels');
+  assert.equal(slots[1].attrs['aria-pressed'], 'true');
+  slots[0].events.click(); slots[1].events.click();
+  assert.equal(JSON.stringify(card), original);
+  assert.equal(slots.length, 4, 'resources must not become teaching slots');
+});
+test('resource lists coexist with legacy links, while single-resource and resource-free slots remain usable', () => {
+  const renderer = require('./public/teaching-slots'), card = teachingSlotFixture();
+  const typingUrl = 'https://dtech-hub2.onrender.com/practical-skills/typing-kit.html';
+  card.description = card.description.replace('Resource URL: unresolved', 'Resource URL: ' + typingUrl);
+  let view = renderer.render(node, card, slotProgramme);
+  assert.equal(slotDescendants(view).find(item => item.tag === 'a' && item.attrs.href === typingUrl).textContent,
+    'Existing CW Routine → Typing Kit');
+  card.description = card.description.replace('Details: Continue the established Minecraft routine.',
+    'Resources:\n- Builder Kit | https://example.test/kit?stage=builder&mode=practice\nDetails: Continue the established Minecraft routine.');
+  view = renderer.render(node, card, slotProgramme);
+  slotDescendants(view).filter(item => item.attrs.class === 'teaching-slot')[1].events.click();
+  const panel = slotDescendants(view).find(item => item.attrs.class === 'teaching-slot-detail');
+  assert.deepEqual(slotDescendants(panel).filter(item => item.tag === 'a').map(item => item.textContent),
+    ['Existing CW Routine → Minecraft', 'Builder Kit']);
+  view = renderer.render(node, teachingSlotFixture('9WHAU'), null);
+  const empty = slotDescendants(view).find(item => item.attrs.class === 'teaching-slot-detail');
+  assert.equal(empty.children.length, 2, 'resource-free slots keep their title and full details without an empty Resources heading');
+});
 test('malformed and older Trello cards keep a readable fallback without breaking selected-session rendering', async () => {
   const renderer = require('./public/teaching-slots'), card = teachingSlotFixture();
   for (const description of [

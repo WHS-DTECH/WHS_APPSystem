@@ -1928,6 +1928,23 @@ first and small muted slot/category labels at the far right. The first slot is
 selected by default; selecting another highlights it without expanding the cards.
 The right-hand panel replaces its title, optional `Details:`, `Resource:` and
 `Resource URL:` content; details may continue across lines without truncation.
+For multiple named links in one slot, use a `Resources:` block:
+
+```text
+### SLOT 2 | Routine | Minecraft
+Details: Students access the appropriate Minecraft Kit for their current stage.
+Resources:
+- Minecraft Player Kit | https://dtech-hub2.onrender.com/practical-skills/kit-worksheet.html?kit=kit-minecraft
+- Minecraft Builder Kit | https://dtech-hub2.onrender.com/practical-skills/kit-worksheet.html?kit=kit-minecraft-builder-kit
+```
+
+Resources appear as individually labelled new-tab links in the selected slot's
+details, without displaying raw URLs or creating extra teaching slots. List order
+and supplied query parameters are preserved. Missing or invalid URLs show
+**Link unavailable** independently; other valid resources remain usable.
+The existing `Resource:` / `Resource URL:` pair remains supported and, if combined
+with a list, appears first. A named list entry without a URL can use the same
+verified-link resolution as the single-resource format.
 Optional exact `## Preparation & reminders` appears below the left-hand sequence;
 `## Continuation` appears below the right-hand details. Panels grow naturally,
 without internal scrollbars or fixed-height content areas; narrow screens stack
