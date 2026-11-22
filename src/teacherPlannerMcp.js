@@ -163,9 +163,10 @@ function createTeacherPlannerMcpRouter({ env = process.env, dbQuery = coreQuery,
     if (!paths.some(path => req.path === path || req.path.startsWith(path + '/'))) return next('router');
     next();
   });
-  router.use(helmet({ contentSecurityPolicy: { directives: {
+  const consentPolicy = {
     defaultSrc: ["'none'"], styleSrc: ["'self'"], formAction: ["'self'"], frameAncestors: ["'none'"], baseUri: ["'none'"]
-  } } }));
+  };
+  router.use(helmet({ contentSecurityPolicy: { directives: consentPolicy } }));
   router.use((req, res, next) => { res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' }); next(); });
   router.use(rateLimit({ windowMs: 60000, limit: 120 }));
   let configured;
@@ -196,7 +197,17 @@ function createTeacherPlannerMcpRouter({ env = process.env, dbQuery = coreQuery,
     authorizeUser: authorizeUser || (id => authorisedModuleUser(id, 'teacher-planner', dbQuery)) });
   const reads = data || createTeacherPlannerMcpData({ env, origin });
   router.use(PREFIX, express.urlencoded({ extended: false, limit: '32kb' }), express.json({ limit: '32kb' }));
-  router.use(PREFIX + '/oauth/authorize', authorizationHandler({ provider }));
+  router.use(PREFIX + '/oauth/authorize',
+    helmet.contentSecurityPolicy({ directives: { ...consentPolicy, formAction: ["'self'", callback] } }),
+    (req, res, next) => {
+      if (req.method === 'POST') res.once('finish', () => {
+        const location = res.get('Location');
+        console.info('Planner MCP OAuth POST /integrations/teacher-planner/oauth/authorize', {
+          status: res.statusCode, chatgptRedirect: typeof location === 'string' && location.startsWith(callback + '?')
+        });
+      });
+      next();
+    }, authorizationHandler({ provider }));
   router.use(PREFIX + '/oauth/token', tokenHandler({ provider }));
   router.use(PREFIX + '/oauth/revoke', revocationHandler({ provider }));
   router.use(MCP_PATH, requireBearerAuth({ verifier: provider, requiredScopes: [SCOPE],
