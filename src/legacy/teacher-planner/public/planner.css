@@ -58,8 +58,9 @@
 .whs-planner button { border: 1px solid #b3c4cb; border-radius: 5px; background: #fff; color: #31586c; padding: 9px 13px; cursor: pointer; font: inherit; }
 .whs-planner button:disabled { opacity: .55; cursor: wait; }
 .whs-planner [hidden] { display: none !important; }
-.term-notes-toggle { display: flex; grid-column: 1 / -1; gap: 8px; margin: 12px 0; }
-.term-notes-toggle button[aria-pressed="true"] { background: #245f85; color: #fff; }
+.term-notes-toggle { display: inline-flex; flex-wrap: nowrap; align-items: center; justify-self: start; grid-column: 1 / -1; gap: 6px; margin: 4px 0; }
+.term-notes-toggle button { padding: 6px 11px; font-size: 14px; white-space: nowrap; }
+.term-notes-toggle.planner-nav-buttons button[aria-pressed="true"] { background: var(--nav-selected); border-color: var(--nav-selected); color: #fff; font-weight: 600; }
 .term-notes-panel { display: grid; grid-column: 1 / -1; grid-template-columns: inherit; gap: inherit; align-content: start; }
 .term-trello-panel { grid-column: 1 / -1; min-width: 0; overflow-wrap: anywhere; }
 .term-trello-panel h3 { margin: 12px 0; color: #376783; }
@@ -92,7 +93,8 @@
 }
 .planner-tabs { display: flex; align-items: flex-start; gap: 14px; margin: 10px 0 14px; padding: 0 0 12px; border-bottom: 1px solid #b9c4c9; }
 .planner-nav-group { min-width: 0; padding: 4px 0; }
-.planner-nav-planning { --nav-colour: #245f85; --nav-selected: #143c56; flex: 1 1 auto; }
+.planner-nav-planning, .term-notes-toggle { --nav-colour: #245f85; --nav-selected: #143c56; }
+.planner-nav-planning { flex: 1 1 auto; }
 .planner-nav-setup { --nav-colour: #216b55; --nav-selected: #124333; }
 .planner-nav-modules { --nav-colour: #75418a; --nav-selected: #4d245e; }
 .planner-nav-group h2 { margin: 0 0 6px; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--nav-colour); }
@@ -234,9 +236,9 @@
 .term-spread .term-auto-expand { overflow: hidden; resize: none; }
 .term-panel-navigation { grid-column: 1 / -1; }
 .term-panel-navigation button { border-radius: 999px; color: #245f85; border-color: #245f85; }
-.term-calendar-panel { grid-column: 1 / -1; min-width: 0; }
+.teacher-timetable-panel { min-width: 0; }
 @media screen {
-  .planner-main:has(.term-spread) { width: 100%; }
+  .planner-main:has(.term-spread), .planner-main:has(.teacher-timetable-panel) { width: 100%; }
   .planner-spread.term-spread { grid-template-columns: clamp(240px, 24vw, 380px) minmax(0, 1fr); align-items: start; max-width: none; margin: 0; gap: 24px; }
   .planner-spread.term-spread .planner-cover { max-width: none; margin: 0; }
   .term-spread .cover-name { font-size: 22px; }
@@ -245,16 +247,16 @@
   .term-start-panel .planner-field label { font-size: 15px; font-weight: 700; }
   .term-start-panel .planner-field:has(textarea) { display: flex; flex-direction: column; }
   .planner-main .term-start-panel textarea { min-height: 300px; flex: 1 0 auto; }
-  .term-calendar-panel { border-radius: 10px; padding: 24px; }
-  .term-calendar-panel .google-calendar { margin-top: 0; padding-top: 0; border-top: 0; }
-  .term-calendar-panel .google-calendar > h3 { font-size: 24px; color: #376783; }
-  .term-calendar-panel .google-week-layout { grid-template-columns: minmax(0, 1fr) 300px; }
-  .term-calendar-panel .google-calendar .kamar-week-scroll { overflow-x: auto; }
-  .term-calendar-panel .kamar-week { min-width: 900px; grid-template-columns: 65px repeat(7, minmax(0, 1fr)); }
-  .term-calendar-panel .kamar-week .kamar-week-heading { font-size: 14px; padding: 8px; }
-  .term-calendar-panel .kamar-week .kamar-week-hour { font-size: 13px; height: 100px; }
-  .term-calendar-panel .kamar-week-extra button { font-size: 13px; }
-  .term-calendar-panel .kamar-day-details { font-size: 14px; }
+  .teacher-timetable-panel { border-radius: 10px; padding: 24px; }
+  .teacher-timetable-panel .google-calendar { margin-top: 0; padding-top: 0; border-top: 0; }
+  .teacher-timetable-panel .google-calendar > h3 { font-size: 24px; color: #376783; }
+  .teacher-timetable-panel .google-week-layout { grid-template-columns: minmax(0, 1fr) 300px; }
+  .teacher-timetable-panel .google-calendar .kamar-week-scroll { overflow-x: auto; }
+  .teacher-timetable-panel .kamar-week { min-width: 900px; grid-template-columns: 65px repeat(7, minmax(0, 1fr)); }
+  .teacher-timetable-panel .kamar-week .kamar-week-heading { font-size: 14px; padding: 8px; }
+  .teacher-timetable-panel .kamar-week .kamar-week-hour { font-size: 13px; height: 100px; }
+  .teacher-timetable-panel .kamar-week-extra button { font-size: 13px; }
+  .teacher-timetable-panel .kamar-day-details { font-size: 14px; }
   .planner-main .planner-term-control { position: relative; text-align: center; font-weight: 700; color: #245f85; }
   .planner-main .planner-term-badge { width: 96px; height: 96px; border: 3px solid #376783; border-radius: 50%; background: #e2f5fc; color: #245f85; font-size: 42px; font-weight: 700; padding: 20px 6px 0; text-align: center; text-align-last: center; appearance: none; cursor: pointer; box-shadow: 0 0 0 4px #fff; }
   .planner-term-control::after { content: ''; position: absolute; right: 15px; top: 47px; width: 6px; height: 6px; border-right: 2px solid #245f85; border-bottom: 2px solid #245f85; transform: rotate(45deg); pointer-events: none; }
@@ -262,12 +264,12 @@
   .planner-main .planner-term-badge option { font-size: 18px; }
 }
 @media screen and (max-width: 1400px) {
-  .term-calendar-panel .google-week-layout { grid-template-columns: minmax(0, 1fr); }
+  .teacher-timetable-panel .google-week-layout { grid-template-columns: minmax(0, 1fr); }
 }
 @media screen and (max-width: 850px) {
   .planner-spread.term-spread { grid-template-columns: minmax(0, 1fr); }
   .planner-spread.term-spread .planner-cover { width: min(320px, 100%); margin: 0 auto; }
-  .term-start-panel, .term-calendar-panel { padding: 18px; }
+  .term-start-panel, .teacher-timetable-panel { padding: 18px; }
   .term-start-panel { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
 }
 .ruled-page .planner-field label { color: #376783; }

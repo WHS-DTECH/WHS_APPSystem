@@ -43,6 +43,7 @@
     assessmentSetup: [],
     attendance: [],
     attendanceImport: [],
+    timetable: [],
     moderation: [],
     reporting: [],
     setup: [],
@@ -2456,6 +2457,25 @@
       const cover = coverPage('cover-kokako', '');
       content.append(cover); return;
     }
+    if (section === 'timetable') {
+      const panel = el('section', '', { class: 'paper-page teacher-timetable-panel', 'aria-label': 'Teacher Timetable' });
+      const calendar = el('section');
+      panel.append(el('h2', 'Teacher Timetable', { class: 'paper-heading' }), calendar);
+      content.append(panel);
+      globalThis.plannerGoogleCalendar.mount(calendar, {
+        el, request: async path => { await refreshSession(); return request(api + path); },
+        mutate: async (path, method, body) => {
+          await refreshSession();
+          return request(api + 'google-calendar/' + path, {
+            method, headers: { 'Content-Type': 'application/json', 'x-planner-csrf': csrf },
+            ...(body ? { body: JSON.stringify(body) } : {})
+          });
+        },
+        renderWeek: renderKamarWeek, sunday: kamarSunday, today: kamarToday, weekDates: kamarWeekDates,
+        dayEvents: kamarEventsForDay, hourEvents: kamarHourEvents, hourLabel: kamarHourLabel, date, iso
+      });
+      return;
+    }
     if (section === 'week') { renderWeek(data); return; }
     if (section === 'standards') { renderStandards(data); return; }
     if (section === 'learning') { renderLearning(data); return; }
@@ -2532,21 +2552,6 @@
         area.addEventListener('input', () => expandTermArea(area));
         expandTermArea(area);
       }
-      const calendarPanel = el('section', '', { class: 'paper-page term-calendar-panel', 'aria-label': 'Term planner Google Calendar' });
-      const calendar = el('section');
-      calendarPanel.append(calendar); spread.append(calendarPanel);
-      globalThis.plannerGoogleCalendar.mount(calendar, {
-        el, request: async path => { await refreshSession(); return request(api + path); },
-        mutate: async (path, method, body) => {
-          await refreshSession();
-          return request(api + 'google-calendar/' + path, {
-            method, headers: { 'Content-Type': 'application/json', 'x-planner-csrf': csrf },
-            ...(body ? { body: JSON.stringify(body) } : {})
-          });
-        },
-        renderWeek: renderKamarWeek, sunday: kamarSunday, today: kamarToday, weekDates: kamarWeekDates,
-        dayEvents: kamarEventsForDay, hourEvents: kamarHourEvents, hourLabel: kamarHourLabel, date, iso
-      });
     } else content.append(grid);
   }
   async function mountAttendancePage(host, overview) {
@@ -2632,7 +2637,7 @@
       }
       renderSelectors();
       history.replaceState(null, '', '#' + viewFragment());
-      document.querySelector('.planner-save').hidden = ['cover', 'attendance', 'attendanceImport'].includes(section);
+      document.querySelector('.planner-save').hidden = ['cover', 'attendance', 'attendanceImport', 'timetable'].includes(section);
       save.textContent = section === 'setup' ? 'Save school-wide setup' : 'Save changes';
       document.getElementById('save-note').textContent = section === 'setup' ? 'These settings are shared by all planners for this year.' :
         'Private Planner edits autosave. Wait for Autosaved before closing.';
@@ -2642,6 +2647,11 @@
       }
       if (section === 'cover') { render({}); loaded = true; notice(openingNote || 'Your planner, familiar pages. Open the cover or choose a section above.'); return; }
       await refreshSession();
+      if (section === 'timetable') {
+        render({}); loaded = true;
+        notice('Teacher Timetable. Events are read-only; Google Calendar choices save separately to your account.');
+        return;
+      }
       if (section === 'attendance') {
         const host = el('section');
         content.append(host);
@@ -2680,7 +2690,7 @@
     autosaveTimer = setTimeout(() => { if (!busy) saveEntry(true); }, delay);
   }
   function changed(event) {
-    if (event.target.closest('[data-teacher-timetable],[data-google-calendar],[data-planner-navigation]')) return;
+    if (section === 'timetable' || event.target.closest('[data-teacher-timetable],[data-google-calendar],[data-planner-navigation]')) return;
     dirty = true; editVersion++; save.disabled = busy || !loaded;
     notice(autosaves() ? (autosavePaused ? 'Autosave is paused. Your latest changes are NOT saved. Keep this page open and use Save changes to retry.' : 'Unsaved changes - autosave pending...') : 'Unsaved changes.', autosaves() && autosavePaused);
     scheduleAutosave();
@@ -2696,7 +2706,7 @@
     alignWeekRows(content.querySelector('.weekly-spread'));
   });
   async function saveEntry(automatic = false) {
-    if (busy || !loaded || (section === 'setup' && (!canManageSchoolSettings || content.querySelector('#setup-sheet-0')?.hidden))) return;
+    if (section === 'timetable' || busy || !loaded || (section === 'setup' && (!canManageSchoolSettings || content.querySelector('#setup-sheet-0')?.hidden))) return;
     clearTimeout(autosaveTimer);
     if (!form.reportValidity()) {
       if (autosaves()) { autosavePaused = true; notice('Planner changes are NOT saved. Check the highlighted fields, then use Save changes to retry.', true); }
@@ -2758,7 +2768,7 @@
   }
   form.addEventListener('submit', event => {
     event.preventDefault();
-    if (!['attendance', 'attendanceImport'].includes(section) && !(section === 'setup' && setupTab !== 0)) saveEntry();
+    if (!['attendance', 'attendanceImport', 'timetable'].includes(section) && !(section === 'setup' && setupTab !== 0)) saveEntry();
   });
   document.querySelectorAll('[data-section]').forEach((button) => button.addEventListener('click', () => {
     return navigatePlannerSection(button.dataset.section);
