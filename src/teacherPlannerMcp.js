@@ -200,10 +200,13 @@ function createTeacherPlannerMcpRouter({ env = process.env, dbQuery = coreQuery,
   router.use(PREFIX + '/oauth/authorize',
     helmet.contentSecurityPolicy({ directives: { ...consentPolicy, formAction: ["'self'", callback] } }),
     (req, res, next) => {
+      res.set('Referrer-Policy', 'same-origin');
       if (req.method === 'POST') res.once('finish', () => {
         const location = res.get('Location');
+        const chatgptRedirect = typeof location === 'string' && location.startsWith(callback + '?');
         console.info('Planner MCP OAuth POST /integrations/teacher-planner/oauth/authorize', {
-          status: res.statusCode, chatgptRedirect: typeof location === 'string' && location.startsWith(callback + '?')
+          status: res.statusCode, chatgptRedirect,
+          authorizationCodeIssued: chatgptRedirect && /[?&]code=/.test(location)
         });
       });
       next();

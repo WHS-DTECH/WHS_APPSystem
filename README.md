@@ -1768,10 +1768,13 @@ tokens are issued in this pilot: reconnect after expiry. Token revocation is
 available at `POST /integrations/teacher-planner/oauth/revoke`.
 
 The consent page's form policy permits only this site and the configured ChatGPT
-callback, including the redirect after approval. Render logs consent POST response
-status and whether it redirects to that callback, never codes, state, tokens or
-form contents. After a deployment or an expired consent request, restart linking
-from ChatGPT rather than reusing an old consent page.
+callback, including the redirect after approval. Its `same-origin` referrer policy
+preserves the browser's POST Origin header for validation without sharing referrer
+information with ChatGPT; other integration routes use `no-referrer`. Render logs
+consent POST response status, whether it redirects to that callback and whether an
+authorization code was issued, never codes, state, tokens or form contents. After
+a deployment or an expired consent request, restart linking from ChatGPT rather
+than reusing an old consent page.
 
 Available tools:
 
