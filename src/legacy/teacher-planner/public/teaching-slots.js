@@ -40,19 +40,26 @@
       if (slot) {
         if (!Object.hasOwn(types, slot[2]) || numbers.has(slot[1])) throw new FormatError('Invalid slot type or duplicate slot number.');
         numbers.add(slot[1]);
-        current = { number: slot[1], type: slot[2], colour: types[slot[2]], title: slot[3], details: '', resource: '', resourceUrl: '' };
+        current = { number: slot[1], type: slot[2], colour: types[slot[2]], title: slot[3], details: '', resource: '', resourceUrl: '', resources: [] };
         current.fields = new Set(); slots.push(current); lastField = undefined; continue;
       }
       if (line.startsWith('### ')) throw new FormatError('Use SLOT n | Type | Title headings.');
       if (!line.trim()) { if (lastField === 'details') current.details += '\n'; continue; }
       if (!current) throw new FormatError('A slot heading is required before its content.');
-      const field = /^(Resource URL|Resource|Details):[ \t]*(.*)$/.exec(line);
+      const field = /^(Resource URL|Resource|Resources|Details):[ \t]*(.*)$/.exec(line);
       if (field) {
-        const key = { Resource: 'resource', 'Resource URL': 'resourceUrl', Details: 'details' }[field[1]];
+        const key = { Resource: 'resource', 'Resource URL': 'resourceUrl', Resources: 'resources', Details: 'details' }[field[1]];
         if (current.fields.has(key)) throw new FormatError('Duplicate slot field.');
-        current.fields.add(key); current[key] = field[2]; lastField = key;
+        if (key === 'resources' && field[2].trim()) throw new FormatError('Place named resource entries below Resources:.');
+        current.fields.add(key);
+        if (key !== 'resources') current[key] = field[2];
+        lastField = key;
+      } else if (lastField === 'resources') {
+        const resource = /^-[ \t]+([^|]+?)(?:[ \t]*\|[ \t]*(.*))?$/.exec(line);
+        if (!resource || !resource[1].trim()) throw new FormatError('Use - Resource name | URL entries below Resources:.');
+        current.resources.push({ resource: resource[1].trim(), resourceUrl: resource[2]?.trim() || '' });
       } else if (lastField === 'details') current.details += '\n' + line;
-      else throw new FormatError('Use Resource, Resource URL and Details fields.');
+      else throw new FormatError('Use Resource, Resource URL, Resources and Details fields.');
     }
     if (!slots.length || slots.length > 50) throw new FormatError('Provide between one and fifty teaching slots.');
     return { metadata, slots, preparation: panels.preparation.trim(), continuation: panels.continuation.trim() };
@@ -121,11 +128,16 @@
       for (const candidate of buttons) candidate.setAttribute('aria-pressed', String(candidate === button));
       details.replaceChildren(el('h4', slot.title));
       if (slot.details) details.append(el('p', slot.details.trim(), { class: 'session-preserved-text' }));
-      if (slot.resource || slot.resourceUrl) {
-        const url = resolveResource(slot, programme), resource = el('p', '', { class: 'teaching-slot-resource' });
-        resource.append(url ? el('a', slot.resource || 'Open resource', { href: url, target: '_blank', rel: 'noopener noreferrer' }) :
-          el('span', (slot.resource || 'Resource') + ' - Link unavailable'));
-        details.append(resource);
+      const resources = [...(slot.resource || slot.resourceUrl ? [slot] : []), ...slot.resources];
+      if (resources.length) {
+        const list = el('ul', '', { class: 'teaching-slot-resources' });
+        for (const resource of resources) {
+          const url = resolveResource({ ...resource, type: slot.type }, programme), item = el('li', '', { class: 'teaching-slot-resource' });
+          item.append(url ? el('a', resource.resource || 'Open resource', { href: url, target: '_blank', rel: 'noopener noreferrer' }) :
+            el('span', (resource.resource || 'Resource') + ' - Link unavailable'));
+          list.append(item);
+        }
+        details.append(el('h5', 'Resources'), list);
       }
     }
     for (const slot of plan.slots) {
