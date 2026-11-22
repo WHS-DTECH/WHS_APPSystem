@@ -99,6 +99,8 @@ const slotProgramme = { teaching: { unit: { title: 'Binary & Data', url: '/dtech
   lesson: { title: 'Binary Piano', url: '/dtech-hub/learning-pathways/lesson-binary-piano.html' } },
 routine: { instructions: 'TypingTest.com - AKA Typing Kit\n[Minecraft Player Kit](https://dtech-hub2.onrender.com/practical-skills/kit-worksheet.html?kit=kit-minecraft)' } };
 const slotDescendants = host => [host, ...host.children.filter(child => typeof child === 'object').flatMap(slotDescendants)];
+const typingCopy = 'Students practice their keyboarding skills by logging their results from TypingTest.com.';
+const activityDescription = panel => slotDescendants(panel).find(item => item.attrs.class?.includes('teaching-activity-description'))?.textContent;
 test('teaching workspaces render both four-slot sequences with the first activity selected and no progress controls', () => {
   const renderer = require('./public/teaching-slots');
   for (const classKey of ['JPI', '9WHAU']) {
@@ -117,11 +119,13 @@ test('teaching workspaces render both four-slot sequences with the first activit
         ['Slot ' + parsed.slots[index].number, parsed.slots[index].type]);
     }
     const workspace = nodes.find(item => item.attrs.class === 'teaching-slot-workspace');
-    assert.equal(workspace.children[0].children[1].children[0].textContent, 'Preparation & Reminders');
-    assert.equal(workspace.children[1].children[1].children[0].textContent, 'Continuation');
+    const support = nodes.find(item => item.attrs.class === 'teaching-slot-session-support');
+    assert.equal(view.children[1], support, 'session information belongs directly below the navy header');
+    assert.equal(support.children[0].children[0].textContent, 'Preparation & Reminders');
+    assert.equal(support.children[1].children[0].textContent, 'Continuation');
     const details = workspace.children[1].children[0];
-    assert.equal(details.children[0].textContent, parsed.slots[0].title);
-    assert.equal(details.children[1].textContent, parsed.slots[0].details.trim());
+    assert.equal(slotDescendants(details).find(item => item.tag === 'h4').textContent, parsed.slots[0].title);
+    assert.equal(activityDescription(details), classKey === 'JPI' ? typingCopy : parsed.slots[0].details.trim());
     assert.ok(slots.every(slot => slot.attrs['aria-controls'] === details.attrs.id));
     const header = nodes.find(item => item.tag === 'header'), headerText = slotDescendants(header).map(item => item.textContent).join(' ');
     assert.match(headerText, /Room CW.*Monday.*23 November 2026/);
@@ -143,6 +147,8 @@ test('slot selection replaces only the details panel and keeps the sequence and 
     const card = teachingSlotFixture(key), original = JSON.stringify(card), parsed = renderer.parse(card.description);
     const view = renderer.render(node, card, key === 'JPI' ? slotProgramme : null);
     const workspace = slotDescendants(view).find(item => item.attrs.class === 'teaching-slot-workspace');
+    const support = slotDescendants(view).find(item => item.attrs.class === 'teaching-slot-session-support');
+    const originalPanels = [...support.children];
     const list = workspace.children[0].children[0], details = workspace.children[1].children[0];
     const buttons = [...list.children], contents = buttons.map(button => button.children[0]);
     for (let index = 0; index < buttons.length; index++) {
@@ -150,15 +156,20 @@ test('slot selection replaces only the details panel and keeps the sequence and 
       assert.equal(workspace.children[1].children[0], details);
       assert.ok(list.children.every((button, position) => button === buttons[position] && button.children[0] === contents[position]));
       assert.deepEqual(buttons.map(button => button.attrs['aria-pressed']), buttons.map((_, position) => String(position === index)));
-      assert.equal(details.children[0].textContent, parsed.slots[index].title);
-      assert.equal(details.children[1].textContent, parsed.slots[index].details.trim());
+      assert.equal(slotDescendants(details).find(item => item.tag === 'h4').textContent, parsed.slots[index].title);
+      assert.equal(activityDescription(details), key === 'JPI' && index === 0 ? typingCopy : parsed.slots[index].details.trim());
+      assert.equal(view.children[1], support);
+      assert.ok(support.children.every((panel, i) => panel === originalPanels[i]));
+      assert.ok(!slotDescendants(details).some(item => item.attrs['data-session-panel']));
     }
     assert.equal(JSON.stringify(card), original);
   }
   const card = teachingSlotFixture(), longDetails = 'Keep every instruction visible. '.repeat(200).trim();
-  card.description = card.description.replace('Use the established Typing Kit routine.', longDetails);
-  const details = slotDescendants(renderer.render(node, card, slotProgramme)).find(item => item.attrs.class === 'teaching-slot-detail');
-  assert.equal(details.children[1].textContent, longDetails, 'long details are not truncated');
+  card.description = card.description.replace('Continue the established Minecraft routine.', longDetails);
+  const view = renderer.render(node, card, slotProgramme);
+  slotDescendants(view).filter(item => item.attrs.class === 'teaching-slot')[1].events.click();
+  const details = slotDescendants(view).find(item => item.attrs.class === 'teaching-slot-detail');
+  assert.equal(activityDescription(details), longDetails, 'long details are not truncated');
 });
 test('slot resources use explicit safe URLs or unique verified programme links and expose unresolved names', () => {
   const renderer = require('./public/teaching-slots'), card = teachingSlotFixture(), slots = renderer.parse(card.description).slots;
@@ -175,7 +186,7 @@ test('slot resources use explicit safe URLs or unique verified programme links a
     '\n[Minecraft Player Kit](https://example.com/other)' } };
   assert.equal(renderer.resolveResource(slots[1], ambiguous), null);
   const view = renderer.render(node, card, slotProgramme), nodes = slotDescendants(view);
-  assert.ok(nodes.some(item => item.textContent === 'Existing CW Routine → Typing Kit - Link unavailable'));
+  assert.ok(nodes.some(item => item.tag === 'a' && item.attrs.href === 'https://www.typingtest.com/'));
   const buttons = nodes.filter(item => item.attrs.class === 'teaching-slot');
   for (const index of [2, 3]) {
     buttons[index].events.click();
@@ -205,7 +216,7 @@ test('one Minecraft slot displays multiple named resources independently without
   assert.deepEqual(links.map(link => link.textContent), ['Minecraft Player Kit', 'Minecraft Builder Kit']);
   assert.deepEqual(links.map(link => link.attrs.href), urls, 'retain each exact query parameter');
   assert.ok(links.every(link => link.attrs.target === '_blank' && link.attrs.rel === 'noopener noreferrer'));
-  assert.equal(panel.children[2].textContent, 'Resources');
+  assert.equal(slotDescendants(panel).filter(item => item.attrs['data-resource-category'] === 'web').length, 1);
   assert.equal(slotDescendants(panel).filter(item => item.textContent.includes('Link unavailable')).length, 3);
   assert.ok(!slotDescendants(panel).some(item => /https?:\/\//.test(item.textContent)), 'URLs are not classroom labels');
   assert.equal(slots[1].attrs['aria-pressed'], 'true');
@@ -219,7 +230,7 @@ test('resource lists coexist with legacy links, while single-resource and resour
   card.description = card.description.replace('Resource URL: unresolved', 'Resource URL: ' + typingUrl);
   let view = renderer.render(node, card, slotProgramme);
   assert.equal(slotDescendants(view).find(item => item.tag === 'a' && item.attrs.href === typingUrl).textContent,
-    'Existing CW Routine → Typing Kit');
+    'DTECH HUB Typing Kit');
   card.description = card.description.replace('Details: Continue the established Minecraft routine.',
     'Resources:\n- Builder Kit | https://example.test/kit?stage=builder&mode=practice\nDetails: Continue the established Minecraft routine.');
   view = renderer.render(node, card, slotProgramme);
@@ -229,7 +240,49 @@ test('resource lists coexist with legacy links, while single-resource and resour
     ['Existing CW Routine → Minecraft', 'Builder Kit']);
   view = renderer.render(node, teachingSlotFixture('9WHAU'), null);
   const empty = slotDescendants(view).find(item => item.attrs.class === 'teaching-slot-detail');
-  assert.equal(empty.children.length, 2, 'resource-free slots keep their title and full details without an empty Resources heading');
+  assert.ok(!slotDescendants(empty).some(item => item.attrs['data-resource-category']),
+    'resource-free slots keep their title and full details without empty resource categories');
+});
+test('categorised resources retain supplied Drive URLs and leave unrelated missing documents unavailable', () => {
+  const renderer = require('./public/teaching-slots'), card = teachingSlotFixture();
+  const entries = [
+    ['Web Links', 'Practice site', 'https://example.test/practice?kit=builder&mode=class'],
+    ['Print Resources', 'Worksheet', 'https://drive.google.com/file/d/test-worksheet/view?usp=drive_link'],
+    ['Lesson Plan', 'Teacher lesson', 'https://docs.google.com/document/d/test-lesson/edit?usp=sharing'],
+    ['Unit Plan', 'Unit overview', 'https://drive.google.com/file/d/test-unit/view?usp=drive_link']
+  ];
+  card.description = card.description.replace(
+    'Resource: Existing CW Routine → Minecraft\nResource URL: unresolved',
+    'Reminder: Bring headphones\nResources:\n' + entries.map(entry => '- ' + entry.join(' | ')).join('\n') +
+    '\n- Print Resources | Binary Piano | unresolved\n- Lesson Plan | Unsafe document | javascript:alert(1)');
+  const parsed = renderer.parse(card.description);
+  assert.equal(parsed.slots[1].reminder, 'Bring headphones');
+  assert.deepEqual(parsed.slots[1].resources.slice(0, 4).map(resource => [resource.category, resource.resource, resource.resourceUrl]), entries);
+  const view = renderer.render(node, card, slotProgramme);
+  slotDescendants(view).filter(item => item.attrs.class === 'teaching-slot')[1].events.click();
+  const panel = slotDescendants(view).find(item => item.attrs.class === 'teaching-slot-detail');
+  const nodes = slotDescendants(panel), links = nodes.filter(item => item.tag === 'a');
+  assert.deepEqual(links.map(link => [link.textContent, link.attrs.href]), entries.map(entry => entry.slice(1)));
+  assert.ok(links.every(link => link.attrs.target === '_blank' && link.attrs.rel === 'noopener noreferrer'));
+  assert.ok(nodes.some(item => item.textContent === 'Bring headphones'));
+  assert.ok(nodes.some(item => item.textContent === 'Binary Piano - Link unavailable'), 'a print document must not resolve to a similarly named library lesson');
+  assert.ok(nodes.some(item => item.textContent === 'Unsafe document - Link unavailable'));
+  assert.equal(nodes.filter(item => item.attrs['data-resource-category']).length, 4);
+});
+test('Typing Kit uses approved copy and destinations without editing the card or inventing empty sections', () => {
+  const renderer = require('./public/teaching-slots'), card = teachingSlotFixture();
+  card.description = card.description.replace('Check the prepared resources.', 'Week 7 reminder: Typing Kit.');
+  const original = JSON.stringify(card), view = renderer.render(node, card, null);
+  const panel = slotDescendants(view).find(item => item.attrs.class === 'teaching-slot-detail');
+  const nodes = slotDescendants(panel);
+  assert.equal(activityDescription(panel), typingCopy);
+  assert.deepEqual(nodes.filter(item => item.tag === 'a').map(item => [item.textContent, item.attrs.href]), [
+    ['TypingTest.com', 'https://www.typingtest.com/'],
+    ['DTECH HUB Typing Kit', 'https://dtech-hub2.onrender.com/practical-skills/typing-kit.html']
+  ]);
+  assert.equal(nodes.filter(item => item.attrs['data-resource-category']).length, 1, 'hide all three unsupplied document categories');
+  assert.equal(nodes.find(item => item.attrs.class === 'teaching-slot-reminder').textContent, 'Week 7');
+  assert.equal(JSON.stringify(card), original);
 });
 test('malformed and older Trello cards keep a readable fallback without breaking selected-session rendering', async () => {
   const renderer = require('./public/teaching-slots'), card = teachingSlotFixture();

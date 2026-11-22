@@ -1898,6 +1898,14 @@ The existing Planner term circle sits beside the Dashboard heading and reflects
 the selected term, or the school-calendar term for the displayed day when none
 was selected. Dashboard dates use readable NZ dates in Pacific/Auckland; ISO
 dates remain unchanged in record addresses and Trello matching.
+The dashboard retains a date selected through its link or session launcher.
+Without a selected date, opening Teaching Dashboard chooses today or the next
+Monday-Friday date; it does not search the timetable for the next actual class
+or skip school holidays. The NZ current date is captured when the page loads.
+An open page does not automatically roll over at midnight or refresh its selected
+session/Trello feed. Reloading a dated link retains that date; Trello Refresh
+rereads the selected date. The Monday-specific card mappings do not set the
+dashboard date.
 Each session card opens its Trello preparation. Its small Notes button opens
 that exact session's editable Notes without triggering the card selection.
 The redundant session back button and separate Notes shortcuts are removed.
@@ -1926,8 +1934,11 @@ The widescreen workspace has equal-width columns beneath the full-width navy
 header. Compact selectable cards on the left keep a bold 20px activity title
 first and small muted slot/category labels at the far right. The first slot is
 selected by default; selecting another highlights it without expanding the cards.
-The right-hand panel replaces its title, optional `Details:`, `Resource:` and
-`Resource URL:` content; details may continue across lines without truncation.
+The right-hand panel displays an activity icon, prominent title, type and optional
+`Reminder:` badge above its `Details:`. Details may continue across lines without
+truncation. Resource links appear as prominent tiles under coloured, icon-labelled
+Web Links, Print Resources, Lesson Plan and Unit Plan sections. Empty sections
+are hidden; resource categories form a two-column grid on widescreen displays.
 For multiple named links in one slot, use a `Resources:` block:
 
 ```text
@@ -1938,6 +1949,23 @@ Resources:
 - Minecraft Builder Kit | https://dtech-hub2.onrender.com/practical-skills/kit-worksheet.html?kit=kit-minecraft-builder-kit
 ```
 
+Categorised entries use `- Category | Display title | URL`, with the exact
+category names above. For example:
+
+```text
+Reminder: Week 7
+Resources:
+- Web Links | Minecraft Player Kit | https://dtech-hub2.onrender.com/practical-skills/kit-worksheet.html?kit=kit-minecraft
+- Print Resources | Classroom worksheet | https://drive.google.com/file/d/SUPPLIED_DOCUMENT_ID/view?usp=drive_link
+- Lesson Plan | Teacher lesson plan | https://docs.google.com/document/d/SUPPLIED_DOCUMENT_ID/edit?usp=sharing
+```
+
+The document IDs above are syntax placeholders, not linked resources. Print,
+Lesson Plan and Unit Plan URLs must be supplied; the renderer does not search for
+similarly named files. Older single-resource fields and two-part resource lists
+remain Web Links and retain their existing explicitly connected, unique-reference
+resolution.
+
 Resources appear as individually labelled new-tab links in the selected slot's
 details, without displaying raw URLs or creating extra teaching slots. List order
 and supplied query parameters are preserved. Missing or invalid URLs show
@@ -1945,8 +1973,10 @@ and supplied query parameters are preserved. Missing or invalid URLs show
 The existing `Resource:` / `Resource URL:` pair remains supported and, if combined
 with a list, appears first. A named list entry without a URL can use the same
 verified-link resolution as the single-resource format.
-Optional exact `## Preparation & reminders` appears below the left-hand sequence;
-`## Continuation` appears below the right-hand details. Panels grow naturally,
+Optional exact `## Preparation & reminders` and `## Continuation` appear side by
+side directly below the navy session header, preparation left and continuation
+right, above the slot workspace. They remain session-level information and their
+DOM/content is unchanged by slot selection. Panels grow naturally,
 without internal scrollbars or fixed-height content areas; narrow screens stack
 the columns. Selection is read-only and does not submit or modify Notes.
 No duration, completion or confirmed progress is inferred.
@@ -1957,8 +1987,15 @@ in `Pacific/Auckland`. Valid HTTP(S) resource URLs open the original resource.
 An absent or `unresolved` URL can resolve uniquely against JPI's already-loaded
 CW Routine Markdown links or verified Unit Library lesson/resource links.
 The Minecraft Player Kit and Binary Piano lesson are available through those
-sources; Typing Kit currently has only a website name in CW Routine and therefore
-shows **Link unavailable**. Credentials and ambiguous/invalid links are rejected,
+sources. The exact Routine/Kit slot named Typing Kit also has two explicitly
+approved destinations: `https://www.typingtest.com/` and
+`https://dtech-hub2.onrender.com/practical-skills/typing-kit.html`. Its display copy
+is "Students practice their keyboarding skills by logging their results from
+TypingTest.com." These display references do not edit the Trello card or Planner
+records; supplied additional resources remain available. An explicit `Reminder:`
+is displayed, or the card's explicitly named `Week n reminder: Typing Kit.` is
+shown as a Week badge without calculating a week from dates.
+Credentials and ambiguous/invalid links are rejected,
 not guessed. Malformed or older cards retain a readable original-card fallback.
 The dashboard fills its available width, with stacked columns on smaller screens.
 Notes, progress, autosaving, rapid session switching and their storage are unchanged.
