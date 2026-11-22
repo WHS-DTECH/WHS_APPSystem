@@ -20,7 +20,7 @@ function fixture() {
   const calls = [];
   let result = { year: 2027, term: 4, status: 'ok', fetchedAt: '2027-10-01T00:00:00Z', cards: [
     { title: '<img onerror=bad()>', summary: 'Umbrella responsibility', due: '2027-11-01T00:00:00Z',
-      start: null, url: 'https://trello.com/c/AbCd1234' }
+      start: null, url: 'https://trello.com/c/AbCd1234', labels: [] }
   ] }, failure, pending, expanded = 0;
   context.plannerTermTrello.mount(host, { el, notes, year: 2027, term: '4',
     expandNotes: () => expanded++, request: async path => {
@@ -58,6 +58,29 @@ test('Notes default and toggling retain the same unsaved form inputs and make on
   assert.equal(f.calls.length, 2, 'switching back rereads the source without writing either source');
 });
 
+test('all labels have separate accents and readable names, while unlabelled cards retain a neutral border', async () => {
+  const f = fixture();
+  f.setResult({ year: 2027, term: 4, status: 'ok', fetchedAt: '2027-10-01T00:00:00Z', cards: [
+    { title: 'Unchanged title', summary: 'Unchanged summary', url: 'https://trello.com/c/AbCd1234', labels: [
+      { name: 'Uncoloured category', color: null }, { name: '<img onerror=bad()>', color: 'blue' },
+      { name: '   ', color: 'yellow_light' }
+    ] },
+    { title: 'No labels', url: 'https://trello.com/c/EfGh5678', labels: [] }
+  ] });
+  f.find('Trello').events.click(); await flush();
+  const items = f.panel.children[3].children;
+  assert.equal(items[0].attrs['data-trello-colour'], 'blue', 'first coloured label supplies the card accent, not its title');
+  assert.equal(items[1].attrs['data-trello-colour'], undefined, 'no label leaves the neutral CSS border');
+  const labels = items[0].children[1];
+  assert.equal(labels.attrs['aria-label'], 'Trello labels');
+  assert.deepEqual(labels.children.map(label => [label.textContent, label.attrs['data-trello-colour']]),
+    [['Uncoloured category', undefined], ['<img onerror=bad()>', 'blue'], ['yellow light label', 'yellow_light']]);
+  assert.equal(labels.children[1].tag, 'span', 'label names are text, not HTML');
+  assert.equal(f.find('Unchanged title').tag, 'h4');
+  assert.equal(f.find('Unchanged summary').tag, 'p');
+  assert.equal(f.area.value, 'Unsaved term notes');
+});
+
 test('missing and empty lists stay distinct from errors and refresh retries without losing notes', async () => {
   const f = fixture();
   for (const state of ['missing', 'empty']) {
@@ -83,7 +106,7 @@ test('late Trello responses cannot switch Notes back or populate a different ter
   f.find('Trello').events.click();
   f.find('Notes').events.click();
   resolve({ year: 2027, term: 4, status: 'ok', fetchedAt: '2027-10-01T00:00:00Z',
-    cards: [{ title: 'Late card', url: 'https://trello.com/c/AbCd1234' }] });
+    cards: [{ title: 'Late card', url: 'https://trello.com/c/AbCd1234', labels: [] }] });
   await flush();
   assert.equal(f.notes.hidden, false);
   assert.equal(f.panel.hidden, true);
