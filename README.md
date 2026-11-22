@@ -1752,17 +1752,17 @@ Accents are decorative; label text stays dark on white so meaning does not depen
 on colour and pale labels do not reduce text contrast. Titles, summaries and links
 are unchanged.
 
-**Teacher Timetable** in the main Planner navigation hosts the existing reusable
-**My Google Calendar** component, rather than placing the large calendar beneath
-the Term Planner. Calendar selection, week navigation, event details and Google
-authentication are unchanged. Existing KAMAR subscriptions remain Google Calendar
-sources; their refresh timing is controlled by Google. Calendar choices are saved
-privately to the school account and are not copied or reset by switching views.
-The new `#section=timetable` view does not load or save a Planner planning record,
-and does not store lesson plans inside the calendar. Scheduled events can open
-their separate session plan; the daily launcher also opens Whanau/P1-P5 and
-private manual commitments. Year and Weekly Planner layouts
-and the separate MCP connection are unchanged.
+**Teaching Dashboard** replaces Teacher Timetable in the main Planner navigation.
+The former `#section=timetable` link opens the dashboard's existing scheduled-session
+Notes workspace, alongside read-only Current Teaching Day Trello preparation.
+The duplicate Google Calendar grid is no longer mounted here. Existing Google
+authentication, calendar-choice records and KAMAR subscriptions are not edited or
+reset; Google continues to control subscription refresh timing. Private KAMAR
+subscription settings remain in Setup.
+Whanau, P1-P5 and manual-session identifiers, saved plans and confirmed progress
+retain their existing storage. Dashboard edits save to the selected session, not
+to a new dashboard record or Trello. Year, Term and Weekly Planner layouts and the
+separate MCP connection are unchanged.
 
 ### JPI Period Planner pilot
 
