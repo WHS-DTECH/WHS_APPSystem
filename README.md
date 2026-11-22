@@ -1744,7 +1744,7 @@ Historical dates must be reviewed. This feature does not change the separate MCP
 OAuth connection or its tools.
 
 Cards read their label names and colour tokens directly from Trello on each
-refresh. A subtle left border uses the first coloured label; every label is also
+refresh. A clearly visible 6px left border uses the first coloured label; every label is also
 shown by name with its own accent, including cards with multiple labels. Unlabelled
 cards and uncoloured labels use a neutral border. Standard Trello colour tokens
 (including light/dark variants) map to their palette, never to card titles.

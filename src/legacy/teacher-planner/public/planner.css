@@ -68,7 +68,7 @@
 .term-trello-panel [role="alert"] { color: #8e230c; background: #fff0eb; padding: 8px; }
 .term-trello-cards { list-style: none; padding: 0; }
 .term-trello-cards li, .term-trello-label { --trello-label-colour: #b3c4cb; }
-.term-trello-cards li { margin: 8px 0; padding: 10px; border: 1px solid #b3c4cb; border-left: 4px solid var(--trello-label-colour); border-radius: 5px; background: #fff; }
+.term-trello-cards li { margin: 8px 0; padding: 10px; border: 1px solid #b3c4cb; border-left: 6px solid var(--trello-label-colour); border-radius: 5px; background: #fff; }
 .term-trello-labels { display: flex; flex-wrap: wrap; gap: 6px 10px; margin: 6px 0; }
 .term-trello-label { border-left: 4px solid var(--trello-label-colour); padding-left: 6px; color: #31586c; font-size: 13px; }
 .term-trello-cards [data-trello-colour="green"] { --trello-label-colour: #4bce97; }
