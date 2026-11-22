@@ -141,7 +141,7 @@ test('term rendering hides reflection without removing its supported saved field
   assert.match(css, /\.term-spread \.term-auto-expand \{ overflow: hidden; resize: none; \}/);
 });
 
-test('term workspace places goals before the heading and dates, with a separate full-width calendar and preserved inputs', async () => {
+test('term workspace preserves notes without a calendar, and Teacher Timetable reuses the calendar with its existing connections', async () => {
   const source = await fs.readFile(path.join(__dirname, 'public', 'planner.js'), 'utf8');
   const descendants = node => [node, ...node.children.flatMap(descendants)];
   function el(tag, text = '', attrs = {}) {
@@ -154,12 +154,13 @@ test('term workspace places goals before the heading and dates, with a separate 
     };
     return node;
   }
-  const content = el('main'), selected = [], mounts = [];
+  const content = el('main'), selected = [], mounts = [], requests = [];
   const context = { content, el, section: 'term', term: '4', year: 2026,
     fields: { term: [['startDate', 'Term start date', 'date'], ['endDate', 'Term end date', 'date'],
       ['information', 'Start-of-term information'], ['priorities', 'Term priorities'], ['reflection', 'Term reflection']] },
     coverPage: () => el('section', '', { class: 'planner-cover paper-page' }), expandTermArea: area => { area.style.height = area.scrollHeight + 'px'; },
-    navigatePlannerSection: target => selected.push(target), refreshSession: async () => {}, request() {}, api: '/api/planner/',
+    navigatePlannerSection: target => selected.push(target), refreshSession: async () => {},
+    request: async (...args) => { requests.push(args); }, api: '/api/planner/', csrf: 'fixture-csrf',
     renderKamarWeek() {}, kamarSunday() {}, kamarToday() {}, kamarWeekDates() {}, kamarEventsForDay() {},
     kamarHourEvents() {}, kamarHourLabel() {}, date() {}, iso() {},
     plannerGoogleCalendar: { mount: (...args) => mounts.push(args) }
@@ -169,7 +170,7 @@ test('term workspace places goals before the heading and dates, with a separate 
     source.slice(source.indexOf('  function inputField('), source.indexOf('  function updateWeekNavigation(')) +
     source.slice(source.indexOf('  function render(data)'), source.indexOf('  async function loadAttendanceSchedule(')), context);
   context.render({ startDate: '2026-10-12', endDate: '2026-12-18', information: 'Synthetic start notes', priorities: 'Synthetic priorities' });
-  const spread = content.children[0], panel = spread.children[1], calendar = spread.children[2];
+  const spread = content.children[0], panel = spread.children[1];
   assert.equal(spread.attrs.class, 'planner-spread term-spread');
   assert.match(panel.attrs.class, /term-start-panel/);
   assert.equal(panel.children[0].attrs['data-planner-navigation'], '');
@@ -179,10 +180,66 @@ test('term workspace places goals before the heading and dates, with a separate 
   assert.equal(panel.children[3].querySelector('input').attrs.name, 'endDate');
   assert.deepEqual(panel.querySelectorAll('textarea').map(item => [item.attrs.name, item.value, item.style.height]),
     [['information', 'Synthetic start notes', '350px'], ['priorities', 'Synthetic priorities', '350px']]);
-  assert.equal(calendar.attrs.class, 'paper-page term-calendar-panel');
-  assert.equal(mounts[0][0], calendar.children[0]);
+  assert.equal(spread.children.length, 2, 'Term retains only its cover and original notes/Trello panel');
+  assert.equal(mounts.length, 0, 'Term no longer starts any Google Calendar requests');
   panel.children[0].children[0].events.click();
   assert.deepEqual(selected, ['goals']);
+
+  context.section = 'timetable';
+  context.render({});
+  const timetable = content.children[0];
+  assert.equal(timetable.attrs['aria-label'], 'Teacher Timetable');
+  assert.equal(timetable.children[0].textContent, 'Teacher Timetable');
+  assert.equal(timetable.querySelectorAll('textarea').length, 0);
+  assert.equal(mounts.length, 1);
+  assert.equal(mounts[0][0], timetable.children[1]);
+  const helpers = mounts[0][1];
+  assert.equal(helpers.renderWeek, context.renderKamarWeek);
+  assert.equal(helpers.dayEvents, context.kamarEventsForDay);
+  await helpers.request('google-calendar/events?start=2026-11-22');
+  await helpers.mutate('selection', 'PUT', { connectionId: 'fixture', calendarIds: ['existing-subscription'] });
+  assert.equal(requests[0][0], '/api/planner/google-calendar/events?start=2026-11-22');
+  assert.equal(requests[1][0], '/api/planner/google-calendar/selection');
+  assert.equal(requests[1][1].headers['x-planner-csrf'], 'fixture-csrf');
+  assert.deepEqual(JSON.parse(requests[1][1].body), { connectionId: 'fixture', calendarIds: ['existing-subscription'] });
+});
+
+test('Teacher Timetable loads without a planning record and cannot submit or autosave private Planner data', async () => {
+  const source = await fs.readFile(path.join(__dirname, 'public', 'planner.js'), 'utf8');
+  const events = {}, notices = [], saveBar = {};
+  const active = { dataset: { section: 'timetable' }, setAttribute(name, value) { this[name] = value; } };
+  let refreshed = 0, rendered = 0, recordRequests = 0;
+  const context = {
+    section: 'timetable', year: 2026, setupAttendanceReady: undefined, openingTermPending: false,
+    autosaveTimer: undefined, autosavePaused: false, dirty: false, busy: false, loaded: false, editVersion: 0,
+    save: {}, retry: {}, signin: {}, content: { replaceChildren() {} },
+    clearTimeout() {}, setTimeout() { assert.fail('Timetable must not schedule Planner autosave'); },
+    notice: text => notices.push(text), console,
+    renderSelectors() {}, updateWeekNavigation() {}, viewFragment: () => 'section=timetable',
+    history: { replaceState() {} }, render: () => rendered++, refreshSession: async () => refreshed++,
+    address() { assert.fail('Timetable must not address a Planner record'); },
+    request: async () => { recordRequests++; assert.fail('Timetable must not load or save a Planner record'); },
+    document: {
+      getElementById: () => ({}), querySelector: () => saveBar, querySelectorAll: () => [active], addEventListener() {}
+    },
+    window: { addEventListener() {} },
+    form: { addEventListener: (name, callback) => { events[name] = callback; },
+      reportValidity() { assert.fail('Timetable has no planning form to validate'); } }
+  };
+  vm.runInNewContext(
+    source.slice(source.indexOf('  async function load()'), source.indexOf("  document.querySelectorAll('[data-section]')")), context);
+  await context.load();
+  assert.equal(context.loaded, true);
+  assert.equal(saveBar.hidden, true);
+  assert.equal(active['aria-current'], 'page');
+  assert.equal(refreshed, 1);
+  assert.equal(rendered, 1);
+  events.input({ target: { closest: () => null } });
+  events.submit({ preventDefault() {} });
+  await context.saveEntry(true);
+  assert.equal(context.dirty, false);
+  assert.equal(recordRequests, 0);
+  assert.match(notices.at(-1), /Teacher Timetable.*Events are read-only/);
 });
 
 for (const section of ['term', 'week']) {

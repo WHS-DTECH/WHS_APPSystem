@@ -387,7 +387,7 @@ test('Awards preview reads a shared Junior/Middle folder beyond 12 exports while
   } finally { await new Promise(resolve => server.close(resolve)); }
 });
 
-test('Term Google calendar opens the current NZ week, navigates, shows overflow details and exposes retries', async () => {
+test('reusable Google calendar opens the current NZ week, navigates, shows overflow details and exposes retries', async () => {
   const source = await fs.readFile(path.join(__dirname, 'public', 'planner.js'), 'utf8');
   const ui = await fs.readFile(path.join(__dirname, 'public', 'google-calendar.js'), 'utf8');
   const helpers = source.slice(source.indexOf('  function kamarEventDate('), source.indexOf('  function renderKamarCalendar('));

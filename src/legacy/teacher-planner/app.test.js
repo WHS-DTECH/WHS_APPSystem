@@ -849,13 +849,14 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(html, /data-section="cover" aria-current="page"/);
   const navigation = html.match(/<nav class="planner-tabs" aria-label="Teacher Planner navigation">([\s\S]*?)<\/nav>/)[1];
   assert.deepEqual([...html.matchAll(/data-section="([^"]+)"/g)].map((match) => match[1]),
-    ['cover', 'year', 'term', 'week', 'setup', 'attendance', 'standards', 'learning', 'reporting']);
+    ['cover', 'year', 'term', 'week', 'timetable', 'setup', 'attendance', 'standards', 'learning', 'reporting']);
   const planner = navigation.match(/<section class="planner-nav-group planner-nav-planning"[\s\S]*?<\/section>/)[0];
   const setup = navigation.match(/<details class="planner-nav-menu planner-nav-setup">[\s\S]*?<\/details>/)[0];
   const modules = navigation.match(/<details class="planner-nav-menu planner-nav-modules">[\s\S]*?<\/details>/)[0];
   assert.match(planner, /<h2 id="planner-nav-planning">Planner<\/h2>/);
   assert.deepEqual([...planner.matchAll(/data-section="([^"]+)"/g)].map(match => match[1]),
-    ['cover', 'year', 'term', 'week']);
+    ['cover', 'year', 'term', 'week', 'timetable']);
+  assert.match(planner, /data-section="timetable">Teacher Timetable<\/button>/);
   assert.match(setup, /<summary id="planner-nav-setup">Setup<\/summary>/);
   assert.match(setup, /data-section="setup"/);
   assert.match(modules, /<summary id="planner-nav-modules">Modules<\/summary>/);
@@ -871,11 +872,11 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(embedded, /href="\/launchpad\/apps\/relief-plan"/);
   assert.match(embedded, /href="\/launchpad\/apps\/whs-unit-library"/);
   assert.match(embedded, /href="\/launchpad\/apps\/whs-assessment-manager"/);
-  assert.match(html, /planner\.css\?v=term-trello-2/);
-  assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=term-trello-1"'));
-  assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=term-trello-1"'));
-  const trelloScript = html.indexOf('src="/planner/framework/term-trello.js?v=1"');
-  assert.ok(trelloScript >= 0 && trelloScript < html.indexOf('src="/planner/framework/planner.js?v=term-trello-1"'));
+  assert.match(html, /planner\.css\?v=teacher-timetable-1/);
+  assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=teacher-timetable-1"'));
+  assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=teacher-timetable-1"'));
+  const trelloScript = html.indexOf('src="/planner/framework/term-trello.js?v=2"');
+  assert.ok(trelloScript >= 0 && trelloScript < html.indexOf('src="/planner/framework/planner.js?v=teacher-timetable-1"'));
   const heading = html.match(/<header class="planner-heading">([\s\S]*?)<\/header>/)[1];
   for (const id of ['planner-year', 'open-year', 'print-planner']) {
     assert.match(heading, new RegExp('id="' + id + '"'));
@@ -958,7 +959,7 @@ test('module denies anonymous/student access and accepts a supplied teacher iden
     assert.match(html, /Last Updated:/);
     assert.match(html, /id="planner-year"[^>]*value="2026"/);
     assert.match(html, /data-api="\/module\/api\/planner\/"/);
-    assert.match(html, /src="\/module\/framework\/planner\.js\?v=term-trello-1"/);
+    assert.match(html, /src="\/module\/framework\/planner\.js\?v=teacher-timetable-1"/);
     assert.match(html, /Weekly planner/);
     assert.match(html, /Professional learning/);
     assert.ok(!html.includes('name="whs-global-control"'));

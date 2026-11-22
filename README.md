@@ -1723,8 +1723,9 @@ Planner database.
 
 ### Term Notes | Trello overview
 
-The Term Planner keeps its original notes, date fields, headings, cover and
-calendar. **Notes** remains the default. The toggle hides/shows the same notes
+The Term Planner keeps its original notes, date fields, headings and cover.
+The compact horizontal **Notes | Trello** toggle keeps **Notes** as the default.
+The toggle hides/shows the same notes
 inputs without replacing, disabling or saving them; normal note autosave continues.
 **Trello** reads only the selected year/term's active overview list from the fixed
 [School Email TODO board](https://trello.com/b/QsFC8J3m/school-email-todo).
@@ -1739,6 +1740,16 @@ Refresh or switch back to Trello to reread current cards. There is no Planner
 copy, card generation, Trello write route or automatic year/date carry-forward.
 Historical dates must be reviewed. This feature does not change the separate MCP
 OAuth connection or its tools.
+
+**Teacher Timetable** in the main Planner navigation hosts the existing reusable
+**My Google Calendar** component, rather than placing the large calendar beneath
+the Term Planner. Calendar selection, week navigation, event details and Google
+authentication are unchanged. Existing KAMAR subscriptions remain Google Calendar
+sources; their refresh timing is controlled by Google. Calendar choices are saved
+privately to the school account and are not copied or reset by switching views.
+The new `#section=timetable` view does not load or save a Planner planning record,
+and adds no lesson-planning or task-management features. Year and Weekly Planner
+layouts and the separate MCP connection are unchanged.
 
 Configure only on the main Core Render service:
 

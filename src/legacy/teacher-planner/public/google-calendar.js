@@ -92,7 +92,7 @@
         label.append(checkbox, el('span', calendar.summary + (calendar.primary ? ' (primary)' : '')));
         group.append(label);
       }
-      choices.append(group, el('p', 'Choices are saved privately to your school account across all Term pages. KAMAR calendars appear here only after you subscribe to them in this Google account; Google controls their refresh timing.'));
+      choices.append(group, el('p', 'Choices are saved privately to your school account across Planner views. KAMAR calendars appear here only after you subscribe to them in this Google account; Google controls their refresh timing.'));
     }
     function showEvents(value, hour, panel, buttons) {
       const hourly = Number.isInteger(hour);

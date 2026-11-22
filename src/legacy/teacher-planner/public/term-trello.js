@@ -1,6 +1,6 @@
 (() => {
   function mount(host, { el, notes, year, term, request, expandNotes }) {
-    const toggle = el('div', '', { class: 'term-notes-toggle', role: 'group', 'aria-label': 'Term Notes or Trello',
+    const toggle = el('div', '', { class: 'term-notes-toggle planner-nav-buttons', role: 'group', 'aria-label': 'Term Notes or Trello',
       'data-planner-navigation': '' });
     const notesButton = el('button', 'Notes', { type: 'button', 'aria-pressed': 'true' });
     const trelloButton = el('button', 'Trello', { type: 'button', 'aria-pressed': 'false' });
