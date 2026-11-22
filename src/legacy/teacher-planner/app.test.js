@@ -872,7 +872,7 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(embedded, /href="\/launchpad\/apps\/relief-plan"/);
   assert.match(embedded, /href="\/launchpad\/apps\/whs-unit-library"/);
   assert.match(embedded, /href="\/launchpad\/apps\/whs-assessment-manager"/);
-  assert.match(html, /planner\.css\?v=trello-labels-1/);
+  assert.match(html, /planner\.css\?v=term-toggle-size-1/);
   assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=teacher-timetable-1"'));
   assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=teacher-timetable-1"'));
   const trelloScript = html.indexOf('src="/planner/framework/term-trello.js?v=trello-labels-1"');
