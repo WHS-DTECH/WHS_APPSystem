@@ -6,7 +6,7 @@ const { loadCalendar, loadCalendarYear, deriveTermDates } = require('./kamarCale
 
 // Embedded hosting supplies req.user from Global Control; never trust identity headers.
 function createModuleRouter({ query, searchStandards, loadStaff, loadSchoolCalendar, loadClasses,
-  loadAdminTeachers, authorizeAttendanceTarget, loadKamarCalendarYear = loadCalendarYear, env = process.env, teachingSessions } = {}) {
+  loadAdminTeachers, authorizeAttendanceTarget, loadKamarCalendarYear = loadCalendarYear, env = process.env, teachingSessions, teachingDayTrello } = {}) {
   const router = express.Router();
   router.use((req, res, next) => {
     res.set('Cache-Control', 'no-store');
@@ -48,7 +48,7 @@ function createModuleRouter({ query, searchStandards, loadStaff, loadSchoolCalen
     }
   });
   if (query) router.use('/api/planner', createPlannerRouter({ query, searchStandards, loadStaff,
-    loadSchoolCalendar, loadClasses, loadAdminTeachers, authorizeAttendanceTarget, env, teachingSessions }));
+    loadSchoolCalendar, loadClasses, loadAdminTeachers, authorizeAttendanceTarget, env, teachingSessions, teachingDayTrello }));
   router.get('/', (req, res) => {
     const standalone = Boolean(req.moduleStandalone);
     const coreUrl = standalone ? new URL(process.env.GLOBAL_CONTROL_URL).origin : '';

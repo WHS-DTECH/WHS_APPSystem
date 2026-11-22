@@ -1,4 +1,5 @@
 const express = require('express');
+const { cardLink, hasReadOnlyBoardGrant, createTrelloReader } = require('./trelloRead');
 
 const BOARD = 'QsFC8J3m';
 const BOARD_URL = 'https://trello.com/b/' + BOARD + '/school-email-todo';
@@ -7,13 +8,6 @@ const UUID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 const LABEL_COLOUR = /^(green|yellow|orange|red|purple|blue|sky|lime|pink|black)(_(light|dark))?$/;
 const listName = (year, term) => `TERM ${term} \u2014 ${year}`;
 const normalName = value => value.normalize('NFKC').trim().replace(/[\u2013\u2014]/g, '-').replace(/\s+/g, ' ').toUpperCase();
-
-function cardLink(value) {
-  const url = new URL(value);
-  if (url.origin !== 'https://trello.com' || url.username || url.password || url.search || url.hash ||
-      !/^\/c\/[A-Za-z0-9]+(?:\/[A-Za-z0-9_-]+)?$/.test(url.pathname)) throw new Error('Invalid Trello card link.');
-  return url.href;
-}
 
 function createTermTrelloRouter({ env = process.env, fetchImpl = globalThis.fetch } = {}) {
   const router = express.Router();
@@ -39,31 +33,14 @@ function createTermTrelloRouter({ env = process.env, fetchImpl = globalThis.fetc
       return res.status(503).json({ error: 'Term Trello needs a separate read-only Trello key and token configured securely in Render. Notes are unchanged.' });
     }
     let failure = 'Trello could not be loaded. Retry shortly; your Notes are unchanged.';
-    const read = async (path, fields) => {
-      const url = new URL('https://api.trello.com/1/' + path);
-      for (const [name, value] of Object.entries(fields)) url.searchParams.set(name, value);
-      const response = await fetchImpl(url.href, {
-        method: 'GET', redirect: 'error', signal: AbortSignal.timeout(10000),
-        headers: { Accept: 'application/json', Authorization: `OAuth oauth_consumer_key="${key}", oauth_token="${token}"` }
-      });
-      if (!response.ok) {
-        if ([401, 403].includes(response.status)) failure = 'Trello permission is missing or its token expired. Renew the read-only token in Render; Notes are unchanged.';
-        if (response.status === 429) failure = 'Trello is rate-limiting requests. Wait briefly and retry; Notes are unchanged.';
-        throw new Error('Trello read failed.');
-      }
-      return response.json();
-    };
+    const read = createTrelloReader({ key, token, fetchImpl });
     try {
       const [board, grant] = await Promise.all([
         read('boards/' + BOARD, { fields: 'id,shortLink,closed' }),
         read('tokens/' + encodeURIComponent(token), { fields: 'permissions' })
       ]);
       if (!board || !ID.test(board.id) || board.shortLink !== BOARD || board.closed !== false) throw new Error('Invalid Trello board.');
-      const permissions = grant?.permissions;
-      if (!Array.isArray(permissions) || !permissions.length ||
-          !permissions.every(item => item && item.write === false) ||
-          !permissions.some(item => typeof item.modelType === 'string' && /^boards?$/i.test(item.modelType) &&
-            ['*', board.id].includes(item.idModel) && item.read === true)) {
+      if (!hasReadOnlyBoardGrant(grant, board.id)) {
         failure = 'Use a Trello token with read permission only, not write or account permissions. Notes are unchanged.';
         throw new Error('Trello token is not read-only.');
       }
@@ -96,7 +73,9 @@ function createTermTrelloRouter({ env = process.env, fetchImpl = globalThis.fetc
           labels: card.labels.map(label => ({ name: label.name, color: label.color })) };
       });
       return res.json({ ...result, status: result.cards.length ? 'ok' : 'empty' });
-    } catch {
+    } catch (error) {
+      if ([401, 403].includes(error.status)) failure = 'Trello permission is missing or its token expired. Renew the read-only token in Render; Notes are unchanged.';
+      if (error.status === 429) failure = 'Trello is rate-limiting requests. Wait briefly and retry; Notes are unchanged.';
       console.warn('Term Trello read failed.');
       return res.status(502).json({ error: failure });
     }

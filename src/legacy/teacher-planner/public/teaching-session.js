@@ -1,20 +1,24 @@
 (() => {
   function mount(host, data, helpers) {
     const { el } = helpers;
-    const page = el('section', '', { class: 'paper-page session-planner', 'aria-label': 'JPI session plan' });
+    const pilot = Boolean(data.teaching);
+    const page = el('section', '', { class: 'paper-page session-planner', 'aria-label': pilot ? 'JPI session plan' : 'Scheduled session plan' });
     const back = el('button', 'Back to Teacher Timetable', { type: 'button' });
     back.addEventListener('click', helpers.back);
     page.append(back, el('h2', 'Period Planner', { class: 'paper-heading' }),
-      el('h3', data.event.className + ' - ' + data.event.course),
+      el('h3', pilot ? data.event.className + ' - ' + data.event.course : data.content.session.title),
       el('p', new Intl.DateTimeFormat('en-NZ', { dateStyle: 'full', timeZone: 'UTC' }).format(new Date(data.event.date + 'T00:00:00Z')) +
-        ' | Period 2 | 10:00-11:00 | Room ' + data.event.location));
+        (pilot ? ' | Period 2 | 10:00-11:00 | Room ' + data.event.location :
+          ' | ' + data.event.label + (data.event.location ? ' | ' + data.event.location : ''))));
     function link(name, url) {
       return el('a', name, { href: url, target: '_blank', rel: 'noopener noreferrer' });
     }
-    const programme = el('p');
-    programme.append(link(data.teaching.unit.title, data.teaching.unit.url), ' / ',
-      link(data.teaching.lesson.title, data.teaching.lesson.url));
-    page.append(programme);
+    if (pilot) {
+      const programme = el('p');
+      programme.append(link(data.teaching.unit.title, data.teaching.unit.url), ' / ',
+        link(data.teaching.lesson.title, data.teaching.lesson.url));
+      page.append(programme);
+    }
     const toggle = el('div', '', { class: 'term-notes-toggle planner-nav-buttons', role: 'group',
       'aria-label': 'Session Notes or Trello', 'data-planner-navigation': '' });
     const notesButton = el('button', 'Notes', { type: 'button', 'aria-pressed': 'true' });
@@ -24,11 +28,19 @@
     const trello = el('section', '', { 'aria-label': 'Session Trello', 'data-planner-navigation': '' });
     trello.hidden = true;
     trello.append(el('h3', 'Trello is not configured'),
-      el('p', 'A teaching-tracker source has not been agreed. No Trello data is loaded and no cards are created. Your plan and progress remain in Notes.'));
+      el('p', 'A session-tracker source has not been agreed. No Trello data is loaded and no cards are created. Your plan and progress remain in Notes.'));
+    let teachingDay;
     function select(useNotes) {
       notes.hidden = !useNotes; trello.hidden = useNotes;
       notesButton.setAttribute('aria-pressed', String(useNotes));
       trelloButton.setAttribute('aria-pressed', String(!useNotes));
+      if (!useNotes && helpers.teachingDay) {
+        if (!teachingDay) teachingDay = globalThis.plannerTeachingDayTrello.mount(trello, () => ({
+          date: data.event.date, slot: data.event.slot, classKey: data.event.classKey,
+          sessionType: pilot ? 'teaching' : data.content.session.type
+        }), { el, request: helpers.teachingDay });
+        else teachingDay.refreshContext();
+      }
       globalThis.plannerTextareaAutosize?.refresh();
     }
     notesButton.addEventListener('click', () => select(true));
@@ -44,6 +56,50 @@
       const input = el(type === 'textarea' ? 'textarea' : 'input', '', type === 'textarea' ? { rows: '3' } : { type });
       input.value = value ?? '';
       wrapper.append(input); host.append(wrapper); return input;
+    }
+    function originalNotes() {
+      const legacy = el('details'); legacy.append(el('summary', 'Original Period Planner records'));
+      const original = Object.entries(data.legacy.content).filter(([, value]) => value);
+      if (!original.length) legacy.append(el('p', 'There are no saved original notes for this session. Existing records elsewhere are unchanged.'));
+      else for (const [name, value] of original) legacy.append(el('h4', name), el('p', value, { class: 'session-preserved-text' }));
+      const editLegacy = el('button', 'Edit original Period notes', { type: 'button', 'data-planner-navigation': '' });
+      editLegacy.addEventListener('click', helpers.legacy);
+      legacy.append(editLegacy); notes.append(legacy);
+    }
+    if (!pilot) {
+      const settings = section('Session details');
+      settings.append(el('p', data.event.source === 'KAMAR' ?
+        'Timetable context: ' + data.event.title + '. Your plan does not change KAMAR.' :
+        'Manually recorded commitment. No KAMAR timetable data is created or changed.'));
+      const title = field(settings, 'Session title', data.content.session.title, 'text');
+      title.required = true; title.maxLength = 200;
+      const label = el('label', '', { class: 'session-field' }); label.append(el('span', 'Session type'));
+      const type = el('select');
+      for (const value of globalThis.plannerSessionSchema.types) type.append(el('option', value, { value }));
+      type.value = data.content.session.type; type.disabled = data.event.slot === 'whanau';
+      label.append(type); settings.append(label);
+      const times = el('div', '', { class: 'session-timing' });
+      const startTime = field(times, 'Planned start time', data.content.session.startTime, 'time');
+      const endTime = field(times, 'Planned end time', data.content.session.endTime, 'time');
+      settings.append(times);
+      const prompts = {
+        teaching: 'Teaching focus, routine, resources and preparation. Linked lesson progress is currently enabled only for verified JPI Period 2.',
+        whanau: 'Whanau routine, notices, check-ins and preparation.',
+        observation: 'Observation focus, arrangements and evidence to review.',
+        meeting: 'Agenda, preparation, decisions and follow-up.',
+        duty: 'Location, responsibilities and reminders.'
+      };
+      const planning = section('Notes');
+      const hint = el('p', prompts[type.value]); planning.append(hint);
+      type.addEventListener('change', () => { hint.textContent = prompts[type.value]; data.content.session.type = type.value; });
+      const note = field(planning, 'Session notes', data.content.note); note.maxLength = 20000;
+      const evaluation = el('details'); evaluation.append(el('summary', 'Review and follow-up - complete later'));
+      const reflection = field(evaluation, 'Later evaluation', data.content.evaluation); reflection.maxLength = 20000;
+      notes.append(evaluation);
+      originalNotes(); host.append(page);
+      return { read: () => ({ note: note.value, evaluation: reflection.value, activities: [],
+        session: { title: title.value, type: type.value, startTime: startTime.value, endTime: endTime.value } }),
+        saved: () => {} };
     }
     const routine = section('Regular class routine');
     routine.append(el('p', data.routine.priorities));
@@ -100,25 +156,28 @@
     function dirty(node) { node.dispatchEvent(new Event('input', { bubbles: true })); }
     function addActivity(activity) {
       const card = el('article', '', { class: 'session-activity' });
-      const title = field(card, 'Activity', activity.title, 'text'); title.required = true; title.maxLength = 200;
+      const header = el('div', '', { class: 'session-activity-header' });
+      const title = field(header, 'Activity', activity.title, 'text'); title.required = true; title.maxLength = 200;
+      const details = el('details', '', { class: 'session-activity-details' });
+      details.append(el('summary', 'Timing and teaching note'));
       const timing = el('div', '', { class: 'session-timing' });
       const planned = field(timing, 'Planned minutes', activity.plannedMinutes, 'number');
       const actual = field(timing, 'Actual minutes (optional)', activity.actualMinutes, 'number');
       for (const input of [planned, actual]) { input.min = '0'; input.max = '1440'; input.step = '0.01'; }
-      card.append(timing);
+      details.append(timing);
       const label = el('label', '', { class: 'session-field' }); label.append(el('span', 'Progress status'));
       const status = el('select');
       for (const [value, title] of [['planned', 'Planned / awaiting confirmation'], ['completed', 'Completed'], ['partial', 'Partial'], ['deferred', 'Deferred']]) {
         status.append(el('option', title, { value }));
       }
-      status.value = activity.status; label.append(status); card.append(label);
-      const teachingNote = field(card, 'Teaching note (optional)', activity.teachingNote); teachingNote.maxLength = 4000;
+      status.value = activity.status; label.append(status); header.append(label);
+      const teachingNote = field(details, 'Teaching note (optional)', activity.teachingNote); teachingNote.maxLength = 4000;
       const remove = el('button', 'Remove from this plan', { type: 'button' });
       const row = { activity, card, title, planned, actual, status, teachingNote };
       remove.addEventListener('click', () => {
         rows.splice(rows.indexOf(row), 1); card.remove(); dirty(activityList);
       });
-      card.append(remove); rows.push(row); activityList.append(card);
+      details.append(remove); card.append(header, details); rows.push(row); activityList.append(card);
     }
     data.content.activities.forEach(addActivity);
     const add = el('button', 'Add planned activity', { type: 'button' });
@@ -149,13 +208,7 @@
     const evaluation = el('details'); evaluation.append(el('summary', 'Detailed evaluation - complete later'));
     const reflection = field(evaluation, 'Later evaluation', data.content.evaluation); reflection.maxLength = 20000;
     notes.append(evaluation);
-    const legacy = el('details'); legacy.append(el('summary', 'Original Period Planner records'));
-    const original = Object.entries(data.legacy.content).filter(([, value]) => value);
-    if (!original.length) legacy.append(el('p', 'There are no saved original notes for this period. Existing records elsewhere are unchanged.'));
-    else for (const [name, value] of original) legacy.append(el('h4', name), el('p', value, { class: 'session-preserved-text' }));
-    const editLegacy = el('button', 'Edit original Period notes', { type: 'button', 'data-planner-navigation': '' });
-    editLegacy.addEventListener('click', helpers.legacy);
-    legacy.append(editLegacy); notes.append(legacy);
+    originalNotes();
     host.append(page);
     function read() {
       return { note: note.value, evaluation: reflection.value, activities: rows.map(row => ({

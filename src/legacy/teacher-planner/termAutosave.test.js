@@ -4,15 +4,17 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const vm = require('node:vm');
 
-for (const section of ['term', 'week', 'year', 'goals', 'standards', 'learning', 'period', 'assessmentSetup', 'moderation', 'reporting']) {
-test(section + ' autosave debounces edits, serialises in-flight typing and pauses on errors', async () => {
+for (const view of ['term', 'week', 'year', 'goals', 'standards', 'learning', 'period', 'assessmentSetup', 'moderation', 'reporting', 'whanau-session', 'jpi-session']) {
+test(view + ' autosave debounces edits, serialises in-flight typing and pauses on errors', async () => {
+  const session = view.endsWith('-session');
+  const section = session ? 'period' : view;
   const source = await fs.readFile(path.join(__dirname, 'public', 'planner.js'), 'utf8');
   const saving = source.slice(source.indexOf('  function expandTermArea('), source.indexOf("  document.querySelectorAll('[data-section]')"));
   const navigation = source.slice(source.indexOf('  function updateWeekNavigation('), source.indexOf('  function renderSelectors('));
   const weekControls = [{}, {}, {}];
   const timers = new Map(), events = {}, documentEvents = {}, requests = [], notices = [];
   let nextTimer = 0, resolveRequest, fail = false;
-  const draftField = section === 'period' ? 'title' : 'information';
+  const draftField = session ? 'note' : section === 'period' ? 'title' : 'information';
   const values = new Map([[draftField, 'First draft'], ['priorities', 'My priorities']]);
   if (section === 'term') { values.set('startDate', '2026-10-12'); values.set('endDate', '2026-12-18'); }
   values.getAll = name => name === 'types' ? ['Workshop', 'Reading'] : [];
@@ -21,13 +23,17 @@ test(section + ' autosave debounces edits, serialises in-flight typing and pause
   const context = {
     form, section, year: 2026, dirty: false, busy: false, loaded: true, revision: 3, csrf: 'fixture',
     autosaveTimer: undefined, autosavePaused: false, editVersion: 0, savedTermContent: { reflection: 'Keep this previous reflection' },
-    saveInFlight: undefined, sessionPlanner: undefined,
+    saveInFlight: undefined, sessionPlanner: session ? {
+      read: () => ({ note: values.get('note'), evaluation: '', activities: [],
+        ...(view === 'whanau-session' ? { session: { title: 'Whanau', type: 'whanau', startTime: '08:45', endTime: '09:00' } } : {}) }),
+      saved() {}
+    } : undefined,
     save: {}, content: { querySelectorAll: () => [], querySelector: () => null },
     selectors: { querySelectorAll: () => weekControls, setAttribute() {} },
     document: { addEventListener: (name, handler) => { documentEvents[name] = handler; } }, window: { addEventListener() {} },
     setTimeout: (fn, delay) => { const id = ++nextTimer; timers.set(id, { fn, delay }); return id; },
     clearTimeout: id => timers.delete(id), FormData: class { constructor() { return values; } },
-    address: () => '/api/planner/2026/term/4', refreshSession: async () => {},
+    address: () => session ? '/api/planner/sessions/2026-11-23/' + (view === 'whanau-session' ? 'whanau' : 'p2') : '/api/planner/2026/term/4', refreshSession: async () => {},
     notice: (text, error) => notices.push({ text, error }), console: { error() {} },
     request: async (url, options) => {
       requests.push({ url, data: JSON.parse(options.body) });
@@ -45,6 +51,11 @@ test(section + ' autosave debounces edits, serialises in-flight typing and pause
   fireTimer(); await flush();
   assert.equal(requests.length, 1);
   assert.equal(requests[0].data.content[draftField], 'Latest draft');
+  if (view === 'whanau-session') {
+    assert.equal(requests[0].url, '/api/planner/sessions/2026-11-23/whanau');
+    assert.equal(requests[0].data.content.session.type, 'whanau');
+    assert.equal(requests[0].data.content.title, undefined, 'legacy FormData is not merged into a session save');
+  }
   if (section === 'term') assert.equal(requests[0].data.content.reflection, 'Keep this previous reflection');
   if (section === 'week') assert.equal(requests[0].data.content.cells['p1:0'], 'Weekly lesson notes');
   if (section === 'learning') assert.deepEqual(requests[0].data.content.types, ['Workshop', 'Reading']);
@@ -163,7 +174,7 @@ test('term workspace preserves notes without a calendar, and Teacher Timetable r
     request: async (...args) => { requests.push(args); }, api: '/api/planner/', csrf: 'fixture-csrf',
     renderKamarWeek() {}, kamarSunday() {}, kamarToday() {}, kamarWeekDates() {}, kamarEventsForDay() {},
     kamarHourEvents() {}, kamarHourLabel() {}, date() {}, iso() {},
-    plannerGoogleCalendar: { mount: (...args) => mounts.push(args) }
+    plannerGoogleCalendar: { mount: (...args) => mounts.push(args) }, mountSessionLauncher() {}
   };
   vm.runInNewContext(await fs.readFile(path.join(__dirname, 'public', 'term-trello.js'), 'utf8'), context);
   vm.runInNewContext(
