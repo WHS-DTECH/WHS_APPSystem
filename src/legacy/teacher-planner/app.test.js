@@ -418,6 +418,27 @@ test('term circles display numbers and weekly timetable notes stay readable with
   assert.doesNotMatch(css,/\.planner-week textarea \{[^}]*font-size: 11px/);
   assert.match(css,/@media print \{[\s\S]*?\.planner-week textarea \{[^}]*font-size: 9px/);
 });
+test('dashboard reuses the selected term circle without navigating away from the session', async () => {
+  const source = await fs.readFile(path.join(__dirname, 'public', 'planner.js'), 'utf8');
+  const selector = source.slice(source.indexOf('  function renderSelectors()'),
+    source.indexOf("    if (section === 'week') {", source.indexOf('  function renderSelectors()'))) + '\n  }';
+  const nodes = [];
+  const el = (tag, text = '', attrs = {}) => {
+    const node = { tag, text, attrs, children: [], dataset: {}, append(...items) { this.children.push(...items); },
+      replaceChildren() { this.children = []; }, addEventListener(type, listener) { this[type] = listener; } };
+    nodes.push(node); return node;
+  };
+  const context = { el, selectors: el('div'), section: 'period', dashboardMode: true, term: '2',
+    termSelectionPending: false, canLeave: () => true, history: { replaceState() {} }, viewFragment: () => '',
+    load() { assert.fail('presentation-only term selection must not rebuild the session'); } };
+  vm.runInNewContext(selector, context); context.renderSelectors();
+  const select = nodes.find(item => item.tag === 'select');
+  assert.equal(select.attrs.class, 'planner-term-badge');
+  assert.equal(select.value, '2');
+  select.value = '3'; select.change();
+  assert.equal(context.term, '3');
+  assert.equal(context.section, 'period');
+});
 
 test('weekly term follows teaching weekdays, WHS overrides and term/holiday boundaries', async () => {
   const source = await fs.readFile(path.join(__dirname,'public','planner.js'),'utf8');
@@ -872,15 +893,15 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(embedded, /href="\/launchpad\/apps\/relief-plan"/);
   assert.match(embedded, /href="\/launchpad\/apps\/whs-unit-library"/);
   assert.match(embedded, /href="\/launchpad\/apps\/whs-assessment-manager"/);
-  assert.match(html, /planner\.css\?v=teaching-slot-workspace-1/);
-  assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=teaching-slots-1"'));
-  assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=teaching-slots-1"'));
+  assert.match(html, /planner\.css\?v=dashboard-navigation-1/);
+  assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=dashboard-navigation-1"'));
+  assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=dashboard-navigation-1"'));
   const trelloScript = html.indexOf('src="/planner/framework/term-trello.js?v=trello-labels-1"');
-  assert.ok(trelloScript >= 0 && trelloScript < html.indexOf('src="/planner/framework/planner.js?v=teaching-slots-1"'));
-  assert.ok(html.indexOf('src="/planner/framework/session-schema.js?v=scheduled-session-2"') < html.indexOf('src="/planner/framework/teaching-session.js?v=teaching-dashboard-1"'));
-  assert.ok(html.indexOf('src="/planner/framework/teaching-slots.js?v=3"') < html.indexOf('src="/planner/framework/teaching-day-trello.js?v=teaching-slots-1"'));
-  assert.ok(html.indexOf('src="/planner/framework/teaching-day-trello.js?v=teaching-slots-1"') < html.indexOf('src="/planner/framework/teaching-session.js?v=teaching-dashboard-1"'));
-  assert.ok(html.indexOf('src="/planner/framework/teaching-session.js?v=teaching-dashboard-1"') < html.indexOf('src="/planner/framework/planner.js?v=teaching-slots-1"'));
+  assert.ok(trelloScript >= 0 && trelloScript < html.indexOf('src="/planner/framework/planner.js?v=dashboard-navigation-1"'));
+  assert.ok(html.indexOf('src="/planner/framework/session-schema.js?v=scheduled-session-3"') < html.indexOf('src="/planner/framework/teaching-slots.js?v=4"'));
+  assert.ok(html.indexOf('src="/planner/framework/teaching-slots.js?v=4"') < html.indexOf('src="/planner/framework/teaching-day-trello.js?v=dashboard-navigation-1"'));
+  assert.ok(html.indexOf('src="/planner/framework/teaching-day-trello.js?v=dashboard-navigation-1"') < html.indexOf('src="/planner/framework/teaching-session.js?v=dashboard-navigation-1"'));
+  assert.ok(html.indexOf('src="/planner/framework/teaching-session.js?v=dashboard-navigation-1"') < html.indexOf('src="/planner/framework/planner.js?v=dashboard-navigation-1"'));
   const heading = html.match(/<header class="planner-heading">([\s\S]*?)<\/header>/)[1];
   for (const id of ['planner-year', 'open-year', 'print-planner']) {
     assert.match(heading, new RegExp('id="' + id + '"'));
@@ -963,7 +984,7 @@ test('module denies anonymous/student access and accepts a supplied teacher iden
     assert.match(html, /Last Updated:/);
     assert.match(html, /id="planner-year"[^>]*value="2026"/);
     assert.match(html, /data-api="\/module\/api\/planner\/"/);
-    assert.match(html, /src="\/module\/framework\/planner\.js\?v=teaching-slots-1"/);
+    assert.match(html, /src="\/module\/framework\/planner\.js\?v=dashboard-navigation-1"/);
     assert.match(html, /Weekly planner/);
     assert.match(html, /Professional learning/);
     assert.ok(!html.includes('name="whs-global-control"'));

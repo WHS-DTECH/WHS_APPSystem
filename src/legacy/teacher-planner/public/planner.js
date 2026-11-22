@@ -55,7 +55,7 @@
   let saveInFlight;
   let periodDate = '', periodSlot = 'p1', selectedDay = 0, invalidPeriodLink = false;
   let activityRecord = '';
-  let sessionPlanner, sessionAddress, teachingDashboard;
+  let sessionPlanner, sessionAddress, teachingDashboard, dashboardTermError = '';
   let manualSessionDraft;
   let canManageSchoolSettings = false;
   let setupTab = 0;
@@ -216,16 +216,19 @@
   function renderSelectors() {
     selectors.replaceChildren();
     const controls = el('div', '', { class: 'week-controls' });
-    if (['week', 'term'].includes(section)) {
+    const dashboard = section === 'period' && dashboardMode;
+    if (['week', 'term'].includes(section) || dashboard) {
       const label = el('label', '', { class: 'planner-term-control' });
       const select = el('select', '', { 'aria-label': 'Term', class: 'planner-term-badge',
         title: section === 'week' ? 'Open a Term Plan' : 'Choose planner term' });
-      if (section === 'week') select.append(el('option', '-', { value: '', disabled: '' }));
+      if (section === 'week' || dashboard) select.append(el('option', '-', { value: '', disabled: '' }));
       for (let i = 1; i <= 4; i++) select.append(el('option', String(i), { value: String(i), 'aria-label': 'Term ' + i }));
       select.value = term;
       select.addEventListener('change', () => {
         if (!canLeave()) { select.value = select.dataset.displayedTerm ?? term; return; }
-        term = select.value; termSelectionPending = false; section = 'term'; load();
+        term = select.value; termSelectionPending = false;
+        if (dashboard) { history.replaceState(null, '', '#' + viewFragment()); return; }
+        section = 'term'; load();
       });
       label.append(select, el('span', 'Term', { class: 'planner-term-caption', 'aria-hidden': 'true' })); controls.append(label);
     }
@@ -976,15 +979,16 @@
       if (teachingDashboard?.workspace.isConnected && teachingDashboard.date === periodDate) {
         dashboard = teachingDashboard; dashboard.workspace.replaceChildren(); dashboard.selectSession(context);
       } else {
+        const termControl = selectors.querySelector('.planner-term-control');
         dashboard = teachingDashboard = globalThis.plannerTeachingDayTrello.dashboard(content, context, {
-          el, request: teachingDay, select: card =>
-            openSessionPlan(card.metadata.teaching_date, card.metadata.session_slot, undefined, card.id)
+          el, request: teachingDay, termControl, termError: dashboardTermError, select: (card, trello) =>
+            openSessionPlan(card.metadata.teaching_date, card.metadata.session_slot, undefined, card.id, trello)
         });
+        if (termControl) selectors.replaceChildren();
       }
     }
     sessionPlanner = globalThis.plannerTeachingSession.mount(dashboard?.workspace || content, { ...data, legacy }, {
       el,
-      back: async () => { if (await ensureSaved()) navigatePlannerSection('timetable'); },
       teachingDay, showTrello: dashboard?.showTrello, initialTrello: dashboardMode && dashboardTrello,
       viewChanged: useNotes => {
         if (!dashboardMode) return;
@@ -1015,10 +1019,10 @@
       }
     });
   }
-  async function switchDashboardSession(value, slot, cardId) {
+  async function switchDashboardSession(value, slot, cardId, trello) {
     busy = true; save.disabled = true; retry.hidden = true;
     teachingDashboard.setBusy(true);
-    notice('Opening session Notes...');
+    notice('Opening scheduled session...');
     try {
       const [legacy, pilot] = await Promise.all([
         request(api + value.slice(0, 4) + '/period/' + value + '_' + slot),
@@ -1027,6 +1031,7 @@
       if (!pilot.available) throw new Error(pilot.reason || 'This session workspace is unavailable.');
       sessionPlanner = undefined; loaded = false;
       periodDate = value; periodSlot = slot; selectedTeachingCard = cardId || '';
+      if (typeof trello === 'boolean') dashboardTrello = trello;
       revision = pilot.revision;
       mountTeachingSession(pilot, legacy); loaded = true;
       history.replaceState(null, '', '#' + viewFragment());
@@ -1041,7 +1046,7 @@
       globalThis.plannerTextareaAutosize?.refresh();
     }
   }
-  async function openSessionPlan(value, slot, draft, cardId) {
+  async function openSessionPlan(value, slot, draft, cardId, trello) {
     if (!await ensureSaved()) return;
     if (busy) { notice('Your planner is still loading. Wait before opening another session.'); return; }
     if (!globalThis.plannerSessionSchema.validSlot(slot) || !/^\d{4}-\d{2}-\d{2}$/.test(value) ||
@@ -1053,12 +1058,14 @@
       if (slot === periodSlot) {
         selectedTeachingCard = cardId || '';
         teachingDashboard.selectSession({ cardId: selectedTeachingCard });
+        if (typeof trello === 'boolean') sessionPlanner.selectView(!trello);
         history.replaceState(null, '', '#' + viewFragment());
-      } else await switchDashboardSession(value, slot, cardId);
+      } else await switchDashboardSession(value, slot, cardId, trello);
       return;
     }
     manualSessionDraft = draft ? { date: value, slot, session: draft } : undefined;
     selectedTeachingCard = cardId || '';
+    if (dashboardMode && typeof trello === 'boolean') dashboardTrello = trello;
     section = 'period'; periodDate = value; periodSlot = slot; year = Number(value.slice(0, 4));
     yearInput.value = year; updateYearBadge(); week = monday(value);
     selectedDay = (date(value).getUTCDay() + 6) % 7; await load();
@@ -2788,6 +2795,19 @@
         term = selected;
         termSelectionPending = false;
       }
+      dashboardTermError = '';
+      if (section === 'period' && dashboardMode && termSelectionPending) {
+        try {
+          await refreshSession();
+          termDates ||= await loadTermDates(year);
+          const selected = defaultTerm(termDates.ranges, periodDate);
+          if (!selected) throw new Error('No current or finished term can be determined from the school dates.');
+          term = selected; termSelectionPending = false;
+        } catch (error) {
+          console.error('Teaching Dashboard term information unavailable:', error);
+          term = ''; dashboardTermError = error.message + ' Session Notes remain available.';
+        }
+      }
       renderSelectors();
       history.replaceState(null, '', '#' + viewFragment());
       document.querySelector('.planner-save').hidden = ['cover', 'attendance', 'attendanceImport', 'timetable'].includes(section);
@@ -2827,7 +2847,7 @@
           if (draft && !pilot.teaching && !pilot.revision) pilot.content.session = draft.session;
           revision = pilot.revision; mountTeachingSession(pilot, data);
           loaded = true;
-          notice((pilot.updated_at ? 'Session loaded. Last saved ' + new Date(pilot.updated_at).toLocaleString('en-NZ') :
+          notice((pilot.updated_at ? 'Session loaded. Last saved ' + globalThis.plannerSessionSchema.timestampLabel(pilot.updated_at) :
             'Session draft. Opening it has not saved a record.') +
             (pilot.teaching ? ' Plans autosave; outcomes require explicit confirmation.' : ' Notes autosave; no class progress is inferred.'));
           if (draft) { manualSessionDraft = undefined; content.dispatchEvent(new Event('input', { bubbles: true })); }
@@ -2918,7 +2938,9 @@
       sessionPlanner?.saved(result);
       if (section === 'term') savedTermContent = data;
       if (autosaves()) autosavePaused = false;
-      notice(dirty ? 'Latest changes are waiting to autosave...' : (automatic ? 'Autosaved ' : 'Saved ') + new Date(result.updated_at).toLocaleString('en-NZ') + (section === 'setup' ? '. School-wide dates published for all planners in ' + year + '.' : '. To the database, private to your account.'));
+      const savedTime = section === 'period' && dashboardMode ? globalThis.plannerSessionSchema.timestampLabel(result.updated_at) :
+        new Date(result.updated_at).toLocaleString('en-NZ');
+      notice(dirty ? 'Latest changes are waiting to autosave...' : (automatic ? 'Autosaved ' : 'Saved ') + savedTime + (section === 'setup' ? '. School-wide dates published for all planners in ' + year + '.' : '. To the database, private to your account.'));
     } catch (error) {
       console.error('Planner save failed:', error);
       if (autosaves()) autosavePaused = true;

@@ -1,4 +1,5 @@
 (function (root) {
+  const sessionSchema = typeof module === 'object' && module.exports ? require('./session-schema') : root.plannerSessionSchema;
   const types = { Routine: 'routine', Kit: 'kit', Activity: 'activity', 'Unit Library': 'unit-library', 'Whānau': 'whanau' };
   class FormatError extends Error {}
   function parse(description) {
@@ -103,14 +104,10 @@
     const article = el('article', '', { class: 'teaching-slot-plan', 'aria-label': 'Trello teaching slots' });
     const header = el('header', '', { class: 'teaching-slot-header' }), title = el('div');
     title.append(el('h3', metadata.class_key + ' - ' + metadata.display_title),
-      el('p', 'Room ' + metadata.room + ' | ' + new Intl.DateTimeFormat('en-NZ', {
-        dateStyle: 'full', timeZone: 'Pacific/Auckland'
-      }).format(new Date(metadata.teaching_date + 'T00:00:00Z')) + ' | ' + metadata.start_time + ' NZ'));
+      el('p', 'Room ' + metadata.room + ' | ' + sessionSchema.dateLabel(metadata.teaching_date) + ' | ' + metadata.start_time + ' NZ'));
     const trello = el('div', '', { class: 'teaching-slot-source' });
     trello.append(el('a', 'Open Trello', { href: card.url, target: '_blank', rel: 'noopener noreferrer' }),
-      el('p', 'Trello updated'), el('time', new Intl.DateTimeFormat('en-NZ', {
-        dateStyle: 'medium', timeStyle: 'short', timeZone: 'Pacific/Auckland'
-      }).format(new Date(card.updatedAt)), { datetime: card.updatedAt }));
+      el('p', 'Trello updated'), el('time', sessionSchema.timestampLabel(card.updatedAt), { datetime: card.updatedAt }));
     header.append(title, trello); article.append(header,
       el('p', 'Flexible teaching organiser. These intentions are not confirmed classroom progress.', { class: 'teaching-slot-disclaimer' }));
     const workspace = el('div', '', { class: 'teaching-slot-workspace' });

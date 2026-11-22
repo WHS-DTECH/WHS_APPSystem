@@ -32,40 +32,36 @@
       }
       article.append(resources);
     }
-    article.append(el('p', 'Trello updated ' + new Date(card.updatedAt).toLocaleString('en-NZ', { timeZone: 'Pacific/Auckland' })),
+    article.append(el('p', 'Trello updated ' + globalThis.plannerSessionSchema.timestampLabel(card.updatedAt)),
       el('a', 'Open in Trello', { href: card.url, target: '_blank', rel: 'noopener noreferrer' }));
     return article;
   }
-  function dashboard(host, context, { el, request, select }) {
+  function dashboard(host, context, { el, request, select, termControl, termError }) {
     const page = el('section', '', { class: 'teaching-dashboard', 'aria-label': 'Teaching Dashboard' });
-    page.append(el('h2', 'Teaching Dashboard', { class: 'paper-heading' }));
+    const heading = el('div', '', { class: 'teaching-dashboard-heading' });
+    if (termControl) heading.append(termControl);
+    heading.append(el('h2', 'Teaching Dashboard', { class: 'paper-heading' }));
+    if (termError) heading.append(el('p', termError, { role: 'alert' }));
+    page.append(heading);
     const columns = el('div', '', { class: 'teaching-dashboard-columns' });
     const left = el('section', '', { 'aria-label': 'Current Teaching Day', 'data-planner-navigation': '' });
     const workspace = el('div', '', { class: 'teaching-dashboard-workspace' });
     const message = el('p', 'Reading Trello...', { role: 'status' }), cards = el('div');
     const refresh = el('button', 'Refresh Trello information', { type: 'button' });
-    left.append(el('h3', 'Current Teaching Day'), el('p', context.date), refresh, message, cards);
-    const fallback = el('div', '', { class: 'planner-nav-buttons' });
-    for (const [slot, name] of [['whanau', 'Whanau Notes'], ['p2', 'JPI Notes']]) {
-      const button = el('button', name, { type: 'button' });
-      button.addEventListener('click', () => select({ id: '', metadata: { teaching_date: context.date, session_slot: slot } }));
-      fallback.append(button);
-    }
-    left.append(el('p', 'Notes remain available even if Trello is unavailable.'), fallback);
+    left.append(el('h3', 'Current Teaching Day'), el('p', globalThis.plannerSessionSchema.dateLabel(context.date)), refresh, message, cards);
     columns.append(left, workspace); page.append(columns); host.append(page);
     let result, error, selectedHost, generation = 0, switching = false, reading = false;
     function selectSession(next) {
       Object.assign(context, next);
       for (const button of cards.querySelectorAll('[data-card-id]')) {
-        const card = result?.cards.find(card => card.id === button.getAttribute('data-card-id'));
-        button.setAttribute('aria-pressed', String(context.cardId ? card?.id === context.cardId :
-          card?.metadata.session_slot === context.slot));
+        button.setAttribute('aria-pressed', String(context.cardId ?
+          button.getAttribute('data-card-id') === context.cardId : button.getAttribute('data-session-slot') === context.slot));
       }
       renderSelected();
     }
     function setBusy(value) {
       switching = value; workspace.inert = value; workspace.setAttribute('aria-busy', String(value));
-      for (const button of left.querySelectorAll('button')) button.disabled = value;
+      for (const button of left.querySelectorAll('button')) button.disabled = value || button.hasAttribute('data-trello-unavailable');
       refresh.disabled = value || reading;
     }
     function renderSelected() {
@@ -78,26 +74,45 @@
       if (!card) { selectedHost.append(el('p', 'No Trello card is selected for this session. Notes are unchanged.', { role: 'status' })); return; }
       selectedHost.append(renderCard(el, card, false, true, context.programme));
     }
+    function sessionCard(card, unavailable = false) {
+      const item = el('article', '', { class: 'teaching-dashboard-card' });
+      const button = el('button', '', { type: 'button', class: 'teaching-dashboard-card-open',
+        'aria-pressed': String(context.cardId ? card.id === context.cardId : card.metadata.session_slot === context.slot),
+        'data-card-id': card.id, 'data-session-slot': card.metadata.session_slot });
+      const title = [card.metadata.start_time, card.metadata.class_key || card.metadata.display_name].filter(Boolean).join(' - ');
+      button.append(el('strong', title), el('span', card.metadata.lesson_title));
+      if (card.location) button.append(el('span', 'Room ' + card.location));
+      if (unavailable) button.setAttribute('data-trello-unavailable', '');
+      else {
+        button.append(el('span', card.metadata.preparation_status));
+        button.addEventListener('click', event => { event.stopPropagation(); select(card, true); });
+        item.addEventListener('click', () => { if (!switching) select(card, true); });
+      }
+      button.disabled = switching || unavailable;
+      const notes = el('button', 'Notes', { type: 'button', class: 'teaching-dashboard-card-notes',
+        'aria-label': 'Notes for ' + title, 'data-session-notes': card.metadata.session_slot });
+      notes.disabled = switching;
+      notes.addEventListener('click', event => { event.stopPropagation(); select(card, false); });
+      item.append(button, notes); cards.append(item);
+    }
+    function unavailableSessions() {
+      for (const [slot, name] of globalThis.plannerSessionSchema.slots.filter(item => ['whanau', 'p2'].includes(item[0]))) {
+        sessionCard({ id: '', metadata: { teaching_date: context.date, session_slot: slot, display_name: name,
+          lesson_title: 'Trello preparation unavailable. Open Notes for this session.' } }, true);
+      }
+    }
     async function load() {
       const current = ++generation; reading = true; refresh.disabled = true; result = undefined; error = undefined;
-      message.setAttribute('role', 'status'); message.textContent = 'Reading Trello...'; cards.replaceChildren(); renderSelected();
+      message.setAttribute('role', 'status'); message.textContent = 'Reading Trello...'; cards.replaceChildren(); unavailableSessions(); renderSelected();
       try {
         const feed = await request(context.date);
         if (current !== generation || !page.isConnected) return;
         result = feed;
+        cards.replaceChildren();
         message.textContent = feed.status === 'not_configured' ? feed.message :
           feed.cards.length ? 'Read-only preparation. Select a session.' : 'No teaching cards are available for this date.';
-        for (const card of feed.cards) {
-          const selected = context.cardId ? card.id === context.cardId : card.metadata.session_slot === context.slot;
-          const button = el('button', '', { type: 'button', class: 'teaching-dashboard-card',
-            'aria-pressed': String(selected), 'data-card-id': card.id });
-          button.append(el('strong', card.metadata.start_time + ' - ' + card.metadata.display_name),
-            el('span', card.metadata.lesson_title));
-          if (card.location) button.append(el('span', 'Room ' + card.location));
-          button.append(el('span', card.metadata.preparation_status));
-          button.disabled = switching;
-          button.addEventListener('click', () => select(card)); cards.append(button);
-        }
+        for (const card of feed.cards) sessionCard(card);
+        if (!feed.cards.length) unavailableSessions();
         for (const issue of feed.issues) cards.append(el('p', 'Card ' + issue.cardId + ': ' + issue.message, { role: 'alert' }));
       } catch (failure) {
         if (current !== generation || !page.isConnected) return;
@@ -114,7 +129,7 @@
     host.replaceChildren();
     const panel = el('section', '', { class: 'session-section teaching-day-trello', 'aria-label': 'Current Teaching Day' });
     panel.append(el('h3', 'Current Teaching Day'),
-      el('p', 'Read-only Trello information for ' + context().date + '. Trello tasks are not confirmed classroom progress.'));
+      el('p', 'Read-only Trello information for ' + globalThis.plannerSessionSchema.dateLabel(context().date) + '. Trello tasks are not confirmed classroom progress.'));
     const refresh = el('button', 'Refresh Trello information', { type: 'button' });
     const message = el('p', '', { role: 'status', 'aria-live': 'polite' }), cards = el('div'), warnings = el('div');
     panel.append(refresh, message, cards, warnings); host.append(panel);

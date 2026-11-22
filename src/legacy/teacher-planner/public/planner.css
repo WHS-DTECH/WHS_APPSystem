@@ -87,14 +87,19 @@
 .teaching-day-card-current { border-left-color: #376783; }
 .teaching-day-current-label { font-weight: bold; color: #31586c; }
 .teaching-dashboard { min-width: 0; }
+.teaching-dashboard-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; margin: 0 0 14px; }
+.teaching-dashboard-heading .paper-heading { margin: 0; }
 .teaching-dashboard-columns { display: grid; grid-template-columns: minmax(240px, 320px) minmax(0, 1fr); gap: 20px; align-items: start; }
 .teaching-dashboard-columns > section { padding: 16px; border: 1px solid #b3c4cb; background: #fff; border-radius: 5px; }
 .teaching-dashboard-workspace { min-width: 0; }
 .teaching-dashboard-workspace .session-planner { margin: 0; max-width: none; width: 100%; box-sizing: border-box; }
 .teaching-dashboard-workspace .term-notes-toggle button { font-size: 18px; padding: 10px 20px; }
+.teaching-dashboard-workspace .term-notes-toggle { margin: 0 0 12px; }
 .teaching-dashboard-workspace .session-planner:has(> [aria-label="Session Trello"]:not([hidden])) > :is(h2, h3, p) { display: none; }
-.teaching-dashboard-card { display: grid; gap: 6px; width: 100%; padding: 14px; margin: 10px 0; text-align: left; white-space: normal; }
-.teaching-dashboard-card[aria-pressed="true"] { outline: 3px solid #376783; outline-offset: 1px; }
+.teaching-dashboard-card { position: relative; margin: 10px 0; border: 1px solid #b3c4cb; border-radius: 5px; }
+.teaching-dashboard-card-open { display: grid; gap: 6px; width: 100%; padding: 12px 12px 44px; border: 0; background: transparent; text-align: left; white-space: normal; }
+.teaching-dashboard-card-notes { position: absolute; bottom: 8px; right: 10px; font-size: 13px; padding: 5px 10px; }
+.teaching-dashboard-card:has(> .teaching-dashboard-card-open[aria-pressed="true"]) { outline: 3px solid #376783; outline-offset: 1px; }
 .planner-main:has(.teaching-dashboard) { width: 100%; }
 @media (max-width: 800px) { .teaching-dashboard-columns { grid-template-columns: minmax(0, 1fr); } }
 .teaching-slot-plan { min-width: 0; overflow-wrap: anywhere; }
