@@ -66,6 +66,7 @@ function node(tag = 'div', text = '', attrs = {}) {
     addEventListener(type, handler) { this.events[type] = handler; },
     setAttribute(key, value) { this.attrs[key] = value; },
     removeAttribute(key) { delete this.attrs[key]; },
+    hasAttribute(key) { return Object.hasOwn(this.attrs, key); },
     getAttribute(key) { return this.attrs[key]; },
     querySelectorAll() { return []; }
   };
@@ -125,7 +126,7 @@ test('teaching workspaces render both four-slot sequences with the first activit
     const header = nodes.find(item => item.tag === 'header'), headerText = slotDescendants(header).map(item => item.textContent).join(' ');
     assert.match(headerText, /Room CW.*Monday.*23 November 2026/);
     assert.ok(headerText.includes(card.metadata.start_time));
-    assert.match(headerText, /22 Nov 2026.*8:40/);
+    assert.match(headerText, /Sunday 22 November 2026.*8:40/);
     assert.equal(nodes.find(item => item.tag === 'time').attrs.datetime, card.updatedAt);
     assert.equal(nodes.find(item => item.textContent === 'Open Trello').attrs.href, card.url);
     assert.ok(!nodes.some(item => ['input', 'textarea', 'select', 'details'].includes(item.tag)));
@@ -196,7 +197,7 @@ test('malformed and older Trello cards keep a readable fallback without breaking
   assert.throws(() => renderer.render(node, { ...card, metadata: { ...card.metadata, class_key: 'OTHER' } }, slotProgramme), /does not match/);
   assert.equal(renderer.render(node, { ...card, description: 'Older readable preparation' }, null), null);
   let warnings = 0;
-  const context = { plannerTeachingSlots: renderer, console: { warn() { warnings++; } } };
+  const context = { plannerSessionSchema: require('./public/session-schema'), plannerTeachingSlots: renderer, console: { warn() { warnings++; } } };
   vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-day-trello'), 'utf8'), context);
   const malformed = { ...card, description: card.description.replace('## Teaching slots', '## Activities') }, host = node();
   const dashboard = context.plannerTeachingDayTrello.dashboard(host, {
@@ -237,7 +238,7 @@ test('Whanau and observation workspaces keep independent Notes drafts through th
   assert.equal(whanau.workspace.read().activities.length, 0);
 });
 test('compact activity rows preserve progress and collapsed timing without changing the saved content shape', () => {
-  const context = {};
+  const context = { plannerSessionSchema: require('./public/session-schema') };
   vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-session'), 'utf8'), context);
   const content = { note: 'Session reminder', evaluation: 'Later reflection', activities: [{
     id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', sourceId: 'lesson-binary-piano', title: 'Guided decoding',
@@ -315,19 +316,19 @@ test('Current Teaching Day matches JPI and Whanau references independently and p
   const jpi = descend(jpiHost).find(item => item.attrs.class === 'teaching-day-card teaching-day-card-current');
   assert.equal(descend(jpi).find(item => item.tag === 'h4').textContent, 'JPI');
 });
-test('session back navigation waits for a successful save rather than discarding a blurred field', async () => {
-  let helpers, saved = false;
-  const destinations = [];
-  const context = { content: { dataset: {} }, periodDate: '2026-11-23', periodSlot: 'whanau', el: node, dashboardMode: false,
-    plannerTeachingSession: { mount(host, data, options) { helpers = options; } },
-    navigatePlannerSection: value => destinations.push(value), ensureSaved: async () => saved };
-  vm.runInNewContext(source.slice(source.indexOf('  function mountTeachingSession('),
-    source.indexOf('  async function openSessionPlan(')), context);
-  context.mountTeachingSession({}, {});
-  await helpers.back();
-  assert.equal(destinations.length, 0);
-  saved = true; await helpers.back();
-  assert.deepEqual(destinations, ['timetable']);
+test('session view selection preserves Notes and uses readable NZ dates without redundant back navigation', () => {
+  const context = { plannerSessionSchema: require('./public/session-schema') }, host = node();
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-session'), 'utf8'), context);
+  const workspace = context.plannerTeachingSession.mount(host, {
+    event: { date: '2026-11-23', slot: 'whanau', label: 'Whanau' },
+    content: { note: 'Saved Whanau notes', evaluation: '', activities: [],
+      session: { title: 'Whanau', type: 'whanau', startTime: '08:45', endTime: '09:00' } }, legacy: { content: {} }
+  }, { el: node, legacy() {}, showTrello() {} });
+  const original = JSON.stringify(workspace.read());
+  workspace.selectView(false); workspace.selectView(true);
+  assert.equal(JSON.stringify(workspace.read()), original);
+  assert.ok(!slotDescendants(host).some(item => /Back to Teaching Dashboard/.test(item.textContent)));
+  assert.ok(slotDescendants(host).some(item => item.textContent.startsWith('Monday 23 November 2026 |')));
 });
 test('dashboard selects stable card IDs and shows only the selected preparation without blocking Notes on failure', async () => {
   const context = { plannerSessionSchema: require('./public/session-schema') };
@@ -346,7 +347,7 @@ test('dashboard selects stable card IDs and shows only the selected preparation 
     const host = node();
     const dashboard = context.plannerTeachingDayTrello.dashboard(host, {
       date: '2026-11-23', slot: card.metadata.session_slot, classKey: card.metadata.class_key, cardId: card.id
-    }, { el: node, select: card => selections.push(card.id), request: async () => {
+    }, { el: node, select: (card, trello) => selections.push([card.id, trello]), request: async () => {
       if (fail) throw new Error('Trello unavailable'); return feed;
     } });
     const workspace = context.plannerTeachingSession.mount(dashboard.workspace, {
@@ -356,8 +357,17 @@ test('dashboard selects stable card IDs and shows only the selected preparation 
     }, { el: node, back() {}, legacy() {}, showTrello: dashboard.showTrello });
     await flush();
     let nodes = descend(host);
-    nodes.find(item => item.attrs['data-card-id'] === card.id).events.click();
-    assert.equal(selections.at(-1), card.id);
+    nodes.find(item => item.attrs['data-card-id'] === card.id).events.click({ stopPropagation() {} });
+    assert.deepEqual(selections.at(-1), [card.id, true]);
+    let stopped = 0;
+    const otherCard = feed.cards.find(item => item.id !== card.id);
+    const notesCard = nodes.find(item => item.attrs.class === 'teaching-dashboard-card' &&
+      item.children[0].attrs['data-card-id'] === otherCard.id);
+    notesCard.children[1].events.click({ stopPropagation() { stopped++; } });
+    assert.equal(stopped, 1);
+    assert.deepEqual(selections.at(-1), [otherCard.id, false], 'Notes addresses the clicked card, not the selected session');
+    assert.equal(notesCard.children[0].children.some(item => item.tag === 'button'), false, 'no nested interactive buttons');
+    assert.ok(nodes.some(item => item.textContent === 'Monday 23 November 2026'));
     nodes.find(item => item.textContent === 'Trello Planner').events.click();
     nodes = descend(host);
     assert.equal(nodes.find(item => item.tag === 'h4').textContent, card.name);
@@ -367,7 +377,10 @@ test('dashboard selects stable card IDs and shows only the selected preparation 
     fail = true;
     await nodes.find(item => item.textContent === 'Refresh Trello information').events.click();
     assert.ok(descend(host).some(item => item.attrs.role === 'alert' && item.textContent.includes('Trello unavailable')));
-    nodes.find(item => item.textContent === 'Notes').events.click();
+    const fallback = descend(host).find(item => item.attrs['data-session-notes'] === 'whanau');
+    fallback.events.click({ stopPropagation() {} });
+    assert.deepEqual(selections.at(-1), ['', false], 'local Notes remains accessible without fabricating Trello data');
+    nodes.find(item => item.textContent === 'Notes' && item.attrs['aria-pressed']).events.click();
     assert.equal(workspace.read().note, card.metadata.class_key + ' saved Notes');
     fail = false;
   }
@@ -391,7 +404,7 @@ test('dashboard session switching changes its card and record address only after
   assert.equal(loads, 1);
 });
 test('dashboard retains its sidebar and Trello feed when selecting another session', async () => {
-  const context = {};
+  const context = { plannerSessionSchema: require('./public/session-schema') };
   vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-day-trello'), 'utf8'), context);
   const descend = host => [host, ...host.children.filter(child => typeof child === 'object').flatMap(descend)];
   const feed = { status: 'ok', issues: [], cards: ['9WHAU', 'JPI'].map((key, index) => ({
@@ -406,7 +419,7 @@ test('dashboard retains its sidebar and Trello feed when selecting another sessi
   }, { el: node, select() {}, request: async () => { reads++; return feed; } });
   await flush();
   const left = host.children[0].children[1].children[0], cards = left.children[4];
-  cards.querySelectorAll = () => cards.children.filter(item => item.attrs['data-card-id']);
+  cards.querySelectorAll = () => descend(cards).filter(item => Object.hasOwn(item.attrs, 'data-card-id'));
   left.querySelectorAll = () => descend(left).filter(item => item.tag === 'button');
   const originalButtons = [...cards.children], trello = node();
   dashboard.showTrello(trello);
@@ -418,8 +431,8 @@ test('dashboard retains its sidebar and Trello feed when selecting another sessi
   assert.equal(dashboard.workspace.inert, false);
   assert.equal(reads, 1);
   assert.ok(cards.children.every((button, i) => button === originalButtons[i]));
-  assert.equal(cards.children[0].attrs['aria-pressed'], 'false');
-  assert.equal(cards.children[1].attrs['aria-pressed'], 'true');
+  assert.equal(cards.children[0].children[0].attrs['aria-pressed'], 'false');
+  assert.equal(cards.children[1].children[0].attrs['aria-pressed'], 'true');
   assert.equal(descend(trello).find(item => item.tag === 'h4').textContent, 'JPI');
 });
 test('fast dashboard switching fetches fresh records concurrently and preserves the previous workspace on read failure', async () => {
@@ -427,7 +440,7 @@ test('fast dashboard switching fetches fresh records concurrently and preserves 
   const previousPlanner = { read: () => ({ note: 'Previous saved Notes' }) };
   const context = {
     api: '/api/planner/', busy: false, loaded: true, dirty: false, save: {}, retry: {},
-    periodDate: '2026-11-23', periodSlot: 'whanau', selectedTeachingCard: 'old-card', sessionPlanner: previousPlanner,
+    periodDate: '2026-11-23', periodSlot: 'whanau', selectedTeachingCard: 'old-card', sessionPlanner: previousPlanner, dashboardTrello: true,
     teachingDashboard: { setBusy: value => locks.push(value) },
     notice() {}, console: { error() {} }, history: { replaceState() {} }, viewFragment: () => '',
     request: url => { calls.push(url); return new Promise((resolve, reject) => pending.push({ resolve, reject })); },
@@ -435,7 +448,7 @@ test('fast dashboard switching fetches fresh records concurrently and preserves 
   };
   vm.runInNewContext(source.slice(source.indexOf('  async function switchDashboardSession('),
     source.indexOf('  async function openSessionPlan(')), context);
-  const success = context.switchDashboardSession('2026-11-23', 'p2', 'new-card');
+  const success = context.switchDashboardSession('2026-11-23', 'p2', 'new-card', false);
   assert.equal(calls.length, 2, 'both GET requests start before either completes');
   assert.equal(context.periodSlot, 'whanau');
   assert.equal(context.sessionPlanner, previousPlanner);
@@ -445,19 +458,64 @@ test('fast dashboard switching fetches fresh records concurrently and preserves 
   assert.equal(context.periodSlot, 'p2');
   assert.equal(context.revision, 7);
   assert.equal(context.sessionPlanner.read().note, 'Latest authoritative Notes');
+  assert.equal(context.dashboardTrello, false, 'the requested Notes view is committed after successful reads');
   assert.equal(mounts[0][1].revision, 4);
   assert.deepEqual(locks, [true, false]);
   const current = context.sessionPlanner;
-  const failure = context.switchDashboardSession('2026-11-23', 'whanau', 'other-card');
+  const failure = context.switchDashboardSession('2026-11-23', 'whanau', 'other-card', true);
   pending[2].reject(new Error('Session unavailable'));
   pending[3].resolve({ available: true });
   await failure;
   assert.equal(context.sessionPlanner, current);
   assert.equal(context.periodSlot, 'p2');
   assert.equal(context.selectedTeachingCard, 'new-card');
+  assert.equal(context.dashboardTrello, false, 'failed reads cannot change the previous view');
   assert.equal(context.busy, false);
   assert.equal(context.loaded, true);
   assert.equal(context.retry.hidden, false);
+});
+test('inline Notes changes the already-selected session view only after saving succeeds', async () => {
+  let saved = false;
+  const selections = [], views = [];
+  const context = { ensureSaved: async () => saved, busy: false, selectedTeachingCard: 'JPI', dashboardMode: true,
+    section: 'period', periodDate: '2026-11-23', periodSlot: 'p2',
+    teachingDashboard: { workspace: { isConnected: true }, selectSession: value => selections.push(value) },
+    sessionPlanner: { selectView: useNotes => views.push(useNotes) },
+    history: { replaceState() {} }, viewFragment: () => '', plannerSessionSchema: require('./public/session-schema'),
+    date: value => new Date(value + 'T00:00:00Z'), iso: value => value.toISOString().slice(0, 10) };
+  vm.runInNewContext(source.slice(source.indexOf('  async function openSessionPlan('),
+    source.indexOf('  function mountSessionLauncher(')), context);
+  await context.openSessionPlan('2026-11-23', 'p2', undefined, 'JPI', false);
+  assert.equal(views.length, 0);
+  assert.equal(selections.length, 0);
+  saved = true;
+  await context.openSessionPlan('2026-11-23', 'p2', undefined, 'JPI', false);
+  await context.openSessionPlan('2026-11-23', 'p2', undefined, 'JPI', true);
+  assert.deepEqual(views, [true, false]);
+  assert.equal(context.periodSlot, 'p2');
+  assert.equal(context.periodDate, '2026-11-23');
+});
+test('dashboard term follows existing school dates, preserves explicit selection and reports failures without blocking Notes', async () => {
+  const helper = source.slice(source.indexOf('  function defaultTerm('), source.indexOf('  async function loadTermDates('));
+  const resolver = source.slice(source.indexOf("      dashboardTermError = '';"), source.indexOf('      renderSelectors();', source.indexOf("      dashboardTermError = '';")));
+  for (const mode of ['default', 'selected', 'unavailable']) {
+    let requests = 0, errors = 0;
+    const context = { section: 'period', dashboardMode: true, termSelectionPending: mode !== 'selected',
+      term: '2', periodDate: '2026-11-23', localDate: '2026-04-21', year: 2026, termDates: undefined,
+      refreshSession: async () => {}, console: { error() { errors++; } },
+      loadTermDates: async () => {
+        requests++;
+        if (mode === 'unavailable') throw new Error('School dates unavailable');
+        return { ranges: [{ term: '2', startDate: '2026-04-20', endDate: '2026-07-03' },
+          { term: '4', startDate: '2026-10-12', endDate: '2026-12-18' }] };
+      } };
+    await vm.runInNewContext(helper + '\n(async()=>{' + resolver + '})()', context);
+    assert.equal(context.term, mode === 'default' ? '4' : mode === 'selected' ? '2' : '');
+    assert.equal(requests, mode === 'selected' ? 0 : 1);
+    assert.equal(errors, mode === 'unavailable' ? 1 : 0);
+    if (mode === 'unavailable') assert.match(context.dashboardTermError, /School dates unavailable.*Notes remain available/);
+    assert.equal(context.periodDate, '2026-11-23');
+  }
 });
 test('activity instructions format saved lines as bullets without duplicating markers or changing blank lines', () => {
   const notices = [], field = node();

@@ -1894,8 +1894,16 @@ reads for at most 30 seconds, scoped to owner, current private subscription and
 month, with at most eight entries. Account permissions and subscription settings
 are still checked; JPI saves and confirmations bypass this read cache. Use
 Refresh Trello information to reread cards independently of session selection.
-Trello errors cannot block Notes, and the Whanau/JPI
-Notes shortcuts remain available during outages. Confirmed progress, routines,
+The existing Planner term circle sits beside the Dashboard heading and reflects
+the selected term, or the school-calendar term for the displayed day when none
+was selected. Dashboard dates use readable NZ dates in Pacific/Auckland; ISO
+dates remain unchanged in record addresses and Trello matching.
+Each session card opens its Trello preparation. Its small Notes button opens
+that exact session's editable Notes without triggering the card selection.
+The redundant session back button and separate Notes shortcuts are removed.
+Trello errors cannot block Notes; when cards are unavailable, clearly labelled
+local Whānau/Period 2 session cards retain their inline Notes buttons without
+inventing Trello preparation, class assignments or times. Confirmed progress, routines,
 Unit Library links and legacy records use their existing storage and permissions.
 No Trello writes, AI processing, calendar reconciliation or inferred outcomes are
 introduced. Maintain cards independently in Trello/ChatGPT.

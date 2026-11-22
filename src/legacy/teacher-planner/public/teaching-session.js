@@ -3,11 +3,9 @@
     const { el } = helpers;
     const pilot = Boolean(data.teaching);
     const page = el('section', '', { class: 'paper-page session-planner', 'aria-label': pilot ? 'JPI session plan' : 'Scheduled session plan' });
-    const back = el('button', 'Back to Teaching Dashboard', { type: 'button' });
-    back.addEventListener('click', helpers.back);
-    page.append(back, el('h2', 'Period Planner', { class: 'paper-heading' }),
+    page.append(el('h2', 'Period Planner', { class: 'paper-heading' }),
       el('h3', pilot ? data.event.className + ' - ' + data.event.course : data.content.session.title),
-      el('p', new Intl.DateTimeFormat('en-NZ', { dateStyle: 'full', timeZone: 'UTC' }).format(new Date(data.event.date + 'T00:00:00Z')) +
+      el('p', globalThis.plannerSessionSchema.dateLabel(data.event.date) +
         (pilot ? ' | Period 2 | 10:00-11:00 | Room ' + data.event.location :
           ' | ' + data.event.label + (data.event.location ? ' | ' + data.event.location : ''))));
     function link(name, url) {
@@ -100,7 +98,7 @@
       notes.append(evaluation);
       originalNotes(); host.append(page);
       if (helpers.initialTrello) select(false);
-      return { read: () => ({ note: note.value, evaluation: reflection.value, activities: [],
+      return { selectView: select, read: () => ({ note: note.value, evaluation: reflection.value, activities: [],
         session: { title: title.value, type: type.value, startTime: startTime.value, endTime: endTime.value } }),
         saved: () => {} };
     }
@@ -239,7 +237,7 @@
     notes.addEventListener('input', updateOutcomeStatus);
     notes.addEventListener('change', updateOutcomeStatus);
     updateOutcomeStatus();
-    return { read, saved };
+    return { read, saved, selectView: select };
   }
   globalThis.plannerTeachingSession = { mount };
 })();
