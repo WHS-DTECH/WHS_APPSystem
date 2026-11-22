@@ -38,7 +38,7 @@
   }
   function dashboard(host, context, { el, request, select, termControl, termError }) {
     const page = el('section', '', { class: 'teaching-dashboard', 'aria-label': 'Teaching Dashboard' });
-    const heading = el('div', '', { class: 'teaching-dashboard-heading' });
+    const heading = el('div', '', { class: 'teaching-dashboard-heading', 'data-planner-navigation': '' });
     if (termControl) heading.append(termControl);
     heading.append(el('h2', 'Teaching Dashboard', { class: 'paper-heading' }));
     if (termError) heading.append(el('p', termError, { role: 'alert' }));
