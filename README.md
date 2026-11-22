@@ -1725,6 +1725,8 @@ Planner database.
 
 The Term Planner keeps its original notes, date fields, headings and cover.
 The compact horizontal **Notes | Trello** toggle keeps **Notes** as the default.
+Its buttons keep the same compact height in either view, without stretching with
+the notes panel.
 The toggle hides/shows the same notes
 inputs without replacing, disabling or saving them; normal note autosave continues.
 **Trello** reads only the selected year/term's active overview list from the fixed
