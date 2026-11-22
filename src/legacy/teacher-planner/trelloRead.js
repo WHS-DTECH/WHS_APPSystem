@@ -1,7 +1,9 @@
 function cardLink(value) {
   const url = new URL(value);
   if (url.origin !== 'https://trello.com' || url.username || url.password || url.search || url.hash ||
-    !/^\/c\/[A-Za-z0-9]+(?:\/[A-Za-z0-9_-]+)?$/.test(url.pathname)) throw new Error('Invalid Trello card link.');
+    !/^\/c\/[A-Za-z0-9]+(?:\/[^/]+)?$/.test(url.pathname)) throw new Error('Invalid Trello card link.');
+  const slug = url.pathname.split('/')[3];
+  if (slug && /[/\\\u0000-\u001f\u007f]/.test(decodeURIComponent(slug))) throw new Error('Invalid Trello card link.');
   return url.href;
 }
 

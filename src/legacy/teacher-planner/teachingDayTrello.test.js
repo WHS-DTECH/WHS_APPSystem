@@ -101,6 +101,18 @@ test('invalid and duplicate session metadata is reported instead of matching a c
   assert.equal((await (await call()).json()).status, 'empty');
 });
 
+test('encoded Whanau card-name slugs remain valid without accepting encoded paths or other origins', async t => {
+  const { state, call } = await fixture(t);
+  state.cards[1].url = 'https://trello.com/c/AbCd1234/wh%C4%81nau-9whau';
+  const result = await (await call()).json();
+  assert.equal(result.cards[0].url, state.cards[1].url);
+  for (const url of ['https://trello.com/c/AbCd1234/%2Foutside', 'https://trello.com/c/AbCd1234/%5Coutside',
+    'https://trello.com/c/AbCd1234/%0Aoutside', 'https://trello.com/c/AbCd1234?token=secret']) {
+    state.cards[1].url = url;
+    assert.equal((await call()).status, 502);
+  }
+});
+
 test('anonymous, student and other-owner requests cannot read private cards; absent config makes no upstream requests', async t => {
   const { state, call } = await fixture(t);
   state.user = null; assert.equal((await call()).status, 401);
