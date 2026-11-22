@@ -1767,6 +1767,12 @@ are enforced. Browser cookies alone do not authorise MCP requests. No refresh
 tokens are issued in this pilot: reconnect after expiry. Token revocation is
 available at `POST /integrations/teacher-planner/oauth/revoke`.
 
+The consent page's form policy permits only this site and the configured ChatGPT
+callback, including the redirect after approval. Render logs consent POST response
+status and whether it redirects to that callback, never codes, state, tokens or
+form contents. After a deployment or an expired consent request, restart linking
+from ChatGPT rather than reusing an old consent page.
+
 Available tools:
 
 | Tool | Inputs | Read-only result |

@@ -167,6 +167,26 @@ test('OAuth consent and PKCE protect a metadata-only MCP session; codes cannot b
   assert.equal(state.reads.length, 1);
 });
 
+test('consent policy permits only the configured ChatGPT callback and POST diagnostics exclude OAuth secrets', async t => {
+  const log = t.mock.method(console, 'info', () => {});
+  const { call, consent, approve } = await fixture(t);
+  const form = await consent();
+  const policy = form.response.headers.get('content-security-policy');
+  assert.ok(policy.split(';').includes("form-action 'self' " + callback));
+  assert.match(policy, /frame-ancestors 'none'/);
+  assert.match(policy, /base-uri 'none'/);
+  const approval = await approve(form.fields);
+  assert.equal(approval.status, 302);
+  const redirect = new URL(approval.headers.get('location'));
+  assert.equal(redirect.origin + redirect.pathname, callback);
+  assert.ok(redirect.searchParams.has('code'));
+  assert.deepEqual(log.mock.calls.map(call => call.arguments), [
+    ['Planner MCP OAuth POST /integrations/teacher-planner/oauth/authorize', { status: 302, chatgptRedirect: true }]
+  ]);
+  const metadata = await call('/.well-known/oauth-authorization-server');
+  assert.ok(metadata.headers.get('content-security-policy').split(';').includes("form-action 'self'"));
+});
+
 test('OAuth rejects unapproved redirects, scopes, changed consent, inactive users, expired and revoked grants', async t => {
   const { state, call, consent, approve, link, rpc } = await fixture(t);
   assert.equal((await consent({ redirect_uri: 'https://attacker.example.test' })).response.status, 400);
