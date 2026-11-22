@@ -19,7 +19,7 @@ async function fixture(t, options = {}) {
     if (state.failure) return new Response('', { status: state.failure });
     if (state.networkFailure) throw new Error(env.TEACHER_PLANNER_TRELLO_TOKEN);
     const path = new URL(url).pathname;
-    if (path.startsWith('/1/tokens/')) return Response.json({ permissions: [
+    if (path.startsWith('/1/tokens/')) return Response.json({ permissions: state.permissions || [
       { modelType: 'boards', idModel: '*', read: true, write: Boolean(state.writeToken) }
     ] });
     if (path === '/1/boards/QsFC8J3m') return Response.json({ id: board, shortLink: 'QsFC8J3m', closed: false });
@@ -62,6 +62,23 @@ test('term reads use only the selected fixed-board list and return compact metad
   assert.equal(calls.length, 8, 'refresh reads Trello again, not a Planner copy');
   assert.equal((await call('/2026/4', { method: 'POST' })).status, 404);
   assert.equal(calls.length, 8, 'there is no Trello mutation route');
+});
+
+test('capitalized Trello permission models accept read-only Board grants but reject other writes and workspace-only grants', async t => {
+  const permissions = [
+    { modelType: 'Board', idModel: '*', read: true, write: false },
+    { modelType: 'Organization', idModel: '*', read: true, write: false }
+  ];
+  const { call, calls } = await fixture(t, { permissions });
+  assert.equal((await call()).status, 200);
+  assert.equal(calls.length, 4);
+  permissions[1].write = true;
+  assert.equal((await call()).status, 502);
+  assert.equal(calls.length, 6, 'a workspace write grant prevents list and card reads');
+  permissions[1].write = false;
+  permissions.shift();
+  assert.equal((await call()).status, 502);
+  assert.equal(calls.length, 8, 'workspace read permission alone cannot authorise board reads');
 });
 
 test('year and term select matching lists without carrying dates or creating missing lists', async t => {

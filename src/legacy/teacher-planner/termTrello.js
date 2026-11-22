@@ -61,7 +61,7 @@ function createTermTrelloRouter({ env = process.env, fetchImpl = globalThis.fetc
       const permissions = grant?.permissions;
       if (!Array.isArray(permissions) || !permissions.length ||
           !permissions.every(item => item && item.write === false) ||
-          !permissions.some(item => ['board', 'boards'].includes(item.modelType) &&
+          !permissions.some(item => typeof item.modelType === 'string' && /^boards?$/i.test(item.modelType) &&
             ['*', board.id].includes(item.idModel) && item.read === true)) {
         failure = 'Use a Trello token with read permission only, not write or account permissions. Notes are unchanged.';
         throw new Error('Trello token is not read-only.');

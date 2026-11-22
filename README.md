@@ -1766,7 +1766,8 @@ Configure only on the main Core Render service:
 5. Renew the token in Render before its 30-day expiry. Expired/revoked credentials,
    rate limits and outages produce visible errors and Retry via Refresh; they
    never imply an empty list. The integration checks the token is read-only on
-   each read and keeps credentials server-side.
+   each read and keeps credentials server-side. Trello permission model names
+   (`Board`/`board`) are matched case-insensitively; any write grant is rejected.
 
 The owner-restricted endpoint is
 `GET /teacher-planner/api/planner/trello/:year/:term`; its responses use
