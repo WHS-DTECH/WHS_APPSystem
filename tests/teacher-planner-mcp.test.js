@@ -167,24 +167,35 @@ test('OAuth consent and PKCE protect a metadata-only MCP session; codes cannot b
   assert.equal(state.reads.length, 1);
 });
 
-test('consent policy permits only the configured ChatGPT callback and POST diagnostics exclude OAuth secrets', async t => {
+test('consent policies retain browser origin checks and callback redirects without logging OAuth secrets', async t => {
   const log = t.mock.method(console, 'info', () => {});
-  const { call, consent, approve } = await fixture(t);
+  const { state, call, consent, approve } = await fixture(t);
   const form = await consent();
   const policy = form.response.headers.get('content-security-policy');
   assert.ok(policy.split(';').includes("form-action 'self' " + callback));
   assert.match(policy, /frame-ancestors 'none'/);
   assert.match(policy, /base-uri 'none'/);
+  assert.equal(form.response.headers.get('referrer-policy'), 'same-origin');
+  const denied = await call('/integrations/teacher-planner/oauth/authorize', {
+    method: 'POST', headers: { Origin: 'null', 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ ...form.fields, decision: 'allow' })
+  });
+  assert.equal(new URL(denied.headers.get('location')).searchParams.get('error'), 'access_denied');
+  assert.equal(state.codes.size, 0);
   const approval = await approve(form.fields);
   assert.equal(approval.status, 302);
   const redirect = new URL(approval.headers.get('location'));
   assert.equal(redirect.origin + redirect.pathname, callback);
   assert.ok(redirect.searchParams.has('code'));
   assert.deepEqual(log.mock.calls.map(call => call.arguments), [
-    ['Planner MCP OAuth POST /integrations/teacher-planner/oauth/authorize', { status: 302, chatgptRedirect: true }]
+    ['Planner MCP OAuth POST /integrations/teacher-planner/oauth/authorize',
+      { status: 302, chatgptRedirect: true, authorizationCodeIssued: false }],
+    ['Planner MCP OAuth POST /integrations/teacher-planner/oauth/authorize',
+      { status: 302, chatgptRedirect: true, authorizationCodeIssued: true }]
   ]);
   const metadata = await call('/.well-known/oauth-authorization-server');
   assert.ok(metadata.headers.get('content-security-policy').split(';').includes("form-action 'self'"));
+  assert.equal(metadata.headers.get('referrer-policy'), 'no-referrer');
 });
 
 test('OAuth rejects unapproved redirects, scopes, changed consent, inactive users, expired and revoked grants', async t => {
