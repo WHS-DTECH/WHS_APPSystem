@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Connect ChatGPT to Teacher Planner</title>
+  <link rel="stylesheet" href="/account-controls.css">
+</head>
+<body>
+  <main>
+    <h1>Connect ChatGPT to Teacher Planner</h1>
+    <p>Approve read-only access for one hour to your saved Year, Term and Week record metadata, dates and Planner links, and the existing calendar feeds.</p>
+    <p>Private calendar and school-document events share dates with generic labels only. Planner notes, student records, attachments, credentials and write access are excluded. Calendar dates returned to ChatGPT are processed by OpenAI under your ChatGPT workspace's policies.</p>
+    <p>Missing feeds or permissions will be reported. This connection does not create Google permissions or change your Planner settings.</p>
+    <form method="post" action="/integrations/teacher-planner/oauth/authorize">
+      <% for (const [name, value] of Object.entries(fields)) { %>
+        <input type="hidden" name="<%= name %>" value="<%= value %>">
+      <% } %>
+      <input type="hidden" name="csrf" value="<%= csrf %>">
+      <button type="submit" name="decision" value="allow">Approve read-only connection</button>
+      <button type="submit" name="decision" value="deny">Cancel</button>
+    </form>
+    <p><a href="/teacher-planner/">Return to Teacher Planner</a></p>
+  </main>
+</body>
+</html>

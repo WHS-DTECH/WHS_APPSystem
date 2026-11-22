@@ -122,10 +122,8 @@ function createGoogleCalendarAccess({ query, env = process.env, fetchImpl = fetc
   }
   return { config, read, ensureConnected, unchanged, google, tokenRequest, access };
 }
-function createGoogleCalendarRouter({ query, env = process.env, fetchImpl = fetch, loadSchoolCalendar, adminAttendance }) {
+function createGoogleCalendarReaders({ query, env = process.env, fetchImpl = fetch }) {
   const { config, read, ensureConnected, unchanged, google, tokenRequest, access } = createGoogleCalendarAccess({ query, env, fetchImpl });
-  const router = express.Router();
-  const saveSession = req => new Promise((resolve, reject) => req.session.save(error => error ? reject(error) : resolve()));
   async function pages(path, accessToken, params, maxPages) {
     const items = [];
     let pageToken;
@@ -142,6 +140,55 @@ function createGoogleCalendarRouter({ query, env = process.env, fetchImpl = fetc
   }
   const calendars = async token => (await pages('users/me/calendarList', token, { maxResults: '250', minAccessRole: 'reader' }, 20))
     .filter(item => !item.deleted).map(item => ({ id: item.id, summary: item.summaryOverride || item.summary || item.id, primary: Boolean(item.primary) }));
+  async function events(req, start, end) {
+    if (!config) throw new CalendarError('Google Calendar is not configured.', 503);
+    const row = await ensureConnected(req);
+    const token = await access(row);
+    const list = await calendars(token);
+    const chosen = row.selected_calendars.map(id => list.find(item => item.id === id));
+    if (chosen.some(item => !item)) throw new CalendarError('A selected calendar is no longer available. Update your calendar choices.', 409);
+    const events = (await Promise.all(chosen.map(async calendar => {
+      const items = await pages('calendars/' + encodeURIComponent(calendar.id) + '/events', token, {
+        timeMin: nzMidnight(start), timeMax: nzMidnight(end),
+        timeZone: 'Pacific/Auckland', singleEvents: 'true', orderBy: 'startTime', showDeleted: 'false', maxResults: '2500'
+      }, 4);
+      return items.map(item => normaliseEvent(item, calendar)).filter(Boolean);
+    }))).flat();
+    await unchanged(row);
+    return { connectionId: row.connection_id, events, fetchedAt: new Date().toISOString() };
+  }
+  async function documentEvents(req, mapping) {
+    if (!config) throw new CalendarError('Google Calendar is not configured.', 503);
+    const row = await ensureConnected(req);
+    const stored = decryptTokens(row.encrypted_tokens, config.key, row.owner_id);
+    if (!stored.scopes?.includes(DOCS_SCOPE)) throw new CalendarError('Enable Google Docs access in Year Overview, then approve the additional read-only permission.', 409);
+    const token = await access(row);
+    let response;
+    try {
+      response = await fetchImpl('https://docs.googleapis.com/v1/documents/' + DOCUMENT_ID + '?includeTabsContent=true', {
+        headers: { Authorization: 'Bearer ' + token }, redirect: 'error', signal: AbortSignal.timeout(15000)
+      });
+    } catch { throw new CalendarError('Google Docs could not be reached. Retry sync; previously displayed document events are not current.'); }
+    if (response.status === 403) throw new CalendarError('Google denied document access. Enable Google Docs API in the Google Cloud project, approve the read-only Docs permission, and connect a school account with access to this document.', 403);
+    if (response.status === 404) throw new CalendarError('The school document was not found or this Google account cannot view it. Check its sharing permissions.', 404);
+    if (response.status === 401) throw new CalendarError('Google Docs access expired. Reconnect your Google account.', 409);
+    if (!response.ok) throw new CalendarError('Google Docs sync failed or its request limit was reached. Retry sync.');
+    let document;
+    try { document = await response.json(); }
+    catch { throw new CalendarError('Google Docs returned unreadable content. Retry sync.'); }
+    let result;
+    try { result = parseDocumentEvents(document, mapping); }
+    catch (error) { throw new CalendarError(error.message, 422); }
+    await unchanged(row);
+    return { ...result, connectionId: row.connection_id };
+  }
+  return { config, read, ensureConnected, unchanged, google, tokenRequest, access, calendars, events, documentEvents };
+}
+function createGoogleCalendarRouter({ query, env = process.env, fetchImpl = fetch, loadSchoolCalendar, adminAttendance }) {
+  const { config, read, ensureConnected, unchanged, google, tokenRequest, access, calendars,
+    events, documentEvents } = createGoogleCalendarReaders({ query, env, fetchImpl });
+  const router = express.Router();
+  const saveSession = req => new Promise((resolve, reject) => req.session.save(error => error ? reject(error) : resolve()));
   const wrap = handler => async (req, res) => {
     try { await handler(req, res); }
     catch (error) {
@@ -322,28 +369,7 @@ function createGoogleCalendarRouter({ query, env = process.env, fetchImpl = fetc
     let mapping;
     try { mapping = documentRanges(req.query); }
     catch (error) { throw new CalendarError(error.message, 400); }
-    const row = await ensureConnected(req);
-    const stored = decryptTokens(row.encrypted_tokens, config.key, row.owner_id);
-    if (!stored.scopes?.includes(DOCS_SCOPE)) throw new CalendarError('Enable Google Docs access in Year Overview, then approve the additional read-only permission.', 409);
-    const token = await access(row);
-    let response;
-    try {
-      response = await fetchImpl('https://docs.googleapis.com/v1/documents/' + DOCUMENT_ID + '?includeTabsContent=true', {
-        headers: { Authorization: 'Bearer ' + token }, redirect: 'error', signal: AbortSignal.timeout(15000)
-      });
-    } catch { throw new CalendarError('Google Docs could not be reached. Retry sync; previously displayed document events are not current.'); }
-    if (response.status === 403) throw new CalendarError('Google denied document access. Enable Google Docs API in the Google Cloud project, approve the read-only Docs permission, and connect a school account with access to this document.', 403);
-    if (response.status === 404) throw new CalendarError('The school document was not found or this Google account cannot view it. Check its sharing permissions.', 404);
-    if (response.status === 401) throw new CalendarError('Google Docs access expired. Reconnect your Google account.', 409);
-    if (!response.ok) throw new CalendarError('Google Docs sync failed or its request limit was reached. Retry sync.');
-    let document;
-    try { document = await response.json(); }
-    catch { throw new CalendarError('Google Docs returned unreadable content. Retry sync.'); }
-    let result;
-    try { result = parseDocumentEvents(document, mapping); }
-    catch (error) { throw new CalendarError(error.message, 422); }
-    await unchanged(row);
-    res.json({ ...result, connectionId: row.connection_id });
+    res.json(await documentEvents(req, mapping));
   }));
   router.get('/duty-events/:year/:term', wrap(async (req, res) => {
     const { year, term } = req.params;
@@ -420,20 +446,7 @@ function createGoogleCalendarRouter({ query, env = process.env, fetchImpl = fetc
     const start = req.query.start;
     if (!validDay(start) || new Date(start).getUTCDay() !== 0) throw new CalendarError('Choose a valid Sunday for the calendar week.', 400);
     const end = new Date(start); end.setUTCDate(end.getUTCDate() + 7);
-    const row = await ensureConnected(req);
-    const token = await access(row);
-    const list = await calendars(token);
-    const chosen = row.selected_calendars.map(id => list.find(item => item.id === id));
-    if (chosen.some(item => !item)) throw new CalendarError('A selected calendar is no longer available. Update your calendar choices.', 409);
-    const events = (await Promise.all(chosen.map(async calendar => {
-      const items = await pages('calendars/' + encodeURIComponent(calendar.id) + '/events', token, {
-        timeMin: nzMidnight(start), timeMax: nzMidnight(end.toISOString().slice(0, 10)),
-        timeZone: 'Pacific/Auckland', singleEvents: 'true', orderBy: 'startTime', showDeleted: 'false', maxResults: '2500'
-      }, 4);
-      return items.map(item => normaliseEvent(item, calendar)).filter(Boolean);
-    }))).flat();
-    await unchanged(row);
-    res.json({ connectionId: row.connection_id, events, fetchedAt: new Date().toISOString() });
+    res.json(await events(req, start, end.toISOString().slice(0, 10)));
   }));
   router.delete('/', wrap(async (req, res) => {
     const row = await read(req.user.id);
@@ -461,4 +474,5 @@ function createGoogleCalendarRouter({ query, env = process.env, fetchImpl = fetc
   }));
   return router;
 }
-module.exports = { createGoogleCalendarRouter, createGoogleCalendarAccess, configuration, encryptTokens, decryptTokens, nzMidnight, normaliseEvent, SCOPES };
+module.exports = { createGoogleCalendarRouter, createGoogleCalendarAccess, createGoogleCalendarReaders,
+  configuration, encryptTokens, decryptTokens, nzMidnight, normaliseEvent, SCOPES };
