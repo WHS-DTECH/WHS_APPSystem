@@ -41,7 +41,21 @@
     }
     left.append(el('p', 'Notes remain available even if Trello is unavailable.'), fallback);
     columns.append(left, workspace); page.append(columns); host.append(page);
-    let result, error, selectedHost, generation = 0;
+    let result, error, selectedHost, generation = 0, switching = false, reading = false;
+    function selectSession(next) {
+      Object.assign(context, next);
+      for (const button of cards.querySelectorAll('[data-card-id]')) {
+        const card = result?.cards.find(card => card.id === button.getAttribute('data-card-id'));
+        button.setAttribute('aria-pressed', String(context.cardId ? card?.id === context.cardId :
+          card?.metadata.session_slot === context.slot));
+      }
+      renderSelected();
+    }
+    function setBusy(value) {
+      switching = value; workspace.inert = value; workspace.setAttribute('aria-busy', String(value));
+      for (const button of left.querySelectorAll('button')) button.disabled = value;
+      refresh.disabled = value || reading;
+    }
     function renderSelected() {
       if (!selectedHost?.isConnected) return;
       selectedHost.replaceChildren();
@@ -53,7 +67,7 @@
       selectedHost.append(renderCard(el, card, false, true));
     }
     async function load() {
-      const current = ++generation; refresh.disabled = true; result = undefined; error = undefined;
+      const current = ++generation; reading = true; refresh.disabled = true; result = undefined; error = undefined;
       message.setAttribute('role', 'status'); message.textContent = 'Reading Trello...'; cards.replaceChildren(); renderSelected();
       try {
         const feed = await request(context.date);
@@ -69,6 +83,7 @@
             el('span', card.metadata.lesson_title));
           if (card.location) button.append(el('span', 'Room ' + card.location));
           button.append(el('span', card.metadata.preparation_status));
+          button.disabled = switching;
           button.addEventListener('click', () => select(card)); cards.append(button);
         }
         for (const issue of feed.issues) cards.append(el('p', 'Card ' + issue.cardId + ': ' + issue.message, { role: 'alert' }));
@@ -76,11 +91,12 @@
         if (current !== generation || !page.isConnected) return;
         error = failure.message; message.setAttribute('role', 'alert'); message.textContent = error + ' Notes remain available.';
       } finally {
-        if (current === generation && page.isConnected) { refresh.disabled = false; renderSelected(); }
+        if (current === generation && page.isConnected) { reading = false; refresh.disabled = switching; renderSelected(); }
       }
     }
     refresh.addEventListener('click', load); load();
-    return { workspace, showTrello: host => { selectedHost = host; renderSelected(); } };
+    return { date: context.date, workspace, selectSession, setBusy,
+      showTrello: host => { selectedHost = host; renderSelected(); } };
   }
   function mount(host, context, { el, request }) {
     host.replaceChildren();

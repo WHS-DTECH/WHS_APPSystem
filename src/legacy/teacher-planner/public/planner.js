@@ -55,7 +55,7 @@
   let saveInFlight;
   let periodDate = '', periodSlot = 'p1', selectedDay = 0, invalidPeriodLink = false;
   let activityRecord = '';
-  let sessionPlanner, sessionAddress;
+  let sessionPlanner, sessionAddress, teachingDashboard;
   let manualSessionDraft;
   let canManageSchoolSettings = false;
   let setupTab = 0;
@@ -969,10 +969,18 @@
     const teachingDay = async value => {
       await refreshSession(); return request(api + 'teaching-day-trello/' + value);
     };
-    const dashboard = dashboardMode ? globalThis.plannerTeachingDayTrello.dashboard(content, {
-      date: periodDate, slot: periodSlot, classKey: data.event.classKey, cardId: selectedTeachingCard
-    }, { el, request: teachingDay, select: card =>
-      openSessionPlan(card.metadata.teaching_date, card.metadata.session_slot, undefined, card.id) }) : null;
+    let dashboard;
+    if (dashboardMode) {
+      const context = { date: periodDate, slot: periodSlot, classKey: data.event.classKey, cardId: selectedTeachingCard };
+      if (teachingDashboard?.workspace.isConnected && teachingDashboard.date === periodDate) {
+        dashboard = teachingDashboard; dashboard.workspace.replaceChildren(); dashboard.selectSession(context);
+      } else {
+        dashboard = teachingDashboard = globalThis.plannerTeachingDayTrello.dashboard(content, context, {
+          el, request: teachingDay, select: card =>
+            openSessionPlan(card.metadata.teaching_date, card.metadata.session_slot, undefined, card.id)
+        });
+      }
+    }
     sessionPlanner = globalThis.plannerTeachingSession.mount(dashboard?.workspace || content, { ...data, legacy }, {
       el,
       back: async () => { if (await ensureSaved()) navigatePlannerSection('timetable'); },
@@ -1006,6 +1014,32 @@
       }
     });
   }
+  async function switchDashboardSession(value, slot, cardId) {
+    busy = true; save.disabled = true; retry.hidden = true;
+    teachingDashboard.setBusy(true);
+    notice('Opening session Notes...');
+    try {
+      const [legacy, pilot] = await Promise.all([
+        request(api + value.slice(0, 4) + '/period/' + value + '_' + slot),
+        request(api + 'sessions/' + value + '/' + slot)
+      ]);
+      if (!pilot.available) throw new Error(pilot.reason || 'This session workspace is unavailable.');
+      sessionPlanner = undefined; loaded = false;
+      periodDate = value; periodSlot = slot; selectedTeachingCard = cardId || '';
+      revision = pilot.revision;
+      mountTeachingSession(pilot, legacy); loaded = true;
+      history.replaceState(null, '', '#' + viewFragment());
+      notice('Session Notes loaded. Changes autosave; confirmed progress is unchanged.');
+    } catch (error) {
+      console.error('Dashboard session switch failed:', error);
+      notice(error.message + ' Session switching stopped. Retry loading if needed.', true);
+      retry.hidden = false;
+    } finally {
+      busy = false; save.disabled = !loaded || !dirty;
+      teachingDashboard.setBusy(false);
+      globalThis.plannerTextareaAutosize?.refresh();
+    }
+  }
   async function openSessionPlan(value, slot, draft, cardId) {
     if (!await ensureSaved()) return;
     if (busy) { notice('Your planner is still loading. Wait before opening another session.'); return; }
@@ -1013,6 +1047,14 @@
       !Number.isFinite(date(value).getTime()) || iso(date(value)) !== value ||
       ![1, 2, 3, 4, 5].includes(date(value).getUTCDay())) {
       notice('Choose a valid weekday session date.', true); return;
+    }
+    if (dashboardMode && section === 'period' && teachingDashboard?.workspace.isConnected && value === periodDate && !draft) {
+      if (slot === periodSlot) {
+        selectedTeachingCard = cardId || '';
+        teachingDashboard.selectSession({ cardId: selectedTeachingCard });
+        history.replaceState(null, '', '#' + viewFragment());
+      } else await switchDashboardSession(value, slot, cardId);
+      return;
     }
     manualSessionDraft = draft ? { date: value, slot, session: draft } : undefined;
     selectedTeachingCard = cardId || '';

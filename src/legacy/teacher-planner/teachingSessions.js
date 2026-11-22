@@ -73,6 +73,7 @@ function draft(history) {
 function createTeachingSessionsRouter({ query, timetable = loadTimetable, content = loadTeachingContent,
   now = () => new Date() }) {
   const router = express.Router();
+  const timetableCache = new Map();
   router.use((req, res, next) => {
     res.set('Cache-Control', 'no-store');
     if (!UUID.test(req.user?.id || '')) return next(new Error('Verified planner identity has no valid user ID.'));
@@ -83,19 +84,32 @@ function createTeachingSessionsRouter({ query, timetable = loadTimetable, conten
       WHERE owner_id=$1 AND year=$2 AND section='activity' AND entry_key=$3`, [owner, year, ROUTINE]);
     return result.rows[0]?.content;
   }
-  async function timetableEvents(owner, value) {
+  async function timetableEvents(owner, value, fresh = false) {
     const settings = await query('SELECT subscription_url FROM teacher_calendar_settings WHERE owner_id=$1', [owner]);
     if (!settings.rows[0]?.subscription_url) return null;
-    let feed;
-    try { feed = await timetable(settings.rows[0].subscription_url, Number(value.slice(0, 4)), Number(value.slice(5, 7))); }
+    const key = [owner, settings.rows[0].subscription_url, value.slice(0, 7)].join('|');
+    const at = now().getTime();
+    for (const [key, cached] of timetableCache) {
+      if (at - cached.at < 0 || at - cached.at >= 30000) timetableCache.delete(key);
+    }
+    if (fresh) timetableCache.delete(key);
+    let feed = timetableCache.get(key)?.feed;
+    try {
+      if (!feed) {
+        feed = await timetable(settings.rows[0].subscription_url, Number(value.slice(0, 4)), Number(value.slice(5, 7)));
+        if (!Array.isArray(feed?.events)) throw new Error('Invalid session timetable feed.');
+        if (timetableCache.size >= 8) timetableCache.delete(timetableCache.keys().next().value);
+        timetableCache.set(key, { feed, at: now().getTime() });
+      }
+    }
     catch {
       console.error('Session timetable could not be loaded.');
       throw Object.assign(new Error('The private KAMAR timetable could not be loaded. Retry without changing your plan.'), { status: 502 });
     }
     return feed.events.filter(event => !event.allDay && eventDate(event.start) === value);
   }
-  async function occurrence(owner, value, events) {
-    const candidates = (events ?? await timetableEvents(owner, value) ?? []).filter(event =>
+  async function occurrence(owner, value, events, fresh = false) {
+    const candidates = (events ?? await timetableEvents(owner, value, fresh) ?? []).filter(event =>
       /^PIDTECH\s*\(JPI\)$/i.test(event.title.trim()));
     if (candidates.length !== 1) {
       if (!candidates.length) return null;
@@ -170,7 +184,7 @@ function createTeachingSessionsRouter({ query, timetable = loadTimetable, conten
       return res.status(400).json({ error: 'Provide a starting checkpoint and its current revision. Nothing was confirmed.' });
     }
     try {
-      if (!await routine(req.user.id, 2026) || !await occurrence(req.user.id, '2026-11-23')) {
+      if (!await routine(req.user.id, 2026) || !await occurrence(req.user.id, '2026-11-23', undefined, true)) {
         return res.status(403).json({ error: 'This pilot requires your existing CW Routine and verified JPI timetable occurrence.' });
       }
       const params = [req.user.id, 2026, GROUP, req.body.note.trim()];
@@ -195,7 +209,7 @@ function createTeachingSessionsRouter({ query, timetable = loadTimetable, conten
       const owner = req.user.id;
       const pilotDate = req.params.slot === 'p2' && value >= '2026-11-23' && value <= '2026-12-31';
       const existingRoutine = pilotDate ? await routine(owner, 2026) : null;
-      const event = existingRoutine ? await occurrence(owner, value) : null;
+      const event = existingRoutine ? await occurrence(owner, value, undefined, req.method === 'PUT') : null;
       if (!event) return await genericPlan(req, res);
       if (req.method === 'GET') {
         const [record, checkpoint, history, teaching] = await Promise.all([

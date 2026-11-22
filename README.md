@@ -1886,7 +1886,14 @@ Both pilot sessions display Room CW. JPI's verified Session Plan context also
 uses CW rather than the outdated KAMAR room, without editing the source timetable.
 
 Switching sessions waits for the current Notes draft to save; failed saves or
-conflicts prevent switching. Trello errors cannot block Notes, and the Whanau/JPI
+conflicts prevent switching. Same-day switches retain the dashboard and its Trello
+cards, replacing only the session workspace. Current and legacy Planner records
+are read concurrently and never cached. The server reuses successful timetable
+reads for at most 30 seconds, scoped to owner, current private subscription and
+month, with at most eight entries. Account permissions and subscription settings
+are still checked; JPI saves and confirmations bypass this read cache. Use
+Refresh Trello information to reread cards independently of session selection.
+Trello errors cannot block Notes, and the Whanau/JPI
 Notes shortcuts remain available during outages. Confirmed progress, routines,
 Unit Library links and legacy records use their existing storage and permissions.
 No Trello writes, AI processing, calendar reconciliation or inferred outcomes are
