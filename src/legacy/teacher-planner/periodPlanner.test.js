@@ -98,34 +98,66 @@ const slotProgramme = { teaching: { unit: { title: 'Binary & Data', url: '/dtech
   lesson: { title: 'Binary Piano', url: '/dtech-hub/learning-pathways/lesson-binary-piano.html' } },
 routine: { instructions: 'TypingTest.com - AKA Typing Kit\n[Minecraft Player Kit](https://dtech-hub2.onrender.com/practical-skills/kit-worksheet.html?kit=kit-minecraft)' } };
 const slotDescendants = host => [host, ...host.children.filter(child => typeof child === 'object').flatMap(slotDescendants)];
-test('teaching slots render both four-slot cards in stored order with NZ headers, details and no progress controls', () => {
+test('teaching workspaces render both four-slot sequences with the first activity selected and no progress controls', () => {
   const renderer = require('./public/teaching-slots');
   for (const classKey of ['JPI', '9WHAU']) {
     const card = teachingSlotFixture(classKey), parsed = renderer.parse(card.description);
     const view = renderer.render(node, card, classKey === 'JPI' ? slotProgramme : null), nodes = slotDescendants(view);
     const slots = nodes.filter(item => item.attrs.class === 'teaching-slot');
     assert.equal(slots.length, 4);
-    assert.deepEqual(slots.map(item => item.children[0].children[0].children[0].textContent), parsed.slots.map(slot => slot.title));
+    assert.deepEqual(slots.map(item => item.children[0].children[0].textContent), parsed.slots.map(slot => slot.title));
     for (let index = 0; index < slots.length; index++) {
-      assert.equal(slots[index].tag, 'details');
-      const row = slots[index].children[0].children[0];
+      assert.equal(slots[index].tag, 'button');
+      assert.equal(slots[index].attrs.type, 'button', 'selection cannot submit the Notes form');
+      assert.equal(slots[index].attrs['aria-pressed'], String(index === 0));
+      const row = slots[index].children[0];
       assert.equal(row.children[0].tag, 'strong', 'the activity title comes before secondary labels');
       assert.deepEqual(row.children[1].children.map(label => label.textContent),
         ['Slot ' + parsed.slots[index].number, parsed.slots[index].type]);
-      assert.equal(slots[index].children[1].textContent, parsed.slots[index].details.trim());
     }
+    const workspace = nodes.find(item => item.attrs.class === 'teaching-slot-workspace');
+    assert.equal(workspace.children[0].children[1].children[0].textContent, 'Preparation & Reminders');
+    assert.equal(workspace.children[1].children[1].children[0].textContent, 'Continuation');
+    const details = workspace.children[1].children[0];
+    assert.equal(details.children[0].textContent, parsed.slots[0].title);
+    assert.equal(details.children[1].textContent, parsed.slots[0].details.trim());
+    assert.ok(slots.every(slot => slot.attrs['aria-controls'] === details.attrs.id));
     const header = nodes.find(item => item.tag === 'header'), headerText = slotDescendants(header).map(item => item.textContent).join(' ');
     assert.match(headerText, /Room CW.*Monday.*23 November 2026/);
     assert.ok(headerText.includes(card.metadata.start_time));
     assert.match(headerText, /22 Nov 2026.*8:40/);
     assert.equal(nodes.find(item => item.tag === 'time').attrs.datetime, card.updatedAt);
     assert.equal(nodes.find(item => item.textContent === 'Open Trello').attrs.href, card.url);
-    assert.ok(!nodes.some(item => ['input', 'textarea', 'select', 'button'].includes(item.tag)));
+    assert.ok(!nodes.some(item => ['input', 'textarea', 'select', 'details'].includes(item.tag)));
+    assert.equal(nodes.filter(item => item.tag === 'button').length, slots.length);
     assert.ok(!nodes.some(item => item.textContent.includes('[TEACHING_DASHBOARD_V1]')));
-    assert.equal(nodes.filter(item => item.tag === 'h4').length, 2);
+    assert.equal(nodes.filter(item => item.tag === 'h4').length, 3);
   }
   const reordered = renderer.parse(teachingSlotFixture().description.replace('SLOT 1', 'SLOT 5'));
   assert.deepEqual(reordered.slots.map(slot => slot.number), ['5', '2', '3', '4'], 'never numerically sort Trello slots');
+});
+test('slot selection replaces only the details panel and keeps the sequence and Trello source untouched', () => {
+  const renderer = require('./public/teaching-slots');
+  for (const key of ['JPI', '9WHAU']) {
+    const card = teachingSlotFixture(key), original = JSON.stringify(card), parsed = renderer.parse(card.description);
+    const view = renderer.render(node, card, key === 'JPI' ? slotProgramme : null);
+    const workspace = slotDescendants(view).find(item => item.attrs.class === 'teaching-slot-workspace');
+    const list = workspace.children[0].children[0], details = workspace.children[1].children[0];
+    const buttons = [...list.children], contents = buttons.map(button => button.children[0]);
+    for (let index = 0; index < buttons.length; index++) {
+      buttons[index].events.click();
+      assert.equal(workspace.children[1].children[0], details);
+      assert.ok(list.children.every((button, position) => button === buttons[position] && button.children[0] === contents[position]));
+      assert.deepEqual(buttons.map(button => button.attrs['aria-pressed']), buttons.map((_, position) => String(position === index)));
+      assert.equal(details.children[0].textContent, parsed.slots[index].title);
+      assert.equal(details.children[1].textContent, parsed.slots[index].details.trim());
+    }
+    assert.equal(JSON.stringify(card), original);
+  }
+  const card = teachingSlotFixture(), longDetails = 'Keep every instruction visible. '.repeat(200).trim();
+  card.description = card.description.replace('Use the established Typing Kit routine.', longDetails);
+  const details = slotDescendants(renderer.render(node, card, slotProgramme)).find(item => item.attrs.class === 'teaching-slot-detail');
+  assert.equal(details.children[1].textContent, longDetails, 'long details are not truncated');
 });
 test('slot resources use explicit safe URLs or unique verified programme links and expose unresolved names', () => {
   const renderer = require('./public/teaching-slots'), card = teachingSlotFixture(), slots = renderer.parse(card.description).slots;
@@ -141,9 +173,13 @@ test('slot resources use explicit safe URLs or unique verified programme links a
   const ambiguous = { ...slotProgramme, routine: { instructions: slotProgramme.routine.instructions +
     '\n[Minecraft Player Kit](https://example.com/other)' } };
   assert.equal(renderer.resolveResource(slots[1], ambiguous), null);
-  const nodes = slotDescendants(renderer.render(node, card, slotProgramme));
+  const view = renderer.render(node, card, slotProgramme), nodes = slotDescendants(view);
   assert.ok(nodes.some(item => item.textContent === 'Existing CW Routine → Typing Kit - Link unavailable'));
-  assert.equal(nodes.filter(item => item.tag === 'a' && item.attrs.href === slotProgramme.teaching.lesson.url).length, 2);
+  const buttons = nodes.filter(item => item.attrs.class === 'teaching-slot');
+  for (const index of [2, 3]) {
+    buttons[index].events.click();
+    assert.equal(slotDescendants(view).filter(item => item.tag === 'a' && item.attrs.href === slotProgramme.teaching.lesson.url).length, 1);
+  }
 });
 test('malformed and older Trello cards keep a readable fallback without breaking selected-session rendering', async () => {
   const renderer = require('./public/teaching-slots'), card = teachingSlotFixture();

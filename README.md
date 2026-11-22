@@ -1914,11 +1914,16 @@ cards or add integration permissions.
 
 Slots retain their document order, even when their numbers are not consecutive.
 Routine is green, Kit teal, Activity purple, Unit Library orange and Whanau blue.
-The whole row is clickable, with its native expand/collapse arrow and a bold
-20px activity title first. Small muted slot/category labels sit at the far right.
-Each white slot expands to show optional `Resource:`, `Resource URL:` and
-`Details:` fields; details may continue across lines. Optional exact
-`## Preparation & reminders` and `## Continuation` sections appear below.
+The widescreen workspace has equal-width columns beneath the full-width navy
+header. Compact selectable cards on the left keep a bold 20px activity title
+first and small muted slot/category labels at the far right. The first slot is
+selected by default; selecting another highlights it without expanding the cards.
+The right-hand panel replaces its title, optional `Details:`, `Resource:` and
+`Resource URL:` content; details may continue across lines without truncation.
+Optional exact `## Preparation & reminders` appears below the left-hand sequence;
+`## Continuation` appears below the right-hand details. Panels grow naturally,
+without internal scrollbars or fixed-height content areas; narrow screens stack
+the columns. Selection is read-only and does not submit or modify Notes.
 No duration, completion or confirmed progress is inferred.
 
 The header displays the class/title, room, NZ date and supplied NZ start time.
