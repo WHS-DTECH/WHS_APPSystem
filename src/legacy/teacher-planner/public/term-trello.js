@@ -31,8 +31,21 @@
           result.status === 'empty' ? 'The matching Trello list is empty. No umbrella cards have been added; no cards were created here.' :
             'Read-only overview. Refreshed ' + new Date(result.fetchedAt).toLocaleString('en-NZ');
         for (const card of result.cards) {
-          const item = el('li');
+          if (!Array.isArray(card.labels)) throw new Error('Trello label metadata is unavailable. Refresh Trello; your Notes are unchanged.');
+          const accent = card.labels.find(label => label.color);
+          const item = el('li', '', accent ? { 'data-trello-colour': accent.color } : {});
           item.append(el('h4', card.title));
+          if (card.labels.length) {
+            const labels = el('div', '', { class: 'term-trello-labels', role: 'group', 'aria-label': 'Trello labels' });
+            for (const label of card.labels) {
+              const colourName = label.color ? label.color.replace(/_/g, ' ') : 'uncoloured';
+              labels.append(el('span', label.name.trim() ? label.name : colourName + ' label', {
+                class: 'term-trello-label', title: 'Trello colour: ' + colourName,
+                ...(label.color ? { 'data-trello-colour': label.color } : {})
+              }));
+            }
+            item.append(labels);
+          }
           if (card.summary) item.append(el('p', card.summary));
           for (const [name, label] of [['start', 'Start'], ['due', 'Due']]) {
             if (card[name]) item.append(el('p', label + ': ' + new Date(card[name]).toLocaleString('en-NZ', { timeZone: 'Pacific/Auckland' })));

@@ -4,6 +4,7 @@ const BOARD = 'QsFC8J3m';
 const BOARD_URL = 'https://trello.com/b/' + BOARD + '/school-email-todo';
 const ID = /^[0-9a-f]{24}$/i;
 const UUID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
+const LABEL_COLOUR = /^(green|yellow|orange|red|purple|blue|sky|lime|pink|black)(_(light|dark))?$/;
 const listName = (year, term) => `TERM ${term} \u2014 ${year}`;
 const normalName = value => value.normalize('NFKC').trim().replace(/[\u2013\u2014]/g, '-').replace(/\s+/g, ' ').toUpperCase();
 
@@ -79,17 +80,20 @@ function createTermTrelloRouter({ env = process.env, fetchImpl = globalThis.fetc
       const result = { year, term, listName: expected, boardUrl: BOARD_URL, fetchedAt: new Date().toISOString(), cards: [] };
       if (!matches.length) return res.json({ ...result, status: 'missing' });
       const list = matches[0];
-      const cards = await read('lists/' + list.id + '/cards', { filter: 'open', fields: 'id,idList,name,desc,due,start,url,closed' });
+      const cards = await read('lists/' + list.id + '/cards', { filter: 'open', fields: 'id,idList,name,desc,due,start,url,closed,labels' });
       if (!Array.isArray(cards) || cards.length > 1000 || !cards.every(card => card && ID.test(card.id) &&
           card.idList === list.id && typeof card.name === 'string' && typeof card.desc === 'string' &&
           typeof card.url === 'string' && typeof card.closed === 'boolean' &&
+          Array.isArray(card.labels) && card.labels.every(label => label && typeof label.name === 'string' &&
+            (label.color === null || typeof label.color === 'string' && LABEL_COLOUR.test(label.color))) &&
           ['due', 'start'].every(name => card[name] === null || typeof card[name] === 'string' && Number.isFinite(Date.parse(card[name]))))) {
         throw new Error('Invalid Trello cards.');
       }
       result.cards = cards.filter(card => !card.closed).map(card => {
         const description = card.desc.trim().replace(/\s+/g, ' ');
         return { id: card.id, title: card.name, summary: description.length > 400 ? description.slice(0, 397) + '...' : description,
-          due: card.due, start: card.start, url: cardLink(card.url) };
+          due: card.due, start: card.start, url: cardLink(card.url),
+          labels: card.labels.map(label => ({ name: label.name, color: label.color })) };
       });
       return res.json({ ...result, status: result.cards.length ? 'ok' : 'empty' });
     } catch {

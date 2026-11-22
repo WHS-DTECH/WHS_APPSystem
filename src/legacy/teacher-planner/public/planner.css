@@ -67,7 +67,40 @@
 .term-trello-panel > p { font-size: 13px; }
 .term-trello-panel [role="alert"] { color: #8e230c; background: #fff0eb; padding: 8px; }
 .term-trello-cards { list-style: none; padding: 0; }
-.term-trello-cards li { margin: 8px 0; padding: 10px; border: 1px solid #b3c4cb; border-radius: 5px; background: #fff; }
+.term-trello-cards li, .term-trello-label { --trello-label-colour: #b3c4cb; }
+.term-trello-cards li { margin: 8px 0; padding: 10px; border: 1px solid #b3c4cb; border-left: 4px solid var(--trello-label-colour); border-radius: 5px; background: #fff; }
+.term-trello-labels { display: flex; flex-wrap: wrap; gap: 6px 10px; margin: 6px 0; }
+.term-trello-label { border-left: 4px solid var(--trello-label-colour); padding-left: 6px; color: #31586c; font-size: 13px; }
+.term-trello-cards [data-trello-colour="green"] { --trello-label-colour: #4bce97; }
+.term-trello-cards [data-trello-colour="green_light"] { --trello-label-colour: #baf3db; }
+.term-trello-cards [data-trello-colour="green_dark"] { --trello-label-colour: #216e4e; }
+.term-trello-cards [data-trello-colour="yellow"] { --trello-label-colour: #e2b203; }
+.term-trello-cards [data-trello-colour="yellow_light"] { --trello-label-colour: #f8e6a0; }
+.term-trello-cards [data-trello-colour="yellow_dark"] { --trello-label-colour: #946f00; }
+.term-trello-cards [data-trello-colour="orange"] { --trello-label-colour: #faa53d; }
+.term-trello-cards [data-trello-colour="orange_light"] { --trello-label-colour: #ffe2bd; }
+.term-trello-cards [data-trello-colour="orange_dark"] { --trello-label-colour: #a54800; }
+.term-trello-cards [data-trello-colour="red"] { --trello-label-colour: #f87462; }
+.term-trello-cards [data-trello-colour="red_light"] { --trello-label-colour: #ffd2cc; }
+.term-trello-cards [data-trello-colour="red_dark"] { --trello-label-colour: #ae2a19; }
+.term-trello-cards [data-trello-colour="purple"] { --trello-label-colour: #9f8fef; }
+.term-trello-cards [data-trello-colour="purple_light"] { --trello-label-colour: #dfd8fd; }
+.term-trello-cards [data-trello-colour="purple_dark"] { --trello-label-colour: #5e4db2; }
+.term-trello-cards [data-trello-colour="blue"] { --trello-label-colour: #579dff; }
+.term-trello-cards [data-trello-colour="blue_light"] { --trello-label-colour: #cce0ff; }
+.term-trello-cards [data-trello-colour="blue_dark"] { --trello-label-colour: #0055cc; }
+.term-trello-cards [data-trello-colour="sky"] { --trello-label-colour: #60c6d2; }
+.term-trello-cards [data-trello-colour="sky_light"] { --trello-label-colour: #c1f0f5; }
+.term-trello-cards [data-trello-colour="sky_dark"] { --trello-label-colour: #206a83; }
+.term-trello-cards [data-trello-colour="lime"] { --trello-label-colour: #94c748; }
+.term-trello-cards [data-trello-colour="lime_light"] { --trello-label-colour: #d3f1a7; }
+.term-trello-cards [data-trello-colour="lime_dark"] { --trello-label-colour: #4c6b1f; }
+.term-trello-cards [data-trello-colour="pink"] { --trello-label-colour: #e774bb; }
+.term-trello-cards [data-trello-colour="pink_light"] { --trello-label-colour: #fdd0ec; }
+.term-trello-cards [data-trello-colour="pink_dark"] { --trello-label-colour: #943d73; }
+.term-trello-cards [data-trello-colour="black"] { --trello-label-colour: #8590a2; }
+.term-trello-cards [data-trello-colour="black_light"] { --trello-label-colour: #dcdfe4; }
+.term-trello-cards [data-trello-colour="black_dark"] { --trello-label-colour: #626f86; }
 .term-trello-cards h4 { margin: 0 0 6px; color: #31586c; }
 .term-trello-cards p, .term-trello-cards a { margin: 6px 0; font-size: 13px; }
 @media print {
