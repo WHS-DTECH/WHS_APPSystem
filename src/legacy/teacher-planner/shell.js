@@ -20,7 +20,7 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
 <link rel="icon" type="image/png" href="${asset('whs-logo.png')}">
 <link rel="stylesheet" href="${asset('account-controls.css')}">
 <link rel="stylesheet" href="${asset('module-shell.css')}">
-<link rel="stylesheet" href="${asset('planner.css?v=trello-labels-6px-1')}">
+<link rel="stylesheet" href="${asset('planner.css?v=jpi-session-1')}">
 </head><body class="whs-module-shell whs-planner" data-api="${escape(baseUrl)}api/planner/" data-assets="${escape(baseUrl)}framework/" data-planner-name="${escape(displayName)}" data-user-id="${escape(userId)}" data-user-email="${escape(userEmail)}" data-core-url="${escape(coreUrl)}">
 <main class="planner-main" aria-label="${escape(title)}">
 <header class="planner-heading">
@@ -98,7 +98,7 @@ ${standalone ? `<script src="${asset('global-nav.js')}" defer></script>` : ''}
 <script src="${asset('holiday-regions.js')}" defer></script>
 <script src="${asset('opening-dates-2026.js')}" defer></script>
 <script src="${asset('weekly-prompts.js')}" defer></script>
-<script src="${asset('google-calendar.js?v=teacher-timetable-1')}" defer></script>
+<script src="${asset('google-calendar.js?v=jpi-session-1')}" defer></script>
 <script src="${asset('google-doc-sync.js')}" defer></script>
 <script src="${asset('duty-roster.js?v=weekly-term-duties-4')}" defer></script>
 <script src="${asset('attendance.js?v=manual-sync-11')}" defer></script>
@@ -110,7 +110,8 @@ ${standalone ? `<script src="${asset('global-nav.js')}" defer></script>` : ''}
 <script src="${asset('reporting-schema.js?v=16')}" defer></script>
 <script src="${asset('reporting.js?v=29')}" defer></script>
 <script src="${asset('term-trello.js?v=trello-labels-1')}" defer></script>
-<script src="${asset('planner.js?v=teacher-timetable-1')}" defer></script>
+<script src="${asset('teaching-session.js?v=jpi-session-1')}" defer></script>
+<script src="${asset('planner.js?v=jpi-session-1')}" defer></script>
 </body></html>`;
 }
 

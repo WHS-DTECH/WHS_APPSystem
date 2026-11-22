@@ -21,7 +21,7 @@ test(section + ' autosave debounces edits, serialises in-flight typing and pause
   const context = {
     form, section, year: 2026, dirty: false, busy: false, loaded: true, revision: 3, csrf: 'fixture',
     autosaveTimer: undefined, autosavePaused: false, editVersion: 0, savedTermContent: { reflection: 'Keep this previous reflection' },
-    saveInFlight: undefined,
+    saveInFlight: undefined, sessionPlanner: undefined,
     save: {}, content: { querySelectorAll: () => [], querySelector: () => null },
     selectors: { querySelectorAll: () => weekControls, setAttribute() {} },
     document: { addEventListener: (name, handler) => { documentEvents[name] = handler; } }, window: { addEventListener() {} },

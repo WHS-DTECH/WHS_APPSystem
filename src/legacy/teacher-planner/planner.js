@@ -125,7 +125,7 @@ function validContent(section, content) {
   return Buffer.byteLength(JSON.stringify(content)) <= 300000;
 }
 function createPlannerRouter({ query, searchStandards = searchNzqaStandards, loadStaff, loadSchoolCalendar, loadClasses,
-  loadAdminTeachers, authorizeAttendanceTarget, findReferences = findNzqaReferences, env = process.env }) {
+  loadAdminTeachers, authorizeAttendanceTarget, findReferences = findNzqaReferences, env = process.env, teachingSessions }) {
   const router = express.Router();
   router.use('/moderation/import/:type', express.raw({ type: DOCX, limit: '8mb' }));
   router.use(express.json({ limit: '320kb' }));
@@ -145,6 +145,7 @@ function createPlannerRouter({ query, searchStandards = searchNzqaStandards, loa
   router.get('/session', (req, res) => res.json({ csrf: req.session.plannerCsrf, userId: req.user.id,
     canManageSchoolSettings: Boolean(canManageSettings(req.user)) }));
   router.use('/trello', require('./termTrello').createTermTrelloRouter({ env }));
+  router.use('/sessions', require('./teachingSessions').createTeachingSessionsRouter({ ...teachingSessions, query }));
   router.use('/duty-roster', require('./dutyRoster').createDutyRosterRouter({ query, loadStaff }));
   router.use('/attendance', require('./attendance').createAttendanceRouter({ query, loadClasses }));
   router.get('/google-drive/config', (_req, res, next) => {

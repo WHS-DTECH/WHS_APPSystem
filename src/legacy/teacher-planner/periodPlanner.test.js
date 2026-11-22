@@ -221,7 +221,7 @@ test('period navigation waits for a focusout autosave already running and stays 
 
 test('period storage uses the actual date year, independent of the returning planner year', () => {
   const context = { section: 'period', year: 2026, week: '2026-12-28', term: '4',
-    periodDate: '2027-01-01', periodSlot: 'p2', selectedDay: 4, URLSearchParams, api: '/api/planner/' };
+    periodDate: '2027-01-01', periodSlot: 'p2', selectedDay: 4, URLSearchParams, api: '/api/planner/', sessionAddress: undefined };
   vm.runInNewContext(source.slice(source.indexOf('  function key()'), source.indexOf('  function offerSignin()')), context);
   assert.equal(context.key(), '2027-01-01_p2');
   assert.equal(context.address(), '/api/planner/2027/period/2027-01-01_p2');
