@@ -90,12 +90,37 @@
 .teaching-dashboard-columns { display: grid; grid-template-columns: minmax(240px, 320px) minmax(0, 1fr); gap: 20px; align-items: start; }
 .teaching-dashboard-columns > section { padding: 16px; border: 1px solid #b3c4cb; background: #fff; border-radius: 5px; }
 .teaching-dashboard-workspace { min-width: 0; }
-.teaching-dashboard-workspace .session-planner { margin: 0; }
+.teaching-dashboard-workspace .session-planner { margin: 0; max-width: none; width: 100%; box-sizing: border-box; }
 .teaching-dashboard-workspace .term-notes-toggle button { font-size: 18px; padding: 10px 20px; }
+.teaching-dashboard-workspace .session-planner:has(> [aria-label="Session Trello"]:not([hidden])) > :is(h2, h3, p) { display: none; }
 .teaching-dashboard-card { display: grid; gap: 6px; width: 100%; padding: 14px; margin: 10px 0; text-align: left; white-space: normal; }
 .teaching-dashboard-card[aria-pressed="true"] { outline: 3px solid #376783; outline-offset: 1px; }
 .planner-main:has(.teaching-dashboard) { width: 100%; }
 @media (max-width: 800px) { .teaching-dashboard-columns { grid-template-columns: minmax(0, 1fr); } }
+.teaching-slot-plan { min-width: 0; overflow-wrap: anywhere; }
+.teaching-slot-header { display: flex; justify-content: space-between; align-items: start; gap: 20px; padding: 20px; border-radius: 5px; background: #173e54; color: #fff; }
+.teaching-slot-header h3 { margin: 0 0 10px; font-size: 24px; color: #fff; }
+.teaching-slot-header p { margin: 6px 0; }
+.teaching-slot-source { flex: 0 0 auto; text-align: right; font-size: 13px; }
+.teaching-slot-source a { display: inline-block; padding: 8px 14px; border: 1px solid #fff; border-radius: 4px; font-size: 16px; font-weight: 700; color: #fff; }
+.teaching-slot-disclaimer { margin: 10px 0; font-size: 13px; }
+.teaching-slot { --slot-colour: #31586c; margin: 12px 0; border: 1px solid #b3c4cb; border-left: 6px solid var(--slot-colour); border-radius: 5px; background: #fff; }
+.teaching-slot[data-slot-type="routine"] { --slot-colour: #2e7d32; }
+.teaching-slot[data-slot-type="kit"] { --slot-colour: #00796b; }
+.teaching-slot[data-slot-type="activity"] { --slot-colour: #7b4e9b; }
+.teaching-slot[data-slot-type="unit-library"] { --slot-colour: #a54800; }
+.teaching-slot[data-slot-type="whanau"] { --slot-colour: #23689c; }
+.teaching-slot summary { cursor: pointer; padding: 14px 16px; }
+.teaching-slot-type { margin-right: 16px; color: var(--slot-colour); font-weight: 700; }
+.teaching-slot > p { margin: 6px 16px 16px; }
+.teaching-slot-panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.teaching-slot-panels > section { padding: 12px 16px; border: 1px solid #b3c4cb; border-radius: 5px; background: #f4f8fa; }
+.teaching-slot-panels h4, .teaching-slot-panels p { margin: 6px 0; }
+@media (max-width: 800px) {
+  .teaching-slot-header { flex-direction: column; }
+  .teaching-slot-source { text-align: left; }
+  .teaching-slot-panels { grid-template-columns: minmax(0, 1fr); }
+}
 .term-trello-panel > p { font-size: 13px; }
 .term-trello-panel [role="alert"] { color: #8e230c; background: #fff0eb; padding: 8px; }
 .term-trello-cards { list-style: none; padding: 0; }

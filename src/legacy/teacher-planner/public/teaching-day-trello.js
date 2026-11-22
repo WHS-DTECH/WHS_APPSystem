@@ -1,8 +1,20 @@
 (() => {
-  function renderCard(el, card, matched, expanded = false) {
+  function renderCard(el, card, matched, expanded = false, programme) {
+    let malformed = false;
+    if (expanded && globalThis.plannerTeachingSlots) {
+      try {
+        const structured = globalThis.plannerTeachingSlots.render(el, card, programme);
+        if (structured) return structured;
+      } catch (error) {
+        if (!(error instanceof globalThis.plannerTeachingSlots.FormatError)) throw error;
+        console.warn('Teaching slot format is invalid; displaying the original read-only card.');
+        malformed = true;
+      }
+    }
     const metadata = card.metadata;
     const article = el('article', '', { class: 'teaching-day-card' + (matched ? ' teaching-day-card-current' : '') });
     if (matched) article.append(el('p', 'This session', { class: 'teaching-day-current-label' }));
+    if (malformed) article.append(el('p', 'Slot format could not be read. Showing the original Trello card.', { role: 'alert' }));
     article.append(el('h4', card.name || metadata.display_name),
       el('p', metadata.start_time + '-' + metadata.end_time + ' NZ | ' + metadata.session_slot.toUpperCase()),
       el('p', metadata.lesson_title), el('p', 'Trello preparation status: ' + metadata.preparation_status));
@@ -20,7 +32,7 @@
       }
       article.append(resources);
     }
-    article.append(el('p', 'Trello updated ' + new Date(card.updatedAt).toLocaleString('en-NZ')),
+    article.append(el('p', 'Trello updated ' + new Date(card.updatedAt).toLocaleString('en-NZ', { timeZone: 'Pacific/Auckland' })),
       el('a', 'Open in Trello', { href: card.url, target: '_blank', rel: 'noopener noreferrer' }));
     return article;
   }
@@ -64,7 +76,7 @@
       const card = result.cards.find(card => (!context.cardId || card.id === context.cardId) &&
         card.metadata.session_slot === context.slot && card.metadata.class_key === context.classKey);
       if (!card) { selectedHost.append(el('p', 'No Trello card is selected for this session. Notes are unchanged.', { role: 'status' })); return; }
-      selectedHost.append(renderCard(el, card, false, true));
+      selectedHost.append(renderCard(el, card, false, true, context.programme));
     }
     async function load() {
       const current = ++generation; reading = true; refresh.disabled = true; result = undefined; error = undefined;
