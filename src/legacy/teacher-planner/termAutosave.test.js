@@ -164,6 +164,7 @@ test('term workspace places goals before the heading and dates, with a separate 
     kamarHourEvents() {}, kamarHourLabel() {}, date() {}, iso() {},
     plannerGoogleCalendar: { mount: (...args) => mounts.push(args) }
   };
+  vm.runInNewContext(await fs.readFile(path.join(__dirname, 'public', 'term-trello.js'), 'utf8'), context);
   vm.runInNewContext(
     source.slice(source.indexOf('  function inputField('), source.indexOf('  function updateWeekNavigation(')) +
     source.slice(source.indexOf('  function render(data)'), source.indexOf('  async function loadAttendanceSchedule(')), context);

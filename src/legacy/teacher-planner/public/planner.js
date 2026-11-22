@@ -2504,6 +2504,7 @@
       navigation.append(goals); grid.append(navigation);
     }
     grid.append(el('h2', headings[section], { class: 'paper-heading' }));
+    const termNotes = section === 'term' ? el('div', '', { class: 'term-notes-panel' }) : null;
     for (const [name, label, type, hint] of fields[section]) {
       if (section === 'term' && name === 'reflection') continue;
       const field = inputField(name, label, data[name], type, hint);
@@ -2513,9 +2514,15 @@
         input.addEventListener('input', () => { input.dataset.autoTermDate = 'false'; });
         input.addEventListener('change', () => { input.dataset.autoTermDate = 'false'; });
       }
-      grid.append(field);
+      if (termNotes && !['startDate', 'endDate'].includes(name)) termNotes.append(field);
+      else grid.append(field);
     }
     if (section === 'term') {
+      globalThis.plannerTermTrello.mount(grid, {
+        el, notes: termNotes, year, term,
+        request: async path => { await refreshSession(); return request(api + path); },
+        expandNotes: () => { for (const area of termNotes.querySelectorAll('textarea')) expandTermArea(area); }
+      });
       const files = ['term-1-takahe', 'term-2-bird', 'term-3-kakapo', 'term-4-kiwi'];
       const spread = el('div', '', { class: 'planner-spread term-spread' });
       spread.append(coverPage(files[Number(term) - 1], String(year)), grid);

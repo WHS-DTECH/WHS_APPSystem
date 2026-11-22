@@ -1721,6 +1721,58 @@ refuses the Core/Kamar connection. Embedded requests check the required schema
 but do not run migrations. Do not point Core's `db:migrate` command at the
 Planner database.
 
+### Term Notes | Trello overview
+
+The Term Planner keeps its original notes, date fields, headings, cover and
+calendar. **Notes** remains the default. The toggle hides/shows the same notes
+inputs without replacing, disabling or saving them; normal note autosave continues.
+**Trello** reads only the selected year/term's active overview list from the fixed
+[School Email TODO board](https://trello.com/b/QsFC8J3m/school-email-todo).
+For example, Term 4 in 2027 selects `TERM 4 — 2027`, never the 2026 list.
+Hyphen/en-dash/em-dash separators are accepted; multiple matching active lists are
+reported as ambiguous rather than guessed. Missing/empty lists are explicit and
+never created. Operational TO DO/URGENT/WAITING/DONE cards are not fetched.
+
+The compact overview contains plain-text titles, descriptions capped at 400
+characters, recorded start/due dates in NZ time, and original Trello links.
+Refresh or switch back to Trello to reread current cards. There is no Planner
+copy, card generation, Trello write route or automatic year/date carry-forward.
+Historical dates must be reviewed. This feature does not change the separate MCP
+OAuth connection or its tools.
+
+Configure only on the main Core Render service:
+
+1. Sign in to Trello as the board member who should supply this private overview.
+   In [Trello Apps Admin](https://trello.com/apps/admin), create/select a separate
+   API application, open **Trello Auth**, and generate its API key.
+2. Obtain a separate token using this URL, replacing `YOUR_API_KEY` locally:
+   `https://trello.com/1/authorize?expiration=30days&scope=read&response_type=token&name=WHS%20Teacher%20Planner%20Term%20Overview&key=YOUR_API_KEY`
+   Approve **read only**, not `write` or `account`. No callback/allowed-origin
+   change is needed for this manual token-display flow. Do not paste the token
+   into chat, source files or screenshots; it can read that Trello account's
+   boards, so keep it protected.
+3. In Render **Environment**, set `TEACHER_PLANNER_TRELLO_API_KEY`,
+   `TEACHER_PLANNER_TRELLO_TOKEN`, and `TEACHER_PLANNER_TRELLO_OWNER_ID`.
+   The owner is the authorised Core school account UUID (`userId` in that
+   account's authenticated `/teacher-planner/api/planner/session` response),
+   not a Trello member ID or email. Assign Teacher Planner to that active school
+   account in Global Control. No other teacher or administrator is implicitly
+   granted board access.
+4. Save and deploy. The owner can open Term > Trello and Refresh to verify
+   credentials, token read permissions, fixed-board membership and the matching
+   active list. Until configured, the panel reports unavailability without
+   changing Notes. Create/maintain umbrella lists/cards separately in Trello or
+   through the existing ChatGPT–Trello connection.
+5. Renew the token in Render before its 30-day expiry. Expired/revoked credentials,
+   rate limits and outages produce visible errors and Retry via Refresh; they
+   never imply an empty list. The integration checks the token is read-only on
+   each read and keeps credentials server-side.
+
+The owner-restricted endpoint is
+`GET /teacher-planner/api/planner/trello/:year/:term`; its responses use
+`Cache-Control: no-store`. Trello credentials and raw API response bodies are not
+logged or returned to the browser.
+
 ### Read-only ChatGPT / MCP connection
 
 The isolated MCP endpoint is

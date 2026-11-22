@@ -58,6 +58,20 @@
 .whs-planner button { border: 1px solid #b3c4cb; border-radius: 5px; background: #fff; color: #31586c; padding: 9px 13px; cursor: pointer; font: inherit; }
 .whs-planner button:disabled { opacity: .55; cursor: wait; }
 .whs-planner [hidden] { display: none !important; }
+.term-notes-toggle { display: flex; gap: 8px; margin: 12px 0; }
+.term-notes-toggle button[aria-pressed="true"] { background: #245f85; color: #fff; }
+.term-trello-panel { min-width: 0; overflow-wrap: anywhere; }
+.term-trello-panel h3 { margin: 12px 0; color: #376783; }
+.term-trello-panel > p { font-size: 13px; }
+.term-trello-panel [role="alert"] { color: #8e230c; background: #fff0eb; padding: 8px; }
+.term-trello-cards { list-style: none; padding: 0; }
+.term-trello-cards li { margin: 8px 0; padding: 10px; border: 1px solid #b3c4cb; border-radius: 5px; background: #fff; }
+.term-trello-cards h4 { margin: 0 0 6px; color: #31586c; }
+.term-trello-cards p, .term-trello-cards a { margin: 6px 0; font-size: 13px; }
+@media print {
+  .term-notes-toggle, .term-trello-panel > button { display: none; }
+  .term-trello-cards li { break-inside: avoid; }
+}
 .whs-planner :focus-visible { outline: 3px solid #376aa3; outline-offset: 2px; }
 .planner-toolbar, .planner-tabs, .week-controls, .planner-save { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
 .planner-toolbar label, .week-controls label { display: grid; gap: 5px; }

@@ -144,6 +144,7 @@ function createPlannerRouter({ query, searchStandards = searchNzqaStandards, loa
   });
   router.get('/session', (req, res) => res.json({ csrf: req.session.plannerCsrf, userId: req.user.id,
     canManageSchoolSettings: Boolean(canManageSettings(req.user)) }));
+  router.use('/trello', require('./termTrello').createTermTrelloRouter({ env }));
   router.use('/duty-roster', require('./dutyRoster').createDutyRosterRouter({ query, loadStaff }));
   router.use('/attendance', require('./attendance').createAttendanceRouter({ query, loadClasses }));
   router.get('/google-drive/config', (_req, res, next) => {
