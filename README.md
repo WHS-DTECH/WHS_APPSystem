@@ -1954,6 +1954,8 @@ category names above. For example:
 
 ```text
 Reminder: Week 7
+Unit: Binary & Data
+Lesson: Encoding Binary
 Resources:
 - Web Links | Minecraft Player Kit | https://dtech-hub2.onrender.com/practical-skills/kit-worksheet.html?kit=kit-minecraft
 - Print Resources | Classroom worksheet | https://drive.google.com/file/d/SUPPLIED_DOCUMENT_ID/view?usp=drive_link
@@ -1987,18 +1989,35 @@ in `Pacific/Auckland`. Valid HTTP(S) resource URLs open the original resource.
 An absent or `unresolved` URL can resolve uniquely against JPI's already-loaded
 CW Routine Markdown links or verified Unit Library lesson/resource links.
 The Minecraft Player Kit and Binary Piano lesson are available through those
-sources. The exact Routine/Kit slot named Typing Kit also has two explicitly
-approved destinations: `https://www.typingtest.com/` and
-`https://dtech-hub2.onrender.com/practical-skills/typing-kit.html`. Its display copy
-is "Students practice their keyboarding skills by logging their results from
-TypingTest.com." These display references do not edit the Trello card or Planner
-records; supplied additional resources remain available. An explicit `Reminder:`
-is displayed, or the card's explicitly named `Week n reminder: Typing Kit.` is
-shown as a Week badge without calculating a week from dates.
+sources. Optional per-slot `Unit:` and `Lesson:` fields display the Trello-supplied
+hierarchy above the description; they do not select or change the Planner's
+programme or confirmed progress. Titles, descriptions and resources remain
+Trello-driven, including Typing Kit: the renderer no longer injects a fixed
+description or destinations. Put the desired copy and links into the card.
+The display-only prefix `Existing CW Routine ->` (or its arrow equivalent) is
+removed from resource labels without changing their lookup references or URLs.
+An explicit `Reminder:` is displayed, or the card's explicitly named
+`Week n reminder: Typing Kit.` is shown as a Week badge without calculating a week
+from dates.
 Credentials and ambiguous/invalid links are rejected,
 not guessed. Malformed or older cards retain a readable original-card fallback.
 The dashboard fills its available width, with stacked columns on smaller screens.
 Notes, progress, autosaving, rapid session switching and their storage are unchanged.
+
+For the JPI Monday 23 November 2026 card, the required content corrections belong
+in Trello, not in the page code: one Minecraft slot with explicit Player and
+Builder links; Binary Piano review with construction-complete wording and
+`Binary Piano.pdf`; and a fourth slot named Encoding Binary with its own
+Lesson 2 link and `BinaryMsg.pdf`. The existing Learning Pathways library supplies
+the canonical lesson destinations:
+`https://whs-appsystem.onrender.com/dtech-hub/learning-pathways/lesson-binary-piano.html`
+and
+`https://whs-appsystem.onrender.com/dtech-hub/learning-pathways/lesson-encoding-binary.html`.
+Lesson 2 converts decimal numbers to binary using the Binary Piano and applies
+the A=1 to Z=26 classroom letter code, not ASCII. Use explicit URLs copied from
+that library in the card; no lesson filenames or links are generated from titles.
+Updating the card's description/header title leaves its stable Trello ID intact.
+Refreshing Trello then displays the changes without editing Notes.
 
 **Exact JPI example (optional for the Monday pilot):**
 

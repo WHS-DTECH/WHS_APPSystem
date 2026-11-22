@@ -8,12 +8,6 @@
     'Unit Plan': { colour: 'unit', icon: '\uD83D\uDCDA' }
   };
   const activityIcons = { Routine: '\u21BB', Kit: '\uD83E\uDDF0', Activity: '\u25B6', 'Unit Library': '\uD83D\uDCDA', 'Whānau': '\uD83D\uDC65' };
-  // Explicitly approved destinations for the Typing Kit routine, not a filename search.
-  const typingResources = [
-    { category: 'Web Links', resource: 'TypingTest.com', resourceUrl: 'https://www.typingtest.com/' },
-    { category: 'Web Links', resource: 'DTECH HUB Typing Kit', resourceUrl: 'https://dtech-hub2.onrender.com/practical-skills/typing-kit.html' }
-  ];
-  const typingDescription = 'Students practice their keyboarding skills by logging their results from TypingTest.com.';
   class FormatError extends Error {}
   function parse(description) {
     const text = description.replace(/\r\n/g, '\n');
@@ -53,15 +47,15 @@
       if (slot) {
         if (!Object.hasOwn(types, slot[2]) || numbers.has(slot[1])) throw new FormatError('Invalid slot type or duplicate slot number.');
         numbers.add(slot[1]);
-        current = { number: slot[1], type: slot[2], colour: types[slot[2]], title: slot[3], details: '', reminder: '', resource: '', resourceUrl: '', resources: [] };
+        current = { number: slot[1], type: slot[2], colour: types[slot[2]], title: slot[3], details: '', reminder: '', unit: '', lesson: '', resource: '', resourceUrl: '', resources: [] };
         current.fields = new Set(); slots.push(current); lastField = undefined; continue;
       }
       if (line.startsWith('### ')) throw new FormatError('Use SLOT n | Type | Title headings.');
       if (!line.trim()) { if (lastField === 'details') current.details += '\n'; continue; }
       if (!current) throw new FormatError('A slot heading is required before its content.');
-      const field = /^(Resource URL|Resource|Resources|Details|Reminder):[ \t]*(.*)$/.exec(line);
+      const field = /^(Resource URL|Resource|Resources|Details|Reminder|Unit|Lesson):[ \t]*(.*)$/.exec(line);
       if (field) {
-        const key = { Resource: 'resource', 'Resource URL': 'resourceUrl', Resources: 'resources', Details: 'details', Reminder: 'reminder' }[field[1]];
+        const key = { Resource: 'resource', 'Resource URL': 'resourceUrl', Resources: 'resources', Details: 'details', Reminder: 'reminder', Unit: 'unit', Lesson: 'lesson' }[field[1]];
         if (current.fields.has(key)) throw new FormatError('Duplicate slot field.');
         if (key === 'resources' && field[2].trim()) throw new FormatError('Place named resource entries below Resources:.');
         current.fields.add(key);
@@ -75,7 +69,7 @@
           { category: resource[1], resource: resource[2].trim(), resourceUrl: resource[3].trim() } :
           { category: 'Web Links', resource: resource[1].trim(), resourceUrl: resource[2]?.trim() || '' });
       } else if (lastField === 'details') current.details += '\n' + line;
-      else throw new FormatError('Use Resource, Resource URL, Resources, Details and Reminder fields.');
+      else throw new FormatError('Use Resource, Resource URL, Resources, Details, Reminder, Unit and Lesson fields.');
     }
     if (!slots.length || slots.length > 50) throw new FormatError('Provide between one and fifty teaching slots.');
     return { metadata, slots, preparation: panels.preparation.trim(), continuation: panels.continuation.trim() };
@@ -160,8 +154,18 @@
       const reminder = slot.reminder || (week ? 'Week ' + week[1] : '');
       if (reminder) badges.append(el('span', reminder, { class: 'teaching-slot-reminder' }));
       details.replaceChildren(heading, badges);
-      if (typing || slot.details) details.append(el('p', typing ? typingDescription : slot.details.trim(), { class: 'session-preserved-text teaching-activity-description' }));
-      const resources = [...(typing ? typingResources : []), ...(slot.resource || slot.resourceUrl ? [slot] : []), ...slot.resources];
+      if (slot.unit || slot.lesson) {
+        const hierarchy = el('div', '', { class: 'teaching-slot-hierarchy' });
+        for (const [key, label] of [['unit', 'Unit'], ['lesson', 'Lesson']]) {
+          if (!slot[key]) continue;
+          const row = el('p');
+          row.append(el('strong', label + ': '), slot[key]);
+          hierarchy.append(row);
+        }
+        details.append(hierarchy);
+      }
+      if (slot.details) details.append(el('p', slot.details.trim(), { class: 'session-preserved-text teaching-activity-description' }));
+      const resources = [...(slot.resource || slot.resourceUrl ? [slot] : []), ...slot.resources];
       const grid = el('div', '', { class: 'teaching-resource-grid' });
       for (const [category, style] of Object.entries(categories)) {
         const entries = resources.filter(resource => (resource.category || 'Web Links') === category);
@@ -169,17 +173,13 @@
         const section = el('section', '', { class: 'teaching-resource-section', 'data-resource-category': style.colour });
         const label = el('h5');
         label.append(el('span', style.icon, { 'aria-hidden': 'true' }), ' ' + category);
-        const list = el('ul', '', { class: 'teaching-slot-resources' }), seen = new Set();
+        const list = el('ul', '', { class: 'teaching-slot-resources' });
         for (const resource of entries) {
-          const legacyTyping = typing && category === 'Web Links' && /^(?:Existing CW Routine\s*(?:→|->)\s*)?Typing Kit$/i.test(resource.resource);
-          const url = legacyTyping && (!resource.resourceUrl || resource.resourceUrl.trim().toLowerCase() === 'unresolved') ?
-            typingResources[1].resourceUrl : category === 'Web Links' ? resolveResource({ ...resource, type: slot.type }, programme) :
-              resourceUrl(resource.resourceUrl);
-          if (typing && url && seen.has(url)) continue;
-          if (url) seen.add(url);
+          const url = category === 'Web Links' ? resolveResource({ ...resource, type: slot.type }, programme) : resourceUrl(resource.resourceUrl);
+          const resourceTitle = (resource.resource || '').replace(/^Existing CW Routine\s*(?:→|->)\s*/i, '').trim();
           const item = el('li', '', { class: 'teaching-slot-resource' });
-          item.append(url ? el('a', resource.resource || 'Open resource', { class: 'teaching-resource-link', href: url, target: '_blank', rel: 'noopener noreferrer' }) :
-            el('span', (resource.resource || 'Resource') + ' - Link unavailable', { class: 'teaching-resource-unavailable' }));
+          item.append(url ? el('a', resourceTitle || 'Open resource', { class: 'teaching-resource-link', href: url, target: '_blank', rel: 'noopener noreferrer' }) :
+            el('span', (resourceTitle || 'Resource') + ' - Link unavailable', { class: 'teaching-resource-unavailable' }));
           list.append(item);
         }
         section.append(label, list); grid.append(section);
