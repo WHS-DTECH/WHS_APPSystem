@@ -111,7 +111,9 @@
 .teaching-slot[data-slot-type="unit-library"] { --slot-colour: #a54800; }
 .teaching-slot[data-slot-type="whanau"] { --slot-colour: #23689c; }
 .teaching-slot summary { cursor: pointer; padding: 14px 16px; }
-.teaching-slot-type { margin-right: 16px; color: var(--slot-colour); font-weight: 700; }
+.teaching-slot-row { display: inline-flex; align-items: center; gap: 16px; width: calc(100% - 22px); vertical-align: middle; }
+.teaching-slot-title { flex: 1; min-width: 0; font-size: 20px; font-weight: 700; }
+.teaching-slot-labels { display: flex; flex-direction: column; flex: 0 0 auto; max-width: 40%; text-align: right; color: #626f76; font-size: 12px; font-weight: 400; }
 .teaching-slot > p { margin: 6px 16px 16px; }
 .teaching-slot-panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .teaching-slot-panels > section { padding: 12px 16px; border: 1px solid #b3c4cb; border-radius: 5px; background: #f4f8fa; }

@@ -872,13 +872,13 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(embedded, /href="\/launchpad\/apps\/relief-plan"/);
   assert.match(embedded, /href="\/launchpad\/apps\/whs-unit-library"/);
   assert.match(embedded, /href="\/launchpad\/apps\/whs-assessment-manager"/);
-  assert.match(html, /planner\.css\?v=teaching-slots-1/);
+  assert.match(html, /planner\.css\?v=teaching-slot-rows-1/);
   assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=teaching-slots-1"'));
   assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=teaching-slots-1"'));
   const trelloScript = html.indexOf('src="/planner/framework/term-trello.js?v=trello-labels-1"');
   assert.ok(trelloScript >= 0 && trelloScript < html.indexOf('src="/planner/framework/planner.js?v=teaching-slots-1"'));
   assert.ok(html.indexOf('src="/planner/framework/session-schema.js?v=scheduled-session-2"') < html.indexOf('src="/planner/framework/teaching-session.js?v=teaching-dashboard-1"'));
-  assert.ok(html.indexOf('src="/planner/framework/teaching-slots.js?v=1"') < html.indexOf('src="/planner/framework/teaching-day-trello.js?v=teaching-slots-1"'));
+  assert.ok(html.indexOf('src="/planner/framework/teaching-slots.js?v=2"') < html.indexOf('src="/planner/framework/teaching-day-trello.js?v=teaching-slots-1"'));
   assert.ok(html.indexOf('src="/planner/framework/teaching-day-trello.js?v=teaching-slots-1"') < html.indexOf('src="/planner/framework/teaching-session.js?v=teaching-dashboard-1"'));
   assert.ok(html.indexOf('src="/planner/framework/teaching-session.js?v=teaching-dashboard-1"') < html.indexOf('src="/planner/framework/planner.js?v=teaching-slots-1"'));
   const heading = html.match(/<header class="planner-heading">([\s\S]*?)<\/header>/)[1];

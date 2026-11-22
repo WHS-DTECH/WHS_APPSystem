@@ -105,9 +105,13 @@ test('teaching slots render both four-slot cards in stored order with NZ headers
     const view = renderer.render(node, card, classKey === 'JPI' ? slotProgramme : null), nodes = slotDescendants(view);
     const slots = nodes.filter(item => item.attrs.class === 'teaching-slot');
     assert.equal(slots.length, 4);
-    assert.deepEqual(slots.map(item => item.children[0].children[1].textContent), parsed.slots.map(slot => slot.title));
+    assert.deepEqual(slots.map(item => item.children[0].children[0].children[0].textContent), parsed.slots.map(slot => slot.title));
     for (let index = 0; index < slots.length; index++) {
       assert.equal(slots[index].tag, 'details');
+      const row = slots[index].children[0].children[0];
+      assert.equal(row.children[0].tag, 'strong', 'the activity title comes before secondary labels');
+      assert.deepEqual(row.children[1].children.map(label => label.textContent),
+        ['Slot ' + parsed.slots[index].number, parsed.slots[index].type]);
       assert.equal(slots[index].children[1].textContent, parsed.slots[index].details.trim());
     }
     const header = nodes.find(item => item.tag === 'header'), headerText = slotDescendants(header).map(item => item.textContent).join(' ');
