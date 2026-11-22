@@ -136,6 +136,8 @@
 .teaching-slot-detail-labels { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; font-size: 13px; font-weight: 700; }
 .teaching-slot-type-label, .teaching-slot-reminder { padding: 4px 9px; border-radius: 4px; background: #eaf2f8; color: #173e54; }
 .teaching-slot-reminder { background: #fff0c6; color: #715100; }
+.teaching-slot-hierarchy { padding: 8px 12px; margin: 12px 0; background: #f4f8fa; border-left: 3px solid #376783; }
+.teaching-slot-hierarchy p { margin: 3px 0; font-size: 15px; overflow-wrap: anywhere; }
 .teaching-slot-detail .teaching-activity-description { margin: 12px 0 16px; font-size: 17px; line-height: 1.5; }
 .teaching-resource-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
 .teaching-resource-section { --resource-colour: #245f85; --resource-background: #eaf2f8; min-width: 0; border: 1px solid #b3c4cb; border-radius: 5px; overflow-wrap: anywhere; }
