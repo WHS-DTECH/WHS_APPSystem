@@ -2010,13 +2010,15 @@ Builder links; Binary Piano review with construction-complete wording and
 `Binary Piano.pdf`; and a fourth slot named Encoding Binary with its own
 Lesson 2 link and `BinaryMsg.pdf`. The existing Learning Pathways library supplies
 the canonical lesson destinations:
-`https://whs-appsystem.onrender.com/dtech-hub/learning-pathways/lesson-binary-piano.html`
+`https://dtech-hub2.onrender.com/learning-pathways/lesson-binary-piano.html`
 and
-`https://whs-appsystem.onrender.com/dtech-hub/learning-pathways/lesson-encoding-binary.html`.
+`https://dtech-hub2.onrender.com/learning-pathways/lesson-encoding-binary.html`.
 Lesson 2 converts decimal numbers to binary using the Binary Piano and applies
 the A=1 to Z=26 classroom letter code, not ASCII. Use explicit URLs copied from
 that library in the card; no lesson filenames or links are generated from titles.
 Updating the card's description/header title leaves its stable Trello ID intact.
+The sidebar uses a valid, session-matched V1 `display_title`, not the old pilot
+lesson label; malformed or mismatched titles log a warning and retain that label.
 Refreshing Trello then displays the changes without editing Notes.
 
 **Exact JPI example (optional for the Monday pilot):**
