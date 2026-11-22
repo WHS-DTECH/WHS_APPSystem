@@ -517,6 +517,33 @@ test('dashboard term follows existing school dates, preserves explicit selection
     assert.equal(context.periodDate, '2026-11-23');
   }
 });
+test('relocated term controls are excluded from Notes input/change autosaving', async () => {
+  let scheduled = 0;
+  const context = { plannerSessionSchema: require('./public/session-schema'), section: 'period',
+    dirty: false, editVersion: 0, save: {}, loaded: true, busy: false, autosavePaused: false,
+    autosaves: () => true, notice() {}, scheduleAutosave() { scheduled++; } };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-day-trello'), 'utf8') +
+    source.slice(source.indexOf('  function changed(event)'), source.indexOf("  form.addEventListener('input', changed);")), context);
+  const host = node(), termControl = node('label'), select = node('select');
+  termControl.append(select);
+  context.plannerTeachingDayTrello.dashboard(host, { date: '2026-11-23', slot: 'whanau' }, {
+    el: node, termControl, select() {}, request: async () => ({ status: 'ok', cards: [], issues: [] })
+  });
+  await flush();
+  function ancestors(parent, target) {
+    if (parent === target) return [parent];
+    for (const child of parent.children.filter(item => typeof item === 'object')) {
+      const found = ancestors(child, target);
+      if (found) return [parent, ...found];
+    }
+  }
+  select.closest = () => ancestors(host, select).reverse().find(item => Object.hasOwn(item.attrs, 'data-planner-navigation'));
+  context.changed({ target: select });
+  context.changed({ target: select });
+  assert.equal(context.dirty, false);
+  assert.equal(context.editVersion, 0);
+  assert.equal(scheduled, 0, 'changing a display term must not create or update a session record');
+});
 test('activity instructions format saved lines as bullets without duplicating markers or changing blank lines', () => {
   const notices = [], field = node();
   const input = {
