@@ -116,7 +116,11 @@
     for (const slot of plan.slots) {
       const details = el('details', '', { class: 'teaching-slot', 'data-slot-type': slot.colour });
       const summary = el('summary');
-      summary.append(el('span', 'Slot ' + slot.number + ' | ' + slot.type + ' | ', { class: 'teaching-slot-type' }), el('strong', slot.title));
+      const row = el('span', '', { class: 'teaching-slot-row' });
+      const labels = el('span', '', { class: 'teaching-slot-labels' });
+      labels.append(el('span', 'Slot ' + slot.number), el('span', slot.type));
+      row.append(el('strong', slot.title, { class: 'teaching-slot-title' }), labels);
+      summary.append(row);
       details.append(summary);
       if (slot.details) details.append(el('p', slot.details.trim(), { class: 'session-preserved-text' }));
       if (slot.resource || slot.resourceUrl) {

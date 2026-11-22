@@ -1914,6 +1914,8 @@ cards or add integration permissions.
 
 Slots retain their document order, even when their numbers are not consecutive.
 Routine is green, Kit teal, Activity purple, Unit Library orange and Whanau blue.
+The whole row is clickable, with its native expand/collapse arrow and a bold
+20px activity title first. Small muted slot/category labels sit at the far right.
 Each white slot expands to show optional `Resource:`, `Resource URL:` and
 `Details:` fields; details may continue across lines. Optional exact
 `## Preparation & reminders` and `## Continuation` sections appear below.
