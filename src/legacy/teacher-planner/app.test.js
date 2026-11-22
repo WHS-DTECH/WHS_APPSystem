@@ -856,7 +856,7 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(planner, /<h2 id="planner-nav-planning">Planner<\/h2>/);
   assert.deepEqual([...planner.matchAll(/data-section="([^"]+)"/g)].map(match => match[1]),
     ['cover', 'year', 'term', 'week', 'timetable']);
-  assert.match(planner, /data-section="timetable">Teacher Timetable<\/button>/);
+  assert.match(planner, /data-section="timetable">Teaching Dashboard<\/button>/);
   assert.match(setup, /<summary id="planner-nav-setup">Setup<\/summary>/);
   assert.match(setup, /data-section="setup"/);
   assert.match(modules, /<summary id="planner-nav-modules">Modules<\/summary>/);
@@ -872,14 +872,14 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(embedded, /href="\/launchpad\/apps\/relief-plan"/);
   assert.match(embedded, /href="\/launchpad\/apps\/whs-unit-library"/);
   assert.match(embedded, /href="\/launchpad\/apps\/whs-assessment-manager"/);
-  assert.match(html, /planner\.css\?v=scheduled-session-2/);
-  assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=scheduled-session-2"'));
-  assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=scheduled-session-2"'));
+  assert.match(html, /planner\.css\?v=teaching-dashboard-1/);
+  assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < html.indexOf('src="/planner/framework/planner.js?v=teaching-dashboard-1"'));
+  assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < html.indexOf('src="/planner/framework/planner.js?v=teaching-dashboard-1"'));
   const trelloScript = html.indexOf('src="/planner/framework/term-trello.js?v=trello-labels-1"');
-  assert.ok(trelloScript >= 0 && trelloScript < html.indexOf('src="/planner/framework/planner.js?v=scheduled-session-2"'));
-  assert.ok(html.indexOf('src="/planner/framework/session-schema.js?v=scheduled-session-2"') < html.indexOf('src="/planner/framework/teaching-session.js?v=scheduled-session-2"'));
-  assert.ok(html.indexOf('src="/planner/framework/teaching-day-trello.js?v=scheduled-session-2"') < html.indexOf('src="/planner/framework/teaching-session.js?v=scheduled-session-2"'));
-  assert.ok(html.indexOf('src="/planner/framework/teaching-session.js?v=scheduled-session-2"') < html.indexOf('src="/planner/framework/planner.js?v=scheduled-session-2"'));
+  assert.ok(trelloScript >= 0 && trelloScript < html.indexOf('src="/planner/framework/planner.js?v=teaching-dashboard-1"'));
+  assert.ok(html.indexOf('src="/planner/framework/session-schema.js?v=scheduled-session-2"') < html.indexOf('src="/planner/framework/teaching-session.js?v=teaching-dashboard-1"'));
+  assert.ok(html.indexOf('src="/planner/framework/teaching-day-trello.js?v=teaching-dashboard-1"') < html.indexOf('src="/planner/framework/teaching-session.js?v=teaching-dashboard-1"'));
+  assert.ok(html.indexOf('src="/planner/framework/teaching-session.js?v=teaching-dashboard-1"') < html.indexOf('src="/planner/framework/planner.js?v=teaching-dashboard-1"'));
   const heading = html.match(/<header class="planner-heading">([\s\S]*?)<\/header>/)[1];
   for (const id of ['planner-year', 'open-year', 'print-planner']) {
     assert.match(heading, new RegExp('id="' + id + '"'));
@@ -962,7 +962,7 @@ test('module denies anonymous/student access and accepts a supplied teacher iden
     assert.match(html, /Last Updated:/);
     assert.match(html, /id="planner-year"[^>]*value="2026"/);
     assert.match(html, /data-api="\/module\/api\/planner\/"/);
-    assert.match(html, /src="\/module\/framework\/planner\.js\?v=scheduled-session-2"/);
+    assert.match(html, /src="\/module\/framework\/planner\.js\?v=teaching-dashboard-1"/);
     assert.match(html, /Weekly planner/);
     assert.match(html, /Professional learning/);
     assert.ok(!html.includes('name="whs-global-control"'));

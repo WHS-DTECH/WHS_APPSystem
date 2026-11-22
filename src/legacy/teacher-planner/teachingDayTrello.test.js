@@ -78,7 +78,7 @@ test('read-only feed filters student-facing sessions and sorts by timetable slot
   assert.equal(result.cards[1].resources[0].url, 'https://example.test/worksheet');
   assert.equal(result.issues.length, 1);
   assert.ok(!JSON.stringify(result).includes(state.env.TEACHER_PLANNER_TRELLO_TOKEN));
-  assert.ok(!JSON.stringify(result).includes('unrelated card title'));
+  assert.equal(result.cards[1].name, state.cards[0].name);
   assert.equal(state.calls.length, 4);
   assert.ok(state.calls.every(({ url, request }) => request.method === 'GET' && request.redirect === 'error' &&
     new URL(url).origin === 'https://api.trello.com' && !new URL(url).searchParams.has('token') &&
@@ -111,6 +111,26 @@ test('encoded Whanau card-name slugs remain valid without accepting encoded path
     state.cards[1].url = url;
     assert.equal((await call()).status, 502);
   }
+});
+
+test('Monday pilot uses the two approved stable IDs without changing descriptions or requiring metadata', async t => {
+  const { state, call } = await fixture(t);
+  state.cards[0].id = '6b02862264674aeee7f041cb';
+  state.cards[1].id = '6b02861f8bb8cb32f08f0cc4';
+  state.cards.forEach(card => { card.desc = 'Existing preparation\n[Resource](https://example.test/resource)'; });
+  const response = await call(), feed = await response.json();
+  assert.equal(response.status, 200);
+  assert.deepEqual(feed.cards.map(card => [card.id, card.metadata.session_slot, card.location]), [
+    ['6b02861f8bb8cb32f08f0cc4', 'whanau', 'CW'], ['6b02862264674aeee7f041cb', 'p2', 'CW']
+  ]);
+  assert.equal(feed.cards[0].description, state.cards[1].desc);
+  assert.equal(feed.cards[1].name, state.cards[0].name);
+  assert.equal(feed.cards[0].resources.length, 1);
+  assert.equal(feed.issues.length, 0);
+  assert.equal((await (await call('teaching-day-trello/2026-11-24')).json()).cards.length, 0);
+  state.cards[0].id = 'e'.repeat(24);
+  assert.equal((await (await call()).json()).issues.length, 1, 'unrecognised IDs are not matched by titles');
+  assert.equal(state.queries.length, 0);
 });
 
 test('anonymous, student and other-owner requests cannot read private cards; absent config makes no upstream requests', async t => {

@@ -103,7 +103,7 @@ function createTeachingSessionsRouter({ query, timetable = loadTimetable, conten
     }
     const event = candidates[0];
     if (clock(event.start) !== '10:00' || clock(event.end) !== '11:00') return null;
-    return { id: event.id, date: value, start: event.start, end: event.end, location: event.location,
+    return { id: event.id, date: value, start: event.start, end: event.end, location: 'CW',
       title: event.title, className: 'JPI', classKey: 'JPI', course: 'JuniorDTECH', groupKey: GROUP, type: 'teaching', slot: 'p2' };
   }
   async function genericPlan(req, res) {
@@ -124,7 +124,9 @@ function createTeachingSessionsRouter({ query, timetable = loadTimetable, conten
         endTime: event ? clock(event.end) : definition?.[3] || ''
       };
       return res.json({ available: true, event: { date: value, slot, label: definition?.[1] || 'Manual session',
-        title: event?.title || session.title, location: event?.location || '',
+        title: event?.title || session.title,
+        location: /^PIDTECH\s*\(JPI\)$/i.test(event?.title || '') ||
+          value === '2026-11-23' && slot === 'whanau' && /^WHANAU\s*\(9WHAU\)$/i.test(event?.title || '') ? 'CW' : event?.location || '',
         classKey: event && /^[^(]+\(([A-Z0-9_-]+)\)$/i.exec(event.title.trim())?.[1].toUpperCase() || null,
         source: event ? 'KAMAR' : 'manual' },
         content: row?.content || { note: '', evaluation: '', activities: [], session },

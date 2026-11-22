@@ -107,7 +107,7 @@ test('JPI session roundtrip preserves explicit timing and confirmation, prevents
   assert.equal(otherPlan.teaching, undefined, 'other owners do not receive this owner-private teaching context');
   let plan = await f.get(path);
   assert.equal(plan.event.className, 'JPI');
-  assert.equal(plan.event.location, '05');
+  assert.equal(plan.event.location, 'CW');
   assert.equal(plan.checkpoint.confirmed_at, null);
   assert.equal(f.records.size, 0, 'opening the plan does not save a record');
   const content = plan.content;

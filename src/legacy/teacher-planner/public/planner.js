@@ -81,6 +81,8 @@
   }
   let week = monday(localDate.startsWith('2026') ? localDate : '2026-01-05');
   const restored = new URLSearchParams(location.hash.slice(1));
+  let dashboardMode = restored.get('dashboard') === '1', dashboardTrello = restored.get('view') === 'trello';
+  let selectedTeachingCard = /^[0-9a-f]{24}$/.test(restored.get('card') || '') ? restored.get('card') : '';
   if (/^[0-6]$/.test(restored.get('setupTab') || '')) setupTab = Number(restored.get('setupTab'));
   if (/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(restored.get('activity') || '')) activityRecord = restored.get('activity');
   let openingTermPending = !['cover', ...Object.keys(fields)].includes(restored.get('section'));
@@ -134,6 +136,8 @@
     return new URLSearchParams({ section, year, week, term, day: selectedDay,
       ...(section === 'setup' ? { setupTab } : {}),
       ...(['period', 'activity'].includes(section) ? { date: periodDate, slot: periodSlot } : {}),
+      ...(dashboardMode && section === 'period' ? { dashboard: '1', view: dashboardTrello ? 'trello' : 'notes',
+        ...(selectedTeachingCard ? { card: selectedTeachingCard } : {}) } : {}),
       ...(section === 'activity' ? { activity: activityRecord } : {}),
       ...(section === 'moderation' ? { record: moderationRecord, page: moderationPage } : {}), ...overrides }).toString();
   }
@@ -962,11 +966,20 @@
   function mountTeachingSession(data, legacy) {
     content.dataset.view = 'period';
     sessionAddress = 'sessions/' + periodDate + '/' + periodSlot;
-    sessionPlanner = globalThis.plannerTeachingSession.mount(content, { ...data, legacy }, {
+    const teachingDay = async value => {
+      await refreshSession(); return request(api + 'teaching-day-trello/' + value);
+    };
+    const dashboard = dashboardMode ? globalThis.plannerTeachingDayTrello.dashboard(content, {
+      date: periodDate, slot: periodSlot, classKey: data.event.classKey, cardId: selectedTeachingCard
+    }, { el, request: teachingDay, select: card =>
+      openSessionPlan(card.metadata.teaching_date, card.metadata.session_slot, undefined, card.id) }) : null;
+    sessionPlanner = globalThis.plannerTeachingSession.mount(dashboard?.workspace || content, { ...data, legacy }, {
       el,
       back: async () => { if (await ensureSaved()) navigatePlannerSection('timetable'); },
-      teachingDay: async value => {
-        await refreshSession(); return request(api + 'teaching-day-trello/' + value);
+      teachingDay, showTrello: dashboard?.showTrello, initialTrello: dashboardMode && dashboardTrello,
+      viewChanged: useNotes => {
+        if (!dashboardMode) return;
+        dashboardTrello = !useNotes; history.replaceState(null, '', '#' + viewFragment());
       },
       openRoutine: async id => {
         if (!await ensureSaved()) return;
@@ -993,7 +1006,7 @@
       }
     });
   }
-  async function openSessionPlan(value, slot, draft) {
+  async function openSessionPlan(value, slot, draft, cardId) {
     if (!await ensureSaved()) return;
     if (busy) { notice('Your planner is still loading. Wait before opening another session.'); return; }
     if (!globalThis.plannerSessionSchema.validSlot(slot) || !/^\d{4}-\d{2}-\d{2}$/.test(value) ||
@@ -1002,6 +1015,7 @@
       notice('Choose a valid weekday session date.', true); return;
     }
     manualSessionDraft = draft ? { date: value, slot, session: draft } : undefined;
+    selectedTeachingCard = cardId || '';
     section = 'period'; periodDate = value; periodSlot = slot; year = Number(value.slice(0, 4));
     yearInput.value = year; updateYearBadge(); week = monday(value);
     selectedDay = (date(value).getUTCDay() + 6) % 7; await load();
@@ -2559,32 +2573,6 @@
       const cover = coverPage('cover-kokako', '');
       content.append(cover); return;
     }
-    if (section === 'timetable') {
-      const panel = el('section', '', { class: 'paper-page teacher-timetable-panel', 'aria-label': 'Teacher Timetable' });
-      const calendar = el('section');
-      panel.append(el('h2', 'Teacher Timetable', { class: 'paper-heading' }), calendar);
-      content.append(panel);
-      mountSessionLauncher(panel);
-      globalThis.plannerGoogleCalendar.mount(calendar, {
-        el, request: async path => { await refreshSession(); return request(api + path); },
-        mutate: async (path, method, body) => {
-          await refreshSession();
-          return request(api + 'google-calendar/' + path, {
-            method, headers: { 'Content-Type': 'application/json', 'x-planner-csrf': csrf },
-            ...(body ? { body: JSON.stringify(body) } : {})
-          });
-        },
-        renderWeek: renderKamarWeek, sunday: kamarSunday, today: kamarToday, weekDates: kamarWeekDates,
-        dayEvents: kamarEventsForDay, hourEvents: kamarHourEvents, hourLabel: kamarHourLabel, date, iso,
-        openSession: async (event, slot) => {
-          const value = event.start.endsWith('Z') ? new Intl.DateTimeFormat('en-CA', {
-            timeZone: 'Pacific/Auckland', year: 'numeric', month: '2-digit', day: '2-digit'
-          }).format(new Date(event.start)) : event.start.slice(0, 10);
-          await openSessionPlan(value, slot);
-        }
-      });
-      return;
-    }
     if (section === 'week') { renderWeek(data); return; }
     if (section === 'standards') { renderStandards(data); return; }
     if (section === 'learning') { renderLearning(data); return; }
@@ -2708,6 +2696,18 @@
     return weeklyTimetableEntries(feeds.flatMap(feed => feed.events), selectedWeek, Infinity);
   }
   async function load() {
+    if (section === 'timetable') {
+      dashboardMode = true; section = 'period';
+      if (!periodDate) {
+        const next = date(localDate);
+        while (![1, 2, 3, 4, 5].includes(next.getUTCDay())) next.setUTCDate(next.getUTCDate() + 1);
+        periodDate = iso(next); periodSlot = 'whanau';
+      }
+      year = Number(periodDate.slice(0, 4)); yearInput.value = year; updateYearBadge();
+      week = monday(periodDate); selectedDay = (date(periodDate).getUTCDay() + 6) % 7;
+    } else if (section !== 'period') {
+      dashboardMode = false; dashboardTrello = false; selectedTeachingCard = '';
+    }
     sessionPlanner = undefined; sessionAddress = undefined;
     setupAttendanceReady = undefined;
     if (section === 'attendanceImport') { section = 'setup'; setupTab = 5; }
@@ -2752,16 +2752,11 @@
       document.getElementById('save-note').textContent = section === 'setup' ? 'These settings are shared by all planners for this year.' :
         'Private Planner edits autosave. Wait for Autosaved before closing.';
       for (const button of document.querySelectorAll('[data-section]')) {
-        if (button.dataset.section === section) button.setAttribute('aria-current', 'page');
+        if (button.dataset.section === (dashboardMode ? 'timetable' : section)) button.setAttribute('aria-current', 'page');
         else button.removeAttribute('aria-current');
       }
       if (section === 'cover') { render({}); loaded = true; notice(openingNote || 'Your planner, familiar pages. Open the cover or choose a section above.'); return; }
       await refreshSession();
-      if (section === 'timetable') {
-        render({}); loaded = true;
-        notice('Teacher Timetable. Events are read-only; Google Calendar choices save separately to your account.');
-        return;
-      }
       if (section === 'attendance') {
         const host = el('section');
         content.append(host);

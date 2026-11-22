@@ -20,7 +20,7 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
 <link rel="icon" type="image/png" href="${asset('whs-logo.png')}">
 <link rel="stylesheet" href="${asset('account-controls.css')}">
 <link rel="stylesheet" href="${asset('module-shell.css')}">
-<link rel="stylesheet" href="${asset('planner.css?v=scheduled-session-2')}">
+<link rel="stylesheet" href="${asset('planner.css?v=teaching-dashboard-1')}">
 </head><body class="whs-module-shell whs-planner" data-api="${escape(baseUrl)}api/planner/" data-assets="${escape(baseUrl)}framework/" data-planner-name="${escape(displayName)}" data-user-id="${escape(userId)}" data-user-email="${escape(userEmail)}" data-core-url="${escape(coreUrl)}">
 <main class="planner-main" aria-label="${escape(title)}">
 <header class="planner-heading">
@@ -44,7 +44,7 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
     <button type="button" data-section="year">Year overview</button>
     <button type="button" data-section="term">Term plan</button>
     <button type="button" data-section="week">Weekly planner</button>
-    <button type="button" data-section="timetable">Teacher Timetable</button>
+    <button type="button" data-section="timetable">Teaching Dashboard</button>
     <button type="button" id="refresh-weekly-duties" hidden>Refresh duties</button>
     </div>
   </section>
@@ -111,9 +111,9 @@ ${standalone ? `<script src="${asset('global-nav.js')}" defer></script>` : ''}
 <script src="${asset('reporting.js?v=29')}" defer></script>
 <script src="${asset('term-trello.js?v=trello-labels-1')}" defer></script>
 <script src="${asset('session-schema.js?v=scheduled-session-2')}" defer></script>
-<script src="${asset('teaching-day-trello.js?v=scheduled-session-2')}" defer></script>
-<script src="${asset('teaching-session.js?v=scheduled-session-2')}" defer></script>
-<script src="${asset('planner.js?v=scheduled-session-2')}" defer></script>
+<script src="${asset('teaching-day-trello.js?v=teaching-dashboard-1')}" defer></script>
+<script src="${asset('teaching-session.js?v=teaching-dashboard-1')}" defer></script>
+<script src="${asset('planner.js?v=teaching-dashboard-1')}" defer></script>
 </body></html>`;
 }
 

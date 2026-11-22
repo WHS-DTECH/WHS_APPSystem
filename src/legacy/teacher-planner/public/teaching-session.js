@@ -3,7 +3,7 @@
     const { el } = helpers;
     const pilot = Boolean(data.teaching);
     const page = el('section', '', { class: 'paper-page session-planner', 'aria-label': pilot ? 'JPI session plan' : 'Scheduled session plan' });
-    const back = el('button', 'Back to Teacher Timetable', { type: 'button' });
+    const back = el('button', 'Back to Teaching Dashboard', { type: 'button' });
     back.addEventListener('click', helpers.back);
     page.append(back, el('h2', 'Period Planner', { class: 'paper-heading' }),
       el('h3', pilot ? data.event.className + ' - ' + data.event.course : data.content.session.title),
@@ -22,7 +22,7 @@
     const toggle = el('div', '', { class: 'term-notes-toggle planner-nav-buttons', role: 'group',
       'aria-label': 'Session Notes or Trello', 'data-planner-navigation': '' });
     const notesButton = el('button', 'Notes', { type: 'button', 'aria-pressed': 'true' });
-    const trelloButton = el('button', 'Trello', { type: 'button', 'aria-pressed': 'false' });
+    const trelloButton = el('button', helpers.showTrello ? 'Trello Planner' : 'Trello', { type: 'button', 'aria-pressed': 'false' });
     toggle.append(notesButton, trelloButton);
     const notes = el('section', '', { 'aria-label': 'Session Notes' });
     const trello = el('section', '', { 'aria-label': 'Session Trello', 'data-planner-navigation': '' });
@@ -34,7 +34,9 @@
       notes.hidden = !useNotes; trello.hidden = useNotes;
       notesButton.setAttribute('aria-pressed', String(useNotes));
       trelloButton.setAttribute('aria-pressed', String(!useNotes));
-      if (!useNotes && helpers.teachingDay) {
+      helpers.viewChanged?.(useNotes);
+      if (!useNotes && helpers.showTrello) helpers.showTrello(trello);
+      else if (!useNotes && helpers.teachingDay) {
         if (!teachingDay) teachingDay = globalThis.plannerTeachingDayTrello.mount(trello, () => ({
           date: data.event.date, slot: data.event.slot, classKey: data.event.classKey,
           sessionType: pilot ? 'teaching' : data.content.session.type
@@ -97,6 +99,7 @@
       const reflection = field(evaluation, 'Later evaluation', data.content.evaluation); reflection.maxLength = 20000;
       notes.append(evaluation);
       originalNotes(); host.append(page);
+      if (helpers.initialTrello) select(false);
       return { read: () => ({ note: note.value, evaluation: reflection.value, activities: [],
         session: { title: title.value, type: type.value, startTime: startTime.value, endTime: endTime.value } }),
         saved: () => {} };
@@ -210,6 +213,7 @@
     notes.append(evaluation);
     originalNotes();
     host.append(page);
+    if (helpers.initialTrello) select(false);
     function read() {
       return { note: note.value, evaluation: reflection.value, activities: rows.map(row => ({
         id: row.activity.id, sourceId: row.activity.sourceId, title: row.title.value,

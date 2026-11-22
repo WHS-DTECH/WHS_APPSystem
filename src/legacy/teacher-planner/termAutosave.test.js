@@ -152,7 +152,7 @@ test('term rendering hides reflection without removing its supported saved field
   assert.match(css, /\.term-spread \.term-auto-expand \{ overflow: hidden; resize: none; \}/);
 });
 
-test('term workspace preserves notes without a calendar, and Teacher Timetable reuses the calendar with its existing connections', async () => {
+test('term workspace preserves its original notes without mounting a duplicate calendar', async () => {
   const source = await fs.readFile(path.join(__dirname, 'public', 'planner.js'), 'utf8');
   const descendants = node => [node, ...node.children.flatMap(descendants)];
   function el(tag, text = '', attrs = {}) {
@@ -196,61 +196,60 @@ test('term workspace preserves notes without a calendar, and Teacher Timetable r
   panel.children[0].children[0].events.click();
   assert.deepEqual(selected, ['goals']);
 
-  context.section = 'timetable';
-  context.render({});
-  const timetable = content.children[0];
-  assert.equal(timetable.attrs['aria-label'], 'Teacher Timetable');
-  assert.equal(timetable.children[0].textContent, 'Teacher Timetable');
-  assert.equal(timetable.querySelectorAll('textarea').length, 0);
-  assert.equal(mounts.length, 1);
-  assert.equal(mounts[0][0], timetable.children[1]);
-  const helpers = mounts[0][1];
-  assert.equal(helpers.renderWeek, context.renderKamarWeek);
-  assert.equal(helpers.dayEvents, context.kamarEventsForDay);
-  await helpers.request('google-calendar/events?start=2026-11-22');
-  await helpers.mutate('selection', 'PUT', { connectionId: 'fixture', calendarIds: ['existing-subscription'] });
-  assert.equal(requests[0][0], '/api/planner/google-calendar/events?start=2026-11-22');
-  assert.equal(requests[1][0], '/api/planner/google-calendar/selection');
-  assert.equal(requests[1][1].headers['x-planner-csrf'], 'fixture-csrf');
-  assert.deepEqual(JSON.parse(requests[1][1].body), { connectionId: 'fixture', calendarIds: ['existing-subscription'] });
 });
 
-test('Teacher Timetable loads without a planning record and cannot submit or autosave private Planner data', async () => {
+test('Teaching Dashboard loads and saves the existing session address while excluding Trello navigation from autosave', async () => {
   const source = await fs.readFile(path.join(__dirname, 'public', 'planner.js'), 'utf8');
   const events = {}, notices = [], saveBar = {};
   const active = { dataset: { section: 'timetable' }, setAttribute(name, value) { this[name] = value; } };
-  let refreshed = 0, rendered = 0, recordRequests = 0;
+  let rendered = 0; const requests = [];
   const context = {
     section: 'timetable', year: 2026, setupAttendanceReady: undefined, openingTermPending: false,
+    periodDate: '2026-11-23', periodSlot: 'whanau', dashboardMode: false, dashboardTrello: false,
+    manualSessionDraft: undefined, selectedTeachingCard: '', sessionPlanner: undefined, sessionAddress: undefined,
+    yearInput: {}, updateYearBadge() {}, monday: value => value, date: value => new Date(value + 'T00:00:00Z'),
     autosaveTimer: undefined, autosavePaused: false, dirty: false, busy: false, loaded: false, editVersion: 0,
-    save: {}, retry: {}, signin: {}, content: { replaceChildren() {} },
-    clearTimeout() {}, setTimeout() { assert.fail('Timetable must not schedule Planner autosave'); },
+    save: {}, retry: {}, signin: {}, content: { replaceChildren() {}, querySelectorAll: () => [] },
+    clearTimeout() {}, setTimeout() { return 1; }, saveInFlight: undefined, FormData: class { *[Symbol.iterator]() {} },
     notice: text => notices.push(text), console,
     renderSelectors() {}, updateWeekNavigation() {}, viewFragment: () => 'section=timetable',
-    history: { replaceState() {} }, render: () => rendered++, refreshSession: async () => refreshed++,
-    address() { assert.fail('Timetable must not address a Planner record'); },
-    request: async () => { recordRequests++; assert.fail('Timetable must not load or save a Planner record'); },
+    history: { replaceState() {} }, api: '/api/planner/', csrf: 'fixture',
+    refreshSession: async () => {},
+    mountTeachingSession() {
+      rendered++; context.sessionAddress = 'sessions/2026-11-23/whanau';
+      context.sessionPlanner = { read: () => ({ note: 'Saved notices', evaluation: '', activities: [] }), saved() {} };
+    },
+    address: () => context.sessionAddress ? '/api/planner/' + context.sessionAddress : '/api/planner/2026/period/2026-11-23_whanau',
+    request: async (url, options) => {
+      requests.push([url, options]);
+      if (options) return { revision: 2, updated_at: '2026-11-22T06:00:00Z' };
+      return url.includes('/sessions/') ? { available: true, revision: 1 } : { content: {}, revision: 0 };
+    },
     document: {
       getElementById: () => ({}), querySelector: () => saveBar, querySelectorAll: () => [active], addEventListener() {}
     },
     window: { addEventListener() {} },
     form: { addEventListener: (name, callback) => { events[name] = callback; },
-      reportValidity() { assert.fail('Timetable has no planning form to validate'); } }
+      reportValidity() { return true; } }
   };
   vm.runInNewContext(
     source.slice(source.indexOf('  async function load()'), source.indexOf("  document.querySelectorAll('[data-section]')")), context);
   await context.load();
   assert.equal(context.loaded, true);
-  assert.equal(saveBar.hidden, true);
+  assert.equal(context.section, 'period');
+  assert.equal(context.dashboardMode, true);
+  assert.equal(saveBar.hidden, false);
   assert.equal(active['aria-current'], 'page');
-  assert.equal(refreshed, 1);
   assert.equal(rendered, 1);
+  events.input({ target: { closest: () => ({}) } });
+  assert.equal(context.dirty, false, 'Trello navigation does not dirty private Notes');
   events.input({ target: { closest: () => null } });
-  events.submit({ preventDefault() {} });
   await context.saveEntry(true);
   assert.equal(context.dirty, false);
-  assert.equal(recordRequests, 0);
-  assert.match(notices.at(-1), /Teacher Timetable.*Events are read-only/);
+  const put = requests.find(([, options]) => options?.method === 'PUT');
+  assert.equal(put[0], '/api/planner/sessions/2026-11-23/whanau');
+  assert.equal(JSON.parse(put[1].body).content.note, 'Saved notices');
+  assert.equal(context.revision, 2);
 });
 
 for (const section of ['term', 'week']) {
