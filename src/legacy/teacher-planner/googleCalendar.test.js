@@ -7,7 +7,8 @@ const { Pool } = require('pg');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const vm = require('node:vm');
-const { createGoogleCalendarRouter, configuration, encryptTokens, decryptTokens, nzMidnight, normaliseEvent, SCOPES } = require('./googleCalendar');
+const { createGoogleCalendarRouter, createGoogleCalendarReaders, configuration, encryptTokens,
+  decryptTokens, nzMidnight, normaliseEvent, SCOPES } = require('./googleCalendar');
 const { DOCUMENT_ID, DOCS_SCOPE } = require('./googleDocEvents');
 
 const env = {
@@ -53,6 +54,62 @@ test('Google events preserve exclusive all-day ends, normalise offsets and suppr
   assert.equal(allDay.end, '2026-10-20');
   assert.throws(() => normaliseEvent({ start: { date: 'bad' }, end: { date: 'bad' } }, calendar));
   assert.throws(() => normaliseEvent({ start: { date: '2026-02-30' }, end: { date: '2026-03-05' } }, calendar));
+});
+
+test('shared Google readers retain owner-bound access, selected calendars, document consent and connection-change protection', async () => {
+  const owner = crypto.randomUUID();
+  const connection = { owner_id: owner, connection_id: crypto.randomUUID(), selected_calendars: ['school'] };
+  connection.encrypted_tokens = encryptTokens({ accessToken: 'fixture-access', expiresAt: Date.now() + 3600000,
+    scopes: [DOCS_SCOPE] }, configuration(env).key, owner);
+  let changed = false, documentRequests = 0;
+  const query = async (sql, values) => {
+    assert.match(sql, /^SELECT \* FROM google_calendar_connections WHERE owner_id=\$1$/);
+    assert.deepEqual(values, [owner]);
+    return { rows: [{ ...connection, ...(changed ? { connection_id: 'changed' } : {}) }] };
+  };
+  const fetchImpl = async (target, options) => {
+    assert.equal(options.redirect, 'error');
+    assert.equal(options.headers.Authorization, 'Bearer fixture-access');
+    const url = new URL(target);
+    if (url.pathname.endsWith('/calendarList')) return Response.json({
+      items: [{ id: 'school', summary: 'School' }, { id: 'unselected', summary: 'Unselected' }]
+    });
+    if (url.hostname === 'docs.googleapis.com') {
+      documentRequests++;
+      assert.equal(url.pathname, '/v1/documents/' + DOCUMENT_ID);
+      const paragraph = text => ({ paragraph: { elements: [{ textRun: { content: text } }] } });
+      const row = values => ({ tableCells: values.map(text => ({ content: [paragraph(text)] })) });
+      return Response.json({ title: 'Fixture document', body: { content: [
+        paragraph('Term 4, 2026'), { table: { tableRows: [
+          row(['Week', 'School events', 'Meets/Assemblies']), row(['2', 'School event', 'Staff Hui: Planning'])
+        ] } }
+      ] } });
+    }
+    assert.equal(url.pathname, '/calendar/v3/calendars/school/events');
+    assert.equal(url.searchParams.get('timeMin'), '2026-10-17T11:00:00.000Z');
+    assert.equal(url.searchParams.get('timeMax'), '2026-10-24T11:00:00.000Z');
+    return Response.json({ items: [{ id: 'one', summary: 'Private lesson',
+      start: { dateTime: '2026-10-19T09:00:00+13:00' }, end: { dateTime: '2026-10-19T10:00:00+13:00' } }] });
+  };
+  const readers = createGoogleCalendarReaders({ query, env, fetchImpl });
+  const req = { user: { id: owner } };
+  const result = await readers.events(req, '2026-10-18', '2026-10-25');
+  assert.equal(result.events[0].start, '2026-10-18T20:00:00.000Z');
+  const mapping = { year: 2026, ranges: [{ term: 4, start: '2026-10-12', end: '2026-12-18',
+    weeks: ['2026-10-12', '2026-10-19'] }] };
+  assert.equal((await readers.documentEvents(req, mapping)).events.length, 2);
+  connection.encrypted_tokens = encryptTokens({ accessToken: 'fixture-access',
+    expiresAt: Date.now() + 3600000, scopes: [] }, configuration(env).key, owner);
+  await assert.rejects(readers.documentEvents(req, mapping), /Enable Google Docs access/);
+  assert.equal(documentRequests, 1, 'missing document consent makes no Google Docs request');
+  changed = true;
+  // Change the connection after the initial read rather than treating an old token as current.
+  let reads = 0;
+  const changingReaders = createGoogleCalendarReaders({ env, fetchImpl, query: async (...args) => {
+    changed = ++reads > 1;
+    return query(...args);
+  } });
+  await assert.rejects(changingReaders.events(req, '2026-10-18', '2026-10-25'), /connection changed/);
 });
 
 test('private Google API handles consent, owner isolation, refresh, selection, pagination and disconnect', {

@@ -1721,6 +1721,100 @@ refuses the Core/Kamar connection. Embedded requests check the required schema
 but do not run migrations. Do not point Core's `db:migrate` command at the
 Planner database.
 
+### Read-only ChatGPT / MCP connection
+
+The isolated MCP endpoint is
+`https://whs-appsystem.onrender.com/integrations/teacher-planner/mcp`
+(use the `APP_BASE_URL` origin if the hosting address changes). It uses the
+official MCP SDK's stateless Streamable HTTP transport, not the browser APIs.
+Rachel's Planner screens, browser sign-in, CSRF checks and autosave are unchanged.
+No Trello integration, Planner mutations or student-record tools are enabled.
+
+Data access and token issuance are **disabled until configured**; public OAuth
+discovery is available with a valid HTTPS origin so ChatGPT can prepare the
+connection before its callback is known. On the main Core Render service:
+
+1. Deploy the code. Core's existing migration runner applies
+   `057_teacher_planner_mcp.sql` to Core, creating dedicated hashed OAuth codes
+   and grants. No Planner schema/data migration is performed.
+2. In an approved ChatGPT workspace, add a custom MCP server using the endpoint
+   above. Choose **OAuth**, client ID `teacher-planner-chatgpt`, no client secret,
+   and PKCE. This is a predefined public OAuth client; dynamic registration is
+   not offered. Interface labels and access depend on the ChatGPT plan and
+   workspace policy.
+3. Copy the **exact OAuth redirect URI shown for that connection**. In Render,
+   set `TEACHER_PLANNER_MCP_REDIRECT_URI` to it and redeploy. Only HTTPS
+   `chatgpt.com/connector/oauth/<callback-id>` or
+   `chatgpt.com/connector_platform_oauth_redirect` callbacks are accepted.
+   Do not use the Google sign-in/Calendar callback, a placeholder, or a guessed
+   callback. `APP_BASE_URL` must be the site's HTTPS origin.
+4. Keep the existing `TEACHER_PLANNER_DATABASE_URL`, Google credentials and
+   `GOOGLE_CALENDAR_TOKEN_KEY` unchanged. The MCP grant contains no provider
+   credentials and cannot be used for the browser Planner APIs.
+5. Refresh/scan the tools in ChatGPT, sign in with the assigned school account,
+   and explicitly approve the separate read-only consent page. Confirm the
+   connection in a real ChatGPT conversation; passing local tests or pushing
+   Git does not prove live OAuth or Render deployment has succeeded.
+
+Public discovery is at
+`/.well-known/oauth-protected-resource/integrations/teacher-planner/mcp` and
+`/.well-known/oauth-authorization-server`. The OAuth resource identifier is the
+full HTTPS MCP endpoint and must be sent in both authorisation and token
+requests. Tokens are one-hour, audience-bound `planner:read` grants stored
+hashed in Core. PKCE, one-use five-minute codes, exact callback validation,
+session-bound CSRF-protected consent and active school/module authorisation
+are enforced. Browser cookies alone do not authorise MCP requests. No refresh
+tokens are issued in this pilot: reconnect after expiry. Token revocation is
+available at `POST /integrations/teacher-planner/oauth/revoke`.
+
+Available tools:
+
+| Tool | Inputs | Read-only result |
+| --- | --- | --- |
+| `list_planning_records` | Optional `year` | Without a year, available saved years; with a year, the owner's saved Year/Term/Week identifiers, revisions, timestamps, applicable dates and Planner links. |
+| `get_planning_record` | `year`, `section` (`year`, `term`, `week`), `key` | One owner's record metadata and link, or an explicit not-found result. Keys are `main`, term `1`-`4`, or a Monday `YYYY-MM-DD`. |
+| `get_calendar_dates` | `year`, `month` | Month-overlapping dates, source availability and Planner links from saved school setup, Ministry guidance, GOVT holidays, public KAMAR school events, the owner's private KAMAR timetable, selected Google calendars, the existing configured school Google Doc, NZQA key dates/exam/portfolio readers and existing school assessment-date summaries. |
+
+Calendar readers reuse existing fixed sources and owner-bound Google access;
+they do not accept arbitrary URLs, calendar IDs or document IDs. Google token
+renewal can update the existing encrypted connection, but no planning records,
+calendar events, Tasks, Drive documents or assessment caches are written.
+Existing Google Calendar selection and Docs consent govern what can be read;
+MCP cannot grant additional Google permissions or connect someone else's account.
+This endpoint does not read Assessment Manager student records, overrides or
+tasks; its NZQA parsers and fixed school summaries are reused without database
+access to that application.
+
+Private calendar, timetable and school-document titles are replaced with generic
+labels; event IDs are hashed. Planner free-text fields (including personal
+important-date notes), student names/IDs/emails, attendance, reporting,
+moderation, contacts, documents, subscription URLs, account emails and tokens
+are excluded from tool results and error logs. Public NZQA/GOVT event labels
+are retained. Full records open in the existing authenticated Planner. Calendar
+results are processed by OpenAI under the selected workspace's policies:
+use only a school-approved workspace.
+
+Every calendar source reports `ok`, `partial` or `unavailable`; `complete` is
+false if any source is incomplete. Failure never means there are no events.
+Dates use `Pacific/Auckland`; all-day exclusive ends are explicit, and undated
+document week references or approximate school deadlines require confirmation.
+No speculative or automatically shifted NZQA dates are provided.
+
+Test in ChatGPT with:
+
+- "List my available Teacher Planner years, then my 2026 planning records."
+- "Open the metadata and link for my Term 4, 2026 planning record."
+- "Show my consolidated calendar dates for November 2026 and identify any
+  unavailable sources."
+- "Show a student's attendance" and "Update my week plan" must have no available
+  tools. Verify that record links require school sign-in and that no free-text
+  notes, student information or credentials appear in results.
+
+Focused local validation:
+`node --test tests/teacher-planner-mcp.test.js tests/teacher-planner-integration.test.js src/legacy/teacher-planner/googleCalendar.test.js src/legacy/teacher-planner/googleDocEvents.test.js src/legacy/assessment-manager/assessment-home.test.js`.
+Existing database-dependent regression cases require a disposable test database;
+never point those tests at production.
+
 Teacher Planner is embedded at `/teacher-planner/`, using the original module
 router and screens from `src/legacy/teacher-planner`. Shared Google sign-in,
 navigation, Search, sign-out and role assignment come from Global Control.

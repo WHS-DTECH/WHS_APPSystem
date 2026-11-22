@@ -129,31 +129,7 @@ async function examTimetable(year, { query, fetchImpl = fetch, now = new Date() 
   const cached = (await query('SELECT events,checked_at,warning FROM assessment_exam_timetable_cache WHERE year=$1', [year])).rows[0];
   if (cached && now - new Date(cached.checked_at) < 6 * 60 * 60 * 1000) return { events: cached.events, warning: cached.warning || '' };
   try {
-    const response = await fetchImpl(URL, { signal: AbortSignal.timeout(15000), headers: { Accept: 'text/html' } });
-    if (!response.ok) throw new Error('NZQA returned HTTP ' + response.status + '.');
-    const html = await response.text();
-    if (html.length > 2000000) throw new Error('The NZQA timetable response was too large.');
-    const published = textContent(html.match(/<p class="page-hero__summary">([\s\S]*?)<\/p>/)?.[1] || '')
-      .match(/\b(20\d{2})\b/)?.[1];
-    let events, warning = '';
-    if (Number(published) === year) events = parseTimetable(html, year);
-    else {
-      const heading = new RegExp('<h2[^>]*>\\s*' + year + '\\s+NCEA and NZ Scholarship assessment timetable\\s*</h2>', 'i').exec(html);
-      const section = heading && html.slice(heading.index + heading[0].length).split(/<h2\b/i)[0];
-      const href = section?.match(/href="([^"]+\.pdf)"/i)?.[1];
-      if (!href) throw new Error('NZQA has not published the requested year on its exam timetable page.');
-      const pdfUrl = new globalThis.URL(decodeEntities(href), URL);
-      if (pdfUrl.protocol !== 'https:' || pdfUrl.hostname !== 'www2.nzqa.govt.nz' || !pdfUrl.pathname.startsWith('/assets/')) {
-        throw new Error('The NZQA assessment timetable PDF link is invalid.');
-      }
-      const response = await fetchImpl(pdfUrl.href, { signal: AbortSignal.timeout(15000), headers: { Accept: 'application/pdf' } });
-      if (!response.ok) throw new Error('NZQA assessment timetable PDF returned HTTP ' + response.status + '.');
-      const buffer = Buffer.from(await response.arrayBuffer());
-      if (buffer.length > 2000000) throw new Error('The NZQA assessment timetable PDF was too large.');
-      const pdf = await require('pdf-parse')(buffer);
-      events = parseAssessmentPdf(pdf.text, year, pdfUrl.href);
-      warning = 'Individual ' + year + ' examination times are not available on the current NZQA timetable page. Portfolio dates are from the published assessment timetable PDF; check NZQA for updates.';
-    }
+    const { events, warning } = await fetchExamTimetable(year, fetchImpl);
     await query(`INSERT INTO assessment_exam_timetable_cache(year,events,checked_at,warning) VALUES($1,$2::jsonb,$3,$4)
       ON CONFLICT(year) DO UPDATE SET events=EXCLUDED.events,checked_at=EXCLUDED.checked_at,warning=EXCLUDED.warning`, [year, JSON.stringify(events), now.toISOString(), warning]);
     return { events, warning };
@@ -163,4 +139,32 @@ async function examTimetable(year, { query, fetchImpl = fetch, now = new Date() 
       ? ' Showing the last saved exam timetable; dates may have changed.' : ' Department exam and portfolio dates are unavailable.') };
   }
 }
-module.exports = { URL, parseTimetable, parseAssessmentPdf, filterTimetable, examTimetable };
+async function fetchExamTimetable(year, fetchImpl = fetch) {
+  const response = await fetchImpl(URL, { signal: AbortSignal.timeout(15000), headers: { Accept: 'text/html' } });
+  if (!response.ok) throw new Error('NZQA returned HTTP ' + response.status + '.');
+  const html = await response.text();
+  if (html.length > 2000000) throw new Error('The NZQA timetable response was too large.');
+  const published = textContent(html.match(/<p class="page-hero__summary">([\s\S]*?)<\/p>/)?.[1] || '')
+    .match(/\b(20\d{2})\b/)?.[1];
+  let events, warning = '';
+  if (Number(published) === year) events = parseTimetable(html, year);
+  else {
+    const heading = new RegExp('<h2[^>]*>\\s*' + year + '\\s+NCEA and NZ Scholarship assessment timetable\\s*</h2>', 'i').exec(html);
+    const section = heading && html.slice(heading.index + heading[0].length).split(/<h2\b/i)[0];
+    const href = section?.match(/href="([^"]+\.pdf)"/i)?.[1];
+    if (!href) throw new Error('NZQA has not published the requested year on its exam timetable page.');
+    const pdfUrl = new globalThis.URL(decodeEntities(href), URL);
+    if (pdfUrl.protocol !== 'https:' || pdfUrl.hostname !== 'www2.nzqa.govt.nz' || !pdfUrl.pathname.startsWith('/assets/')) {
+      throw new Error('The NZQA assessment timetable PDF link is invalid.');
+    }
+    const response = await fetchImpl(pdfUrl.href, { signal: AbortSignal.timeout(15000), headers: { Accept: 'application/pdf' } });
+    if (!response.ok) throw new Error('NZQA assessment timetable PDF returned HTTP ' + response.status + '.');
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.length > 2000000) throw new Error('The NZQA assessment timetable PDF was too large.');
+    const pdf = await require('pdf-parse')(buffer);
+    events = parseAssessmentPdf(pdf.text, year, pdfUrl.href);
+    warning = 'Individual ' + year + ' examination times are not available on the current NZQA timetable page. Portfolio dates are from the published assessment timetable PDF; check NZQA for updates.';
+  }
+  return { events, warning };
+}
+module.exports = { URL, parseTimetable, parseAssessmentPdf, filterTimetable, examTimetable, fetchExamTimetable };
