@@ -33,14 +33,16 @@ async function fixture(t, { configured = true } = {}) {
       return { rows: [row] };
     }
     if (sql.startsWith('INSERT INTO teacher_planner_mcp_grants')) {
+      assert.match(sql, /NOW\(\) \+ \$6 \* INTERVAL '1 second'/);
       grants.set(values[0], { user_id: values[1], client_id: values[2], resource: values[3],
-        scope: values[4], expires_at: new Date(Date.now() + 3600000) });
+        scope: values[4], expires_at: new Date(Date.now() + values[5] * 1000) });
       return { rows: [] };
     }
     if (sql.includes('FROM teacher_planner_mcp_grants')) {
       const row = grants.get(values[0]);
       if (!row || row.client_id !== values[1]) return { rows: [] };
       if (sql.startsWith('DELETE')) { grants.delete(values[0]); return { rows: [] }; }
+      assert.match(sql, /expires_at>NOW\(\)/);
       return { rows: row.resource === values[2] && row.scope === values[3] && row.expires_at > new Date() ? [row] : [] };
     }
     assert.fail('Unexpected OAuth SQL: ' + sql);
@@ -196,6 +198,37 @@ test('consent policies retain browser origin checks and callback redirects witho
   const metadata = await call('/.well-known/oauth-authorization-server');
   assert.ok(metadata.headers.get('content-security-policy').split(';').includes("form-action 'self'"));
   assert.equal(metadata.headers.get('referrer-policy'), 'no-referrer');
+});
+
+test('new read-only grants advertise and enforce exactly eight hours without sliding expiry or refresh tokens', async t => {
+  const issuedAt = Date.now();
+  t.mock.timers.enable({ apis: ['Date'], now: issuedAt });
+  const { state, consent, link, rpc, call } = await fixture(t);
+  assert.match((await consent()).html, /read-only access for eight hours/);
+  const tokens = await link();
+  assert.equal(tokens.expires_in, 28800);
+  assert.equal(tokens.scope, 'planner:read');
+  assert.equal(tokens.refresh_token, undefined);
+  const grant = state.grants.get(digest(tokens.access_token));
+  const expiresAt = issuedAt + 28800000;
+  assert.equal(grant.expires_at.getTime(), expiresAt);
+  t.mock.timers.tick(3600000);
+  assert.equal((await rpc(tokens.access_token, 'tools/list')).status, 200, 'valid after the previous one-hour limit');
+  t.mock.timers.tick(25199999);
+  assert.equal((await rpc(tokens.access_token, 'tools/call', {
+    name: 'list_planning_records', arguments: { year: 2026 }
+  })).status, 200, 'valid one millisecond before expiry');
+  assert.equal(grant.expires_at.getTime(), expiresAt, 'activity does not extend the grant');
+  t.mock.timers.tick(1);
+  assert.equal((await rpc(tokens.access_token, 'tools/list')).status, 401, 'rejected exactly at eight hours');
+  t.mock.timers.tick(1);
+  assert.equal((await rpc(tokens.access_token, 'tools/list')).status, 401, 'rejected after expiry');
+  const refresh = await call('/integrations/teacher-planner/oauth/token', {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ client_id: CLIENT_ID, grant_type: 'refresh_token', refresh_token: 'synthetic-refresh' })
+  });
+  assert.equal(refresh.status, 400);
+  assert.equal((await refresh.json()).error, 'unsupported_grant_type');
 });
 
 test('OAuth rejects unapproved redirects, scopes, changed consent, inactive users, expired and revoked grants', async t => {
