@@ -80,7 +80,19 @@
         'aria-pressed': String(context.cardId ? card.id === context.cardId : card.metadata.session_slot === context.slot),
         'data-card-id': card.id, 'data-session-slot': card.metadata.session_slot });
       const title = [card.metadata.start_time, card.metadata.class_key || card.metadata.display_name].filter(Boolean).join(' - ');
-      button.append(el('strong', title), el('span', card.metadata.lesson_title));
+      let lessonTitle = card.metadata.lesson_title;
+      if (card.description?.includes('[TEACHING_DASHBOARD_V1]') && globalThis.plannerTeachingSlots) {
+        try {
+          const metadata = globalThis.plannerTeachingSlots.parse(card.description).metadata;
+          if (['teaching_date', 'session_slot', 'class_key', 'session_type'].every(key => metadata[key] === card.metadata[key])) {
+            lessonTitle = metadata.display_title;
+          } else console.warn('Teaching card title does not match its session; retaining the verified feed label.');
+        } catch (error) {
+          if (!(error instanceof globalThis.plannerTeachingSlots.FormatError)) throw error;
+          console.warn('Teaching card title could not be read; retaining the verified feed label.');
+        }
+      }
+      button.append(el('strong', title), el('span', lessonTitle));
       if (card.location) button.append(el('span', 'Room ' + card.location));
       if (unavailable) button.setAttribute('data-trello-unavailable', '');
       else {

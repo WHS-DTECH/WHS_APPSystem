@@ -352,7 +352,7 @@ test('malformed and older Trello cards keep a readable fallback without breaking
   await flush();
   const trello = node(); dashboard.showTrello(trello);
   const nodes = slotDescendants(trello);
-  assert.equal(warnings, 1);
+  assert.equal(warnings, 2, 'sidebar and selected details both report malformed card content');
   assert.ok(nodes.some(item => item.attrs.role === 'alert' && item.textContent.includes('original Trello card')));
   assert.ok(nodes.some(item => item.textContent === malformed.description));
 });
@@ -530,6 +530,30 @@ test('dashboard selects stable card IDs and shows only the selected preparation 
     assert.equal(workspace.read().note, card.metadata.class_key + ' saved Notes');
     fail = false;
   }
+});
+test('sidebar reads the Trello display title without changing stable session selection or trusting invalid metadata', async () => {
+  let warnings = 0;
+  const context = { plannerSessionSchema: require('./public/session-schema'), plannerTeachingSlots: require('./public/teaching-slots'),
+    console: { warn() { warnings++; } } };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-day-trello'), 'utf8'), context);
+  for (const variant of ['valid', 'mismatched', 'malformed']) {
+    const card = teachingSlotFixture();
+    card.metadata.lesson_title = 'Old pilot label';
+    card.description = card.description.replace('display_title: Binary Piano decoding', 'display_title: Trello-updated session');
+    if (variant === 'mismatched') card.metadata.class_key = 'OTHER';
+    if (variant === 'malformed') card.description = card.description.replace('## Teaching slots', '## Invalid');
+    let selected;
+    const host = node();
+    context.plannerTeachingDayTrello.dashboard(host, { date: '2026-11-23', slot: 'p2', cardId: card.id },
+      { el: node, select(value) { selected = value; }, request: async () => ({ status: 'ok', issues: [], cards: [card] }) });
+    await flush();
+    const button = slotDescendants(host).find(item => item.attrs['data-card-id'] === card.id);
+    assert.equal(button.children[1].textContent, variant === 'valid' ? 'Trello-updated session' : 'Old pilot label');
+    button.events.click({ stopPropagation() {} });
+    assert.equal(selected.id, card.id);
+    assert.equal(selected.metadata.session_slot, 'p2');
+  }
+  assert.equal(warnings, 2);
 });
 test('dashboard session switching changes its card and record address only after the current draft saves', async () => {
   let saved = false, loads = 0;
