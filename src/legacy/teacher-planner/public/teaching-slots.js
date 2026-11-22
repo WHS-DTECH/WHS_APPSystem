@@ -113,15 +113,16 @@
       }).format(new Date(card.updatedAt)), { datetime: card.updatedAt }));
     header.append(title, trello); article.append(header,
       el('p', 'Flexible teaching organiser. These intentions are not confirmed classroom progress.', { class: 'teaching-slot-disclaimer' }));
-    for (const slot of plan.slots) {
-      const details = el('details', '', { class: 'teaching-slot', 'data-slot-type': slot.colour });
-      const summary = el('summary');
-      const row = el('span', '', { class: 'teaching-slot-row' });
-      const labels = el('span', '', { class: 'teaching-slot-labels' });
-      labels.append(el('span', 'Slot ' + slot.number), el('span', slot.type));
-      row.append(el('strong', slot.title, { class: 'teaching-slot-title' }), labels);
-      summary.append(row);
-      details.append(summary);
+    const workspace = el('div', '', { class: 'teaching-slot-workspace' });
+    const left = el('div', '', { class: 'teaching-slot-column' }), right = el('div', '', { class: 'teaching-slot-column' });
+    const sequence = el('div', '', { class: 'teaching-slot-list', role: 'group', 'aria-label': 'Select a teaching slot' });
+    const panelId = 'teaching-slot-details-' + card.id;
+    const details = el('section', '', { class: 'teaching-slot-detail', id: panelId,
+      'aria-label': 'Selected teaching activity', 'aria-live': 'polite', 'aria-atomic': 'true' });
+    const buttons = [];
+    function select(slot, button) {
+      for (const candidate of buttons) candidate.setAttribute('aria-pressed', String(candidate === button));
+      details.replaceChildren(el('h4', slot.title));
       if (slot.details) details.append(el('p', slot.details.trim(), { class: 'session-preserved-text' }));
       if (slot.resource || slot.resourceUrl) {
         const url = resolveResource(slot, programme), resource = el('p', '', { class: 'teaching-slot-resource' });
@@ -129,15 +130,26 @@
           el('span', (slot.resource || 'Resource') + ' - Link unavailable'));
         details.append(resource);
       }
-      article.append(details);
     }
-    const panels = el('div', '', { class: 'teaching-slot-panels' });
+    for (const slot of plan.slots) {
+      const button = el('button', '', { type: 'button', class: 'teaching-slot', 'data-slot-type': slot.colour,
+        'aria-pressed': 'false', 'aria-controls': panelId });
+      const row = el('span', '', { class: 'teaching-slot-row' });
+      const labels = el('span', '', { class: 'teaching-slot-labels' });
+      labels.append(el('span', 'Slot ' + slot.number), el('span', slot.type));
+      row.append(el('strong', slot.title, { class: 'teaching-slot-title' }), labels);
+      button.append(row); button.addEventListener('click', () => select(slot, button));
+      buttons.push(button); sequence.append(button);
+    }
+    left.append(sequence); right.append(details);
     for (const [key, label] of [['preparation', 'Preparation & Reminders'], ['continuation', 'Continuation']]) {
       if (!plan[key]) continue;
-      const panel = el('section'); panel.append(el('h4', label), el('p', plan[key], { class: 'session-preserved-text' }));
-      panels.append(panel);
+      const panel = el('section', '', { class: 'teaching-slot-support' });
+      panel.append(el('h4', label), el('p', plan[key], { class: 'session-preserved-text' }));
+      (key === 'preparation' ? left : right).append(panel);
     }
-    article.append(panels); return article;
+    select(plan.slots[0], buttons[0]);
+    workspace.append(left, right); article.append(workspace); return article;
   }
   const api = { parse, render, resolveResource, FormatError };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
