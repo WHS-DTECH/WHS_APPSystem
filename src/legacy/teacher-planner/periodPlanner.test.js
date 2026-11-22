@@ -70,6 +70,105 @@ function node(tag = 'div', text = '', attrs = {}) {
     querySelectorAll() { return []; }
   };
 }
+function teachingSlotFixture(classKey = 'JPI') {
+  const whanau = classKey === '9WHAU';
+  const metadata = { teaching_date: '2026-11-23', session_slot: whanau ? 'whanau' : 'p2',
+    class_key: classKey, session_type: whanau ? 'whanau' : 'teaching', start_time: whanau ? '08:45' : '10:00',
+    room: 'CW', home_list: classKey, display_title: whanau ? 'Whānau check-in' : 'Binary Piano decoding' };
+  const slots = whanau ? [
+    ['Whānau', 'Roll and check-in', '', '', 'Take the roll in KAMAR and have an informal chat.'],
+    ['Whānau', 'School notices', 'School notices', 'https://westlandhigh.school.kiwi/notices/date/2026-11-22', 'Verify notices; the linked date is Sunday.'],
+    ['Whānau', 'Wednesday assembly and weekly events', 'School calendar', 'https://westlandhigh.school.kiwi/calendar/month/2026/11', 'Specific arrangements have not been verified.'],
+    ['Whānau', 'Attendance update', '', '', 'Use current authorised KAMAR information.']
+  ] : [
+    ['Routine', 'Typing Kit', 'Existing CW Routine → Typing Kit', 'unresolved', 'Use the established Typing Kit routine.'],
+    ['Routine', 'Minecraft', 'Existing CW Routine → Minecraft', 'unresolved', 'Continue the established Minecraft routine.'],
+    ['Unit Library', 'Binary Piano — Review', 'Binary & Data → Binary Piano', 'unresolved', 'Completion remains awaiting confirmation in Planner.'],
+    ['Unit Library', 'Binary Piano — Decoding', 'Binary & Data → Binary Piano', 'unresolved', 'Model examples, then guide practice.\nOffer independent decoding if ready.']
+  ];
+  const description = '[TEACHING_DASHBOARD_V1]\n' + Object.entries(metadata).map(([key, value]) => `${key}: ${value}`).join('\n') +
+    '\n[/TEACHING_DASHBOARD_V1]\n\n## Teaching slots\n\n' + slots.map(([type, title, resource, url, details], index) =>
+      `### SLOT ${index + 1} | ${type} | ${title}\n` + (resource ? `Resource: ${resource}\nResource URL: ${url}\n` : '') +
+      `Details: ${details}`).join('\n\n') +
+    '\n\n## Preparation & reminders\nCheck the prepared resources.\n\n## Continuation\nPreparation is not a record of delivery.';
+  return { id: whanau ? 'b'.repeat(24) : 'a'.repeat(24), metadata, description,
+    name: metadata.display_title, url: 'https://trello.com/c/AbCd1234', updatedAt: '2026-11-22T07:40:56.946Z', resources: [] };
+}
+const slotProgramme = { teaching: { unit: { title: 'Binary & Data', url: '/dtech-hub/learning-pathways/binary-and-data.html' },
+  lesson: { title: 'Binary Piano', url: '/dtech-hub/learning-pathways/lesson-binary-piano.html' } },
+routine: { instructions: 'TypingTest.com - AKA Typing Kit\n[Minecraft Player Kit](https://dtech-hub2.onrender.com/practical-skills/kit-worksheet.html?kit=kit-minecraft)' } };
+const slotDescendants = host => [host, ...host.children.filter(child => typeof child === 'object').flatMap(slotDescendants)];
+test('teaching slots render both four-slot cards in stored order with NZ headers, details and no progress controls', () => {
+  const renderer = require('./public/teaching-slots');
+  for (const classKey of ['JPI', '9WHAU']) {
+    const card = teachingSlotFixture(classKey), parsed = renderer.parse(card.description);
+    const view = renderer.render(node, card, classKey === 'JPI' ? slotProgramme : null), nodes = slotDescendants(view);
+    const slots = nodes.filter(item => item.attrs.class === 'teaching-slot');
+    assert.equal(slots.length, 4);
+    assert.deepEqual(slots.map(item => item.children[0].children[1].textContent), parsed.slots.map(slot => slot.title));
+    for (let index = 0; index < slots.length; index++) {
+      assert.equal(slots[index].tag, 'details');
+      assert.equal(slots[index].children[1].textContent, parsed.slots[index].details.trim());
+    }
+    const header = nodes.find(item => item.tag === 'header'), headerText = slotDescendants(header).map(item => item.textContent).join(' ');
+    assert.match(headerText, /Room CW.*Monday.*23 November 2026/);
+    assert.ok(headerText.includes(card.metadata.start_time));
+    assert.match(headerText, /22 Nov 2026.*8:40/);
+    assert.equal(nodes.find(item => item.tag === 'time').attrs.datetime, card.updatedAt);
+    assert.equal(nodes.find(item => item.textContent === 'Open Trello').attrs.href, card.url);
+    assert.ok(!nodes.some(item => ['input', 'textarea', 'select', 'button'].includes(item.tag)));
+    assert.ok(!nodes.some(item => item.textContent.includes('[TEACHING_DASHBOARD_V1]')));
+    assert.equal(nodes.filter(item => item.tag === 'h4').length, 2);
+  }
+  const reordered = renderer.parse(teachingSlotFixture().description.replace('SLOT 1', 'SLOT 5'));
+  assert.deepEqual(reordered.slots.map(slot => slot.number), ['5', '2', '3', '4'], 'never numerically sort Trello slots');
+});
+test('slot resources use explicit safe URLs or unique verified programme links and expose unresolved names', () => {
+  const renderer = require('./public/teaching-slots'), card = teachingSlotFixture(), slots = renderer.parse(card.description).slots;
+  assert.equal(renderer.resolveResource(slots[0], slotProgramme), null, 'a website name without a URL is not invented');
+  assert.equal(renderer.resolveResource(slots[1], slotProgramme), 'https://dtech-hub2.onrender.com/practical-skills/kit-worksheet.html?kit=kit-minecraft');
+  assert.equal(renderer.resolveResource(slots[2], slotProgramme), slotProgramme.teaching.lesson.url);
+  assert.equal(renderer.resolveResource(slots[3], null), null, 'another session does not inherit JPI resource context');
+  for (const url of ['javascript:alert(1)', 'data:text/html,bad', '//evil.example', 'https://user:password@example.com/']) {
+    assert.equal(renderer.resolveResource({ ...slots[2], resourceUrl: url }, slotProgramme), null);
+  }
+  const notices = renderer.parse(teachingSlotFixture('9WHAU').description).slots[1];
+  assert.equal(renderer.resolveResource(notices, null), notices.resourceUrl, 'preserve the original notices date');
+  const ambiguous = { ...slotProgramme, routine: { instructions: slotProgramme.routine.instructions +
+    '\n[Minecraft Player Kit](https://example.com/other)' } };
+  assert.equal(renderer.resolveResource(slots[1], ambiguous), null);
+  const nodes = slotDescendants(renderer.render(node, card, slotProgramme));
+  assert.ok(nodes.some(item => item.textContent === 'Existing CW Routine → Typing Kit - Link unavailable'));
+  assert.equal(nodes.filter(item => item.tag === 'a' && item.attrs.href === slotProgramme.teaching.lesson.url).length, 2);
+});
+test('malformed and older Trello cards keep a readable fallback without breaking selected-session rendering', async () => {
+  const renderer = require('./public/teaching-slots'), card = teachingSlotFixture();
+  for (const description of [
+    card.description.replace('[/TEACHING_DASHBOARD_V1]', '[/OTHER]'),
+    card.description + '\n[/TEACHING_DASHBOARD_V1]',
+    card.description.replace('teaching_date: 2026-11-23', 'teaching_date: 2026-02-31'),
+    card.description.replace('start_time: 10:00', 'start_time: 25:00'),
+    card.description.replace('## Teaching slots', '## Activities'),
+    card.description.replace('SLOT 2', 'SLOT 1'),
+    card.description.replace('| Routine |', '| Unknown |'),
+    card.description.replace('Resource URL: unresolved', 'Resource URL:\nResource URL: unresolved')
+  ]) assert.throws(() => renderer.parse(description));
+  assert.throws(() => renderer.render(node, { ...card, metadata: { ...card.metadata, class_key: 'OTHER' } }, slotProgramme), /does not match/);
+  assert.equal(renderer.render(node, { ...card, description: 'Older readable preparation' }, null), null);
+  let warnings = 0;
+  const context = { plannerTeachingSlots: renderer, console: { warn() { warnings++; } } };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-day-trello'), 'utf8'), context);
+  const malformed = { ...card, description: card.description.replace('## Teaching slots', '## Activities') }, host = node();
+  const dashboard = context.plannerTeachingDayTrello.dashboard(host, {
+    date: '2026-11-23', slot: 'p2', classKey: 'JPI', cardId: card.id, programme: slotProgramme
+  }, { el: node, select() {}, request: async () => ({ status: 'ok', issues: [], cards: [malformed] }) });
+  await flush();
+  const trello = node(); dashboard.showTrello(trello);
+  const nodes = slotDescendants(trello);
+  assert.equal(warnings, 1);
+  assert.ok(nodes.some(item => item.attrs.role === 'alert' && item.textContent.includes('original Trello card')));
+  assert.ok(nodes.some(item => item.textContent === malformed.description));
+});
 test('Whanau and observation workspaces keep independent Notes drafts through the shared Trello toggle', () => {
   const context = { plannerSessionSchema: require('./public/session-schema') };
   vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-session'), 'utf8'), context);

@@ -1862,8 +1862,9 @@ reported inside Trello and cannot block Notes/autosaving. Invalid or duplicate
 references are not guessed. Observations, meetings and duties are excluded.
 
 Cards may persist and be maintained externally; the Planner does not require or
-create a card per period. ChatGPT/Trello must maintain exactly one block below
-in each displayed card's description. Keep other preparation, activities,
+create a card per period. Outside the explicitly mapped Monday pilot, maintain
+exactly one versioned source-reference block below in each displayed card's
+description. Keep other preparation, activities,
 resources, task-status reports and AI-generated notes outside the block.
 Named resources use `[Resource name](https://...)` Markdown links.
 
@@ -1898,6 +1899,37 @@ Notes shortcuts remain available during outages. Confirmed progress, routines,
 Unit Library links and legacy records use their existing storage and permissions.
 No Trello writes, AI processing, calendar reconciliation or inferred outcomes are
 introduced. Maintain cards independently in Trello/ChatGPT.
+
+#### Colour-coded Teaching Slots V1
+
+The selected pilot card's Trello view recognises one balanced
+`[TEACHING_DASHBOARD_V1]` / `[/TEACHING_DASHBOARD_V1]` block, followed by the exact
+`## Teaching slots` heading and repeated `### SLOT n | Type | Title` headings.
+Required metadata is `teaching_date`, `session_slot`, `class_key`, `session_type`,
+`start_time`, `room` and `display_title`, using `key: value` lines. It must match
+the authorised feed's existing session reference. Optional `home_list`, `course`
+and `unit` are informational; `home_list: JPI` is not a Trello list ID.
+This presentation format does not replace source-reference matching for other
+cards or add integration permissions.
+
+Slots retain their document order, even when their numbers are not consecutive.
+Routine is green, Kit teal, Activity purple, Unit Library orange and Whanau blue.
+Each white slot expands to show optional `Resource:`, `Resource URL:` and
+`Details:` fields; details may continue across lines. Optional exact
+`## Preparation & reminders` and `## Continuation` sections appear below.
+No duration, completion or confirmed progress is inferred.
+
+The header displays the class/title, room, NZ date and supplied NZ start time.
+Open Trello links to the original card; its actual update timestamp is displayed
+in `Pacific/Auckland`. Valid HTTP(S) resource URLs open the original resource.
+An absent or `unresolved` URL can resolve uniquely against JPI's already-loaded
+CW Routine Markdown links or verified Unit Library lesson/resource links.
+The Minecraft Player Kit and Binary Piano lesson are available through those
+sources; Typing Kit currently has only a website name in CW Routine and therefore
+shows **Link unavailable**. Credentials and ambiguous/invalid links are rejected,
+not guessed. Malformed or older cards retain a readable original-card fallback.
+The dashboard fills its available width, with stacked columns on smaller screens.
+Notes, progress, autosaving, rapid session switching and their storage are unchanged.
 
 **Exact JPI example (optional for the Monday pilot):**
 

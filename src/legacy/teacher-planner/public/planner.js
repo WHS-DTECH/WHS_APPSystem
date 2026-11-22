@@ -971,7 +971,8 @@
     };
     let dashboard;
     if (dashboardMode) {
-      const context = { date: periodDate, slot: periodSlot, classKey: data.event.classKey, cardId: selectedTeachingCard };
+      const context = { date: periodDate, slot: periodSlot, classKey: data.event.classKey, cardId: selectedTeachingCard,
+        programme: data.teaching ? { teaching: data.teaching, routine: data.routine } : null };
       if (teachingDashboard?.workspace.isConnected && teachingDashboard.date === periodDate) {
         dashboard = teachingDashboard; dashboard.workspace.replaceChildren(); dashboard.selectSession(context);
       } else {
