@@ -179,7 +179,7 @@ test('Current Teaching Day matches JPI and Whanau references independently and p
 test('session back navigation waits for a successful save rather than discarding a blurred field', async () => {
   let helpers, saved = false;
   const destinations = [];
-  const context = { content: { dataset: {} }, periodDate: '2026-11-23', periodSlot: 'whanau', el: node,
+  const context = { content: { dataset: {} }, periodDate: '2026-11-23', periodSlot: 'whanau', el: node, dashboardMode: false,
     plannerTeachingSession: { mount(host, data, options) { helpers = options; } },
     navigatePlannerSection: value => destinations.push(value), ensureSaved: async () => saved };
   vm.runInNewContext(source.slice(source.indexOf('  function mountTeachingSession('),
@@ -189,6 +189,67 @@ test('session back navigation waits for a successful save rather than discarding
   assert.equal(destinations.length, 0);
   saved = true; await helpers.back();
   assert.deepEqual(destinations, ['timetable']);
+});
+test('dashboard selects stable card IDs and shows only the selected preparation without blocking Notes on failure', async () => {
+  const context = { plannerSessionSchema: require('./public/session-schema') };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-day-trello'), 'utf8') +
+    fs.readFileSync(require.resolve('./public/teaching-session'), 'utf8'), context);
+  const descend = host => [host, ...host.children.filter(child => typeof child === 'object').flatMap(descend)];
+  const feed = { status: 'ok', issues: [], cards: ['9WHAU', 'JPI'].map((key, index) => ({
+    id: String(index).repeat(24), name: key + ' original card title', description: key + ' preparation',
+    resources: [{ name: 'Resource', url: 'https://example.test/resource' }], updatedAt: '2026-11-22T05:00:00Z',
+    url: 'https://trello.com/c/AbCd1234', metadata: { class_key: key, session_slot: index ? 'p2' : 'whanau',
+      display_name: key, start_time: index ? '10:00' : '08:45', lesson_title: key + ' lesson',
+      preparation_status: 'See card preparation' }
+  })) };
+  let fail = false; const selections = [];
+  for (const card of feed.cards) {
+    const host = node();
+    const dashboard = context.plannerTeachingDayTrello.dashboard(host, {
+      date: '2026-11-23', slot: card.metadata.session_slot, classKey: card.metadata.class_key, cardId: card.id
+    }, { el: node, select: card => selections.push(card.id), request: async () => {
+      if (fail) throw new Error('Trello unavailable'); return feed;
+    } });
+    const workspace = context.plannerTeachingSession.mount(dashboard.workspace, {
+      event: { date: '2026-11-23', slot: card.metadata.session_slot, label: 'Session', title: card.metadata.class_key },
+      content: { note: card.metadata.class_key + ' saved Notes', evaluation: '', activities: [],
+        session: { title: card.metadata.class_key, type: 'whanau', startTime: '', endTime: '' } }, legacy: { content: {} }
+    }, { el: node, back() {}, legacy() {}, showTrello: dashboard.showTrello });
+    await flush();
+    let nodes = descend(host);
+    nodes.find(item => item.attrs['data-card-id'] === card.id).events.click();
+    assert.equal(selections.at(-1), card.id);
+    nodes.find(item => item.textContent === 'Trello Planner').events.click();
+    nodes = descend(host);
+    assert.equal(nodes.find(item => item.tag === 'h4').textContent, card.name);
+    assert.equal(nodes.filter(item => item.tag === 'h4').length, 1);
+    assert.equal(nodes.find(item => item.tag === 'details' && item.open).children[1].textContent, card.description);
+    assert.equal(workspace.read().note, card.metadata.class_key + ' saved Notes');
+    fail = true;
+    await nodes.find(item => item.textContent === 'Refresh Trello information').events.click();
+    assert.ok(descend(host).some(item => item.attrs.role === 'alert' && item.textContent.includes('Trello unavailable')));
+    nodes.find(item => item.textContent === 'Notes').events.click();
+    assert.equal(workspace.read().note, card.metadata.class_key + ' saved Notes');
+    fail = false;
+  }
+});
+test('dashboard session switching changes its card and record address only after the current draft saves', async () => {
+  let saved = false, loads = 0;
+  const context = { ensureSaved: async () => saved, busy: false, selectedTeachingCard: 'old-card',
+    periodDate: '2026-11-23', periodSlot: 'p2', yearInput: {}, updateYearBadge() {},
+    plannerSessionSchema: require('./public/session-schema'), date: value => new Date(value + 'T00:00:00Z'),
+    iso: value => value.toISOString().slice(0, 10), monday: value => value, load: async () => loads++ };
+  vm.runInNewContext(source.slice(source.indexOf('  async function openSessionPlan('),
+    source.indexOf('  function mountSessionLauncher(')), context);
+  await context.openSessionPlan('2026-11-23', 'whanau', undefined, 'new-card');
+  assert.equal(context.periodSlot, 'p2');
+  assert.equal(context.selectedTeachingCard, 'old-card');
+  assert.equal(loads, 0);
+  saved = true;
+  await context.openSessionPlan('2026-11-23', 'whanau', undefined, 'new-card');
+  assert.equal(context.periodSlot, 'whanau');
+  assert.equal(context.selectedTeachingCard, 'new-card');
+  assert.equal(loads, 1);
 });
 test('activity instructions format saved lines as bullets without duplicating markers or changing blank lines', () => {
   const notices = [], field = node();
@@ -340,7 +401,7 @@ test('period navigation waits for a focusout autosave already running and stays 
 });
 
 test('period storage uses the actual date year, independent of the returning planner year', () => {
-  const context = { section: 'period', year: 2026, week: '2026-12-28', term: '4',
+  const context = { section: 'period', year: 2026, week: '2026-12-28', term: '4', dashboardMode: false,
     periodDate: '2027-01-01', periodSlot: 'p2', selectedDay: 4, URLSearchParams, api: '/api/planner/', sessionAddress: undefined };
   vm.runInNewContext(source.slice(source.indexOf('  function key()'), source.indexOf('  function offerSignin()')), context);
   assert.equal(context.key(), '2027-01-01_p2');

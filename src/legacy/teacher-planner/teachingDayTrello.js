@@ -5,6 +5,12 @@ const ID = /^[0-9a-f]{24}$/;
 const UUID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 const FIELDS = ['schema_version', 'teaching_date', 'session_slot', 'class_key', 'session_type',
   'display_name', 'start_time', 'end_time', 'lesson_title', 'preparation_status', 'home_list'];
+const MONDAY_CARDS = {
+  '6b02861f8bb8cb32f08f0cc4': { session_slot: 'whanau', class_key: '9WHAU', session_type: 'whanau',
+    display_name: '9WHAU - Whanau', start_time: '08:45', end_time: '09:00', lesson_title: 'Whanau' },
+  '6b02862264674aeee7f041cb': { session_slot: 'p2', class_key: 'JPI', session_type: 'teaching',
+    display_name: 'JPI - JuniorDTECH', start_time: '10:00', end_time: '11:00', lesson_title: 'Binary Piano decoding' }
+};
 
 function validDate(value) {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) &&
@@ -89,6 +95,7 @@ function createTeachingDayTrelloRouter({ env = process.env, fetchImpl = globalTh
       const source = await read('lists/' + listId + '/cards', { filter: 'open', fields: 'id,idList,name,desc,url,closed,dateLastActivity' });
       if (!Array.isArray(source) || source.length > 200 || !source.every(card =>
         card && ID.test(card.id) && card.idList === listId && typeof card.closed === 'boolean' &&
+        typeof card.name === 'string' && card.name.length <= 1000 &&
         typeof card.desc === 'string' && card.desc.length <= 64000 &&
         typeof card.url === 'string' && typeof card.dateLastActivity === 'string' && Number.isFinite(Date.parse(card.dateLastActivity)))) {
         throw new Error('The teaching list returned invalid card data.');
@@ -98,9 +105,18 @@ function createTeachingDayTrelloRouter({ env = process.env, fetchImpl = globalTh
         const url = cardLink(card.url);
         let parsed;
         try { parsed = parseMetadata(card.desc); }
-        catch (error) { issues.push({ cardId: card.id, message: error.message }); continue; }
+        catch (error) {
+          const monday = req.params.date === '2026-11-23' &&
+            boardId === '6b0286099da18b3599a6940e' && listId === '6b02860d27edaa3359a950a5' && MONDAY_CARDS[card.id];
+          if (!monday) { issues.push({ cardId: card.id, message: error.message }); continue; }
+          parsed = { metadata: { schema_version: 1, teaching_date: '2026-11-23', ...monday,
+            preparation_status: 'See card preparation', home_list: listId }, description: card.desc };
+        }
         if (parsed.metadata.teaching_date !== req.params.date) continue;
-        candidates.push({ id: card.id, url, ...parsed, resources: resourceLinks(parsed.description), updatedAt: card.dateLastActivity });
+        candidates.push({ id: card.id, name: card.name, url, ...parsed,
+          location: parsed.metadata.class_key === 'JPI' ||
+            req.params.date === '2026-11-23' && parsed.metadata.class_key === '9WHAU' ? 'CW' : null,
+          resources: resourceLinks(parsed.description), updatedAt: card.dateLastActivity });
       }
       const reference = card => [card.metadata.teaching_date, card.metadata.session_slot, card.metadata.class_key].join('|');
       const counts = new Map();

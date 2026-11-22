@@ -1867,7 +1867,32 @@ in each displayed card's description. Keep other preparation, activities,
 resources, task-status reports and AI-generated notes outside the block.
 Named resources use `[Resource name](https://...)` Markdown links.
 
-**Exact JPI example:**
+### Monday Teaching Dashboard pilot
+
+The former Teacher Timetable navigation opens **Teaching Dashboard**, without its
+duplicate weekly calendar. Rachel's Year, Term and Weekly pages are unchanged.
+The left column reads CURRENT TEACHING DAY; selecting a stable Trello card ID
+opens the existing scheduled-session workspace on the right. **Notes / Trello
+Planner** switches between editable private Session Plans and the selected card's
+read-only original title, description and named resource links. The selected
+session, card and information view survive page refresh in the URL.
+
+Monday 23 November 2026 supports the existing cards without a metadata migration:
+`6b02861f8bb8cb32f08f0cc4` is 9WHAU at 08:45 (`whanau`), and
+`6b02862264674aeee7f041cb` is JPI at 10:00 (`p2`). These explicit references apply
+only to the configured pilot board/list and date; titles are never parsed to
+choose a class. Other cards continue to use the versioned metadata below.
+Both pilot sessions display Room CW. JPI's verified Session Plan context also
+uses CW rather than the outdated KAMAR room, without editing the source timetable.
+
+Switching sessions waits for the current Notes draft to save; failed saves or
+conflicts prevent switching. Trello errors cannot block Notes, and the Whanau/JPI
+Notes shortcuts remain available during outages. Confirmed progress, routines,
+Unit Library links and legacy records use their existing storage and permissions.
+No Trello writes, AI processing, calendar reconciliation or inferred outcomes are
+introduced. Maintain cards independently in Trello/ChatGPT.
+
+**Exact JPI example (optional for the Monday pilot):**
 
 ```whs-teaching-session-v1
 {

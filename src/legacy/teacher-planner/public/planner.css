@@ -86,6 +86,16 @@
 .teaching-day-card h4, .teaching-day-card p { margin: 6px 0; }
 .teaching-day-card-current { border-left-color: #376783; }
 .teaching-day-current-label { font-weight: bold; color: #31586c; }
+.teaching-dashboard { min-width: 0; }
+.teaching-dashboard-columns { display: grid; grid-template-columns: minmax(240px, 320px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.teaching-dashboard-columns > section { padding: 16px; border: 1px solid #b3c4cb; background: #fff; border-radius: 5px; }
+.teaching-dashboard-workspace { min-width: 0; }
+.teaching-dashboard-workspace .session-planner { margin: 0; }
+.teaching-dashboard-workspace .term-notes-toggle button { font-size: 18px; padding: 10px 20px; }
+.teaching-dashboard-card { display: grid; gap: 6px; width: 100%; padding: 14px; margin: 10px 0; text-align: left; white-space: normal; }
+.teaching-dashboard-card[aria-pressed="true"] { outline: 3px solid #376783; outline-offset: 1px; }
+.planner-main:has(.teaching-dashboard) { width: 100%; }
+@media (max-width: 800px) { .teaching-dashboard-columns { grid-template-columns: minmax(0, 1fr); } }
 .term-trello-panel > p { font-size: 13px; }
 .term-trello-panel [role="alert"] { color: #8e230c; background: #fff0eb; padding: 8px; }
 .term-trello-cards { list-style: none; padding: 0; }
