@@ -58,9 +58,10 @@
 .whs-planner button { border: 1px solid #b3c4cb; border-radius: 5px; background: #fff; color: #31586c; padding: 9px 13px; cursor: pointer; font: inherit; }
 .whs-planner button:disabled { opacity: .55; cursor: wait; }
 .whs-planner [hidden] { display: none !important; }
-.term-notes-toggle { display: flex; gap: 8px; margin: 12px 0; }
+.term-notes-toggle { display: flex; grid-column: 1 / -1; gap: 8px; margin: 12px 0; }
 .term-notes-toggle button[aria-pressed="true"] { background: #245f85; color: #fff; }
-.term-trello-panel { min-width: 0; overflow-wrap: anywhere; }
+.term-notes-panel { display: grid; grid-column: 1 / -1; grid-template-columns: inherit; gap: inherit; align-content: start; }
+.term-trello-panel { grid-column: 1 / -1; min-width: 0; overflow-wrap: anywhere; }
 .term-trello-panel h3 { margin: 12px 0; color: #376783; }
 .term-trello-panel > p { font-size: 13px; }
 .term-trello-panel [role="alert"] { color: #8e230c; background: #fff0eb; padding: 8px; }
