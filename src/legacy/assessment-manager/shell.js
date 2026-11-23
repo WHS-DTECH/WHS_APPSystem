@@ -4,7 +4,7 @@ const escape = (value) => String(value).replace(/[&<>"']/g, (char) => ({
 }[char]));
 
 function renderShell({ baseUrl, coreUrl, standalone, displayName = '', userEmail = '', userId = '', now = new Date() }) {
-  const asset = (file) => escape(baseUrl + 'framework/' + file + '?v=verifier-directory-2');
+  const asset = (file) => escape(baseUrl + 'framework/' + file + '?v=audit-standards-1');
   const monthYear = new Intl.DateTimeFormat('en-NZ', {
     month: 'long', year: 'numeric', timeZone: 'Pacific/Auckland'
   }).format(now);
@@ -39,6 +39,7 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
 <nav class="assessment-manager-nav" aria-label="Assessment Manager">
   <a href="#?section=home" aria-current="page">Home</a>
   <a href="#?section=standards">Setup Assessment</a>
+  <a href="#?section=audit">Audit Standards</a>
   <a href="#?section=library">Resource Library</a>
   <a href="#?section=suppliers">Suppliers</a>
   <a href="#?section=moderation">Moderation</a>
