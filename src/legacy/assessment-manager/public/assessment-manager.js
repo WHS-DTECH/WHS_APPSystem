@@ -42,7 +42,7 @@
   function routeFromHash() {
     const params = new URLSearchParams(location.hash.slice(1));
     const year = Number(params.get('year') || yearInput.value);
-    const section = ['home', 'standards', 'moderation', 'setup', 'library', 'suppliers'].includes(params.get('section'))
+    const section = ['home', 'standards', 'audit', 'moderation', 'setup', 'library', 'suppliers'].includes(params.get('section'))
       ? params.get('section') : 'home';
     return {
       year: Number.isInteger(year) && year >= 2000 && year <= 2100 ? year : Number(yearInput.value),
@@ -162,6 +162,31 @@
       hasUnsavedChanges = moderation.hasUnsavedChanges;
     }
     openSetupYear = setupOnly ? moderation.openYear : undefined;
+  }
+
+  async function renderAuditStandards(route, version) {
+    if (version !== renderVersion) return;
+    host.replaceChildren();
+    saveCurrent = async () => true;
+    hasUnsavedChanges = () => false;
+    const sheetId = '1ugLHLfv_VtSraRdqG3pUFCevv7udzLLp';
+    const sheetUrl = 'https://docs.google.com/spreadsheets/d/' + sheetId + '/edit?usp=sharing';
+    const page = el('section', '', { class: 'paper-page assessment-audit-page' });
+    page.append(el('h2', 'Audit Standards', { class: 'paper-heading' }),
+      el('p', 'Read-only view of the WHS standards audit spreadsheet. Sign in with the school account if Google requests it.'));
+    const actions = el('div', '', { class: 'assessment-audit-actions' });
+    actions.append(el('a', 'Open spreadsheet', {
+      href: sheetUrl, target: '_blank', rel: 'noopener noreferrer', class: 'assessment-audit-open'
+    }));
+    const frame = el('iframe', '', {
+      class: 'assessment-audit-sheet',
+      title: 'WHS Audit Standards spreadsheet',
+      src: 'https://docs.google.com/spreadsheets/d/' + sheetId + '/preview',
+      loading: 'lazy',
+      referrerpolicy: 'strict-origin-when-cross-origin'
+    });
+    page.append(actions, frame);
+    host.append(page);
   }
 
   async function renderStandards(route, version) {
@@ -373,7 +398,8 @@
         if (version !== renderVersion) return;
         saveCurrent = controller.saveNow;
         hasUnsavedChanges = controller.hasUnsavedChanges;
-      } else if (route.section === 'standards') await renderStandards(route, version);
+      } else if (route.section === 'audit') await renderAuditStandards(route, version);
+      else if (route.section === 'standards') await renderStandards(route, version);
       else await renderModeration(route, route.section === 'setup', version);
       if (version === renderVersion && status.textContent === 'Loading Assessment Manager…') message('');
     } catch (error) {

@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
+const fs = require('node:fs');
 const { createModuleRouter } = require('./app');
 
 test('module denies anonymous/student access and accepts a supplied teacher identity', async () => {
@@ -22,6 +23,11 @@ test('module denies anonymous/student access and accepts a supplied teacher iden
     const html = await response.text();
     assert.match(html, /framework\/whs-logo.png/);
     assert.match(html, /href="#\?section=standards">Setup Assessment<\/a>/);
+    assert.match(html, /href="#\?section=audit">Audit Standards<\/a>/);
+    assert.match(html, /v=audit-standards-1/);
+    const script = fs.readFileSync(require.resolve('./public/assessment-manager'), 'utf8');
+    assert.match(script, /1ugLHLfv_VtSraRdqG3pUFCevv7udzLLp/);
+    assert.match(script, /\/preview/);
     assert.doesNotMatch(html, /href="#\?section=standards">My Standards<\/a>/);
     assert.match(html, /Last Updated:/);
     assert.ok(!html.includes('name="whs-global-control"'));
