@@ -231,6 +231,19 @@ function createModuleIdentityRouter({
         'Learning Area Profiles could not be loaded. Check the department directory, KAMAR staff timetables, Student Tracker setup and Learning Sites content, then retry.' });
     }
   }));
+  router.post('/senior-audit', wrap(async (req, res) => {
+    const user = await identity(req, res);
+    if (!user) return;
+    if (req.body.client_id?.split(':')[0] !== 'whs-assessment-manager') {
+      return deny(res, 'Senior audit is restricted to Assessment Manager.');
+    }
+    try { res.json(await tracker.seniorAudit(user, req.body)); }
+    catch (error) {
+      console.error('Senior audit source request failed:', error.status ? error.message : 'Data source unavailable.');
+      res.status(error.status || 502).json({ error: error.status ? error.message :
+        'The senior audit source could not be loaded. Check KAMAR, Tracker setup and the Google connection, then retry.' });
+    }
+  }));
   router.post('/teaching-subjects', wrap(async (req, res) => {
     const user = await identity(req, res);
     if (!user) return;

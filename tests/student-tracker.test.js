@@ -1113,6 +1113,68 @@ test('teaching subjects list only the signed-in teacher’s confirmed subject an
   await assert.rejects(service.teachingSubjects({ ...teacher, roles: ['Student'] }, { year: 2026 }), { status: 403 });
 });
 
+test('senior audit only returns confirmed senior Technology rosters to authorised department staff', async () => {
+  const { service, state } = fixture();
+  state.hasSnapshot = false;
+  state.row.year_level = '13';
+  state.row.mon_p1_1 = 'TST-3-13DTECH-CW';
+  state.row.fri_p3 = '';
+  state.teacherRows[0].data = { Teacher: 'TST', Mon_P1: '3-13DTECH-CW' };
+  state.department.class_links['2026'] = [{ teacherEmail: teacher.email, code: '3-13DTECH' }];
+  state.courses.push({ course_code: '13DTECH', subject_code: 'DTECH' });
+  const result = await service.seniorAudit(teacher, { year: 2026, action: 'senior-audit-roster' });
+  assert.equal(result.groups.length, 1);
+  assert.equal(result.groups[0].staffCode, 'TST');
+  assert.equal(result.groups[0].course, '13DTECH');
+  assert.deepEqual(result.groups[0].students.map(person => person.id), ['k:100']);
+  await service.seniorAudit(teacher, { year: 2026, action: 'senior-audit-files', folder: 'example' });
+  assert.deepEqual(state.auditCalls[0].subjectFolders, ['DTECH', 'DVC', 'FURN', 'HOSP', 'TEXT']);
+  assert.equal(state.auditCalls[0].input.folder, '10sHZ_vfdGvbtQEnpEYijE6DqvH660TLB');
+  await service.seniorAudit(teacher, { year: 2026, action: 'senior-audit-batch', folder: 'outside-folder',
+    items: [{ fileId: 'syntheticfile123', version: 'v1' }] });
+  assert.equal(state.auditCalls[1].input.folder, '10sHZ_vfdGvbtQEnpEYijE6DqvH660TLB');
+  await assert.rejects(service.seniorAudit({ ...teacher, id: managerId }, { year: 2026, action: 'senior-audit-roster' }), { status: 403 });
+  state.department.teacher_emails = [];
+  await assert.rejects(service.seniorAudit(teacher, { year: 2026, action: 'senior-audit-files' }), { status: 403 });
+  assert.equal(state.auditCalls.length, 2);
+});
+
+test('senior audit rechecks Technology membership and unique staff identity before reading PDFs', async () => {
+  const { service, state } = fixture();
+  const input = { year: 2026, action: 'senior-audit-files' };
+  const manager = { id: peerId, email: 'peer@example.test', roles: ['Teacher'] };
+  await service.seniorAudit(manager, input);
+  assert.equal(state.auditCalls.length, 1, 'The currently verified Technology HoLA is authorised');
+  state.accounts.find(account => account.id === peerId).lead_teacher = false;
+  await assert.rejects(service.seniorAudit(manager, input), { status: 403 });
+  state.staff.push({ ...state.staff[0] });
+  await assert.rejects(service.seniorAudit(teacher, input), { status: 403 });
+  await assert.rejects(service.seniorAudit({ ...teacher, roles: ['ADMIN'] }, input), { status: 403 });
+  assert.equal(state.auditCalls.length, 1, 'No sources are read after membership or identity becomes invalid');
+});
+
+test('senior audit keeps current and historical roster evidence separate', async () => {
+  const { service, state } = fixture();
+  state.row.year_level = '13';
+  state.row.mon_p1_1 = 'TST-3-13DTECH-CW';
+  state.teacherRows[0].data = { Teacher: 'TST', Mon_P1: '3-13DTECH-CW' };
+  state.department.class_links['2026'] = [{ teacherEmail: teacher.email, code: '3-13DTECH' }];
+  state.courses.push({ course_code: '13DTECH', subject_code: 'DTECH' });
+  state.studentHistory = [{ term: 4, payload: {
+    headers: ['Student Name', 'ID Number', 'Year Level', 'Mon P1'],
+    rows: [['Previous Student', '300', '13', 'TST-3-13DTECH-CW']]
+  } }];
+  state.teacherHistory = [{ term: 4, payload: {
+    headers: ['Teacher', 'Mon P1'], rows: [['TST', '3-13DTECH-CW']]
+  } }];
+  const { groups } = await service.seniorAudit(teacher, { year: 2026, action: 'senior-audit-roster' });
+  assert.deepEqual(groups.map(group => [group.term, group.classCode, group.students.map(person => person.id)]),
+    [[null, '3-13DTECH', ['k:100']], [4, '3-13DTECH', ['k:300']]]);
+  state.extraStudents.push({ ...state.row, student_name: 'Conflicting Student Name' });
+  const conflict = await service.seniorAudit(teacher, { year: 2026, action: 'senior-audit-roster' });
+  assert.ok(conflict.ambiguousIds.includes('k:100'));
+});
+
 test('course size counts distinct linked students in a course without returning student details', async () => {
   const { service, state } = fixture();
   state.extraStudents.push({ id_number: '300', student_name: 'Second Student', year_level: '8', mon_p1_1: 'TST-PIDTECH-CW' },
@@ -1125,7 +1187,7 @@ test('course size counts distinct linked students in a course without returning 
 });
 
 test('Learning Area Profile bridge permits only a live Unit Library grant and no Tracker actions', async t => {
-  let allowed = true, calls = 0, subjectCalls = 0, sizeCalls = 0;
+  let allowed = true, calls = 0, subjectCalls = 0, sizeCalls = 0, auditCalls = 0;
   const app = express(); app.use(express.json());
   app.use('/module-auth', createModuleIdentityRouter({
     dbQuery: async (sql, params) => {
@@ -1139,7 +1201,8 @@ test('Learning Area Profile bridge permits only a live Unit Library grant and no
       calls++; assert.equal(user.id, teacherId); assert.deepEqual(input, { year: 2026 });
       return { year: 2026, departments: [] };
     }, teachingSubjects: async user => { subjectCalls++; assert.equal(user.id, teacherId); return { year: 2026, classes: [] }; },
-    courseSize: async user => { sizeCalls++; assert.equal(user.id, teacherId); return { students: 0 }; } }
+    courseSize: async user => { sizeCalls++; assert.equal(user.id, teacherId); return { students: 0 }; },
+    seniorAudit: async user => { auditCalls++; assert.equal(user.id, teacherId); return { groups: [] }; } }
   }));
   const server = app.listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
@@ -1166,6 +1229,11 @@ test('Learning Area Profile bridge permits only a live Unit Library grant and no
   assert.equal((await post('whs-unit-library', 'A'.repeat(43), 'class-size')).status, 403);
   assert.equal((await post('whs-assessment-manager', 'A'.repeat(43), 'class-size')).status, 200);
   assert.equal(sizeCalls, 1);
+  assert.equal((await post('whs-unit-library', 'A'.repeat(43), 'senior-audit')).status, 403);
+  assert.equal((await post('whs-assessment-manager', 'A'.repeat(43), 'senior-audit')).status, 200);
+  allowed = false;
+  assert.equal((await post('whs-assessment-manager', 'A'.repeat(43), 'senior-audit')).status, 401);
+  assert.equal(auditCalls, 1);
 });
 
 test('Tracker bridge requires a live grant for the registered Tracker client before any data access', async t => {

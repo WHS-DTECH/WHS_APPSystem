@@ -2446,6 +2446,17 @@ headings, columns, rows and totals, retains unmatched evidence, and separates
 blank entries from missing evidence. It never writes to KAMAR, Drive or Planner.
 See the independent Tracker README for audit status and exact award-tick rules.
 
+**Senior Audit Tracker** is in the standalone Assessment Manager's **Audit
+Standards** page, not in Student Tracker. The Assessment Manager-only
+`/module-auth/senior-audit` bridge rechecks current, uniquely identified
+Technology staff and year-specific class links for roster and bounded PDF
+requests. It reads only the configured senior audit folder using the requester's
+existing read-only Google connection. Batch requests are limited to five PDFs;
+folder membership, connection identity and versions remain checked. The
+separately selected no-results workbook uses the user's file-specific Google
+permission in Assessment Manager, and no audit data is written to KAMAR,
+Google Drive or Planner.
+
 **Setup Student Tracker** opens a separate setup page for the selected school
 year; the Student Tracker heading returns to student search. Global ADMIN can
 open **+ Add Department** to create a department without displaying a blank
