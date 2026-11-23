@@ -10,8 +10,40 @@ const { createModuleAccessGuard } = require('../src/moduleAccess');
 const { injectGlobalNav, navData } = require('../src/globalNav');
 const { moduleForPath } = require('../src/moduleSearch');
 const { configuration, encryptTokens, decryptTokens } = require('../src/legacy/teacher-planner/googleCalendar');
+const { readDepartmentAudit } = require('../src/departmentAudit');
 
 const origin = 'https://school.example.test';
+
+test('senior audit reads only the connected workbook with the existing read-only connection', async () => {
+  const owner = crypto.randomUUID(), key = Buffer.alloc(32, 7);
+  const env = { APP_BASE_URL: origin, GOOGLE_CALENDAR_CLIENT_ID: 'test-client',
+    GOOGLE_CALENDAR_CLIENT_SECRET: 'test-secret', GOOGLE_CALENDAR_TOKEN_KEY: key.toString('base64') };
+  const tokens = { accessToken: 'synthetic-access-token', expiresAt: Date.now() + 600000,
+    scopes: ['https://www.googleapis.com/auth/drive.readonly'] };
+  const row = { owner_id: owner, connection_id: 'connection', encrypted_tokens: encryptTokens(tokens, key, owner) };
+  const data = Buffer.from('synthetic workbook');
+  const metadata = { id: '1ugLHLfv_VtSraRdqG3pUFCevv7udzLLp',
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', trashed: false,
+    modifiedTime: '2026-11-23T00:00:00Z', size: String(data.length),
+    md5Checksum: crypto.createHash('md5').update(data).digest('hex') };
+  let modified = false, calls = 0;
+  const query = async () => ({ rows: [row] });
+  const fetchImpl = async (url, options) => {
+    calls++;
+    assert.ok(url.startsWith('https://www.googleapis.com/drive/v3/files/' + metadata.id + '?'));
+    assert.equal(options.headers.Authorization, 'Bearer synthetic-access-token');
+    return url.includes('alt=media') ? new Response(data) :
+      Response.json({ ...metadata, modifiedTime: modified && calls > 2 ? '2026-11-24T00:00:00Z' : metadata.modifiedTime });
+  };
+  const input = { action: 'senior-audit-workbook', folder: 'syntheticfolder123' };
+  const result = await readDepartmentAudit({ user: { id: owner }, input, query, env, fetchImpl });
+  assert.deepEqual(Buffer.from(result.data, 'base64'), data);
+  assert.equal(result.modifiedTime, metadata.modifiedTime);
+  modified = true; calls = 0;
+  await assert.rejects(readDepartmentAudit({ user: { id: owner }, input, query, env, fetchImpl }), { status: 409 });
+  row.encrypted_tokens = encryptTokens({ ...tokens, scopes: [] }, key, owner);
+  await assert.rejects(readDepartmentAudit({ user: { id: owner }, input, query, env, fetchImpl }), { status: 409 });
+});
 
 async function fixture(t, { env = {}, useRealDatabase = false } = {}) {
   const owner = crypto.randomUUID();

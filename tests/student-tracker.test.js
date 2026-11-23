@@ -1133,10 +1133,12 @@ test('senior audit only returns confirmed senior Technology rosters to authorise
   await service.seniorAudit(teacher, { year: 2026, action: 'senior-audit-batch', folder: 'outside-folder',
     items: [{ fileId: 'syntheticfile123', version: 'v1' }] });
   assert.equal(state.auditCalls[1].input.folder, '10sHZ_vfdGvbtQEnpEYijE6DqvH660TLB');
+  await service.seniorAudit(teacher, { year: 2026, action: 'senior-audit-workbook', fileId: 'untrusted-file' });
+  assert.equal(state.auditCalls[2].input.action, 'senior-audit-workbook');
   await assert.rejects(service.seniorAudit({ ...teacher, id: managerId }, { year: 2026, action: 'senior-audit-roster' }), { status: 403 });
   state.department.teacher_emails = [];
   await assert.rejects(service.seniorAudit(teacher, { year: 2026, action: 'senior-audit-files' }), { status: 403 });
-  assert.equal(state.auditCalls.length, 2);
+  assert.equal(state.auditCalls.length, 3);
 });
 
 test('senior audit rechecks Technology membership and unique staff identity before reading PDFs', async () => {
