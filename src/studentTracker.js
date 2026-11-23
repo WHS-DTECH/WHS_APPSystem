@@ -556,7 +556,7 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
   async function seniorAudit(user, input = {}) {
     if (!user?.roles?.some(role => ['ADMIN', 'Teacher'].includes(role))) throw error('Staff access is required.', 403);
     if (!Number.isInteger(input.year) || input.year < 2000 || input.year > 2100) throw error('Choose a year from 2000 to 2100.');
-    if (!['senior-audit-roster', 'senior-audit-files', 'senior-audit-file', 'senior-audit-batch'].includes(input.action)) {
+    if (!['senior-audit-roster', 'senior-audit-files', 'senior-audit-file', 'senior-audit-batch', 'senior-audit-workbook'].includes(input.action)) {
       throw error('Unknown senior audit action.');
     }
     const context = await scope(user, input.year, input.action === 'senior-audit-roster');
