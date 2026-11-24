@@ -2445,7 +2445,7 @@ PDF types. The Wood & DVC folder may also be named `WOOD`; both listing and PDF
 reads accept that name. If both names exist, the audit reports an ambiguous folder
 rather than selecting one silently. Attendance staff-folder matching is unchanged.
 Connection IDs, folder membership and file versions are checked;
-limits are 200 files, 5 MB per PDF and 20 pages. Conflicting roster years are
+limits are 1,000 files, 5 MB per PDF and 20 pages. Conflicting roster years are
 flagged rather than silently assigned. The Tracker UI validates actual PDF
 headings, columns, rows and totals, retains unmatched evidence, and separates
 blank entries from missing evidence. It never writes to KAMAR, Drive or Planner.

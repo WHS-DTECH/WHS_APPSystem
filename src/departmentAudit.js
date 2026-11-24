@@ -80,7 +80,7 @@ async function readDepartmentAudit({ user, input, query, env, fetchImpl = fetch,
   for (const folder of folders) for (const file of folder.files) {
     files.set(file.id, { ...file, subjectFolder: file.folderId === root ? 'Department root' : folder.label });
   }
-  if (files.size > 200) throw new DepartmentAuditError('Keep at most 200 PDF exports in the department audit folders.', 422);
+  if (files.size > 1000) throw new DepartmentAuditError('Keep at most 1,000 PDF exports in the department audit folders.', 422);
   if (input.action === 'department-audit-files' || input.action === 'senior-audit-files') {
     return { files: [...files.values()], folders: folders.map(folder => ({ name: folder.label, found: Boolean(folder.staffFolder) })) };
   }

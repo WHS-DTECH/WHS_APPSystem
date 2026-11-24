@@ -14,6 +14,44 @@ const { readDepartmentAudit } = require('../src/departmentAudit');
 
 const origin = 'https://school.example.test';
 
+test('department audit lists up to 1,000 PDFs across paginated folders without truncation', async () => {
+  const owner = crypto.randomUUID(), key = Buffer.alloc(32, 7), root = 'syntheticfolder123';
+  const env = { APP_BASE_URL: origin, GOOGLE_CALENDAR_CLIENT_ID: 'test-client',
+    GOOGLE_CALENDAR_CLIENT_SECRET: 'test-secret', GOOGLE_CALENDAR_TOKEN_KEY: key.toString('base64') };
+  const tokens = { accessToken: 'synthetic-access-token', expiresAt: Date.now() + 600000,
+    scopes: ['https://www.googleapis.com/auth/drive.readonly'] };
+  const row = { owner_id: owner, connection_id: 'connection', encrypted_tokens: encryptTokens(tokens, key, owner) };
+  let count = 1000;
+  const fetchImpl = async (value, options) => {
+    assert.equal(options.headers.Authorization, 'Bearer synthetic-access-token');
+    const url = new URL(value);
+    if (url.pathname.endsWith('/' + root)) {
+      return Response.json({ id: root, mimeType: 'application/vnd.google-apps.folder', trashed: false });
+    }
+    const q = url.searchParams.get('q');
+    if (q.includes("mimeType = 'application/vnd.google-apps.folder'")) {
+      return Response.json({ files: [{ id: 'synthetictextfolder', name: 'TEXT',
+        mimeType: 'application/vnd.google-apps.folder', trashed: false, parents: [root] }] });
+    }
+    const parent = q.includes("'" + root + "' in parents") ? root : 'synthetictextfolder';
+    const total = parent === root ? 1000 : count - 1000;
+    const offset = Number(url.searchParams.get('pageToken') || 0);
+    const end = Math.min(offset + 100, total);
+    return Response.json({ files: Array.from({ length: end - offset }, (_, i) => ({
+      id: 'syntheticpdf' + parent + (offset + i), name: 'Report ' + (offset + i) + '.pdf',
+      mimeType: 'application/pdf', trashed: false, parents: [parent],
+      modifiedTime: '2026-11-24T00:00:00Z', md5Checksum: 'a'.repeat(32), size: '100'
+    })), ...(end < total ? { nextPageToken: String(end) } : {}) });
+  };
+  const options = { user: { id: owner }, input: { action: 'department-audit-files', folder: root },
+    query: async () => ({ rows: [row] }), env, fetchImpl };
+  const result = await readDepartmentAudit(options);
+  assert.equal(result.files.length, 1000, 'Root files shared by all subject listings are counted once');
+  assert.equal(new Set(result.files.map(file => file.id)).size, 1000);
+  count = 1001;
+  await assert.rejects(readDepartmentAudit(options), { status: 422 });
+});
+
 test('senior audit reads only the connected workbook with the existing read-only connection', async () => {
   const owner = crypto.randomUUID(), key = Buffer.alloc(32, 7);
   const env = { APP_BASE_URL: origin, GOOGLE_CALENDAR_CLIENT_ID: 'test-client',
