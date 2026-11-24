@@ -87,15 +87,29 @@ function saveTeacherRow(teacherKey) {
     });
 }
 
+// Rows from older KAMAR exports can use different period headers (D1 P1 vs Mon P1),
+// so show every column, with Current rows' layout first.
+function collectTimetableHeaders(rows) {
+  if (!rows.length) return TIMETABLE_DEFAULT_COLUMNS.slice();
+  const ordered = rows.filter(r => r?.status === 'Current').concat(rows.filter(r => r?.status !== 'Current'));
+  const headers = [];
+  const seen = new Set();
+  ordered.forEach(row => Object.keys(row || {}).forEach(key => {
+    if (!seen.has(key)) {
+      seen.add(key);
+      headers.push(key);
+    }
+  }));
+  return headers;
+}
+
 function fetchAndRenderTimetableTable() {
   fetch('/api/timetable/all')
     .then(res => res.json())
     .then(result => {
       const rows = (result && Array.isArray(result.timetable)) ? result.timetable : [];
       timetableRows = sortRowsByTeacherName(rows);
-      timetableHeaders = timetableRows.length > 0
-        ? Object.keys(timetableRows[0])
-        : TIMETABLE_DEFAULT_COLUMNS.slice();
+      timetableHeaders = collectTimetableHeaders(timetableRows);
       renderTimetableTable();
     })
     .catch(() => {

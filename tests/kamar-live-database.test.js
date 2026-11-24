@@ -236,3 +236,13 @@ test('legacy connection failure is explicit and does not execute upload SQL or r
     await new Promise(resolve => server.close(resolve));
   }
 });
+
+test('timetable grid shows period columns from every row, Current layout first', () => {
+  const context = { document: { addEventListener() {}, getElementById: () => ({ addEventListener() {}, style: {} }) }, window: { addEventListener() {} }, fetch: () => new Promise(() => {}) };
+  vm.runInNewContext(source('site/timetable_upload.js'), context);
+  const headers = context.collectTimetableHeaders([
+    { 'D1 P1': '', Teacher: 'aa', status: 'Not Current' },
+    { 'Mon P1': '82D-MTEXT-TT', 'Mon P1_2': '82D-MTEXT-TT', Teacher: 'ep', status: 'Current' }
+  ]);
+  assert.deepEqual([...headers], ['Mon P1', 'Mon P1_2', 'Teacher', 'status', 'D1 P1']);
+});
