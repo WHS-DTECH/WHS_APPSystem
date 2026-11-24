@@ -1336,9 +1336,14 @@ The previous imported Core tables remain untouched but are no longer the source
 for Kamar uploads or shared directories.
 
 All four term upload options and original staff/student/timetable upload pages
-are retained. Each new upload first saves its complete ordered CSV headers/rows
-as an immutable year/term dataset, in the same transaction as the current-data
-update. The existing legacy tables (`staff_upload`,
+are retained. Complete uploads save their ordered CSV headers/rows as an
+immutable year/term dataset in the same transaction as the current-data update.
+A Staff Timetable upload containing one unique teacher is a partial update: it
+updates only that teacher, leaves other staff statuses unchanged, and does not
+replace the complete term snapshot. Upload the full staff CSV to replace the
+current staff list and save its snapshot. Repeated timetable headers are kept
+as distinct columns (for example, `Mon P1` and `Mon P1_2`).
+The existing legacy tables (`staff_upload`,
 `student_details_upload`, `student_upload`, `timetable_upload`, `app_project_links`)
 remain compatibility views for live modules, using the original transactions,
 identifiers and Current/Not Current behaviour. For the four staff/student/

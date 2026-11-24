@@ -158,7 +158,14 @@ test('all original upload endpoints accept Terms 1-4, preserve IDs and report ro
         assert.equal(response.status, 200, JSON.stringify(output));
         assert.equal(response.headers.get('cache-control'), 'no-store');
         assert.equal(output.success, true);
-        assert.match(output.dataset_id, /^[0-9a-f-]{36}$/);
+        if (upload.table === 'timetable_upload') {
+          assert.equal(output.dataset_id, null);
+          assert.equal(output.history_saved, false);
+          assert.equal(output.full_timetable_snapshot, false);
+          assert.equal(output.marked_not_current, 0);
+        } else {
+          assert.match(output.dataset_id, /^[0-9a-f-]{36}$/);
+        }
         assert.equal(output.processed, 1);
         assert.equal(output.upload_year, 2026);
         assert.equal(output.upload_term, term);
@@ -171,6 +178,23 @@ test('all original upload endpoints accept Terms 1-4, preserve IDs and report ro
         else ids.set(upload.table, row.id);
       }
     }
+    const timetableResponse = await fetch(base + '/api/upload_timetable', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ headers: ['Teacher', 'Teacher Name', 'Mon P1', 'Mon P1'],
+        timetable: [['TST', 'Synthetic Teacher', 'PIDTECH-CW', 'MATH-A'],
+          ['PEER', 'Synthetic Peer', '', '']], uploadYear: 2026, uploadTerm: 'Term 4', uploadDate: '2026-11-01' }) });
+    const timetableOutput = await timetableResponse.json();
+    assert.equal(timetableResponse.status, 200, JSON.stringify(timetableOutput));
+    assert.equal(timetableOutput.processed, 2);
+    assert.equal(timetableOutput.history_saved, true);
+    assert.equal(timetableOutput.full_timetable_snapshot, true);
+    assert.match(timetableOutput.dataset_id, /^[0-9a-f-]{36}$/);
+    const timetableRecord = Object.values(pool.records).find(record => record.table === 'timetable_upload' && record.teacher === 'tst');
+    assert.deepEqual(JSON.parse(timetableRecord.data), {
+      Teacher: 'TST', 'Teacher Name': 'Synthetic Teacher', 'Mon P1': 'PIDTECH-CW', 'Mon P1_2': 'MATH-A'
+    });
+    assert.ok(pool.calls.some(call => call.sql.includes('UPDATE timetable_upload') &&
+      call.sql.includes("status = 'Not Current'")), 'full staff uploads still retire omitted teachers');
     const health = await fetch(base + '/api/feed/health');
     assert.deepEqual(await health.json(), { success: true, database: 'existing-kamar', importsEnabled: false });
     const before = structuredClone(pool.records);
@@ -211,4 +235,14 @@ test('legacy connection failure is explicit and does not execute upload SQL or r
   } finally {
     await new Promise(resolve => server.close(resolve));
   }
+});
+
+test('timetable grid shows period columns from every row, Current layout first', () => {
+  const context = { document: { addEventListener() {}, getElementById: () => ({ addEventListener() {}, style: {} }) }, window: { addEventListener() {} }, fetch: () => new Promise(() => {}) };
+  vm.runInNewContext(source('site/timetable_upload.js'), context);
+  const headers = context.collectTimetableHeaders([
+    { 'D1 P1': '', Teacher: 'aa', status: 'Not Current' },
+    { 'Mon P1': '82D-MTEXT-TT', 'Mon P1_2': '82D-MTEXT-TT', Teacher: 'ep', status: 'Current' }
+  ]);
+  assert.deepEqual([...headers], ['Mon P1', 'Mon P1_2', 'Teacher', 'status', 'D1 P1']);
 });

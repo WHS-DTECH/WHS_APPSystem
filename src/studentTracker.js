@@ -305,8 +305,9 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
   async function teacherLinks(staff, year) {
     const [current, history, catalogue] = await Promise.all([
       directoryQuery("SELECT teacher,data FROM timetable_upload WHERE status='Current' AND upload_year=$1", [year]),
+      // Ignore legacy one-teacher uploads that were incorrectly archived as complete snapshots.
       directoryQuery(`SELECT DISTINCT ON(term) term,payload FROM kamar_datasets
-        WHERE school_year=$1 AND dataset_type='teacher_timetable'
+        WHERE school_year=$1 AND dataset_type='teacher_timetable' AND row_count > 1
         ORDER BY term DESC,source_date DESC,source_time DESC,created_at DESC,id DESC`, [year]),
       dbQuery(`SELECT c.course_code,c.subject_code,s.name AS subject_name FROM admin_courses c
         JOIN admin_subjects s ON s.code=c.subject_code WHERE c.is_active=true ORDER BY c.course_code`)
@@ -331,15 +332,36 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       const classes = new Map(), excluded = new Set();
       for (const row of mine) {
         const map = buildStudentHeaderMap(row.headers);
+        const normalizedHeaders = row.headers.map(header => String(header).toLowerCase().replace(/[^a-z0-9]/g, ''));
+        const p1Counts = new Map();
+        const explicitP1Slots = new Map();
+        for (const header of normalizedHeaders) {
+          const plainP1 = /^(mon|tue|wed|thu|fri)p1$/.exec(header);
+          if (plainP1) p1Counts.set(header, (p1Counts.get(header) || 0) + 1);
+          const explicitP1 = /^(mon|tue|wed|thu|fri)p1([12])$/.exec(header);
+          if (explicitP1) {
+            if (!explicitP1Slots.has(explicitP1[0].slice(0, -1))) explicitP1Slots.set(explicitP1[0].slice(0, -1), new Set());
+            explicitP1Slots.get(explicitP1[0].slice(0, -1)).add(explicitP1[1]);
+          }
+        }
+        const pairedP1 = new Set([...p1Counts]
+          .filter(([header, count]) => count > 1 || normalizedHeaders.includes(header + '2') ||
+            (explicitP1Slots.get(header)?.has('1') && explicitP1Slots.get(header)?.has('2')))
+          .map(([header]) => header));
         const indexes = row.headers.flatMap((header, index) => columns.includes(map.get(index)) ||
           /^d[1-5]p[1-5](?:[12])?$/.test(String(header).toLowerCase().replace(/[^a-z0-9]/g, '')) ? [index] : []);
         if (!indexes.length) throw error('A teacher timetable has no recognised period columns. Review Kamar Uploader.', 502);
         for (const index of indexes) {
           const parsed = teacherClassCodes(row.values[index], staff, courses);
           parsed.excluded.forEach(code => excluded.add(code));
-          const numbered = /^d([1-5])p([1-5])(?:[12])?$/.exec(String(row.headers[index]).toLowerCase().replace(/[^a-z0-9]/g, ''));
+          const normalizedHeader = normalizedHeaders[index];
+          const numbered = /^d([1-5])p([1-5])(?:[12])?$/.exec(normalizedHeader);
           const slot = numbered ? days[Number(numbered[1]) - 1] + '_p' + numbered[2] : map.get(index);
-          const slots = /_p1(?:_[12])?$/.test(slot) ? [slot.slice(0, 3) + '_p1_1', slot.slice(0, 3) + '_p1_2'] : [slot];
+          const weekdayP1 = /^(mon|tue|wed|thu|fri)p1(?:[12])?$/.exec(normalizedHeader)?.[1];
+          const explicitlyNumberedP1 = /^(?:mon|tue|wed|thu|fri)p1[12]$/.test(normalizedHeader);
+          const expandP1 = /_p1$/.test(slot) ||
+            (/_p1_1$/.test(slot) && !explicitlyNumberedP1 && !pairedP1.has(weekdayP1 + 'p1'));
+          const slots = expandP1 ? [slot.slice(0, 3) + '_p1_1', slot.slice(0, 3) + '_p1_2'] : [slot];
           for (const code of parsed.codes) {
             if (!classes.has(code)) {
               const matches = matchingCourses(code, courses);
@@ -518,6 +540,40 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
     }
     return { year, course: code, students: students.size, term: table ? table.term : null,
       linked: departments.length > 0, ambiguous };
+  }
+  async function assessmentRoster(user, { year } = {}) {
+    if (!user?.roles?.some(role => ['ADMIN', 'Teacher'].includes(role))) throw error('Staff access is required.', 403);
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) throw error('Choose a year from 2000 to 2100.');
+    const context = await scope(user, year);
+    const email = typeof user.email === 'string' ? user.email.trim().toLowerCase() : '';
+    const person = context.staffIds.includes(user.id) && context.candidates.find(item => item.email === email);
+    if (!person) throw error('Your account must match one current KAMAR staff record to load your own classes.', 403);
+    const snapshots = context.tables.filter(table => table.term !== null && table.rows.length).sort((a, b) => b.term - a.term);
+    const table = context.tables.find(item => item.term === null && item.rows.length) || snapshots[0];
+    if (!table) throw error('No student timetable is available for this year. Check KAMAR uploads.', 409);
+    const classes = [], unavailable = [];
+    for (const available of context.departments) {
+      const department = { ...available, classLinks: available.classLinks.filter(link => link.teacherEmail === person.email) };
+      const missing = savedClassLinks(available, year).filter(link => link.teacherEmail === person.email).length - department.classLinks.length;
+      if (missing > 0) unavailable.push({ department: department.name, count: missing });
+      for (const code of [...new Set(department.classLinks.map(link => link.code))]) {
+        const students = new Map();
+        let ambiguous = false;
+        for (const row of table.rows) {
+          const item = student(row);
+          for (const lesson of lessons(row)) {
+            const match = classLessonMatch(department, lesson, table.term, code);
+            if (match === 'ambiguous') ambiguous = true;
+            if (match !== 'matched') continue;
+            const key = item.id + '|' + lesson.subject;
+            students.set(key, { id: item.id, name: item.name, yearLevel: item.yearLevel, course: lesson.subject });
+          }
+        }
+        classes.push({ department: department.name, classCode: code, ambiguous,
+          students: [...students.values()].sort((a, b) => a.name.localeCompare(b.name) || a.course.localeCompare(b.course)) });
+      }
+    }
+    return { year, term: table.term, classes, unavailable };
   }
   async function seniorAudit(user, input = {}) {
     if (!user?.roles?.some(role => ['ADMIN', 'Teacher'].includes(role))) throw error('Staff access is required.', 403);
@@ -1103,6 +1159,6 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
     }
     throw error('Unknown Student Tracker action.');
   }
-  return { run, learningAreas, teachingSubjects, courseSize, seniorAudit };
+  return { run, learningAreas, teachingSubjects, courseSize, assessmentRoster, seniorAudit };
 }
 module.exports = { createStudentTrackerService, lessons, termRows, approvedTrackerUser, matchingCourses, teacherClassCodes, subjectFamily };

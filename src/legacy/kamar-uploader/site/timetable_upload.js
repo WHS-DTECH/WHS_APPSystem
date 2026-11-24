@@ -87,15 +87,29 @@ function saveTeacherRow(teacherKey) {
     });
 }
 
+// Rows from older KAMAR exports can use different period headers (D1 P1 vs Mon P1),
+// so show every column, with Current rows' layout first.
+function collectTimetableHeaders(rows) {
+  if (!rows.length) return TIMETABLE_DEFAULT_COLUMNS.slice();
+  const ordered = rows.filter(r => r?.status === 'Current').concat(rows.filter(r => r?.status !== 'Current'));
+  const headers = [];
+  const seen = new Set();
+  ordered.forEach(row => Object.keys(row || {}).forEach(key => {
+    if (!seen.has(key)) {
+      seen.add(key);
+      headers.push(key);
+    }
+  }));
+  return headers;
+}
+
 function fetchAndRenderTimetableTable() {
   fetch('/api/timetable/all')
     .then(res => res.json())
     .then(result => {
       const rows = (result && Array.isArray(result.timetable)) ? result.timetable : [];
       timetableRows = sortRowsByTeacherName(rows);
-      timetableHeaders = timetableRows.length > 0
-        ? Object.keys(timetableRows[0])
-        : TIMETABLE_DEFAULT_COLUMNS.slice();
+      timetableHeaders = collectTimetableHeaders(timetableRows);
       renderTimetableTable();
     })
     .catch(() => {
@@ -225,6 +239,11 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
 
   reader.onload = function(evt) {
     const text = evt.target.result;
+    if (typeof Papa === 'undefined') {
+      document.getElementById('uploadResult').textContent = 'Import failed: the CSV reader did not load. Refresh the page and try again.';
+      hideUploadProgress();
+      return;
+    }
     // Use PapaParse for robust CSV parsing
     const parsed = Papa.parse(text, { skipEmptyLines: true });
     const rows = parsed.data;
@@ -250,6 +269,7 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
           ', Inserted: ' + (result.inserted || 0) +
           ', Updated: ' + (result.updated || 0) +
           ', Marked Not Current: ' + (result.marked_not_current || 0) +
+          ', Scope: ' + (result.full_timetable_snapshot ? 'full staff snapshot' : 'single teacher update; other staff unchanged') +
           ', Skipped (no Teacher): ' + (result.skipped_no_teacher || 0) +
             ', Duplicate Teachers in upload: ' + (result.duplicate_teachers_in_upload || 0) +
             ', UploadYear: ' + (result.upload_year || '') +
