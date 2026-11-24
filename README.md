@@ -2473,6 +2473,14 @@ the 5 MB bound, read-only Google connection, folder membership and version
 checks remain. Equal known Enrolled/Published counts reconcile a standard;
 blank counts stay unchecked. No named individual enrolment is inferred.
 
+The roster also supplies `identityMemberships` for each verified department
+course: distinct current KAMAR student IDs and the actual timetable class codes
+(for example `3-11DTECH` and `6-11DTECH`). This read-only identity lookup includes
+all current timetable occurrences of that exact authorised course, independently
+of teacher/period-line matching. Other course codes and historical snapshots are
+not substituted. Existing teaching-line memberships, Senior Audit authorisation,
+grade checks and enrolment decisions retain their stricter matching rules.
+
 **Setup Student Tracker** opens a separate setup page for the selected school
 year; the Student Tracker heading returns to student search. Global ADMIN can
 open **+ Add Department** to create a department without displaying a blank

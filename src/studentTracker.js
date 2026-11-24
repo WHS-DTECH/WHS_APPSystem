@@ -603,11 +603,18 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
       }
       if (conflicts.size) throw error('Conflicting current senior identities must be resolved in KAMAR before loading Students Audit.', 409);
       const departments = context.departments.map(department => {
-        const memberships = new Map();
+        const courses = [...new Set(department.classLinks.map(link => link.subject))].filter(course => /^1[123]/.test(course)).sort();
+        const allowed = new Set(courses);
+        const memberships = new Map(), identities = new Map();
         for (const row of current.rows) {
           const id = student(row).id;
           if (!students.has(id)) continue;
           for (const lesson of lessons(row)) {
+            if (allowed.has(lesson.subject)) {
+              if (!identities.has(lesson.subject)) identities.set(lesson.subject, { ids: new Set(), classes: new Set() });
+              identities.get(lesson.subject).ids.add(id);
+              identities.get(lesson.subject).classes.add(lesson.classCode);
+            }
             if (!linkedLesson(department, lesson, null)) continue;
             if (!memberships.has(lesson.subject)) memberships.set(lesson.subject, new Set());
             memberships.get(lesson.subject).add(id);
@@ -615,8 +622,11 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
         }
         return { id: department.id, name: department.name,
           unavailableClassCount: department.unavailableClassCount,
-          courses: [...new Set(department.classLinks.map(link => link.subject))].filter(course => /^1[123]/.test(course)).sort(),
+          courses,
           memberships: [...memberships].map(([course, ids]) => ({ course, studentIds: [...ids] })),
+          identityMemberships: courses.map(course => ({ course,
+            classCodes: [...(identities.get(course)?.classes || [])].sort(),
+            studentIds: [...(identities.get(course)?.ids || [])].sort() })),
           markbookEvidence: normaliseDirectoryName(department.name) === normaliseDirectoryName('Technology') &&
             context.staffIds.includes(user.id) && department.teacherEmails.includes(user.email.trim().toLowerCase()) };
       });

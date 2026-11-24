@@ -1165,6 +1165,36 @@ test('Students Audit exposes senior names school-wide but restricts memberships 
   await assert.rejects(service.seniorAudit({ ...teacher, roles: ['Student'] }, input), { status: 403 });
 });
 
+test('Students Audit identity memberships use all current timetable classes in exact authorised courses without changing teaching-line membership', async () => {
+  const { service, state } = fixture();
+  state.hasSnapshot = false;
+  state.row.year_level = '11';
+  state.row.mon_p1_1 = 'TST-3-11DTECH-CW'; state.row.fri_p3 = '';
+  state.teacherRows[0].data = { Teacher: 'TST', Mon_P1: '3-11DTECH-CW' };
+  state.department.class_links['2026'] = [{ teacherEmail: teacher.email, code: '3-11DTECH' }];
+  state.courses.push({ course_code: '11DTECH', subject_code: 'DTECH' });
+  state.extraStudents.push(
+    { id_number: '301', student_name: 'Other Timetable Line', year_level: '11', tue_p2: 'PEER-6-11DTECH-CW',
+      wed_p3: 'PEER-6-11DTECH-CW' },
+    { id_number: '302', student_name: 'Other Course', year_level: '12', mon_p1_1: 'TST-12DTECH-CW' },
+    { id_number: '303', student_name: 'Similar Course', year_level: '11', mon_p1_1: 'TST-11DTECHX-CW' },
+    { id_number: '304', student_name: 'Other Subject', year_level: '11', mon_p1_1: 'TST-11COMP-CW' }
+  );
+  state.studentHistory = [{ term: 4, payload: {
+    headers: ['Student Name', 'ID Number', 'Year Level', 'Mon P1'],
+    rows: [['Historical Student', '305', '11', 'TST-3-11DTECH-CW']]
+  } }];
+  const data = await service.seniorAudit(teacher, { year: 2026, action: 'students-audit-roster' });
+  assert.deepEqual(data.departments[0].identityMemberships, [{
+    course: '11DTECH', classCodes: ['3-11DTECH', '6-11DTECH'], studentIds: ['k:100', 'k:301']
+  }]);
+  assert.deepEqual(data.departments[0].memberships.filter(item => item.course === '11DTECH'),
+    [{ course: '11DTECH', studentIds: ['k:100'] }],
+    'Identity lookup is not permission to change teaching-line enrolment or grade decisions');
+  const strict = await service.seniorAudit(teacher, { year: 2026, action: 'senior-audit-roster' });
+  assert.ok(strict.groups.every(group => !group.students.some(person => person.id === 'k:301')));
+});
+
 test('senior audit only returns confirmed senior Technology rosters to authorised department staff', async () => {
   const { service, state } = fixture();
   state.hasSnapshot = false;
