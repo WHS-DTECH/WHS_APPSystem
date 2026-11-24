@@ -47,7 +47,7 @@ function fixture() {
       { owner_id: teacherId, date: '2026-11-10', period: 'p2', mark: 'A' }
     ] };
   const service = createStudentTrackerService({
-    auditReader: async request => { (state.auditCalls ||= []).push(request); return { files: [] }; },
+    auditReader: async request => { (state.auditCalls ||= []).push(request); return state.auditResult || { files: [] }; },
     today: () => '2026-11-13',
     loadKamarTermDates: async () => state.kamarDates,
     dbQuery: async (sql, params) => {
@@ -1137,6 +1137,32 @@ test('teaching subjects list only the signed-in teacher’s confirmed subject an
     [{ name: 'Technology', subjects: [] }]);
   await assert.rejects(service.teachingSubjects(teacher, { year: '2026' }), { status: 400 });
   await assert.rejects(service.teachingSubjects({ ...teacher, roles: ['Student'] }, { year: 2026 }), { status: 403 });
+});
+
+test('Students Audit exposes senior names school-wide but restricts memberships and summary evidence to authorised departments', async () => {
+  const { service, state } = fixture();
+  state.row.year_level = '13';
+  state.row.mon_p1_1 = 'TST-3-13DTECH-CW'; state.row.fri_p3 = '';
+  state.teacherRows[0].data = { Teacher: 'TST', Mon_P1: '3-13DTECH-CW' };
+  state.department.class_links['2026'] = [{ teacherEmail: teacher.email, code: '3-13DTECH' }];
+  state.courses.push({ course_code: '13DTECH', subject_code: 'DTECH' });
+  state.extraStudents.push({ id_number: '300', student_name: 'Other Senior', year_level: '11', mon_p1_1: 'OTHER-MATH-A' });
+  const input = { year: 2026, action: 'students-audit-roster' };
+  const roster = await service.seniorAudit(teacher, input);
+  assert.deepEqual(roster.students.map(person => person.id), ['k:100', 'k:300']);
+  assert.deepEqual(Object.keys(roster.students[0]).sort(), ['id', 'name', 'yearLevel']);
+  assert.deepEqual(roster.departments[0].memberships, [{ course: '13DTECH', studentIds: ['k:100'] }]);
+  state.auditResult = { file: { id: 'summary' }, entries: [{ course: '13DTECH', enrolled: 5, published: 5 },
+    { course: '11MATH', enrolled: 10, published: 8 }] };
+  const summary = await service.seniorAudit(teacher, { year: 2026, departmentId, action: 'students-audit-enrolments' });
+  assert.deepEqual(summary.entries, [{ course: '13DTECH', enrolled: 5, published: 5 }]);
+  assert.deepEqual(state.auditCalls[0].subjectFolders, ['EnrolledList']);
+  state.department.teacher_emails = [];
+  assert.equal((await service.seniorAudit(teacher, input)).students.length, 2, 'Non-department staff can still see senior names');
+  assert.deepEqual((await service.seniorAudit(teacher, input)).departments, []);
+  await assert.rejects(service.seniorAudit(teacher, { year: 2026, departmentId, action: 'students-audit-enrolments' }), { status: 403 });
+  assert.equal(state.auditCalls.length, 1, 'Revoked department access cannot read Drive evidence');
+  await assert.rejects(service.seniorAudit({ ...teacher, roles: ['Student'] }, input), { status: 403 });
 });
 
 test('senior audit only returns confirmed senior Technology rosters to authorised department staff', async () => {

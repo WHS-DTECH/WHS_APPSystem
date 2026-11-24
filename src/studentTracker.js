@@ -578,8 +578,49 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
   async function seniorAudit(user, input = {}) {
     if (!user?.roles?.some(role => ['ADMIN', 'Teacher'].includes(role))) throw error('Staff access is required.', 403);
     if (!Number.isInteger(input.year) || input.year < 2000 || input.year > 2100) throw error('Choose a year from 2000 to 2100.');
-    if (!['senior-audit-roster', 'senior-audit-files', 'senior-audit-file', 'senior-audit-batch', 'senior-audit-workbook'].includes(input.action)) {
+    if (!['senior-audit-roster', 'senior-audit-files', 'senior-audit-file', 'senior-audit-batch', 'senior-audit-workbook',
+      'students-audit-roster', 'students-audit-enrolments'].includes(input.action)) {
       throw error('Unknown senior audit action.');
+    }
+    if (input.action.startsWith('students-audit-')) {
+      const context = await scope(user, input.year, input.action === 'students-audit-roster');
+      if (input.action === 'students-audit-enrolments') {
+        const department = departmentFor(context, input.departmentId);
+        const result = await auditReader({ user, input: { ...input, folder: seniorAuditFolder },
+          query: planner, env, subjectFolders: ['EnrolledList'] });
+        const courses = new Set(department.classLinks.map(link => link.subject));
+        return { file: result.file, entries: result.entries.filter(entry => courses.has(entry.course)) };
+      }
+      const current = context.tables.find(table => table.term === null);
+      if (!current?.rows.length) throw error('No current KAMAR student timetable is available for this year.', 409);
+      const students = new Map(), conflicts = new Set();
+      for (const row of current.rows) {
+        const person = student(row);
+        if (!['11', '12', '13'].includes(person.yearLevel)) continue;
+        const previous = students.get(person.id);
+        if (previous && (previous.name !== person.name || previous.yearLevel !== person.yearLevel)) conflicts.add(person.id);
+        students.set(person.id, { id: person.id, name: person.name, yearLevel: person.yearLevel });
+      }
+      if (conflicts.size) throw error('Conflicting current senior identities must be resolved in KAMAR before loading Students Audit.', 409);
+      const departments = context.departments.map(department => {
+        const memberships = new Map();
+        for (const row of current.rows) {
+          const id = student(row).id;
+          if (!students.has(id)) continue;
+          for (const lesson of lessons(row)) {
+            if (!linkedLesson(department, lesson, null)) continue;
+            if (!memberships.has(lesson.subject)) memberships.set(lesson.subject, new Set());
+            memberships.get(lesson.subject).add(id);
+          }
+        }
+        return { id: department.id, name: department.name,
+          unavailableClassCount: department.unavailableClassCount,
+          courses: [...new Set(department.classLinks.map(link => link.subject))].filter(course => /^1[123]/.test(course)).sort(),
+          memberships: [...memberships].map(([course, ids]) => ({ course, studentIds: [...ids] })),
+          markbookEvidence: normaliseDirectoryName(department.name) === normaliseDirectoryName('Technology') &&
+            context.staffIds.includes(user.id) && department.teacherEmails.includes(user.email.trim().toLowerCase()) };
+      });
+      return { year: input.year, students: [...students.values()], departments };
     }
     const context = await scope(user, input.year, input.action === 'senior-audit-roster');
     const email = typeof user.email === 'string' ? user.email.trim().toLowerCase() : '';

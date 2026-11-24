@@ -2462,6 +2462,17 @@ versions remain checked. Assessment Manager stores reversible not-enrolled
 decisions for authorised Technology staff; no audit data is written to KAMAR,
 Google Drive or Planner.
 
+Assessment Manager's **Students Audit** uses the same restricted bridge with
+`students-audit-roster` and `students-audit-enrolments`. Verified staff can read
+current school-wide Year 11–13 names and years; course memberships and enrolment
+counts remain limited to their authorised Tracker departments. Counts come from
+the newest timestamped `TopicsSubjectEntries_*.pdf` in the SeniorAudit Drive
+root's direct `EnrolledList` folder, filtered to verified linked courses inside
+Core before leaving the bridge. Only this summary permits up to 60 pages;
+the 5 MB bound, read-only Google connection, folder membership and version
+checks remain. Equal known Enrolled/Published counts reconcile a standard;
+blank counts stay unchecked. No named individual enrolment is inferred.
+
 **Setup Student Tracker** opens a separate setup page for the selected school
 year; the Student Tracker heading returns to student search. Global ADMIN can
 open **+ Add Department** to create a department without displaying a blank

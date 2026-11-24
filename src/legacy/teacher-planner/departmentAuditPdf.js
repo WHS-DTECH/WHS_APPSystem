@@ -2,10 +2,10 @@ const pdfParse = require('pdf-parse/lib/pdf-parse');
 
 class DepartmentPdfError extends Error {}
 
-async function importDepartmentPdf(buffer) {
+async function importDepartmentPdf(buffer, maxPages = 20) {
   const pages = [];
   const pdf = await pdfParse(buffer, {
-    max: 20,
+    max: maxPages,
     pagerender: async page => {
       const { items } = await page.getTextContent({ normalizeWhitespace: true });
       if (!items.some(item => item.str.trim() === 'KAMAR')) {
@@ -17,8 +17,8 @@ async function importDepartmentPdf(buffer) {
       return '';
     }
   });
-  if (!pdf.numpages || pdf.numpages > 20 || pages.length !== pdf.numpages) {
-    throw new DepartmentPdfError('Export no more than 20 pages per PDF.');
+  if (!pdf.numpages || pdf.numpages > maxPages || pages.length !== pdf.numpages) {
+    throw new DepartmentPdfError('Export no more than ' + maxPages + ' pages per PDF.');
   }
   return { pages };
 }

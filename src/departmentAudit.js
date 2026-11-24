@@ -2,6 +2,7 @@ const crypto = require('node:crypto');
 const { createGoogleCalendarAccess, decryptTokens } = require('./legacy/teacher-planner/googleCalendar');
 const { createAttendanceDriveService, folderId, DRIVE_SCOPE } = require('./legacy/teacher-planner/attendanceDrive');
 const { importDepartmentPdf, DepartmentPdfError } = require('./legacy/teacher-planner/departmentAuditPdf');
+const { parseStudentsAuditEnrolments } = require('./studentsAuditEnrolments');
 
 const subjects = ['TEXT', 'WOOD & DVC', 'FOOD', 'DTECH'];
 const seniorWorkbookId = '1ugLHLfv_VtSraRdqG3pUFCevv7udzLLp';
@@ -68,7 +69,8 @@ async function readDepartmentAudit({ user, input, query, env, fetchImpl = fetch,
   const service = createAttendanceDriveService({
     ...connection, fetchImpl, ErrorType: DepartmentAuditError, purpose: 'Department audit',
     folderAliases: new Map([['WOOD & DVC', ['WOOD']]]),
-    parsePdf: importDepartmentPdf, pdfError: DepartmentPdfError,
+    parsePdf: input.action === 'students-audit-enrolments' ? buffer => importDepartmentPdf(buffer, 60) : importDepartmentPdf,
+    pdfError: DepartmentPdfError,
     hasScope: row => (decryptTokens(row.encrypted_tokens, connection.config.key, row.owner_id).scopes || []).includes(DRIVE_SCOPE)
   });
   const req = { user };
@@ -81,6 +83,30 @@ async function readDepartmentAudit({ user, input, query, env, fetchImpl = fetch,
     files.set(file.id, { ...file, subjectFolder: file.folderId === root ? 'Department root' : folder.label });
   }
   if (files.size > 1000) throw new DepartmentAuditError('Keep at most 1,000 PDF exports in the department audit folders.', 422);
+  if (input.action === 'students-audit-enrolments') {
+    const candidates = [...files.values()].filter(file => file.folderId !== root &&
+      /^TopicsSubjectEntries_\d{8}_\d{6}\.pdf$/i.test(file.name)).sort((a, b) => b.name.localeCompare(a.name));
+    if (!candidates.length) throw new DepartmentAuditError('No TopicsSubjectEntries PDF was found in the EnrolledList Drive folder.', 422);
+    if (candidates[1]?.name === candidates[0].name) {
+      throw new DepartmentAuditError('Multiple enrolment PDFs have the same export timestamp. Keep one verified export.', 409);
+    }
+    const file = candidates[0];
+    const result = await service.readFile(req, file.folderId, file.id, root, 'EnrolledList');
+    if (result.version !== file.version || result.connectionId !== folders[0].connectionId) {
+      throw new DepartmentAuditError('The enrolment PDF or connection changed. Retry sync.', 409);
+    }
+    let entries;
+    try { entries = parseStudentsAuditEnrolments(result.pdf, input.year, file.name); }
+    catch (error) { throw new DepartmentAuditError(error.message, 422); }
+    const after = await service.listFiles(req, root, 'EnrolledList');
+    const latest = after.files.filter(item => item.folderId !== root &&
+      /^TopicsSubjectEntries_\d{8}_\d{6}\.pdf$/i.test(item.name)).sort((a, b) => b.name.localeCompare(a.name));
+    if (after.connectionId !== result.connectionId || latest[0]?.id !== file.id || latest[0]?.version !== file.version ||
+        latest[1]?.name === file.name) {
+      throw new DepartmentAuditError('The enrolment folder changed during sync. Retry without mixed-version results.', 409);
+    }
+    return { file, entries };
+  }
   if (input.action === 'department-audit-files' || input.action === 'senior-audit-files') {
     return { files: [...files.values()], folders: folders.map(folder => ({ name: folder.label, found: Boolean(folder.staffFolder) })) };
   }
