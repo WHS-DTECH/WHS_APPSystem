@@ -12,6 +12,7 @@ router.use(ensureAuthenticated, ensureRole('ADMIN'));
 router.use('/ocr/worker', express.static(path.join(__dirname, '..', '..', 'node_modules', 'tesseract.js', 'dist')));
 router.use('/ocr/core', express.static(path.join(__dirname, '..', '..', 'node_modules', 'tesseract.js-core')));
 router.use('/ocr/lang', express.static(path.join(__dirname, '..', '..', 'node_modules', '@tesseract.js-data', 'eng', '4.0.0')));
+router.use('/vendor/papaparse', express.static(path.join(__dirname, '..', '..', 'node_modules', 'papaparse')));
 router.use(express.static(siteDir));
 
 module.exports = router;

@@ -322,6 +322,11 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
 
   reader.onload = function(evt) {
     const text = evt.target.result;
+    if (typeof Papa === 'undefined') {
+      document.getElementById('uploadResult').textContent = 'Import failed: the CSV reader did not load. Refresh the page and try again.';
+      hideUploadProgress();
+      return;
+    }
     const parsed = Papa.parse(text, { skipEmptyLines: true });
     const rows = parsed.data;
     if (!rows || rows.length < 2) {
