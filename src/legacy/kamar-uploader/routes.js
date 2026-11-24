@@ -530,10 +530,23 @@ function getTimetableDataColumns(row) {
 
 function mapTimetableRow(headers, row) {
   const mapped = {};
+  const totals = new Map();
+  const occurrences = new Map();
+  headers.forEach((header) => {
+    const key = String(header || '').trim();
+    if (key) totals.set(key, (totals.get(key) || 0) + 1);
+  });
   headers.forEach((header, idx) => {
     const key = String(header || '').trim();
     if (!key) return;
-    mapped[key] = String(row[idx] || '').trim();
+    const occurrence = (occurrences.get(key) || 0) + 1;
+    occurrences.set(key, occurrence);
+    let uniqueKey = totals.get(key) > 1 && occurrence > 1 ? `${key}_${occurrence}` : key;
+    let suffix = occurrence;
+    while (Object.prototype.hasOwnProperty.call(mapped, uniqueKey)) {
+      uniqueKey = `${key}_${++suffix}`;
+    }
+    mapped[uniqueKey] = String(row[idx] || '').trim();
   });
   return mapped;
 }
@@ -564,19 +577,23 @@ function getTimetableTeacherName(rowObj) {
   return '';
 }
 
-async function withTransaction(work, req) {
+async function withTransaction(work, req, { saveHistory = true } = {}) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     let dataset;
     if (req) {
       await client.query('SELECT pg_advisory_xact_lock(1377474883)');
-      dataset = await history.saveDataset(client, history.fromRequest(req));
-      await client.query("SELECT set_config('whs.kamar_dataset_id',$1,true)", [dataset.id]);
+      const requestDataset = history.fromRequest(req);
+      if (saveHistory) {
+        dataset = await history.saveDataset(client, requestDataset);
+        await client.query("SELECT set_config('whs.kamar_dataset_id',$1,true)", [dataset.id]);
+      }
     }
     const result = await work(client);
     await client.query('COMMIT');
     if (dataset) result.dataset_id = dataset.id;
+    if (req) result.history_saved = Boolean(dataset);
     return result;
   } catch (error) {
     await client.query('ROLLBACK');
@@ -1450,6 +1467,7 @@ router.post('/api/upload_timetable', async (req, res) => {
   }
 
   const records = Array.from(deduped.values());
+  const fullTimetableSnapshot = records.length > 1;
 
   try {
     const result = await withTransaction(async (client) => {
@@ -1489,7 +1507,7 @@ router.post('/api/upload_timetable', async (req, res) => {
 
       let markedNotCurrent = 0;
       const uploadedTeachers = records.map((r) => String(r.teacher || '').trim().toLowerCase()).filter(Boolean);
-      if (uploadedTeachers.length > 0) {
+      if (fullTimetableSnapshot && uploadedTeachers.length > 0) {
         const mark = await client.query(
           `
           UPDATE timetable_upload
@@ -1503,11 +1521,13 @@ router.post('/api/upload_timetable', async (req, res) => {
       }
 
       return { inserted, updated, markedNotCurrent };
-    }, req);
+    }, req, { saveHistory: fullTimetableSnapshot });
 
     res.json({
       success: true,
-      dataset_id: result.dataset_id,
+      dataset_id: result.dataset_id || null,
+      history_saved: result.history_saved,
+      full_timetable_snapshot: fullTimetableSnapshot,
       processed: records.length,
       inserted: result.inserted,
       updated: result.updated,

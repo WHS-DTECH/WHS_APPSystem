@@ -92,7 +92,9 @@ function fixture() {
       }
       if (sql.includes("dataset_type='teacher_timetable'")) {
         assert.match(sql, /school_year=\$1/);
-        return { rows: params[0] === state.historyYear ? state.teacherHistory : [] };
+        assert.match(sql, /row_count > 1/);
+        return { rows: params[0] === state.historyYear
+          ? state.teacherHistory.filter(row => row.row_count == null || row.row_count > 1) : [] };
       }
       if (sql.includes('FROM kamar_datasets')) return { rows: state.studentHistory || (state.hasSnapshot ? [{ term: 4, payload: {
         headers: ['Student Name', 'ID Number', 'Year Level', 'Mon P1', 'Mon P1', 'Fri P3', 'Tue P2'],
@@ -1025,6 +1027,27 @@ test('preserved teacher class periods match their own term, including the curren
   assert.equal(profile.timetables.find(table => table.term === null).lessons.some(lesson => lesson.linked), false);
   assert.equal(profile.timetables.find(table => table.term === 4).lessons.some(lesson => lesson.linked), true);
   assert.deepEqual((await service.run(teacher, { ...input, action: 'attendance', term: 4 })).marks.map(mark => mark.mark), ['P']);
+});
+test('duplicate teacher P1 columns stay in their own slots and one-row snapshots are ignored', async () => {
+  const { service, input, state } = fixture();
+  state.teacherRows = [];
+  state.courses = [...state.courses, { course_code: 'MATH', subject_code: 'MATH' }];
+  state.department.class_links['2026'] = [
+    { teacherEmail: teacher.email, code: 'PIDTECH' },
+    { teacherEmail: teacher.email, code: 'MATH' }
+  ];
+  state.teacherHistory = [
+    { term: 4, row_count: 1, payload: { headers: ['Teacher', 'Mon P1'], rows: [['TST', 'PIDTECH-CW']] } },
+    { term: 4, row_count: 37, payload: { headers: ['Teacher', 'Mon P1', 'Mon P1'],
+      rows: [['TST', 'PIDTECH-CW', 'MATH-A'], ['PEER', '', '']] } }
+  ];
+  state.studentHistory = [{ term: 4, payload: { headers: ['Student Name', 'ID Number', 'Year Level',
+    'Mon P1', 'Mon P1', 'Fri P3', 'Tue P2'],
+  rows: [['Synthetic Student', '100', '8', 'TST-PIDTECH-CW', 'TST-PIDTECH-CW', '', '']] } }];
+  const profile = await service.run(teacher, { ...input, action: 'profile' });
+  const lessons = profile.timetables.find(table => table.term === 4).lessons;
+  assert.equal(lessons.find(lesson => lesson.slot === 'mon_p1_1').linked, true);
+  assert.equal(lessons.find(lesson => lesson.slot === 'mon_p1_2').linked, false);
 });
 test('co-timetabled same-subject groups cannot expose unselected groups when student exports omit the group identifier', async () => {
   const { service, input, state } = fixture();

@@ -250,6 +250,7 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
           ', Inserted: ' + (result.inserted || 0) +
           ', Updated: ' + (result.updated || 0) +
           ', Marked Not Current: ' + (result.marked_not_current || 0) +
+          ', Scope: ' + (result.full_timetable_snapshot ? 'full staff snapshot' : 'single teacher update; other staff unchanged') +
           ', Skipped (no Teacher): ' + (result.skipped_no_teacher || 0) +
             ', Duplicate Teachers in upload: ' + (result.duplicate_teachers_in_upload || 0) +
             ', UploadYear: ' + (result.upload_year || '') +
