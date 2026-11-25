@@ -1850,6 +1850,20 @@ existing school authentication, CSRF and optimistic revisions. Conflicting saves
 return 409 and retain the browser draft. These endpoints are not MCP tools;
 MCP OAuth, its read-only tools and permissions remain unchanged.
 
+### Trello ToDo - read-only connection stage
+
+The owner-only `GET /teacher-planner/api/planner/todo-trello` uses the existing
+`TEACHER_PLANNER_TRELLO_OWNER_ID`, `TEACHER_PLANNER_TRELLO_API_KEY` and
+`TEACHER_PLANNER_TRELLO_TOKEN` on Core. It checks the fixed School Email ToDo
+board and read-only token on every request. It reads only recognised task and
+filed-DONE lists, excludes the connection-test card, and reports errors rather
+than returning an empty task list. Only the configured school account can read
+the result, including when another account has administrator privileges.
+
+This is the connection stage only: no ToDo interface, completion dates or
+write-back are enabled yet. Term and Current Teaching Day integrations remain
+separately read-only; Trello data never updates Planner notes.
+
 ### Current Teaching Day - informational Trello feed
 
 Set these **non-secret source IDs** on the main Core Render service:

@@ -146,6 +146,7 @@ function createPlannerRouter({ query, searchStandards = searchNzqaStandards, loa
   router.get('/session', (req, res) => res.json({ csrf: req.session.plannerCsrf, userId: req.user.id,
     canManageSchoolSettings: Boolean(canManageSettings(req.user)) }));
   router.use('/trello', require('./termTrello').createTermTrelloRouter({ env }));
+  router.use('/todo-trello', require('./todoTrello').createTodoTrelloRouter({ env }));
   router.use('/teaching-day-trello', require('./teachingDayTrello').createTeachingDayTrelloRouter({ ...teachingDayTrello, env }));
   router.use('/sessions', require('./teachingSessions').createTeachingSessionsRouter({ ...teachingSessions, query }));
   router.use('/duty-roster', require('./dutyRoster').createDutyRosterRouter({ query, loadStaff }));
