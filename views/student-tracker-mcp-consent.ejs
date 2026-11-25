@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Connect ChatGPT to WHS Student Tracker</title>
+  <link rel="stylesheet" href="/account-controls.css">
+</head>
+<body>
+  <main>
+    <h1>Connect ChatGPT to WHS Student Tracker</h1>
+    <p>Approve read-only access for eight hours to Department Awards Audit summaries for departments you currently manage as verified HoLA or Global ADMIN.</p>
+    <p>ChatGPT can see teacher names, staff codes, subjects, classes and aggregate SLO, Values and award PDF evidence. Student names, identifiers, individual grades, comments, review notes, credentials and write access are excluded.</p>
+    <p>Information returned to ChatGPT is processed by OpenAI under your ChatGPT workspace's policies. Only approve this connection in a school-authorised workspace.</p>
+    <p>Evidence comes from the last shared audit. Missing evidence is not zero outstanding work, and an award PDF does not confirm completed award review. This connection cannot refresh or change the audit and does not connect to Trello.</p>
+    <form method="post" action="/integrations/student-tracker/oauth/authorize">
+      <% for (const [name, value] of Object.entries(fields)) { %>
+        <input type="hidden" name="<%= name %>" value="<%= value %>">
+      <% } %>
+      <input type="hidden" name="csrf" value="<%= csrf %>">
+      <button type="submit" name="decision" value="allow">Approve read-only connection</button>
+      <button type="submit" name="decision" value="deny">Cancel</button>
+    </form>
+  </main>
+</body>
+</html>

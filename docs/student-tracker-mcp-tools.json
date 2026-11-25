@@ -1,0 +1,822 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "ReadInput": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "pageId": {
+          "default": "department-awards-audit",
+          "type": "string",
+          "const": "department-awards-audit"
+        },
+        "year": {
+          "type": "integer",
+          "minimum": 2000,
+          "maximum": 2100
+        },
+        "departmentId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "teacher": {
+          "type": "string",
+          "pattern": "^[A-Z0-9_-]{1,30}$"
+        },
+        "subject": {
+          "type": "string",
+          "enum": [
+            "DTECH",
+            "MPROG",
+            "WOOD",
+            "DVC",
+            "TEXTILES",
+            "FOOD"
+          ]
+        },
+        "classCode": {
+          "type": "string",
+          "pattern": "^[A-Z0-9_-]{1,80}$"
+        },
+        "band": {
+          "type": "string",
+          "enum": [
+            "junior",
+            "middle"
+          ]
+        },
+        "semester": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2
+        },
+        "part": {
+          "type": "string",
+          "enum": [
+            "all",
+            "reporting",
+            "slo",
+            "values",
+            "awards"
+          ]
+        },
+        "followUpOnly": {
+          "type": "boolean"
+        },
+        "offset": {
+          "default": 0,
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100000
+        },
+        "limit": {
+          "default": 50,
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      },
+      "required": [
+        "pageId",
+        "year",
+        "offset",
+        "limit"
+      ],
+      "additionalProperties": false
+    },
+    "AuditResponse": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "sourcePageTitle": {
+          "type": "string",
+          "const": "Department Awards Audit"
+        },
+        "sourceUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "academicYear": {
+          "type": "integer",
+          "minimum": 2000,
+          "maximum": 2100
+        },
+        "appliedFilters": {
+          "type": "object",
+          "properties": {
+            "year": {
+              "type": "integer",
+              "minimum": 2000,
+              "maximum": 2100
+            },
+            "departmentId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "teacher": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "subject": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "DTECH",
+                    "MPROG",
+                    "WOOD",
+                    "DVC",
+                    "TEXTILES",
+                    "FOOD"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "classCode": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "band": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "junior",
+                    "middle"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "semester": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "part": {
+              "type": "string",
+              "enum": [
+                "all",
+                "reporting",
+                "slo",
+                "values",
+                "awards"
+              ]
+            },
+            "followUpOnly": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "year",
+            "departmentId",
+            "teacher",
+            "subject",
+            "classCode",
+            "band",
+            "semester",
+            "part",
+            "followUpOnly"
+          ],
+          "additionalProperties": false
+        },
+        "retrievedAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+        },
+        "sourceUpdatedAt": {
+          "type": "object",
+          "properties": {
+            "reports": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "awards": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "reviews": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "reports",
+            "awards",
+            "reviews"
+          ],
+          "additionalProperties": false
+        },
+        "availability": {
+          "type": "string",
+          "enum": [
+            "available",
+            "unavailable"
+          ]
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "sourceComplete": {
+          "type": "boolean"
+        },
+        "freshnessVerified": {
+          "type": "boolean",
+          "const": false
+        },
+        "studentInformationExcluded": {
+          "type": "boolean",
+          "const": true
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "pages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "const": "department-awards-audit"
+              },
+              "title": {
+                "type": "string",
+                "const": "Department Awards Audit"
+              },
+              "description": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "availableFilters": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "availableYears": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "minimum": 2000,
+                  "maximum": 2100
+                }
+              },
+              "informationTypes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "departments": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "description",
+              "url",
+              "availableFilters",
+              "availableYears",
+              "informationTypes",
+              "departments"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "records": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_-]{43}$"
+                  },
+                  "teacher": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "code": {
+                            "type": "string",
+                            "maxLength": 80
+                          },
+                          "name": {
+                            "type": "string",
+                            "maxLength": 200
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "subject": {
+                    "type": "string",
+                    "enum": [
+                      "DTECH",
+                      "MPROG",
+                      "WOOD",
+                      "DVC",
+                      "TEXTILES",
+                      "FOOD"
+                    ]
+                  },
+                  "classes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 100
+                    }
+                  },
+                  "band": {
+                    "type": "string",
+                    "enum": [
+                      "junior",
+                      "middle"
+                    ]
+                  },
+                  "semester": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 2
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "terms": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 4
+                    }
+                  },
+                  "pdfOnly": {
+                    "type": "boolean"
+                  },
+                  "slo": {
+                    "type": "object",
+                    "properties": {
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "Complete",
+                          "Incomplete",
+                          "Not checked",
+                          "Part checked",
+                          "Conflicting PDFs",
+                          "Roster coverage gap",
+                          "Insufficient SLO fields",
+                          "No reports required",
+                          "Resolved",
+                          "PDF only"
+                        ]
+                      },
+                      "state": {
+                        "type": "string",
+                        "enum": [
+                          "complete",
+                          "incomplete",
+                          "partial",
+                          "unknown",
+                          "excluded",
+                          "resolved"
+                        ]
+                      },
+                      "entries": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "total": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "blanks": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "missing": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "checked": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "required": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "resolvedEntries": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "resolvedFields": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "status",
+                      "state",
+                      "entries",
+                      "total",
+                      "blanks",
+                      "missing",
+                      "checked",
+                      "required",
+                      "resolvedEntries",
+                      "resolvedFields"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "values": {
+                    "type": "object",
+                    "properties": {
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "Complete",
+                          "Incomplete",
+                          "Not checked",
+                          "Part checked",
+                          "Conflicting PDFs",
+                          "Roster coverage gap",
+                          "Insufficient SLO fields",
+                          "No reports required",
+                          "Resolved",
+                          "PDF only"
+                        ]
+                      },
+                      "state": {
+                        "type": "string",
+                        "enum": [
+                          "complete",
+                          "incomplete",
+                          "partial",
+                          "unknown",
+                          "excluded",
+                          "resolved"
+                        ]
+                      },
+                      "entries": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "total": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "blanks": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "missing": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "checked": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "required": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "resolvedEntries": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "resolvedFields": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "status",
+                      "state",
+                      "entries",
+                      "total",
+                      "blanks",
+                      "missing",
+                      "checked",
+                      "required",
+                      "resolvedEntries",
+                      "resolvedFields"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "awards": {
+                    "type": "object",
+                    "properties": {
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "PDF checked",
+                          "Excluded 7S/8S",
+                          "Conflicting PDFs",
+                          "Not checked"
+                        ]
+                      },
+                      "state": {
+                        "type": "string",
+                        "enum": [
+                          "evidence",
+                          "excluded",
+                          "partial",
+                          "unknown"
+                        ]
+                      },
+                      "mohio": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "akoranga": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "status",
+                      "state",
+                      "mohio",
+                      "akoranga"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "url": {
+                    "type": "string",
+                    "format": "uri"
+                  }
+                },
+                "required": [
+                  "id",
+                  "teacher",
+                  "subject",
+                  "classes",
+                  "band",
+                  "semester",
+                  "terms",
+                  "pdfOnly",
+                  "slo",
+                  "values",
+                  "awards",
+                  "url"
+                ],
+                "additionalProperties": false
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pagination": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "offset": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "limit": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "total": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "hasMore": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "offset",
+                "limit",
+                "total",
+                "hasMore"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "sourcePageTitle",
+        "sourceUrl",
+        "academicYear",
+        "appliedFilters",
+        "retrievedAt",
+        "sourceUpdatedAt",
+        "availability",
+        "complete",
+        "sourceComplete",
+        "freshnessVerified",
+        "studentInformationExcluded",
+        "warnings",
+        "pages",
+        "records",
+        "pagination"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "tools": [
+    {
+      "name": "list_available_pages",
+      "description": "Discover the authorised Department Awards Audit page, saved audit years, departments and supported filters. Junior and Middle reporting are views of this page, not separate invented pages. Other Student Tracker pages and student-level data are excluded.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "integer",
+            "minimum": 2000,
+            "maximum": 2100
+          }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "$ref": "#/$defs/AuditResponse"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "get_page_data",
+      "description": "Read aggregate teacher/class SLO, Values and award evidence from Department Awards Audit, using its existing calculation model. Specify year and an authorised departmentId (optional only when exactly one department is authorised). Teacher is an exact staff code. Student details and writes are excluded.",
+      "inputSchema": {
+        "$ref": "#/$defs/ReadInput"
+      },
+      "outputSchema": {
+        "$ref": "#/$defs/AuditResponse"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "search_records",
+      "description": "Find reporting responsibilities needing follow-up, including Junior/Middle reports, using structured teacher, subject and class filters. Defaults to part=reporting and followUpOnly=true. Unknown and partial evidence require checking, not an assumption of unfinished or published reports. Awards evidence never proves completed review.",
+      "inputSchema": {
+        "$ref": "#/$defs/ReadInput"
+      },
+      "outputSchema": {
+        "$ref": "#/$defs/AuditResponse"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "get_audit_status",
+      "description": "Retrieve existing Department Awards Audit statuses and per-teacher/class counts for Junior/Middle SLOs, Values and award PDFs. Counts match the source calculation; do not sum overlapping class responsibilities as unique students. Compare stable record IDs and source timestamps between checks; no audit history is created.",
+      "inputSchema": {
+        "$ref": "#/$defs/ReadInput"
+      },
+      "outputSchema": {
+        "$ref": "#/$defs/AuditResponse"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    }
+  ]
+}

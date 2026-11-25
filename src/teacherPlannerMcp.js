@@ -16,6 +16,7 @@ const config = require('./config');
 const { query: coreQuery } = require('./db');
 const { authorisedModuleUser } = require('./moduleIdentity');
 const { createTeacherPlannerMcpData } = require('./teacherPlannerMcpData');
+const { safeNext } = require('./globalNav');
 
 const PREFIX = '/integrations/teacher-planner';
 const MCP_PATH = PREFIX + '/mcp';
@@ -41,76 +42,90 @@ const calendarsSchema = z.object({
     weeklyReference: z.boolean(), url: z.string().url() }).strict())
 }).strict();
 
-function settings(env) {
+function settings(env, integration = 'teacher-planner') {
+  if (!['teacher-planner', 'student-tracker'].includes(integration)) throw new Error('Unknown MCP integration.');
   const base = new URL(env.APP_BASE_URL || env.RENDER_EXTERNAL_URL || config.appBaseUrl);
-  const callback = env.TEACHER_PLANNER_MCP_REDIRECT_URI ? new URL(env.TEACHER_PLANNER_MCP_REDIRECT_URI) : null;
+  const redirect = integration === 'teacher-planner' ? env.TEACHER_PLANNER_MCP_REDIRECT_URI : env.STUDENT_TRACKER_MCP_REDIRECT_URI;
+  const callback = redirect ? new URL(redirect) : null;
   if (base.protocol !== 'https:' || base.username || base.password || base.pathname !== '/' || base.search || base.hash ||
       (callback && (callback.protocol !== 'https:' || callback.hostname !== 'chatgpt.com' || callback.username || callback.password ||
       callback.port || callback.search || callback.hash ||
       !/^(?:\/connector\/oauth\/[A-Za-z0-9_-]+|\/connector_platform_oauth_redirect)$/.test(callback.pathname)))) {
     throw new Error('Configure the HTTPS site origin and exact ChatGPT MCP OAuth redirect URI.');
   }
-  return { origin: base.origin, resource: new URL(MCP_PATH, base), callback: callback?.href };
+  return { origin: base.origin, resource: new URL('/integrations/' + integration + '/mcp', base), callback: callback?.href };
 }
 
-function createProvider({ query, authorizeUser, origin, resource, callback }) {
-  const client = { client_id: CLIENT_ID, client_name: 'ChatGPT Teacher Planner',
+function createReadOnlyMcpProvider({ query, authorizeUser, origin, resource, callback, integration = 'teacher-planner' }) {
+  if (!['teacher-planner', 'student-tracker'].includes(integration)) throw new Error('Unknown MCP integration.');
+  const tracker = integration === 'student-tracker';
+  const clientId = tracker ? 'student-tracker-chatgpt' : CLIENT_ID;
+  const scope = tracker ? 'tracker:read' : SCOPE;
+  const table = tracker ? 'student_tracker_mcp' : 'teacher_planner_mcp';
+  const label = tracker ? 'Student Tracker' : 'Planner';
+  const consentKey = tracker ? 'studentTrackerMcpConsent' : 'teacherPlannerMcpConsent';
+  const client = { client_id: clientId, client_name: tracker ? 'WHS Student Tracker' : 'ChatGPT Teacher Planner',
     redirect_uris: [callback], token_endpoint_auth_method: 'none',
-    grant_types: ['authorization_code'], response_types: ['code'], scope: SCOPE };
+    grant_types: ['authorization_code'], response_types: ['code'], scope };
   const guard = work => async (...args) => {
     try { return await work(...args); }
     catch (error) {
-      console.warn('Planner MCP OAuth operation failed.');
+      console.warn(label + ' MCP OAuth operation failed.');
       if (error instanceof OAuthError) throw error;
-      throw new ServerError('Planner authorisation is unavailable. Contact an administrator.');
+      throw new ServerError(label + ' authorisation is unavailable. Contact an administrator.');
     }
   };
   const saveSession = req => new Promise((resolve, reject) => req.session.save(error => error ? reject(error) : resolve()));
   const checkResource = value => {
-    if (value?.href !== resource.href) throw new InvalidRequestError('The Planner MCP resource is required.');
+    if (value?.href !== resource.href) throw new InvalidRequestError('The ' + label + ' MCP resource is required.');
   };
   const provider = {
-    clientsStore: { getClient: async id => id === CLIENT_ID ? client : undefined },
+    clientsStore: { getClient: async id => id === clientId ? client : undefined },
     authorize: guard(async (registered, params, res) => {
       const req = res.req;
       checkResource(params.resource);
       if (!opaque(params.codeChallenge) || typeof params.state !== 'string' || !params.state || params.state.length > 512) {
         throw new InvalidRequestError('A valid PKCE challenge and state are required.');
       }
-      if (params.scopes?.length && (params.scopes.length !== 1 || params.scopes[0] !== SCOPE)) {
-        throw new InvalidScopeError('Only planner:read is supported.');
+      if (params.scopes?.length && (params.scopes.length !== 1 || params.scopes[0] !== scope)) {
+        throw new InvalidScopeError('Only ' + scope + ' is supported.');
       }
       if (!req.user) {
         if (req.method !== 'GET') throw new AccessDeniedError('Sign in again and restart the ChatGPT connection.');
+        if (safeNext(req.originalUrl) !== req.originalUrl) {
+          throw new InvalidRequestError('The school sign-in return address is too long. Restart the ChatGPT connection with a shorter state.');
+        }
         return res.redirect('/auth/google?next=' + encodeURIComponent(req.originalUrl));
       }
       const user = await authorizeUser(req.user.id);
-      if (!user) throw new AccessDeniedError('An active school account with Teacher Planner access is required.');
+      if (!user) throw new AccessDeniedError(tracker
+        ? 'An active school account with verified department HoLA or Global ADMIN Student Tracker access is required.'
+        : 'An active school account with Teacher Planner access is required.');
       const binding = hash(JSON.stringify([user.id, registered.client_id, params.redirectUri, params.codeChallenge, params.state, resource.href]));
       if (req.method === 'GET') {
         const csrf = crypto.randomBytes(32).toString('base64url');
-        req.session.teacherPlannerMcpConsent = { csrf, binding, expires: Date.now() + 5 * 60000 };
+        req.session[consentKey] = { csrf, binding, expires: Date.now() + 5 * 60000 };
         await saveSession(req);
-        return res.render('teacher-planner-mcp-consent', { csrf, fields: {
+        return res.render(integration + '-mcp-consent', { csrf, fields: {
           client_id: registered.client_id, redirect_uri: params.redirectUri, response_type: 'code',
           code_challenge: params.codeChallenge, code_challenge_method: 'S256', state: params.state,
-          resource: resource.href, scope: SCOPE
+          resource: resource.href, scope
         } });
       }
-      const pending = req.session.teacherPlannerMcpConsent;
+      const pending = req.session[consentKey];
       const supplied = Buffer.from(typeof req.body.csrf === 'string' ? req.body.csrf : '');
       const expected = Buffer.from(pending?.csrf || '');
       if (req.get('origin') !== origin || !pending || pending.expires < Date.now() ||
           pending.binding !== binding || supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) {
         throw new AccessDeniedError('The consent request changed or expired. Restart the ChatGPT connection.');
       }
-      delete req.session.teacherPlannerMcpConsent;
+      delete req.session[consentKey];
       await saveSession(req);
       if (req.body.decision !== 'allow') throw new AccessDeniedError('The connection was not approved.');
       const code = crypto.randomBytes(32).toString('base64url');
-      await query('DELETE FROM teacher_planner_mcp_codes WHERE expires_at <= NOW()');
-      await query('DELETE FROM teacher_planner_mcp_grants WHERE expires_at <= NOW()');
-      await query(`INSERT INTO teacher_planner_mcp_codes(code_hash,user_id,client_id,redirect_uri,challenge,resource)
+      await query(`DELETE FROM ${table}_codes WHERE expires_at <= NOW()`);
+      await query(`DELETE FROM ${table}_grants WHERE expires_at <= NOW()`);
+      await query(`INSERT INTO ${table}_codes(code_hash,user_id,client_id,redirect_uri,challenge,resource)
         VALUES($1,$2,$3,$4,$5,$6)`, [hash(code), user.id, registered.client_id, params.redirectUri, params.codeChallenge, resource.href]);
       const redirect = new URL(params.redirectUri);
       redirect.searchParams.set('code', code);
@@ -119,7 +134,7 @@ function createProvider({ query, authorizeUser, origin, resource, callback }) {
     }),
     challengeForAuthorizationCode: guard(async (registered, code) => {
       if (!opaque(code)) throw new InvalidGrantError('Invalid authorisation code.');
-      const row = (await query(`SELECT challenge FROM teacher_planner_mcp_codes
+      const row = (await query(`SELECT challenge FROM ${table}_codes
         WHERE code_hash=$1 AND client_id=$2 AND resource=$3 AND expires_at>NOW()`,
       [hash(code), registered.client_id, resource.href])).rows[0];
       if (!row) throw new InvalidGrantError('Authorisation code expired or already used.');
@@ -128,29 +143,29 @@ function createProvider({ query, authorizeUser, origin, resource, callback }) {
     exchangeAuthorizationCode: guard(async (registered, code, verifier, redirectUri, requestedResource) => {
       checkResource(requestedResource);
       if (!opaque(code) || redirectUri !== callback) throw new InvalidGrantError('Invalid authorisation code exchange.');
-      const row = (await query(`DELETE FROM teacher_planner_mcp_codes
+      const row = (await query(`DELETE FROM ${table}_codes
         WHERE code_hash=$1 AND client_id=$2 AND redirect_uri=$3 AND resource=$4 AND expires_at>NOW()
         RETURNING user_id`, [hash(code), registered.client_id, redirectUri, resource.href])).rows[0];
-      if (!row || !await authorizeUser(row.user_id)) throw new InvalidGrantError('Planner authorisation expired or was withdrawn.');
+      if (!row || !await authorizeUser(row.user_id)) throw new InvalidGrantError(label + ' authorisation expired or was withdrawn.');
       const token = crypto.randomBytes(32).toString('base64url');
-      await query(`INSERT INTO teacher_planner_mcp_grants(token_hash,user_id,client_id,resource,scope,expires_at)
+      await query(`INSERT INTO ${table}_grants(token_hash,user_id,client_id,resource,scope,expires_at)
         VALUES($1,$2,$3,$4,$5,NOW() + $6 * INTERVAL '1 second')`,
-      [hash(token), row.user_id, registered.client_id, resource.href, SCOPE, TOKEN_SECONDS]);
-      return { access_token: token, token_type: 'Bearer', expires_in: TOKEN_SECONDS, scope: SCOPE };
+      [hash(token), row.user_id, registered.client_id, resource.href, scope, TOKEN_SECONDS]);
+      return { access_token: token, token_type: 'Bearer', expires_in: TOKEN_SECONDS, scope };
     }),
     exchangeRefreshToken: async () => { throw new UnsupportedGrantTypeError('Reconnect after the eight-hour read-only grant expires.'); },
     verifyAccessToken: guard(async token => {
-      if (!opaque(token)) throw new InvalidTokenError('Invalid Planner token.');
-      const row = (await query(`SELECT user_id,client_id,resource,scope,expires_at FROM teacher_planner_mcp_grants
+      if (!opaque(token)) throw new InvalidTokenError('Invalid ' + label + ' token.');
+      const row = (await query(`SELECT user_id,client_id,resource,scope,expires_at FROM ${table}_grants
         WHERE token_hash=$1 AND client_id=$2 AND resource=$3 AND scope=$4 AND expires_at>NOW()`,
-      [hash(token), CLIENT_ID, resource.href, SCOPE])).rows[0];
-      if (!row || !await authorizeUser(row.user_id)) throw new InvalidTokenError('Planner access expired or was withdrawn.');
+      [hash(token), clientId, resource.href, scope])).rows[0];
+      if (!row || !await authorizeUser(row.user_id)) throw new InvalidTokenError(label + ' access expired or was withdrawn.');
       return { token, clientId: row.client_id, resource: new URL(row.resource), scopes: [row.scope],
         expiresAt: new Date(row.expires_at).getTime() / 1000, extra: { userId: row.user_id } };
     }),
     revokeToken: guard(async (registered, request) => {
       if (typeof request.token !== 'string') throw new InvalidRequestError('A token is required.');
-      await query('DELETE FROM teacher_planner_mcp_grants WHERE token_hash=$1 AND client_id=$2', [hash(request.token), registered.client_id]);
+      await query(`DELETE FROM ${table}_grants WHERE token_hash=$1 AND client_id=$2`, [hash(request.token), registered.client_id]);
     })
   };
   return provider;
@@ -159,9 +174,10 @@ function createProvider({ query, authorizeUser, origin, resource, callback }) {
 function createTeacherPlannerMcpRouter({ env = process.env, dbQuery = coreQuery, data, authorizeUser } = {}) {
   const router = express.Router();
   const metadataPath = '/.well-known/oauth-protected-resource' + MCP_PATH;
-  const paths = [PREFIX, '/.well-known/oauth-authorization-server', metadataPath];
   router.use((req, res, next) => {
-    if (!paths.some(path => req.path === path || req.path.startsWith(path + '/'))) return next('router');
+    const path = req.path.replace(/\/$/, '');
+    if (path !== PREFIX && !path.startsWith(PREFIX + '/') &&
+        path !== '/.well-known/oauth-authorization-server' && path !== metadataPath) return next('router');
     next();
   });
   const consentPolicy = {
@@ -194,7 +210,7 @@ function createTeacherPlannerMcpRouter({ env = process.env, dbQuery = coreQuery,
     router.use((req, res) => res.status(503).json({ error: 'Set TEACHER_PLANNER_MCP_REDIRECT_URI to the exact callback shown by ChatGPT, then redeploy.' }));
     return router;
   }
-  const provider = createProvider({ query: dbQuery, origin, resource, callback,
+  const provider = createReadOnlyMcpProvider({ query: dbQuery, origin, resource, callback,
     authorizeUser: authorizeUser || (id => authorisedModuleUser(id, 'teacher-planner', dbQuery)) });
   const reads = data || createTeacherPlannerMcpData({ env, origin });
   router.use(PREFIX, express.urlencoded({ extended: false, limit: '32kb' }), express.json({ limit: '32kb' }));
@@ -271,4 +287,4 @@ function createTeacherPlannerMcpRouter({ env = process.env, dbQuery = coreQuery,
   return router;
 }
 
-module.exports = { createTeacherPlannerMcpRouter, MCP_PATH, CLIENT_ID };
+module.exports = { createTeacherPlannerMcpRouter, createReadOnlyMcpProvider, mcpSettings: settings, MCP_PATH, CLIENT_ID };

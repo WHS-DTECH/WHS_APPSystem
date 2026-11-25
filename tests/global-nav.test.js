@@ -461,6 +461,22 @@ test('login return path only accepts same-site relative paths', () => {
   for (const bad of ['//evil.com', 'https://evil.com', '/\\evil.com', 'food-room', '', null]) assert.equal(safeNext(bad), null);
 });
 
+test('MCP login returns preserve OAuth state without enlarging other app redirects or exceeding the cookie budget', () => {
+  for (const integration of ['teacher-planner', 'student-tracker']) {
+    const target = '/integrations/' + integration + '/oauth/authorize?' +
+      new URLSearchParams({ client_id: integration + '-chatgpt', state: 's'.repeat(512), resource: 'https://school.example.test/integrations/' + integration + '/mcp' });
+    assert.ok(target.length > 500);
+    assert.equal(safeNext(target), target);
+    let cookie;
+    setLoginReturn({ query: { next: target }, secure: true }, { cookie(name, value) { cookie = value; } });
+    assert.equal(safeNext(cookie), target, 'the login callback can restore the full OAuth request');
+    assert.equal(safeNext(target + '&extra=' + 'x'.repeat(3000)), null);
+  }
+  const normal = '/teacher-planner/?q=' + 'x'.repeat(600);
+  assert.equal(safeNext(normal), normal.slice(0, 500));
+  assert.equal(safeNext('//outside.example/integrations/student-tracker/oauth/authorize?state=x'), null);
+});
+
 test('new sign-in replaces stale app return cookies even when no destination is supplied', () => {
   const calls = [];
   const res = { cookie(...args) { calls.push(args); } };

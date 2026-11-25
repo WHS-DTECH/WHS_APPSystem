@@ -43,6 +43,7 @@ const { createAssessmentManagerRouter } = require('./modules/assessmentManager')
 const { createTypingAttendanceRouter } = require('./modules/typingAttendance');
 const { createBusControllerRouter, renderFirebaseUsers } = require('./busController');
 const { createTeacherPlannerMcpRouter } = require('./teacherPlannerMcp');
+const { createStudentTrackerMcpRouter } = require('./studentTrackerMcp');
 
 const app = express();
 
@@ -58,7 +59,7 @@ app.use('/integrations/typing-attendance', rateLimit({ windowMs: 60000, limit: 1
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, skip: (req) => req.path.startsWith('/food-room/') || req.path.startsWith('/dtech-hub/') || req.path.startsWith('/teacher-planner/') || req.path.startsWith('/whs-assessment-manager/') || req.path === '/nav-data' }));
 // Hosted Flask apps receive their request bodies untouched, including training uploads.
 const parseBodies = [express.urlencoded({ extended: false }), express.json({ limit: '25mb' })];
-app.use((req, res, next) => (req.path.startsWith('/apps/') || req.path.startsWith('/dtech-hub/class-training/') || req.path.startsWith('/teacher-planner/') || req.path.startsWith('/whs-assessment-manager/') || req.path.startsWith('/integrations/teacher-planner/')
+app.use((req, res, next) => (req.path.startsWith('/apps/') || req.path.startsWith('/dtech-hub/class-training/') || req.path.startsWith('/teacher-planner/') || req.path.startsWith('/whs-assessment-manager/') || req.path.startsWith('/integrations/teacher-planner/') || req.path.startsWith('/integrations/student-tracker/')
   ? next()
   : parseBodies[0](req, res, (error) => (error ? next(error) : parseBodies[1](req, res, next)))));
 app.use(session({
@@ -81,6 +82,7 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 app.use(createTeacherPlannerMcpRouter());
+app.use(createStudentTrackerMcpRouter());
 // Must come after the session middleware so it sees the response before the session writes the headers.
 app.use(injectGlobalNav);
 

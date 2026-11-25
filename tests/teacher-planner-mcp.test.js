@@ -7,17 +7,27 @@ const express = require('express');
 const session = require('express-session');
 const { createTeacherPlannerMcpRouter, MCP_PATH, CLIENT_ID } = require('../src/teacherPlannerMcp');
 const { createTeacherPlannerMcpData } = require('../src/teacherPlannerMcpData');
+const { createStudentTrackerMcpRouter } = require('../src/studentTrackerMcp');
+const { safeNext } = require('../src/globalNav');
 
 const origin = 'https://school.example.test';
 const callback = 'https://chatgpt.com/connector/oauth/test-callback';
 const resource = origin + MCP_PATH;
 const digest = value => crypto.createHash('sha256').update(value).digest('base64url');
 
-async function fixture(t, { configured = true } = {}) {
+async function fixture(t, { configured = true, integration = 'teacher-planner', trackerData } = {}) {
+  const isTracker = integration === 'student-tracker';
+  const prefix = '/integrations/' + integration;
+  const mcpPath = prefix + '/mcp';
+  const resource = origin + mcpPath;
+  const clientId = isTracker ? 'student-tracker-chatgpt' : CLIENT_ID;
+  const scope = isTracker ? 'tracker:read' : 'planner:read';
   const owner = crypto.randomUUID();
   const codes = new Map(), grants = new Map();
   const state = { signedIn: true, allowed: true, reads: [], codes, grants };
   const query = async (sql, values = []) => {
+    if (isTracker) assert.match(sql, /student_tracker_mcp_/, 'Tracker never reads or writes Planner grants');
+    sql = sql.replaceAll('student_tracker_mcp', 'teacher_planner_mcp');
     if (sql.startsWith('DELETE') && sql.includes('expires_at <= NOW()')) return { rows: [] };
     if (sql.startsWith('INSERT INTO teacher_planner_mcp_codes')) {
       codes.set(values[0], { user_id: values[1], client_id: values[2], redirect_uri: values[3],
@@ -59,9 +69,12 @@ async function fixture(t, { configured = true } = {}) {
   app.set('views', path.join(__dirname, '..', 'views'));
   app.use(session({ secret: 'synthetic-mcp-session-secret', resave: false, saveUninitialized: false }));
   app.use((req, res, next) => { if (state.signedIn) req.user = { id: owner }; next(); });
-  app.use(createTeacherPlannerMcpRouter({ dbQuery: query, data,
+  if (isTracker) app.use(createTeacherPlannerMcpRouter({ env: { APP_BASE_URL: origin } }));
+  const createRouter = isTracker ? createStudentTrackerMcpRouter : createTeacherPlannerMcpRouter;
+  app.use(createRouter({ dbQuery: query, data: trackerData || data,
     authorizeUser: async id => state.allowed && id === owner ? { id: owner } : undefined,
-    env: { APP_BASE_URL: origin, ...(configured ? { TEACHER_PLANNER_MCP_REDIRECT_URI: callback } : {}) } }));
+    env: { APP_BASE_URL: origin, STUDENT_TRACKER_MCP_APP_URL: 'https://tracker.example.test',
+      ...(configured ? { [isTracker ? 'STUDENT_TRACKER_MCP_REDIRECT_URI' : 'TEACHER_PLANNER_MCP_REDIRECT_URI']: callback } : {}) } }));
   const server = app.listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
   t.after(() => new Promise(resolve => server.close(resolve)));
@@ -88,23 +101,23 @@ async function fixture(t, { configured = true } = {}) {
     return response;
   };
   const verifier = crypto.randomBytes(32).toString('base64url');
-  const parameters = { client_id: CLIENT_ID, redirect_uri: callback, resource,
+  const parameters = { client_id: clientId, redirect_uri: callback, resource,
     response_type: 'code', code_challenge: digest(verifier), code_challenge_method: 'S256',
-    scope: 'planner:read', state: 'synthetic-state' };
+    scope, state: 'synthetic-state' };
   const consent = async (overrides = {}) => {
-    const response = await call('/integrations/teacher-planner/oauth/authorize?' + new URLSearchParams({ ...parameters, ...overrides }));
+    const response = await call(prefix + '/oauth/authorize?' + new URLSearchParams({ ...parameters, ...overrides }));
     if (response.status !== 200) return { response };
     const html = await response.text();
     const fields = Object.fromEntries([...html.matchAll(/name="([^"]+)" value="([^"]*)"/g)].map(match => [match[1], match[2].replaceAll('&amp;', '&')]));
     return { response, fields, html };
   };
-  const approve = fields => call('/integrations/teacher-planner/oauth/authorize', {
+  const approve = fields => call(prefix + '/oauth/authorize', {
     method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ ...fields, decision: 'allow' })
   });
-  const exchange = (code, overrides = {}) => call('/integrations/teacher-planner/oauth/token', {
+  const exchange = (code, overrides = {}) => call(prefix + '/oauth/token', {
     method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ client_id: CLIENT_ID, grant_type: 'authorization_code', code,
+    body: new URLSearchParams({ client_id: clientId, grant_type: 'authorization_code', code,
       code_verifier: verifier, redirect_uri: callback, resource, ...overrides })
   });
   const link = async () => {
@@ -116,12 +129,173 @@ async function fixture(t, { configured = true } = {}) {
     assert.equal(response.status, 200);
     return { code, ...await response.json() };
   };
-  const rpc = (token, method, params = {}) => call(MCP_PATH, { method: 'POST',
+  const rpc = (token, method, params = {}) => call(mcpPath, { method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream',
       ...(token ? { Authorization: 'Bearer ' + token } : {}) },
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }) });
   return { state, owner, call, consent, approve, exchange, link, rpc };
 }
+
+test('Tracker discovery has an isolated issuer, even before Planner is configured, and requires separate OAuth', async t => {
+  const { call, rpc } = await fixture(t, { integration: 'student-tracker' });
+  const path = '/integrations/student-tracker';
+  const metadata = await (await call('/.well-known/oauth-protected-resource' + path + '/mcp')).json();
+  assert.deepEqual(metadata.authorization_servers, [origin + path]);
+  assert.deepEqual(metadata.scopes_supported, ['tracker:read']);
+  const issuer = await (await call('/.well-known/oauth-authorization-server' + path)).json();
+  assert.equal(issuer.issuer, origin + path);
+  assert.deepEqual(issuer.code_challenge_methods_supported, ['S256']);
+  assert.deepEqual(issuer.token_endpoint_auth_methods_supported, ['none']);
+  const planner = await (await call('/.well-known/oauth-authorization-server')).json();
+  assert.equal(planner.issuer, origin, 'existing Planner discovery is unchanged');
+  assert.equal((await rpc(null, 'tools/list')).status, 401, 'browser school sign-in is not an MCP grant');
+});
+
+test('signed-out MCP authorisation survives the school login return without truncating OAuth state', async t => {
+  for (const integration of ['teacher-planner', 'student-tracker']) {
+    const { state, consent, call } = await fixture(t, { integration });
+    state.signedIn = false;
+    const oauthState = 's'.repeat(300);
+    const response = (await consent({ state: oauthState })).response;
+    const login = new URL(response.headers.get('location'), origin);
+    assert.equal(login.pathname, '/auth/google');
+    const target = login.searchParams.get('next');
+    assert.ok(target.length > 500);
+    assert.equal(safeNext(target), target);
+    state.signedIn = true;
+    const resumed = await call(safeNext(target));
+    assert.equal(resumed.status, 200);
+    assert.match(await resumed.text(), new RegExp('name="state" value="' + oauthState + '"'));
+    state.signedIn = false;
+    const tooLong = (await consent({ state: '%'.repeat(512), extra: 'x'.repeat(3000) })).response;
+    assert.equal(tooLong.status, 302);
+    assert.equal(new URL(tooLong.headers.get('location')).searchParams.get('error'), 'invalid_request');
+  }
+});
+
+test('Tracker OAuth uses consent, CSRF, S256 PKCE, resource binding and non-replayable hashed read-only grants', async t => {
+  const { state, consent, approve, exchange, rpc } = await fixture(t, { integration: 'student-tracker' });
+  const form = await consent();
+  assert.match(form.html, /Student names, identifiers/);
+  assert.match(form.html, /does not connect to Trello/);
+  const denied = await approve({ ...form.fields, csrf: 'forged' });
+  assert.equal(new URL(denied.headers.get('location')).searchParams.get('error'), 'access_denied');
+  assert.equal(state.codes.size, 0);
+  const approval = await approve(form.fields);
+  const code = new URL(approval.headers.get('location')).searchParams.get('code');
+  assert.equal(state.codes.has(code), false);
+  assert.equal((await exchange(code, { code_verifier: 'wrong-verifier' })).status, 400);
+  assert.equal((await exchange(code, { resource: resource })).status, 400, 'Planner resource cannot exchange a Tracker code');
+  const response = await exchange(code);
+  assert.equal(response.status, 200);
+  const token = await response.json();
+  assert.equal(token.scope, 'tracker:read');
+  assert.equal(token.expires_in, 28800);
+  assert.equal('refresh_token' in token, false);
+  assert.equal(state.grants.has(token.access_token), false);
+  assert.equal((await exchange(code)).status, 400);
+  assert.equal((await rpc(token.access_token, 'tools/list')).status, 200);
+  state.allowed = false;
+  assert.equal((await rpc(token.access_token, 'tools/list')).status, 401);
+});
+
+test('Tracker rejects Planner scopes, arbitrary redirects, missing callbacks, expired tokens and revocation', async t => {
+  const { consent, call, link, rpc, state } = await fixture(t, { integration: 'student-tracker' });
+  for (const overrides of [{ scope: 'planner:read' }, { scope: 'tracker:write' }, { code_challenge_method: 'plain' }]) {
+    const result = await consent(overrides);
+    assert.ok(result.response.status === 400 || /error=/.test(result.response.headers.get('location') || ''));
+  }
+  const otherRedirect = await consent({ redirect_uri: 'https://attacker.example.test/callback' });
+  assert.equal(otherRedirect.response.status, 400);
+  const token = await link();
+  const grant = state.grants.get(digest(token.access_token));
+  grant.scope = 'planner:read';
+  assert.equal((await rpc(token.access_token, 'tools/list')).status, 401);
+  grant.scope = 'tracker:read';
+  grant.expires_at = new Date(Date.now() - 1);
+  assert.equal((await rpc(token.access_token, 'tools/list')).status, 401);
+  const fresh = await link();
+  const revoke = await call('/integrations/student-tracker/oauth/revoke', {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ client_id: 'student-tracker-chatgpt', token: fresh.access_token })
+  });
+  assert.equal(revoke.status, 200);
+  assert.equal((await rpc(fresh.access_token, 'tools/list')).status, 401);
+  const unavailable = await fixture(t, { integration: 'student-tracker', configured: false });
+  assert.equal((await unavailable.rpc(null, 'tools/list')).status, 401);
+  assert.equal((await unavailable.consent()).response.status, 503);
+});
+
+test('Tracker offers exactly four read-only allowlisted tools, validates filters and sanitises failed reads', async t => {
+  const calls = [];
+  const { link, rpc } = await fixture(t, { integration: 'student-tracker',
+    trackerData: { read: async (...args) => { calls.push(args); throw new Error('Student, Private k:123 DATABASE_URL secret'); } } });
+  const token = await link();
+  const listed = await (await rpc(token.access_token, 'tools/list')).json();
+  assert.deepEqual(listed.result.tools.map(tool => tool.name),
+    ['list_available_pages', 'get_page_data', 'search_records', 'get_audit_status']);
+  for (const tool of listed.result.tools) {
+    assert.equal(tool.annotations.readOnlyHint, true);
+    assert.equal(tool.annotations.destructiveHint, false);
+    assert.equal(tool.inputSchema.additionalProperties, false);
+    assert.ok(tool.outputSchema);
+  }
+  for (const args of [
+    { year: 2026, pageId: 'profile' }, { year: 2026, studentId: 'k:123' }, { year: 2026, url: 'https://attacker.example' },
+    { year: 2026, yearLevel: 11 }, { year: 2026, reportingPeriod: 'published' }, { year: 2026, limit: 101 }
+  ]) {
+    const result = await (await rpc(token.access_token, 'tools/call', { name: 'get_page_data', arguments: args })).json();
+    assert.ok(result.result?.isError || result.error);
+  }
+  assert.equal(calls.length, 0);
+  const write = await (await rpc(token.access_token, 'tools/call', { name: 'update_report', arguments: { year: 2026 } })).json();
+  assert.ok(write.error || write.result?.isError);
+  assert.equal(calls.length, 0);
+  const response = await (await rpc(token.access_token, 'tools/call', {
+    name: 'get_audit_status', arguments: { year: 2026, band: 'junior', teacher: 'VP' }
+  })).json();
+  assert.equal(calls.length, 1);
+  assert.equal(response.result.isError, true);
+  assert.equal(response.result.structuredContent.academicYear, 2026);
+  assert.equal(response.result.structuredContent.records, null);
+  assert.equal(response.result.structuredContent.pagination, null);
+  assert.equal(response.result.structuredContent.complete, false);
+  assert.equal(response.result.structuredContent.availability, 'unavailable');
+  const json = JSON.stringify(response);
+  for (const value of ['Student, Private', 'k:123', 'DATABASE_URL', 'secret']) assert.equal(json.includes(value), false);
+});
+
+test('Tracker MCP returns successful structured 2026 Junior/Middle audit data and original page links', async t => {
+  const url = 'https://tracker.example.test/department-awards-audit?year=2026';
+  const check = { status: 'Not checked', state: 'unknown', entries: 0, total: 2, blanks: 0,
+    missing: 2, checked: 0, required: 1, resolvedEntries: 0, resolvedFields: 0 };
+  const { link, rpc } = await fixture(t, { integration: 'student-tracker', trackerData: {
+    read: async (owner, name, args) => ({
+      sourcePageTitle: 'Department Awards Audit', sourceUrl: url, academicYear: args.year,
+      appliedFilters: { year: args.year, departmentId: null, teacher: null, subject: null, classCode: null,
+        band: args.band || null, semester: null, part: 'all', followUpOnly: false },
+      retrievedAt: new Date().toISOString(), sourceUpdatedAt: { reports: '2026-11-23T01:00:00.000Z', awards: null, reviews: null },
+      availability: 'available', complete: false, sourceComplete: false, freshnessVerified: false,
+      studentInformationExcluded: true, warnings: ['PDF evidence is not checked.'], pages: [],
+      records: [args.band || 'junior'].map(band => ({
+        id: digest(band), teacher: { code: 'VP', name: 'Verified Teacher' }, subject: 'DTECH',
+        classes: [band === 'junior' ? 'JPI-PIDTECH' : '81A-MDTECH'], band, semester: 2, terms: [4], pdfOnly: false,
+        slo: check, values: check, awards: { status: 'Not checked', state: 'unknown', mohio: null, akoranga: null }, url
+      })), pagination: { offset: 0, limit: 50, total: 1, hasMore: false }
+    })
+  } });
+  const token = await link();
+  for (const band of ['junior', 'middle']) for (const name of ['get_page_data', 'get_audit_status', 'search_records']) {
+    const response = await (await rpc(token.access_token, 'tools/call', { name, arguments: { year: 2026, band } })).json();
+    assert.equal(response.result.isError, undefined);
+    const data = response.result.structuredContent;
+    assert.equal(data.records[0].band, band);
+    assert.equal(data.records[0].url, url);
+    assert.equal(data.records[0].slo.status, 'Not checked');
+    assert.equal(data.sourceUpdatedAt.reports, '2026-11-23T01:00:00.000Z');
+    assert.deepEqual(JSON.parse(response.result.content[0].text), data);
+  }
+});
 
 test('OAuth consent and PKCE protect a metadata-only MCP session; codes cannot be replayed', async t => {
   const { state, owner, call, consent, approve, exchange, rpc } = await fixture(t);

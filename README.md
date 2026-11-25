@@ -2107,6 +2107,18 @@ The owner-restricted endpoint is
 `Cache-Control: no-store`. Trello credentials and raw API response bodies are not
 logged or returned to the browser.
 
+### Student Tracker read-only ChatGPT / MCP connection
+
+The separate Student Tracker MCP endpoint is
+`https://whs-appsystem.onrender.com/integrations/student-tracker/mcp`.
+It reuses the Planner OAuth provider with isolated `tracker:read` grants and
+exposes only authorised Department Awards Audit teacher/class aggregates.
+Student Tracker calculates results from its existing shared PDF evidence and
+audit model through a signed internal reader; no student details, syncs,
+mutations, UI changes or Trello operations are exposed. Deployment configuration,
+page/source inspection, tool schemas and ChatGPT testing instructions are in
+[the Student Tracker MCP handover](docs/student-tracker-mcp.md).
+
 ### Read-only ChatGPT / MCP connection
 
 The isolated MCP endpoint is
