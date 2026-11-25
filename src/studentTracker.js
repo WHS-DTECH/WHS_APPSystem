@@ -579,8 +579,58 @@ function createStudentTrackerService({ dbQuery, directoryQuery, plannerQuery, en
     if (!user?.roles?.some(role => ['ADMIN', 'Teacher'].includes(role))) throw error('Staff access is required.', 403);
     if (!Number.isInteger(input.year) || input.year < 2000 || input.year > 2100) throw error('Choose a year from 2000 to 2100.');
     if (!['senior-audit-roster', 'senior-audit-files', 'senior-audit-file', 'senior-audit-batch', 'senior-audit-workbook',
-      'students-audit-roster', 'students-audit-enrolments'].includes(input.action)) {
+      'students-audit-roster', 'students-audit-enrolments', 'marking-identities'].includes(input.action)) {
       throw error('Unknown senior audit action.');
+    }
+    if (input.action === 'marking-identities') {
+      if (!Array.isArray(input.studentIds) || input.studentIds.length > 1000 ||
+          new Set(input.studentIds).size !== input.studentIds.length ||
+          !input.studentIds.every(id => typeof id === 'string' && /^k:[A-Za-z0-9_-]{1,60}$/.test(id))) {
+        throw error('Choose valid, unique student identities.');
+      }
+      const context = await scope(user, input.year);
+      const department = departmentFor(context, input.departmentId);
+      if (normaliseDirectoryName(department.name) !== normaliseDirectoryName('Technology') ||
+          !context.staffIds.includes(user.id) ||
+          !department.teacherEmails.includes(String(user.email || '').trim().toLowerCase())) {
+        throw error('Marking identities are available only to authorised Technology staff.', 403);
+      }
+      const current = context.tables.find(table => table.term === null);
+      if (!current?.rows.length) throw error('No current KAMAR student timetable is available for this year.', 409);
+      const courses = new Set(department.classLinks.map(link => link.subject).filter(course => /^1[123]/.test(course)));
+      const allowed = new Set(current.rows.filter(row => ['11', '12', '13'].includes(student(row).yearLevel) &&
+        lessons(row).some(lesson => courses.has(lesson.subject)))
+        .map(row => student(row).id));
+      if (input.studentIds.some(id => !allowed.has(id))) {
+        throw error('A student is no longer in an authorised department course. Reload the marking list.', 403);
+      }
+      const details = (await directoryQuery(`SELECT id_number,email_school FROM student_details_upload
+        WHERE status='Current' AND upload_year=$1`, [input.year])).rows;
+      const emailCounts = new Map(), idCounts = new Map();
+      for (const row of details) {
+        const id = String(row.id_number || '').trim();
+        const email = String(row.email_school || '').trim().toLowerCase();
+        if (id) idCounts.set(id, (idCounts.get(id) || 0) + 1);
+        if (email) emailCounts.set(email, (emailCounts.get(email) || 0) + 1);
+      }
+      const requested = new Set(input.studentIds);
+      const memberships = new Map();
+      for (const row of current.rows) {
+        const person = student(row);
+        if (!requested.has(person.id) || !['11', '12', '13'].includes(person.yearLevel)) continue;
+        for (const lesson of lessons(row)) {
+          if (!courses.has(lesson.subject) || !lesson.classCode) continue;
+          const item = { id: person.id, course: lesson.subject, classCode: lesson.classCode };
+          memberships.set(JSON.stringify(item), item);
+        }
+      }
+      return { memberships: [...memberships.values()], identities: details.flatMap(row => {
+        const id = String(row.id_number || '').trim();
+        const email = String(row.email_school || '').trim().toLowerCase();
+        if (!requested.has('k:' + id) || idCounts.get(id) !== 1 || emailCounts.get(email) !== 1 ||
+            !/^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(email)) return [];
+        return [{ id: 'k:' + id, email }];
+      }) };
     }
     if (input.action.startsWith('students-audit-')) {
       const context = await scope(user, input.year, input.action === 'students-audit-roster');

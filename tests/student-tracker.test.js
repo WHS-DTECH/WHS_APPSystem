@@ -81,6 +81,7 @@ function fixture() {
     directoryQuery: async (sql, params) => {
       state.directoryCalls.push(sql);
       assert.doesNotMatch(sql, /planner_sections|planner_attendance_marks|FROM users/);
+      if (sql.includes('SELECT id_number,email_school FROM student_details_upload')) return { rows: state.currentDetails || [] };
       if (sql.includes('FROM student_details_upload WHERE')) return { rows: (state.currentDetails || [])
         .filter(row => params[1].includes(row.id_number)) };
       if (sql.includes('FROM student_upload')) return { rows: [row,
@@ -1193,6 +1194,32 @@ test('Students Audit identity memberships use all current timetable classes in e
     'Identity lookup is not permission to change teaching-line enrolment or grade decisions');
   const strict = await service.seniorAudit(teacher, { year: 2026, action: 'senior-audit-roster' });
   assert.ok(strict.groups.every(group => !group.students.some(person => person.id === 'k:301')));
+});
+
+test('marking identity lookup restricts access and excludes missing or duplicate school emails', async () => {
+  const { service, state } = fixture();
+  state.hasSnapshot = false;
+  state.row.year_level = '11';
+  state.row.mon_p1_1 = 'TST-3-11DTECH-CW'; state.row.fri_p3 = '';
+  state.teacherRows[0].data = { Teacher: 'TST', Mon_P1: '3-11DTECH-CW' };
+  state.department.class_links['2026'] = [{ teacherEmail: teacher.email, code: '3-11DTECH' }];
+  state.courses.push({ course_code: '11DTECH', subject_code: 'DTECH' });
+  state.extraStudents.push({ id_number: '301', student_name: 'Other Student', year_level: '11',
+    tue_p2: 'PEER-6-11DTECH-CW' });
+  state.currentDetails = [{ id_number: '100', email_school: 'FIRST@example.test' },
+    { id_number: '301', email_school: 'shared@example.test' },
+    { id_number: '900', email_school: 'shared@example.test' }];
+  const input = { year: 2026, action: 'marking-identities', departmentId, studentIds: ['k:100', 'k:301'] };
+  assert.deepEqual(await service.seniorAudit(teacher, input), {
+    identities: [{ id: 'k:100', email: 'first@example.test' }],
+    memberships: [{ id: 'k:100', course: '11DTECH', classCode: '3-11DTECH' },
+      { id: 'k:301', course: '11DTECH', classCode: '6-11DTECH' }]
+  });
+  await assert.rejects(service.seniorAudit(teacher, { ...input, studentIds: ['k:900'] }), { status: 403 });
+  await assert.rejects(service.seniorAudit(teacher, { ...input, studentIds: ['k:100', 'k:100'] }), { status: 400 });
+  await assert.rejects(service.seniorAudit({ ...teacher, roles: ['Student'] }, input), { status: 403 });
+  state.department.teacher_emails = [];
+  await assert.rejects(service.seniorAudit(teacher, input), { status: 403 });
 });
 
 test('senior audit only returns confirmed senior Technology rosters to authorised department staff', async () => {

@@ -2498,6 +2498,13 @@ of teacher/period-line matching. Other course codes and historical snapshots are
 not substituted. Existing teaching-line memberships, Senior Audit authorisation,
 grade checks and enrolment decisions retain their stricter matching rules.
 
+For Standard Marking Records, the Assessment Manager bridge's
+`marking-identities` action rechecks Technology staff and linked courses, then
+returns current timetable class codes and uniquely available current school
+emails only for requested students in authorised senior courses. Missing or
+duplicate emails are withheld. The Manager matches PDF names to course
+memberships first; the bridge does not change enrolments or send email.
+
 **Setup Student Tracker** opens a separate setup page for the selected school
 year; the Student Tracker heading returns to student search. Global ADMIN can
 open **+ Add Department** to create a department without displaying a blank
