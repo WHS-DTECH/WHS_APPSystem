@@ -29,6 +29,7 @@ const { injectGlobalNav, navData, safeNext, readCookie, NEXT_COOKIE, setLoginRet
 const { describeModules } = require('./moduleDocs');
 const { createModuleBuilderRouter } = require('./moduleBuilder');
 const { createInfrastructureCostsRouter } = require('./infrastructureCosts');
+const { createSecurityNoticesRouter } = require('./securityNotices');
 const { createModuleIdentityRouter } = require('./moduleIdentity');
 const { createContactRouter } = require('./contact');
 const { createHelpdeskRouters } = require('./helpdesk');
@@ -329,6 +330,7 @@ app.get('/admin', ensureAuthenticated, ensureRole('ADMIN'), async (req, res, nex
 
 app.use('/admin/users', createAdminUsersRouter());
 app.use('/admin/infrastructure-costs', createInfrastructureCostsRouter());
+app.use('/admin/security-notices', createSecurityNoticesRouter());
 app.use('/admin/launchpad', createLaunchpadAdminRouter());
 app.use('/admin/helpdesk', helpdesk);
 app.use('/admin/student-builders', ensureAuthenticated, createStudentBuildersRouter());

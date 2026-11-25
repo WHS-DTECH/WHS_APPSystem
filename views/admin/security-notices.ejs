@@ -1,0 +1,31 @@
+<%- include('../partials/header') %>
+<section class="page-title">
+  <p class="eyebrow">Global Control · Administration</p>
+  <h1>Security Vulnerability Notices</h1>
+  <p>Record advisories, remediation and evidence. A resolved notice is not a guarantee of overall system security.</p>
+  <a href="/admin">Administrator Dashboard</a>
+</section>
+<% if (saved) { %><p role="status">Notice saved.</p><% } %>
+<% notices.forEach(item => { const details = item.details; %>
+<section class="panel">
+  <h2><%= details.title %></h2>
+  <p><strong><%= details.reference %></strong> · <%= details.severity %> · <%= details.status %> · Received <%= details.receivedOn %></p>
+  <% if (details.sourceUrl) { %><p><a href="<%= details.sourceUrl %>" rel="noopener noreferrer" target="_blank">View advisory</a></p><% } %>
+  <% if (details.reference === 'CVE-2026-125396') { %><p><a href="/admin/security-notices/render-notice" target="_blank" rel="noopener noreferrer">View original Render notice</a></p><% } %>
+  <p>Version <%= item.version %> · Updated by <%= item.updated_by %> · <%= new Date(item.updated_at).toISOString() %></p>
+  <%- include('security-notice-form', { action: '/admin/security-notices/' + item.id, version: item.version, details, csrf, severities, statuses }) %>
+  <details><summary>Previous versions (<%= item.history.length %>)</summary>
+    <% item.history.slice().reverse().forEach(previous => { %>
+      <article>
+        <h3>Version <%= previous.version %> · <%= previous.updated_by %> · <%= previous.updated_at %></h3>
+        <pre style="white-space:pre-wrap;overflow-wrap:anywhere"><%= JSON.stringify(previous.details, null, 2) %></pre>
+      </article>
+    <% }) %>
+  </details>
+</section>
+<% }) %>
+<section class="panel">
+  <h2>Add notice</h2>
+  <%- include('security-notice-form', { action: '/admin/security-notices', version: null, details: {}, csrf, severities, statuses }) %>
+</section>
+<%- include('../partials/footer') %>

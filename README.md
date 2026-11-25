@@ -1,5 +1,14 @@
 # WHS APPSystem
 
+Global administrators can maintain a revision-protected advisory register at
+**Administration → Security Vulnerability Notices**. Each notice records
+severity, status, remediation and verification evidence; closing a notice
+requires evidence. Prior versions are retained. The included Upload2Shell notice
+tracks Global Control's Docker service separately from DTECH-HUB.
+The Docker build upgrades installed Debian Ghostscript packages and refuses an
+unpatched bookworm version or an unverified `gs` executable. Confirm the live
+deployment and check any separately bundled copies before closing the notice.
+
 Unified Westland High School app shell for one Render Web Service and one Google Login configuration. Core data uses the shared Postgres database; DTECH keeps its existing separate legacy database.
 
 ## Private DTECH typing attendance connection

@@ -1,0 +1,14 @@
+<form action="<%= action %>" method="post" class="row-form stacked">
+  <input type="hidden" name="csrf" value="<%= csrf %>">
+  <% if (version) { %><input type="hidden" name="version" value="<%= version %>"><% } %>
+  <label>Title <input name="title" maxlength="200" required value="<%= details.title || '' %>"></label>
+  <label>Reference <input name="reference" maxlength="100" value="<%= details.reference || '' %>"></label>
+  <label>Received <input type="date" name="receivedOn" required value="<%= details.receivedOn || '' %>"></label>
+  <label>Severity <select name="severity"><% severities.forEach(item => { %><option value="<%= item %>" <%= details.severity === item ? 'selected' : '' %>><%= item %></option><% }) %></select></label>
+  <label>Status <select name="status"><% statuses.forEach(item => { %><option value="<%= item %>" <%= details.status === item ? 'selected' : '' %>><%= item %></option><% }) %></select></label>
+  <label>Notice <textarea name="notice" maxlength="12000" required rows="4"><%= details.notice || '' %></textarea></label>
+  <label>Remediation / actions applied <textarea name="remediation" maxlength="12000" rows="4"><%= details.remediation || '' %></textarea></label>
+  <label>Verification evidence (required to close) <textarea name="verification" maxlength="12000" rows="4"><%= details.verification || '' %></textarea></label>
+  <label>Source HTTPS URL <input type="url" name="sourceUrl" maxlength="2000" value="<%= details.sourceUrl || '' %>"></label>
+  <button class="button button-primary" type="submit">Save notice</button>
+</form>
