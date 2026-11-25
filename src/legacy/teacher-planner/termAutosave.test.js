@@ -208,7 +208,7 @@ test('Teaching Dashboard loads and saves the existing session address while excl
     periodDate: '2026-11-23', periodSlot: 'whanau', dashboardMode: false, dashboardTrello: false,
     manualSessionDraft: undefined, selectedTeachingCard: '', sessionPlanner: undefined, sessionAddress: undefined,
     yearInput: {}, updateYearBadge() {}, monday: value => value, date: value => new Date(value + 'T00:00:00Z'),
-    autosaveTimer: undefined, autosavePaused: false, dirty: false, busy: false, loaded: false, editVersion: 0,
+    autosaveTimer: undefined, disposeTodo: undefined, autosavePaused: false, dirty: false, busy: false, loaded: false, editVersion: 0,
     save: {}, retry: {}, signin: {}, content: { replaceChildren() {}, querySelectorAll: () => [] },
     clearTimeout() {}, setTimeout() { return 1; }, saveInFlight: undefined, FormData: class { *[Symbol.iterator]() {} },
     notice: text => notices.push(text), console,

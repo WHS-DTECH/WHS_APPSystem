@@ -5,6 +5,7 @@ const vm = require('node:vm');
 const { renderShell } = require('./shell');
 const source = fs.readFileSync(require.resolve('./public/google-tasks.js'), 'utf8');
 const planner = fs.readFileSync(require.resolve('./public/planner.js'), 'utf8');
+const css = fs.readFileSync(require.resolve('./public/planner.css'), 'utf8');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 const walk = node => [node, ...node.children.flatMap(walk)];
 function fixture(setup = false, initialTasks, extraLists = []) {
@@ -22,7 +23,15 @@ function fixture(setup = false, initialTasks, extraLists = []) {
     };
     nodes.push(node); return node;
   }
-  const context = { confirm: () => true, window: { open: () => ({ opener: {}, location: {}, close() {} }) } };
+  const storedPreferences = new Map();
+  const context = {
+    confirm: () => true,
+    localStorage: {
+      getItem: key => storedPreferences.get(key) ?? null,
+      setItem: (key, value) => storedPreferences.set(key, value)
+    },
+    window: { open: () => ({ opener: {}, location: {}, close() {} }) }
+  };
   vm.runInNewContext(source, context);
   const host = el('section'), requests = [], mutations = [];
   let status = { configured: true, connected: true, tasksEnabled: true, email: 'teacher@fixture.test', connectionId: 'one' };
@@ -58,7 +67,7 @@ function fixture(setup = false, initialTasks, extraLists = []) {
   });
   const byText = text => nodes.find(node => node.textContent === text);
   const byLabel = label => nodes.find(node => node.attrs['aria-label'] === label);
-  return { host, context, nodes, requests, mutations, byText, byLabel,
+  return { host, context, nodes, el, storedPreferences, requests, mutations, byText, byLabel,
     setStatus: value => { status = value; }, fail: value => { failure = value; },
     failList: value => { failedList = value; }, changeListAccount: value => { changedList = value; } };
 }
@@ -81,6 +90,34 @@ test('week filtering includes weekend due dates but excludes the next week', () 
     { id: 'next', title: 'Next Monday', due: '2026-10-26', status: 'needsAction' }
   ];
   assert.deepEqual(Array.from(f.context.plannerGoogleTasks.visibleTasks(tasks, '2026-10-19', false, false), task => task.id), ['sat', 'sun']);
+});
+
+test('weekly Google Tasks visibility is independently remembered without removing tasks', () => {
+  const f = fixture(false, []);
+  const manager = f.el('section');
+  const savedTask = f.el('p', 'Existing Google task');
+  manager.append(savedTask);
+  const column = f.el('section', '', { class: 'google-tasks-column' });
+  f.context.plannerGoogleTasks.mountColumnToggle(column, manager, f.el);
+  const toggle = column.children[0];
+  assert.equal(manager.hidden, false);
+  assert.equal(toggle.textContent, 'Hide Google Tasks');
+  assert.equal(toggle.attrs['aria-expanded'], 'true');
+
+  toggle.click();
+  assert.equal(manager.hidden, true);
+  assert.equal(manager.children[0], savedTask);
+  assert.equal(column.dataset.googleTasksVisible, 'false');
+  assert.equal(f.storedPreferences.get('whs-planner-google-tasks-visible'), 'false');
+
+  const nextManager = f.el('section'), nextColumn = f.el('section');
+  f.context.plannerGoogleTasks.mountColumnToggle(nextColumn, nextManager, f.el);
+  const nextToggle = nextColumn.children[0];
+  assert.equal(nextManager.hidden, true);
+  assert.equal(nextToggle.textContent, 'Show Google Tasks');
+  nextToggle.click();
+  assert.equal(nextManager.hidden, false);
+  assert.equal(f.storedPreferences.get('whs-planner-google-tasks-visible'), 'true');
 });
 
 test('all lists default combines weekly tasks, labels sources and writes to the correct list despite overlapping task IDs', async () => {
@@ -259,10 +296,13 @@ test('account switching blocks an unsent draft instead of sending it to another 
 test('shell loads Tasks before planner, manager is weekly-only, and old To do notes retain their saved field', () => {
   const html = renderShell({ baseUrl: '/', coreUrl: '', standalone: false });
   assert.ok(html.indexOf('google-tasks.js') < html.indexOf('framework/planner.js'));
+  assert.match(html, /google-tasks\.js\?v=weekly-column-1/);
   const week = planner.slice(planner.indexOf('  function renderWeek('), planner.indexOf('  function weeklyTimetableEntries('));
   assert.match(week, /mountGoogleTasks\(taskManager, false\)/);
+  assert.match(week, /mountColumnToggle\(tasksColumn, taskManager, el\)/);
   assert.match(week, /field\('todos', data\)/);
   assert.match(week, /Planner notes \| Previous To do/);
+  assert.match(css, /\.week-right-body:has\(\.google-tasks-column\[data-google-tasks-visible="false"\]\)\s*\{\s*grid-template-columns: minmax\(0,1fr\);/);
   const setup = planner.slice(planner.indexOf('  function setupFolder('), planner.indexOf('  function renderSetup('));
   assert.match(setup, /Google Tasks Setup/); assert.match(setup, /mountGoogleTasks\(connection, true\)/);
 });

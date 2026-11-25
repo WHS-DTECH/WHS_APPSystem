@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { groupCards, dateKey } = require('./public/todo-trello');
+const { groupCards, dateKey, refreshData, subscribe } = require('./public/todo-trello');
 
 const card = (id, due = null, extra = {}) => ({ id, due, dueComplete: false, ...extra });
 
@@ -29,4 +29,34 @@ test('cards have one primary group and preserve other status information', () =>
 test('duplicate card IDs fail rather than displaying conflicting cards', () => {
   assert.throws(() => groupCards([{ role: 'urgent', cards: [card('1')] },
     { role: 'todo', cards: [card('1')] }], '2026-11-26'), /more than one list/);
+});
+
+test('sidebar and dashboard share one refresh and failures do not look like empty tasks', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalWarn = console.warn;
+  const updates = [], dashboardUpdates = [];
+  let resolve, calls = 0;
+  globalThis.fetch = () => { calls++; return new Promise(done => { resolve = done; }); };
+  console.warn = () => {};
+  const unsubscribe = subscribe(state => updates.push({ ...state }));
+  const unsubscribeDashboard = subscribe(state => dashboardUpdates.push({ ...state }));
+  try {
+    const first = refreshData('/api/'), second = refreshData('/api/');
+    await Promise.resolve();
+    assert.equal(calls, 1);
+    resolve({ ok: true, json: async () => ({ status: 'ok', fetchedAt: '2026-11-26T00:00:00Z', lists: [] }) });
+    await Promise.all([first, second]);
+    assert.equal(updates.at(-1).data.status, 'ok');
+    assert.equal(dashboardUpdates.at(-1).lastRefresh, updates.at(-1).lastRefresh);
+    const failed = refreshData('/api/');
+    await Promise.resolve();
+    resolve({ ok: false, json: async () => ({ error: 'Token expired' }) });
+    await failed;
+    assert.equal(updates.at(-1).data, null);
+    assert.equal(dashboardUpdates.at(-1).error, 'Token expired');
+    assert.ok(updates.at(-1).lastRefresh);
+  } finally {
+    unsubscribe(); unsubscribeDashboard();
+    globalThis.fetch = originalFetch; console.warn = originalWarn;
+  }
 });

@@ -44,6 +44,7 @@
     attendance: [],
     attendanceImport: [],
     timetable: [],
+    todoDashboard: [],
     moderation: [],
     reporting: [],
     setup: [],
@@ -55,7 +56,7 @@
   let saveInFlight;
   let periodDate = '', periodSlot = 'p1', selectedDay = 0, invalidPeriodLink = false;
   let activityRecord = '';
-  let sessionPlanner, sessionAddress, teachingDashboard, dashboardTermError = '';
+  let sessionPlanner, sessionAddress, teachingDashboard, dashboardTermError = '', disposeTodo;
   let manualSessionDraft;
   let canManageSchoolSettings = false;
   let setupTab = 0;
@@ -1232,11 +1233,13 @@
     days.append(rightTop, weeklyTable(data, [3, 4], false));
     const sidebar = el('aside', '', { class: 'week-sidebar', 'aria-label': 'Weekly notices and tasks' });
     const taskManager = el('section');
+    const tasksColumn = el('section', '', { class: 'google-tasks-column' });
+    globalThis.plannerGoogleTasks.mountColumnToggle(tasksColumn, taskManager, el);
     const todoNotes = field('todos', data);
     todoNotes.querySelector('label').textContent = 'Planner notes | Previous To do';
     const notices = el('section', '', { class: 'weekly-notices' });
     notices.append(field('notices', data), el('div', '', { class: 'weekly-school-notices' }));
-    sidebar.append(notices, taskManager, todoNotes);
+    sidebar.append(notices, tasksColumn, todoNotes);
     rightBody.append(days, sidebar); right.append(rightBody);
     const workspace = el('div', '', { class: 'todo-week-workspace' });
     const plannerPage = el('div', '', { class: 'todo-week-content' });
@@ -1269,7 +1272,7 @@
     });
     try {
       if (!globalThis.plannerTodoTrello) throw new Error('Sidebar assets unavailable.');
-      globalThis.plannerTodoTrello.mount(workspace, { api, week });
+      disposeTodo = globalThis.plannerTodoTrello.mount(workspace, { api, week });
     } catch {
       console.warn('Trello ToDo sidebar could not start.');
       workspace.append(el('p', 'Trello ToDo is unavailable. Your Planner is unaffected.', {
@@ -2775,6 +2778,7 @@
     const dutyRefresh = document.getElementById?.('refresh-weekly-duties');
     if (dutyRefresh) { dutyRefresh.hidden = true; dutyRefresh.onclick = null; }
     clearTimeout(autosaveTimer);
+    if (disposeTodo) { disposeTodo(); disposeTodo = undefined; }
     autosavePaused = false;
     busy = true; loaded = false; dirty = false; save.disabled = true; retry.hidden = true; signin.hidden = true;
     updateWeekNavigation();
@@ -2821,7 +2825,7 @@
       }
       renderSelectors();
       history.replaceState(null, '', '#' + viewFragment());
-      document.querySelector('.planner-save').hidden = ['cover', 'attendance', 'attendanceImport', 'timetable'].includes(section);
+      document.querySelector('.planner-save').hidden = ['cover', 'attendance', 'attendanceImport', 'timetable', 'todoDashboard'].includes(section);
       save.textContent = section === 'setup' ? 'Save school-wide setup' : 'Save changes';
       document.getElementById('save-note').textContent = section === 'setup' ? 'These settings are shared by all planners for this year.' :
         'Private Planner edits autosave. Wait for Autosaved before closing.';
@@ -2831,6 +2835,15 @@
       }
       if (section === 'cover') { render({}); loaded = true; notice(openingNote || 'Your planner, familiar pages. Open the cover or choose a section above.'); return; }
       await refreshSession();
+      if (section === 'todoDashboard') {
+        if (!globalThis.plannerTodoDashboard) throw new Error('Trello ToDo Dashboard assets are unavailable.');
+        const host = el('section');
+        content.append(host);
+        disposeTodo = globalThis.plannerTodoDashboard.mount(host, { api });
+        loaded = true;
+        notice('Trello ToDo is read-only and separate from Planner records.');
+        return;
+      }
       if (section === 'attendance') {
         const host = el('section');
         content.append(host);
@@ -2974,7 +2987,7 @@
   }
   form.addEventListener('submit', event => {
     event.preventDefault();
-    if (!['attendance', 'attendanceImport', 'timetable'].includes(section) && !(section === 'setup' && setupTab !== 0)) saveEntry();
+    if (!['attendance', 'attendanceImport', 'timetable', 'todoDashboard'].includes(section) && !(section === 'setup' && setupTab !== 0)) saveEntry();
   });
   document.querySelectorAll('[data-section]').forEach((button) => button.addEventListener('click', () => {
     return navigatePlannerSection(button.dataset.section);

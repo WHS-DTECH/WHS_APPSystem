@@ -64,6 +64,17 @@ test('other accounts, including administrators, and write-capable tokens cannot 
   assert.equal(state.calls.length, 2);
 });
 
+test('filed MISCELLANEOUS tasks remain accessible without entering outstanding lists', async t => {
+  const { state, call } = await fixture(t);
+  const filed = '5'.repeat(24);
+  state.lists.push({ id: filed, name: 'DONE – MISCELLANEOUS', closed: false });
+  state.cards.push(makeCard('6'.repeat(24), filed, 'Filed task'));
+  const body = await (await call()).json();
+  const list = body.lists.find(item => item.id === filed);
+  assert.equal(list.role, 'filed');
+  assert.equal(list.cards[0].title, 'Filed task');
+});
+
 test('ambiguous lists, unsafe cards, expired tokens and rate limits fail explicitly', async t => {
   const { state, call } = await fixture(t);
   state.lists.push({ id: '4'.repeat(24), name: 'to do', closed: false });

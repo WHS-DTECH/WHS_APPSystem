@@ -220,6 +220,10 @@
 .todo-group > p { font-size: 12px; }
 .todo-cards { list-style: none; margin: 0; padding: 0; }
 .todo-card { background: white; border: 1px solid #c8d8df; border-radius: 5px; padding: 9px; margin: 8px 0; overflow-wrap: anywhere; }
+.todo-dashboard .todo-card-urgent { border-left: 4px solid #b12d24; }
+.todo-dashboard .todo-card-due { border-left: 4px solid #b77c00; }
+.todo-dashboard .todo-card-completed { border-left: 4px solid #26804d; }
+.todo-dashboard .todo-card-completed input { accent-color: #26804d; }
 .todo-card-heading { display: flex; align-items: flex-start; gap: 6px; }
 .todo-card-heading input { margin-top: 5px; }
 .whs-planner .todo-card-title { border: 0; padding: 0; background: transparent; color: #245f85; font-weight: 700; text-align: left; cursor: pointer; }
@@ -230,6 +234,23 @@
 .todo-detail h3 { margin: 0 0 8px; }
 .todo-description { white-space: pre-wrap; }
 .todo-show { position: fixed; right: 12px; top: 35%; z-index: 20; }
+.todo-dashboard { background: #f5f9fb; border: 1px solid #aac2ce; border-radius: 8px; padding: 16px; }
+.todo-dashboard h2, .todo-dashboard h3 { color: #31586c; }
+.todo-dashboard-toolbar, .todo-dashboard-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
+.todo-dashboard-controls label { display: grid; gap: 4px; }
+.todo-dashboard .todo-status { padding: 10px 0; }
+.todo-dashboard-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 8px; margin: 12px 0; }
+.todo-dashboard-summary > div { background: white; border: 1px solid #c8d8df; border-radius: 5px; padding: 9px; font-weight: 600; }
+.todo-dashboard-columns { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(280px, 2fr) minmax(260px, 1.4fr); gap: 16px; align-items: start; }
+.todo-dashboard-column { min-width: 0; background: white; border: 1px solid #c8d8df; border-radius: 6px; padding: 12px; }
+.todo-dashboard-column h3 { margin-top: 0; }
+.todo-dashboard-filters { display: grid; gap: 5px; }
+.whs-planner .todo-dashboard-filters button { text-align: left; background: white; color: #254b60; border: 1px solid #c8d8df; border-left: 8px solid var(--trello-label-colour, #8590a2); }
+.whs-planner .todo-dashboard-filters button[aria-pressed="true"] { background: #dcecf4; outline: 2px solid #376783; }
+.todo-dashboard .todo-detail { margin-top: 12px; }
+@media screen and (max-width: 1050px) {
+  .todo-dashboard-columns { grid-template-columns: 1fr; }
+}
 @media screen and (max-width: 1500px) {
   .todo-sidebar { position: fixed; top: 68px; bottom: 8px; right: 8px; width: min(390px, calc(100vw - 16px)); z-index: 30; }
   .todo-panel { height: 100%; max-height: none; box-shadow: 0 4px 30px #152b3b66; }
@@ -238,6 +259,7 @@
 @media print {
   .todo-week-workspace { display: block; }
   .todo-sidebar, .todo-show { display: none !important; }
+  .google-tasks-column > button { display: none; }
 }
 @media print {
   .term-notes-toggle, .term-trello-panel > button { display: none; }
@@ -605,6 +627,7 @@
 .google-tasks [role="alert"] { color: #8e230c; background: #fff0eb; padding: 8px; }
 .google-tasks-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .google-tasks button { font-size: 12px; padding: 6px; }
+.google-tasks-column > button { margin: 6px; }
 .google-tasks select, .google-task-draft input, .google-task-draft textarea { width: 100%; }
 .google-tasks label { display: block; margin: 8px 0; }
 .google-task-list { padding: 0; list-style: none; }
@@ -641,6 +664,15 @@
 .week-sidebar textarea[name="notices"] { flex: none; min-height: 60px; height: 60px; }
 .week-sidebar .google-task-draft textarea { flex: none; min-height: 60px; height: 60px; border: 1px solid #bdccc6; }
 .week-sidebar label { font-size: 11px; }
+@media screen and (min-width: 901px) {
+  .week-right-body:has(.google-tasks-column[data-google-tasks-visible="false"]) { grid-template-columns: minmax(0,1fr); }
+  .week-right-body:has(.google-tasks-column[data-google-tasks-visible="false"]) .week-sidebar { grid-template-columns: repeat(2, minmax(0,1fr)); grid-template-rows: auto auto; }
+  .week-right-body:has(.google-tasks-column[data-google-tasks-visible="false"]) .google-tasks-column { grid-column: 1 / -1; grid-row: 1; }
+  .week-right-body:has(.google-tasks-column[data-google-tasks-visible="false"]) .weekly-notices,
+  .week-right-body:has(.google-tasks-column[data-google-tasks-visible="false"]) .week-sidebar > .planner-field { grid-row: 2; }
+  .week-right-body:has(.google-tasks-column[data-google-tasks-visible="false"]) .weekly-notices { grid-column: 1; }
+  .week-right-body:has(.google-tasks-column[data-google-tasks-visible="false"]) .week-sidebar > .planner-field { grid-column: 2; }
+}
 .year-calendar-spread { margin-bottom: 20px; }
 .planner-main:has(.year-calendar-layout) { width: min(2200px,100%); }
 .year-calendar-layout { display: grid; grid-template-columns: minmax(0,1fr) 320px; gap: 18px; align-items: start; }

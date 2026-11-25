@@ -1874,6 +1874,30 @@ Completion controls are disabled. The sidebar is informational and does not
 change Trello or Planner notes. Term and Current Teaching Day integrations remain
 separately read-only.
 
+### Trello ToDo Dashboard
+
+The Planner navigation also offers a read-only ToDo Dashboard using the same
+owner-only endpoint and in-memory refresh state as the Weekly sidebar. It
+refreshes on opening, manual refresh and returning to a visible page. Failed
+refreshes show an unavailable status rather than task counts. Responsibility
+filters use the labels and colours present on returned cards; predefined
+responsibilities without a matching card label have a neutral colour.
+Summary and responsibility counts are board-wide; search and responsibility
+filters apply to the displayed cards. The dashboard groups active cards by
+Trello list and provides sorting, task details, upcoming deadlines, verified
+DONE TODAY and expandable filed DONE lists, including MISCELLANEOUS.
+
+Meetings remain visible but are not automatically counted as outstanding:
+the existing read-only feed cannot reliably identify which are actionable.
+Completion timestamps are only shown when verified by the existing same-day
+activity check; older or unverifiable cards in DONE remain separate. No write
+operations, additional task database or filing automation are introduced.
+
+The Weekly Planner's separate Google Tasks panel has a show/hide control. Its
+browser-local preference is independent of the Trello sidebar and releases
+timetable width on wider screens. Hiding the panel does not change or delete
+Google Tasks; existing notices and Planner notes remain available.
+
 ### Current Teaching Day - informational Trello feed
 
 Set these **non-secret source IDs** on the main Core Render service:

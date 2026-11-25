@@ -12,6 +12,30 @@
       Number(a.status === 'completed') - Number(b.status === 'completed') ||
       (a.due || '9999').localeCompare(b.due || '9999') || a.title.localeCompare(b.title));
   }
+  function mountColumnToggle(column, manager, el) {
+    const storageKey = 'whs-planner-google-tasks-visible';
+    let visible = true;
+    try { visible = globalThis.localStorage.getItem(storageKey) !== 'false'; }
+    catch { console.warn('Google Tasks visibility preference could not be read.'); }
+    manager.id = 'weekly-google-tasks';
+    const toggle = el('button', '', {
+      type: 'button', 'aria-controls': manager.id, 'aria-expanded': String(visible)
+    });
+    function update(value, persist) {
+      visible = value;
+      manager.hidden = !visible;
+      column.dataset.googleTasksVisible = String(visible);
+      toggle.textContent = visible ? 'Hide Google Tasks' : 'Show Google Tasks';
+      toggle.setAttribute('aria-expanded', String(visible));
+      if (persist) {
+        try { globalThis.localStorage.setItem(storageKey, String(visible)); }
+        catch { console.warn('Google Tasks visibility preference could not be saved.'); }
+      }
+    }
+    toggle.addEventListener('click', () => update(!visible, true));
+    column.append(toggle, manager);
+    update(visible, false);
+  }
   function mount(host, { el, request, mutate, week, setup = false }) {
     host.dataset.googleCalendar = '';
     host.className = 'google-tasks';
@@ -209,5 +233,5 @@
     refresh.addEventListener('click', load);
     load();
   }
-  globalThis.plannerGoogleTasks = { mount, visibleTasks };
+  globalThis.plannerGoogleTasks = { mount, mountColumnToggle, visibleTasks };
 })();
