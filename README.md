@@ -2482,8 +2482,13 @@ the newest timestamped `TopicsSubjectEntries_*.pdf` in the SeniorAudit Drive
 root's direct `EnrolledList` folder, filtered to verified linked courses inside
 Core before leaving the bridge. Only this summary permits up to 60 pages;
 the 5 MB bound, read-only Google connection, folder membership and version
-checks remain. Equal known Enrolled/Published counts reconcile a standard;
-blank counts stay unchecked. No named individual enrolment is inferred.
+checks remain. Each parsed row preserves its PDF External marker so the
+Enrolment Summary can exclude externals from its table, spreadsheet comparison
+and subject totals without removing source data or changing Students Audit.
+Existing saved summaries need a new sync to capture that marker.
+Equal Enrolled/Published values, including two blank cells on one listed PDF
+standard, reconcile; a single blank or missing standard stays unchecked.
+No named individual enrolment is inferred.
 
 The roster also supplies `identityMemberships` for each verified department
 course: distinct current KAMAR student IDs and the actual timetable class codes

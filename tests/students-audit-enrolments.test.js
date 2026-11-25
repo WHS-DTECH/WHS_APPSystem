@@ -41,3 +41,18 @@ test('enrolment summary accepts 26 pages but rejects more than 60 and missing ve
   assert.throws(() => parseStudentsAuditEnrolments({ pages: Array(61).fill(pages[0]) }, 2026), /60 pages/);
   assert.throws(() => parseStudentsAuditEnrolments({ pages: [{ items: [] }] }, 2026), /headings/);
 });
+
+test('enrolment summary reads External only from the assessment column, including its one-point baseline offset', () => {
+  const page = { items: [...headings(), ...course('11DTECH'),
+    ...standard('92006', 5, null), item('External', 539.5, 471),
+    ...standard('92005', 13, 13, 450), item('External design title', 215, 450),
+    ...standard('92004', 5, 5, 430), item('Internal', 539.5, 431)] };
+  const rows = parseStudentsAuditEnrolments({ pages: [page] }, 2026);
+  assert.deepEqual(rows.map(row => [row.number, row.external]), [['92006', true], ['92005', false], ['92004', false]]);
+  const duplicate = structuredClone(page);
+  duplicate.items.push(item('Internal', 550, 471));
+  assert.throws(() => parseStudentsAuditEnrolments({ pages: [duplicate] }, 2026), /assessment type/);
+  const unreadable = structuredClone(page);
+  unreadable.items.find(item => item.text === 'External').text = 'Externl';
+  assert.throws(() => parseStudentsAuditEnrolments({ pages: [unreadable] }, 2026), /assessment type/);
+});

@@ -41,6 +41,10 @@ function parseStudentsAuditEnrolments(report, year, filename) {
       }
       if (!course) throw new Error('A standard has no verified course heading.');
       const match = /^(A|U)\.S\. (\d+) v(\d+)$/.exec(anchor.text);
+      const assessment = items.filter(item => item.x >= 525 && item.x < 595 && Math.abs(item.y - anchor.y) <= 1);
+      if (assessment.length > 1 || assessment.length && !/^(External|Internal)$/i.test(assessment[0].text)) {
+        throw new Error('An enrolment assessment type is unreadable.');
+      }
       const count = (left, right) => {
         const cells = line.filter(item => item.x >= left && item.x < right);
         if (!cells.length) return null;
@@ -50,7 +54,7 @@ function parseStudentsAuditEnrolments(report, year, filename) {
         return value;
       };
       const entry = { ...course, kind: match[1] === 'A' ? 'achievement' : 'unit',
-        number: match[2], version: match[3], students: count(595, 655),
+        number: match[2], version: match[3], external: /^External$/i.test(assessment[0]?.text || ''), students: count(595, 655),
         enrolled: count(665, 720), published: count(725, 790) };
       const key = [entry.course, entry.kind, entry.number, entry.version].join(':');
       if (seen.has(key)) throw new Error('The enrolment summary contains a duplicate course and standard: ' + key + '.');
