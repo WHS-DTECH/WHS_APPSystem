@@ -196,6 +196,49 @@
 .term-trello-cards [data-trello-colour="black_dark"] { --trello-label-colour: #626f86; }
 .term-trello-cards h4 { margin: 0 0 6px; color: #31586c; }
 .term-trello-cards p, .term-trello-cards a { margin: 6px 0; font-size: 13px; }
+.planner-main:has(.todo-week-workspace) { width: 100%; }
+.todo-week-workspace { display: flex; gap: 16px; align-items: flex-start; }
+.todo-week-content { flex: 1 1 0; min-width: 0; }
+.todo-sidebar { flex: 0 0 var(--todo-width, 340px); width: var(--todo-width, 340px); min-width: 0; position: sticky; top: 16px; }
+.todo-sidebar[hidden], .todo-show[hidden] { display: none; }
+.todo-panel { display: flex; flex-direction: column; max-height: calc(100vh - 32px); background: #f5f9fb; border: 1px solid #aac2ce; border-radius: 8px; box-shadow: 0 3px 12px #26374618; overflow: hidden; }
+.todo-header, .todo-toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 12px; }
+.todo-header { background: #376783; color: white; flex-wrap: wrap; }
+.todo-header h2 { display: flex; align-items: center; gap: 7px; color: white; font-size: 18px; margin: 0; }
+.todo-trello-icon { width: 20px; height: 20px; background: #0079bf; border-radius: 3px; fill: #fff; flex: none; }
+.todo-header button { margin-left: auto; }
+.todo-count { font-size: 12px; }
+.todo-toolbar { justify-content: space-between; }
+.todo-width, .todo-live-note, .todo-status { margin: 0; padding: 4px 12px 8px; font-size: 12px; }
+.todo-width { display: flex; align-items: center; gap: 8px; }
+.todo-width input { flex: 1; padding: 0; }
+.todo-status[role="alert"] { color: #8e230c; background: #fff0eb; }
+.todo-scroll { min-height: 0; overflow-y: auto; padding: 0 10px 12px; }
+.todo-group { border-top: 1px solid #c8d8df; padding: 8px 0; }
+.todo-group summary { cursor: pointer; color: #31586c; font-weight: 700; font-size: 13px; }
+.todo-group:first-child summary { color: #a32019; }
+.todo-group > p { font-size: 12px; }
+.todo-cards { list-style: none; margin: 0; padding: 0; }
+.todo-card { background: white; border: 1px solid #c8d8df; border-radius: 5px; padding: 9px; margin: 8px 0; overflow-wrap: anywhere; }
+.todo-card-heading { display: flex; align-items: flex-start; gap: 6px; }
+.todo-card-heading input { margin-top: 5px; }
+.todo-card-title { border: 0; padding: 0; background: transparent; color: #245f85; font-weight: 700; text-align: left; cursor: pointer; }
+.todo-card-flags { color: #8e230c; font-size: 12px; margin: 6px 0; }
+.todo-card a { font-size: 12px; }
+.todo-labels { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.todo-detail { background: white; border: 2px solid #376783; border-radius: 5px; padding: 10px; overflow-wrap: anywhere; }
+.todo-detail h3 { margin: 0 0 8px; }
+.todo-description { white-space: pre-wrap; }
+.todo-show { position: fixed; right: 12px; top: 35%; z-index: 20; }
+@media screen and (max-width: 1500px) {
+  .todo-sidebar { position: fixed; top: 8px; bottom: 8px; right: 8px; width: min(390px, calc(100vw - 16px)); z-index: 30; }
+  .todo-panel { height: 100%; max-height: none; box-shadow: 0 4px 30px #152b3b66; }
+  .todo-width { display: none; }
+}
+@media print {
+  .todo-week-workspace { display: block; }
+  .todo-sidebar, .todo-show { display: none !important; }
+}
 @media print {
   .term-notes-toggle, .term-trello-panel > button { display: none; }
   .term-trello-cards li { break-inside: avoid; }

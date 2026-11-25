@@ -1238,7 +1238,9 @@
     notices.append(field('notices', data), el('div', '', { class: 'weekly-school-notices' }));
     sidebar.append(notices, taskManager, todoNotes);
     rightBody.append(days, sidebar); right.append(rightBody);
-    spread.append(left, right); content.append(spread);
+    const workspace = el('div', '', { class: 'todo-week-workspace' });
+    const plannerPage = el('div', '', { class: 'todo-week-content' });
+    spread.append(left, right); plannerPage.append(spread); workspace.append(plannerPage); content.append(workspace);
     mountDayView(spread);
     mountPeriodLinks(spread, week);
     mountGoogleTasks(taskManager, false);
@@ -1265,6 +1267,15 @@
         return request(path.startsWith('../') ? api.replace(/planner\/$/, '') + path.slice(3) : api + path);
       }
     });
+    try {
+      if (!globalThis.plannerTodoTrello) throw new Error('Sidebar assets unavailable.');
+      globalThis.plannerTodoTrello.mount(workspace, { api, week });
+    } catch {
+      console.warn('Trello ToDo sidebar could not start.');
+      workspace.append(el('p', 'Trello ToDo is unavailable. Your Planner is unaffected.', {
+        class: 'todo-sidebar', role: 'alert', 'data-planner-navigation': ''
+      }));
+    }
   }
   function overviewSchoolEvents(events) {
     return events.map((event, index) => {

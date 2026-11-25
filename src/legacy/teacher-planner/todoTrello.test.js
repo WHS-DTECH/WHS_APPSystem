@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
-const { createTodoTrelloRouter } = require('./todoTrello');
+const { createTodoTrelloRouter, completionToday } = require('./todoTrello');
 
 const owner = '11111111-1111-4111-8111-111111111111';
 const board = 'a'.repeat(24), urgent = 'b'.repeat(24), todo = 'c'.repeat(24), done = 'd'.repeat(24);
@@ -75,4 +75,29 @@ test('ambiguous lists, unsafe cards, expired tokens and rate limits fail explici
   assert.match((await (await call()).json()).error, /expired/);
   state.failure = 429;
   assert.match((await (await call()).json()).error, /rate-limiting/);
+});
+
+test('completion today requires a matching, current Trello completion action', async () => {
+  const id = '1'.repeat(24), now = new Date('2026-11-26T04:00:00Z');
+  const action = { type: 'updateCard', date: '2026-11-25T12:00:00Z',
+    data: { card: { id, dueComplete: true }, old: { dueComplete: false } } };
+  assert.deepEqual(await completionToday(async () => [action], { id, dueComplete: true }, now),
+    { completedAt: action.date, completionActivity: 'verified' });
+  assert.equal((await completionToday(async () => [{ ...action, date: '2026-11-24T12:00:00Z' }],
+    { id, dueComplete: true }, now)).completionActivity, 'unknown');
+  assert.equal((await completionToday(async () => [action], { id, dueComplete: false }, now)).completionActivity, 'unknown');
+  await assert.rejects(completionToday(async () => [{ ...action, data: { card: { id: '2'.repeat(24) } } }],
+    { id, dueComplete: true }, now), /Invalid card activity/);
+});
+
+test('completion activity follows pages until it finds a verified transition', async () => {
+  const id = '1'.repeat(24), date = '2026-11-26T04:00:00Z', pages = [];
+  const unrelated = { type: 'updateCard', date, data: { card: { id }, old: { name: 'previous' } } };
+  const result = await completionToday(async (_path, query) => {
+    pages.push(query.page);
+    return query.page === '0' ? Array.from({ length: 100 }, () => unrelated) :
+      [{ type: 'updateCard', date, data: { card: { id, dueComplete: true }, old: { dueComplete: false } } }];
+  }, { id, dueComplete: true }, new Date(date));
+  assert.deepEqual(pages, ['0', '1']);
+  assert.equal(result.completionActivity, 'verified');
 });

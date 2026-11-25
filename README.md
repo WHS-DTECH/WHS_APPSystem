@@ -1850,7 +1850,7 @@ existing school authentication, CSRF and optimistic revisions. Conflicting saves
 return 409 and retain the browser draft. These endpoints are not MCP tools;
 MCP OAuth, its read-only tools and permissions remain unchanged.
 
-### Trello ToDo - read-only connection stage
+### Weekly Planner Trello ToDo sidebar
 
 The owner-only `GET /teacher-planner/api/planner/todo-trello` uses the existing
 `TEACHER_PLANNER_TRELLO_OWNER_ID`, `TEACHER_PLANNER_TRELLO_API_KEY` and
@@ -1860,9 +1860,19 @@ filed-DONE lists, excludes the connection-test card, and reports errors rather
 than returning an empty task list. Only the configured school account can read
 the result, including when another account has administrator privileges.
 
-This is the connection stage only: no ToDo interface, completion dates or
-write-back are enabled yet. Term and Current Teaching Day integrations remain
-separately read-only; Trello data never updates Planner notes.
+The Weekly Planner shows the current live board, not a historical snapshot.
+The sidebar can be collapsed, resized on wide screens and independently scrolled;
+it is omitted from printing. Urgent cards have priority over due-today and
+upcoming sections so each task appears once. Due dates use Pacific/Auckland.
+Meetings are listed separately and not counted as outstanding automatically.
+Cards marked complete in active lists are also kept separate from outstanding
+counts. The DONE TODAY section requires a same-day Trello action confirming
+that a card's due-completion flag was set; other cards in DONE are shown
+separately, including when activity cannot be retrieved. Cards completed only by
+moving them to DONE cannot be assigned a verified completion time by this rule.
+Completion controls are disabled. The sidebar is informational and does not
+change Trello or Planner notes. Term and Current Teaching Day integrations remain
+separately read-only.
 
 ### Current Teaching Day - informational Trello feed
 

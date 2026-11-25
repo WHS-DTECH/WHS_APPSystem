@@ -14,6 +14,32 @@ const roles = new Map([
     .map(name => ['DONE - ' + name, 'filed'])
 ]);
 
+async function completionToday(read, card, now = new Date()) {
+  if (!card.dueComplete) return { completedAt: null, completionActivity: 'unknown' };
+  const dateKey = value => new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Pacific/Auckland', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).format(value);
+  const today = dateKey(now);
+  for (let page = 0; page < 10; page++) {
+    const actions = await read('cards/' + card.id + '/actions', {
+      filter: 'updateCard', fields: 'type,date,data', limit: '100', page: String(page)
+    });
+    if (!Array.isArray(actions) || !actions.every(action => action && action.type === 'updateCard' &&
+      typeof action.date === 'string' && Number.isFinite(Date.parse(action.date)) &&
+      action.data && action.data.card && action.data.card.id === card.id)) throw new Error('Invalid card activity.');
+    for (const action of actions) {
+      if (dateKey(new Date(action.date)) !== today) return { completedAt: null, completionActivity: 'unknown' };
+      if (action.data.old && Object.hasOwn(action.data.old, 'dueComplete')) {
+        return action.data.old.dueComplete === false && action.data.card.dueComplete === true
+          ? { completedAt: action.date, completionActivity: 'verified' }
+          : { completedAt: null, completionActivity: 'unknown' };
+      }
+    }
+    if (actions.length < 100) break;
+  }
+  return { completedAt: null, completionActivity: 'unknown' };
+}
+
 function createTodoTrelloRouter({ env = process.env, fetchImpl = globalThis.fetch } = {}) {
   const router = express.Router();
   router.use((_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
@@ -70,12 +96,24 @@ function createTodoTrelloRouter({ env = process.env, fetchImpl = globalThis.fetc
             (label.color === null || typeof label.color === 'string' && COLOUR.test(label.color))) &&
           ['due', 'start'].every(field => card[field] === null ||
             typeof card[field] === 'string' && Number.isFinite(Date.parse(card[field]))))) throw new Error('Invalid cards.');
+        const visibleCards = cards.filter(card => !card.closed && normalize(card.name) !== 'TEST - CHATGPT TRELLO CONNECTION');
+        const mappedCards = [];
+        for (const card of visibleCards) {
+          let completion = { completedAt: null, completionActivity: 'unknown' };
+          if (roles.get(normalize(list.name)) === 'done') {
+            try { completion = await completionToday(read, card); }
+            catch {
+              console.warn('ToDo Trello completion activity unavailable.');
+              completion = { completedAt: null, completionActivity: 'unavailable' };
+            }
+          }
+          mappedCards.push({ id: card.id, title: card.name, description: card.desc, due: card.due, start: card.start,
+            dueComplete: card.dueComplete, position: card.pos, url: cardLink(card.url),
+            labels: card.labels.map(label => ({ name: label.name, color: label.color })), ...completion });
+        }
         result.push({
           id: list.id, name: list.name, role: roles.get(normalize(list.name)),
-          cards: cards.filter(card => !card.closed && normalize(card.name) !== 'TEST - CHATGPT TRELLO CONNECTION')
-            .map(card => ({ id: card.id, title: card.name, description: card.desc, due: card.due, start: card.start,
-              dueComplete: card.dueComplete, position: card.pos, url: cardLink(card.url),
-              labels: card.labels.map(label => ({ name: label.name, color: label.color })) }))
+          cards: mappedCards
         });
       }
       return res.json({ status: 'ok', boardUrl: BOARD_URL, fetchedAt: new Date().toISOString(), lists: result });
@@ -89,4 +127,4 @@ function createTodoTrelloRouter({ env = process.env, fetchImpl = globalThis.fetc
   return router;
 }
 
-module.exports = { createTodoTrelloRouter };
+module.exports = { createTodoTrelloRouter, completionToday };
