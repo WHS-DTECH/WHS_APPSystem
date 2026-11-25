@@ -264,30 +264,43 @@ this release does not read Drive again or trigger a UI sync.
 1. Use a school-approved ChatGPT workspace whose administrator permits custom
    remote MCP apps and this data processing. Enable the available developer/
    custom-app workflow for that workspace.
-2. Configure the app origin and bridge key on the two Render services and
-   deploy. In ChatGPT create a custom app named **WHS Student Tracker**, using
-   the **Core MCP URL**, OAuth and public client ID `student-tracker-chatgpt`
-   (no client secret). If manual endpoints are requested, use those above.
-3. Copy the exact callback shown by ChatGPT into Core's
-   `STUDENT_TRACKER_MCP_REDIRECT_URI`, redeploy, then restart linking.
-4. Sign in using the existing school login and approve the explicit read-only
-   consent. Ordinary teachers without verified department management authority
-   must be denied this first release.
-5. Ask: "List available Student Tracker pages and departments for 2026."
-6. Select the returned Technology department UUID. Ask for the 2026 Department
+2. Configure the app origin and bridge key on the two existing Render services
+   and deploy. No separate MCP Render service or database is needed.
+3. In [ChatGPT Plugins](https://chatgpt.com/plugins), choose **Add** (the plus
+   button), then **Add custom MCP server**. Name it **WHS Student Tracker**,
+   enter the **Core MCP URL**, and keep **OAuth** selected.
+4. Expand **Advanced OAuth settings**. Use **User-Defined OAuth Client**, client
+   ID `student-tracker-chatgpt`, a blank client secret, token endpoint auth
+   method **none**, and the discovered default scope **tracker:read**. The
+   **Callback URL** appears in this section. If manual endpoints are requested,
+   use those above.
+5. Keep this ChatGPT setup dialog open. Copy its exact callback into Core's
+   `STUDENT_TRACKER_MCP_REDIRECT_URI`, save and redeploy Core. Starting another
+   setup draft can produce a different callback; update Core if that happens.
+   Once deployed, review the risk warning and choose **Create as a plugin**,
+   then **Continue to WHS Student Tracker** when prompted. Creating the plugin
+   alone does not complete school authorisation.
+6. Sign in using the existing school login, review the school consent page and
+   click **Approve read-only connection** yourself. Ordinary teachers without
+   verified department management authority must be denied this first release.
+   Successful linking returns to ChatGPT; the plugin's app details should show
+   **Read 4**, with the four documented tools and no write tools.
+7. Choose **Try in chat**, or type `@` and select **WHS Student Tracker**.
+   Ask: "List available Student Tracker pages and departments for 2026."
+8. Select the returned Technology department UUID. Ask for the 2026 Department
    Awards Audit, then Junior and Middle reporting separately. For follow-up,
    use `search_records` with `part: "reporting"` and the appropriate `band`.
-7. Page through all results. Compare a known teacher/class's SLO, Values and
+9. Page through all results. Compare a known teacher/class's SLO, Values and
    award statuses/counts with the existing audit page using the same year,
    department, teacher, subject and semester. Compare against the last
    **shared** sync, not unsaved browser-only results. Refresh only through the
    existing page if newer PDF evidence needs sharing.
-8. Check missing evidence is flagged, original links open, and no student names,
-   identifiers, grades or review notes are returned. Requests for `profile`,
-   `attendance`, student IDs, arbitrary URLs or write tools must fail.
-9. For changes since a previous check, compare stable IDs, statuses and source
-   timestamps. A disappeared/filtered row is not evidence of completion.
-   Manage Trello separately using the existing ChatGPT connection.
+10. Check missing evidence is flagged, original links open, and no student names,
+    identifiers, grades or review notes are returned. Requests for `profile`,
+    `attendance`, student IDs, arbitrary URLs or write tools must fail.
+11. For changes since a previous check, compare stable IDs, statuses and source
+    timestamps. A disappeared/filtered row is not evidence of completion.
+    Manage Trello separately using the existing ChatGPT connection.
 
 ## Validation and limitations
 
@@ -325,10 +338,22 @@ It fails identically with the unmodified `HEAD` navigation implementation.
 The other 24 navigation tests, including the new bounded MCP login-return
 regression, pass. This integration does not change module counts or that test.
 
-Automated OAuth success is not confirmation of a live ChatGPT account
-connection. Live Render configuration, the exact new ChatGPT callback and
-school-user consent must be completed and checked using the steps above.
-No live school data needs to be copied into test fixtures.
+Live acceptance on **25 November 2026** completed the actual school-user OAuth
+consent and returned successfully to ChatGPT. ChatGPT discovered all four tools
+under **Read**, with no write tools. A read-only chat test successfully called
+`list_available_pages`, `get_page_data`, `get_audit_status` separately for Junior
+and Middle reporting, and `search_records` for the authorised Technology
+department in 2026. Core's sanitised runtime logs confirmed all five reads.
+Responses contained original audit links, timestamps and explicit incomplete
+source-coverage/freshness warnings. The record calls deliberately sampled two
+responsibilities each; this was not a full manual audit of every record or an
+independent live Drive refresh. Student-level queries, syncs, writes and Trello
+operations were not used.
+
+Other accounts/workspaces must still complete their own authorised linking.
+The eight-hour grant is not permanent access, and a successful connection does
+not certify that reporting or awards work is complete. No live school data needs
+to be copied into test fixtures.
 
 Initial limitations: one real page; Junior/Middle teacher/class aggregates;
 latest shared PDF evidence only; no official publication/completed-award-review
