@@ -199,9 +199,9 @@
 .planner-main:has(.todo-week-workspace) { width: 100%; }
 .todo-week-workspace { display: flex; gap: 16px; align-items: flex-start; }
 .todo-week-content { flex: 1 1 0; min-width: 0; }
-.todo-sidebar { flex: 0 0 var(--todo-width, 340px); width: var(--todo-width, 340px); min-width: 0; position: sticky; top: 16px; }
+.todo-sidebar { flex: 0 0 var(--todo-width, 340px); width: var(--todo-width, 340px); min-width: 0; position: sticky; top: 68px; }
 .todo-sidebar[hidden], .todo-show[hidden] { display: none; }
-.todo-panel { display: flex; flex-direction: column; max-height: calc(100vh - 32px); background: #f5f9fb; border: 1px solid #aac2ce; border-radius: 8px; box-shadow: 0 3px 12px #26374618; overflow: hidden; }
+.todo-panel { display: flex; flex-direction: column; max-height: calc(100vh - 76px); background: #f5f9fb; border: 1px solid #aac2ce; border-radius: 8px; box-shadow: 0 3px 12px #26374618; overflow: hidden; }
 .todo-header, .todo-toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 12px; }
 .todo-header { background: #376783; color: white; flex-wrap: wrap; }
 .todo-header h2 { display: flex; align-items: center; gap: 7px; color: white; font-size: 18px; margin: 0; }
@@ -222,7 +222,7 @@
 .todo-card { background: white; border: 1px solid #c8d8df; border-radius: 5px; padding: 9px; margin: 8px 0; overflow-wrap: anywhere; }
 .todo-card-heading { display: flex; align-items: flex-start; gap: 6px; }
 .todo-card-heading input { margin-top: 5px; }
-.todo-card-title { border: 0; padding: 0; background: transparent; color: #245f85; font-weight: 700; text-align: left; cursor: pointer; }
+.whs-planner .todo-card-title { border: 0; padding: 0; background: transparent; color: #245f85; font-weight: 700; text-align: left; cursor: pointer; }
 .todo-card-flags { color: #8e230c; font-size: 12px; margin: 6px 0; }
 .todo-card a { font-size: 12px; }
 .todo-labels { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
@@ -231,7 +231,7 @@
 .todo-description { white-space: pre-wrap; }
 .todo-show { position: fixed; right: 12px; top: 35%; z-index: 20; }
 @media screen and (max-width: 1500px) {
-  .todo-sidebar { position: fixed; top: 8px; bottom: 8px; right: 8px; width: min(390px, calc(100vw - 16px)); z-index: 30; }
+  .todo-sidebar { position: fixed; top: 68px; bottom: 8px; right: 8px; width: min(390px, calc(100vw - 16px)); z-index: 30; }
   .todo-panel { height: 100%; max-height: none; box-shadow: 0 4px 30px #152b3b66; }
   .todo-width { display: none; }
 }
