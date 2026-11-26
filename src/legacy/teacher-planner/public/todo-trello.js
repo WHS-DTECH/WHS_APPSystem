@@ -146,7 +146,10 @@
         active ? 'Completion unavailable in read-only mode' : 'Completed card' });
     checkbox.disabled = !enabled;
     checkbox.checked = !active && (card.role === 'done' || card.role === 'filed' || card.dueComplete);
-    checkbox.addEventListener('change', () => { if (checkbox.checked) completeCard(card); });
+    checkbox.addEventListener('change', event => {
+      event.stopPropagation();
+      if (checkbox.checked) completeCard(card);
+    });
     const button = make('button', card.title, { type: 'button', class: 'todo-card-title' });
     button.addEventListener('click', () => { onSelect(card); displayDetail(detail, card, { onClose }); });
     row.append(checkbox, button); item.append(row); labels(item, card);
