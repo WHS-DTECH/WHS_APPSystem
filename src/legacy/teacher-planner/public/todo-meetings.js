@@ -83,7 +83,8 @@
       const observation = session.type === 'observation';
       return { id: JSON.stringify(['planner', day, item.slot_key, ...(observation ? [result.revision] : [])]),
         source: observation ? 'planner-review' : 'planner', date: day, slot: item.slot_key,
-        title: session.title, start, end, status: elapsedStatus(start, end, now),
+        title: session.title, description: typeof result.content.note === 'string' ? result.content.note : '',
+        start, end, status: elapsedStatus(start, end, now),
         classification: observation ? 'ambiguous' : 'meeting', evidence: 'Planner session type' };
     });
   }
@@ -132,6 +133,7 @@
       date: (event.allDay ? event.start : dateKey(start)) < window.start
         ? window.start : (event.allDay ? event.start : dateKey(start)),
       title: event.title, calendar: event.calendar, location: typeof event.location === 'string' ? event.location : '',
+      description: typeof event.description === 'string' ? event.description : '',
       start: event.start, end: event.end, allDay: event.allDay, status: elapsedStatus(start, end, now),
       classification: 'ambiguous', evidence: 'Google attendance and event type; teaching status requires owner review' } };
   }
@@ -215,6 +217,7 @@
       candidates.push({ id: 'school:' + await fingerprint(JSON.stringify([event.id, event.start, event.end, event.title, event.location || ''])),
         source: 'school', sourceId: event.id, date: firstDay < window.start ? window.start : firstDay,
         title: event.title, location: typeof event.location === 'string' ? event.location : '',
+        description: typeof event.description === 'string' ? event.description : '',
         start: event.allDay ? event.start : start, end: event.allDay ? event.end : end,
         allDay: event.allDay, status: elapsedStatus(start, end, now), classification: 'ambiguous' });
     }
@@ -253,7 +256,8 @@
         } catch { throw sourceError('A school document event has invalid timing. Review the original document.'); }
         candidates.push({ id: 'document:' + await fingerprint(JSON.stringify([event.date, event.name, event.startTime,
           event.endTime, event.dateIsExplicit, event.timeIsExplicit])),
-          source: 'document', referenceUrl, date: event.date, title: event.name, start, end,
+          source: 'document', referenceUrl, date: event.date, title: event.name,
+          description: typeof event.details === 'string' ? event.details : '', start, end,
           dateEstimated: event.dateIsExplicit !== true, timeEstimated: Boolean(start) && event.timeIsExplicit !== true,
           status: elapsedStatus(start, end, now), classification: 'ambiguous' });
       }

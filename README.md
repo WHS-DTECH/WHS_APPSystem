@@ -1882,10 +1882,16 @@ refreshes on opening, manual refresh and returning to a visible page. Failed
 refreshes show an unavailable status rather than task counts. Responsibility
 filters use the labels and colours present on returned cards; predefined
 responsibilities without a matching card label have a neutral colour.
-Summary and responsibility counts are board-wide; search and responsibility
-filters apply to the displayed cards. The dashboard provides sorting, task
-details, upcoming deadlines, verified DONE TODAY and expandable filed DONE
-lists, including MISCELLANEOUS.
+Responsibility counts show outstanding tasks, while filters apply to tasks,
+classified meetings and completed work. The Unclassified filter includes
+records without a responsibility; a MEETINGS type label is not a responsibility.
+Filed cards also match the responsibility of their existing DONE list.
+The dashboard provides sorting, task and meeting details, upcoming deadlines,
+verified DONE TODAY and expandable filed DONE lists, including MISCELLANEOUS.
+The optional completed-date range includes only cards with verified completion
+timestamps. The current feed verifies same-day completions in general DONE;
+older or filed cards without a verified timestamp are omitted when filtering,
+not assigned their modification dates.
 
 Both views share the same read-only meeting state. URGENT and DUE TODAY open
 by default; MEETINGS and the remaining sections start collapsed. DUE TODAY

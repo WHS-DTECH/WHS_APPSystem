@@ -124,18 +124,8 @@
     }
     parent.append(container);
   }
-  function showDetail(detail, card, { focus = true, onClose = () => {} } = {}) {
-    detail.replaceChildren();
-    const heading = make('h3', card.title);
-    const close = make('button', 'Close details', { type: 'button' });
-    close.addEventListener('click', () => { detail.hidden = true; onClose(); });
-    detail.append(heading, close); labels(detail, card);
-    if (card.start) detail.append(make('p', 'Starts: ' + timeLabel(card.start)));
-    if (card.due) detail.append(make('p', 'Due: ' + timeLabel(card.due)));
-    if (card.completedAt) detail.append(make('p', 'Completed: ' + timeLabel(card.completedAt)));
-    detail.append(make('p', card.description || 'No description.', { class: 'todo-description' }),
-      make('a', 'Open original Trello card', { href: card.url, target: '_blank', rel: 'noopener noreferrer' }));
-    const links = new Set((card.description.match(/https:\/\/[^\s<>"\])]+/g) || []).map(value => value.replace(/[.,;!?]+$/, '')));
+  function sourceLinks(detail, description) {
+    const links = new Set((description.match(/https:\/\/[^\s<>"\])]+/g) || []).map(value => value.replace(/[.,;!?]+$/, '')));
     for (const link of links) {
       try {
         const parsed = new URL(link);
@@ -143,12 +133,34 @@
         const paragraph = make('p', '', { class: 'todo-source-link' });
         paragraph.append(make('a', 'Open source link', { href: parsed.href, target: '_blank', rel: 'noopener noreferrer' }));
         detail.append(paragraph);
-      } catch { console.warn('An invalid Trello source link was ignored.'); }
+      } catch { console.warn('An invalid source link was ignored.'); }
     }
+  }
+  function showDetail(detail, card, { focus = true, onClose = () => {} } = {}) {
+    detail.replaceChildren();
+    const heading = make('h3', card.title);
+    const close = make('button', 'Close details', { type: 'button' });
+    close.addEventListener('click', () => { detail.hidden = true; onClose(); });
+    detail.append(heading, close); labels(detail, card);
+    if (card.role === 'filed' && card.listName) detail.append(make('p', 'Filed under: ' + card.listName));
+    else if (!card.labels.some(label => label.name.trim() && label.name.trim().toLocaleUpperCase('en-NZ') !== 'MEETINGS')) {
+      detail.append(make('p', 'Responsibility: not assigned'));
+    }
+    const status = card.role === 'filed' ? 'Filed as completed' :
+      card.role === 'done' ? 'Currently in DONE' : card.dueComplete ? 'Marked complete in an active list' :
+        ({ urgent: 'Urgent', todo: 'To do', doing: 'Doing', waiting: 'Waiting / follow-up',
+          meetings: 'Meeting — not confirmed complete' }[card.role] || card.role);
+    if (status) detail.append(make('p', 'Status: ' + status));
+    if (card.start) detail.append(make('p', 'Starts: ' + timeLabel(card.start)));
+    if (card.due) detail.append(make('p', 'Due: ' + timeLabel(card.due)));
+    if (card.completedAt) detail.append(make('p', 'Completed: ' + timeLabel(card.completedAt)));
+    detail.append(make('p', card.description || 'No description.', { class: 'todo-description' }),
+      make('a', 'Open original Trello card', { href: card.url, target: '_blank', rel: 'noopener noreferrer' }));
+    sourceLinks(detail, card.description);
     detail.hidden = false;
     if (focus) { detail.scrollIntoView({ block: 'nearest' }); close.focus(); }
   }
-  function cardNode(card, today, detail, onSelect = () => {}, onClose = () => {}) {
+  function cardNode(card, today, detail, onSelect = () => {}, onClose = () => {}, displayDetail = showDetail) {
     const item = make('li', '', { class: 'todo-card' +
       (['done', 'filed'].includes(card.role) || card.dueComplete ? ' todo-card-completed' :
         card.role === 'urgent' || card.dueDate && card.dueDate < today ? ' todo-card-urgent' :
@@ -157,7 +169,7 @@
     const checkbox = make('input', '', { type: 'checkbox', disabled: '', 'aria-label': 'Completion unavailable in read-only mode' });
     checkbox.checked = card.role === 'done' || card.role === 'filed' || card.dueComplete;
     const button = make('button', card.title, { type: 'button', class: 'todo-card-title' });
-    button.addEventListener('click', () => { onSelect(card); showDetail(detail, card, { onClose }); });
+    button.addEventListener('click', () => { onSelect(card); displayDetail(detail, card, { onClose }); });
     row.append(checkbox, button); item.append(row); labels(item, card);
     const flags = [];
     if (card.role === 'urgent') flags.push('Urgent');
@@ -216,7 +228,49 @@
     return { upcoming: meetings, today: meetings.filter(meeting => meeting.date === today), unscheduled, conflicts };
   }
 
-  function meetingNode(meeting, today, detail, openSession) {
+  function showMeetingDetail(detail, meeting, { focus = true, onClose = () => {}, openSession } = {}) {
+    if (meeting.card) {
+      showDetail(detail, meeting.card, { focus: false, onClose });
+      if (meeting.title !== meeting.card.title) detail.append(make('p', 'Calendar event: ' + meeting.title));
+      if (meeting.description && meeting.description !== meeting.card.description) {
+        detail.append(make('p', meeting.description, { class: 'todo-description' }));
+        sourceLinks(detail, meeting.description);
+      }
+    } else {
+      detail.replaceChildren();
+      const close = make('button', 'Close details', { type: 'button' });
+      close.addEventListener('click', () => { detail.hidden = true; onClose(); });
+      detail.append(make('h3', meeting.title), close, make('p', 'Responsibility: not assigned'));
+      if (meeting.description) {
+        detail.append(make('p', meeting.description, { class: 'todo-description' }));
+        sourceLinks(detail, meeting.description);
+      }
+    }
+    detail.append(make('p', 'Meeting status: ' + (meeting.status === 'elapsed' ? 'Ended; attendance not confirmed' :
+      meeting.status === 'in-progress' ? 'In progress; attendance not confirmed' :
+        meeting.status === 'upcoming' ? 'Upcoming' : 'Not confirmed complete')));
+    if (meeting.allDay) detail.append(make('p', 'Scheduled: ' + meeting.date + ' (all day)'));
+    else if (meeting.start) detail.append(make('p', 'Scheduled: ' + timeLabel(meeting.start) +
+      (meeting.end ? ' – ' + timeLabel(meeting.end) : '')));
+    else if (meeting.date) detail.append(make('p', 'Date: ' + meeting.date + '; time not recorded'));
+    if (meeting.location) detail.append(make('p', 'Location: ' + meeting.location));
+    if (meeting.dateEstimated || meeting.timeEstimated) detail.append(make('p', 'School document uses a default date or time; confirm with the source.'));
+    if (meeting.url || meeting.referenceUrl) detail.append(make('a', 'Open original event', {
+      href: meeting.url || meeting.referenceUrl, target: '_blank', rel: 'noopener noreferrer'
+    }));
+    if (['planner', 'planner-review'].includes(meeting.source) && meeting.slot && openSession) {
+      const button = make('button', 'Open Planner record', { type: 'button' });
+      button.addEventListener('click', () => openSession(meeting.date, meeting.slot));
+      detail.append(button);
+    }
+    detail.hidden = false;
+    if (focus) {
+      detail.scrollIntoView({ block: 'nearest' });
+      detail.querySelector('button').focus();
+    }
+  }
+
+  function meetingNode(meeting, today, detail, openSession, onSelect = () => {}, onClose = () => {}) {
     const indicator = () => {
       const line = make('p', '', { class: 'todo-meeting-indicator' });
       const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -234,7 +288,8 @@
       return line;
     };
     if (meeting.card) {
-      const item = cardNode(meeting.card, today, detail);
+      const item = cardNode(meeting.card, today, detail, () => onSelect(meeting), onClose,
+        (_detail, _card, options) => showMeetingDetail(detail, meeting, { ...options, openSession }));
       item.classList.add('todo-card-meeting');
       item.prepend(indicator());
       if (meeting.end && !meeting.allDay) item.append(make('p', 'Ends: ' + timeLabel(meeting.end)));
@@ -245,7 +300,9 @@
       return item;
     }
     const item = make('li', '', { class: 'todo-card todo-card-meeting' });
-    item.append(indicator(), make('strong', meeting.title));
+    const title = make('button', meeting.title, { type: 'button', class: 'todo-card-title' });
+    title.addEventListener('click', () => { onSelect(meeting); showMeetingDetail(detail, meeting, { onClose, openSession }); });
+    item.append(indicator(), title);
     if (meeting.end && !meeting.allDay) item.append(make('p', 'Ends: ' + timeLabel(meeting.end)));
     if (meeting.location) item.append(make('p', meeting.location));
     if (meeting.status === 'elapsed') item.append(make('p', 'Ended — attendance not confirmed.'));
@@ -377,7 +434,7 @@
     const sources = make('div', '', { role: 'status', 'aria-live': 'polite', class: 'todo-meeting-sources' });
     const scroll = make('div', '', { class: 'todo-scroll' });
     const sections = make('div', '', { class: 'todo-sections' });
-    const detail = make('section', '', { class: 'todo-detail', hidden: '', 'aria-label': 'Task details' });
+    const detail = make('section', '', { class: 'todo-detail', hidden: '', 'aria-label': 'Task and meeting details' });
     scroll.append(sources, sections, detail);
     panel.append(header, toolbar, size, liveNote, status, scroll);
     aside.append(panel); host.append(show, aside);
@@ -466,7 +523,7 @@
     document.addEventListener('visibilitychange', onVisible);
     return dispose;
   }
-  const api = { mount, groupCards, todayTasks, meetingViews, meetingNode, meetingStatus, dateKey, dateLabel, make, cardNode, urgentReference, showDetail, subscribe, refreshData, refreshMeetings };
+  const api = { mount, groupCards, todayTasks, meetingViews, meetingNode, meetingStatus, dateKey, dateLabel, make, cardNode, urgentReference, showDetail, showMeetingDetail, subscribe, refreshData, refreshMeetings };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.plannerTodoTrello = api;
 })(globalThis);

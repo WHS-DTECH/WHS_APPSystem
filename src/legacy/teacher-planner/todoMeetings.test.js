@@ -49,7 +49,7 @@ test('loads owner-scoped sessions using GET request adapter and reports unusable
   assert.equal(result.meetings.length, 1);
   assert.deepEqual(result.meetings[0], {
     id: JSON.stringify(['planner', '2026-11-26', slot]), source: 'planner', date: '2026-11-26', slot,
-    title: 'Planning', start: '2026-11-25T21:00:00.000Z', end: '2026-11-25T22:00:00.000Z',
+    title: 'Planning', description: '', start: '2026-11-25T21:00:00.000Z', end: '2026-11-25T22:00:00.000Z',
     status: 'elapsed', classification: 'meeting', evidence: 'Planner session type'
   });
   assert.deepEqual(f.calls.filter(path => path.includes('events?start=')), [
@@ -67,11 +67,13 @@ test('time uncertainty and boundaries are explicit', async () => {
   assert.equal(elapsedStatus('2026-11-25T22:00:00Z', '2026-11-25T23:00:00Z', now), 'elapsed');
   assert.equal(elapsedStatus('2026-11-26T00:00:00Z', null, now), 'upcoming');
   const f = fixture();
+  f.detail.content.note = 'Agenda for the meeting';
   f.detail.content.session.startTime = '';
   f.detail.content.session.endTime = '';
   const result = await load({ request: f.request, now });
   assert.equal(result.meetings[0].status, 'unknown');
   assert.equal(result.meetings[0].start, null);
+  assert.equal(result.meetings[0].description, 'Agenda for the meeting');
 });
 
 test('partial failures, changed sessions and connection changes never produce partial or stale data', async () => {
@@ -162,7 +164,7 @@ function withGoogle(f, eventsByWeek) {
 
 test('Google candidates are review-only, scoped to owner and connection, and never deduplicated by title', async () => {
   const f = fixture();
-  const one = googleEvent('one'), two = googleEvent('two');
+  const one = googleEvent('one', { description: 'Meeting agenda' }), two = googleEvent('two');
   const request = withGoogle(f, { '2026-11-22': [one, two], '2026-11-29': [one] });
   const initial = await load({ request, now });
   assert.equal(initial.sources.google.status, 'ok');
@@ -170,6 +172,7 @@ test('Google candidates are review-only, scoped to owner and connection, and nev
   assert.equal(initial.meetings.length, 1, 'no Google event is inferred to be a meeting');
   assert.equal(initial.candidates[0].status, 'in-progress');
   assert.equal(initial.candidates[0].sourceId, 'one');
+  assert.equal(initial.candidates[0].description, 'Meeting agenda');
   assert.equal(initial.candidates[0].calendarId, 'selected');
   assert.equal(initial.candidates[0].url, one.htmlLink);
   assert.equal(initial.candidates[0].sourceUrl, one.htmlLink);

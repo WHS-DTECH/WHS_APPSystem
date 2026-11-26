@@ -2,6 +2,31 @@
   'use strict';
   const responsibilityNames = ['HOLA', 'TIMETABLE', 'DTECH', 'WHĀNAU', 'PPTA', 'MODERATION', 'MISCELLANEOUS', 'ADMINISTRATION'];
   const labelKey = name => name.trim().toLocaleUpperCase('en-NZ');
+  const allFilter = '@all', unclassifiedFilter = '@unclassified';
+
+  function responsibilities(card) {
+    const keys = new Set((card?.labels || []).map(label => labelKey(label.name)).filter(key => key && key !== 'MEETINGS'));
+    if (card?.role === 'filed' && typeof card.listName === 'string') {
+      const name = labelKey(card.listName).replace(/[\u2013\u2014]/g, '-').replace(/\s+/g, ' ');
+      const match = /^DONE - (.+)$/.exec(name);
+      if (match && responsibilityNames.includes(match[1])) keys.add(match[1]);
+    }
+    return keys;
+  }
+
+  function matchesResponsibility(card, selected) {
+    if (selected === allFilter) return true;
+    const keys = responsibilities(card);
+    return selected === unclassifiedFilter ? keys.size === 0 : keys.has(selected);
+  }
+
+  function matchesCompletionDate(card, from, to) {
+    if (!from && !to) return true;
+    if (from && to && from > to) return false;
+    if (card.completionActivity !== 'verified' || !card.completedAt || !Number.isFinite(Date.parse(card.completedAt))) return false;
+    const day = root.plannerTodoTrello.dateKey(card.completedAt);
+    return (!from || day >= from) && (!to || day <= to);
+  }
 
   function model(data, today) {
     const { groups, outstanding } = root.plannerTodoTrello.groupCards(data.lists, today);
@@ -14,6 +39,7 @@
       urgent: active.filter(card => card.role === 'urgent').length, outstanding,
       overdue: active.filter(card => card.dueDate && card.dueDate < today).length,
       today: active.filter(card => card.dueDate === today).length,
+      upcoming: active.filter(card => card.dueDate && card.dueDate > today).length,
       week: active.filter(card => card.dueDate >= weekStart && card.dueDate <= weekEnd).length,
       doing: active.filter(card => card.role === 'doing').length,
       waiting: active.filter(card => card.role === 'waiting').length, doneToday: groups.doneToday.length
@@ -24,17 +50,19 @@
         for (const label of card.labels) {
           if (!label.name.trim()) continue;
           const key = labelKey(label.name);
+          if (key === 'MEETINGS') continue;
           if (!labels.has(key)) labels.set(key, { name: label.name, color: label.color, count: 0 });
           else if (!labels.get(key).color && label.color) labels.get(key).color = label.color;
         }
       }
     }
     for (const card of active) {
-      for (const key of new Set(card.labels.map(label => labelKey(label.name)))) {
+      for (const key of responsibilities(card)) {
         if (labels.has(key)) labels.get(key).count++;
       }
     }
-    return { groups, active, summary, labels: [...labels.values()] };
+    return { groups, active, summary, labels: [...labels.values()],
+      unclassified: active.filter(card => responsibilities(card).size === 0).length };
   }
 
   function mount(host, { api, openSession, loadDocuments }) {
@@ -43,7 +71,7 @@
     host.className = 'todo-dashboard';
     host.setAttribute('data-planner-navigation', '');
     const heading = make('h2', 'Trello ToDo Dashboard');
-    const info = make('p', 'Live Trello tasks — not a historical snapshot. Read-only; completion is unavailable. Summary and responsibility counts cover the whole board; filters and search apply to cards.');
+    const info = make('p', 'Live Trello tasks — not a historical snapshot. Read-only; completion is unavailable. Responsibility counts show outstanding tasks; filters and search also apply to meetings and completed work.');
     const toolbar = make('div', '', { class: 'todo-dashboard-toolbar' });
     const refresh = make('button', 'Refresh', { type: 'button' });
     const board = make('a', 'Open Trello board', { href: 'https://trello.com/b/QsFC8J3m/school-email-todo',
@@ -53,8 +81,8 @@
     toolbar.append(refresh, board); host.append(heading, info, toolbar, status, sources);
     const body = make('div', '', { class: 'todo-dashboard-body' });
     host.append(body);
-    let selected = 'ALL', search = '', sort = 'priority', currentData, disposed = false;
-    let selectedCard = null;
+    let selected = allFilter, search = '', sort = 'priority', currentData, disposed = false;
+    let completedFrom = '', completedTo = '', selectedItem = null;
     const expandedFiled = new Set();
     const expandedGroups = new Set(['urgent', 'today']);
 
@@ -62,20 +90,28 @@
       currentData = data;
       const today = dateKey(Date.now()), result = model(data || { lists: [] }, today);
       const meetings = shared.meetingViews(result.groups, current.meetings, today);
-      const incomplete = current.meetingLoading || current.meetingError || current.decisionError || !current.meetings ||
+      const incomplete = current.meetingLoading || current.meetingError || current.decisionError || !current.meetings || !data || current.error ||
         Object.values(current.meetings.sources).some(source => source.status !== 'ok') ||
         current.meetings.candidates?.some(event => event.classification === 'ambiguous') || meetings.conflicts;
-      const selectedId = selectedCard?.id;
       const allCards = (data?.lists || []).flatMap(list => list.cards.map(card => ({
-        ...card, dueDate: card.due ? dateKey(card.due) : '', role: list.role
+        ...card, dueDate: card.due ? dateKey(card.due) : '', role: list.role, listName: list.name
       })));
-      selectedCard = allCards.find(card => card.id === selectedId) || null;
+      const selectedCard = selectedItem?.kind === 'card' ? allCards.find(card => card.id === selectedItem.id) : null;
+      const selectedMeeting = selectedItem?.kind === 'meeting'
+        ? [...meetings.upcoming, ...meetings.unscheduled].find(event => event.id === selectedItem.id) : null;
+      if (selectedItem && !selectedCard && !selectedMeeting) selectedItem = null;
       body.replaceChildren();
       const summary = make('div', '', { class: 'todo-dashboard-summary', 'aria-label': 'Task summary' });
       for (const [key, text] of [['urgent', 'Urgent'], ['outstanding', 'Outstanding'], ['overdue', 'Overdue'],
-        ['today', 'Due today'], ['week', 'Due this week'], ['doing', 'Doing'], ['waiting', 'Waiting / follow-up'],
+        ['today', 'Due today'], ['upcoming', 'Upcoming deadlines'], ['week', 'Due this week'],
+        ['doing', 'Doing'], ['waiting', 'Waiting / follow-up'],
         ['doneToday', 'Completed today']]) {
-        summary.append(make('div', text + ': ' + (data ? result.summary[key] : 'unavailable')));
+        const value = key === 'today'
+          ? data ? (result.summary.today + meetings.today.length) + (incomplete ? '+' : '') +
+            ' (' + result.summary.today + ' tasks · ' + meetings.today.length + (incomplete ? '+' : '') + ' meetings)'
+            : 'task count unavailable · ' + meetings.today.length + '+ meetings'
+          : data ? result.summary[key] : 'unavailable';
+        summary.append(make('div', text + ': ' + value));
       }
       summary.append(make('div', 'Upcoming meetings: ' + meetings.upcoming.length + (incomplete ? '+' : '')));
       body.append(summary);
@@ -95,8 +131,9 @@
         });
         filters.append(button);
       };
-      filterButton('ALL', 'All', result.summary.outstanding, null);
+      filterButton(allFilter, 'All', result.summary.outstanding, null);
       for (const label of result.labels) filterButton(labelKey(label.name), label.name, label.count, label.color);
+      filterButton(unclassifiedFilter, 'Unclassified', result.unclassified, null);
       left.append(filters);
       middle.append(make('h3', 'Active tasks'));
       const controls = make('div', '', { class: 'todo-dashboard-controls' });
@@ -121,16 +158,19 @@
         host.querySelector('select[aria-label="Sort tasks"]').focus();
       });
       sortLabel.append(sortSelect); controls.append(searchLabel, sortLabel); middle.append(controls);
-      const matches = card => (selected === 'ALL' || card.labels.some(label => labelKey(label.name) === selected)) &&
+      const matches = card => matchesResponsibility(card, selected) &&
         (card.title + '\n' + card.description).toLocaleLowerCase('en-NZ').includes(search.toLocaleLowerCase('en-NZ').trim());
+      const listOrder = new Map((data?.lists || []).map((list, index) => [list.role, index]));
+      const trelloOrder = (a, b) => (listOrder.get(a.role) ?? 9999) - (listOrder.get(b.role) ?? 9999) ||
+        a.position - b.position;
       const compare = (a, b) => {
-        if (sort === 'due') return (a.dueDate || '9999').localeCompare(b.dueDate || '9999') || a.position - b.position;
-        if (sort === 'responsibility') return (a.labels[0]?.name || '\uffff').localeCompare(b.labels[0]?.name || '\uffff') || a.position - b.position;
+        if (sort === 'due') return (a.dueDate || '9999').localeCompare(b.dueDate || '9999') || trelloOrder(a, b);
+        if (sort === 'responsibility') return (a.labels[0]?.name || '\uffff').localeCompare(b.labels[0]?.name || '\uffff') || trelloOrder(a, b);
         if (sort === 'priority') return Number(!!(b.dueDate && b.dueDate < today)) - Number(!!(a.dueDate && a.dueDate < today)) ||
-          (a.dueDate || '9999').localeCompare(b.dueDate || '9999') || a.position - b.position;
-        return a.position - b.position;
+          (a.dueDate || '9999').localeCompare(b.dueDate || '9999') || trelloOrder(a, b);
+        return trelloOrder(a, b);
       };
-      const detail = make('section', '', { class: 'todo-detail', hidden: '', 'aria-label': 'Task details' });
+      const detail = make('section', '', { class: 'todo-detail', hidden: '', 'aria-label': 'Task and meeting details' });
       function group(parent, key, title, cards, openSet, emptyText, events = []) {
         const box = make('details', '', { class: 'todo-group' });
         box.open = openSet.has(key);
@@ -141,15 +181,17 @@
           (incomplete ? '+ meetings (sources incomplete)' : ' meetings')));
         const list = make('ul', '', { class: 'todo-cards' });
         for (const card of cards) {
-          const onSelect = selected => { selectedCard = selected; };
-          const onClose = () => { selectedCard = null; };
+          const onSelect = selected => { selectedItem = { kind: 'card', id: selected.id }; };
+          const onClose = () => { selectedItem = null; };
           const item = key === 'today' && card.role === 'urgent'
             ? shared.urgentReference(card, detail, onSelect, onClose) : cardNode(card, today, detail, onSelect, onClose);
           list.append(item);
         }
-        for (const event of events) list.append(shared.meetingNode(event, today, detail, openSession));
+        const eventNode = event => shared.meetingNode(event, today, detail, openSession,
+          selected => { selectedItem = { kind: 'meeting', id: selected.id }; }, () => { selectedItem = null; });
+        for (const event of events) list.append(eventNode(event));
         if (key === 'meetings') {
-          for (const event of meetings.unscheduled.filter(meetingMatches)) list.append(shared.meetingNode(event, today, detail, openSession));
+          for (const event of meetings.unscheduled.filter(meetingMatches)) list.append(eventNode(event));
           if (meetings.unscheduled.length) box.append(make('p', meetings.unscheduled.length + ' Trello meetings have no confirmed start time and are not included in the upcoming count.'));
           if (meetings.conflicts) box.append(make('p', 'Some calendar links match more than one meeting or card; review them in Trello.'));
         }
@@ -157,8 +199,10 @@
         else box.append(make('p', emptyText || 'No tasks in this section.'));
         parent.append(box);
       }
-      const meetingMatches = event => event.card ? matches(event.card) : selected === 'ALL' &&
-        (event.title + '\n' + (event.location || '')).toLocaleLowerCase('en-NZ').includes(search.toLocaleLowerCase('en-NZ').trim());
+      const meetingMatches = event => matchesResponsibility(event.card, selected) &&
+        (event.title + '\n' + (event.description || '') + '\n' + (event.card?.title || '') + '\n' +
+          (event.card?.description || '') + '\n' + (event.location || ''))
+          .toLocaleLowerCase('en-NZ').includes(search.toLocaleLowerCase('en-NZ').trim());
       for (const [role, title] of [['urgent', 'URGENT'], ['today', 'DUE TODAY'],
         ['meetings', 'MEETINGS'], ['upcoming', 'UPCOMING DEADLINES'],
         ['todo', 'TO DO'], ['doing', 'DOING'], ['waiting', 'WAITING / FOLLOW-UP']]) {
@@ -171,20 +215,47 @@
         group(middle, role, title, cards, expandedGroups, undefined, events);
       }
       right.append(make('h3', 'Progress and details'));
-      group(right, 'doneToday', 'DONE TODAY', result.groups.doneToday.filter(matches), expandedGroups, 'No matching completions verified today.');
-      group(right, 'doneOther', 'CURRENTLY IN DONE — OTHER / UNVERIFIED', result.groups.doneOther.filter(matches), expandedGroups);
-      group(right, 'completedActive', 'MARKED COMPLETE IN ACTIVE LISTS', result.groups.completedActive.filter(matches), expandedGroups);
+      const dateControls = make('div', '', { class: 'todo-dashboard-controls' });
+      for (const [name, value] of [['from', completedFrom], ['to', completedTo]]) {
+        const label = make('label', 'Completed ' + name + ' ');
+        const input = make('input', '', { type: 'date', 'aria-label': 'Completed ' + name });
+        input.value = value;
+        input.addEventListener('change', () => {
+          if (name === 'from') completedFrom = input.value; else completedTo = input.value;
+          render(currentData, current);
+          host.querySelector('input[aria-label="Completed ' + name + '"]').focus();
+        });
+        label.append(input); dateControls.append(label);
+      }
+      right.append(dateControls);
+      if (completedFrom || completedTo) {
+        right.append(make('p', completedFrom && completedTo && completedFrom > completedTo
+          ? 'The completion start date must not be after the end date.'
+          : 'Only verified completion dates are included; cards without a verified date are omitted.',
+        { role: completedFrom && completedTo && completedFrom > completedTo ? 'alert' : 'status' }));
+      }
+      const matchesCompleted = card => matches(card) && matchesCompletionDate(card, completedFrom, completedTo);
+      group(right, 'doneToday', 'DONE TODAY', result.groups.doneToday.filter(matchesCompleted), expandedGroups, 'No matching completions verified today.');
+      group(right, 'doneOther', 'CURRENTLY IN DONE — OTHER / UNVERIFIED', result.groups.doneOther.filter(matchesCompleted), expandedGroups);
+      group(right, 'completedActive', 'MARKED COMPLETE IN ACTIVE LISTS', result.groups.completedActive.filter(matchesCompleted), expandedGroups);
       const filed = make('details', '', { class: 'todo-group' });
       filed.open = expandedGroups.has('filed');
       filed.addEventListener('toggle', () => { if (filed.open) expandedGroups.add('filed'); else expandedGroups.delete('filed'); });
       filed.append(make('summary', 'Completed by Responsibility'));
       for (const list of (data?.lists || []).filter(list => list.role === 'filed')) {
-        const cards = list.cards.map(card => ({ ...card, role: 'filed', dueDate: card.due ? dateKey(card.due) : '' })).filter(matches).sort(compare);
+        const cards = list.cards.map(card => ({ ...card, role: 'filed', listName: list.name, dueDate: card.due ? dateKey(card.due) : '' })).filter(matchesCompleted).sort(compare);
         group(filed, list.id, list.name, cards, expandedFiled);
       }
       if (!data?.lists.some(list => list.role === 'filed')) filed.append(make('p', 'No recognised filed DONE lists are available.'));
       right.append(filed, detail);
-      if (selectedCard) shared.showDetail(detail, selectedCard, { focus: false, onClose: () => { selectedCard = null; } });
+      if (selectedCard && matches(selectedCard) &&
+          (!['done', 'filed'].includes(selectedCard.role) && !selectedCard.dueComplete ||
+            matchesCompletionDate(selectedCard, completedFrom, completedTo))) {
+        shared.showDetail(detail, selectedCard, { focus: false, onClose: () => { selectedItem = null; } });
+      } else if (selectedMeeting && meetingMatches(selectedMeeting)) shared.showMeetingDetail(detail, selectedMeeting, {
+        focus: false, openSession, onClose: () => { selectedItem = null; }
+      });
+      else if (selectedItem) selectedItem = null;
     }
     const load = () => { shared.refreshData(api); shared.refreshMeetings(api, loadDocuments); };
     load();
@@ -210,7 +281,7 @@
     document.addEventListener('visibilitychange', onVisible);
     return dispose;
   }
-  const api = { mount, model };
+  const api = { mount, model, responsibilities, matchesResponsibility, matchesCompletionDate, allFilter, unclassifiedFilter };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.plannerTodoDashboard = api;
 })(globalThis);
