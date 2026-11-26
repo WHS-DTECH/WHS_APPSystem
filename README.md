@@ -2113,6 +2113,12 @@ introduced. Maintain cards independently in Trello/ChatGPT.
 
 #### Colour-coded Teaching Slots V1
 
+The [canonical teaching preparation card contract](docs/teaching-preparation-card-format.md)
+provides a copyable master template, complete metadata/heading/resource rules,
+and Whanau, JuniorDTECH and MiddleDTECH examples for ChatGPT automation.
+`Preparation` is not a valid slot type; use the documented activity types and
+put session-wide preparation under `## Preparation & reminders`.
+
 The Trello view recognises one balanced
 `[TEACHING_DASHBOARD_V1]` / `[/TEACHING_DASHBOARD_V1]` block, followed by the exact
 `## Teaching slots` heading and repeated `### SLOT n | Type | Title` headings.
