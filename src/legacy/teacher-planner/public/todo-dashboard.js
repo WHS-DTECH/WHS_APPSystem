@@ -288,7 +288,7 @@
         status.textContent = current.loading ? 'Refreshing live Trello tasks…' +
           (current.lastRefresh ? ' Last successful refresh: ' + current.lastRefresh : '') :
           current.data ? 'Connected · Last refreshed: ' + current.lastRefresh +
-            (current.data.writeAvailable ? '' : ' · Completion unavailable (read-only)') : 'Connecting to Trello…';
+            shared.writeConnectionMessage(current.data) : 'Connecting to Trello…';
       }
       if (current.data || !current.loading) render(current.data, current);
     });

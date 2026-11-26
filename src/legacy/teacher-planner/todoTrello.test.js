@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
 const session = require('express-session');
-const { createTodoTrelloRouter, completionToday } = require('./todoTrello');
+const { createTodoTrelloRouter, completionToday, writeGrantStatus } = require('./todoTrello');
 const { createModuleRouter } = require('./app');
 
 const owner = '11111111-1111-4111-8111-111111111111';
@@ -18,6 +18,7 @@ async function fixture(t) {
     env: { ...env },
     user: { id: owner }, calls: [], permissions: [{ modelType: 'Board', idModel: '*', read: true, write: false }],
     writePermissions: [{ modelType: 'Board', idModel: board, read: true, write: true }],
+    writeExpiry: null,
     lists: [{ id: urgent, name: 'URGENT', closed: false }, { id: todo, name: 'TO DO', closed: false },
       { id: done, name: 'DONE', closed: false }, { id: '1'.repeat(24), name: 'TERM 4 — 2026', closed: false }],
     cards: [makeCard('2'.repeat(24), todo, 'Task'), makeCard('3'.repeat(24), todo, 'TEST — ChatGPT Trello Connection')]
@@ -29,8 +30,12 @@ async function fixture(t) {
     state.calls.push({ url, options });
     if (state.failure) return new Response('', { status: state.failure });
     const path = new URL(url).pathname;
-    if (path.startsWith('/1/tokens/')) return Response.json({ permissions:
-      path.endsWith(state.env.TEACHER_PLANNER_TRELLO_WRITE_TOKEN || '!') ? state.writePermissions : state.permissions });
+    if (path.startsWith('/1/tokens/')) {
+      const isWriter = path.endsWith(state.env.TEACHER_PLANNER_TRELLO_WRITE_TOKEN || '!');
+      if (isWriter && state.writeFailure) return new Response('', { status: state.writeFailure });
+      return Response.json({ permissions: isWriter ? state.writePermissions : state.permissions,
+        ...(isWriter ? { dateExpires: state.writeExpiry } : {}) });
+    }
     if (path === '/1/boards/QsFC8J3m') return Response.json({ id: board, shortLink: 'QsFC8J3m', closed: false });
     if (path === '/1/boards/QsFC8J3m/lists') return Response.json(state.lists);
     const cardMatch = /^\/1\/cards\/([0-9a-f]{24})$/.exec(path);
@@ -157,6 +162,43 @@ test('write access is separate, owner-only, and preserves read-only fallback', a
   assert.equal((await complete(id, todo)).status, 403);
   assert.equal(state.calls.length, count);
   assert.ok(!state.calls.some(call => call.options.method === 'PUT'));
+});
+
+test('write expiry uses the exact seven-day threshold and never assumes an unknown expiry', () => {
+  const now = Date.parse('2026-11-26T00:00:00Z');
+  const grant = { permissions: [{ modelType: 'Board', idModel: board, read: true, write: true }] };
+  const status = expiry => writeGrantStatus({ ...grant, dateExpires: expiry }, board, now);
+  assert.equal(status('2026-12-03T00:00:00.001Z').writeStatus, 'available');
+  assert.equal(status('2026-12-03T00:00:00Z').writeStatus, 'expiring-soon');
+  assert.equal(status('2026-11-26T00:00:00Z').writeStatus, 'expired');
+  assert.equal(status('2026-11-26T00:00:00Z').writeAvailable, false);
+  assert.equal(status(null).writeStatus, 'available');
+  assert.equal(status(undefined).writeStatus, 'expiry-unknown');
+  assert.equal(status('invalid').writeStatus, 'expiry-unknown');
+});
+
+test('write expiry and rejected tokens are reported without disrupting read-only data', async t => {
+  const { state, call, complete } = await fixture(t);
+  state.env.TEACHER_PLANNER_TRELLO_WRITE_TOKEN = '9'.repeat(64);
+  state.writeExpiry = new Date(Date.now() + 6 * 86400000).toISOString();
+  let response = await call(), result = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(result.writeStatus, 'expiring-soon');
+  assert.equal(result.writeExpiresAt, state.writeExpiry);
+  assert.equal(result.writeAvailable, true);
+  state.writeExpiry = new Date(Date.now() - 1000).toISOString();
+  result = await (await call()).json();
+  assert.equal(result.writeStatus, 'expired');
+  assert.equal(result.writeAvailable, false);
+  assert.equal((await complete(state.cards[0].id, todo)).status, 503);
+  assert.ok(state.calls.every(call => call.options.method !== 'PUT'));
+  state.writeFailure = 401;
+  response = await call(); result = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(result.writeStatus, 'expired-or-revoked');
+  assert.equal(result.writeAvailable, false);
+  assert.equal(result.lists.find(list => list.role === 'todo').cards.length, 1);
+  assert.ok(!JSON.stringify(result).includes(state.env.TEACHER_PLANNER_TRELLO_WRITE_TOKEN));
 });
 
 test('tasks and meetings are completed in place while preserving all other card data', async t => {

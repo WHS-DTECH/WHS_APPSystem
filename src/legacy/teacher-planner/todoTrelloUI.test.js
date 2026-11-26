@@ -1,9 +1,17 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { groupCards, todayTasks, meetingMetadata, meetingViews, minedStatus, dateKey, refreshData, subscribe,
-  configureCompletion, completeCard } = require('./public/todo-trello');
+  configureCompletion, completeCard, writeConnectionMessage } = require('./public/todo-trello');
 
 const card = (id, due = null, extra = {}) => ({ id, due, dueComplete: false, ...extra });
+
+test('write token status clearly distinguishes approaching expiry, revoked access and unknown expiry', () => {
+  assert.match(writeConnectionMessage({ writeStatus: 'expiring-soon', writeExpiresAt: '2026-12-02T11:00:00Z', writeAvailable: true }),
+    /expires 3 Dec 2026.*Renew/);
+  assert.match(writeConnectionMessage({ writeStatus: 'expired-or-revoked', writeAvailable: false }), /expired or was revoked.*read-only/);
+  assert.match(writeConnectionMessage({ writeStatus: 'expiry-unknown', writeAvailable: true }), /expiry could not be verified/);
+  assert.equal(writeConnectionMessage({ writeStatus: 'available', writeAvailable: true }), '');
+});
 
 test('cards have one primary group and preserve other status information', () => {
   const today = '2026-11-26';

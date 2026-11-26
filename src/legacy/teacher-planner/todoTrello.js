@@ -28,6 +28,23 @@ function hasWriteBoardGrant(grant, board) {
     ['*', board].includes(item.idModel) && item.read === true && item.write === true);
 }
 
+function writeGrantStatus(grant, board, now = Date.now()) {
+  if (!hasWriteBoardGrant(grant, board)) {
+    return { writeAvailable: false, writeStatus: 'permission-unavailable', writeExpiresAt: null };
+  }
+  if (grant.dateExpires === null) {
+    return { writeAvailable: true, writeStatus: 'available', writeExpiresAt: null };
+  }
+  const expiry = typeof grant.dateExpires === 'string' && /(?:Z|[+-]\d{2}:\d{2})$/i.test(grant.dateExpires)
+    ? Date.parse(grant.dateExpires) : NaN;
+  if (!Number.isFinite(expiry)) {
+    return { writeAvailable: true, writeStatus: 'expiry-unknown', writeExpiresAt: null };
+  }
+  const writeExpiresAt = new Date(expiry).toISOString();
+  if (expiry <= now) return { writeAvailable: false, writeStatus: 'expired', writeExpiresAt };
+  return { writeAvailable: true, writeStatus: expiry - now <= 7 * 24 * 60 * 60 * 1000 ? 'expiring-soon' : 'available', writeExpiresAt };
+}
+
 function validateLists(lists) {
   if (!Array.isArray(lists) || !lists.every(list => list && ID.test(list.id) &&
       typeof list.name === 'string' && typeof list.closed === 'boolean')) throw new Error('Invalid lists.');
@@ -148,20 +165,20 @@ function createTodoTrelloRouter({ env = process.env, fetchImpl = globalThis.fetc
       }
       let writeAvailable = false;
       let writeStatus = env.TEACHER_PLANNER_TRELLO_WRITE_TOKEN ? 'invalid-configuration' : 'not-configured';
+      let writeExpiresAt = null;
       const credentials = writeCredentials(env);
       if (credentials) {
         try {
           const writerRead = createTrelloReader({ ...credentials, fetchImpl });
-          const writeGrant = await writerRead('tokens/' + encodeURIComponent(credentials.token), { fields: 'permissions' });
-          writeAvailable = hasWriteBoardGrant(writeGrant, board.id);
-          writeStatus = writeAvailable ? 'available' : 'permission-unavailable';
+          const writeGrant = await writerRead('tokens/' + encodeURIComponent(credentials.token), { fields: 'permissions,dateExpires' });
+          ({ writeAvailable, writeStatus, writeExpiresAt } = writeGrantStatus(writeGrant, board.id));
           if (!writeAvailable) console.warn('ToDo Trello write permission unavailable.');
-        } catch {
-          writeStatus = 'permission-check-failed';
+        } catch (error) {
+          writeStatus = error.status === 401 ? 'expired-or-revoked' : 'permission-check-failed';
           console.warn('ToDo Trello write permission check failed.');
         }
       }
-      return res.json({ status: 'ok', boardUrl: BOARD_URL, fetchedAt: new Date().toISOString(), writeAvailable, writeStatus, lists: result });
+      return res.json({ status: 'ok', boardUrl: BOARD_URL, fetchedAt: new Date().toISOString(), writeAvailable, writeStatus, writeExpiresAt, lists: result });
     } catch (error) {
       if ([401, 403].includes(error.status)) failure = 'Trello permission is missing or its read-only token expired.';
       if (error.status === 429) failure = 'Trello is rate-limiting requests. Wait briefly and retry.';
@@ -190,11 +207,11 @@ function createTodoTrelloRouter({ env = process.env, fetchImpl = globalThis.fetc
     try {
       const [board, grant, lists] = await Promise.all([
         read('boards/' + BOARD, { fields: 'id,shortLink,closed' }),
-        read('tokens/' + encodeURIComponent(credentials.token), { fields: 'permissions' }),
+        read('tokens/' + encodeURIComponent(credentials.token), { fields: 'permissions,dateExpires' }),
         read('boards/' + BOARD + '/lists', { filter: 'open', fields: 'id,name,closed' })
       ]);
       if (!board || !ID.test(board.id) || board.shortLink !== BOARD || board.closed !== false ||
-          !hasWriteBoardGrant(grant, board.id)) {
+          !writeGrantStatus(grant, board.id).writeAvailable) {
         return res.status(503).json({ error: 'Trello write permission is unavailable; read-only access remains available.' });
       }
       boardId = board.id;
@@ -263,4 +280,4 @@ function createTodoTrelloRouter({ env = process.env, fetchImpl = globalThis.fetc
   return router;
 }
 
-module.exports = { createTodoTrelloRouter, completionToday };
+module.exports = { createTodoTrelloRouter, completionToday, writeGrantStatus };

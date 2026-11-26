@@ -21,7 +21,7 @@ test(view + ' autosave debounces edits, serialises in-flight typing and pauses o
   if (section === 'week') values.set('p1:0', 'Weekly lesson notes');
   const form = { reportValidity: () => true, addEventListener: (name, handler) => { events[name] = handler; } };
   const context = {
-    form, section, year: 2026, dirty: false, busy: false, loaded: true, revision: 3, csrf: 'fixture',
+    form, section, dashboardMode: false, year: 2026, dirty: false, busy: false, loaded: true, revision: 3, csrf: 'fixture',
     autosaveTimer: undefined, autosavePaused: false, editVersion: 0, savedTermContent: { reflection: 'Keep this previous reflection' },
     saveInFlight: undefined, sessionPlanner: session ? {
       read: () => ({ note: values.get('note'), evaluation: '', activities: [],
@@ -204,7 +204,7 @@ test('Teaching Dashboard loads and saves the existing session address while excl
   const active = { dataset: { section: 'timetable' }, setAttribute(name, value) { this[name] = value; } };
   let rendered = 0; const requests = [];
   const context = {
-    section: 'timetable', year: 2026, setupAttendanceReady: undefined, openingTermPending: false,
+    section: 'timetable', year: 2026, setupAttendanceReady: undefined, openingTermPending: false, termSelectionPending: false,
     periodDate: '2026-11-23', periodSlot: 'whanau', dashboardMode: false, dashboardTrello: false,
     manualSessionDraft: undefined, selectedTeachingCard: '', sessionPlanner: undefined, sessionAddress: undefined,
     yearInput: {}, updateYearBadge() {}, monday: value => value, date: value => new Date(value + 'T00:00:00Z'),
@@ -229,6 +229,7 @@ test('Teaching Dashboard loads and saves the existing session address while excl
       getElementById: () => ({}), querySelector: () => saveBar, querySelectorAll: () => [active], addEventListener() {}
     },
     window: { addEventListener() {} },
+    plannerSessionSchema: { timestampLabel: value => value },
     form: { addEventListener: (name, callback) => { events[name] = callback; },
       reportValidity() { return true; } }
   };
@@ -250,6 +251,7 @@ test('Teaching Dashboard loads and saves the existing session address while excl
   assert.equal(put[0], '/api/planner/sessions/2026-11-23/whanau');
   assert.equal(JSON.parse(put[1].body).content.note, 'Saved notices');
   assert.equal(context.revision, 2);
+  assert.ok(notices.at(-1).startsWith('Autosaved '));
 });
 
 for (const section of ['term', 'week']) {
@@ -284,6 +286,7 @@ test('term Goals navigation preserves existing leave guards without starting a s
   const source = await fs.readFile(path.join(__dirname, 'public', 'planner.js'), 'utf8');
   let permitted = false, loads = 0, syncs = 0;
   const context = { section: 'term', loaded: true, attendanceSyncRunning: false, canLeave: () => permitted,
+    document: { querySelectorAll: () => [] },
     load: async () => loads++, runAttendanceDriveSync: async () => { syncs++; }, console };
   vm.runInNewContext(source.slice(source.indexOf('  function navigatePlannerSection('), source.indexOf('  function renderSelectors(')), context);
   await context.navigatePlannerSection('goals');

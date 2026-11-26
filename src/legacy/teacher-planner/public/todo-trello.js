@@ -9,6 +9,16 @@
   const timeLabel = value => new Intl.DateTimeFormat('en-NZ', {
     timeZone: 'Pacific/Auckland', dateStyle: 'medium', timeStyle: 'short'
   }).format(new Date(value));
+  function writeConnectionMessage(data) {
+    if (data.writeStatus === 'expiring-soon' && data.writeExpiresAt) {
+      return ' · Completion access expires ' + timeLabel(data.writeExpiresAt) + '. Renew the Trello write token.';
+    }
+    if (data.writeStatus === 'expiry-unknown') return ' · Completion access is available, but its expiry could not be verified.';
+    if (data.writeStatus === 'expired' || data.writeStatus === 'expired-or-revoked') {
+      return ' · Completion access expired or was revoked. Renew the Trello write token; read-only access remains available.';
+    }
+    return data.writeAvailable ? '' : ' · Completion unavailable (read-only)';
+  }
   const make = (tag, text, attrs = {}) => {
     const node = document.createElement(tag);
     if (text) node.textContent = text;
@@ -485,7 +495,7 @@
         status.textContent = current.loading ? 'Refreshing live Trello tasks…' +
           (current.lastRefresh ? ' Last successful refresh: ' + current.lastRefresh : '') :
           current.data ? 'Connected · Last refreshed: ' + current.lastRefresh +
-            (current.data.writeAvailable ? '' : ' · Completion unavailable (read-only)') : 'Connecting to Trello…';
+            writeConnectionMessage(current.data) : 'Connecting to Trello…';
       }
       if (current.data || !current.loading) render(current.data);
     });
@@ -498,7 +508,7 @@
     document.addEventListener('visibilitychange', onVisible);
     return dispose;
   }
-  const api = { mount, groupCards, todayTasks, meetingMetadata, meetingViews, meetingNode, minedStatus, appendMinedAlerts, dateKey, dateLabel, make, cardNode, urgentReference, showDetail, showMeetingDetail, subscribe, refreshData, configureCompletion, completeCard, clearActionError };
+  const api = { mount, groupCards, todayTasks, meetingMetadata, meetingViews, meetingNode, minedStatus, appendMinedAlerts, dateKey, dateLabel, writeConnectionMessage, make, cardNode, urgentReference, showDetail, showMeetingDetail, subscribe, refreshData, configureCompletion, completeCard, clearActionError };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.plannerTodoTrello = api;
 })(globalThis);

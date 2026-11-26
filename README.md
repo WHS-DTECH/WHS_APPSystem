@@ -1887,6 +1887,25 @@ completion endpoint to this board and authorised owner, checks the write grant
 and original list, and uses Planner CSRF protection. If write credentials or
 permission are unavailable, reading continues and completion is disabled.
 
+Trello supports 30-day and non-expiring tokens. A non-expiring write token
+reduces renewal work but retains account-wide privileges until revoked; choose
+the least privilege and lifetime appropriate for the account. The current
+30-day token must be renewed before it expires. When Trello supplies an expiry,
+both ToDo views warn within seven days; expired or revoked write access is
+reported separately and the read-only board remains available. If expiry cannot
+be verified, the views say so rather than assuming it is non-expiring.
+
+To renew, sign in to Trello as the authorised board account and obtain the
+existing API key from its Trello Apps Admin **Trello Auth** page. In a private
+browser, replace `YOUR_API_KEY` locally in
+`https://trello.com/1/authorize?expiration=30days&scope=read,write&response_type=token&name=WHS%20Teacher%20Planner%20Completion&key=YOUR_API_KEY`
+and approve the request. Copy the new token directly into the main Render
+service's `TEACHER_PLANNER_TRELLO_WRITE_TOKEN` environment variable and deploy.
+Do not paste tokens into chat, screenshots, logs or source files. Verify the
+ToDo connection after deployment, then revoke the old token in Trello account
+settings. For a deliberately non-expiring token, use `expiration=never` only
+after considering the increased risk; revocation still disables write access.
+
 `POST /teacher-planner/api/planner/todo-trello/cards/:id/complete` accepts
 only the card's original `listId`. It checks the current card and board, sets
 the completion flag on that card, verifies it, moves it to general DONE and
