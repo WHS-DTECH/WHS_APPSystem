@@ -100,7 +100,7 @@ function createTeachingDayTrelloRouter({ env = process.env, fetchImpl = globalTh
         typeof card.url === 'string' && typeof card.dateLastActivity === 'string' && Number.isFinite(Date.parse(card.dateLastActivity)))) {
         throw new Error('The teaching list returned invalid card data.');
       }
-      const issues = [], candidates = [];
+      const issues = [], candidates = [], unassigned = [];
       for (const card of source.filter(card => !card.closed)) {
         const url = cardLink(card.url);
         let parsed;
@@ -108,7 +108,12 @@ function createTeachingDayTrelloRouter({ env = process.env, fetchImpl = globalTh
         catch (error) {
           const monday = req.params.date === '2026-11-23' &&
             boardId === '6b0286099da18b3599a6940e' && listId === '6b02860d27edaa3359a950a5' && MONDAY_CARDS[card.id];
-          if (!monday) { issues.push({ cardId: card.id, message: error.message }); continue; }
+          if (!monday) {
+            issues.push({ cardId: card.id, message: error.message });
+            unassigned.push({ id: card.id, name: card.name, url, description: card.desc,
+              resources: resourceLinks(card.desc), updatedAt: card.dateLastActivity });
+            continue;
+          }
           parsed = { metadata: { schema_version: 1, teaching_date: '2026-11-23', ...monday,
             preparation_status: 'See card preparation', home_list: listId }, description: card.desc };
         }
@@ -128,7 +133,7 @@ function createTeachingDayTrelloRouter({ env = process.env, fetchImpl = globalTh
         slots.findIndex(slot => slot[0] === b.metadata.session_slot) || a.metadata.start_time.localeCompare(b.metadata.start_time));
       if (issues.length) console.warn('Teaching Day Trello ignored cards with invalid or ambiguous session metadata.');
       return res.json({ status: cards.length ? 'ok' : 'empty', date: req.params.date,
-        listName: list.name, fetchedAt: new Date().toISOString(), cards, issues });
+        listName: list.name, fetchedAt: new Date().toISOString(), cards, unassigned, issues });
     } catch (error) {
       console.warn('Teaching Day Trello read failed.');
       const message = [401, 403].includes(error.status) ? 'Trello permission is missing or its read-only token expired.' :

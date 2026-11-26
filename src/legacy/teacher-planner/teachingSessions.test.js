@@ -15,7 +15,7 @@ const OTHER = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 
 async function fixture(t) {
   const records = new Map(), checkpoints = new Map(), statements = [];
-  let clock = new Date('2026-11-24T00:00:00Z'), sourceVersion = 1, timetableReads = 0, classAvailable = true;
+  let clock = new Date('2026-11-24T00:00:00Z'), sourceVersion = 1, timetableReads = 0, classAvailable = true, ambiguousWhanau = false;
   const query = async (sql, params) => {
     statements.push(sql);
     if (sql.includes('teacher_calendar_settings')) return { rows: [{ subscription_url: 'https://synthetic.invalid/timetable' }] };
@@ -62,7 +62,8 @@ async function fixture(t) {
     timetable: async () => { timetableReads++; return { events: ['2026-11-23', '2026-11-30'].flatMap(day => [{
       id: day + '-jpi-' + sourceVersion, title: 'PIDTECH (JPI)', allDay: false,
       start: day + 'T10:00:00', end: day + 'T11:00:00', location: '05'
-    }, { id: day + '-whanau', title: 'WHANAU (9WHAU)', start: day + 'T08:45:00', end: day + 'T09:00:00', location: 'CW' }])
+    }, { id: day + '-whanau', title: 'WHANAU (9WHAU)', start: day + 'T08:45:00', end: day + 'T09:00:00', location: 'CW' },
+    ...(ambiguousWhanau ? [{ id: day + '-other', title: 'WHANAU (9OTHER)', start: day + 'T08:45:00', end: day + 'T09:00:00', location: 'CW' }] : [])])
       .filter(event => classAvailable || !event.title.includes('JPI')) }; }
   } }));
   const server = app.listen(0, '127.0.0.1');
@@ -81,7 +82,8 @@ async function fixture(t) {
     headers: { ...headers, ...extra }, body: JSON.stringify({ content, revision }) });
   return { records, checkpoints, statements, base, headers, get, put,
     timetableReads: () => timetableReads, removeClass: () => { classAvailable = false; },
-    time: value => { clock = new Date(value); }, changeSource: () => { sourceVersion++; } };
+    time: value => { clock = new Date(value); }, changeSource: () => { sourceVersion++; },
+    makeWhanauAmbiguous: () => { ambiguousWhanau = true; clock = new Date(clock.getTime() + 31000); } };
 }
 
 test('activity timing is explicit and optional, with unique activities and validated outcomes', () => {
@@ -213,6 +215,25 @@ test('Whanau saves and reopens independently of P1, with revisions and no class-
   assert.equal((await f.get('sessions/2026-11-30/p2')).previous.length, 0);
   const other = await fetch(f.base + whanau, { headers: { ...f.headers, 'x-test-user': OTHER } });
   assert.equal((await other.json()).content.note, '', 'session notes are owner-private');
+});
+
+test('ambiguous timetable events leave date-and-slot notes available without selecting a class', async t => {
+  const f = await fixture(t), path = 'sessions/2026-11-23/whanau';
+  const original = await f.get(path);
+  original.content.note = 'Existing date and slot notes';
+  assert.equal((await f.put(path, original.content, 0)).status, 200);
+  f.makeWhanauAmbiguous();
+  const plan = await f.get(path);
+  assert.equal(plan.event.source, 'ambiguous');
+  assert.equal(plan.event.classKey, null);
+  assert.equal(plan.event.location, '');
+  assert.equal(plan.content.note, 'Existing date and slot notes');
+  assert.equal(plan.revision, 1);
+  plan.content.note += ' updated';
+  assert.equal((await f.put(path, plan.content, 1)).status, 200);
+  assert.equal((await f.get(path)).content.note, 'Existing date and slot notes updated');
+  assert.equal(f.records.size, 1);
+  assert.equal([...f.records.values()][0].group_key, 'session:whanau');
 });
 
 test('manual commitments use independent stable IDs, can be reopened and never write calendar or class records', async t => {

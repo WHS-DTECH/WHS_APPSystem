@@ -68,9 +68,11 @@
     }
     if (!pilot) {
       const settings = section('Session details');
-      settings.append(el('p', data.event.source === 'KAMAR' ?
-        'Timetable context: ' + data.event.title + '. Your plan does not change KAMAR.' :
-        'Manually recorded commitment. No KAMAR timetable data is created or changed.'));
+      settings.append(el('p', data.event.source === 'ambiguous' ?
+        'Multiple timetable events match this time. No class has been selected; check the timetable. These notes belong to the date and slot, not a class.' :
+        data.event.source === 'KAMAR' ? 'Timetable context: ' + data.event.title + '. Your plan does not change KAMAR.' :
+        'Manually recorded commitment. No KAMAR timetable data is created or changed.',
+        data.event.source === 'ambiguous' ? { role: 'alert' } : {}));
       const title = field(settings, 'Session title', data.content.session.title, 'text');
       title.required = true; title.maxLength = 200;
       const label = el('label', '', { class: 'session-field' }); label.append(el('span', 'Session type'));

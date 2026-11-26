@@ -115,8 +115,8 @@ ${standalone ? `<script src="${asset('global-nav.js')}" defer></script>` : ''}
 <script src="${asset('todo-dashboard.js?v=trello-completion-2')}" defer></script>
 <script src="${asset('session-schema.js?v=scheduled-session-3')}" defer></script>
 <script src="${asset('teaching-slots.js?v=7')}" defer></script>
-<script src="${asset('teaching-day-trello.js?v=dashboard-resource-title-1')}" defer></script>
-<script src="${asset('teaching-session.js?v=dashboard-navigation-1')}" defer></script>
+<script src="${asset('teaching-day-trello.js?v=dashboard-unassigned-1')}" defer></script>
+<script src="${asset('teaching-session.js?v=ambiguous-timetable-1')}" defer></script>
 <script src="${asset('planner.js?v=trello-completion-1')}" defer></script>
 </body></html>`;
 }

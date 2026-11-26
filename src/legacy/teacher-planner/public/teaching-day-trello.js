@@ -70,7 +70,8 @@
       if (error) { selectedHost.append(el('p', error + ' Notes remain available.', { role: 'alert' })); return; }
       if (!result) { selectedHost.append(el('p', 'Reading Trello...', { role: 'status' })); return; }
       const card = result.cards.find(card => (!context.cardId || card.id === context.cardId) &&
-        card.metadata.session_slot === context.slot && card.metadata.class_key === context.classKey);
+        card.metadata.session_slot === context.slot && (card.metadata.class_key === context.classKey ||
+          !context.classKey && context.cardId === card.id));
       if (!card) { selectedHost.append(el('p', 'No Trello card is selected for this session. Notes are unchanged.', { role: 'status' })); return; }
       selectedHost.append(renderCard(el, card, false, true, context.programme));
     }
@@ -125,6 +126,17 @@
           feed.cards.length ? 'Read-only preparation. Select a session.' : 'No teaching cards are available for this date.';
         for (const card of feed.cards) sessionCard(card);
         if (!feed.cards.length) unavailableSessions();
+        if (feed.unassigned?.length) {
+          cards.append(el('h3', 'Other cards in CURRENT TEACHING DAY'),
+            el('p', 'Dates and sessions are not verified for these cards. They are shown read-only, not assigned to this day or class.'));
+          for (const card of feed.unassigned) {
+            const details = el('details', '', { class: 'teaching-day-card' });
+            details.append(el('summary', card.name || 'Untitled Trello card'),
+              el('p', card.description, { class: 'session-preserved-text' }),
+              el('a', 'Open in Trello', { href: card.url, target: '_blank', rel: 'noopener noreferrer' }));
+            cards.append(details);
+          }
+        }
         for (const issue of feed.issues) cards.append(el('p', 'Card ' + issue.cardId + ': ' + issue.message, { role: 'alert' }));
       } catch (failure) {
         if (current !== generation || !page.isConnected) return;

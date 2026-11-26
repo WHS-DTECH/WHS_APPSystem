@@ -2074,6 +2074,11 @@ Trello errors cannot block Notes; when cards are unavailable, clearly labelled
 local Whānau/Period 2 session cards retain their inline Notes buttons without
 inventing Trello preparation, class assignments or times. Confirmed progress, routines,
 Unit Library links and legacy records use their existing storage and permissions.
+If several timetable events share a generic session's time, the date-and-slot
+notes remain available with an ambiguity warning and no class assignment. Cards
+without valid source-reference metadata are shown separately, read-only, without
+claiming they belong to the displayed date or class. Add the documented metadata
+to place them in the scheduled session list.
 No Trello writes, AI processing, calendar reconciliation or inferred outcomes are
 introduced. Maintain cards independently in Trello/ChatGPT.
 

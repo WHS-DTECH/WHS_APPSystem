@@ -476,6 +476,35 @@ test('session view selection preserves Notes and uses readable NZ dates without 
   assert.ok(!slotDescendants(host).some(item => /Back to Teaching Dashboard/.test(item.textContent)));
   assert.ok(slotDescendants(host).some(item => item.textContent.startsWith('Monday 23 November 2026 |')));
 });
+test('ambiguous timetable sessions explain that saved notes are not assigned to a class', () => {
+  const context = { plannerSessionSchema: require('./public/session-schema') }, host = node();
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-session'), 'utf8'), context);
+  const workspace = context.plannerTeachingSession.mount(host, {
+    event: { date: '2026-11-26', slot: 'whanau', label: 'Whanau', source: 'ambiguous', classKey: null },
+    content: { note: 'Saved notes', evaluation: '', activities: [],
+      session: { title: 'Whanau', type: 'whanau', startTime: '08:45', endTime: '09:00' } }, legacy: { content: {} }
+  }, { el: node, legacy() {} });
+  assert.equal(workspace.read().note, 'Saved notes');
+  assert.ok(slotDescendants(host).some(item => item.attrs.role === 'alert' && item.textContent.includes('No class has been selected')));
+});
+test('dashboard shows unassigned Trello cards separately and only opens an explicitly selected card for an ambiguous session', async () => {
+  const context = { plannerSessionSchema: require('./public/session-schema') }, host = node();
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-day-trello'), 'utf8'), context);
+  const card = { id: 'a'.repeat(24), name: 'Verified card', description: 'Verified preparation', resources: [],
+    url: 'https://trello.com/c/AbCd1234', updatedAt: '2026-11-22T05:00:00Z',
+    metadata: { class_key: '9WHAU', session_slot: 'whanau', display_name: 'Whanau', start_time: '08:45',
+      end_time: '09:00', lesson_title: 'Routine', preparation_status: 'Ready' } };
+  const dashboard = context.plannerTeachingDayTrello.dashboard(host, { date: '2026-11-26', slot: 'whanau', classKey: null, cardId: '' },
+    { el: node, select() {}, request: async () => ({ status: 'ok', cards: [card], issues: [],
+      unassigned: [{ name: 'Old preparation', description: 'Original text', url: card.url }] }) });
+  const selected = node(); dashboard.showTrello(selected); await flush();
+  assert.ok(slotDescendants(host).some(item => item.textContent.includes('not verified')));
+  assert.ok(slotDescendants(host).some(item => item.tag === 'summary' && item.textContent === 'Old preparation'));
+  assert.ok(slotDescendants(host).some(item => item.textContent === 'Original text'));
+  assert.ok(slotDescendants(selected).some(item => item.textContent.includes('No Trello card')));
+  dashboard.selectSession({ cardId: card.id });
+  assert.ok(slotDescendants(selected).some(item => item.tag === 'h4' && item.textContent === 'Verified card'));
+});
 test('dashboard selects stable card IDs and shows only the selected preparation without blocking Notes on failure', async () => {
   const context = { plannerSessionSchema: require('./public/session-schema') };
   vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-day-trello'), 'utf8') +

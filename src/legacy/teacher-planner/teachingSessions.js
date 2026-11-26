@@ -128,9 +128,9 @@ function createTeachingSessionsRouter({ query, timetable = loadTimetable, conten
       const record = await query(`SELECT content,revision,updated_at FROM planner_sessions
         WHERE owner_id=$1 AND year=$2 AND session_date=$3 AND group_key=$4 AND slot_key=$5`, [owner, year, value, group, slot]);
       const events = definition ? await timetableEvents(owner, value) : null;
-      const matches = (events || []).filter(event => clock(event.start) === definition[2] && clock(event.end) === definition[3]);
-      if (matches.length > 1) throw Object.assign(new Error('Multiple timetable events match this session. No class was guessed. Check the timetable before planning.'), { status: 409 });
-      const event = matches[0], row = record.rows[0];
+      const matches = definition ? (events || []).filter(event => clock(event.start) === definition[2] && clock(event.end) === definition[3]) : [];
+      const ambiguous = matches.length > 1;
+      const event = ambiguous ? null : matches[0], row = record.rows[0];
       const session = row?.content.session || {
         title: event?.title || definition?.[1] || 'Manual commitment',
         type: slot === 'whanau' ? 'whanau' : event ? 'teaching' : 'meeting',
@@ -142,7 +142,7 @@ function createTeachingSessionsRouter({ query, timetable = loadTimetable, conten
         location: /^PIDTECH\s*\(JPI\)$/i.test(event?.title || '') ||
           value === '2026-11-23' && slot === 'whanau' && /^WHANAU\s*\(9WHAU\)$/i.test(event?.title || '') ? 'CW' : event?.location || '',
         classKey: event && /^[^(]+\(([A-Z0-9_-]+)\)$/i.exec(event.title.trim())?.[1].toUpperCase() || null,
-        source: event ? 'KAMAR' : 'manual' },
+        source: ambiguous ? 'ambiguous' : event ? 'KAMAR' : 'manual' },
         content: row?.content || { note: '', evaluation: '', activities: [], session },
         revision: row?.revision || 0, updated_at: row?.updated_at || null });
     }

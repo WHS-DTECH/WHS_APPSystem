@@ -97,6 +97,10 @@ test('invalid and duplicate session metadata is reported instead of matching a c
   assert.deepEqual(result.cards.map(card => card.metadata.class_key), ['9WHAU']);
   assert.equal(result.issues.length, 3);
   assert.equal(result.issues.filter(issue => issue.message.includes('Duplicate')).length, 2);
+  assert.equal(result.unassigned.length, 1);
+  assert.equal(result.unassigned[0].name, state.cards.at(-1).name);
+  assert.equal(result.unassigned[0].description, 'No metadata');
+  assert.ok(!result.unassigned[0].metadata, 'unverified cards have no inferred date or class');
   state.cards = [];
   assert.equal((await (await call()).json()).status, 'empty');
 });
