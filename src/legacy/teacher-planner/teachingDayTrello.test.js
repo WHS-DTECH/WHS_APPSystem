@@ -6,6 +6,11 @@ const { createModuleRouter } = require('./app');
 const { parseMetadata } = require('./teachingDayTrello');
 const owner = '11111111-1111-4111-8111-111111111111';
 const boardId = '6b0286099da18b3599a6940e', listId = '6b02860d27edaa3359a950a5';
+const homeLists = [
+  { id: '1'.repeat(24), idBoard: boardId, name: '9WHAU', closed: false, cards: [] },
+  { id: '2'.repeat(24), idBoard: boardId, name: 'JPI', closed: false, cards: [] },
+  { id: '3'.repeat(24), idBoard: boardId, name: 'JSR', closed: false, cards: [] }
+];
 const metadata = overrides => ({
   schema_version: 1, teaching_date: '2026-11-23', session_slot: 'p2', class_key: 'JPI',
   session_type: 'teaching', display_name: 'JPI - JuniorDTECH', start_time: '10:00', end_time: '11:00',
@@ -16,9 +21,18 @@ const description = value => 'Preparation and activities remain readable.\n\n```
 const card = (id, value) => ({ id: id.repeat(24), idList: listId, name: 'A deliberately unrelated card title',
   desc: description(value), url: 'https://trello.com/c/AbCd' + id.repeat(4) + '/teaching',
   closed: false, dateLastActivity: '2026-11-22T05:00:00Z' });
+const dashboardDescription = value => '[TEACHING_DASHBOARD_V1]\n' +
+  Object.entries(value).map(([key, item]) => `${key}: ${item}`).join('\n') +
+  '\n[/TEACHING_DASHBOARD_V1]\n\n## Teaching slots\n\n### SLOT 1 | Activity | ' +
+  value.display_title + '\nDetails: Verified preparation content.';
+const dashboardCard = (id, idList, value) => ({ id: id.repeat(24), idList,
+  name: value.display_title, desc: dashboardDescription(value),
+  url: 'https://trello.com/c/AbCd' + id.repeat(4) + '/teaching',
+  closed: false, dateLastActivity: '2026-11-26T17:00:00Z' });
 
 async function fixture(t, overrides = {}) {
   const state = { user: { id: owner, roles: ['Teacher'] }, calls: [], queries: [],
+    homeLists: homeLists.map(list => ({ ...list, cards: [...list.cards] })),
     cards: [card('a', metadata()), card('b', metadata({ session_slot: 'whanau', class_key: '9WHAU',
       session_type: 'whanau', display_name: 'Whanau 9WHAU', start_time: '08:45', end_time: '09:00', lesson_title: 'Whanau routine' }))],
     env: { TEACHER_PLANNER_TRELLO_OWNER_ID: owner, TEACHER_PLANNER_TRELLO_API_KEY: 'c'.repeat(32),
@@ -37,10 +51,19 @@ async function fixture(t, overrides = {}) {
         { modelType: 'Board', idModel: state.grantedBoard || boardId, read: true, write: Boolean(state.writeToken) }
       ] });
       if (path === '/1/boards/' + boardId) return Response.json({ id: boardId, closed: false });
+      if (path === '/1/boards/' + boardId + '/lists') return Response.json([
+        { id: listId, idBoard: boardId, name: 'CURRENT TEACHING DAY', closed: false },
+        ...state.homeLists.map(({ cards, ...list }) => list)
+      ]);
       if (path === '/1/lists/' + listId) return Response.json({ id: listId,
         idBoard: state.wrongBoard ? 'f'.repeat(24) : boardId, name: state.listName || 'CURRENT TEACHING DAY', closed: false });
-      assert.equal(path, '/1/lists/' + listId + '/cards');
-      return Response.json(state.cards);
+      const homeList = state.homeLists.find(list => path === '/1/lists/' + list.id);
+      if (homeList) return Response.json(homeList);
+      if (path === '/1/lists/' + listId + '/cards') return Response.json(state.cards);
+      if (homeList && path === '/1/lists/' + homeList.id + '/cards') return Response.json(homeList.cards);
+      const homeCards = state.homeLists.find(list => path === '/1/lists/' + list.id + '/cards');
+      if (homeCards) return Response.json(homeCards.cards);
+      assert.fail('Unexpected Trello read path: ' + path);
     } } }));
   const server = app.listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
@@ -67,6 +90,22 @@ test('versioned teaching metadata is strict, handles CRLF, and preserves the rem
   assert.throws(() => parseMetadata(description(metadata()) + '\n' + description(metadata())));
 });
 
+test('existing Teaching Dashboard V1 metadata is accepted and normalised without requiring JSON-only fields', () => {
+  const value = { teaching_date: '2026-11-27', session_slot: 'p2', class_key: 'JPI',
+    session_type: 'teaching', start_time: '10:00', display_title: 'JuniorDTECH preparation',
+    home_list: 'JPI' };
+  const parsed = parseMetadata(dashboardDescription(value), listId);
+  assert.equal(parsed.metadata.teaching_date, value.teaching_date);
+  assert.equal(parsed.metadata.session_slot, value.session_slot);
+  assert.equal(parsed.metadata.class_key, value.class_key);
+  assert.equal(parsed.metadata.end_time, '11:00');
+  assert.equal(parsed.metadata.home_list, listId);
+  assert.equal(parsed.description, dashboardDescription(value));
+  assert.throws(() => parseMetadata(dashboardDescription({ ...value, session_slot: 'p6' }), listId));
+  assert.throws(() => parseMetadata(dashboardDescription({ ...value, class_key: 'jpi' }), listId));
+  assert.throws(() => parseMetadata(dashboardDescription({ ...value, teaching_date: '2026-02-30' }), listId));
+});
+
 test('read-only feed filters student-facing sessions and sorts by timetable slot, not card title or list order', async t => {
   const { state, call } = await fixture(t);
   state.cards.push(card('e', metadata({ session_type: 'observation' })), card('f', metadata({ teaching_date: '2026-11-24' })));
@@ -88,6 +127,42 @@ test('read-only feed filters student-facing sessions and sorts by timetable slot
   assert.equal((await (await call()).json()).cards[1].metadata.preparation_status, 'Updated outside Planner');
   assert.equal((await call(undefined, { method: 'PUT' })).status, 405);
   assert.equal(state.calls.length, 8, 'refresh reads only; PUT makes no Trello call');
+});
+
+test('Friday V1 cards match timetable session references and selected class home lists are searched read-only', async t => {
+  const { state, call } = await fixture(t);
+  state.cards = [
+    dashboardCard('4', listId, { teaching_date: '2026-11-27', session_slot: 'whanau',
+      class_key: '9WHAU', session_type: 'whanau', start_time: '08:45',
+      display_title: 'Whānau check-in', home_list: '9WHAU' }),
+    dashboardCard('5', listId, { teaching_date: '2026-11-27', session_slot: 'p2',
+      class_key: 'JPI', session_type: 'teaching', start_time: '10:00',
+      display_title: 'JuniorDTECH preparation', home_list: 'JPI' }),
+    dashboardCard('6', listId, { teaching_date: '2026-11-27', session_slot: 'p3',
+      class_key: 'JSR', session_type: 'teaching', start_time: '11:20',
+      display_title: 'JuniorDTECH preparation', home_list: 'JSR' })
+  ];
+  state.homeLists[1].cards = [dashboardCard('7', state.homeLists[1].id, {
+    teaching_date: '2026-11-30', session_slot: 'p2', class_key: 'JPI',
+    session_type: 'teaching', start_time: '10:00', display_title: 'Future JPI preparation',
+    home_list: 'JPI'
+  })];
+  const query = new URLSearchParams({
+    classKeys: '9WHAU,JPI,JSR',
+    classLists: '9WHAU=9WHAU,JPI=JPI,JSR=JSR'
+  }).toString();
+  const friday = await (await call('teaching-day-trello/2026-11-27?' + query)).json();
+  assert.deepEqual(friday.cards.map(item => [item.metadata.session_slot, item.metadata.class_key]), [
+    ['whanau', '9WHAU'], ['p2', 'JPI'], ['p3', 'JSR']
+  ]);
+  assert.equal(friday.issues.length, 0);
+  assert.equal(friday.cards[1].metadata.end_time, '11:00');
+  assert.ok(friday.cards[1].description.includes('Verified preparation content.'));
+  const monday = await (await call('teaching-day-trello/2026-11-30?' + query)).json();
+  assert.deepEqual(monday.cards.map(item => [item.metadata.session_slot, item.metadata.class_key]), [['p2', 'JPI']]);
+  assert.equal(monday.cards[0].name, 'Future JPI preparation');
+  assert.ok(state.calls.some(({ url }) => new URL(url).pathname === '/1/lists/' + state.homeLists[1].id + '/cards'));
+  assert.ok(!JSON.stringify(monday).includes(state.env.TEACHER_PLANNER_TRELLO_TOKEN));
 });
 
 test('invalid and duplicate session metadata is reported instead of matching a card by guesswork', async t => {

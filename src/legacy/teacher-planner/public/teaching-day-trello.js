@@ -11,6 +11,25 @@
       value.slice(11, 16);
     return Number(clock.slice(0, 2)) * 60 + Number(clock.slice(3, 5));
   }
+  function classListReferences(sessions) {
+    const classKeys = new Set(), names = new Map(), conflicts = new Set();
+    for (const session of sessions) {
+      if (!session.classKey) continue;
+      classKeys.add(session.classKey);
+      names.set(session.classKey, session.classKey);
+      const match = /^(.+?)\s+\(([A-Z0-9_-]+)\)$/i.exec(session.title.trim());
+      if (!match || match[2].toUpperCase() !== session.classKey) continue;
+      const name = match[1].trim().toUpperCase();
+      if (!/^[A-Z0-9][A-Z0-9 _-]{0,39}$/.test(name)) continue;
+      if (names.has(name) && names.get(name) !== session.classKey) {
+        names.delete(name); conflicts.add(name);
+      } else if (!conflicts.has(name)) names.set(name, session.classKey);
+    }
+    return {
+      classKeys: [...classKeys],
+      classLists: [...names].map(([name, classKey]) => name + '=' + classKey)
+    };
+  }
   function sessionsForDate(events, value, slots) {
     const weekday = new Date(value + 'T00:00:00Z').getUTCDay();
     if (weekday === 0 || weekday === 6) return [];
@@ -231,7 +250,11 @@
       }
       scheduledSessions = schedule.sessions; scheduleError = schedule.error; renderSchedule();
       try {
-        const feed = await request(context.date);
+        const refs = classListReferences(scheduledSessions);
+        const params = refs.classKeys.length ? new URLSearchParams({
+          classKeys: refs.classKeys.join(','), classLists: refs.classLists.join(',')
+        }).toString() : '';
+        const feed = await request(context.date, params);
         if (current !== generation || !page.isConnected) return;
         result = feed;
         cards.replaceChildren();

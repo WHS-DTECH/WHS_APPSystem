@@ -2011,7 +2011,11 @@ Trello API key/token configured below. That token must authorise the new teachin
 board; a token limited to the Term board will not suffice. No credentials enter
 browser code. The owner-only `GET /api/planner/teaching-day-trello/:date` verifies
 board access, a read-only token, and the configured active list's board membership
-and name `CURRENT TEACHING DAY`. It never searches another list or writes Trello
+and name `CURRENT TEACHING DAY`. Dashboard requests also provide class references
+from the selected, owner-authenticated KAMAR timetable. The feed reads only open
+lists on that board whose exact names match those timetable class keys or their
+verified class-title prefixes, then filters cards to the selected date and exact
+class/session metadata. It does not search arbitrary board lists or write Trello
 or Planner records.
 
 Opening Notes makes no feed request. Opening Trello loads a compact list of
@@ -2023,9 +2027,10 @@ reported inside Trello and cannot block Notes/autosaving. Invalid or duplicate
 references are not guessed. Observations, meetings and duties are excluded.
 
 Cards may persist and be maintained externally; the Planner does not require or
-create a card per period. Outside the explicitly mapped Monday pilot, maintain
-exactly one versioned source-reference block below in each displayed card's
-description. Keep other preparation, activities,
+create a card per period. The feed accepts either the fenced `whs-teaching-session-v1`
+source-reference block or the existing `[TEACHING_DASHBOARD_V1]` metadata block.
+The date-only `teaching_date` is interpreted as the NZ teaching date. Keep other
+preparation, activities,
 resources, task-status reports and AI-generated notes outside the block.
 Named resources use `[Resource name](https://...)` Markdown links.
 
@@ -2088,15 +2093,17 @@ introduced. Maintain cards independently in Trello/ChatGPT.
 
 #### Colour-coded Teaching Slots V1
 
-The selected pilot card's Trello view recognises one balanced
+The Trello view recognises one balanced
 `[TEACHING_DASHBOARD_V1]` / `[/TEACHING_DASHBOARD_V1]` block, followed by the exact
 `## Teaching slots` heading and repeated `### SLOT n | Type | Title` headings.
-Required metadata is `teaching_date`, `session_slot`, `class_key`, `session_type`,
-`start_time`, `room` and `display_title`, using `key: value` lines. It must match
-the authorised feed's existing session reference. Optional `home_list`, `course`
-and `unit` are informational; `home_list: JPI` is not a Trello list ID.
-This presentation format does not replace source-reference matching for other
-cards or add integration permissions.
+Required matching metadata is `teaching_date`, `session_slot`, `class_key`,
+`session_type`, `start_time` and `display_title`, using `key: value` lines.
+`room` is optional. The date, slot and class key must match the selected timetable
+session. The optional `home_list`, `course` and `unit` fields are informational;
+for a class home-list lookup, the server verifies the list belongs to the
+configured board and the card's class key matches the selected timetable class.
+`home_list: JPI` is not treated as a Trello list ID. The end time comes from the
+established session slot definition.
 
 Slots retain their document order, even when their numbers are not consecutive.
 Routine is green, Kit teal, Activity purple, Unit Library orange and Whanau blue.

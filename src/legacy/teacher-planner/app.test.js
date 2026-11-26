@@ -895,8 +895,8 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(embedded, /href="\/launchpad\/apps\/relief-plan"/);
   assert.match(embedded, /href="\/launchpad\/apps\/whs-unit-library"/);
   assert.match(embedded, /href="\/launchpad\/apps\/whs-assessment-manager"/);
-  assert.match(html, /planner\.css\?v=forward-planning-3/);
-  const plannerScript = html.indexOf('src="/planner/framework/planner.js?v=forward-planning-3"');
+  assert.match(html, /planner\.css\?v=forward-planning-4/);
+  const plannerScript = html.indexOf('src="/planner/framework/planner.js?v=forward-planning-4"');
   const todoScript = html.indexOf('src="/planner/framework/todo-trello.js?v=trello-completion-3"');
   const dashboardScript = html.indexOf('src="/planner/framework/todo-dashboard.js?v=trello-completion-2"');
   assert.ok(plannerScript >= 0 && todoScript >= 0 && dashboardScript >= 0);
@@ -906,8 +906,8 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.ok(trelloScript >= 0 && trelloScript < plannerScript);
   assert.ok(todoScript < dashboardScript && dashboardScript < plannerScript);
   assert.ok(html.indexOf('src="/planner/framework/session-schema.js?v=scheduled-session-3"') < html.indexOf('src="/planner/framework/teaching-slots.js?v=7"'));
-  assert.ok(html.indexOf('src="/planner/framework/teaching-slots.js?v=7"') < html.indexOf('src="/planner/framework/teaching-day-trello.js?v=forward-planning-3"'));
-  assert.ok(html.indexOf('src="/planner/framework/teaching-day-trello.js?v=forward-planning-3"') < html.indexOf('src="/planner/framework/teaching-session.js?v=ambiguous-timetable-1"'));
+  assert.ok(html.indexOf('src="/planner/framework/teaching-slots.js?v=7"') < html.indexOf('src="/planner/framework/teaching-day-trello.js?v=forward-planning-4"'));
+  assert.ok(html.indexOf('src="/planner/framework/teaching-day-trello.js?v=forward-planning-4"') < html.indexOf('src="/planner/framework/teaching-session.js?v=ambiguous-timetable-1"'));
   assert.ok(html.indexOf('src="/planner/framework/teaching-session.js?v=ambiguous-timetable-1"') < plannerScript);
   const heading = html.match(/<header class="planner-heading">([\s\S]*?)<\/header>/)[1];
   for (const id of ['planner-year', 'open-year', 'print-planner']) {
@@ -991,7 +991,7 @@ test('module denies anonymous/student access and accepts a supplied teacher iden
     assert.match(html, /Last Updated:/);
     assert.match(html, /id="planner-year"[^>]*value="2026"/);
     assert.match(html, /data-api="\/module\/api\/planner\/"/);
-    assert.match(html, /src="\/module\/framework\/planner\.js\?v=forward-planning-3"/);
+    assert.match(html, /src="\/module\/framework\/planner\.js\?v=forward-planning-4"/);
     assert.match(html, /Weekly planner/);
     assert.match(html, /Professional learning/);
     assert.ok(!html.includes('name="whs-global-control"'));

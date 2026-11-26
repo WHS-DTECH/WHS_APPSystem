@@ -5,6 +5,8 @@ const ID = /^[0-9a-f]{24}$/;
 const UUID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 const FIELDS = ['schema_version', 'teaching_date', 'session_slot', 'class_key', 'session_type',
   'display_name', 'start_time', 'end_time', 'lesson_title', 'preparation_status', 'home_list'];
+const DASHBOARD_FIELDS = new Set(['teaching_date', 'session_slot', 'class_key', 'session_type',
+  'start_time', 'room', 'display_title', 'home_list', 'course', 'unit']);
 const MONDAY_CARDS = {
   '6b02861f8bb8cb32f08f0cc4': { session_slot: 'whanau', class_key: '9WHAU', session_type: 'whanau',
     display_name: '9WHAU - Whanau', start_time: '08:45', end_time: '09:00', lesson_title: 'Whanau' },
@@ -17,9 +19,50 @@ function validDate(value) {
     value >= '2000-01-01' && value <= '2100-12-31' &&
     Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
 }
-function parseMetadata(description) {
+function parseDashboardMetadata(description, listId) {
+  const text = description.replace(/\r\n/g, '\n');
+  const starts = [...text.matchAll(/^\[TEACHING_DASHBOARD_V1\][ \t]*$/gm)];
+  const ends = [...text.matchAll(/^\[\/TEACHING_DASHBOARD_V1\][ \t]*$/gm)];
+  const block = /^\[TEACHING_DASHBOARD_V1\][ \t]*\n([\s\S]*?)^\[\/TEACHING_DASHBOARD_V1\][ \t]*$/m.exec(text);
+  const fail = message => { throw new Error(message); };
+  if (starts.length !== 1 || ends.length !== 1 || !block || text.slice(0, block.index).trim()) {
+    fail('Exactly one Teaching Dashboard V1 metadata block is required.');
+  }
+  const legacy = Object.create(null);
+  for (const line of block[1].split('\n').filter(line => line.trim())) {
+    const field = /^([a-z_]+):[ \t]*(.*)$/.exec(line);
+    if (!field || Object.hasOwn(legacy, field[1]) || field[2].length > 200) {
+      fail('Invalid or duplicate Teaching Dashboard V1 metadata field.');
+    }
+    legacy[field[1]] = field[2].trim();
+  }
+  const slot = slots.find(item => item[0] === legacy.session_slot);
+  if (!validDate(legacy.teaching_date) || !slot ||
+    typeof legacy.class_key !== 'string' || !/^[A-Z0-9][A-Z0-9_-]{0,39}$/.test(legacy.class_key) ||
+    !['teaching', 'whanau'].includes(legacy.session_type) ||
+    (legacy.session_slot === 'whanau') !== (legacy.session_type === 'whanau') ||
+    !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(legacy.start_time || '') ||
+    typeof legacy.display_title !== 'string' || !legacy.display_title.trim()) {
+    fail('Teaching Dashboard V1 needs a valid date, slot, class, session type, NZ start time and display title.');
+  }
+  if (Object.keys(legacy).some(field => !DASHBOARD_FIELDS.has(field))) {
+    fail('Teaching Dashboard V1 contains an unsupported metadata field.');
+  }
+  return {
+    metadata: {
+      schema_version: 1, teaching_date: legacy.teaching_date, session_slot: legacy.session_slot,
+      class_key: legacy.class_key, session_type: legacy.session_type, display_name: legacy.display_title,
+      start_time: legacy.start_time, end_time: slot[3], lesson_title: legacy.display_title,
+      preparation_status: 'See card preparation', home_list: listId, room: legacy.room || ''
+    },
+    description: text,
+    legacy
+  };
+}
+function parseMetadata(description, listId) {
   const fail = message => { throw new Error(message); };
   const starts = description.match(/^```whs-teaching-session[^\r\n]*\r?$/gm) || [];
+  if (!starts.length) return parseDashboardMetadata(description, listId);
   if (starts.length !== 1) fail('Exactly one versioned session metadata block is required.');
   const block = /^```whs-teaching-session-v1\r?\n([\s\S]*?)^```[ \t]*\r?$/m.exec(description);
   if (!block) fail('Use the whs-teaching-session-v1 fenced block.');
@@ -92,35 +135,82 @@ function createTeachingDayTrelloRouter({ env = process.env, fetchImpl = globalTh
         typeof list.name !== 'string' || list.name.trim().toUpperCase() !== 'CURRENT TEACHING DAY') {
         return res.status(409).json({ error: 'The configured active list must be CURRENT TEACHING DAY on the configured Teaching Planner board. No other list was selected.' });
       }
-      const source = await read('lists/' + listId + '/cards', { filter: 'open', fields: 'id,idList,name,desc,url,closed,dateLastActivity' });
-      if (!Array.isArray(source) || source.length > 200 || !source.every(card =>
-        card && ID.test(card.id) && card.idList === listId && typeof card.closed === 'boolean' &&
-        typeof card.name === 'string' && card.name.length <= 1000 &&
-        typeof card.desc === 'string' && card.desc.length <= 64000 &&
-        typeof card.url === 'string' && typeof card.dateLastActivity === 'string' && Number.isFinite(Date.parse(card.dateLastActivity)))) {
-        throw new Error('The teaching list returned invalid card data.');
+      const readNames = value => {
+        if (value === undefined) return [];
+        if (typeof value !== 'string' || value.length > 600) return null;
+        const names = value.split(',').filter(Boolean);
+        return names.length <= 12 && names.every(name => /^[A-Z0-9][A-Z0-9_-]{0,39}$/.test(name)) &&
+          new Set(names).size === names.length ? names : null;
+      };
+      const classKeys = readNames(req.query.classKeys);
+      const classListEntries = req.query.classLists === undefined ? [] :
+        typeof req.query.classLists === 'string' && req.query.classLists.length <= 1200 ?
+          req.query.classLists.split(',').filter(Boolean).map(entry => {
+            const match = /^([A-Z0-9][A-Z0-9 _-]{0,39})=([A-Z0-9][A-Z0-9_-]{0,39})$/.exec(entry);
+            return match && match[1].trim() === match[1] ? { name: match[1], classKey: match[2] } : null;
+          }) : null;
+      if (!classKeys || !classListEntries ||
+        classListEntries.length > 12 || classListEntries.some(entry => !entry) ||
+        new Set(classListEntries.map(entry => entry.name)).size !== classListEntries.length ||
+        classListEntries.some(entry => !classKeys.includes(entry.classKey))) {
+        return res.status(400).json({ error: 'Teaching class references are invalid. Refresh the selected date and try again.' });
       }
+      const sources = [{ listId, listName: list.name, cards: await read('lists/' + listId + '/cards',
+        { filter: 'open', fields: 'id,idList,name,desc,url,closed,dateLastActivity' }) }];
+      if (classListEntries.length) {
+        const boardLists = await read('boards/' + boardId + '/lists', { filter: 'open', fields: 'id,idBoard,name,closed' });
+        if (!Array.isArray(boardLists) || boardLists.length > 500 || !boardLists.every(item =>
+          item && ID.test(item.id) && item.idBoard === boardId && typeof item.closed === 'boolean' &&
+          typeof item.name === 'string' && item.name.length <= 200)) {
+          throw new Error('The teaching board returned invalid list data.');
+        }
+        for (const entry of classListEntries) {
+          const matches = boardLists.filter(item => !item.closed && item.name.trim().toUpperCase() === entry.name);
+          if (matches.length !== 1 || matches[0].id === listId) continue;
+          sources.push({ listId: matches[0].id, listName: matches[0].name,
+            classKey: entry.classKey, cards: await read('lists/' + matches[0].id + '/cards',
+              { filter: 'open', fields: 'id,idList,name,desc,url,closed,dateLastActivity' }) });
+        }
+      }
+      const source = sources.flatMap(item => {
+        if (!Array.isArray(item.cards) || item.cards.length > 200 || !item.cards.every(card =>
+          card && ID.test(card.id) && card.idList === item.listId && typeof card.closed === 'boolean' &&
+          typeof card.name === 'string' && card.name.length <= 1000 &&
+          typeof card.desc === 'string' && card.desc.length <= 64000 &&
+          typeof card.url === 'string' && typeof card.dateLastActivity === 'string' && Number.isFinite(Date.parse(card.dateLastActivity)))) {
+          throw new Error('The teaching list returned invalid card data.');
+        }
+        return item.cards.filter(card => !card.closed).map(card => ({ card, source: item }));
+      });
       const issues = [], candidates = [], unassigned = [];
-      for (const card of source.filter(card => !card.closed)) {
+      for (const { card, source: sourceList } of source) {
         const url = cardLink(card.url);
         let parsed;
-        try { parsed = parseMetadata(card.desc); }
+        try { parsed = parseMetadata(card.desc, sourceList.listId); }
         catch (error) {
-          const monday = req.params.date === '2026-11-23' &&
+          const monday = sourceList.listId === listId && req.params.date === '2026-11-23' &&
             boardId === '6b0286099da18b3599a6940e' && listId === '6b02860d27edaa3359a950a5' && MONDAY_CARDS[card.id];
           if (!monday) {
             issues.push({ cardId: card.id, message: error.message });
-            unassigned.push({ id: card.id, name: card.name, url, description: card.desc,
+            if (sourceList.listId === listId) unassigned.push({ id: card.id, name: card.name, url, description: card.desc,
               resources: resourceLinks(card.desc), updatedAt: card.dateLastActivity });
             continue;
           }
           parsed = { metadata: { schema_version: 1, teaching_date: '2026-11-23', ...monday,
             preparation_status: 'See card preparation', home_list: listId }, description: card.desc };
         }
+        if (sourceList.classKey && (parsed.metadata.class_key !== sourceList.classKey ||
+          parsed.legacy?.home_list && ![sourceList.listName.trim().toUpperCase(), sourceList.classKey]
+            .includes(parsed.legacy.home_list.toUpperCase()) ||
+          !parsed.legacy && parsed.metadata.home_list !== sourceList.listId)) {
+          issues.push({ cardId: card.id, message: 'The card metadata does not match its verified class home list.' });
+          continue;
+        }
         if (parsed.metadata.teaching_date !== req.params.date) continue;
-        candidates.push({ id: card.id, name: card.name, url, ...parsed,
-          location: parsed.metadata.class_key === 'JPI' ||
-            req.params.date === '2026-11-23' && parsed.metadata.class_key === '9WHAU' ? 'CW' : null,
+        if (sourceList.classKey && !classKeys.includes(parsed.metadata.class_key)) continue;
+        candidates.push({ id: card.id, name: card.name, url, metadata: parsed.metadata, description: parsed.description,
+          location: parsed.metadata.room || (parsed.metadata.class_key === 'JPI' ||
+            req.params.date === '2026-11-23' && parsed.metadata.class_key === '9WHAU' ? 'CW' : null),
           resources: resourceLinks(parsed.description), updatedAt: card.dateLastActivity });
       }
       const reference = card => [card.metadata.teaching_date, card.metadata.session_slot, card.metadata.class_key].join('|');

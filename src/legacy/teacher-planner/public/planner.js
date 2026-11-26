@@ -980,7 +980,9 @@
     teachingDashboard = globalThis.plannerTeachingDayTrello.dashboard(content, {
       date: value, slot: 'p1', classKey: null, cardId: ''
     }, {
-      el, request: async day => { await refreshSession(); return request(api + 'teaching-day-trello/' + day); },
+      el, request: async (day, query = '') => {
+        await refreshSession(); return request(api + 'teaching-day-trello/' + day + (query ? '?' + query : ''));
+      },
       loadSchedule: loadTeachingDayTimetable, termControl, termError: dashboardTermError,
       changeDate: changeTeachingDay,
       openNotesSession: session => openSessionPlan(session.date, session.slot, undefined, undefined, false),
@@ -996,9 +998,6 @@
   function mountTeachingSession(data, legacy) {
     content.dataset.view = 'period';
     sessionAddress = 'sessions/' + periodDate + '/' + periodSlot;
-    const teachingDay = async value => {
-      await refreshSession(); return request(api + 'teaching-day-trello/' + value);
-    };
     let dashboard;
     if (dashboardMode) {
       const context = { date: periodDate, slot: periodSlot, classKey: data.event.classKey, cardId: selectedTeachingCard,
@@ -1008,7 +1007,9 @@
       } else {
         const termControl = selectors.querySelector('.planner-term-control');
         dashboard = teachingDashboard = globalThis.plannerTeachingDayTrello.dashboard(content, context, {
-          el, request: teachingDay, loadSchedule: loadTeachingDayTimetable, termControl, termError: dashboardTermError,
+          el, request: async (day, query = '') => {
+            await refreshSession(); return request(api + 'teaching-day-trello/' + day + (query ? '?' + query : ''));
+          }, loadSchedule: loadTeachingDayTimetable, termControl, termError: dashboardTermError,
           changeDate: changeTeachingDay,
           openNotesSession: session => openSessionPlan(session.date, session.slot, undefined, undefined, false),
           openTrelloSession: session => openSessionPlan(session.date, session.slot, undefined, undefined, true),

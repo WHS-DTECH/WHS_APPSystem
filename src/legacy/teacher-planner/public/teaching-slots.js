@@ -29,7 +29,8 @@
       !['teaching', 'whanau'].includes(metadata.session_type) ||
       (metadata.session_slot === 'whanau') !== (metadata.session_type === 'whanau') ||
       !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(metadata.start_time || '') ||
-      !metadata.room || !metadata.display_title) throw new FormatError('Check the class, date, room, title and NZ start time.');
+      metadata.room !== undefined && typeof metadata.room !== 'string' ||
+      !metadata.display_title) throw new FormatError('Check the class, date, title and NZ start time.');
     const body = text.slice(blocks[0].index + blocks[0][0].length).trim();
     if (!body.startsWith('## Teaching slots\n')) throw new FormatError('Use the Teaching slots heading.');
     const slots = [], panels = { preparation: '', continuation: '' }, headings = new Set(), numbers = new Set();
@@ -121,7 +122,8 @@
     const article = el('article', '', { class: 'teaching-slot-plan', 'aria-label': 'Trello teaching slots' });
     const header = el('header', '', { class: 'teaching-slot-header' }), title = el('div');
     title.append(el('h3', metadata.class_key + ' - ' + metadata.display_title),
-      el('p', 'Room ' + metadata.room + ' | ' + sessionSchema.dateLabel(metadata.teaching_date) + ' | ' + metadata.start_time + ' NZ'));
+      el('p', [metadata.room && 'Room ' + metadata.room, sessionSchema.dateLabel(metadata.teaching_date),
+        metadata.start_time + ' NZ'].filter(Boolean).join(' | ')));
     const trello = el('div', '', { class: 'teaching-slot-source' });
     trello.append(el('a', 'Open Trello', { href: card.url, target: '_blank', rel: 'noopener noreferrer' }),
       el('p', 'Trello updated'), el('time', sessionSchema.timestampLabel(card.updatedAt), { datetime: card.updatedAt }));

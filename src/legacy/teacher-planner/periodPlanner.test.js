@@ -356,6 +356,16 @@ test('malformed and older Trello cards keep a readable fallback without breaking
   assert.ok(nodes.some(item => item.attrs.role === 'alert' && item.textContent.includes('original Trello card')));
   assert.ok(nodes.some(item => item.textContent === malformed.description));
 });
+test('Teaching Dashboard V1 preparation renders when the optional room field is absent', () => {
+  const renderer = require('./public/teaching-slots');
+  const card = teachingSlotFixture();
+  card.description = card.description.replace('room: CW\n', '');
+  const plan = renderer.parse(card.description);
+  assert.equal(plan.metadata.room, undefined);
+  const rendered = renderer.render(node, card, slotProgramme);
+  assert.ok(slotDescendants(rendered).some(item => item.textContent.includes('10:00 NZ')));
+  assert.ok(!slotDescendants(rendered).some(item => item.textContent.includes('Room undefined')));
+});
 test('Whanau and observation workspaces keep independent Notes drafts through the shared Trello toggle', () => {
   const context = { plannerSessionSchema: require('./public/session-schema') };
   vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-session'), 'utf8'), context);
@@ -482,18 +492,18 @@ test('Teaching Day timetable matches exact sessions in Pacific/Auckland time and
     context.plannerSessionSchema.slots))), []);
 });
 test('Teaching Day date controls refresh the selected date and leave Notes available without Trello cards', async () => {
-  const context = { plannerSessionSchema: require('./public/session-schema') };
+  const context = { plannerSessionSchema: require('./public/session-schema'), URLSearchParams };
   vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-day-trello'), 'utf8'), context);
-  const host = node(), trelloDates = [], scheduleDates = [], opened = [], selected = [], changedDates = [];
+  const host = node(), trelloDates = [], trelloQueries = [], scheduleDates = [], opened = [], selected = [], changedDates = [];
   const events = [
-    { title: 'Thursday class', start: '2026-11-26T09:00:00', end: '2026-11-26T10:00:00' },
-    { title: 'Friday class', start: '2026-11-27T09:00:00', end: '2026-11-27T10:00:00' }
+    { title: 'Thursday class (JPI)', start: '2026-11-26T09:00:00', end: '2026-11-26T10:00:00' },
+    { title: 'Friday class (JPI)', start: '2026-11-27T09:00:00', end: '2026-11-27T10:00:00' }
   ];
   const dashboard = context.plannerTeachingDayTrello.dashboard(host, {
     date: '2026-11-26', slot: 'p1', classKey: null, cardId: ''
   }, {
-    el: node, request: async value => {
-      trelloDates.push(value); return { status: 'ok', issues: [], cards: [], unassigned: [] };
+    el: node, request: async (value, query) => {
+      trelloDates.push(value); trelloQueries.push(query); return { status: 'ok', issues: [], cards: [], unassigned: [] };
     },
     loadSchedule: async value => { scheduleDates.push(value); return { events }; },
     changeDate: async value => { changedDates.push(value); return true; },
@@ -513,8 +523,8 @@ test('Teaching Day date controls refresh the selected date and leave Notes avail
   assert.equal(selected[0].slot, 'p1', 'clicking the class name opens its Trello view');
   elements.find(item => item.tag === 'button' && item.textContent === 'Open Notes').events.click();
   assert.deepEqual(JSON.parse(JSON.stringify(opened[0])), {
-    date: '2026-11-26', slot: 'p1', label: 'Period 1', title: 'Thursday class',
-    classKey: null, source: 'KAMAR', startTime: '09:00', endTime: '10:00'
+    date: '2026-11-26', slot: 'p1', label: 'Period 1', title: 'Thursday class (JPI)',
+    classKey: 'JPI', source: 'KAMAR', startTime: '09:00', endTime: '10:00'
   });
   elements.find(item => item.tag === 'article' && item.attrs.class === 'teaching-day-session')
     .events.click({ target: { closest: () => null } });
@@ -523,6 +533,8 @@ test('Teaching Day date controls refresh the selected date and leave Notes avail
   await flush(); await flush(); await flush();
   assert.equal(dashboard.date, '2026-11-27');
   assert.ok(trelloDates.includes('2026-11-27'));
+  assert.ok(trelloQueries.at(-1).includes('classKeys=JPI'));
+  assert.ok(trelloQueries.at(-1).includes('classLists=JPI%3DJPI'));
   assert.ok(scheduleDates.includes('2026-11-27'));
   elements = descend(host);
   elements.find(item => item.tag === 'button' && item.textContent === 'Open Notes').events.click();
