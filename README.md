@@ -2902,6 +2902,31 @@ still protect against stale saves. The original Planner regression suite runs
 with `npm test --prefix src/legacy/teacher-planner`; PostgreSQL tests require an
 isolated `PLANNER_TEST_DATABASE_URL`, never a production connection.
 
+### Teacher Planner database regression gaps
+
+The Phase 5 run on Node 22.23.4 skipped the following tests because their
+disposable PostgreSQL connection variables were not set. These are unverified
+database-backed paths, not evidence that the features fail:
+
+| Test | Coverage not exercised | Risk while skipped |
+| --- | --- | --- |
+| `attendance.test.js`: PostgreSQL attendance | Private attendance persistence, revision conflicts, imports and Drive checkpoints. | Database-specific errors could affect saved marks or conflict handling. |
+| `googleCalendar.test.js`: private Google API | Database-backed connection, owner isolation, token refresh, calendar selection, pagination and disconnect with a mocked Google provider. | Connection persistence or account isolation problems may go undetected; this is not a live Google test. |
+| `planner.test.js`: standalone sign-in | Standalone Global Control return destination, session renewal and protected endpoints using a mocked identity provider. | Redirect or session regressions in the standalone deployment may go undetected. The embedded live sign-out/sign-in was tested separately. |
+| `planner.test.js`: real database planner sections | Migrations, private section persistence, owner/admin isolation and revision conflicts. | Database-specific save, migration, privacy or concurrency failures may go undetected. |
+| `teachingSessions.test.js`: PostgreSQL sessions | Teaching date and timing persistence, continuation, revision conflicts and separation of non-teaching sessions. | Reopened plans or suggested continuation may be incorrect, or session data may be mixed. |
+
+The first four tests require `PLANNER_TEST_DATABASE_URL`; the fifth requires
+`TEACHING_SESSION_TEST_DATABASE_URL`. Use only an isolated, disposable local
+PostgreSQL database with permission to create and drop test schemas: these
+tests run migrations and delete their test schemas. Never use production.
+The separate pre-existing Moderation navigation test mismatch is tracked in
+[issue #1](https://github.com/WHS-DTECH/WHS_APPSystem/issues/1); do not change
+the navigation until its intended behaviour is clarified.
+
+Phase 5 Trello integration is conditionally accepted pending ChatGPT's separate
+verification of nightly DONE filing and the following morning's board state.
+
 ## Bus Controller
 
 The handed-over student Bus Controller is served unchanged at `/bus-controller/`
