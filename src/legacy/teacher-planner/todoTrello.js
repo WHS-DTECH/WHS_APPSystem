@@ -14,6 +14,34 @@ const roles = new Map([
   ...['HOLA', 'TIMETABLE', 'DTECH', 'WHĀNAU', 'PPTA', 'MODERATION', 'MISCELLANEOUS']
     .map(name => ['DONE - ' + name, 'filed'])
 ]);
+const activeRoles = new Set(['urgent', 'todo', 'doing', 'waiting', 'meetings']);
+
+function writeCredentials(env) {
+  const key = env.TEACHER_PLANNER_TRELLO_API_KEY, token = env.TEACHER_PLANNER_TRELLO_WRITE_TOKEN;
+  return /^[0-9a-f]{32}$/i.test(key || '') && /^[A-Za-z0-9_-]{32,512}$/.test(token || '') ? { key, token } : null;
+}
+
+function hasWriteBoardGrant(grant, board) {
+  return Array.isArray(grant?.permissions) && grant.permissions.some(item => item &&
+    typeof item.modelType === 'string' && /^boards?$/i.test(item.modelType) &&
+    ['*', board].includes(item.idModel) && item.read === true && item.write === true);
+}
+
+function validateLists(lists) {
+  if (!Array.isArray(lists) || !lists.every(list => list && ID.test(list.id) &&
+      typeof list.name === 'string' && typeof list.closed === 'boolean')) throw new Error('Invalid lists.');
+  const selected = lists.filter(list => !list.closed && roles.has(normalize(list.name)));
+  const names = selected.map(list => normalize(list.name));
+  if (new Set(names).size !== names.length || new Set(selected.map(list => list.id)).size !== selected.length) {
+    throw new Error('Ambiguous lists.');
+  }
+  return selected;
+}
+
+function validCardState(card, cardId, boardId) {
+  return card && card.id === cardId && card.idBoard === boardId && ID.test(card.idList) &&
+    typeof card.name === 'string' && typeof card.closed === 'boolean' && typeof card.dueComplete === 'boolean';
+}
 
 async function completionToday(read, card, now = new Date()) {
   if (!card.dueComplete) return { completedAt: null, completionActivity: 'unknown' };
@@ -72,14 +100,13 @@ function createTodoTrelloRouter({ env = process.env, fetchImpl = globalThis.fetc
         throw new Error('Invalid grant.');
       }
       const lists = await read('boards/' + BOARD + '/lists', { filter: 'open', fields: 'id,name,closed' });
-      if (!Array.isArray(lists) || !lists.every(list => list && ID.test(list.id) &&
-          typeof list.name === 'string' && typeof list.closed === 'boolean')) throw new Error('Invalid lists.');
-      const selected = lists.filter(list => !list.closed && roles.has(normalize(list.name)));
-      const names = selected.map(list => normalize(list.name));
-      if (new Set(names).size !== names.length || new Set(selected.map(list => list.id)).size !== selected.length) {
-        failure = 'Trello ToDo has duplicate list names. Resolve the ambiguity in Trello before refreshing.';
-        throw new Error('Ambiguous lists.');
+      let selected;
+      try { selected = validateLists(lists); }
+      catch (error) {
+        if (error.message === 'Ambiguous lists.') failure = 'Trello ToDo has duplicate list names. Resolve the ambiguity in Trello before refreshing.';
+        throw error;
       }
+      const names = selected.map(list => normalize(list.name));
       if (!['URGENT', 'TO DO', 'DONE'].every(name => names.includes(name))) {
         failure = 'Trello ToDo requires one URGENT, TO DO and DONE list. Check the board list names.';
         throw new Error('Missing lists.');
@@ -117,12 +144,115 @@ function createTodoTrelloRouter({ env = process.env, fetchImpl = globalThis.fetc
           cards: mappedCards
         });
       }
-      return res.json({ status: 'ok', boardUrl: BOARD_URL, fetchedAt: new Date().toISOString(), lists: result });
+      let writeAvailable = false;
+      const credentials = writeCredentials(env);
+      if (credentials) {
+        try {
+          const writerRead = createTrelloReader({ ...credentials, fetchImpl });
+          const writeGrant = await writerRead('tokens/' + encodeURIComponent(credentials.token), { fields: 'permissions' });
+          writeAvailable = hasWriteBoardGrant(writeGrant, board.id);
+          if (!writeAvailable) console.warn('ToDo Trello write permission unavailable.');
+        } catch {
+          console.warn('ToDo Trello write permission check failed.');
+        }
+      }
+      return res.json({ status: 'ok', boardUrl: BOARD_URL, fetchedAt: new Date().toISOString(), writeAvailable, lists: result });
     } catch (error) {
       if ([401, 403].includes(error.status)) failure = 'Trello permission is missing or its read-only token expired.';
       if (error.status === 429) failure = 'Trello is rate-limiting requests. Wait briefly and retry.';
       console.warn('ToDo Trello read failed.');
       return res.status(502).json({ error: failure });
+    }
+  });
+
+  const inFlight = new Set();
+  router.post('/cards/:id/complete', async (req, res) => {
+    const owner = env.TEACHER_PLANNER_TRELLO_OWNER_ID;
+    if (!UUID.test(owner || '') || !req.user || req.user.id !== owner) {
+      return res.status(403).json({ error: 'Trello completion is available only to its authorised school account.' });
+    }
+    const cardId = req.params.id, expectedList = req.body?.listId;
+    if (!ID.test(cardId) || typeof expectedList !== 'string' || !ID.test(expectedList) ||
+        Object.keys(req.body || {}).some(key => key !== 'listId')) {
+      return res.status(400).json({ error: 'Invalid card or list identifier.' });
+    }
+    const credentials = writeCredentials(env);
+    if (!credentials) return res.status(503).json({ error: 'Trello completion is unavailable; read-only access remains available.' });
+    if (inFlight.has(cardId)) return res.status(409).json({ error: 'This card is already being completed. Refresh before retrying.' });
+    inFlight.add(cardId);
+    const read = createTrelloReader({ ...credentials, fetchImpl });
+    let boardId, doneId, actual;
+    try {
+      const [board, grant, lists] = await Promise.all([
+        read('boards/' + BOARD, { fields: 'id,shortLink,closed' }),
+        read('tokens/' + encodeURIComponent(credentials.token), { fields: 'permissions' }),
+        read('boards/' + BOARD + '/lists', { filter: 'open', fields: 'id,name,closed' })
+      ]);
+      if (!board || !ID.test(board.id) || board.shortLink !== BOARD || board.closed !== false ||
+          !hasWriteBoardGrant(grant, board.id)) {
+        return res.status(503).json({ error: 'Trello write permission is unavailable; read-only access remains available.' });
+      }
+      boardId = board.id;
+      const selected = validateLists(lists);
+      const source = selected.find(list => list.id === expectedList);
+      const done = selected.find(list => normalize(list.name) === 'DONE');
+      if (!source || !(activeRoles.has(roles.get(normalize(source.name))) || normalize(source.name) === 'DONE') || !done) {
+        return res.status(409).json({ error: 'The original task list or general DONE list is unavailable. Refresh before retrying.' });
+      }
+      doneId = done.id;
+      const getCard = () => read('cards/' + cardId, { fields: 'id,idBoard,idList,name,closed,dueComplete' });
+      actual = await getCard();
+      if (!validCardState(actual, cardId, boardId) || actual.closed ||
+          normalize(actual.name) === 'TEST - CHATGPT TRELLO CONNECTION') {
+        return res.status(409).json({ error: 'This card is not an available operational card on the authorised board.' });
+      }
+      if (actual.idList !== expectedList && actual.idList !== done.id) {
+        return res.status(409).json({ error: 'The card moved to another list. Refresh before retrying.' });
+      }
+      if (normalize(source.name) === 'DONE' && actual.idList !== done.id) {
+        return res.status(409).json({ error: 'The card is no longer in DONE. Refresh before retrying.' });
+      }
+      const update = async fields => {
+        const url = 'https://api.trello.com/1/cards/' + cardId;
+        const response = await fetchImpl(url, {
+          method: 'PUT', redirect: 'error', signal: AbortSignal.timeout(10000),
+          headers: { Accept: 'application/json', 'Content-Type': 'application/json',
+            Authorization: `OAuth oauth_consumer_key="${credentials.key}", oauth_token="${credentials.token}"` },
+          body: JSON.stringify(fields)
+        });
+        if (!response.ok) throw new Error('Trello update failed.');
+      };
+      if (!actual.dueComplete) {
+        await update({ dueComplete: true });
+        actual = await getCard();
+        if (!validCardState(actual, cardId, boardId) || actual.closed || !actual.dueComplete ||
+            actual.idList !== expectedList && actual.idList !== done.id) throw new Error('Completion was not verified.');
+      }
+      if (actual.idList !== done.id) {
+        await update({ idList: done.id });
+      }
+      actual = await getCard();
+      if (!validCardState(actual, cardId, boardId) || actual.closed ||
+          actual.idList !== done.id || !actual.dueComplete) throw new Error('Trello update was not verified.');
+      return res.json({ status: 'ok' });
+    } catch {
+      console.warn('ToDo Trello completion failed or could not be verified.');
+      let cardState = 'unavailable';
+      if (boardId) {
+        try {
+          const card = await read('cards/' + cardId, { fields: 'id,idBoard,idList,name,closed,dueComplete' });
+          if (validCardState(card, cardId, boardId)) {
+            const location = card.idList === doneId ? 'general DONE' :
+              card.idList === expectedList ? 'the original list' : 'another list';
+            cardState = (card.closed ? 'archived; ' : '') +
+              (card.dueComplete ? 'marked complete' : 'not marked complete') + ' in ' + location;
+          }
+        } catch { console.warn('ToDo Trello card state could not be retrieved.'); }
+      }
+      return res.status(502).json({ error: 'Completion could not be verified. Actual card state: ' + cardState +
+        '. Refresh and check Trello before retrying.' });
+    } finally {
+      inFlight.delete(cardId);
     }
   });
   return router;

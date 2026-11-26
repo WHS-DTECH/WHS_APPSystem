@@ -73,13 +73,14 @@
       unclassified: active.filter(card => responsibilities(card).size === 0).length };
   }
 
-  function mount(host, { api }) {
+  function mount(host, { api, getCsrf }) {
     const shared = root.plannerTodoTrello;
+    shared.configureCompletion(api, getCsrf);
     const { make, cardNode, dateKey } = shared;
     host.className = 'todo-dashboard';
     host.setAttribute('data-planner-navigation', '');
     const heading = make('h2', 'Trello ToDo Dashboard');
-    const info = make('p', 'Live Trello tasks — not a historical snapshot. Read-only; completion is unavailable. Responsibility counts show outstanding tasks; filters and search also apply to meetings, MINED alerts and completed work.');
+    const info = make('p', 'Live Trello tasks — not a historical snapshot. Completion moves cards to general DONE. Responsibility counts show outstanding tasks; filters and search also apply to meetings, MINED alerts and completed work.');
     const toolbar = make('div', '', { class: 'todo-dashboard-toolbar' });
     const refresh = make('button', 'Refresh', { type: 'button' });
     const board = make('a', 'Open Trello board', { href: 'https://trello.com/b/QsFC8J3m/school-email-todo',
@@ -275,7 +276,10 @@
     const unsubscribe = shared.subscribe(current => {
       if (disposed || !host.isConnected) return;
       refresh.disabled = current.loading;
-      if (current.error) {
+      if (current.actionError) {
+        status.setAttribute('role', 'alert');
+        status.textContent = current.actionError + (current.error ? ' Trello refresh unavailable: ' + current.error : '');
+      } else if (current.error) {
         status.setAttribute('role', 'alert');
         status.textContent = 'Trello unavailable: ' + current.error +
           (current.lastRefresh ? ' Last successful refresh: ' + current.lastRefresh + '.' : '');
@@ -283,11 +287,12 @@
         status.setAttribute('role', 'status');
         status.textContent = current.loading ? 'Refreshing live Trello tasks…' +
           (current.lastRefresh ? ' Last successful refresh: ' + current.lastRefresh : '') :
-          current.data ? 'Connected · Last refreshed: ' + current.lastRefresh : 'Connecting to Trello…';
+          current.data ? 'Connected · Last refreshed: ' + current.lastRefresh +
+            (current.data.writeAvailable ? '' : ' · Completion unavailable (read-only)') : 'Connecting to Trello…';
       }
       if (current.data || !current.loading) render(current.data, current);
     });
-    refresh.addEventListener('click', load);
+    refresh.addEventListener('click', () => { shared.clearActionError(); load(); });
     const onVisible = () => { if (!host.isConnected) dispose(); else if (!document.hidden) load(); };
     function dispose() { disposed = true; unsubscribe(); document.removeEventListener('visibilitychange', onVisible); }
     document.addEventListener('visibilitychange', onVisible);

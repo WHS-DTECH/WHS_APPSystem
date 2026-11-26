@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { groupCards, todayTasks, meetingMetadata, meetingViews, minedStatus, dateKey, refreshData, subscribe } = require('./public/todo-trello');
+const { groupCards, todayTasks, meetingMetadata, meetingViews, minedStatus, dateKey, refreshData, subscribe,
+  configureCompletion, completeCard } = require('./public/todo-trello');
 
 const card = (id, due = null, extra = {}) => ({ id, due, dueComplete: false, ...extra });
 
@@ -77,6 +78,85 @@ test('meeting cards use structured Trello metadata and Auckland day, not Trello 
   assert.equal(view.today[0].end, '2026-11-26T01:00:00+13:00');
   assert.equal(view.all[3].start, null);
   assert.deepEqual(meetingMetadata({ description: 'Start: 2026-11-26T09:00:00+13:00\nEnd: Unconfirmed' }).errors, []);
+  assert.equal(meetingMetadata({ description: 'Start: 2026-11-26T09:00:00+13:00\nEnd: Unconfirmed' }).provisional, true);
+  assert.equal(meetingMetadata({ description: 'Start: 2026-11-26T09:00:00+13:00\nStatus: Tentative' }).provisional, true);
+  assert.equal(meetingMetadata({ description: 'Start: 2026-11-26T09:00:00+13:00\nEnd: unspecified' }).provisional, false);
+});
+
+test('completion is shared, suppresses duplicate clicks and refreshes verified cards', async () => {
+  const originalFetch = globalThis.fetch;
+  const updates = [], dashboard = [];
+  const unsubscribe = subscribe(state => updates.push({ completing: state.completing.size, data: state.data, error: state.actionError }));
+  const unsubscribeDashboard = subscribe(state => dashboard.push({ completing: state.completing.size, data: state.data, error: state.actionError }));
+  const item = { id: 'a'.repeat(24), listId: 'b'.repeat(24) };
+  const now = new Date().toISOString();
+  let release, writes = 0, reads = 0, completed = false;
+  globalThis.fetch = async (_url, options) => {
+    if (options.method === 'POST') {
+      writes++;
+      assert.equal(options.headers['x-planner-csrf'], 'test-csrf');
+      assert.deepEqual(JSON.parse(options.body), { listId: item.listId });
+      await new Promise(resolve => { release = resolve; });
+      completed = true;
+      return { ok: true, json: async () => ({ status: 'ok' }) };
+    }
+    reads++;
+    return { ok: true, json: async () => ({ status: 'ok', fetchedAt: now, writeAvailable: true,
+      lists: completed ? [{ role: 'done', id: 'c'.repeat(24), cards: [{ ...item, dueComplete: true,
+        completedAt: now, completionActivity: 'verified' }] }] : [] }) };
+  };
+  try {
+    configureCompletion('/api/', () => 'test-csrf');
+    await refreshData('/api/');
+    const first = completeCard(item), duplicate = completeCard(item);
+    await Promise.resolve();
+    assert.equal(writes, 1);
+    assert.equal(updates.at(-1).completing, 1);
+    assert.equal(dashboard.at(-1).completing, 1);
+    release();
+    await Promise.all([first, duplicate]);
+    assert.equal(reads, 2);
+    assert.equal(updates.at(-1).error, '');
+    assert.equal(dashboard.at(-1).data.lists[0].cards[0].id, item.id);
+    assert.equal(dashboard.at(-1).completing, 0);
+  } finally {
+    unsubscribe(); unsubscribeDashboard(); globalThis.fetch = originalFetch;
+  }
+});
+
+test('failed completion refreshes actual state and reports the failure to both views', async () => {
+  const originalFetch = globalThis.fetch, originalWarn = console.warn;
+  const updates = [], dashboard = [];
+  const unsubscribe = subscribe(state => updates.push({ data: state.data, error: state.actionError }));
+  const unsubscribeDashboard = subscribe(state => dashboard.push({ data: state.data, error: state.actionError }));
+  const item = { id: 'a'.repeat(24), listId: 'b'.repeat(24) };
+  let writes = 0;
+  globalThis.fetch = async (_url, options) => {
+    if (options.method === 'POST') {
+      writes++;
+      return { ok: false, json: async () => ({ error: 'Not marked complete in general DONE. Refresh and retry.' }) };
+    }
+    return { ok: true, json: async () => ({ status: 'ok', fetchedAt: new Date().toISOString(), writeAvailable: true,
+      lists: [{ id: 'c'.repeat(24), role: 'done', cards: [{ ...item, dueComplete: false }] }] }) };
+  };
+  console.warn = () => {};
+  try {
+    configureCompletion('/api/', () => 'test-csrf');
+    await refreshData('/api/');
+    await completeCard(item);
+    assert.equal(writes, 1);
+    assert.match(updates.at(-1).error, /Not marked complete/);
+    assert.equal(dashboard.at(-1).error, updates.at(-1).error);
+    assert.equal(dashboard.at(-1).data.lists[0].cards[0].dueComplete, false);
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({
+      status: 'ok', fetchedAt: new Date().toISOString(), writeAvailable: false, lists: []
+    }) });
+    await refreshData('/api/');
+    await completeCard(item);
+    assert.equal(writes, 1, 'read-only fallback does not send a completion request');
+  } finally {
+    unsubscribe(); unsubscribeDashboard(); globalThis.fetch = originalFetch; console.warn = originalWarn;
+  }
 });
 
 test('ambiguous and malformed structured metadata is flagged without guessing', () => {

@@ -15,9 +15,11 @@
     for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
     return node;
   };
-  const state = { data: null, error: '', lastRefresh: '', loading: false };
+  const state = { data: null, error: '', lastRefresh: '', loading: false, actionError: '', completing: new Set() };
   const listeners = new Set();
-  let pending;
+  let pending, completionApi, getCsrf;
+  function configureCompletion(api, csrf) { completionApi = api; getCsrf = csrf; }
+  function clearActionError() { state.actionError = ''; }
   function notify() { for (const listener of listeners) listener(state); }
   function subscribe(listener) {
     listeners.add(listener);
@@ -29,7 +31,8 @@
     state.loading = true; state.error = ''; notify();
     pending = Promise.resolve().then(async () => {
       try {
-        const response = await fetch(api + 'todo-trello', { credentials: 'same-origin', cache: 'no-store' });
+        const response = await fetch(api + 'todo-trello', { credentials: 'same-origin', cache: 'no-store',
+          signal: AbortSignal.timeout(60000) });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Trello is unavailable.');
         if (data.status !== 'ok' || !Array.isArray(data.lists) || !Number.isFinite(Date.parse(data.fetchedAt))) {
@@ -45,6 +48,33 @@
       }
     });
     return pending;
+  }
+
+  async function completeCard(card) {
+    if (state.completing.has(card.id) || !state.data?.writeAvailable || !completionApi || !getCsrf) return;
+    state.completing.add(card.id); state.actionError = ''; notify();
+    let failure = '';
+    try {
+      const response = await fetch(completionApi + 'todo-trello/cards/' + encodeURIComponent(card.id) + '/complete', {
+        method: 'POST', credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(90000),
+        headers: { 'Content-Type': 'application/json', 'x-planner-csrf': getCsrf() },
+        body: JSON.stringify({ listId: card.listId })
+      });
+      const result = await response.json();
+      if (!response.ok || result.status !== 'ok') throw new Error(result.error || 'Completion could not be verified.');
+    } catch (error) {
+      console.warn('Trello ToDo completion failed.');
+      failure = error.message || 'Completion could not be verified. Check Trello before retrying.';
+    }
+    if (pending) await pending;
+    await refreshData(completionApi);
+    state.completing.delete(card.id);
+    const completed = state.data?.lists.find(list => list.role === 'done')?.cards.find(entry => entry.id === card.id);
+    state.actionError = failure || (state.error ? 'Completion was verified, but the refreshed Trello state is unavailable. Retry refresh.' :
+      !completed || completed.completionActivity !== 'verified' || !completed.completedAt ||
+        dateKey(completed.completedAt) !== dateKey(Date.now())
+        ? 'Completion was verified, but DONE TODAY could not be verified. Refresh or check Trello.' : '');
+    notify();
   }
 
   function labels(parent, card) {
@@ -71,6 +101,10 @@
       } catch { console.warn('An invalid source link was ignored.'); }
     }
   }
+  function isMeetingCard(card) {
+    return card.role === 'meetings' || (card.labels || []).some(label =>
+      label.name.trim().toLocaleUpperCase('en-NZ') === 'MEETINGS');
+  }
   function showDetail(detail, card, { focus = true, onClose = () => {} } = {}) {
     detail.replaceChildren();
     const heading = make('h3', card.title);
@@ -87,8 +121,8 @@
         ({ urgent: 'Urgent', todo: 'To do', doing: 'Doing', waiting: 'Waiting / follow-up',
           meetings: 'Meeting — not confirmed complete' }[card.role] || card.role);
     if (status) detail.append(make('p', 'Status: ' + status));
-    if (card.start) detail.append(make('p', 'Starts: ' + timeLabel(card.start)));
-    if (card.due) detail.append(make('p', 'Due: ' + timeLabel(card.due)));
+    if (!isMeetingCard(card) && card.start) detail.append(make('p', 'Starts: ' + timeLabel(card.start)));
+    if (!isMeetingCard(card) && card.due) detail.append(make('p', 'Due: ' + timeLabel(card.due)));
     if (card.completedAt) detail.append(make('p', 'Completed: ' + timeLabel(card.completedAt)));
     detail.append(make('p', card.description || 'No description.', { class: 'todo-description' }),
       make('a', 'Open original Trello card', { href: card.url, target: '_blank', rel: 'noopener noreferrer' }));
@@ -98,20 +132,32 @@
   }
   function cardNode(card, today, detail, onSelect = () => {}, onClose = () => {}, displayDetail = showDetail) {
     const item = make('li', '', { class: 'todo-card' +
-      (['done', 'filed'].includes(card.role) || card.dueComplete ? ' todo-card-completed' :
+      (isMeetingCard(card) ? ' todo-card-meeting' :
+        ['done', 'filed'].includes(card.role) || card.dueComplete ? ' todo-card-completed' :
         card.role === 'urgent' || card.dueDate && card.dueDate < today ? ' todo-card-urgent' :
           card.dueDate ? ' todo-card-due' : '') });
     const row = make('div', '', { class: 'todo-card-heading' });
-    const checkbox = make('input', '', { type: 'checkbox', disabled: '', 'aria-label': 'Completion unavailable in read-only mode' });
-    checkbox.checked = card.role === 'done' || card.role === 'filed' || card.dueComplete;
+    const active = ['urgent', 'todo', 'doing', 'waiting', 'meetings'].includes(card.role) ||
+      card.role === 'done' && !card.dueComplete;
+    const processing = state.completing.has(card.id);
+    const enabled = active && state.data?.writeAvailable && !processing && !!completionApi && !!getCsrf;
+    const checkbox = make('input', '', { type: 'checkbox', 'aria-label': processing ? 'Completing ' + card.title :
+      enabled ? (card.role === 'done' ? 'Finish completion: ' : card.dueComplete ? 'Finish moving to DONE: ' : 'Complete: ') + card.title :
+        active ? 'Completion unavailable in read-only mode' : 'Completed card' });
+    checkbox.disabled = !enabled;
+    checkbox.checked = !active && (card.role === 'done' || card.role === 'filed' || card.dueComplete);
+    checkbox.addEventListener('change', () => { if (checkbox.checked) completeCard(card); });
     const button = make('button', card.title, { type: 'button', class: 'todo-card-title' });
     button.addEventListener('click', () => { onSelect(card); displayDetail(detail, card, { onClose }); });
     row.append(checkbox, button); item.append(row); labels(item, card);
     const flags = [];
+    if (processing) flags.push('Completing in Trello…');
+    else if (card.role === 'done' && !card.dueComplete) flags.push('Incomplete in DONE; finish completion');
+    else if (active && card.dueComplete) flags.push('Marked complete; move to DONE');
     if (card.role === 'urgent') flags.push('Urgent');
     if (card.role === 'waiting') flags.push('Waiting / follow-up');
     if (card.role === 'doing') flags.push('Doing');
-    if (card.due) flags.push((card.dueDate < today && !card.dueComplete && !['done', 'filed'].includes(card.role) ? 'Overdue: ' :
+    if (!isMeetingCard(card) && card.due) flags.push((card.dueDate < today && !card.dueComplete && !['done', 'filed'].includes(card.role) ? 'Overdue: ' :
       card.dueDate === today ? 'Due today: ' : 'Due: ') + dateLabel(card.due));
     if (card.role === 'done' && card.completionActivity !== 'verified') flags.push(
       card.completionActivity === 'unavailable' ? 'Completion activity unavailable' : 'Completion date not verified');
@@ -126,10 +172,8 @@
   }
 
   function urgentReference(card, detail, onSelect = () => {}, onClose = () => {}) {
-    const item = make('li', '', { class: 'todo-card' });
-    const button = make('button', card.title, { type: 'button', class: 'todo-card-title' });
-    button.addEventListener('click', () => { onSelect(card); showDetail(detail, card, { onClose }); });
-    item.append(button, make('p', 'Also shown in URGENT.', { class: 'todo-card-flags' }));
+    const item = cardNode(card, dateKey(Date.now()), detail, onSelect, onClose);
+    item.append(make('p', 'Also shown in URGENT.', { class: 'todo-card-flags' }));
     return item;
   }
 
@@ -172,7 +216,7 @@
   function meetingMetadata(card) {
     const fields = new Map(), errors = [];
     for (const line of (card.description || '').split(/\r?\n/)) {
-      const match = /^(start|end|location|source|responsibility):\s*(.*?)\s*$/i.exec(line.trim());
+      const match = /^(start|end|location|source|responsibility|status|time status):\s*(.*?)\s*$/i.exec(line.trim());
       if (!match) continue;
       const key = match[1].toLowerCase();
       if (fields.has(key)) { errors.push('Duplicate ' + key + ' field'); fields.set(key, null); }
@@ -204,7 +248,9 @@
       } catch { errors.push('Invalid source URL'); }
     }
     const responsibility = fields.get('responsibility') || '';
-    return { start, end, location: fields.get('location') || '', responsibility, url, errors };
+    const provisional = ['start', 'end', 'status', 'time status'].some(key =>
+      /^(unconfirmed|provisional|tentative)$/i.test(fields.get(key) || ''));
+    return { start, end, location: fields.get('location') || '', responsibility, url, errors, provisional };
   }
 
   function meetingViews(groups, today) {
@@ -222,6 +268,7 @@
     detail.append(make('p', meeting.start ? 'Scheduled: ' + timeLabel(meeting.start) +
       (meeting.end ? ' – ' + timeLabel(meeting.end) : '') : 'Meeting time not confirmed.'));
     if (meeting.location) detail.append(make('p', 'Location: ' + meeting.location));
+    if (meeting.provisional) detail.append(make('p', 'Meeting time is provisional or unconfirmed.'));
     if (meeting.responsibility) detail.append(make('p', 'Primary responsibility: ' + meeting.responsibility));
     if (meeting.errors.length) detail.append(make('p', 'Meeting metadata needs review: ' + meeting.errors.join('; ') + '.'));
     if (meeting.url) detail.append(make('a', 'Open original event', {
@@ -254,6 +301,7 @@
       (_detail, _card, options) => showMeetingDetail(detail, meeting, options));
     item.classList.add('todo-card-meeting');
     item.prepend(indicator());
+    if (meeting.provisional) item.append(make('p', 'Time provisional or unconfirmed', { class: 'todo-meeting-indicator' }));
     if (meeting.end) item.append(make('p', 'Ends: ' + timeLabel(meeting.end)));
     if (meeting.location) item.append(make('p', meeting.location));
     if (meeting.responsibility) item.append(make('p', 'Primary responsibility: ' + meeting.responsibility));
@@ -274,7 +322,7 @@
         if (seen.has(card.id)) throw new Error('Trello returned a card in more than one list. Refresh to retry.');
         seen.add(card.id);
         const dueDate = card.due ? dateKey(card.due) : '';
-        const entry = { ...card, dueDate, role: list.role };
+        const entry = { ...card, dueDate, role: list.role, listId: list.id };
         if (list.role === 'mined') {
           if (dueDate === today) groups.minedToday.push(entry);
           else if (dueDate && dueDate > today) groups.minedUpcoming.push(entry);
@@ -298,7 +346,8 @@
     return { groups, outstanding };
   }
 
-  function mount(host, { api, week }) {
+  function mount(host, { api, week, getCsrf }) {
+    configureCompletion(api, getCsrf);
     const storageKey = 'teacher-planner-trello-todo-sidebar';
     const widthKey = 'teacher-planner-trello-todo-width';
     function saved(key) {
@@ -421,7 +470,10 @@
     const unsubscribe = subscribe(current => {
       if (disposed || !aside.isConnected) return;
       refresh.disabled = current.loading;
-      if (current.error) {
+      if (current.actionError) {
+        status.setAttribute('role', 'alert');
+        status.textContent = current.actionError + (current.error ? ' Trello refresh unavailable: ' + current.error : '');
+      } else if (current.error) {
         status.setAttribute('role', 'alert');
         status.textContent = 'Trello unavailable: ' + current.error +
           (current.lastRefresh ? ' Last successful refresh: ' + current.lastRefresh + '.' : '');
@@ -429,11 +481,12 @@
         status.setAttribute('role', 'status');
         status.textContent = current.loading ? 'Refreshing live Trello tasks…' +
           (current.lastRefresh ? ' Last successful refresh: ' + current.lastRefresh : '') :
-          current.data ? 'Connected · Last refreshed: ' + current.lastRefresh : 'Connecting to Trello…';
+          current.data ? 'Connected · Last refreshed: ' + current.lastRefresh +
+            (current.data.writeAvailable ? '' : ' · Completion unavailable (read-only)') : 'Connecting to Trello…';
       }
       if (current.data || !current.loading) render(current.data);
     });
-    refresh.addEventListener('click', load);
+    refresh.addEventListener('click', () => { state.actionError = ''; load(); });
     const onVisible = () => {
       if (!aside.isConnected) { dispose(); return; }
       if (!document.hidden) load();
@@ -442,7 +495,7 @@
     document.addEventListener('visibilitychange', onVisible);
     return dispose;
   }
-  const api = { mount, groupCards, todayTasks, meetingMetadata, meetingViews, meetingNode, minedStatus, appendMinedAlerts, dateKey, dateLabel, make, cardNode, urgentReference, showDetail, showMeetingDetail, subscribe, refreshData };
+  const api = { mount, groupCards, todayTasks, meetingMetadata, meetingViews, meetingNode, minedStatus, appendMinedAlerts, dateKey, dateLabel, make, cardNode, urgentReference, showDetail, showMeetingDetail, subscribe, refreshData, configureCompletion, completeCard, clearActionError };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.plannerTodoTrello = api;
 })(globalThis);

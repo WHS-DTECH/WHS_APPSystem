@@ -1870,13 +1870,36 @@ counts. The DONE TODAY section requires a same-day Trello action confirming
 that a card's due-completion flag was set; other cards in DONE are shown
 separately, including when activity cannot be retrieved. Cards completed only by
 moving them to DONE cannot be assigned a verified completion time by this rule.
-Completion controls are disabled. The sidebar is informational and does not
-change Trello or Planner notes. Term and Current Teaching Day integrations remain
-separately read-only.
+With separately configured write access, completion controls update the same
+Trello card and move it to general DONE. They do not change Planner notes.
+Term and Current Teaching Day integrations remain separately read-only.
+
+Completion uses the optional server-side `TEACHER_PLANNER_TRELLO_WRITE_TOKEN`
+with the existing API key and owner ID. Keep the existing read-only token
+separate; never put the write token in browser code or logs. Configure the
+write token securely in Render with read and write access to the fixed School
+Email ToDo board. Trello token grants can be broader than a single board; use
+the least-privileged Trello account available. The application restricts its
+completion endpoint to this board and authorised owner, checks the write grant
+and original list, and uses Planner CSRF protection. If write credentials or
+permission are unavailable, reading continues and completion is disabled.
+
+`POST /teacher-planner/api/planner/todo-trello/cards/:id/complete` accepts
+only the card's original `listId`. It checks the current card and board, sets
+the completion flag on that card, verifies it, moves it to general DONE and
+reads it back to verify both fields. It does not create cards or modify descriptions, labels,
+dates, attachments, comments or checklists. On an uncertain result it reads
+the actual card state, reports the failure and refreshes the shared views.
+A card marked complete but still in an active list can be retried from
+**MARKED COMPLETE IN ACTIVE LISTS**; an incomplete card in DONE can be
+retried from **CURRENTLY IN DONE — OTHER / UNVERIFIED**. A verified completion
+still appears in DONE TODAY only when Trello's activity provides a verified
+same-day completion timestamp; if that evidence is unavailable, the interface
+reports the limitation instead of inventing a date.
 
 ### Trello ToDo Dashboard
 
-The Planner navigation also offers a read-only ToDo Dashboard using the same
+The Planner navigation also offers a ToDo Dashboard using the same
 owner-only endpoint and in-memory refresh state as the Weekly sidebar. It
 refreshes on opening, manual refresh and returning to a visible page. Failed
 refreshes show an unavailable status rather than task counts. Responsibility
@@ -1919,8 +1942,10 @@ the primary professional responsibility and participates in dashboard filters
 alongside actual Trello labels. `Source` is optional and must be an HTTPS
 URL without embedded credentials. Use one field per line, at most once.
 Blank or `unspecified` End/Source values and `unconfirmed` End values are
-treated as absent. Trello's due
-date is not interpreted as a meeting start or end. Invalid or duplicate
+treated as absent. `End: Unconfirmed`, or a `Status` or `Time Status` value
+of `Unconfirmed`, `Provisional` or `Tentative`, displays a provisional-time
+indicator. Trello's due date is not displayed or interpreted as a meeting
+start or end. Invalid or duplicate
 fields are flagged on the card; without a valid Start the card stays visible
 as unscheduled and is not included in scheduled counts. Original Trello
 labels and links remain unchanged. The Trello meeting list being absent or
@@ -1941,8 +1966,9 @@ operational tasks; Planner does not interpret emails or change the cards. An
 unavailable MINED list is reported rather than treated as having no alerts.
 
 Completion timestamps are only shown when verified by the existing same-day
-activity check; older or unverifiable cards in DONE remain separate. No write
-operations, additional task database or filing automation are introduced.
+activity check; older or unverifiable cards in DONE remain separate. MINED
+reference cards cannot be completed through the endpoint. No additional task
+database or filing automation is introduced.
 
 The Weekly Planner's separate Google Tasks panel has a show/hide control. Its
 browser-local preference is independent of the Trello sidebar and releases
