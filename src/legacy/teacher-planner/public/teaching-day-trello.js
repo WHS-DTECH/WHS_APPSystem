@@ -82,7 +82,7 @@
       el('a', 'Open in Trello', { href: card.url, target: '_blank', rel: 'noopener noreferrer' }));
     return article;
   }
-  function dashboard(host, context, { el, request, loadSchedule, select, openNotesSession, openTrelloSession, changeDate, termControl, termError }) {
+  function dashboard(host, context, { el, request, loadSchedule, select, openNotesSession, openTrelloSession, changeDate, termControl, termError, defaultView = () => 'trello' }) {
     const page = el('section', '', { class: 'teaching-dashboard', 'aria-label': 'Teaching Dashboard' });
     const heading = el('div', '', { class: 'teaching-dashboard-heading', 'data-planner-navigation': '' });
     if (termControl) heading.append(termControl);
@@ -123,18 +123,21 @@
       sessions.replaceChildren();
       scheduleMessage.setAttribute('role', scheduleError ? 'alert' : 'status');
       scheduleMessage.textContent = scheduleError || (scheduledSessions.length ?
-        'Select a session to open its Period Planner Notes. Trello preparation is optional.' :
+        'Select a class box to open your saved default view. Notes and Trello buttons open a one-off view.' :
         'No teaching sessions are scheduled for this date.');
       for (const session of scheduledSessions) {
         const card = result?.cards.find(item => item.metadata.session_slot === session.slot &&
           session.classKey && item.metadata.class_key === session.classKey);
-        const item = el('article', '', { class: 'teaching-day-session' });
-        const openTrello = () => card ? select(card, true) : openTrelloSession(session);
-        const title = el('button', session.title, { type: 'button', class: 'teaching-day-session-title' });
-        title.addEventListener('click', openTrello);
+        const selected = context.slot === session.slot && context.classKey === session.classKey;
+        const item = el('article', '', { class: 'teaching-day-session', 'data-selected': String(selected) });
+        const openTrello = () => { if (!switching && !dateChanging) return card ? select(card, true) : openTrelloSession(session); };
+        const openNotesView = () => { if (!switching && !dateChanging) return openNotesSession(session); };
+        const openDefault = () => defaultView() === 'notes' ? openNotesView() : openTrello();
+        const title = el('button', session.title, { type: 'button', class: 'teaching-day-session-title', 'aria-pressed': String(selected) });
+        title.addEventListener('click', openDefault);
         item.addEventListener('click', event => {
           if (event.target?.closest?.('button')) return;
-          openTrello();
+          openDefault();
         });
         item.append(title,
           el('p', session.label + ' | ' + session.startTime + '–' + session.endTime + ' NZ'));
@@ -149,13 +152,11 @@
         }
         const actions = el('div', '', { class: 'teaching-day-session-actions' });
         const openNotes = el('button', 'Open Notes', { type: 'button' });
-        openNotes.addEventListener('click', () => openNotesSession(session));
+        openNotes.addEventListener('click', openNotesView);
         actions.append(openNotes);
-        if (card) {
-          const openTrello = el('button', 'Open Trello preparation', { type: 'button' });
-          openTrello.addEventListener('click', () => select(card, true));
-          actions.append(openTrello);
-        }
+        const trelloButton = el('button', 'Open Trello preparation', { type: 'button' });
+        trelloButton.addEventListener('click', openTrello);
+        actions.append(trelloButton);
         item.append(actions); sessions.append(item);
       }
     }
@@ -167,6 +168,7 @@
         button.setAttribute('aria-pressed', String(context.cardId ?
           button.getAttribute('data-card-id') === context.cardId : button.getAttribute('data-session-slot') === context.slot));
       }
+      renderSchedule();
       renderSelected();
     }
     function setBusy(value) {
@@ -181,7 +183,7 @@
       const card = result.cards.find(card => (!context.cardId || card.id === context.cardId) &&
         card.metadata.session_slot === context.slot && (card.metadata.class_key === context.classKey ||
           !context.classKey && context.cardId === card.id));
-      if (!card) { selectedHost.append(el('p', 'No Trello card is selected for this session. Notes are unchanged.', { role: 'status' })); return; }
+      if (!card) { selectedHost.append(el('p', 'Trello preparation is unavailable for this session. Notes remain available and unchanged.', { role: 'status' })); return; }
       selectedHost.append(renderCard(el, card, false, true, context.programme));
     }
     function sessionCard(card, unavailable = false) {

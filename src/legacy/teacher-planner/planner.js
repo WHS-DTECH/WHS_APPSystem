@@ -16,7 +16,7 @@ const reporting = require('./public/reporting-schema');
 const { validSlot } = require('./public/session-schema');
 
 const FIELDS = {
-  preferences: ['anniversaryRegion'],
+  preferences: ['anniversaryRegion', 'dashboardClassView'],
   period: ['title', 'priorities', 'activities', 'resources', 'reflection', 'activityLinks'],
   activity: ['title', 'priorities', 'instructions', 'lessonPlans', 'resources', 'reflection'],
   week: ['focus', 'reflection', 'whakatauki', 'vocabulary', 'value', 'notes', 'calls', 'notices', 'todos'],
@@ -63,6 +63,8 @@ function validContent(section, content) {
   if (!allowed) return false;
   if (section === 'reporting') return reporting.validContent(content) && Buffer.byteLength(JSON.stringify(content)) <= 300000;
   if (section === 'preferences' && content.anniversaryRegion !== undefined && !holidayRegions.includes(content.anniversaryRegion)) return false;
+  if (section === 'preferences' && content.dashboardClassView !== undefined &&
+      !['trello', 'notes'].includes(content.dashboardClassView)) return false;
   if (['period', 'activity'].includes(section) && content.title !== undefined &&
       (typeof content.title !== 'string' || content.title.length > 200)) return false;
   if (!Object.keys(content).every((key) => allowed.includes(key) || (section === 'week' && ['cells', 'term', 'weekNumber'].includes(key))

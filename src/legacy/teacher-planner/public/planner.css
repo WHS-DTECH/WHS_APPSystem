@@ -103,6 +103,8 @@
 .teaching-day-date-controls, .teaching-day-session-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
 .teaching-day-date-controls input { min-width: 145px; }
 .teaching-day-session { margin: 10px 0; padding: 10px 12px; border: 1px solid #b3c4cb; border-left: 4px solid #376783; border-radius: 4px; background: #fff; overflow-wrap: anywhere; }
+.teaching-day-session { cursor: pointer; }
+.teaching-day-session[data-selected="true"] { background: #edf4f8; border-color: #245a81; box-shadow: inset 0 0 0 1px #245a81; }
 .teaching-day-session-title { display: block; width: 100%; margin: 6px 0; padding: 0; border: 0; background: transparent; color: #173e54; font: inherit; font-weight: 700; text-align: left; cursor: pointer; }
 .teaching-day-session-title:hover { text-decoration: underline; }
 .teaching-day-session p { margin: 6px 0; }

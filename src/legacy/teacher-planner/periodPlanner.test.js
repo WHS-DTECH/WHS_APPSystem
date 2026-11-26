@@ -508,6 +508,62 @@ test('Teaching Day timetable matches exact sessions in Pacific/Auckland time and
   assert.deepEqual(JSON.parse(JSON.stringify(context.plannerTeachingDayTrello.sessionsForDate(events, '2026-11-28',
     context.plannerSessionSchema.slots))), []);
 });
+test('Friday class boxes use the saved default while explicit buttons remain one-off, including missing preparation', async () => {
+  const context = { plannerSessionSchema: require('./public/session-schema'), URLSearchParams };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-day-trello'), 'utf8'), context);
+  const host = node(), opened = [], selected = [];
+  let preference = 'trello';
+  const cards = ['9WHAU', 'JPI'].map(key => {
+    const card = teachingSlotFixture(key);
+    card.metadata.teaching_date = '2026-11-27';
+    return card;
+  });
+  const dashboard = context.plannerTeachingDayTrello.dashboard(host, {
+    date: '2026-11-27', slot: 'whanau', classKey: '9WHAU', cardId: ''
+  }, { el: node, request: async () => ({ status: 'ok', issues: [], cards, unassigned: [] }),
+    loadSchedule: async () => ({ events: [
+      { title: 'WHANAU (9WHAU)', start: '2026-11-27T08:45:00', end: '2026-11-27T09:00:00' },
+      { title: 'PIDTECH (JPI)', start: '2026-11-27T10:00:00', end: '2026-11-27T11:00:00' },
+      { title: 'SRDTECH (JSR)', start: '2026-11-27T11:20:00', end: '2026-11-27T12:20:00' }
+    ] }),
+    defaultView: () => preference, select: (card, trello) => {
+      selected.push([card.metadata.class_key, trello]);
+      dashboard.selectSession({ slot: card.metadata.session_slot, classKey: card.metadata.class_key, cardId: card.id });
+    },
+    openNotesSession: session => {
+      opened.push([session.classKey, 'notes']);
+      dashboard.selectSession({ slot: session.slot, classKey: session.classKey, cardId: '' });
+    },
+    openTrelloSession: session => {
+      opened.push([session.classKey, 'trello']);
+      dashboard.selectSession({ slot: session.slot, classKey: session.classKey, cardId: '' });
+    } });
+  await flush(); await flush();
+  const boxes = () => slotDescendants(host).filter(item => item.attrs.class === 'teaching-day-session');
+  for (const index of [0, 1]) boxes()[index].events.click({ target: {} });
+  assert.deepEqual(selected, [['9WHAU', true], ['JPI', true]]);
+  assert.equal(boxes()[1].attrs['data-selected'], 'true');
+  preference = 'notes';
+  for (const index of [0, 1]) boxes()[index].events.click({ target: {} });
+  assert.deepEqual(opened, [['9WHAU', 'notes'], ['JPI', 'notes']]);
+  slotDescendants(boxes()[0]).find(item => item.textContent === 'Open Trello preparation').events.click();
+  assert.deepEqual(selected.at(-1), ['9WHAU', true]);
+  preference = 'trello';
+  slotDescendants(boxes()[1]).find(item => item.textContent === 'Open Notes').events.click();
+  assert.deepEqual(opened.at(-1), ['JPI', 'notes']);
+  assert.equal(preference, 'trello');
+  boxes()[2].events.click({ target: {} });
+  assert.deepEqual(opened.at(-1), ['JSR', 'trello']);
+  assert.equal(boxes()[2].attrs['data-selected'], 'true');
+  const details = node(); dashboard.showTrello(details);
+  assert.match(details.children[0].textContent, /preparation is unavailable.*Notes remain available/);
+  slotDescendants(boxes()[2]).find(item => item.textContent === 'Open Notes').events.click();
+  assert.deepEqual(opened.at(-1), ['JSR', 'notes']);
+  dashboard.setBusy(true);
+  const before = opened.length;
+  boxes()[0].events.click({ target: {} });
+  assert.equal(opened.length, before, 'class clicks cannot interrupt a session switch');
+});
 test('Teaching Day date controls refresh the selected date and leave Notes available without Trello cards', async () => {
   const context = { plannerSessionSchema: require('./public/session-schema'), URLSearchParams };
   vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-day-trello'), 'utf8'), context);
@@ -610,7 +666,7 @@ test('dashboard shows unassigned Trello cards separately and only opens an expli
   assert.ok(slotDescendants(host).some(item => item.textContent.includes('not verified')));
   assert.ok(slotDescendants(host).some(item => item.tag === 'summary' && item.textContent === 'Old preparation'));
   assert.ok(slotDescendants(host).some(item => item.textContent === 'Original text'));
-  assert.ok(slotDescendants(selected).some(item => item.textContent.includes('No Trello card')));
+  assert.ok(slotDescendants(selected).some(item => item.textContent.includes('Trello preparation is unavailable')));
   dashboard.selectSession({ cardId: card.id });
   assert.ok(slotDescendants(selected).some(item => item.tag === 'h4' && item.textContent === 'Verified card'));
 });

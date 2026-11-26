@@ -48,6 +48,7 @@
     moderation: [],
     reporting: [],
     setup: [],
+    dashboardSetup: [],
     learning: [['entries', 'Professional learning log', '', 'Record dates, learning activities, evidence links, reflections and next steps.']]
   };
   let year = 2026, section = 'cover', term = '1', csrf, revision = 0, dirty = false, busy = false, loaded = false;
@@ -58,6 +59,7 @@
   let activityRecord = '';
   let sessionPlanner, sessionAddress, teachingDashboard, dashboardTermError = '', disposeTodo;
   let todoSidebar;
+  let dashboardClassView = 'trello';
   let manualSessionDraft;
   let canManageSchoolSettings = false;
   let setupTab = 0;
@@ -985,6 +987,7 @@
         await refreshSession(); return request(api + 'teaching-day-trello/' + day + (query ? '?' + query : ''));
       },
       loadSchedule: loadTeachingDayTimetable, termControl, termError: dashboardTermError,
+      defaultView: () => dashboardClassView,
       changeDate: changeTeachingDay,
       openNotesSession: session => openSessionPlan(session.date, session.slot, undefined, undefined, false),
       openTrelloSession: session => openSessionPlan(session.date, session.slot, undefined, undefined, true),
@@ -1014,6 +1017,7 @@
           el, request: async (day, query = '') => {
             await refreshSession(); return request(api + 'teaching-day-trello/' + day + (query ? '?' + query : ''));
           }, loadSchedule: loadTeachingDayTimetable, termControl, termError: dashboardTermError,
+          defaultView: () => dashboardClassView,
           changeDate: changeTeachingDay,
           openNotesSession: session => openSessionPlan(session.date, session.slot, undefined, undefined, false),
           openTrelloSession: session => openSessionPlan(session.date, session.slot, undefined, undefined, true),
@@ -2272,6 +2276,7 @@
     const status = el('p', 'Loading your anniversary region…', { role: 'status', 'aria-live': 'polite' });
     host.append(saveRegion, retry, status);
     let savedRevision = 0;
+    let savedPreferences = {};
     async function readRegion() {
       retry.hidden = true;
       status.setAttribute('role', 'status');
@@ -2280,6 +2285,7 @@
         const result = await request(api + '2000/preferences/main');
         if (!host.isConnected) return;
         savedRevision = result.revision;
+        savedPreferences = result.content;
         select.value = result.content.anniversaryRegion || 'Westland';
         select.disabled = false; saveRegion.disabled = false;
         status.textContent = 'Your selection is saved privately in the database. Choose Save to apply any changes.';
@@ -2295,9 +2301,10 @@
         await refreshSession();
         const result = await request(api + '2000/preferences/main', {
           method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-planner-csrf': csrf },
-          body: JSON.stringify({ content: { anniversaryRegion: select.value }, revision: savedRevision })
+          body: JSON.stringify({ content: { ...savedPreferences, anniversaryRegion: select.value }, revision: savedRevision })
         });
         savedRevision = result.revision;
+        savedPreferences = { ...savedPreferences, anniversaryRegion: select.value };
         status.setAttribute('role', 'status');
         status.textContent = 'Saved. Year Overview and weekly public holiday highlights will use ' + select.value + ' when opened.';
       } catch (error) {
@@ -2309,6 +2316,63 @@
     });
     retry.addEventListener('click', readRegion);
     readRegion();
+  }
+  function mountDashboardSetup(host) {
+    host.setAttribute('data-planner-navigation', '');
+    host.append(el('h2', 'Setup Dashboard', { class: 'paper-heading' }),
+      el('p', 'Choose the view opened when you click a class box. This setting is private to your account and applies across planner years. The explicit buttons and right-pane toggle do not change it.'));
+    const select = el('select', '', { id: 'dashboard-class-view' });
+    select.append(el('option', 'Trello Planner', { value: 'trello' }),
+      el('option', 'Notes', { value: 'notes' }));
+    const saveChoice = el('button', 'Save dashboard setting', { type: 'button' });
+    const retryChoice = el('button', 'Retry loading dashboard setting', { type: 'button' });
+    const message = el('p', 'Loading your dashboard setting...', { role: 'status', 'aria-live': 'polite' });
+    host.append(el('label', 'When I click a class box, open', { for: 'dashboard-class-view' }),
+      select, saveChoice, retryChoice, message);
+    let preferences, savedRevision;
+    async function readChoice() {
+      select.disabled = true; saveChoice.disabled = true; retryChoice.hidden = true;
+      try {
+        await refreshSession();
+        const result = await request(api + '2000/preferences/main');
+        if (!host.isConnected) return;
+        preferences = result.content; savedRevision = result.revision;
+        dashboardClassView = preferences.dashboardClassView || 'trello';
+        select.value = dashboardClassView;
+        select.disabled = false; saveChoice.disabled = false;
+        message.setAttribute('role', 'status');
+        message.textContent = 'Choose Save to apply changes. Trello Planner is the default when no choice has been saved.';
+      } catch (error) {
+        console.error('Dashboard setting could not be loaded.');
+        if (!host.isConnected) return;
+        message.textContent = error.message; message.setAttribute('role', 'alert'); retryChoice.hidden = false;
+      }
+    }
+    saveChoice.addEventListener('click', async () => {
+      if (saveChoice.disabled) return;
+      host.dataset.preferencesBusy = 'true';
+      select.disabled = true; saveChoice.disabled = true; retryChoice.disabled = true;
+      try {
+        await refreshSession();
+        const content = { ...preferences, dashboardClassView: select.value };
+        const result = await request(api + '2000/preferences/main', {
+          method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-planner-csrf': csrf },
+          body: JSON.stringify({ content, revision: savedRevision })
+        });
+        preferences = content; savedRevision = result.revision;
+        dashboardClassView = content.dashboardClassView;
+        message.setAttribute('role', 'status');
+        message.textContent = 'Saved. Class boxes will open ' + (dashboardClassView === 'trello' ? 'Trello Planner.' : 'Notes.');
+      } catch (error) {
+        console.error('Dashboard setting could not be saved.');
+        message.textContent = error.message; message.setAttribute('role', 'alert'); retryChoice.hidden = false;
+      } finally {
+        host.dataset.preferencesBusy = 'false';
+        select.disabled = false; saveChoice.disabled = false; retryChoice.disabled = false;
+      }
+    });
+    retryChoice.addEventListener('click', readChoice);
+    readChoice();
   }
   function renderAssessmentSetup(data) {
     let selected = [];
@@ -2932,7 +2996,7 @@
       renderSelectors();
       updateTodoSidebar();
       history.replaceState(null, '', '#' + viewFragment());
-      document.querySelector('.planner-save').hidden = ['cover', 'attendance', 'attendanceImport', 'timetable', 'todoDashboard'].includes(section);
+      document.querySelector('.planner-save').hidden = ['cover', 'attendance', 'attendanceImport', 'timetable', 'todoDashboard', 'dashboardSetup'].includes(section);
       save.textContent = section === 'setup' ? 'Save school-wide setup' : 'Save changes';
       document.getElementById('save-note').textContent = section === 'setup' ? 'These settings are shared by all planners for this year.' :
         'Private Planner edits autosave. Wait for Autosaved before closing.';
@@ -2941,6 +3005,17 @@
         else button.removeAttribute('aria-current');
       }
       if (section === 'cover') { render({}); loaded = true; notice(openingNote || 'Your planner, familiar pages. Open the cover or choose a section above.'); return; }
+      if (section === 'dashboardSetup') {
+        const host = el('section');
+        content.append(host); mountDashboardSetup(host); loaded = true;
+        notice('Dashboard settings save separately from Planner notes, privately to your account.');
+        return;
+      }
+      if (section === 'period' && dashboardMode) {
+        const preferences = await request(api + '2000/preferences/main');
+        dashboardClassView = preferences.content.dashboardClassView || 'trello';
+        if (openingDashboard) dashboardTrello = dashboardClassView === 'trello';
+      }
       if (section === 'todoDashboard') {
         if (!globalThis.plannerTodoDashboard) throw new Error('Trello ToDo Dashboard assets are unavailable.');
         const host = el('section');
@@ -3114,7 +3189,7 @@
   }
   form.addEventListener('submit', event => {
     event.preventDefault();
-    if (!['attendance', 'attendanceImport', 'timetable', 'todoDashboard'].includes(section) && !(section === 'setup' && setupTab !== 0)) saveEntry();
+    if (!['attendance', 'attendanceImport', 'timetable', 'todoDashboard', 'dashboardSetup'].includes(section) && !(section === 'setup' && setupTab !== 0)) saveEntry();
   });
   document.querySelectorAll('[data-section]').forEach((button) => button.addEventListener('click', () => {
     return navigatePlannerSection(button.dataset.section);

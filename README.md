@@ -2113,6 +2113,15 @@ introduced. Maintain cards independently in Trello/ChatGPT.
 
 #### Colour-coded Teaching Slots V1
 
+In **Setup → Setup Dashboard**, **When I click a class box, open** selects
+Trello Planner (the default for an unsaved choice) or Notes. The choice is saved
+privately per teacher across years in the existing personal preferences record,
+with the existing CSRF and revision checks. Clicking a Teaching Dashboard class
+box selects/highlights that class and opens its saved default in the right pane.
+Open Notes, Open Trello preparation and the pane toggle are one-off choices:
+they never change the saved default. Classes without matching Trello preparation
+remain selectable and their Notes remain available.
+
 The [canonical teaching preparation card contract](docs/teaching-preparation-card-format.md)
 provides a copyable master template, complete metadata/heading/resource rules,
 and Whanau, JuniorDTECH and MiddleDTECH examples for ChatGPT automation.
