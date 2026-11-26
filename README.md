@@ -1915,7 +1915,8 @@ Source: https://calendar.google.com/calendar/event?eid=example
 with `Z` or an explicit numeric offset; `End` is optional and follows the
 same format. `Location` and `Source` are optional; `Source` must be an HTTPS
 URL without embedded credentials. Use one field per line, at most once.
-Blank or `unspecified` End/Source values are treated as absent. Trello's due
+Blank or `unspecified` End/Source values and `unconfirmed` End values are
+treated as absent. Trello's due
 date is not interpreted as a meeting start or end. Invalid or duplicate
 fields are flagged on the card; without a valid Start the card stays visible
 as unscheduled and is not included in scheduled counts. Original Trello

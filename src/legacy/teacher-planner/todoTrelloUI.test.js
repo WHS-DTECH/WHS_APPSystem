@@ -47,6 +47,7 @@ test('meeting cards use structured Trello metadata and Auckland day, not Trello 
   assert.equal(view.today[0].url, 'https://calendar.google.com/calendar/event?eid=example');
   assert.equal(view.today[0].end, '2026-11-26T01:00:00+13:00');
   assert.equal(view.all[3].start, null);
+  assert.deepEqual(meetingMetadata({ description: 'Start: 2026-11-26T09:00:00+13:00\nEnd: Unconfirmed' }).errors, []);
 });
 
 test('ambiguous and malformed structured metadata is flagged without guessing', () => {

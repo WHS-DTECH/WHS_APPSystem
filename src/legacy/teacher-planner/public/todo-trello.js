@@ -143,7 +143,7 @@
     }
     function timestamp(key) {
       const value = fields.get(key);
-      if (!value || /^unspecified$/i.test(value)) return null;
+      if (!value || /^(unspecified|unconfirmed)$/i.test(value)) return null;
       const match = /^(\d{4})-(\d{2})-(\d{2})T([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d{1,3})?)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/i.exec(value);
       const date = match && new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
       if (!match || date.getUTCFullYear() !== Number(match[1]) || date.getUTCMonth() !== Number(match[2]) - 1 ||
