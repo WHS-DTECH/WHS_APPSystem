@@ -110,7 +110,13 @@
         const card = result?.cards.find(item => item.metadata.session_slot === session.slot &&
           session.classKey && item.metadata.class_key === session.classKey);
         const item = el('article', '', { class: 'teaching-day-session' });
-        item.append(el('h4', session.title),
+        const title = el('button', session.title, { type: 'button', class: 'teaching-day-session-title' });
+        title.addEventListener('click', () => openSession(session));
+        item.addEventListener('click', event => {
+          if (event.target?.closest?.('button')) return;
+          openSession(session);
+        });
+        item.append(title,
           el('p', session.label + ' | ' + session.startTime + '–' + session.endTime + ' NZ'));
         if (session.source === 'ambiguous') {
           item.append(el('p', 'Multiple KAMAR entries match this period. Notes are not assigned to a class.', { role: 'alert' }));

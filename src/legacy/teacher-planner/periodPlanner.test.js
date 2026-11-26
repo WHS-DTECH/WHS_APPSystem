@@ -507,6 +507,8 @@ test('Teaching Day date controls refresh the selected date and leave Notes avail
   assert.ok(elements.some(item => item.tag === 'button' && item.textContent === 'Today'));
   assert.ok(elements.some(item => item.tag === 'button' && item.textContent === 'Tomorrow'));
   assert.ok(elements.some(item => item.textContent === 'No matching Trello preparation. You can still plan in Notes.'));
+  elements.find(item => item.tag === 'button' && item.attrs.class === 'teaching-day-session-title').events.click();
+  assert.equal(opened[0].slot, 'p1', 'clicking the class name opens its Notes');
   elements.find(item => item.tag === 'button' && item.textContent === 'Open Notes').events.click();
   assert.deepEqual(JSON.parse(JSON.stringify(opened[0])), {
     date: '2026-11-26', slot: 'p1', label: 'Period 1', title: 'Thursday class',

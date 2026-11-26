@@ -983,7 +983,7 @@
       el, request: async day => { await refreshSession(); return request(api + 'teaching-day-trello/' + day); },
       loadSchedule: loadTeachingDayTimetable, termControl, termError: dashboardTermError,
       changeDate: changeTeachingDay,
-      openSession: session => openSessionPlan(session.date, session.slot),
+      openSession: session => openSessionPlan(session.date, session.slot, undefined, undefined, false),
       select: (card, trello) => openSessionPlan(card.metadata.teaching_date, card.metadata.session_slot,
         undefined, card.id, trello)
     });
@@ -1008,7 +1008,8 @@
         const termControl = selectors.querySelector('.planner-term-control');
         dashboard = teachingDashboard = globalThis.plannerTeachingDayTrello.dashboard(content, context, {
           el, request: teachingDay, loadSchedule: loadTeachingDayTimetable, termControl, termError: dashboardTermError,
-          changeDate: changeTeachingDay, openSession: session => openSessionPlan(session.date, session.slot),
+          changeDate: changeTeachingDay,
+          openSession: session => openSessionPlan(session.date, session.slot, undefined, undefined, false),
           select: (card, trello) =>
             openSessionPlan(card.metadata.teaching_date, card.metadata.session_slot, undefined, card.id, trello)
         });

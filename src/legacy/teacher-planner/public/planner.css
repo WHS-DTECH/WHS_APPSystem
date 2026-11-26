@@ -103,7 +103,9 @@
 .teaching-day-date-controls, .teaching-day-session-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
 .teaching-day-date-controls input { min-width: 145px; }
 .teaching-day-session { margin: 10px 0; padding: 10px 12px; border: 1px solid #b3c4cb; border-left: 4px solid #376783; border-radius: 4px; background: #fff; overflow-wrap: anywhere; }
-.teaching-day-session h4, .teaching-day-session p { margin: 6px 0; }
+.teaching-day-session-title { display: block; width: 100%; margin: 6px 0; padding: 0; border: 0; background: transparent; color: #173e54; font: inherit; font-weight: 700; text-align: left; cursor: pointer; }
+.teaching-day-session-title:hover { text-decoration: underline; }
+.teaching-day-session p { margin: 6px 0; }
 .teaching-day-session-actions button { font-size: 13px; padding: 5px 10px; }
 .planner-main:has(.teaching-dashboard) { width: 100%; }
 @media (max-width: 800px) { .teaching-dashboard-columns { grid-template-columns: minmax(0, 1fr); } }
