@@ -2121,6 +2121,11 @@ box selects/highlights that class and opens its saved default in the right pane.
 Open Notes, Open Trello preparation and the pane toggle are one-off choices:
 they never change the saved default. Classes without matching Trello preparation
 remain selectable and their Notes remain available.
+Before saving personal preferences, apply Planner migration
+`016_personal_preferences.sql` using `npm run db:migrate:planner` in the Render
+service shell. It adds `preferences` to the existing section constraint without
+changing any saved records. The command uses `TEACHER_PLANNER_DATABASE_URL`;
+do not run Core or KAMAR migrations for this setting.
 
 The [canonical teaching preparation card contract](docs/teaching-preparation-card-format.md)
 provides a copyable master template, complete metadata/heading/resource rules,

@@ -413,6 +413,7 @@ test('real database persists every planner section, isolates users including adm
     }
     user=owner;
     for(const [route,content] of [
+      ['2000/preferences/main',{anniversaryRegion:'Westland',dashboardClassView:'trello'}],
       ['2026/period/2026-10-12_p1',{title:'Private preparation',priorities:'Organise resources',activities:'Prepare without classes',resources:'https://example.test/resource',reflection:'Private reflection'}],
       ['2026/activity/cccccccc-cccc-4ccc-8ccc-cccccccccccc',{title:'Reusable activity',instructions:'Private instructions',lessonPlans:'Private lesson plans',resources:'https://example.test/activity'}],
       ['2026/week/2026-10-12',{...weeklyPrompts['4-1'],focus:'Private focus',reflection:'',cells:{'p1:0':'Private lesson'}}],
@@ -438,6 +439,14 @@ test('real database persists every planner section, isolates users including adm
       assert.equal((await put(route,{...content},1)).status,409);
       user=owner;
     }
+    const preferenceRoute = '2000/preferences/main';
+    const preference = {anniversaryRegion:'Westland',dashboardClassView:'notes'};
+    assert.equal((await put(preferenceRoute,preference,1,'wrong')).status,403);
+    assert.equal((await put(preferenceRoute,preference,1)).status,200);
+    assert.deepEqual((await (await get(preferenceRoute)).json()).content,preference);
+    assert.equal((await put(preferenceRoute,{...preference,dashboardClassView:'trello'},1)).status,409);
+    assert.equal((await put(preferenceRoute,{...preference,dashboardClassView:'invalid'},2)).status,400);
+    assert.deepEqual((await (await get(preferenceRoute)).json()).content,preference);
     const report = (await (await get('2026/reporting/main')).json()).content;
     assert.equal((await put('2026/reporting/main', report, 1, 'wrong')).status, 403);
     assert.equal((await put('2026/reporting/main', report, 0)).status, 409);
