@@ -145,18 +145,21 @@ function createTodoTrelloRouter({ env = process.env, fetchImpl = globalThis.fetc
         });
       }
       let writeAvailable = false;
+      let writeStatus = env.TEACHER_PLANNER_TRELLO_WRITE_TOKEN ? 'invalid-configuration' : 'not-configured';
       const credentials = writeCredentials(env);
       if (credentials) {
         try {
           const writerRead = createTrelloReader({ ...credentials, fetchImpl });
           const writeGrant = await writerRead('tokens/' + encodeURIComponent(credentials.token), { fields: 'permissions' });
           writeAvailable = hasWriteBoardGrant(writeGrant, board.id);
+          writeStatus = writeAvailable ? 'available' : 'permission-unavailable';
           if (!writeAvailable) console.warn('ToDo Trello write permission unavailable.');
         } catch {
+          writeStatus = 'permission-check-failed';
           console.warn('ToDo Trello write permission check failed.');
         }
       }
-      return res.json({ status: 'ok', boardUrl: BOARD_URL, fetchedAt: new Date().toISOString(), writeAvailable, lists: result });
+      return res.json({ status: 'ok', boardUrl: BOARD_URL, fetchedAt: new Date().toISOString(), writeAvailable, writeStatus, lists: result });
     } catch (error) {
       if ([401, 403].includes(error.status)) failure = 'Trello permission is missing or its read-only token expired.';
       if (error.status === 429) failure = 'Trello is rate-limiting requests. Wait briefly and retry.';

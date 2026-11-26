@@ -124,14 +124,22 @@ test('MINED reference cards are returned only through the authorised read-only b
 test('write access is separate, owner-only, and preserves read-only fallback', async t => {
   const { state, call, complete } = await fixture(t);
   const id = state.cards[0].id;
-  assert.equal((await (await call()).json()).writeAvailable, false);
+  let result = await (await call()).json();
+  assert.equal(result.writeAvailable, false);
+  assert.equal(result.writeStatus, 'not-configured');
   assert.equal((await complete(id, todo)).status, 503);
+  state.env.TEACHER_PLANNER_TRELLO_WRITE_TOKEN = 'invalid';
+  assert.equal((await (await call()).json()).writeStatus, 'invalid-configuration');
   state.env.TEACHER_PLANNER_TRELLO_WRITE_TOKEN = '9'.repeat(64);
   state.writePermissions[0].write = false;
-  assert.equal((await (await call()).json()).writeAvailable, false);
+  result = await (await call()).json();
+  assert.equal(result.writeAvailable, false);
+  assert.equal(result.writeStatus, 'permission-unavailable');
   assert.equal((await complete(id, todo)).status, 503);
   state.writePermissions[0].write = true;
-  assert.equal((await (await call()).json()).writeAvailable, true);
+  result = await (await call()).json();
+  assert.equal(result.writeAvailable, true);
+  assert.equal(result.writeStatus, 'available');
   state.user = { id: '22222222-2222-4222-8222-222222222222', roles: ['ADMIN'] };
   const count = state.calls.length;
   assert.equal((await complete(id, todo)).status, 403);
