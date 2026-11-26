@@ -94,8 +94,14 @@
     const expandedFiled = new Set();
     const expandedGroups = new Set(['urgent', 'today']);
 
-    function render(data, current) {
+    function render(data, current, resetExpansion = false) {
       currentData = data;
+      if (resetExpansion) {
+        expandedGroups.clear(); expandedFiled.clear();
+        if (selected === allFilter) {
+          expandedGroups.add('urgent'); expandedGroups.add('today');
+        }
+      }
       const today = dateKey(Date.now()), result = model(data || { lists: [] }, today);
       const meetings = shared.meetingViews(result.groups, today);
       const hasMeetings = data?.lists.some(list => list.role === 'meetings');
@@ -137,7 +143,7 @@
         const button = make('button', name + ' (' + (data ? count : '?') + ')', { type: 'button', 'aria-pressed': String(selected === key) });
         if (color) button.setAttribute('data-trello-colour', color);
         button.addEventListener('click', () => {
-          selected = key; render(currentData, current);
+          selected = key; render(currentData, current, true);
           host.querySelector('.todo-dashboard-filters button[aria-pressed="true"]').focus();
         });
         filters.append(button);
@@ -184,9 +190,13 @@
       const detail = make('section', '', { class: 'todo-detail', hidden: '', 'aria-label': 'Task and meeting details' });
       function group(parent, key, title, cards, openSet, emptyText, events = [], alerts = []) {
         const box = make('details', '', { class: 'todo-group' });
-        box.open = openSet.has(key);
-        box.addEventListener('toggle', () => { if (box.open) openSet.add(key); else openSet.delete(key); });
         const total = cards.length + events.length + alerts.length;
+        if (resetExpansion && selected !== allFilter && total) openSet.add(key);
+        box.open = openSet.has(key);
+        box.addEventListener('toggle', () => {
+          if (!box.isConnected) return;
+          if (box.open) openSet.add(key); else openSet.delete(key);
+        });
         const partial = key === 'today' && (!hasMeetings || !hasMined) || key === 'upcoming' && !hasMined;
         const size = !data || key === 'meetings' && !hasMeetings ? '?' : partial ? total + '+?' : total;
         box.append(make('summary', title + ' (' + size + ')'));
@@ -252,13 +262,19 @@
       group(right, 'doneOther', 'CURRENTLY IN DONE — OTHER / UNVERIFIED', result.groups.doneOther.filter(matchesCompleted), expandedGroups);
       group(right, 'completedActive', 'MARKED COMPLETE IN ACTIVE LISTS', result.groups.completedActive.filter(matchesCompleted), expandedGroups);
       const filed = make('details', '', { class: 'todo-group' });
-      filed.open = expandedGroups.has('filed');
-      filed.addEventListener('toggle', () => { if (filed.open) expandedGroups.add('filed'); else expandedGroups.delete('filed'); });
+      filed.addEventListener('toggle', () => {
+        if (!filed.isConnected) return;
+        if (filed.open) expandedGroups.add('filed'); else expandedGroups.delete('filed');
+      });
       filed.append(make('summary', 'Completed by Responsibility'));
+      let filedCount = 0;
       for (const list of (data?.lists || []).filter(list => list.role === 'filed')) {
         const cards = list.cards.map(card => ({ ...card, role: 'filed', listName: list.name, dueDate: card.due ? dateKey(card.due) : '' })).filter(matchesCompleted).sort(compare);
+        filedCount += cards.length;
         group(filed, list.id, list.name, cards, expandedFiled);
       }
+      if (resetExpansion && selected !== allFilter && filedCount) expandedGroups.add('filed');
+      filed.open = expandedGroups.has('filed');
       if (!data?.lists.some(list => list.role === 'filed')) filed.append(make('p', data
         ? 'No recognised filed DONE lists are available.' : 'Trello data unavailable.'));
       right.append(filed, detail);

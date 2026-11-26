@@ -1935,8 +1935,9 @@ reports the limitation instead of inventing a date.
 ### Trello ToDo Dashboard
 
 The Planner navigation also offers a ToDo Dashboard using the same
-owner-only endpoint and in-memory refresh state as the Weekly sidebar. It
-refreshes on opening, manual refresh and returning to a visible page. Failed
+owner-only endpoint and in-memory refresh state as the shared Planner sidebar. It
+reuses already loaded data on opening and refreshes on manual refresh or returning
+to a visible page. Failed
 refreshes show an unavailable status rather than task counts. Responsibility
 filters use the labels and colours present on returned cards; predefined
 responsibilities without a matching card label have a neutral colour.
@@ -1944,6 +1945,12 @@ Responsibility counts show outstanding tasks, while filters apply to tasks,
 Trello meetings, MINED alerts and completed work. The Unclassified filter includes
 records without a responsibility; a MEETINGS type label is not a responsibility.
 Filed cards also match the responsibility of their existing DONE list.
+Selecting a responsibility expands dashboard groups containing matching tasks,
+meetings, deadline alerts or completed cards, and collapses groups without
+matches. Individual groups remain manually expandable or collapsible; those
+choices survive refreshes while the same filter is selected. Selecting All
+restores the default expansion (URGENT and DUE TODAY only). This behaviour does
+not change the sidebar's independent expansion settings or any card counts.
 The dashboard provides sorting, task and meeting details, upcoming deadlines,
 verified DONE TODAY and expandable filed DONE lists, including MISCELLANEOUS.
 The optional completed-date range includes only cards with verified completion

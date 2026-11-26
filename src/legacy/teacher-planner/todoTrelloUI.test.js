@@ -9,7 +9,7 @@ const card = (id, due = null, extra = {}) => ({ id, due, dueComplete: false, ...
 
 const descendants = node => [node, ...node.children.flatMap(descendants)];
 const flush = () => new Promise(resolve => setImmediate(resolve));
-function sidebarFixture(preferences = new Map()) {
+function sidebarFixture(preferences = new Map(), initialLists) {
   function make(tag, text = '') {
     const node = { tag, textContent: text, children: [], attrs: {}, events: {}, style: {
       setProperty(key, value) { this[key] = value; }
@@ -20,8 +20,12 @@ function sidebarFixture(preferences = new Map()) {
     addEventListener(key, handler) { this.events[key] = handler; }, focus() {}, scrollIntoView() {},
     querySelector(selector) { return this.querySelectorAll(selector)[0]; },
     querySelectorAll(selector) {
+      const parts = selector.split(' ');
+      if (parts.length > 1) return this.querySelectorAll(parts[0]).flatMap(child => child.querySelectorAll(parts.slice(1).join(' ')));
+      const match = /^([a-z]+)(?:\[([a-z-]+)="([^"]*)"\])?$/.exec(selector);
       return descendants(this).slice(1).filter(child => selector.startsWith('.') ?
-        child.className.split(' ').includes(selector.slice(1)) : child.tag === selector);
+        child.className.split(' ').includes(selector.slice(1)) :
+        match && child.tag === match[1] && (!match[2] || child.attrs[match[2]] === match[3]));
     },
     get childNodes() { return this.children; }
     };
@@ -52,7 +56,7 @@ function sidebarFixture(preferences = new Map()) {
     fetch: async (_url, options) => {
       if (options.method === 'POST') { writes++; completed = true; return { ok: true, json: async () => ({ status: 'ok' }) }; }
       reads++;
-      return { ok: true, json: async () => ({ status: 'ok', fetchedAt: now, writeAvailable: true, lists: [
+      return { ok: true, json: async () => ({ status: 'ok', fetchedAt: now, writeAvailable: true, lists: initialLists || [
         { id: 'b'.repeat(24), name: 'TO DO', role: 'todo', cards: completed ? [] : [item] },
         { id: 'c'.repeat(24), name: 'DONE', role: 'done', cards: completed ? [{ ...item, dueComplete: true,
           completedAt: now, completionActivity: 'verified' }] : [] },
@@ -138,6 +142,56 @@ test('sidebar and dashboard mounts reuse data and reflect checkbox completion an
   assert.equal(f.reads, 3);
   disposeDashboard(); dispose();
   assert.equal(f.listeners.size, 0);
+});
+
+test('responsibility selection expands matching dashboard groups, preserves manual choices and resets All independently of the sidebar', async () => {
+  const now = new Date().toISOString(), today = dateKey(now);
+  const future = new Date(Date.now() + 86400000).toISOString();
+  const entry = (id, responsibility, extra = {}) => ({
+    id, title: id, description: '', labels: [{ name: responsibility }], due: null,
+    dueComplete: false, position: 1, url: 'https://trello.com/c/AbCd1234', ...extra
+  });
+  const lists = [
+    { id: 'urgent', name: 'URGENT', role: 'urgent', cards: [entry('urgent-task', 'DTECH')] },
+    { id: 'todo', name: 'TO DO', role: 'todo', cards: [entry('hola-task', 'HOLA')] },
+    { id: 'waiting', name: 'WAITING', role: 'waiting', cards: [entry('waiting-task', 'DTECH')] },
+    { id: 'meetings', name: 'MEETINGS', role: 'meetings', cards: [entry('hola-meeting', 'MEETINGS', {
+      description: 'Start: ' + today + 'T09:00:00+13:00\nResponsibility: HOLA'
+    })] },
+    { id: 'mined', name: 'MINED', role: 'mined', cards: [entry('hola-deadline', 'HOLA', { due: future })] },
+    { id: 'done', name: 'DONE', role: 'done', cards: [] },
+    { id: 'filed-hola', name: 'DONE – HOLA', role: 'filed', cards: [entry('filed-card', 'MEETINGS')] }
+  ];
+  const originalLists = JSON.stringify(lists), f = sidebarFixture(new Map(), lists);
+  const disposeSidebar = f.context.plannerTodoTrello.mount(f.host, { api: '/api/', getCsrf: () => 'fixture' });
+  await flush();
+  const host = f.make('section');
+  const disposeDashboard = f.context.plannerTodoDashboard.mount(host, { api: '/api/', getCsrf: () => 'fixture' });
+  await flush();
+  const button = name => host.querySelectorAll('button').find(node => node.textContent.startsWith(name + ' ('));
+  const group = title => host.querySelectorAll('details').find(node => node.children[0].textContent.startsWith(title));
+  const openTitles = parent => parent.querySelectorAll('details').filter(node => node.open)
+    .map(node => node.children[0].textContent.split(' (')[0]);
+  const summary = host.querySelector('.todo-dashboard-summary').children.map(node => node.textContent);
+  button('HOLA').events.click();
+  assert.deepEqual(openTitles(host), ['DUE TODAY', 'MEETINGS', 'UPCOMING DEADLINES', 'TO DO',
+    'Completed by Responsibility', 'DONE – HOLA']);
+  assert.equal(group('URGENT').open, false);
+  assert.equal(group('WAITING').open, false);
+  assert.deepEqual(host.querySelector('.todo-dashboard-summary').children.map(node => node.textContent), summary);
+  assert.deepEqual(openTitles(f.host), ['URGENT', 'DUE TODAY']);
+  group('TO DO').open = false; group('TO DO').events.toggle();
+  group('WAITING').open = true; group('WAITING').events.toggle();
+  await f.context.plannerTodoTrello.refreshData('/api/');
+  assert.equal(group('TO DO').open, false);
+  assert.equal(group('WAITING').open, true);
+  button('DTECH').events.click();
+  assert.deepEqual(openTitles(host), ['URGENT', 'WAITING / FOLLOW-UP']);
+  button('All').events.click();
+  assert.deepEqual(openTitles(host), ['URGENT', 'DUE TODAY']);
+  assert.equal(JSON.stringify(lists), originalLists);
+  assert.equal(f.writes, 0);
+  disposeDashboard(); disposeSidebar();
 });
 
 test('write token status clearly distinguishes approaching expiry, revoked access and unknown expiry', () => {

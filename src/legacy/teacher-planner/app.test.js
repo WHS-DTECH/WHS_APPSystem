@@ -898,7 +898,7 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(html, /planner\.css\?v=module-todo-1/);
   const plannerScript = html.indexOf('src="/planner/framework/planner.js?v=module-todo-1"');
   const todoScript = html.indexOf('src="/planner/framework/todo-trello.js?v=module-todo-1"');
-  const dashboardScript = html.indexOf('src="/planner/framework/todo-dashboard.js?v=module-todo-1"');
+  const dashboardScript = html.indexOf('src="/planner/framework/todo-dashboard.js?v=responsibility-expansion-1"');
   assert.ok(plannerScript >= 0 && todoScript >= 0 && dashboardScript >= 0);
   assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < plannerScript);
   assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < plannerScript);
