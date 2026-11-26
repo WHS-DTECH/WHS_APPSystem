@@ -1272,10 +1272,7 @@
     });
     try {
       if (!globalThis.plannerTodoTrello) throw new Error('Sidebar assets unavailable.');
-      disposeTodo = globalThis.plannerTodoTrello.mount(workspace, { api, week, openSession: openSessionPlan,
-        loadDocuments: year => globalThis.plannerGoogleDocSync.loadEvents({
-          request: path => request(api + path), settings: () => loadTermDates(year), year
-        }) });
+      disposeTodo = globalThis.plannerTodoTrello.mount(workspace, { api, week });
     } catch {
       console.warn('Trello ToDo sidebar could not start.');
       workspace.append(el('p', 'Trello ToDo is unavailable. Your Planner is unaffected.', {
@@ -2842,10 +2839,7 @@
         if (!globalThis.plannerTodoDashboard) throw new Error('Trello ToDo Dashboard assets are unavailable.');
         const host = el('section');
         content.append(host);
-        disposeTodo = globalThis.plannerTodoDashboard.mount(host, { api, openSession: openSessionPlan,
-          loadDocuments: year => globalThis.plannerGoogleDocSync.loadEvents({
-            request: path => request(api + path), settings: () => loadTermDates(year), year
-          }) });
+        disposeTodo = globalThis.plannerTodoDashboard.mount(host, { api });
         loaded = true;
         notice('Trello ToDo is read-only and separate from Planner records.');
         return;

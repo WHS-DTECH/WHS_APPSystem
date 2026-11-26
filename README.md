@@ -1883,7 +1883,7 @@ refreshes show an unavailable status rather than task counts. Responsibility
 filters use the labels and colours present on returned cards; predefined
 responsibilities without a matching card label have a neutral colour.
 Responsibility counts show outstanding tasks, while filters apply to tasks,
-classified meetings and completed work. The Unclassified filter includes
+Trello meetings and completed work. The Unclassified filter includes
 records without a responsibility; a MEETINGS type label is not a responsibility.
 Filed cards also match the responsibility of their existing DONE list.
 The dashboard provides sorting, task and meeting details, upcoming deadlines,
@@ -1893,29 +1893,34 @@ timestamps. The current feed verifies same-day completions in general DONE;
 older or filed cards without a verified timestamp are omitted when filtering,
 not assigned their modification dates.
 
-Both views share the same read-only meeting state. URGENT and DUE TODAY open
-by default; MEETINGS and the remaining sections start collapsed. DUE TODAY
-includes scheduled meetings as well as task deadlines, while MEETINGS looks
-ahead seven Auckland calendar days. Meeting counts are separate from task
-counts, and source warnings and partial counts do not imply that an
-unavailable source contains no meetings. Planner sessions explicitly typed as
-meetings are included. Google Calendar, KAMAR school events, school meeting
-document entries and Planner observations must be reviewed before they are
-treated as professional meetings; these sources do not reliably establish
-both attendance and whether an event is teaching. Declined or cancelled Google
-events, cancelled KAMAR events and undated document references are excluded.
-Classifications are saved in browser-local storage for the signed-in account;
-Google decisions are also scoped to the connected Google account and event
-revision. Changed events may require review again. Source failures are
-independent of Trello and are shown in the meeting-source status.
+Both views use only the Trello `MEETINGS / APPOINTMENTS` list for meetings.
+URGENT and DUE TODAY open by default; all other sections start collapsed.
+DUE TODAY combines task deadlines and meetings starting today in
+Pacific/Auckland. MEETINGS displays all active meeting-list cards, including
+past and unscheduled cards; the separate upcoming count includes scheduled
+cards starting today or later. An elapsed meeting is not assumed attended.
+The Planner does not classify, aggregate or copy calendar events for ToDo.
+ChatGPT maintains the meeting cards and prevents duplicates outside Planner.
 
-A Trello meeting needs a start date to appear as scheduled; unscheduled
-meeting cards are displayed separately. A unique exact original calendar link
-or explicitly labelled calendar event ID in a Trello card joins the two views
-without guessing from titles. Unlinked entries in different calendar sources
-may describe the same meeting; review them rather than assuming a match. An
-elapsed meeting is not assumed to have been attended. These reviews do not
-create or change Google events or Trello cards.
+Meeting card descriptions use these separate, case-insensitive fields:
+
+```text
+Start: 2026-11-26T15:00:00+13:00
+End: 2026-11-26T16:00:00+13:00
+Location: Room 1
+Source: https://calendar.google.com/calendar/event?eid=example
+```
+
+`Start` is needed for a scheduled date and must be an ISO 8601 timestamp
+with `Z` or an explicit numeric offset; `End` is optional and follows the
+same format. `Location` and `Source` are optional; `Source` must be an HTTPS
+URL without embedded credentials. Use one field per line, at most once.
+Blank or `unspecified` End/Source values are treated as absent. Trello's due
+date is not interpreted as a meeting start or end. Invalid or duplicate
+fields are flagged on the card; without a valid Start the card stays visible
+as unscheduled and is not included in scheduled counts. Original Trello
+labels and links remain unchanged. The Trello meeting list being absent or
+the Trello connection failing is shown as unavailable, not zero meetings.
 
 Completion timestamps are only shown when verified by the existing same-day
 activity check; older or unverifiable cards in DONE remain separate. No write
