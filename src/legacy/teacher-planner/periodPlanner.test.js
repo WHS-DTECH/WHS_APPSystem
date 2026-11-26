@@ -484,7 +484,7 @@ test('Teaching Day timetable matches exact sessions in Pacific/Auckland time and
 test('Teaching Day date controls refresh the selected date and leave Notes available without Trello cards', async () => {
   const context = { plannerSessionSchema: require('./public/session-schema') };
   vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-day-trello'), 'utf8'), context);
-  const host = node(), trelloDates = [], scheduleDates = [], opened = [], changedDates = [];
+  const host = node(), trelloDates = [], scheduleDates = [], opened = [], selected = [], changedDates = [];
   const events = [
     { title: 'Thursday class', start: '2026-11-26T09:00:00', end: '2026-11-26T10:00:00' },
     { title: 'Friday class', start: '2026-11-27T09:00:00', end: '2026-11-27T10:00:00' }
@@ -496,7 +496,9 @@ test('Teaching Day date controls refresh the selected date and leave Notes avail
       trelloDates.push(value); return { status: 'ok', issues: [], cards: [], unassigned: [] };
     },
     loadSchedule: async value => { scheduleDates.push(value); return { events }; },
-    changeDate: async value => { changedDates.push(value); return true; }, openSession: session => opened.push(session), select() {}
+    changeDate: async value => { changedDates.push(value); return true; },
+    openNotesSession: session => opened.push(session), openTrelloSession: session => selected.push(session),
+    select: (card, trello) => selected.push({ card, trello })
   });
   const descend = value => [value, ...value.children.filter(child => typeof child === 'object').flatMap(descend)];
   await flush(); await flush();
@@ -508,12 +510,15 @@ test('Teaching Day date controls refresh the selected date and leave Notes avail
   assert.ok(elements.some(item => item.tag === 'button' && item.textContent === 'Tomorrow'));
   assert.ok(elements.some(item => item.textContent === 'No matching Trello preparation. You can still plan in Notes.'));
   elements.find(item => item.tag === 'button' && item.attrs.class === 'teaching-day-session-title').events.click();
-  assert.equal(opened[0].slot, 'p1', 'clicking the class name opens its Notes');
+  assert.equal(selected[0].slot, 'p1', 'clicking the class name opens its Trello view');
   elements.find(item => item.tag === 'button' && item.textContent === 'Open Notes').events.click();
   assert.deepEqual(JSON.parse(JSON.stringify(opened[0])), {
     date: '2026-11-26', slot: 'p1', label: 'Period 1', title: 'Thursday class',
     classKey: null, source: 'KAMAR', startTime: '09:00', endTime: '10:00'
   });
+  elements.find(item => item.tag === 'article' && item.attrs.class === 'teaching-day-session')
+    .events.click({ target: { closest: () => null } });
+  assert.equal(selected[1].slot, 'p1', 'clicking the session card opens its Trello view');
   picker.value = '2026-11-27'; picker.events.change();
   await flush(); await flush(); await flush();
   assert.equal(dashboard.date, '2026-11-27');

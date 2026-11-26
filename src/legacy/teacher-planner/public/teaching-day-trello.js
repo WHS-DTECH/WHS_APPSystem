@@ -63,7 +63,7 @@
       el('a', 'Open in Trello', { href: card.url, target: '_blank', rel: 'noopener noreferrer' }));
     return article;
   }
-  function dashboard(host, context, { el, request, loadSchedule, select, openSession, changeDate, termControl, termError }) {
+  function dashboard(host, context, { el, request, loadSchedule, select, openNotesSession, openTrelloSession, changeDate, termControl, termError }) {
     const page = el('section', '', { class: 'teaching-dashboard', 'aria-label': 'Teaching Dashboard' });
     const heading = el('div', '', { class: 'teaching-dashboard-heading', 'data-planner-navigation': '' });
     if (termControl) heading.append(termControl);
@@ -110,11 +110,12 @@
         const card = result?.cards.find(item => item.metadata.session_slot === session.slot &&
           session.classKey && item.metadata.class_key === session.classKey);
         const item = el('article', '', { class: 'teaching-day-session' });
+        const openTrello = () => card ? select(card, true) : openTrelloSession(session);
         const title = el('button', session.title, { type: 'button', class: 'teaching-day-session-title' });
-        title.addEventListener('click', () => openSession(session));
+        title.addEventListener('click', openTrello);
         item.addEventListener('click', event => {
           if (event.target?.closest?.('button')) return;
-          openSession(session);
+          openTrello();
         });
         item.append(title,
           el('p', session.label + ' | ' + session.startTime + '–' + session.endTime + ' NZ'));
@@ -129,7 +130,7 @@
         }
         const actions = el('div', '', { class: 'teaching-day-session-actions' });
         const openNotes = el('button', 'Open Notes', { type: 'button' });
-        openNotes.addEventListener('click', () => openSession(session));
+        openNotes.addEventListener('click', () => openNotesSession(session));
         actions.append(openNotes);
         if (card) {
           const openTrello = el('button', 'Open Trello preparation', { type: 'button' });
