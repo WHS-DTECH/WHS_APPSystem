@@ -60,7 +60,7 @@ function nzMidnight(value) {
   const initial = utc - offset(utc);
   return new Date(utc - offset(initial)).toISOString();
 }
-function normaliseEvent(event, calendar) {
+function normaliseEvent(event, calendar, ownerEmail) {
   if (event.status === 'cancelled') return null;
   const allDay = Boolean(event.start?.date);
   const start = allDay ? event.start.date : event.start?.dateTime;
@@ -74,10 +74,29 @@ function normaliseEvent(event, calendar) {
     const url = new URL(event.htmlLink);
     if (url.protocol === 'https:' && url.hostname === 'calendar.google.com' && !url.username && !url.password) htmlLink = url.href;
   }
+  const email = value => typeof value === 'string' ? value.trim().toLowerCase() : '';
+  const owner = email(ownerEmail);
+  const organiserEmail = email(event.organizer?.email);
+  const organiser = owner && organiserEmail ? owner === organiserEmail :
+    calendar.primary && typeof event.organizer?.self === 'boolean' ? event.organizer.self : null;
+  const self = Array.isArray(event.attendees) ? event.attendees.filter(attendee =>
+    (owner && email(attendee?.email) === owner) ||
+      (calendar.primary && attendee?.self === true && (!owner || !email(attendee?.email)))) : [];
+  const responses = [...new Set(self.map(attendee => attendee.responseStatus))];
+  const response = responses.length === 1 && ['accepted', 'tentative', 'needsAction', 'declined'].includes(responses[0])
+    ? responses[0] : !self.length && organiser === true && event.attendeesOmitted !== true &&
+      (event.attendees === undefined || Array.isArray(event.attendees)) ? 'not-applicable' : 'unknown';
   return { id: calendar.id + ':' + event.id, title: event.summary || '(Untitled event)',
     start: allDay ? start : new Date(start).toISOString(), end: allDay ? end : new Date(end).toISOString(),
     allDay, location: event.location || '', description: event.description || '',
-    calendar: calendar.summary, htmlLink };
+    calendar: calendar.summary, htmlLink,
+    meetingMetadata: { status: typeof event.status === 'string' ? event.status : null,
+      eventType: typeof event.eventType === 'string' ? event.eventType : null,
+      ownerIsOrganiser: organiser, response,
+      updated: typeof event.updated === 'string' && /(?:Z|[+-]\d{2}:\d{2})$/i.test(event.updated) &&
+        Number.isFinite(Date.parse(event.updated)) ? new Date(event.updated).toISOString() : null,
+      identity: typeof calendar.id === 'string' && calendar.id && typeof event.id === 'string' && event.id
+        ? { calendarId: calendar.id, eventId: event.id } : null } };
 }
 function createGoogleCalendarAccess({ query, env = process.env, fetchImpl = fetch }) {
   const config = configuration(env);
@@ -152,7 +171,7 @@ function createGoogleCalendarReaders({ query, env = process.env, fetchImpl = fet
         timeMin: nzMidnight(start), timeMax: nzMidnight(end),
         timeZone: 'Pacific/Auckland', singleEvents: 'true', orderBy: 'startTime', showDeleted: 'false', maxResults: '2500'
       }, 4);
-      return items.map(item => normaliseEvent(item, calendar)).filter(Boolean);
+      return items.map(item => normaliseEvent(item, calendar, row.email)).filter(Boolean);
     }))).flat();
     await unchanged(row);
     return { connectionId: row.connection_id, events, fetchedAt: new Date().toISOString() };

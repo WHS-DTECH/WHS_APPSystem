@@ -37,7 +37,7 @@
     return { groups, active, summary, labels: [...labels.values()] };
   }
 
-  function mount(host, { api }) {
+  function mount(host, { api, openSession, loadDocuments }) {
     const shared = root.plannerTodoTrello;
     const { make, cardNode, dateKey } = shared;
     host.className = 'todo-dashboard';
@@ -49,19 +49,24 @@
     const board = make('a', 'Open Trello board', { href: 'https://trello.com/b/QsFC8J3m/school-email-todo',
       target: '_blank', rel: 'noopener noreferrer' });
     const status = make('p', 'Connecting to Trello…', { role: 'status', 'aria-live': 'polite', class: 'todo-status' });
-    toolbar.append(refresh, board); host.append(heading, info, toolbar, status);
+    const sources = make('div', '', { role: 'status', 'aria-live': 'polite', class: 'todo-meeting-sources' });
+    toolbar.append(refresh, board); host.append(heading, info, toolbar, status, sources);
     const body = make('div', '', { class: 'todo-dashboard-body' });
     host.append(body);
     let selected = 'ALL', search = '', sort = 'priority', currentData, disposed = false;
     let selectedCard = null;
     const expandedFiled = new Set();
-    const expandedGroups = new Set(['urgent', 'todo', 'doing', 'waiting', 'meetings', 'doneToday', 'upcoming']);
+    const expandedGroups = new Set(['urgent', 'today']);
 
-    function render(data) {
+    function render(data, current) {
       currentData = data;
-      const today = dateKey(Date.now()), result = model(data, today);
+      const today = dateKey(Date.now()), result = model(data || { lists: [] }, today);
+      const meetings = shared.meetingViews(result.groups, current.meetings, today);
+      const incomplete = current.meetingLoading || current.meetingError || current.decisionError || !current.meetings ||
+        Object.values(current.meetings.sources).some(source => source.status !== 'ok') ||
+        current.meetings.candidates?.some(event => event.classification === 'ambiguous') || meetings.conflicts;
       const selectedId = selectedCard?.id;
-      const allCards = data.lists.flatMap(list => list.cards.map(card => ({
+      const allCards = (data?.lists || []).flatMap(list => list.cards.map(card => ({
         ...card, dueDate: card.due ? dateKey(card.due) : '', role: list.role
       })));
       selectedCard = allCards.find(card => card.id === selectedId) || null;
@@ -70,8 +75,9 @@
       for (const [key, text] of [['urgent', 'Urgent'], ['outstanding', 'Outstanding'], ['overdue', 'Overdue'],
         ['today', 'Due today'], ['week', 'Due this week'], ['doing', 'Doing'], ['waiting', 'Waiting / follow-up'],
         ['doneToday', 'Completed today']]) {
-        summary.append(make('div', text + ': ' + result.summary[key]));
+        summary.append(make('div', text + ': ' + (data ? result.summary[key] : 'unavailable')));
       }
+      summary.append(make('div', 'Upcoming meetings: ' + meetings.upcoming.length + (incomplete ? '+' : '')));
       body.append(summary);
       const columns = make('div', '', { class: 'todo-dashboard-columns' });
       const left = make('section', '', { class: 'todo-dashboard-column', 'aria-label': 'Responsibilities' });
@@ -84,7 +90,7 @@
         const button = make('button', name + ' (' + count + ')', { type: 'button', 'aria-pressed': String(selected === key) });
         if (color) button.setAttribute('data-trello-colour', color);
         button.addEventListener('click', () => {
-          selected = key; render(currentData);
+          selected = key; render(currentData, current);
           host.querySelector('.todo-dashboard-filters button[aria-pressed="true"]').focus();
         });
         filters.append(button);
@@ -99,7 +105,7 @@
       searchInput.value = search;
       searchInput.addEventListener('input', () => {
         const position = searchInput.selectionStart;
-        search = searchInput.value; render(currentData);
+        search = searchInput.value; render(currentData, current);
         const replacement = host.querySelector('input[type="search"]');
         replacement.focus(); if (position !== null) replacement.setSelectionRange(position, position);
       });
@@ -111,7 +117,7 @@
       }
       sortSelect.value = sort;
       sortSelect.addEventListener('change', () => {
-        sort = sortSelect.value; render(currentData);
+        sort = sortSelect.value; render(currentData, current);
         host.querySelector('select[aria-label="Sort tasks"]').focus();
       });
       sortLabel.append(sortSelect); controls.append(searchLabel, sortLabel); middle.append(controls);
@@ -125,64 +131,69 @@
         return a.position - b.position;
       };
       const detail = make('section', '', { class: 'todo-detail', hidden: '', 'aria-label': 'Task details' });
-      function group(parent, key, title, cards, openSet, emptyText) {
+      function group(parent, key, title, cards, openSet, emptyText, events = []) {
         const box = make('details', '', { class: 'todo-group' });
         box.open = openSet.has(key);
         box.addEventListener('toggle', () => { if (box.open) openSet.add(key); else openSet.delete(key); });
-        box.append(make('summary', title + ' (' + cards.length + ')'));
+        const partial = ['today', 'meetings'].includes(key) && incomplete;
+        box.append(make('summary', title + ' (' + (data || key === 'meetings' ? cards.length + events.length : '?') + (partial ? '+' : '') + ')'));
+        if (key === 'today') box.append(make('p', (data ? cards.length : '?') + ' tasks · ' + events.length +
+          (incomplete ? '+ meetings (sources incomplete)' : ' meetings')));
         const list = make('ul', '', { class: 'todo-cards' });
         for (const card of cards) {
-          const item = cardNode(card, today, detail, selected => { selectedCard = selected; }, () => { selectedCard = null; });
+          const onSelect = selected => { selectedCard = selected; };
+          const onClose = () => { selectedCard = null; };
+          const item = key === 'today' && card.role === 'urgent'
+            ? shared.urgentReference(card, detail, onSelect, onClose) : cardNode(card, today, detail, onSelect, onClose);
           list.append(item);
         }
-        if (cards.length) box.append(list);
+        for (const event of events) list.append(shared.meetingNode(event, today, detail, openSession));
+        if (key === 'meetings') {
+          for (const event of meetings.unscheduled.filter(meetingMatches)) list.append(shared.meetingNode(event, today, detail, openSession));
+          if (meetings.unscheduled.length) box.append(make('p', meetings.unscheduled.length + ' Trello meetings have no confirmed start time and are not included in the upcoming count.'));
+          if (meetings.conflicts) box.append(make('p', 'Some calendar links match more than one meeting or card; review them in Trello.'));
+        }
+        if (list.childNodes.length) box.append(list);
         else box.append(make('p', emptyText || 'No tasks in this section.'));
         parent.append(box);
       }
-      for (const [role, title] of [['urgent', 'URGENT'], ['todo', 'TO DO'], ['doing', 'DOING'],
-        ['waiting', 'WAITING / FOLLOW-UP'], ['meetings', 'MEETINGS / APPOINTMENTS — NOT COUNTED']]) {
-        if (role === 'doing' && !data.lists.some(list => list.role === role)) continue;
-        const cards = (role === 'meetings' ? result.groups.meetings : result.active.filter(card => card.role === role))
+      const meetingMatches = event => event.card ? matches(event.card) : selected === 'ALL' &&
+        (event.title + '\n' + (event.location || '')).toLocaleLowerCase('en-NZ').includes(search.toLocaleLowerCase('en-NZ').trim());
+      for (const [role, title] of [['urgent', 'URGENT'], ['today', 'DUE TODAY'],
+        ['meetings', 'MEETINGS'], ['upcoming', 'UPCOMING DEADLINES'],
+        ['todo', 'TO DO'], ['doing', 'DOING'], ['waiting', 'WAITING / FOLLOW-UP']]) {
+        if (role === 'doing' && !data?.lists.some(list => list.role === role)) continue;
+        const cards = (role === 'today' ? shared.todayTasks(result.groups, today) :
+          role === 'meetings' ? [] : role === 'upcoming' ? result.groups.upcoming :
+          result.active.filter(card => card.role === role && (role === 'urgent' || !['today', 'upcoming'].some(key => result.groups[key].includes(card)))))
           .filter(matches).sort(compare);
-        group(middle, role, title, cards, expandedGroups);
+        const events = (role === 'today' ? meetings.today : role === 'meetings' ? meetings.upcoming : []).filter(meetingMatches);
+        group(middle, role, title, cards, expandedGroups, undefined, events);
       }
       right.append(make('h3', 'Progress and details'));
       group(right, 'doneToday', 'DONE TODAY', result.groups.doneToday.filter(matches), expandedGroups, 'No matching completions verified today.');
       group(right, 'doneOther', 'CURRENTLY IN DONE — OTHER / UNVERIFIED', result.groups.doneOther.filter(matches), expandedGroups);
       group(right, 'completedActive', 'MARKED COMPLETE IN ACTIVE LISTS', result.groups.completedActive.filter(matches), expandedGroups);
-      const upcoming = result.active.filter(card => card.dueDate && card.dueDate >= today && matches(card))
-        .sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.position - b.position);
-      const deadlines = make('details', '', { class: 'todo-group' });
-      deadlines.open = expandedGroups.has('upcoming');
-      deadlines.addEventListener('toggle', () => { if (deadlines.open) expandedGroups.add('upcoming'); else expandedGroups.delete('upcoming'); });
-      deadlines.append(make('summary', 'UPCOMING DEADLINES (' + upcoming.length + ')'));
-      const deadlineList = make('ul');
-      for (const card of upcoming) {
-        const item = make('li');
-        item.append(make('span', shared.dateLabel(card.due) + ' — '), make('a', card.title, { href: card.url, target: '_blank', rel: 'noopener noreferrer' }));
-        deadlineList.append(item);
-      }
-      if (upcoming.length) deadlines.append(deadlineList); else deadlines.append(make('p', 'No upcoming deadlines.'));
-      right.append(deadlines);
       const filed = make('details', '', { class: 'todo-group' });
       filed.open = expandedGroups.has('filed');
       filed.addEventListener('toggle', () => { if (filed.open) expandedGroups.add('filed'); else expandedGroups.delete('filed'); });
       filed.append(make('summary', 'Completed by Responsibility'));
-      for (const list of data.lists.filter(list => list.role === 'filed')) {
+      for (const list of (data?.lists || []).filter(list => list.role === 'filed')) {
         const cards = list.cards.map(card => ({ ...card, role: 'filed', dueDate: card.due ? dateKey(card.due) : '' })).filter(matches).sort(compare);
         group(filed, list.id, list.name, cards, expandedFiled);
       }
-      if (!data.lists.some(list => list.role === 'filed')) filed.append(make('p', 'No recognised filed DONE lists are available.'));
+      if (!data?.lists.some(list => list.role === 'filed')) filed.append(make('p', 'No recognised filed DONE lists are available.'));
       right.append(filed, detail);
       if (selectedCard) shared.showDetail(detail, selectedCard, { focus: false, onClose: () => { selectedCard = null; } });
     }
-    const load = () => shared.refreshData(api);
+    const load = () => { shared.refreshData(api); shared.refreshMeetings(api, loadDocuments); };
     load();
     const unsubscribe = shared.subscribe(current => {
       if (disposed || !host.isConnected) return;
-      refresh.disabled = current.loading;
+      refresh.disabled = current.loading || current.meetingLoading;
+      shared.meetingStatus(sources, current, api, loadDocuments);
       if (current.error) {
-        body.replaceChildren(); status.setAttribute('role', 'alert');
+        status.setAttribute('role', 'alert');
         status.textContent = 'Trello unavailable: ' + current.error +
           (current.lastRefresh ? ' Last successful refresh: ' + current.lastRefresh + '.' : '');
       } else {
@@ -190,9 +201,8 @@
         status.textContent = current.loading ? 'Refreshing live Trello tasks…' +
           (current.lastRefresh ? ' Last successful refresh: ' + current.lastRefresh : '') :
           current.data ? 'Connected · Last refreshed: ' + current.lastRefresh : 'Connecting to Trello…';
-        if (current.loading) body.replaceChildren();
-        else if (current.data) render(current.data);
       }
+      if (current.data || current.meetings) render(current.data, current);
     });
     refresh.addEventListener('click', load);
     const onVisible = () => { if (!host.isConnected) dispose(); else if (!document.hidden) load(); };

@@ -1862,9 +1862,9 @@ the result, including when another account has administrator privileges.
 
 The Weekly Planner shows the current live board, not a historical snapshot.
 The sidebar can be collapsed, resized on wide screens and independently scrolled;
-it is omitted from printing. Urgent cards have priority over due-today and
-upcoming sections so each task appears once. Due dates use Pacific/Auckland.
-Meetings are listed separately and not counted as outstanding automatically.
+it is omitted from printing. Due dates use Pacific/Auckland. A task in URGENT
+that is due today is referenced in DUE TODAY without creating another task.
+Meetings are listed separately and not counted as outstanding tasks.
 Cards marked complete in active lists are also kept separate from outstanding
 counts. The DONE TODAY section requires a same-day Trello action confirming
 that a card's due-completion flag was set; other cards in DONE are shown
@@ -1883,12 +1883,34 @@ refreshes show an unavailable status rather than task counts. Responsibility
 filters use the labels and colours present on returned cards; predefined
 responsibilities without a matching card label have a neutral colour.
 Summary and responsibility counts are board-wide; search and responsibility
-filters apply to the displayed cards. The dashboard groups active cards by
-Trello list and provides sorting, task details, upcoming deadlines, verified
-DONE TODAY and expandable filed DONE lists, including MISCELLANEOUS.
+filters apply to the displayed cards. The dashboard provides sorting, task
+details, upcoming deadlines, verified DONE TODAY and expandable filed DONE
+lists, including MISCELLANEOUS.
 
-Meetings remain visible but are not automatically counted as outstanding:
-the existing read-only feed cannot reliably identify which are actionable.
+Both views share the same read-only meeting state. URGENT and DUE TODAY open
+by default; MEETINGS and the remaining sections start collapsed. DUE TODAY
+includes scheduled meetings as well as task deadlines, while MEETINGS looks
+ahead seven Auckland calendar days. Meeting counts are separate from task
+counts, and source warnings and partial counts do not imply that an
+unavailable source contains no meetings. Planner sessions explicitly typed as
+meetings are included. Google Calendar, KAMAR school events, school meeting
+document entries and Planner observations must be reviewed before they are
+treated as professional meetings; these sources do not reliably establish
+both attendance and whether an event is teaching. Declined or cancelled Google
+events, cancelled KAMAR events and undated document references are excluded.
+Classifications are saved in browser-local storage for the signed-in account;
+Google decisions are also scoped to the connected Google account and event
+revision. Changed events may require review again. Source failures are
+independent of Trello and are shown in the meeting-source status.
+
+A Trello meeting needs a start date to appear as scheduled; unscheduled
+meeting cards are displayed separately. A unique exact original calendar link
+or explicitly labelled calendar event ID in a Trello card joins the two views
+without guessing from titles. Unlinked entries in different calendar sources
+may describe the same meeting; review them rather than assuming a match. An
+elapsed meeting is not assumed to have been attended. These reviews do not
+create or change Google events or Trello cards.
+
 Completion timestamps are only shown when verified by the existing same-day
 activity check; older or unverifiable cards in DONE remain separate. No write
 operations, additional task database or filing automation are introduced.

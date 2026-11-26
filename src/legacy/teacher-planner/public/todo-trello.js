@@ -15,9 +15,10 @@
     for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
     return node;
   };
-  const state = { data: null, error: '', lastRefresh: '', loading: false };
+  const state = { data: null, error: '', lastRefresh: '', loading: false,
+    meetings: null, meetingError: '', meetingLoading: false, decisionError: '' };
   const listeners = new Set();
-  let pending;
+  let pending, pendingMeetings, reviewExpanded = false;
   function notify() { for (const listener of listeners) listener(state); }
   function subscribe(listener) {
     listeners.add(listener);
@@ -45,6 +46,70 @@
       }
     });
     return pending;
+  }
+
+  async function refreshMeetings(api, loadDocuments) {
+    if (pendingMeetings) return pendingMeetings;
+    state.meetingLoading = true; state.meetingError = ''; state.meetings = null; notify();
+    pendingMeetings = Promise.resolve().then(async () => {
+      try {
+        if (!root.TodoMeetings) throw new Error('Meeting assets are unavailable.');
+        const base = api.replace(/planner\/$/, '');
+        const request = async path => {
+          const response = await fetch(base + path, { credentials: 'same-origin', cache: 'no-store' });
+          if (!response.ok) throw new Error('Meeting source unavailable.');
+          return response.json();
+        };
+        let decisions = null;
+        try {
+          const owner = document.body.dataset.userId;
+          if (!owner) throw new Error('Missing signed-in account.');
+          const saved = localStorage.getItem('teacher-planner-meeting-review:' + owner);
+          if (saved) decisions = JSON.parse(saved);
+          state.decisionError = '';
+        } catch {
+          state.decisionError = 'Saved meeting classifications could not be read. Check browser storage and refresh.';
+        }
+        state.meetings = await root.TodoMeetings.load({ request, decisions, loadDocuments,
+          expectedOwner: document.body.dataset.userId });
+        if (state.meetings.decisionStatus === 'invalid' || state.meetings.decisionStatus === 'scope-mismatch') {
+          state.decisionError = 'Saved meeting classifications belong to a different connection or are invalid; review events again.';
+        }
+      } catch {
+        console.warn('Meeting refresh failed.');
+        state.meetingError = 'Meeting sources could not be loaded. Refresh to retry.';
+      } finally {
+        state.meetingLoading = false; pendingMeetings = null; notify();
+      }
+    });
+    return pendingMeetings;
+  }
+
+  function saveMeetingDecision(api, loadDocuments, candidate, value) {
+    try {
+      const scope = state.meetings?.decisionScope;
+      if (!scope || scope.ownerId !== document.body.dataset.userId) throw new Error('Account changed.');
+      const key = 'teacher-planner-meeting-review:' + scope.ownerId;
+      const saved = localStorage.getItem(key);
+      const previous = saved ? JSON.parse(saved) : null;
+      if (previous && (previous.ownerId !== scope.ownerId || !previous.byId || typeof previous.byId !== 'object' ||
+          Array.isArray(previous.byId) || previous.schoolById && (typeof previous.schoolById !== 'object' || Array.isArray(previous.schoolById)))) {
+        throw new Error('Invalid saved classifications.');
+      }
+      const byId = previous?.connectionId === scope.connectionId || candidate.source !== 'google' ? { ...previous?.byId } : {};
+      const schoolById = { ...previous?.schoolById };
+      if (candidate.source === 'google' && !scope.connectionId) throw new Error('Google connection changed.');
+      const choices = candidate.source === 'google' ? byId : schoolById;
+      if (value === 'unreviewed') delete choices[candidate.id];
+      else if (value === 'meeting' || value === 'not-meeting') choices[candidate.id] = value;
+      else throw new Error('Invalid classification.');
+      const connectionId = candidate.source !== 'google' ? previous?.connectionId || scope.connectionId : scope.connectionId;
+      localStorage.setItem(key, JSON.stringify({ ownerId: scope.ownerId, connectionId, byId, schoolById }));
+      refreshMeetings(api, loadDocuments);
+    } catch {
+      state.decisionError = 'Meeting classification could not be saved. Check browser storage or reload your account.';
+      notify();
+    }
   }
 
   function labels(parent, card) {
@@ -108,6 +173,129 @@
     return item;
   }
 
+  function todayTasks(groups, today) {
+    return [...groups.urgent.filter(card => card.dueDate === today), ...groups.today];
+  }
+
+  function urgentReference(card, detail, onSelect = () => {}, onClose = () => {}) {
+    const item = make('li', '', { class: 'todo-card' });
+    const button = make('button', card.title, { type: 'button', class: 'todo-card-title' });
+    button.addEventListener('click', () => { onSelect(card); showDetail(detail, card, { onClose }); });
+    item.append(button, make('p', 'Also shown in URGENT.', { class: 'todo-card-flags' }));
+    return item;
+  }
+
+  function meetingViews(groups, meetingData, today) {
+    const meetings = (meetingData?.meetings || []).map(meeting => ({ ...meeting }));
+    const endDate = new Date(today + 'T00:00:00Z');
+    endDate.setUTCDate(endDate.getUTCDate() + 7);
+    const end = meetingData?.window?.end || endDate.toISOString().slice(0, 10);
+    const unscheduled = [];
+    let conflicts = 0;
+    for (const card of groups.meetings) {
+      const links = new Set((card.description?.match(/https:\/\/[^\s<>"\])]+/g) || [])
+        .map(link => link.replace(/[.,;!?]+$/, '')));
+      const eventIds = new Set([...((card.description || '').matchAll(/^\s*(?:google\s+)?calendar\s+event\s+id\s*:\s*([^\s]+)\s*$/gim))]
+        .map(match => match[1]));
+      const matches = meetings.filter(meeting => meeting.url && links.has(meeting.url) ||
+        ['google', 'school'].includes(meeting.source) && meeting.sourceId && eventIds.has(meeting.sourceId));
+      if (matches.length === 1 && !matches[0].card) {
+        matches[0].card = card;
+        continue;
+      }
+      if (matches.length) conflicts++;
+      const start = card.start && Number.isFinite(Date.parse(card.start)) ? card.start : null;
+      const day = start ? dateKey(start) : '';
+      if (start && (day < today || end && day >= end)) continue;
+      const entry = { id: 'trello:' + card.id, source: 'trello', title: card.title, start, date: day, card };
+      if (!start) unscheduled.push(entry);
+      else meetings.push(entry);
+    }
+    meetings.sort((a, b) => a.date.localeCompare(b.date) ||
+      (a.start || '9999').localeCompare(b.start || '9999') || a.id.localeCompare(b.id));
+    return { upcoming: meetings, today: meetings.filter(meeting => meeting.date === today), unscheduled, conflicts };
+  }
+
+  function meetingNode(meeting, today, detail, openSession) {
+    const indicator = () => {
+      const line = make('p', '', { class: 'todo-meeting-indicator' });
+      const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      icon.setAttribute('viewBox', '0 0 24 24');
+      icon.setAttribute('aria-hidden', 'true');
+      for (const [tag, attrs] of [['rect', { x: '3', y: '5', width: '18', height: '16', rx: '2' }],
+        ['path', { d: 'M3 10h18M8 3v4M16 3v4' }]]) {
+        const element = document.createElementNS('http://www.w3.org/2000/svg', tag);
+        for (const [key, value] of Object.entries(attrs)) element.setAttribute(key, value);
+        icon.append(element);
+      }
+      line.append(icon, document.createTextNode(' Meeting · ' +
+        (meeting.allDay ? meeting.date + ' · All day' : meeting.start ? timeLabel(meeting.start) :
+          meeting.date ? meeting.date + ' · Time not recorded' : 'Time not confirmed')));
+      return line;
+    };
+    if (meeting.card) {
+      const item = cardNode(meeting.card, today, detail);
+      item.classList.add('todo-card-meeting');
+      item.prepend(indicator());
+      if (meeting.end && !meeting.allDay) item.append(make('p', 'Ends: ' + timeLabel(meeting.end)));
+      if (meeting.location) item.append(make('p', meeting.location));
+      if (meeting.status === 'elapsed') item.append(make('p', 'Ended — attendance not confirmed.'));
+      if (meeting.dateEstimated || meeting.timeEstimated) item.append(make('p', 'School document uses a default date or time; confirm with the source.'));
+      if (meeting.url || meeting.referenceUrl) item.append(make('a', 'Open original event', { href: meeting.url || meeting.referenceUrl, target: '_blank', rel: 'noopener noreferrer' }));
+      return item;
+    }
+    const item = make('li', '', { class: 'todo-card todo-card-meeting' });
+    item.append(indicator(), make('strong', meeting.title));
+    if (meeting.end && !meeting.allDay) item.append(make('p', 'Ends: ' + timeLabel(meeting.end)));
+    if (meeting.location) item.append(make('p', meeting.location));
+    if (meeting.status === 'elapsed') item.append(make('p', 'Ended — attendance not confirmed.'));
+    if (meeting.dateEstimated || meeting.timeEstimated) item.append(make('p', 'School document uses a default date or time; confirm with the source.'));
+    if (meeting.url || meeting.referenceUrl) item.append(make('a', 'Open original event', { href: meeting.url || meeting.referenceUrl, target: '_blank', rel: 'noopener noreferrer' }));
+    if (['planner', 'planner-review'].includes(meeting.source) && meeting.slot && openSession) {
+      const button = make('button', 'Open Planner record', { type: 'button' });
+      button.addEventListener('click', () => openSession(meeting.date, meeting.slot));
+      item.append(button);
+    }
+    return item;
+  }
+
+  function meetingStatus(node, current, api, loadDocuments) {
+    node.replaceChildren();
+    if (current.decisionError) node.append(make('p', current.decisionError, { role: 'alert' }));
+    if (current.meetingLoading) { node.textContent = 'Refreshing meeting sources…'; return; }
+    if (current.meetingError) { node.append(make('p', current.meetingError)); return; }
+    if (!current.meetings) { node.append(make('p', 'Meeting sources have not loaded.')); return; }
+    const warnings = Object.entries(current.meetings.sources).filter(([, source]) => source.status !== 'ok');
+    if (warnings.length) {
+      const box = make('details');
+      box.append(make('summary', 'Meeting sources: ' + warnings.length + ' need attention'));
+      for (const [name, source] of warnings) box.append(make('p', name + ': ' + (source.message || 'Source unavailable.')));
+      node.append(box);
+    }
+    const candidates = current.meetings.candidates || [];
+    if (candidates.length) {
+      const review = make('details', '', { class: 'todo-meeting-review' });
+      review.open = reviewExpanded;
+      review.addEventListener('toggle', () => { reviewExpanded = review.open; });
+      const pending = candidates.filter(event => event.classification === 'ambiguous').length;
+      review.append(make('summary', 'Review calendar events (' + pending + ' unreviewed)'),
+        make('p', 'Only mark professional meetings you attend. Confirm the date and time; exclude classes, duties and personal appointments. Nothing is written to Google Calendar or Trello.'));
+      for (const event of candidates) {
+        const label = make('label', event.title + ' — ' +
+          (event.allDay ? event.date + ' (all day)' : event.start ? timeLabel(event.start) : event.date + ' (time not recorded)') +
+          (event.dateEstimated || event.timeEstimated ? ' (document default; confirm)' : '') + ' ');
+        const select = make('select', '', { 'aria-label': 'Classification for ' + event.title });
+        for (const [value, text] of [['unreviewed', 'Not reviewed'], ['meeting', 'Professional meeting'], ['not-meeting', 'Not a meeting']]) {
+          select.append(make('option', text, { value }));
+        }
+        select.value = event.classification === 'ambiguous' ? 'unreviewed' : event.classification;
+        select.addEventListener('change', () => { reviewExpanded = review.open; saveMeetingDecision(api, loadDocuments, event, select.value); });
+        label.append(select); review.append(label);
+      }
+      node.append(review);
+    }
+  }
+
   function groupCards(lists, today) {
     const groups = { urgent: [], today: [], upcoming: [], todo: [], doing: [], waiting: [],
       doneToday: [], doneOther: [], completedActive: [], meetings: [] };
@@ -137,7 +325,7 @@
     return { groups, outstanding };
   }
 
-  function mount(host, { api, week }) {
+  function mount(host, { api, week, openSession, loadDocuments }) {
     const storageKey = 'teacher-planner-trello-todo-sidebar';
     const widthKey = 'teacher-planner-trello-todo-width';
     function saved(key) {
@@ -186,10 +374,11 @@
     size.append(slider);
     const liveNote = make('p', 'Live Trello tasks — not a historical snapshot.', { class: 'todo-live-note' });
     const status = make('p', 'Connecting to Trello…', { role: 'status', 'aria-live': 'polite', class: 'todo-status' });
+    const sources = make('div', '', { role: 'status', 'aria-live': 'polite', class: 'todo-meeting-sources' });
     const scroll = make('div', '', { class: 'todo-scroll' });
     const sections = make('div', '', { class: 'todo-sections' });
     const detail = make('section', '', { class: 'todo-detail', hidden: '', 'aria-label': 'Task details' });
-    scroll.append(sections, detail);
+    scroll.append(sources, sections, detail);
     panel.append(header, toolbar, size, liveNote, status, scroll);
     aside.append(panel); host.append(show, aside);
     const open = saved(storageKey) !== 'closed';
@@ -204,43 +393,59 @@
     hide.addEventListener('click', () => { setOpen(false); show.focus(); });
     let disposed = false;
     const expanded = new Map([['urgent', true], ['today', true]]);
-    function render(data) {
+    function render(data, current) {
       const today = dateKey(Date.now());
-      const { groups, outstanding } = groupCards(data.lists, today);
-      count.textContent = outstanding + ' outstanding';
+      const { groups, outstanding } = groupCards(data?.lists || [], today);
+      const meetings = meetingViews(groups, current.meetings, today);
+      const incomplete = current.meetingLoading || current.meetingError || current.decisionError || !current.meetings ||
+        Object.values(current.meetings.sources).some(source => source.status !== 'ok') ||
+        current.meetings.candidates?.some(event => event.classification === 'ambiguous') || meetings.conflicts;
+      count.textContent = data ? outstanding + ' outstanding · ' + meetings.upcoming.length + (incomplete ? '+' : '') + ' meetings' : 'Trello unavailable';
       sections.replaceChildren();
       const specs = [
-        ['urgent', 'URGENT'], ['today', 'DUE TODAY'], ['upcoming', 'UPCOMING DEADLINES'],
+        ['urgent', 'URGENT'], ['today', 'DUE TODAY'], ['meetings', 'MEETINGS'],
+        ['upcoming', 'UPCOMING DEADLINES'],
         ['todo', 'TO DO'], ['doing', 'DOING'], ['waiting', 'WAITING / FOLLOW-UP'],
         ['doneToday', 'DONE TODAY'], ['doneOther', 'CURRENTLY IN DONE — OTHER / UNVERIFIED'],
-        ['completedActive', 'MARKED COMPLETE IN ACTIVE LISTS'], ['meetings', 'MEETINGS / APPOINTMENTS — NOT COUNTED']
+        ['completedActive', 'MARKED COMPLETE IN ACTIVE LISTS']
       ];
       for (const [key, name] of specs) {
-        if (key === 'doing' && !data.lists.some(list => list.role === 'doing')) continue;
-        if (['doneOther', 'completedActive', 'meetings'].includes(key) && !groups[key].length) continue;
+        if (key === 'doing' && !data?.lists.some(list => list.role === 'doing')) continue;
+        if (['doneOther', 'completedActive'].includes(key) && !groups[key].length) continue;
         const box = make('details', '', { class: 'todo-group' });
         box.open = expanded.get(key) === true;
         box.addEventListener('toggle', () => expanded.set(key, box.open));
-        box.append(make('summary', name + ' (' + groups[key].length + ')'));
+        const cards = key === 'today' ? todayTasks(groups, today) : groups[key];
+        const eventItems = key === 'today' ? meetings.today : key === 'meetings' ? meetings.upcoming : [];
+        const size = key === 'meetings' ? eventItems.length : cards.length + eventItems.length;
+        const uncertain = (key === 'today' || key === 'meetings') && incomplete;
+        box.append(make('summary', name + ' (' + (data || key === 'meetings' ? size : '?') + (uncertain ? '+' : '') + ')'));
+        if (key === 'today') box.append(make('p', (data ? cards.length : '?') + ' tasks · ' + eventItems.length +
+          (incomplete ? '+ meetings (sources incomplete)' : ' meetings')));
         const list = make('ul', '', { class: 'todo-cards' });
-        for (const card of groups[key]) list.append(cardNode(card, today, detail));
-        if (!groups[key].length) box.append(make('p', key === 'doneToday'
+        if (key !== 'meetings') for (const card of cards) list.append(key === 'today' && card.role === 'urgent'
+          ? urgentReference(card, detail) : cardNode(card, today, detail));
+        for (const meeting of eventItems) list.append(meetingNode(meeting, today, detail, openSession));
+        if (key === 'meetings') for (const meeting of meetings.unscheduled) list.append(meetingNode(meeting, today, detail, openSession));
+        if (!list.childNodes.length) box.append(make('p', key === 'doneToday'
           ? 'No completion verified today.' : 'No tasks in this section.'));
         else box.append(list);
+        if (key === 'meetings' && meetings.unscheduled.length) box.append(make('p', meetings.unscheduled.length + ' Trello meetings have no confirmed start time and are not included in the upcoming count.'));
+        if (key === 'meetings' && meetings.conflicts) box.append(make('p', 'Some calendar links match more than one meeting or card; review them in Trello.'));
         sections.append(box);
       }
       detail.hidden = true;
-      liveNote.textContent = 'Live Trello tasks — not a historical snapshot. Cards appear once; urgent takes priority.' +
+      liveNote.textContent = 'Live Trello tasks — not a historical snapshot. Urgent tasks due today are referenced in both sections.' +
         (week !== (() => { const d = new Date(today + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() - (d.getUTCDay() + 6) % 7); return d.toISOString().slice(0, 10); })()
           ? ' The selected week is different from the current week.' : '');
     }
-    const load = () => refreshData(api);
+    const load = () => { refreshData(api); refreshMeetings(api, loadDocuments); };
     load();
     const unsubscribe = subscribe(current => {
       if (disposed || !aside.isConnected) return;
-      refresh.disabled = current.loading;
+      refresh.disabled = current.loading || current.meetingLoading;
+      meetingStatus(sources, current, api, loadDocuments);
       if (current.error) {
-        count.textContent = 'Unavailable'; sections.replaceChildren(); detail.hidden = true;
         status.setAttribute('role', 'alert');
         status.textContent = 'Trello unavailable: ' + current.error +
           (current.lastRefresh ? ' Last successful refresh: ' + current.lastRefresh + '.' : '');
@@ -249,9 +454,8 @@
         status.textContent = current.loading ? 'Refreshing live Trello tasks…' +
           (current.lastRefresh ? ' Last successful refresh: ' + current.lastRefresh : '') :
           current.data ? 'Connected · Last refreshed: ' + current.lastRefresh : 'Connecting to Trello…';
-        if (current.loading) { count.textContent = 'Refreshing'; sections.replaceChildren(); detail.hidden = true; }
-        else if (current.data) render(current.data);
       }
+      if (current.data || current.meetings) render(current.data, current);
     });
     refresh.addEventListener('click', load);
     const onVisible = () => {
@@ -262,7 +466,7 @@
     document.addEventListener('visibilitychange', onVisible);
     return dispose;
   }
-  const api = { mount, groupCards, dateKey, dateLabel, make, cardNode, showDetail, subscribe, refreshData };
+  const api = { mount, groupCards, todayTasks, meetingViews, meetingNode, meetingStatus, dateKey, dateLabel, make, cardNode, urgentReference, showDetail, subscribe, refreshData, refreshMeetings };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.plannerTodoTrello = api;
 })(globalThis);

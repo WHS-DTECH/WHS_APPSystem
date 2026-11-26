@@ -86,13 +86,17 @@ test('document time fields use confirmed defaults only on matching days and pres
   const byName = name => result.events.find(event => event.name === name);
   assert.equal(byName('HOLA Hui').startTime, '15:30');
   assert.equal(byName('HOLA Hui').endTime, '16:30');
+  assert.equal(byName('HOLA Hui').dateIsExplicit, false);
+  assert.equal(byName('HOLA Hui').timeIsExplicit, false);
   assert.equal(byName('Assembly School').startTime, '10:45');
   assert.equal(byName('Assembly School').endTime, '11:15');
   assert.equal(byName('Learning Area Hui at 3.30-4.30pm').startTime, '15:30');
   assert.equal(byName('Learning Area Hui at 3.30-4.30pm').endTime, '16:30');
+  assert.equal(byName('Learning Area Hui at 3.30-4.30pm').timeIsExplicit, true);
   assert.equal(byName('Assembly on Friday').startTime, '');
   assert.equal(byName('Staff meeting: on Monday').startTime, '');
   assert.equal(byName('Photos on Thursday at 8.30').startTime, '08:30');
+  assert.equal(byName('Photos on Thursday at 8.30').dateIsExplicit, true);
   assert.equal(byName('Photos on Thursday at 8.30').endTime, '');
   assert.equal(result.events.find(event => event.name.includes('No Assembly')).startTime, '');
 });

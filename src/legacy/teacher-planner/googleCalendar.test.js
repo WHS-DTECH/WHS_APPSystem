@@ -56,9 +56,48 @@ test('Google events preserve exclusive all-day ends, normalise offsets and suppr
   assert.throws(() => normaliseEvent({ start: { date: '2026-02-30' }, end: { date: '2026-03-05' } }, calendar));
 });
 
+test('meeting metadata identifies only the connected account without exposing attendee details', () => {
+  const primary = { id: 'primary', summary: 'Personal', primary: true };
+  const shared = { id: 'shared', summary: 'Shared', primary: false };
+  const event = { id: 'event_1', status: 'confirmed', eventType: 'default',
+    start: { dateTime: '2026-10-19T09:00:00+13:00' }, end: { dateTime: '2026-10-19T10:00:00+13:00' },
+    organizer: { email: 'host@example.test' }, attendees: [
+      { email: 'teacher@example.test', responseStatus: 'declined' },
+      { self: true, email: 'shared@example.test', responseStatus: 'accepted' }
+    ] };
+  const metadata = normaliseEvent(event, shared, 'Teacher@example.test').meetingMetadata;
+  assert.deepEqual(metadata, { status: 'confirmed', eventType: 'default', ownerIsOrganiser: false,
+    response: 'declined', updated: null, identity: { calendarId: 'shared', eventId: 'event_1' } });
+  assert.ok(!JSON.stringify(metadata).includes('@example.test'));
+  assert.equal(normaliseEvent({ ...event, attendees: [event.attendees[1]] }, shared, 'teacher@example.test')
+    .meetingMetadata.response, 'unknown', 'shared-calendar self is not the signed-in person');
+  assert.equal(normaliseEvent({ ...event, attendees: [event.attendees[1]] }, primary, 'teacher@example.test')
+    .meetingMetadata.response, 'unknown', 'a contradictory primary self email is not trusted');
+  assert.equal(normaliseEvent({ ...event, attendees: [{ self: true, responseStatus: 'accepted' }] }, primary, 'teacher@example.test')
+    .meetingMetadata.response, 'accepted');
+  assert.equal(normaliseEvent({ ...event, organizer: { email: 'teacher@example.test' }, attendees: [] }, shared, 'teacher@example.test')
+    .meetingMetadata.response, 'not-applicable');
+  assert.equal(normaliseEvent({ ...event, organizer: { email: 'teacher@example.test' }, attendees: [], attendeesOmitted: true }, shared, 'teacher@example.test')
+    .meetingMetadata.response, 'unknown');
+  assert.equal(normaliseEvent({ ...event, organizer: { email: 'teacher@example.test' }, attendees: {} }, shared, 'teacher@example.test')
+    .meetingMetadata.response, 'unknown');
+  assert.equal(normaliseEvent({ ...event, updated: '2026-10-19T10:00:00+13:00' }, shared, 'teacher@example.test')
+    .meetingMetadata.updated, '2026-10-18T21:00:00.000Z');
+  assert.equal(normaliseEvent({ ...event, updated: '2026-10-19T10:00:00' }, shared, 'teacher@example.test')
+    .meetingMetadata.updated, null);
+  assert.equal(normaliseEvent({ ...event, attendees: [
+    { email: 'teacher@example.test', responseStatus: 'accepted' },
+    { email: 'TEACHER@example.test', responseStatus: 'declined' }
+  ] }, shared, 'teacher@example.test').meetingMetadata.response, 'unknown');
+  const incomplete = normaliseEvent({ ...event, status: undefined, eventType: undefined, attendees: [] }, shared, 'teacher@example.test');
+  assert.equal(incomplete.meetingMetadata.status, null);
+  assert.equal(incomplete.meetingMetadata.eventType, null);
+  assert.equal(incomplete.meetingMetadata.response, 'unknown');
+});
+
 test('shared Google readers retain owner-bound access, selected calendars, document consent and connection-change protection', async () => {
   const owner = crypto.randomUUID();
-  const connection = { owner_id: owner, connection_id: crypto.randomUUID(), selected_calendars: ['school'] };
+  const connection = { owner_id: owner, connection_id: crypto.randomUUID(), selected_calendars: ['school'], email: 'teacher@example.test' };
   connection.encrypted_tokens = encryptTokens({ accessToken: 'fixture-access', expiresAt: Date.now() + 3600000,
     scopes: [DOCS_SCOPE] }, configuration(env).key, owner);
   let changed = false, documentRequests = 0;
@@ -88,13 +127,19 @@ test('shared Google readers retain owner-bound access, selected calendars, docum
     assert.equal(url.pathname, '/calendar/v3/calendars/school/events');
     assert.equal(url.searchParams.get('timeMin'), '2026-10-17T11:00:00.000Z');
     assert.equal(url.searchParams.get('timeMax'), '2026-10-24T11:00:00.000Z');
-    return Response.json({ items: [{ id: 'one', summary: 'Private lesson',
+    return Response.json({ items: [{ id: 'one', summary: 'Private lesson', status: 'confirmed', eventType: 'default',
+      updated: '2026-10-18T08:00:00Z',
+      attendees: [{ email: 'teacher@example.test', responseStatus: 'accepted' }],
       start: { dateTime: '2026-10-19T09:00:00+13:00' }, end: { dateTime: '2026-10-19T10:00:00+13:00' } }] });
   };
   const readers = createGoogleCalendarReaders({ query, env, fetchImpl });
   const req = { user: { id: owner } };
   const result = await readers.events(req, '2026-10-18', '2026-10-25');
   assert.equal(result.events[0].start, '2026-10-18T20:00:00.000Z');
+  assert.equal(result.events[0].meetingMetadata.response, 'accepted');
+  assert.equal(result.events[0].meetingMetadata.eventType, 'default');
+  assert.equal(result.events[0].meetingMetadata.updated, '2026-10-18T08:00:00.000Z');
+  assert.ok(!JSON.stringify(result.events[0].meetingMetadata).includes('teacher@example.test'));
   const mapping = { year: 2026, ranges: [{ term: 4, start: '2026-10-12', end: '2026-12-18',
     weeks: ['2026-10-12', '2026-10-19'] }] };
   assert.equal((await readers.documentEvents(req, mapping)).events.length, 2);

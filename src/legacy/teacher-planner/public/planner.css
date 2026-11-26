@@ -220,6 +220,11 @@
 .todo-group > p { font-size: 12px; }
 .todo-cards { list-style: none; margin: 0; padding: 0; }
 .todo-card { background: white; border: 1px solid #c8d8df; border-radius: 5px; padding: 9px; margin: 8px 0; overflow-wrap: anywhere; }
+.todo-card-meeting { border-left: 4px solid #7845a5; }
+.todo-meeting-indicator { color: #69358e; font-weight: 700; }
+.todo-meeting-indicator svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; vertical-align: -2px; }
+.todo-meeting-sources { font-size: 12px; color: #704b16; }
+.todo-meeting-review label { display: grid; gap: 4px; margin: 8px 0; }
 .todo-dashboard .todo-card-urgent { border-left: 4px solid #b12d24; }
 .todo-dashboard .todo-card-due { border-left: 4px solid #b77c00; }
 .todo-dashboard .todo-card-completed { border-left: 4px solid #26804d; }

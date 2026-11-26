@@ -106,7 +106,8 @@ function parseDocumentEvents(document, mapping) {
     const key = date + ':' + name;
     if (seen.has(key)) return;
     seen.add(key);
-    events.push({ date, name, startTime, endTime, weeklyReference: weekly && !explicit,
+    events.push({ date, name, startTime, endTime, dateIsExplicit: explicit, timeIsExplicit: Boolean(statedTime && !noHui),
+      weeklyReference: weekly && !explicit,
       source: 'Google Doc: ' + (document.title || 'Meets, Assemblies'),
       details: 'Term ' + range.term + ', Week ' + week + (time ? ' | ' + time + ' NZ time' : '') +
         (weekly && !explicit ? ' | Whole-week information; Monday is a reference, not a confirmed event date.' : '') });
