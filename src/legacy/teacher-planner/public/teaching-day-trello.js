@@ -1,4 +1,31 @@
 (() => {
+  function dateOf(value) {
+    if (typeof value !== 'string') return '';
+    return value.endsWith('Z') ?
+      new Intl.DateTimeFormat('en-CA', { timeZone: 'Pacific/Auckland', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(value)) :
+      value.slice(0, 10);
+  }
+  function minutesOf(value) {
+    const clock = value.endsWith('Z') ?
+      new Intl.DateTimeFormat('en-GB', { timeZone: 'Pacific/Auckland', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value)) :
+      value.slice(11, 16);
+    return Number(clock.slice(0, 2)) * 60 + Number(clock.slice(3, 5));
+  }
+  function sessionsForDate(events, value, slots) {
+    const weekday = new Date(value + 'T00:00:00Z').getUTCDay();
+    if (weekday === 0 || weekday === 6) return [];
+    return slots.map(([slot, label, startTime, endTime]) => {
+      const start = Number(startTime.slice(0, 2)) * 60 + Number(startTime.slice(3, 5));
+      const end = Number(endTime.slice(0, 2)) * 60 + Number(endTime.slice(3, 5));
+      const matches = events.filter(event => !event.allDay && dateOf(event.start) === value &&
+        minutesOf(event.start) === start && minutesOf(event.end) === end);
+      if (!matches.length) return null;
+      const event = matches.length === 1 ? matches[0] : null;
+      const classKey = event && /^[^(]+\(([A-Z0-9_-]+)\)$/i.exec(event.title.trim())?.[1].toUpperCase() || null;
+      return { date: value, slot, label, title: event?.title || 'Multiple timetable entries',
+        classKey, source: matches.length > 1 ? 'ambiguous' : 'KAMAR', startTime, endTime };
+    }).filter(Boolean);
+  }
   function renderCard(el, card, matched, expanded = false, programme) {
     let malformed = false;
     if (expanded && globalThis.plannerTeachingSlots) {
@@ -36,7 +63,7 @@
       el('a', 'Open in Trello', { href: card.url, target: '_blank', rel: 'noopener noreferrer' }));
     return article;
   }
-  function dashboard(host, context, { el, request, select, termControl, termError }) {
+  function dashboard(host, context, { el, request, loadSchedule, select, openSession, changeDate, termControl, termError }) {
     const page = el('section', '', { class: 'teaching-dashboard', 'aria-label': 'Teaching Dashboard' });
     const heading = el('div', '', { class: 'teaching-dashboard-heading', 'data-planner-navigation': '' });
     if (termControl) heading.append(termControl);
@@ -44,15 +71,72 @@
     if (termError) heading.append(el('p', termError, { role: 'alert' }));
     page.append(heading);
     const columns = el('div', '', { class: 'teaching-dashboard-columns' });
-    const left = el('section', '', { 'aria-label': 'Current Teaching Day', 'data-planner-navigation': '' });
+    const left = el('section', '', { 'aria-label': 'Teaching Day', 'data-planner-navigation': '' });
     const workspace = el('div', '', { class: 'teaching-dashboard-workspace' });
-    const message = el('p', 'Reading Trello...', { role: 'status' }), cards = el('div');
+    const dateLabel = el('p', globalThis.plannerSessionSchema.dateLabel(context.date));
+    const dateInput = el('input', '', { type: 'date', min: '2000-01-01', max: '2100-12-31', 'aria-label': 'Teaching Day date' });
+    dateInput.value = context.date;
+    const dateControls = el('div', '', { class: 'teaching-day-date-controls', role: 'group', 'aria-label': 'Choose Teaching Day' });
+    const previous = el('button', '‹', { type: 'button', 'aria-label': 'Previous day' });
+    const next = el('button', '›', { type: 'button', 'aria-label': 'Next day' });
+    const today = el('button', 'Today', { type: 'button' });
+    const tomorrow = el('button', 'Tomorrow', { type: 'button' });
+    dateControls.append(previous, dateInput, next, today, tomorrow);
+    const scheduleMessage = el('p', 'Loading the timetable...', { role: 'status' });
+    const sessions = el('div', '', { class: 'teaching-day-sessions' });
+    const message = el('p', 'Reading Trello...', { role: 'status' });
+    const cards = el('div', '', { class: 'teaching-dashboard-cards' });
     const refresh = el('button', 'Refresh Trello information', { type: 'button' });
-    left.append(el('h3', 'Current Teaching Day'), el('p', globalThis.plannerSessionSchema.dateLabel(context.date)), refresh, message, cards);
+    left.append(el('h3', 'Teaching Day'), dateLabel, dateControls, scheduleMessage, sessions, refresh, message, cards);
     columns.append(left, workspace); page.append(columns); host.append(page);
-    let result, error, selectedHost, generation = 0, switching = false, reading = false;
+    let result, error, scheduleError, selectedHost, generation = 0, switching = false, reading = false, dateChanging = false;
+    let scheduledSessions = [];
+    function updateControls() {
+      const dateDisabled = switching || dateChanging;
+      dateInput.disabled = dateDisabled;
+      for (const button of left.querySelectorAll('button')) {
+        if ([previous, next, today, tomorrow].includes(button)) button.disabled = dateDisabled;
+        else if (button === refresh) button.disabled = switching || reading || dateChanging;
+        else button.disabled = switching || dateChanging || button.hasAttribute('data-trello-unavailable');
+      }
+    }
+    function renderSchedule() {
+      sessions.replaceChildren();
+      scheduleMessage.setAttribute('role', scheduleError ? 'alert' : 'status');
+      scheduleMessage.textContent = scheduleError || (scheduledSessions.length ?
+        'Select a session to open its Period Planner Notes. Trello preparation is optional.' :
+        'No teaching sessions are scheduled for this date.');
+      for (const session of scheduledSessions) {
+        const card = result?.cards.find(item => item.metadata.session_slot === session.slot &&
+          session.classKey && item.metadata.class_key === session.classKey);
+        const item = el('article', '', { class: 'teaching-day-session' });
+        item.append(el('h4', session.title),
+          el('p', session.label + ' | ' + session.startTime + '–' + session.endTime + ' NZ'));
+        if (session.source === 'ambiguous') {
+          item.append(el('p', 'Multiple KAMAR entries match this period. Notes are not assigned to a class.', { role: 'alert' }));
+        }
+        if (card) {
+          item.append(el('p', 'Trello preparation: ' + card.metadata.lesson_title),
+            el('p', 'Preparation status: ' + card.metadata.preparation_status));
+        } else {
+          item.append(el('p', 'No matching Trello preparation. You can still plan in Notes.'));
+        }
+        const actions = el('div', '', { class: 'teaching-day-session-actions' });
+        const openNotes = el('button', 'Open Notes', { type: 'button' });
+        openNotes.addEventListener('click', () => openSession(session));
+        actions.append(openNotes);
+        if (card) {
+          const openTrello = el('button', 'Open Trello preparation', { type: 'button' });
+          openTrello.addEventListener('click', () => select(card, true));
+          actions.append(openTrello);
+        }
+        item.append(actions); sessions.append(item);
+      }
+    }
     function selectSession(next) {
       Object.assign(context, next);
+      dateInput.value = context.date;
+      dateLabel.textContent = globalThis.plannerSessionSchema.dateLabel(context.date);
       for (const button of cards.querySelectorAll('[data-card-id]')) {
         button.setAttribute('aria-pressed', String(context.cardId ?
           button.getAttribute('data-card-id') === context.cardId : button.getAttribute('data-session-slot') === context.slot));
@@ -61,8 +145,7 @@
     }
     function setBusy(value) {
       switching = value; workspace.inert = value; workspace.setAttribute('aria-busy', String(value));
-      for (const button of left.querySelectorAll('button')) button.disabled = value || button.hasAttribute('data-trello-unavailable');
-      refresh.disabled = value || reading;
+      updateControls();
     }
     function renderSelected() {
       if (!selectedHost?.isConnected) return;
@@ -108,15 +191,38 @@
       notes.addEventListener('click', event => { event.stopPropagation(); select(card, false); });
       item.append(button, notes); cards.append(item);
     }
-    function unavailableSessions() {
-      for (const [slot, name] of globalThis.plannerSessionSchema.slots.filter(item => ['whanau', 'p2'].includes(item[0]))) {
-        sessionCard({ id: '', metadata: { teaching_date: context.date, session_slot: slot, display_name: name,
-          lesson_title: 'Trello preparation unavailable. Open Notes for this session.' } }, true);
+    function setDate(value, schedule = [], failure = '') {
+      generation++;
+      context.date = value;
+      dateInput.value = value;
+      dateLabel.textContent = globalThis.plannerSessionSchema.dateLabel(value);
+      result = undefined; error = undefined; cards.replaceChildren();
+      scheduledSessions = schedule;
+      scheduleError = failure;
+      renderSchedule(); renderSelected();
+    }
+    async function readSchedule(value) {
+      try {
+        const feed = await loadSchedule(value);
+        return { sessions: sessionsForDate(feed.events || [], value, globalThis.plannerSessionSchema.slots), error: '' };
+      } catch (failure) {
+        return { sessions: [], error: failure.message + ' Timetable sessions could not be verified.' };
       }
     }
+    function noSessions(value, failure = '') {
+      selectedHost = undefined;
+      workspace.replaceChildren(el('p', failure ||
+        'No teaching sessions are scheduled for this date. Your existing plans and notes are unchanged.', { role: failure ? 'alert' : 'status' }));
+    }
     async function load() {
-      const current = ++generation; reading = true; refresh.disabled = true; result = undefined; error = undefined;
-      message.setAttribute('role', 'status'); message.textContent = 'Reading Trello...'; cards.replaceChildren(); unavailableSessions(); renderSelected();
+      const current = ++generation; reading = true; updateControls(); result = undefined; error = undefined;
+      message.setAttribute('role', 'status'); message.textContent = 'Reading Trello...'; cards.replaceChildren(); renderSelected();
+      const schedule = await readSchedule(context.date);
+      if (current !== generation || !page.isConnected) {
+        if (current === generation) { reading = false; updateControls(); }
+        return;
+      }
+      scheduledSessions = schedule.sessions; scheduleError = schedule.error; renderSchedule();
       try {
         const feed = await request(context.date);
         if (current !== generation || !page.isConnected) return;
@@ -124,8 +230,13 @@
         cards.replaceChildren();
         message.textContent = feed.status === 'not_configured' ? feed.message :
           feed.cards.length ? 'Read-only preparation. Select a session.' : 'No teaching cards are available for this date.';
-        for (const card of feed.cards) sessionCard(card);
-        if (!feed.cards.length) unavailableSessions();
+        const matched = new Set();
+        for (const session of scheduledSessions) {
+          const card = feed.cards.find(item => item.metadata.session_slot === session.slot &&
+            session.classKey && item.metadata.class_key === session.classKey);
+          if (card) matched.add(card.id);
+        }
+        for (const card of feed.cards) if (!matched.has(card.id)) sessionCard(card);
         if (feed.unassigned?.length) {
           cards.append(el('h3', 'Other cards in CURRENT TEACHING DAY'),
             el('p', 'Dates and sessions are not verified for these cards. They are shown read-only, not assigned to this day or class.'));
@@ -142,17 +253,61 @@
         if (current !== generation || !page.isConnected) return;
         error = failure.message; message.setAttribute('role', 'alert'); message.textContent = error + ' Notes remain available.';
       } finally {
-        if (current === generation && page.isConnected) { reading = false; refresh.disabled = switching; renderSelected(); }
+        if (current === generation && page.isConnected) {
+          renderSchedule(); reading = false; updateControls(); renderSelected();
+        }
       }
     }
-    refresh.addEventListener('click', load); load();
-    return { date: context.date, workspace, selectSession, setBusy,
+    async function chooseDate(value) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(Date.parse(value)) ||
+        new Date(value + 'T00:00:00Z').toISOString().slice(0, 10) !== value ||
+        Number(value.slice(0, 4)) < 2000 || Number(value.slice(0, 4)) > 2100) {
+        dateInput.value = context.date;
+        return;
+      }
+      if (switching || dateChanging) return;
+      dateChanging = true; updateControls();
+      try {
+        const changed = changeDate ? await changeDate(value) : true;
+        if (changed === false) { dateInput.value = context.date; return; }
+        if (context.date !== value) setDate(value);
+        await load();
+      } catch (failure) {
+        scheduleMessage.setAttribute('role', 'alert');
+        scheduleMessage.textContent = failure.message + ' The selected date was not changed.';
+        dateInput.value = context.date;
+      } finally {
+        dateChanging = false; updateControls();
+      }
+    }
+    function moveDate(amount) {
+      const value = new Date(dateInput.value + 'T00:00:00Z');
+      value.setUTCDate(value.getUTCDate() + amount);
+      chooseDate(value.toISOString().slice(0, 10));
+    }
+    dateInput.addEventListener('change', () => chooseDate(dateInput.value));
+    previous.addEventListener('click', () => moveDate(-1));
+    next.addEventListener('click', () => moveDate(1));
+    today.addEventListener('click', () => chooseDate(new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Pacific/Auckland', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).format(new Date())));
+    tomorrow.addEventListener('click', () => moveDateFromToday(1));
+    function moveDateFromToday(amount) {
+      const value = new Date(new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Pacific/Auckland', year: 'numeric', month: '2-digit', day: '2-digit'
+      }).format(new Date()) + 'T00:00:00Z');
+      value.setUTCDate(value.getUTCDate() + amount);
+      chooseDate(value.toISOString().slice(0, 10));
+    }
+    refresh.addEventListener('click', load); renderSchedule(); load();
+    return { get date() { return context.date; }, workspace, selectSession, setBusy,
+      setDate, readSchedule, noSessions, refresh: load,
       showTrello: host => { selectedHost = host; renderSelected(); } };
   }
   function mount(host, context, { el, request }) {
     host.replaceChildren();
-    const panel = el('section', '', { class: 'session-section teaching-day-trello', 'aria-label': 'Current Teaching Day' });
-    panel.append(el('h3', 'Current Teaching Day'),
+    const panel = el('section', '', { class: 'session-section teaching-day-trello', 'aria-label': 'Teaching Day' });
+    panel.append(el('h3', 'Teaching Day'),
       el('p', 'Read-only Trello information for ' + globalThis.plannerSessionSchema.dateLabel(context().date) + '. Trello tasks are not confirmed classroom progress.'));
     const refresh = el('button', 'Refresh Trello information', { type: 'button' });
     const message = el('p', '', { role: 'status', 'aria-live': 'polite' }), cards = el('div'), warnings = el('div');
@@ -182,7 +337,7 @@
       if (loading) return;
       loading = true; refresh.disabled = true;
       cards.replaceChildren(); warnings.replaceChildren(); cached = undefined;
-      message.setAttribute('role', 'status'); message.textContent = 'Reading Current Teaching Day from Trello...';
+      message.setAttribute('role', 'status'); message.textContent = 'Reading Teaching Day from Trello...';
       try {
         const result = await request(context().date);
         if (!panel.isConnected) return;
@@ -196,5 +351,5 @@
     refresh.addEventListener('click', load); load();
     return { refreshContext: render };
   }
-  globalThis.plannerTeachingDayTrello = { mount, dashboard };
+  globalThis.plannerTeachingDayTrello = { mount, dashboard, sessionsForDate };
 })();

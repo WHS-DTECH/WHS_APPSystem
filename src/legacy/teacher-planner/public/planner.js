@@ -83,6 +83,7 @@
   let week = monday(localDate.startsWith('2026') ? localDate : '2026-01-05');
   const restored = new URLSearchParams(location.hash.slice(1));
   let dashboardMode = restored.get('dashboard') === '1', dashboardTrello = restored.get('view') === 'trello';
+  let dashboardNoSession = dashboardMode && restored.get('noSession') === '1';
   let selectedTeachingCard = /^[0-9a-f]{24}$/.test(restored.get('card') || '') ? restored.get('card') : '';
   if (/^[0-6]$/.test(restored.get('setupTab') || '')) setupTab = Number(restored.get('setupTab'));
   if (/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(restored.get('activity') || '')) activityRecord = restored.get('activity');
@@ -98,7 +99,7 @@
   const restoredPeriod = restored.get('date') || '';
   if (/^\d{4}-\d{2}-\d{2}$/.test(restoredPeriod) && Number.isFinite(date(restoredPeriod).getTime()) &&
       iso(date(restoredPeriod)) === restoredPeriod && Number(restoredPeriod.slice(0, 4)) >= 2000 &&
-      Number(restoredPeriod.slice(0, 4)) <= 2100 && [1, 2, 3, 4, 5].includes(date(restoredPeriod).getUTCDay()) &&
+      Number(restoredPeriod.slice(0, 4)) <= 2100 && (dashboardMode || [1, 2, 3, 4, 5].includes(date(restoredPeriod).getUTCDay())) &&
       globalThis.plannerSessionSchema.validSlot(restored.get('slot'))) {
     periodDate = restoredPeriod; periodSlot = restored.get('slot');
   } else if (['period', 'activity'].includes(section)) { section = 'week'; invalidPeriodLink = true; }
@@ -138,7 +139,8 @@
       ...(section === 'setup' ? { setupTab } : {}),
       ...(['period', 'activity'].includes(section) ? { date: periodDate, slot: periodSlot } : {}),
       ...(dashboardMode && section === 'period' ? { dashboard: '1', view: dashboardTrello ? 'trello' : 'notes',
-        ...(selectedTeachingCard ? { card: selectedTeachingCard } : {}) } : {}),
+        ...(selectedTeachingCard ? { card: selectedTeachingCard } : {}),
+        ...(dashboardNoSession ? { noSession: '1' } : {}) } : {}),
       ...(section === 'activity' ? { activity: activityRecord } : {}),
       ...(section === 'moderation' ? { record: moderationRecord, page: moderationPage } : {}), ...overrides }).toString();
   }
@@ -967,6 +969,29 @@
       request: async () => { await refreshSession(); return request(api + 'google-drive/config'); }
     });
   }
+  async function loadTeachingDayTimetable(value) {
+    await refreshSession();
+    return request(api + 'kamar-timetable/' + Number(value.slice(0, 4)) + '/' + Number(value.slice(5, 7)));
+  }
+  function mountEmptyTeachingDashboard(value, schedule) {
+    dashboardNoSession = true;
+    sessionPlanner = undefined; sessionAddress = undefined; loaded = true; dirty = false;
+    const termControl = selectors.querySelector('.planner-term-control');
+    teachingDashboard = globalThis.plannerTeachingDayTrello.dashboard(content, {
+      date: value, slot: 'p1', classKey: null, cardId: ''
+    }, {
+      el, request: async day => { await refreshSession(); return request(api + 'teaching-day-trello/' + day); },
+      loadSchedule: loadTeachingDayTimetable, termControl, termError: dashboardTermError,
+      changeDate: changeTeachingDay,
+      openSession: session => openSessionPlan(session.date, session.slot),
+      select: (card, trello) => openSessionPlan(card.metadata.teaching_date, card.metadata.session_slot,
+        undefined, card.id, trello)
+    });
+    if (termControl) selectors.replaceChildren();
+    teachingDashboard.setDate(value, schedule.sessions, schedule.error);
+    teachingDashboard.noSessions(value, schedule.error);
+    history.replaceState(null, '', '#' + viewFragment());
+  }
   function mountTeachingSession(data, legacy) {
     content.dataset.view = 'period';
     sessionAddress = 'sessions/' + periodDate + '/' + periodSlot;
@@ -977,12 +1002,14 @@
     if (dashboardMode) {
       const context = { date: periodDate, slot: periodSlot, classKey: data.event.classKey, cardId: selectedTeachingCard,
         programme: data.teaching ? { teaching: data.teaching, routine: data.routine } : null };
-      if (teachingDashboard?.workspace.isConnected && teachingDashboard.date === periodDate) {
+      if (teachingDashboard?.workspace.isConnected) {
         dashboard = teachingDashboard; dashboard.workspace.replaceChildren(); dashboard.selectSession(context);
       } else {
         const termControl = selectors.querySelector('.planner-term-control');
         dashboard = teachingDashboard = globalThis.plannerTeachingDayTrello.dashboard(content, context, {
-          el, request: teachingDay, termControl, termError: dashboardTermError, select: (card, trello) =>
+          el, request: teachingDay, loadSchedule: loadTeachingDayTimetable, termControl, termError: dashboardTermError,
+          changeDate: changeTeachingDay, openSession: session => openSessionPlan(session.date, session.slot),
+          select: (card, trello) =>
             openSessionPlan(card.metadata.teaching_date, card.metadata.session_slot, undefined, card.id, trello)
         });
         if (termControl) selectors.replaceChildren();
@@ -1024,6 +1051,7 @@
     busy = true; save.disabled = true; retry.hidden = true;
     teachingDashboard.setBusy(true);
     notice('Opening scheduled session...');
+    let succeeded = false;
     try {
       const [legacy, pilot] = await Promise.all([
         request(api + value.slice(0, 4) + '/period/' + value + '_' + slot),
@@ -1032,11 +1060,15 @@
       if (!pilot.available) throw new Error(pilot.reason || 'This session workspace is unavailable.');
       sessionPlanner = undefined; loaded = false;
       periodDate = value; periodSlot = slot; selectedTeachingCard = cardId || '';
+      dashboardNoSession = false;
+      year = Number(value.slice(0, 4)); yearInput.value = year; updateYearBadge();
+      week = monday(value); selectedDay = (date(value).getUTCDay() + 6) % 7;
       if (typeof trello === 'boolean') dashboardTrello = trello;
       revision = pilot.revision;
       mountTeachingSession(pilot, legacy); loaded = true;
       history.replaceState(null, '', '#' + viewFragment());
       notice('Session Notes loaded. Changes autosave; confirmed progress is unchanged.');
+      succeeded = true;
     } catch (error) {
       console.error('Dashboard session switch failed:', error);
       notice(error.message + ' Session switching stopped. Retry loading if needed.', true);
@@ -1046,8 +1078,34 @@
       teachingDashboard.setBusy(false);
       globalThis.plannerTextareaAutosize?.refresh();
     }
+    return succeeded;
+  }
+  async function changeTeachingDay(value) {
+    if (dirty) notice('Saving unsaved session Notes before changing Teaching Day...');
+    if (!await ensureSaved()) return false;
+    if (busy || !teachingDashboard?.workspace.isConnected) return false;
+    const previousDate = periodDate;
+    const schedule = await teachingDashboard.readSchedule(value);
+    teachingDashboard.setDate(value, schedule.sessions, schedule.error);
+    if (schedule.sessions.length) {
+      const session = schedule.sessions[0];
+      if (await switchDashboardSession(value, session.slot, '', false)) return true;
+      const previous = await teachingDashboard.readSchedule(previousDate);
+      teachingDashboard.setDate(previousDate, previous.sessions, previous.error);
+      return false;
+    }
+    periodDate = value; periodSlot = 'p1'; selectedTeachingCard = ''; dashboardNoSession = true;
+    year = Number(value.slice(0, 4)); yearInput.value = year; updateYearBadge();
+    week = monday(value); selectedDay = (date(value).getUTCDay() + 6) % 7;
+    sessionPlanner = undefined; sessionAddress = undefined; loaded = true; dirty = false;
+    teachingDashboard.noSessions(value, schedule.error);
+    history.replaceState(null, '', '#' + viewFragment());
+    notice(schedule.error || 'No teaching sessions are scheduled for ' +
+      globalThis.plannerSessionSchema.dateLabel(value) + '. Existing notes are unchanged.');
+    return true;
   }
   async function openSessionPlan(value, slot, draft, cardId, trello) {
+    if (dirty) notice('Saving unsaved session Notes before opening another session...');
     if (!await ensureSaved()) return;
     if (busy) { notice('Your planner is still loading. Wait before opening another session.'); return; }
     if (!globalThis.plannerSessionSchema.validSlot(slot) || !/^\d{4}-\d{2}-\d{2}$/.test(value) ||
@@ -1055,13 +1113,33 @@
       ![1, 2, 3, 4, 5].includes(date(value).getUTCDay())) {
       notice('Choose a valid weekday session date.', true); return;
     }
-    if (dashboardMode && section === 'period' && teachingDashboard?.workspace.isConnected && value === periodDate && !draft) {
-      if (slot === periodSlot) {
+    if (dashboardMode && section === 'period' && teachingDashboard?.workspace.isConnected && !draft) {
+      if (value !== periodDate) {
+        const schedule = await teachingDashboard.readSchedule(value);
+        teachingDashboard.setDate(value, schedule.sessions, schedule.error);
+      }
+      if (value === periodDate && slot === periodSlot && sessionPlanner) {
         selectedTeachingCard = cardId || '';
         teachingDashboard.selectSession({ cardId: selectedTeachingCard });
         if (typeof trello === 'boolean') sessionPlanner.selectView(!trello);
         history.replaceState(null, '', '#' + viewFragment());
-      } else await switchDashboardSession(value, slot, cardId, trello);
+      } else {
+        if (value !== periodDate && ![1, 2, 3, 4, 5].includes(date(value).getUTCDay())) {
+          teachingDashboard.noSessions(value, 'Choose a weekday to open a session plan. The selected date has no teaching workspace.');
+          periodDate = value; periodSlot = 'p1'; sessionPlanner = undefined; sessionAddress = undefined;
+          dashboardNoSession = true;
+          loaded = true; dirty = false;
+          history.replaceState(null, '', '#' + viewFragment());
+          return;
+        }
+        const previousDate = periodDate;
+        const switched = await switchDashboardSession(value, slot, cardId, trello);
+        if (switched && value !== previousDate) await teachingDashboard.refresh();
+        if (!switched && value !== previousDate) {
+          const previous = await teachingDashboard.readSchedule(previousDate);
+          teachingDashboard.setDate(previousDate, previous.sessions, previous.error);
+        }
+      }
       return;
     }
     manualSessionDraft = draft ? { date: value, slot, session: draft } : undefined;
@@ -2760,17 +2838,18 @@
     return weeklyTimetableEntries(feeds.flatMap(feed => feed.events), selectedWeek, Infinity);
   }
   async function load() {
+    const openingDashboard = section === 'timetable' ||
+      dashboardMode && section === 'period' && (dashboardNoSession ||
+        ![1, 2, 3, 4, 5].includes(date(periodDate).getUTCDay()));
     if (section === 'timetable') {
       dashboardMode = true; section = 'period';
-      if (!periodDate) {
-        const next = date(localDate);
-        while (![1, 2, 3, 4, 5].includes(next.getUTCDay())) next.setUTCDate(next.getUTCDate() + 1);
-        periodDate = iso(next); periodSlot = 'whanau';
-      }
+      dashboardNoSession = false;
+      periodDate = localDate; periodSlot = 'whanau';
       year = Number(periodDate.slice(0, 4)); yearInput.value = year; updateYearBadge();
       week = monday(periodDate); selectedDay = (date(periodDate).getUTCDay() + 6) % 7;
     } else if (section !== 'period') {
       dashboardMode = false; dashboardTrello = false; selectedTeachingCard = '';
+      dashboardNoSession = false;
     }
     sessionPlanner = undefined; sessionAddress = undefined;
     setupAttendanceReady = undefined;
@@ -2852,6 +2931,26 @@
         notice('Private attendance log. Class setup and individual marks save separately from planner notes.');
         return;
       }
+      if (openingDashboard) {
+        let schedule;
+        try {
+          const feed = await loadTeachingDayTimetable(periodDate);
+          schedule = { sessions: globalThis.plannerTeachingDayTrello.sessionsForDate(
+            feed.events || [], periodDate, globalThis.plannerSessionSchema.slots), error: '' };
+        } catch (error) {
+          schedule = { sessions: [], error: error.message + ' Timetable sessions could not be verified.' };
+        }
+        if (!schedule.sessions.length) {
+          mountEmptyTeachingDashboard(periodDate, schedule);
+          notice(schedule.error || 'No teaching sessions are scheduled for ' +
+            globalThis.plannerSessionSchema.dateLabel(periodDate) + '. Choose another date to plan.');
+          return;
+        }
+        periodSlot = schedule.sessions[0].slot;
+        dashboardNoSession = false;
+        year = Number(periodDate.slice(0, 4)); yearInput.value = year; updateYearBadge();
+        week = monday(periodDate); selectedDay = (date(periodDate).getUTCDay() + 6) % 7;
+      }
       const data = await request(address());
       if (section === 'activity' && !data.revision) throw new Error('This activity is unavailable. Use the Period Planner to create or link an activity.');
       if (section === 'setup') canManageSchoolSettings = data.canEdit === true;
@@ -2922,7 +3021,8 @@
     alignWeekRows(content.querySelector('.weekly-spread'));
   });
   async function saveEntry(automatic = false, confirmProgress = false) {
-    if (section === 'timetable' || busy || !loaded || (section === 'setup' && (!canManageSchoolSettings || content.querySelector('#setup-sheet-0')?.hidden))) return;
+    if (section === 'timetable' || section === 'period' && dashboardMode && !sessionAddress ||
+      busy || !loaded || (section === 'setup' && (!canManageSchoolSettings || content.querySelector('#setup-sheet-0')?.hidden))) return;
     clearTimeout(autosaveTimer);
     if (!form.reportValidity()) {
       if (autosaves()) { autosavePaused = true; notice('Planner changes are NOT saved. Check the highlighted fields, then use Save changes to retry.', true); }

@@ -2033,8 +2033,11 @@ Named resources use `[Resource name](https://...)` Markdown links.
 
 The former Teacher Timetable navigation opens **Teaching Dashboard**, without its
 duplicate weekly calendar. Rachel's Year, Term and Weekly pages are unchanged.
-The left column reads CURRENT TEACHING DAY; selecting a stable Trello card ID
-opens the existing scheduled-session workspace on the right. **Notes / Trello
+The left column is **Teaching Day** and includes a date picker, previous/next-day
+arrows, and Today/Tomorrow shortcuts. It defaults to today's date in
+Pacific/Auckland and displays the selected date in NZ format. Selecting a
+timetable session opens its existing date-and-period Notes workspace on the
+right. **Notes / Trello
 Planner** switches between editable private Session Plans and the selected card's
 read-only original title, description and named resource links. The selected
 session, card and information view survive page refresh in the URL.
@@ -2047,9 +2050,15 @@ choose a class. Other cards continue to use the versioned metadata below.
 Both pilot sessions display Room CW. JPI's verified Session Plan context also
 uses CW rather than the outdated KAMAR room, without editing the source timetable.
 
-Switching sessions waits for the current Notes draft to save; failed saves or
-conflicts prevent switching. Same-day switches retain the dashboard and its Trello
-cards, replacing only the session workspace. Current and legacy Planner records
+Switching dates or sessions waits for the current Notes draft to save; failed
+saves or conflicts prevent switching. Date changes load the selected date's
+private KAMAR timetable entries, corresponding Period Planner records and session
+Notes. Scheduled classes without a matching Trello card still offer editable
+Notes. Weekends, holidays and dates without verified timetable sessions show an
+empty-day message rather than inventing a class. Refresh Trello information
+reloads the currently selected date. Same-day session switches retain the
+dashboard and its Trello cards, replacing only the session workspace. Current and
+legacy Planner records
 are read concurrently and never cached. The server reuses successful timetable
 reads for at most 30 seconds, scoped to owner, current private subscription and
 month, with at most eight entries. Account permissions and subscription settings
@@ -2059,21 +2068,16 @@ The existing Planner term circle sits beside the Dashboard heading and reflects
 the selected term, or the school-calendar term for the displayed day when none
 was selected. Dashboard dates use readable NZ dates in Pacific/Auckland; ISO
 dates remain unchanged in record addresses and Trello matching.
-The dashboard retains a date selected through its link or session launcher.
-Without a selected date, opening Teaching Dashboard chooses today or the next
-Monday-Friday date; it does not search the timetable for the next actual class
-or skip school holidays. The NZ current date is captured when the page loads.
-An open page does not automatically roll over at midnight or refresh its selected
-session/Trello feed. Reloading a dated link retains that date; Trello Refresh
-rereads the selected date. The Monday-specific card mappings do not set the
-dashboard date.
-Each session card opens its Trello preparation. Its small Notes button opens
-that exact session's editable Notes without triggering the card selection.
-The redundant session back button and separate Notes shortcuts are removed.
-Trello errors cannot block Notes; when cards are unavailable, clearly labelled
-local Whānau/Period 2 session cards retain their inline Notes buttons without
-inventing Trello preparation, class assignments or times. Confirmed progress, routines,
-Unit Library links and legacy records use their existing storage and permissions.
+The selected planning date is separate from the current NZ date used by scheduled
+automations. Changing it does not advance automation dates or move future Trello
+cards. The dashboard does not automatically roll over at midnight; the Today
+shortcut selects the current Pacific/Auckland date. Reloading a dated link retains
+that date. The Monday-specific card mappings do not set the dashboard date.
+Each timetable session can open its editable Notes or matching Trello preparation.
+Trello errors cannot block Notes; a verified timetable session remains available
+for planning even when no preparation card exists. No session or class is invented
+when the timetable has no matching entry. Confirmed progress, routines, Unit
+Library links and legacy records use their existing storage and permissions.
 If several timetable events share a generic session's time, the date-and-slot
 notes remain available with an ambiguity warning and no class assignment. Cards
 without valid source-reference metadata are shown separately, read-only, without

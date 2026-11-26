@@ -101,6 +101,22 @@ test('activity timing is explicit and optional, with unique activities and valid
     { ...content, activities: [{ ...content.activities[0], status: 'elapsed' }] }
   ]) assert.equal(validContent(invalid), false);
 });
+test('Friday preparation remains saved under Friday after opening Thursday notes', async t => {
+  const f = await fixture(t);
+  const friday = await f.get('sessions/2026-11-27/p1');
+  friday.content.session = { title: 'Friday class', type: 'teaching', startTime: '09:00', endTime: '10:00' };
+  friday.content.note = 'Prepare Friday lesson resources';
+  assert.equal((await f.put('sessions/2026-11-27/p1', friday.content, friday.revision)).status, 200);
+
+  const thursday = await f.get('sessions/2026-11-26/p1');
+  thursday.content.session = { title: 'Thursday class', type: 'teaching', startTime: '09:00', endTime: '10:00' };
+  thursday.content.note = 'Prepare Thursday lesson resources';
+  assert.equal((await f.put('sessions/2026-11-26/p1', thursday.content, thursday.revision)).status, 200);
+
+  assert.equal((await f.get('sessions/2026-11-26/p1')).content.note, 'Prepare Thursday lesson resources');
+  assert.equal((await f.get('sessions/2026-11-27/p1')).content.note, 'Prepare Friday lesson resources');
+  assert.equal((await f.get('sessions/2026-11-27/p1')).content.session.title, 'Friday class');
+});
 test('session GETs reuse an owner-private timetable briefly but writes recheck the current class and records stay fresh', async t => {
   const f = await fixture(t), path = 'sessions/2026-11-23/p2';
   await f.get('sessions/2026-11-23/whanau');

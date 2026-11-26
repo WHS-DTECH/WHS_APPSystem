@@ -194,7 +194,8 @@ test('normal opening resolves a term before loading its private entry, while dir
       clearTimeout,autosaveTimer:undefined,disposeTodo:undefined,scheduleAutosave(){},
       openingTermPending:!['direct','term-default','term-explicit','legacy-attendance'].includes(mode),
       termSelectionPending:mode!=='term-explicit',
-      section:mode.startsWith('term-')?'term':mode==='direct'?'goals':mode==='legacy-attendance'?'attendanceImport':'cover',year:2026,term:'1',
+      section:mode.startsWith('term-')?'term':mode==='direct'?'goals':mode==='legacy-attendance'?'attendanceImport':'cover',
+      dashboardMode:false,dashboardNoSession:false,year:2026,term:'1',
       localDate:mode==='holiday'?'2026-10-01':mode==='january'?'2026-01-05':'2026-10-18',
       save:{},retry:{},signin:{hidden:true},content:{replaceChildren(){}},yearInput:{},
       document:{querySelector:()=>({}),querySelectorAll:()=>[],getElementById:id=>nodes[id]||(nodes[id]={})},
@@ -894,8 +895,8 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(embedded, /href="\/launchpad\/apps\/relief-plan"/);
   assert.match(embedded, /href="\/launchpad\/apps\/whs-unit-library"/);
   assert.match(embedded, /href="\/launchpad\/apps\/whs-assessment-manager"/);
-  assert.match(html, /planner\.css\?v=trello-completion-1/);
-  const plannerScript = html.indexOf('src="/planner/framework/planner.js?v=trello-completion-1"');
+  assert.match(html, /planner\.css\?v=forward-planning-1/);
+  const plannerScript = html.indexOf('src="/planner/framework/planner.js?v=forward-planning-1"');
   const todoScript = html.indexOf('src="/planner/framework/todo-trello.js?v=trello-completion-3"');
   const dashboardScript = html.indexOf('src="/planner/framework/todo-dashboard.js?v=trello-completion-2"');
   assert.ok(plannerScript >= 0 && todoScript >= 0 && dashboardScript >= 0);
@@ -905,8 +906,8 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.ok(trelloScript >= 0 && trelloScript < plannerScript);
   assert.ok(todoScript < dashboardScript && dashboardScript < plannerScript);
   assert.ok(html.indexOf('src="/planner/framework/session-schema.js?v=scheduled-session-3"') < html.indexOf('src="/planner/framework/teaching-slots.js?v=7"'));
-  assert.ok(html.indexOf('src="/planner/framework/teaching-slots.js?v=7"') < html.indexOf('src="/planner/framework/teaching-day-trello.js?v=dashboard-unassigned-1"'));
-  assert.ok(html.indexOf('src="/planner/framework/teaching-day-trello.js?v=dashboard-unassigned-1"') < html.indexOf('src="/planner/framework/teaching-session.js?v=ambiguous-timetable-1"'));
+  assert.ok(html.indexOf('src="/planner/framework/teaching-slots.js?v=7"') < html.indexOf('src="/planner/framework/teaching-day-trello.js?v=forward-planning-1"'));
+  assert.ok(html.indexOf('src="/planner/framework/teaching-day-trello.js?v=forward-planning-1"') < html.indexOf('src="/planner/framework/teaching-session.js?v=ambiguous-timetable-1"'));
   assert.ok(html.indexOf('src="/planner/framework/teaching-session.js?v=ambiguous-timetable-1"') < plannerScript);
   const heading = html.match(/<header class="planner-heading">([\s\S]*?)<\/header>/)[1];
   for (const id of ['planner-year', 'open-year', 'print-planner']) {
@@ -990,7 +991,7 @@ test('module denies anonymous/student access and accepts a supplied teacher iden
     assert.match(html, /Last Updated:/);
     assert.match(html, /id="planner-year"[^>]*value="2026"/);
     assert.match(html, /data-api="\/module\/api\/planner\/"/);
-    assert.match(html, /src="\/module\/framework\/planner\.js\?v=trello-completion-1"/);
+    assert.match(html, /src="\/module\/framework\/planner\.js\?v=forward-planning-1"/);
     assert.match(html, /Weekly planner/);
     assert.match(html, /Professional learning/);
     assert.ok(!html.includes('name="whs-global-control"'));

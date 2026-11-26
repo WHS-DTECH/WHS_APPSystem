@@ -100,6 +100,11 @@
 .teaching-dashboard .teaching-dashboard-card-open { display: grid; gap: 6px; width: 100%; padding: 12px 12px 44px; border: 0; background: transparent; text-align: left; white-space: normal; }
 .teaching-dashboard .teaching-dashboard-card-notes { position: absolute; bottom: 8px; right: 10px; font-size: 13px; padding: 5px 10px; }
 .teaching-dashboard-card:has(> .teaching-dashboard-card-open[aria-pressed="true"]) { outline: 3px solid #376783; outline-offset: 1px; }
+.teaching-day-date-controls, .teaching-day-session-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
+.teaching-day-date-controls input { min-width: 145px; }
+.teaching-day-session { margin: 10px 0; padding: 10px 12px; border: 1px solid #b3c4cb; border-left: 4px solid #376783; border-radius: 4px; background: #fff; overflow-wrap: anywhere; }
+.teaching-day-session h4, .teaching-day-session p { margin: 6px 0; }
+.teaching-day-session-actions button { font-size: 13px; padding: 5px 10px; }
 .planner-main:has(.teaching-dashboard) { width: 100%; }
 @media (max-width: 800px) { .teaching-dashboard-columns { grid-template-columns: minmax(0, 1fr); } }
 .teaching-slot-plan { min-width: 0; overflow-wrap: anywhere; }
