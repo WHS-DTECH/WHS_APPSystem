@@ -6,6 +6,10 @@
 
   function responsibilities(card) {
     const keys = new Set((card?.labels || []).map(label => labelKey(label.name)).filter(key => key && key !== 'MEETINGS'));
+    if (card?.role === 'meetings') {
+      const primary = root.plannerTodoTrello.meetingMetadata(card).responsibility;
+      if (primary) keys.add(labelKey(primary));
+    }
     if (card?.role === 'filed' && typeof card.listName === 'string') {
       const name = labelKey(card.listName).replace(/[\u2013\u2014]/g, '-').replace(/\s+/g, ' ');
       const match = /^DONE - (.+)$/.exec(name);
@@ -39,7 +43,7 @@
       urgent: active.filter(card => card.role === 'urgent').length, outstanding,
       overdue: active.filter(card => card.dueDate && card.dueDate < today).length,
       today: active.filter(card => card.dueDate === today).length,
-      upcoming: active.filter(card => card.dueDate && card.dueDate > today).length,
+      upcoming: groups.upcoming.length,
       week: active.filter(card => card.dueDate >= weekStart && card.dueDate <= weekEnd).length,
       doing: active.filter(card => card.role === 'doing').length,
       waiting: active.filter(card => card.role === 'waiting').length, doneToday: groups.doneToday.length
@@ -47,6 +51,10 @@
     const labels = new Map(responsibilityNames.map(name => [name, { name, color: null, count: 0 }]));
     for (const list of data.lists) {
       for (const card of list.cards) {
+        if (list.role === 'meetings') {
+          const primary = root.plannerTodoTrello.meetingMetadata(card).responsibility;
+          if (primary && !labels.has(labelKey(primary))) labels.set(labelKey(primary), { name: primary, color: null, count: 0 });
+        }
         for (const label of card.labels) {
           if (!label.name.trim()) continue;
           const key = labelKey(label.name);
@@ -71,7 +79,7 @@
     host.className = 'todo-dashboard';
     host.setAttribute('data-planner-navigation', '');
     const heading = make('h2', 'Trello ToDo Dashboard');
-    const info = make('p', 'Live Trello tasks — not a historical snapshot. Read-only; completion is unavailable. Responsibility counts show outstanding tasks; filters and search also apply to meetings and completed work.');
+    const info = make('p', 'Live Trello tasks — not a historical snapshot. Read-only; completion is unavailable. Responsibility counts show outstanding tasks; filters and search also apply to meetings, MINED alerts and completed work.');
     const toolbar = make('div', '', { class: 'todo-dashboard-toolbar' });
     const refresh = make('button', 'Refresh', { type: 'button' });
     const board = make('a', 'Open Trello board', { href: 'https://trello.com/b/QsFC8J3m/school-email-todo',
@@ -90,6 +98,7 @@
       const today = dateKey(Date.now()), result = model(data || { lists: [] }, today);
       const meetings = shared.meetingViews(result.groups, today);
       const hasMeetings = data?.lists.some(list => list.role === 'meetings');
+      const hasMined = data?.lists.some(list => list.role === 'mined');
       const allCards = (data?.lists || []).flatMap(list => list.cards.map(card => ({
         ...card, dueDate: card.due ? dateKey(card.due) : '', role: list.role, listName: list.name
       })));
@@ -103,12 +112,15 @@
         ['today', 'Due today'], ['upcoming', 'Upcoming deadlines'], ['week', 'Due this week'],
         ['doing', 'Doing'], ['waiting', 'Waiting / follow-up'],
         ['doneToday', 'Completed today']]) {
-        const value = key === 'today'
-          ? data ? hasMeetings ? (result.summary.today + meetings.today.length) +
-            ' (' + result.summary.today + ' tasks · ' + meetings.today.length + ' meetings)'
-            : result.summary.today + ' tasks · meeting count unavailable'
-            : 'unavailable'
-          : data ? result.summary[key] : 'unavailable';
+        let value = data ? result.summary[key] : 'unavailable';
+        if (data && key === 'today') {
+          value = result.summary.today + meetings.today.length + result.groups.minedToday.length +
+            (hasMeetings && hasMined ? '' : '+?') +
+            ' (' + result.summary.today + ' tasks · ' + (hasMeetings ? meetings.today.length : '?') +
+            ' meetings · ' + (hasMined ? result.groups.minedToday.length : '?') + ' MINED alerts)';
+        } else if (data && key === 'upcoming') {
+          value = result.summary.upcoming + result.groups.minedUpcoming.length + (hasMined ? '' : '+?');
+        }
         summary.append(make('div', text + ': ' + value));
       }
       summary.append(make('div', 'Upcoming meetings: ' + (hasMeetings ? meetings.upcoming.length : 'unavailable')));
@@ -169,15 +181,16 @@
         return trelloOrder(a, b);
       };
       const detail = make('section', '', { class: 'todo-detail', hidden: '', 'aria-label': 'Task and meeting details' });
-      function group(parent, key, title, cards, openSet, emptyText, events = []) {
+      function group(parent, key, title, cards, openSet, emptyText, events = [], alerts = []) {
         const box = make('details', '', { class: 'todo-group' });
         box.open = openSet.has(key);
         box.addEventListener('toggle', () => { if (box.open) openSet.add(key); else openSet.delete(key); });
-        const size = !data || key === 'meetings' && !hasMeetings ? '?' :
-          key === 'today' && !hasMeetings ? cards.length + '+?' : cards.length + events.length;
+        const total = cards.length + events.length + alerts.length;
+        const partial = key === 'today' && (!hasMeetings || !hasMined) || key === 'upcoming' && !hasMined;
+        const size = !data || key === 'meetings' && !hasMeetings ? '?' : partial ? total + '+?' : total;
         box.append(make('summary', title + ' (' + size + ')'));
         if (key === 'today') box.append(make('p', (data ? cards.length : '?') + ' tasks · ' +
-          (hasMeetings ? events.length : '?') + ' meetings'));
+          (hasMeetings ? events.length : '?') + ' meetings · ' + (hasMined ? alerts.length : '?') + ' MINED alerts'));
         const list = make('ul', '', { class: 'todo-cards' });
         for (const card of cards) {
           const onSelect = selected => { selectedItem = { kind: 'card', id: selected.id }; };
@@ -192,8 +205,9 @@
         if (key === 'meetings' && data && !hasMeetings) box.append(make('p', 'MEETINGS / APPOINTMENTS list unavailable in Trello.'));
         if (list.childNodes.length) box.append(list);
         else if (!data) box.append(make('p', 'Trello data unavailable.'));
-        else if (key !== 'meetings' || hasMeetings) box.append(make('p', emptyText ||
+        else if (!alerts.length && (key !== 'meetings' || hasMeetings)) box.append(make('p', emptyText ||
           (key === 'meetings' ? 'No meetings in this section.' : 'No tasks in this section.')));
+        if (key === 'today' || key === 'upcoming') shared.appendMinedAlerts(box, alerts, hasMined);
         parent.append(box);
       }
       const meetingMatches = event => matchesResponsibility(event.card, selected) &&
@@ -208,7 +222,9 @@
           result.active.filter(card => card.role === role && (role === 'urgent' || !['today', 'upcoming'].some(key => result.groups[key].includes(card)))))
           .filter(matches).sort(compare);
         const events = (role === 'today' ? meetings.today : role === 'meetings' ? meetings.all : []).filter(meetingMatches);
-        group(middle, role, title, cards, expandedGroups, undefined, events);
+        const alerts = (role === 'today' ? result.groups.minedToday :
+          role === 'upcoming' ? result.groups.minedUpcoming : []).filter(matches);
+        group(middle, role, title, cards, expandedGroups, undefined, events, alerts);
       }
       right.append(make('h3', 'Progress and details'));
       const dateControls = make('div', '', { class: 'todo-dashboard-controls' });

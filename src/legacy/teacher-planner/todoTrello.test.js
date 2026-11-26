@@ -75,6 +75,23 @@ test('filed MISCELLANEOUS tasks remain accessible without entering outstanding l
   assert.equal(list.cards[0].title, 'Filed task');
 });
 
+test('MINED reference cards are returned only through the authorised read-only board reader', async t => {
+  const { state, call } = await fixture(t);
+  const mined = '7'.repeat(24), reference = makeCard('8'.repeat(24), mined, 'Consultation');
+  reference.due = '2026-11-26T10:59:00Z';
+  reference.desc = 'Type: MINED DEADLINE\nStatus: Optional';
+  state.lists.push({ id: mined, name: 'MINED – CURRICULUM UPDATES', closed: false });
+  state.cards.push(reference);
+  const response = await call();
+  assert.equal(response.status, 200);
+  const list = (await response.json()).lists.find(item => item.role === 'mined');
+  assert.equal(list.cards[0].due, reference.due);
+  assert.equal(list.cards[0].description, reference.desc);
+  assert.ok(state.calls.every(call => call.options.method === 'GET'));
+  state.user = { id: '22222222-2222-4222-8222-222222222222', roles: ['ADMIN'] };
+  assert.equal((await call()).status, 403);
+});
+
 test('ambiguous lists, unsafe cards, expired tokens and rate limits fail explicitly', async t => {
   const { state, call } = await fixture(t);
   state.lists.push({ id: '4'.repeat(24), name: 'to do', closed: false });

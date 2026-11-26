@@ -9,7 +9,8 @@ const COLOUR = /^(green|yellow|orange|red|purple|blue|sky|lime|pink|black)(_(lig
 const normalize = value => value.normalize('NFKC').trim().replace(/[\u2013\u2014]/g, '-').replace(/\s+/g, ' ').toUpperCase();
 const roles = new Map([
   ['URGENT', 'urgent'], ['TO DO', 'todo'], ['DOING', 'doing'],
-  ['WAITING / FOLLOW-UP', 'waiting'], ['MEETINGS / APPOINTMENTS', 'meetings'], ['DONE', 'done'],
+  ['WAITING / FOLLOW-UP', 'waiting'], ['MEETINGS / APPOINTMENTS', 'meetings'],
+  ['MINED - CURRICULUM UPDATES', 'mined'], ['DONE', 'done'],
   ...['HOLA', 'TIMETABLE', 'DTECH', 'WHĀNAU', 'PPTA', 'MODERATION', 'MISCELLANEOUS']
     .map(name => ['DONE - ' + name, 'filed'])
 ]);

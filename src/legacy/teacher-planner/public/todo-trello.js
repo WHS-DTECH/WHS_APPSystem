@@ -78,7 +78,8 @@
     close.addEventListener('click', () => { detail.hidden = true; onClose(); });
     detail.append(heading, close); labels(detail, card);
     if (card.role === 'filed' && card.listName) detail.append(make('p', 'Filed under: ' + card.listName));
-    else if (!card.labels.some(label => label.name.trim() && label.name.trim().toLocaleUpperCase('en-NZ') !== 'MEETINGS')) {
+    else if (!(card.role === 'meetings' && meetingMetadata(card).responsibility) &&
+      !card.labels.some(label => label.name.trim() && label.name.trim().toLocaleUpperCase('en-NZ') !== 'MEETINGS')) {
       detail.append(make('p', 'Responsibility: not assigned'));
     }
     const status = card.role === 'filed' ? 'Filed as completed' :
@@ -132,10 +133,46 @@
     return item;
   }
 
+  function minedStatus(card) {
+    const values = [...(card.description || '').matchAll(/^\s*status:[ \t]*(.*?)[ \t]*$/gim)]
+      .map(match => match[1].trim().toLowerCase());
+    if (!values.length) return '';
+    if (values.length !== 1 || !['mandatory', 'optional'].includes(values[0])) return 'Status unclear — check Trello';
+    return values[0] === 'mandatory' ? 'Mandatory' : 'Optional';
+  }
+
+  function appendMinedAlerts(parent, cards, available) {
+    parent.append(make('h4', 'MINED — DEADLINE ALERTS (' + (available ? cards.length : '?') + ')',
+      { class: 'todo-mined-heading' }));
+    if (!available) {
+      parent.append(make('p', 'MINED reference list unavailable in Trello.'));
+      return;
+    }
+    if (!cards.length) return;
+    const list = make('ul', '', { class: 'todo-cards' });
+    for (const card of cards) {
+      const item = make('li', '', { class: 'todo-card todo-card-mined' });
+      const indicator = make('p', '', { class: 'todo-mined-indicator' });
+      const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      icon.setAttribute('viewBox', '0 0 24 24');
+      icon.setAttribute('aria-hidden', 'true');
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', 'M12 3a6 6 0 0 0-6 6v4l-2 3h16l-2-3V9a6 6 0 0 0-6-6ZM10 19h4');
+      icon.append(path);
+      indicator.append(icon, document.createTextNode(' MINED deadline'));
+      item.append(indicator, make('strong', card.title), make('p', 'Deadline: ' + dateLabel(card.due)));
+      const classification = minedStatus(card);
+      if (classification) item.append(make('p', classification));
+      item.append(make('a', 'Open original Trello card', { href: card.url, target: '_blank', rel: 'noopener noreferrer' }));
+      list.append(item);
+    }
+    parent.append(list);
+  }
+
   function meetingMetadata(card) {
     const fields = new Map(), errors = [];
     for (const line of (card.description || '').split(/\r?\n/)) {
-      const match = /^(start|end|location|source):\s*(.*?)\s*$/i.exec(line.trim());
+      const match = /^(start|end|location|source|responsibility):\s*(.*?)\s*$/i.exec(line.trim());
       if (!match) continue;
       const key = match[1].toLowerCase();
       if (fields.has(key)) { errors.push('Duplicate ' + key + ' field'); fields.set(key, null); }
@@ -166,7 +203,8 @@
         url = parsed.href;
       } catch { errors.push('Invalid source URL'); }
     }
-    return { start, end, location: fields.get('location') || '', url, errors };
+    const responsibility = fields.get('responsibility') || '';
+    return { start, end, location: fields.get('location') || '', responsibility, url, errors };
   }
 
   function meetingViews(groups, today) {
@@ -184,6 +222,7 @@
     detail.append(make('p', meeting.start ? 'Scheduled: ' + timeLabel(meeting.start) +
       (meeting.end ? ' – ' + timeLabel(meeting.end) : '') : 'Meeting time not confirmed.'));
     if (meeting.location) detail.append(make('p', 'Location: ' + meeting.location));
+    if (meeting.responsibility) detail.append(make('p', 'Primary responsibility: ' + meeting.responsibility));
     if (meeting.errors.length) detail.append(make('p', 'Meeting metadata needs review: ' + meeting.errors.join('; ') + '.'));
     if (meeting.url) detail.append(make('a', 'Open original event', {
       href: meeting.url, target: '_blank', rel: 'noopener noreferrer'
@@ -217,6 +256,7 @@
     item.prepend(indicator());
     if (meeting.end) item.append(make('p', 'Ends: ' + timeLabel(meeting.end)));
     if (meeting.location) item.append(make('p', meeting.location));
+    if (meeting.responsibility) item.append(make('p', 'Primary responsibility: ' + meeting.responsibility));
     if (meeting.end && Date.parse(meeting.end) < Date.now()) item.append(make('p', 'Ended — attendance not confirmed.'));
     if (meeting.errors.length) item.append(make('p', 'Meeting metadata needs review: ' + meeting.errors.join('; ') + '.'));
     if (meeting.url) item.append(make('a', 'Open original event', { href: meeting.url, target: '_blank', rel: 'noopener noreferrer' }));
@@ -225,7 +265,7 @@
 
   function groupCards(lists, today) {
     const groups = { urgent: [], today: [], upcoming: [], todo: [], doing: [], waiting: [],
-      doneToday: [], doneOther: [], completedActive: [], meetings: [] };
+      doneToday: [], doneOther: [], completedActive: [], meetings: [], minedToday: [], minedUpcoming: [] };
     const seen = new Set();
     let outstanding = 0;
     for (const list of lists) {
@@ -235,7 +275,10 @@
         seen.add(card.id);
         const dueDate = card.due ? dateKey(card.due) : '';
         const entry = { ...card, dueDate, role: list.role };
-        if (list.role === 'done') {
+        if (list.role === 'mined') {
+          if (dueDate === today) groups.minedToday.push(entry);
+          else if (dueDate && dueDate > today) groups.minedUpcoming.push(entry);
+        } else if (list.role === 'done') {
           groups[card.completionActivity === 'verified' && card.completedAt && dateKey(card.completedAt) === today
             ? 'doneToday' : 'doneOther'].push(entry);
         } else if (card.dueComplete) groups.completedActive.push(entry);
@@ -248,6 +291,9 @@
           groups[group].push(entry);
         }
       }
+    }
+    for (const key of ['minedToday', 'minedUpcoming']) {
+      groups[key].sort((a, b) => Date.parse(a.due) - Date.parse(b.due) || a.position - b.position);
     }
     return { groups, outstanding };
   }
@@ -324,6 +370,7 @@
       const { groups, outstanding } = groupCards(data?.lists || [], today);
       const meetings = meetingViews(groups, today);
       const hasMeetings = data?.lists.some(list => list.role === 'meetings');
+      const hasMined = data?.lists.some(list => list.role === 'mined');
       count.textContent = data ? outstanding + ' outstanding · ' +
         (hasMeetings ? meetings.upcoming.length : '?') + ' upcoming meetings' : 'Trello unavailable';
       sections.replaceChildren();
@@ -342,22 +389,26 @@
         box.addEventListener('toggle', () => expanded.set(key, box.open));
         const cards = key === 'today' ? todayTasks(groups, today) : groups[key];
         const eventItems = key === 'today' ? meetings.today : key === 'meetings' ? meetings.all : [];
-        const size = key === 'meetings' ? eventItems.length : cards.length + eventItems.length;
+        const alerts = key === 'today' ? groups.minedToday : key === 'upcoming' ? groups.minedUpcoming : [];
+        const size = key === 'meetings' ? eventItems.length : cards.length + eventItems.length + alerts.length;
+        const partial = key === 'today' && (!hasMeetings || !hasMined) || key === 'upcoming' && !hasMined;
         const sizeLabel = !data || key === 'meetings' && !hasMeetings ? '?' :
-          key === 'today' && !hasMeetings ? cards.length + '+?' : size;
+          partial ? size + '+?' : size;
         box.append(make('summary', name + ' (' + sizeLabel + ')'));
         if (key === 'today') box.append(make('p', (data ? cards.length : '?') + ' tasks · ' +
           (hasMeetings ? eventItems.length : '?') + ' meetings' +
+          ' · ' + (hasMined ? alerts.length : '?') + ' MINED alerts' +
           (data && !hasMeetings ? ' (Trello meeting list unavailable)' : '')));
         const list = make('ul', '', { class: 'todo-cards' });
         if (key !== 'meetings') for (const card of cards) list.append(key === 'today' && card.role === 'urgent'
           ? urgentReference(card, detail) : cardNode(card, today, detail));
         for (const meeting of eventItems) list.append(meetingNode(meeting, today, detail));
         if (!list.childNodes.length && !data) box.append(make('p', 'Trello data unavailable.'));
-        else if (!list.childNodes.length && (key !== 'meetings' || hasMeetings)) box.append(make('p', key === 'doneToday'
+        else if (!list.childNodes.length && !alerts.length && (key !== 'meetings' || hasMeetings)) box.append(make('p', key === 'doneToday'
           ? 'No completion verified today.' : key === 'meetings' ? 'No meetings in this section.' : 'No tasks in this section.'));
-        else box.append(list);
+        else if (list.childNodes.length) box.append(list);
         if (key === 'meetings' && data && !hasMeetings) box.append(make('p', 'MEETINGS / APPOINTMENTS list unavailable in Trello.'));
+        if (key === 'today' || key === 'upcoming') appendMinedAlerts(box, alerts, hasMined);
         sections.append(box);
       }
       detail.hidden = true;
@@ -391,7 +442,7 @@
     document.addEventListener('visibilitychange', onVisible);
     return dispose;
   }
-  const api = { mount, groupCards, todayTasks, meetingMetadata, meetingViews, meetingNode, dateKey, dateLabel, make, cardNode, urgentReference, showDetail, showMeetingDetail, subscribe, refreshData };
+  const api = { mount, groupCards, todayTasks, meetingMetadata, meetingViews, meetingNode, minedStatus, appendMinedAlerts, dateKey, dateLabel, make, cardNode, urgentReference, showDetail, showMeetingDetail, subscribe, refreshData };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.plannerTodoTrello = api;
 })(globalThis);

@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { groupCards, todayTasks, meetingMetadata, meetingViews, dateKey, refreshData, subscribe } = require('./public/todo-trello');
+const { groupCards, todayTasks, meetingMetadata, meetingViews, minedStatus, dateKey, refreshData, subscribe } = require('./public/todo-trello');
 
 const card = (id, due = null, extra = {}) => ({ id, due, dueComplete: false, ...extra });
 
@@ -31,10 +31,38 @@ test('duplicate card IDs fail rather than displaying conflicting cards', () => {
     { role: 'todo', cards: [card('1')] }], '2026-11-26'), /more than one list/);
 });
 
+test('MINED deadlines use Auckland dates and never enter task, meeting or completion groups', () => {
+  const lists = [
+    { role: 'todo', cards: [card('task')] },
+    { role: 'mined', cards: [
+      card('today', '2026-11-25T11:00:00Z'),
+      card('future', '2026-11-26T11:00:00Z', { dueComplete: true }),
+      card('past', '2026-11-25T10:59:00Z'),
+      card('undated')
+    ] }
+  ];
+  const { groups, outstanding } = groupCards(lists, '2026-11-26');
+  assert.equal(outstanding, 1);
+  assert.deepEqual(groups.minedToday.map(entry => entry.id), ['today']);
+  assert.deepEqual(groups.minedUpcoming.map(entry => entry.id), ['future']);
+  assert.deepEqual(groups.todo.map(entry => entry.id), ['task']);
+  assert.equal(groups.meetings.length, 0);
+  assert.equal(groups.completedActive.length, 0);
+  assert.equal(lists[1].cards.length, 4);
+});
+
+test('MINED status uses only a single explicit mandatory or optional field', () => {
+  assert.equal(minedStatus({ description: 'Type: MINED DEADLINE\nStatus: Optional\nNot a mandatory requirement.' }), 'Optional');
+  assert.equal(minedStatus({ description: 'Status: mandatory' }), 'Mandatory');
+  assert.equal(minedStatus({ description: 'This may be optional.' }), '');
+  assert.match(minedStatus({ description: 'Status: Optional\nStatus: Mandatory' }), /unclear/i);
+  assert.match(minedStatus({ description: 'Status: Pending' }), /unclear/i);
+});
+
 test('meeting cards use structured Trello metadata and Auckland day, not Trello due dates', () => {
   const today = '2026-11-26';
   const groups = groupCards([{ role: 'meetings', cards: [
-    card('today', null, { position: 2, description: 'Start: 2026-11-25T11:30:00Z\nEnd: 2026-11-26T01:00:00+13:00\nLocation: Room 1\nSource: https://calendar.google.com/calendar/event?eid=example' }),
+    card('today', null, { position: 2, description: 'Start: 2026-11-25T11:30:00Z\nEnd: 2026-11-26T01:00:00+13:00\nLocation: Room 1\nResponsibility: HOLA\nSource: https://calendar.google.com/calendar/event?eid=example' }),
     card('later', null, { position: 1, description: 'Start: 2026-12-10T09:00:00+13:00\nEnd: unspecified' }),
     card('unknown', '2026-11-25T23:00:00Z', { position: 3, start: '2026-11-25T23:00:00Z', description: 'Discussion at 10am' }),
     card('past', null, { position: 4, description: 'Start: 2026-11-25T09:00:00+13:00' })
@@ -44,6 +72,7 @@ test('meeting cards use structured Trello metadata and Auckland day, not Trello 
   assert.deepEqual(view.today.map(meeting => meeting.id), ['today']);
   assert.deepEqual(view.upcoming.map(meeting => meeting.id), ['today', 'later']);
   assert.equal(view.today[0].location, 'Room 1');
+  assert.equal(view.today[0].responsibility, 'HOLA');
   assert.equal(view.today[0].url, 'https://calendar.google.com/calendar/event?eid=example');
   assert.equal(view.today[0].end, '2026-11-26T01:00:00+13:00');
   assert.equal(view.all[3].start, null);

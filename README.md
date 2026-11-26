@@ -1855,8 +1855,8 @@ MCP OAuth, its read-only tools and permissions remain unchanged.
 The owner-only `GET /teacher-planner/api/planner/todo-trello` uses the existing
 `TEACHER_PLANNER_TRELLO_OWNER_ID`, `TEACHER_PLANNER_TRELLO_API_KEY` and
 `TEACHER_PLANNER_TRELLO_TOKEN` on Core. It checks the fixed School Email ToDo
-board and read-only token on every request. It reads only recognised task and
-filed-DONE lists, excludes the connection-test card, and reports errors rather
+board and read-only token on every request. It reads only recognised task,
+MINED reference and filed-DONE lists, excludes the connection-test card, and reports errors rather
 than returning an empty task list. Only the configured school account can read
 the result, including when another account has administrator privileges.
 
@@ -1883,7 +1883,7 @@ refreshes show an unavailable status rather than task counts. Responsibility
 filters use the labels and colours present on returned cards; predefined
 responsibilities without a matching card label have a neutral colour.
 Responsibility counts show outstanding tasks, while filters apply to tasks,
-Trello meetings and completed work. The Unclassified filter includes
+Trello meetings, MINED alerts and completed work. The Unclassified filter includes
 records without a responsibility; a MEETINGS type label is not a responsibility.
 Filed cards also match the responsibility of their existing DONE list.
 The dashboard provides sorting, task and meeting details, upcoming deadlines,
@@ -1895,7 +1895,7 @@ not assigned their modification dates.
 
 Both views use only the Trello `MEETINGS / APPOINTMENTS` list for meetings.
 URGENT and DUE TODAY open by default; all other sections start collapsed.
-DUE TODAY combines task deadlines and meetings starting today in
+DUE TODAY combines task deadlines, MINED deadline alerts and meetings starting today in
 Pacific/Auckland. MEETINGS displays all active meeting-list cards, including
 past and unscheduled cards; the separate upcoming count includes scheduled
 cards starting today or later. An elapsed meeting is not assumed attended.
@@ -1908,12 +1908,15 @@ Meeting card descriptions use these separate, case-insensitive fields:
 Start: 2026-11-26T15:00:00+13:00
 End: 2026-11-26T16:00:00+13:00
 Location: Room 1
+Responsibility: HOLA
 Source: https://calendar.google.com/calendar/event?eid=example
 ```
 
 `Start` is needed for a scheduled date and must be an ISO 8601 timestamp
 with `Z` or an explicit numeric offset; `End` is optional and follows the
-same format. `Location` and `Source` are optional; `Source` must be an HTTPS
+same format. `Location` and `Responsibility` are optional; the latter names
+the primary professional responsibility and participates in dashboard filters
+alongside actual Trello labels. `Source` is optional and must be an HTTPS
 URL without embedded credentials. Use one field per line, at most once.
 Blank or `unspecified` End/Source values and `unconfirmed` End values are
 treated as absent. Trello's due
@@ -1922,6 +1925,20 @@ fields are flagged on the card; without a valid Start the card stays visible
 as unscheduled and is not included in scheduled counts. Original Trello
 labels and links remain unchanged. The Trello meeting list being absent or
 the Trello connection failing is shown as unavailable, not zero meetings.
+
+The `MINED – CURRICULUM UPDATES` list remains a reference register, not a task
+list. Dated cards appear under **MINED — DEADLINE ALERTS** in UPCOMING
+DEADLINES before their due date, and DUE TODAY on that Auckland calendar date.
+After that date they disappear from alerts, but remain in Trello. Undated
+cards are not deadline alerts. These cards never increase task or meeting counts
+and their Trello completion flag does not move them into completed work.
+The optional card-description line `Status: Mandatory` or `Status: Optional`
+is displayed verbatim as the classification; absent status is not guessed and
+conflicting or unrecognised values are flagged for checking in Trello. Dates
+are displayed without a time, so a date-only deadline is not presented as a
+confirmed closing time. ChatGPT maintains the reference cards and any separate
+operational tasks; Planner does not interpret emails or change the cards. An
+unavailable MINED list is reported rather than treated as having no alerts.
 
 Completion timestamps are only shown when verified by the existing same-day
 activity check; older or unverifiable cards in DONE remain separate. No write

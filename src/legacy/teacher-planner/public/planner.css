@@ -223,6 +223,10 @@
 .todo-card-meeting { border-left: 4px solid #7845a5; }
 .todo-meeting-indicator { color: #69358e; font-weight: 700; }
 .todo-meeting-indicator svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; vertical-align: -2px; }
+.todo-card-mined { border-left: 4px solid #b77c00; }
+.todo-mined-heading, .todo-mined-indicator { color: #855900; font-weight: 700; }
+.todo-mined-heading { margin: 12px 0 4px; font-size: 13px; }
+.todo-mined-indicator svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; vertical-align: -2px; }
 .todo-dashboard .todo-card-urgent { border-left: 4px solid #b12d24; }
 .todo-dashboard .todo-card-due { border-left: 4px solid #b77c00; }
 .todo-dashboard .todo-card-completed { border-left: 4px solid #26804d; }

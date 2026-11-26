@@ -15,6 +15,7 @@ test('dashboard summaries use the sidebar outstanding classification and Aucklan
       card('complete', null, [], { dueComplete: true })] },
     { role: 'waiting', cards: [card('waiting', null)] },
     { role: 'meetings', cards: [card('meeting', null)] },
+    { role: 'mined', cards: [card('mined', '2026-11-28T00:00:00Z', [{ name: 'HOLA', color: 'green' }])] },
     { role: 'done', cards: [card('done', null, [], { dueComplete: true,
       completedAt: '2026-11-25T12:00:00Z', completionActivity: 'verified' })] },
     { role: 'filed', name: 'DONE - MISCELLANEOUS', cards: [card('filed', null)] }
@@ -25,7 +26,8 @@ test('dashboard summaries use the sidebar outstanding classification and Aucklan
   assert.equal(result.summary.outstanding, globalThis.plannerTodoTrello.groupCards(data.lists, '2026-11-26').outstanding);
   assert.deepEqual(result.labels.find(label => label.name === 'HOLA'), { name: 'HOLA', color: 'green', count: 2 });
   assert.deepEqual(result.labels.find(label => label.name === 'DTECH'), { name: 'DTECH', color: 'blue', count: 1 });
-  assert.ok(!result.active.some(entry => ['meeting', 'done', 'complete', 'filed'].includes(entry.id)));
+  assert.ok(!result.active.some(entry => ['meeting', 'mined', 'done', 'complete', 'filed'].includes(entry.id)));
+  assert.equal(result.groups.minedUpcoming.length, 1);
 });
 
 test('unclassified includes meetings without responsibilities but not filed responsibility lists', () => {
@@ -36,6 +38,9 @@ test('unclassified includes meetings without responsibilities but not filed resp
   assert.equal(matchesResponsibility(named, unclassifiedFilter), false);
   assert.equal(matchesResponsibility(named, 'OTHER'), true);
   assert.equal(matchesResponsibility(typeOnly, allFilter), true);
+  const described = { ...typeOnly, role: 'meetings', description: 'Responsibility: HOLA' };
+  assert.equal(matchesResponsibility(described, 'HOLA'), true);
+  assert.equal(matchesResponsibility(described, unclassifiedFilter), false);
   const filed = { ...typeOnly, role: 'filed', listName: 'DONE – MISCELLANEOUS' };
   assert.deepEqual([...responsibilities(filed)], ['MISCELLANEOUS']);
   assert.equal(matchesResponsibility(filed, 'MISCELLANEOUS'), true);
@@ -57,4 +62,13 @@ test('responsibility counts include distinct cards and retain other actual label
   ] }] }, '2026-11-26');
   assert.deepEqual(result.labels.find(label => label.name === 'Other'), { name: 'Other', color: 'purple', count: 1 });
   assert.equal(result.labels.find(label => label.name === 'MISCELLANEOUS').count, 0);
+});
+
+test('upcoming deadline summary matches the sidebar section when urgent tasks have future deadlines', () => {
+  const result = model({ lists: [
+    { role: 'urgent', cards: [card('urgent', '2026-11-28T00:00:00Z')] },
+    { role: 'todo', cards: [card('ordinary', '2026-11-28T00:00:00Z')] },
+    { role: 'mined', cards: [card('alert', '2026-11-28T00:00:00Z')] }
+  ] }, '2026-11-26');
+  assert.equal(result.summary.upcoming + result.groups.minedUpcoming.length, 2);
 });
