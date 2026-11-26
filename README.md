@@ -1856,9 +1856,12 @@ The owner-only `GET /teacher-planner/api/planner/todo-trello` uses the existing
 `TEACHER_PLANNER_TRELLO_OWNER_ID`, `TEACHER_PLANNER_TRELLO_API_KEY` and
 `TEACHER_PLANNER_TRELLO_TOKEN` on Core. It checks the fixed School Email ToDo
 board and read-only token on every request. It reads only recognised task,
-MINED reference and filed-DONE lists, excludes the connection-test card, and reports errors rather
-than returning an empty task list. Only the configured school account can read
-the result, including when another account has administrator privileges.
+MINED reference and filed-DONE lists, excludes the connection-test card and the
+two designated Phase 4 completion test cards by their stable IDs, and reports
+errors rather than returning an empty task list. The excluded cards remain in
+Trello but are absent from Planner views and counts. Only the configured school
+account can read the result, including when another account has administrator
+privileges.
 
 The Weekly Planner shows the current live board, not a historical snapshot.
 The sidebar can be collapsed, resized on wide screens and independently scrolled;

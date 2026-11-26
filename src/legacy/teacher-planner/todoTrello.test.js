@@ -82,6 +82,18 @@ test('owner can read selected lists without reference lists, test cards, credent
   assert.equal(state.calls.length, count);
 });
 
+test('only the designated completion test cards are excluded from all Planner lists', async t => {
+  const { state, call } = await fixture(t);
+  const filed = '5'.repeat(24);
+  state.lists.push({ id: filed, name: 'DONE – HOLA', closed: false });
+  state.cards.push(makeCard('6b07a498a5404bae757ab359', todo, 'Renamed test task'),
+    makeCard('6b07a49a5c7787a43ecd3efc', filed, 'Renamed test meeting'),
+    makeCard('6'.repeat(24), done, 'TEST — Phase 4 Task Completion'));
+  const body = await (await call()).json();
+  const cards = body.lists.flatMap(list => list.cards);
+  assert.deepEqual(cards.map(card => card.id), ['2'.repeat(24), '6'.repeat(24)]);
+});
+
 test('other accounts, including administrators, and write-capable tokens cannot read tasks', async t => {
   const { state, call } = await fixture(t);
   state.user = { id: '22222222-2222-4222-8222-222222222222', roles: ['ADMIN'] };

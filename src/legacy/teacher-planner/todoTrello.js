@@ -3,6 +3,7 @@ const { cardLink, hasReadOnlyBoardGrant, createTrelloReader } = require('./trell
 
 const BOARD = 'QsFC8J3m';
 const BOARD_URL = 'https://trello.com/b/QsFC8J3m/school-email-todo';
+const excludedTestCards = new Set(['6b07a498a5404bae757ab359', '6b07a49a5c7787a43ecd3efc']);
 const ID = /^[0-9a-f]{24}$/i;
 const UUID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 const COLOUR = /^(green|yellow|orange|red|purple|blue|sky|lime|pink|black)(_(light|dark))?$/;
@@ -124,7 +125,8 @@ function createTodoTrelloRouter({ env = process.env, fetchImpl = globalThis.fetc
             (label.color === null || typeof label.color === 'string' && COLOUR.test(label.color))) &&
           ['due', 'start'].every(field => card[field] === null ||
             typeof card[field] === 'string' && Number.isFinite(Date.parse(card[field]))))) throw new Error('Invalid cards.');
-        const visibleCards = cards.filter(card => !card.closed && normalize(card.name) !== 'TEST - CHATGPT TRELLO CONNECTION');
+        const visibleCards = cards.filter(card => !card.closed && !excludedTestCards.has(card.id) &&
+          normalize(card.name) !== 'TEST - CHATGPT TRELLO CONNECTION');
         const mappedCards = [];
         for (const card of visibleCards) {
           let completion = { completedAt: null, completionActivity: 'unknown' };
