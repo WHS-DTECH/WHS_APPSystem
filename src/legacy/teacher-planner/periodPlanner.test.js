@@ -366,6 +366,23 @@ test('Teaching Dashboard V1 preparation renders when the optional room field is 
   assert.ok(slotDescendants(rendered).some(item => item.textContent.includes('10:00 NZ')));
   assert.ok(!slotDescendants(rendered).some(item => item.textContent.includes('Room undefined')));
 });
+test('session mounting keeps its class preparation reader independent of the administrative sidebar', async () => {
+  const source = fs.readFileSync(require.resolve('./public/planner'), 'utf8');
+  let helpers;
+  const requests = [], content = node();
+  const context = {
+    content, periodDate: '2026-11-27', periodSlot: 'p2', dashboardMode: false,
+    api: '/api/planner/', el: node, sessionAddress: undefined, sessionPlanner: undefined,
+    refreshSession: async () => {}, request: async url => { requests.push(url); return { cards: [] }; },
+    plannerTeachingSession: { mount: (host, data, value) => { assert.equal(host, content); helpers = value; return {}; } }
+  };
+  vm.runInNewContext(source.slice(source.indexOf('  function mountTeachingSession('),
+    source.indexOf('  async function switchDashboardSession(')), context);
+  context.mountTeachingSession({}, { revision: 1, content: {} });
+  await helpers.teachingDay('2026-11-30');
+  assert.deepEqual(requests, ['/api/planner/teaching-day-trello/2026-11-30']);
+  assert.equal(context.sessionAddress, 'sessions/2026-11-27/p2');
+});
 test('Whanau and observation workspaces keep independent Notes drafts through the shared Trello toggle', () => {
   const context = { plannerSessionSchema: require('./public/session-schema') };
   vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-session'), 'utf8'), context);

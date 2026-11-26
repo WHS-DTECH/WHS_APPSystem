@@ -1,9 +1,144 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
 const { groupCards, todayTasks, meetingMetadata, meetingViews, minedStatus, dateKey, refreshData, subscribe,
   configureCompletion, completeCard, writeConnectionMessage } = require('./public/todo-trello');
 
 const card = (id, due = null, extra = {}) => ({ id, due, dueComplete: false, ...extra });
+
+const descendants = node => [node, ...node.children.flatMap(descendants)];
+const flush = () => new Promise(resolve => setImmediate(resolve));
+function sidebarFixture(preferences = new Map()) {
+  function make(tag, text = '') {
+    const node = { tag, textContent: text, children: [], attrs: {}, events: {}, style: {
+      setProperty(key, value) { this[key] = value; }
+    }, isConnected: true, hidden: false, open: false, className: '',
+    append(...items) { this.children.push(...items); }, prepend(...items) { this.children.unshift(...items); },
+    replaceChildren(...items) { this.children = items; },
+    setAttribute(key, value) { this.attrs[key] = value; if (key === 'class') this.className = value; if (key === 'hidden') this.hidden = true; },
+    addEventListener(key, handler) { this.events[key] = handler; }, focus() {}, scrollIntoView() {},
+    querySelector(selector) { return this.querySelectorAll(selector)[0]; },
+    querySelectorAll(selector) {
+      return descendants(this).slice(1).filter(child => selector.startsWith('.') ?
+        child.className.split(' ').includes(selector.slice(1)) : child.tag === selector);
+    },
+    get childNodes() { return this.children; }
+    };
+    node.classList = {
+      add(value) { node.className = [...new Set([...node.className.split(' ').filter(Boolean), value])].join(' '); },
+      toggle(value, enabled) {
+        if (enabled) this.add(value);
+        else node.className = node.className.split(' ').filter(name => name !== value).join(' ');
+      },
+      contains(value) { return node.className.split(' ').includes(value); }
+    };
+    return node;
+  }
+  const listeners = new Set(), host = make('div');
+  const document = {
+    createElement: make, createElementNS: (_namespace, tag) => make(tag), createTextNode: text => make('#text', text),
+    addEventListener: (_event, listener) => listeners.add(listener),
+    removeEventListener: (_event, listener) => listeners.delete(listener),
+    getElementById: () => host, hidden: false
+  };
+  const now = new Date().toISOString(), item = {
+    id: 'a'.repeat(24), title: 'Designated fixture task', labels: [], description: '', due: null,
+    dueComplete: false, position: 1, url: 'https://trello.com/c/AbCd1234'
+  };
+  let completed = false, reads = 0, writes = 0;
+  const context = { document, console, Date, Intl, URL, AbortSignal, Set, Map,
+    localStorage: { getItem: key => preferences.get(key) || null, setItem: (key, value) => preferences.set(key, value) },
+    fetch: async (_url, options) => {
+      if (options.method === 'POST') { writes++; completed = true; return { ok: true, json: async () => ({ status: 'ok' }) }; }
+      reads++;
+      return { ok: true, json: async () => ({ status: 'ok', fetchedAt: now, writeAvailable: true, lists: [
+        { id: 'b'.repeat(24), name: 'TO DO', role: 'todo', cards: completed ? [] : [item] },
+        { id: 'c'.repeat(24), name: 'DONE', role: 'done', cards: completed ? [{ ...item, dueComplete: true,
+          completedAt: now, completionActivity: 'verified' }] : [] },
+        { id: 'd'.repeat(24), name: 'MEETINGS / APPOINTMENTS', role: 'meetings', cards: [] },
+        { id: 'e'.repeat(24), name: 'MINED', role: 'mined', cards: [] }
+      ] }) };
+    }
+  };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/todo-trello'), 'utf8'), context);
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/todo-dashboard'), 'utf8'), context);
+  return { host, make, context, preferences, listeners, get reads() { return reads; }, get writes() { return writes; } };
+}
+
+test('one module sidebar persists across Planner views without refetching or affecting teaching preparation', async () => {
+  const f = sidebarFixture();
+  Object.assign(f.context, { section: 'cover', dashboardMode: false, week: '2026-11-23',
+    api: '/api/', csrf: 'fixture', el: f.make, todoSidebar: undefined });
+  const source = fs.readFileSync(require.resolve('./public/planner'), 'utf8');
+  vm.runInNewContext(source.slice(source.indexOf('  function updateTodoSidebar()'),
+    source.indexOf('  function overviewSchoolEvents(')), f.context);
+  f.context.updateTodoSidebar(); await flush();
+  const sidebar = f.context.todoSidebar, aside = f.host.querySelector('aside');
+  const button = text => descendants(f.host).find(node => node.tag === 'button' && node.textContent === text);
+  const width = f.host.querySelector('input');
+  width.value = '460'; width.events.input();
+  assert.equal(f.host.style['--todo-width'], '460px');
+  const groups = f.host.querySelectorAll('details');
+  assert.deepEqual(groups.filter(group => group.open).map(group => group.children[0].textContent.split(' (')[0]),
+    ['URGENT', 'DUE TODAY']);
+  const todo = groups.find(group => group.children[0].textContent.startsWith('TO DO'));
+  todo.open = true; todo.events.toggle();
+  button('Hide Trello').events.click();
+  for (const section of ['year', 'term', 'week', 'period', 'todoDashboard', 'cover']) {
+    f.context.section = section; f.context.dashboardMode = section === 'period';
+    f.context.updateTodoSidebar();
+    assert.equal(f.context.todoSidebar, sidebar);
+    assert.equal(aside.hidden, true);
+    assert.equal(button('Show Trello').hidden, section === 'todoDashboard');
+    assert.equal(f.host.style['--todo-width'], '460px');
+  }
+  assert.equal(f.reads, 1);
+  assert.equal(f.host.querySelectorAll('aside').length, 1);
+  button('Show Trello').events.click();
+  assert.equal(aside.hidden, false);
+  assert.equal(f.host.classList.contains('todo-open'), true);
+  assert.equal(f.host.querySelectorAll('details').find(group => group.children[0].textContent.startsWith('TO DO')).open, true);
+  sidebar();
+  const reloaded = sidebarFixture(f.preferences);
+  const dispose = reloaded.context.plannerTodoTrello.mount(reloaded.host, { api: '/api/', getCsrf: () => 'fixture' });
+  await flush();
+  assert.equal(reloaded.host.querySelector('aside').hidden, false);
+  assert.equal(reloaded.host.style['--todo-width'], '460px');
+  descendants(reloaded.host).find(node => node.textContent === 'Hide Trello').events.click();
+  dispose();
+  const hiddenReload = sidebarFixture(f.preferences);
+  const hiddenDispose = hiddenReload.context.plannerTodoTrello.mount(hiddenReload.host, { api: '/api/', getCsrf: () => 'fixture' });
+  await flush();
+  assert.equal(hiddenReload.host.querySelector('aside').hidden, true);
+  assert.equal(descendants(hiddenReload.host).find(node => node.textContent === 'Show Trello').hidden, false);
+  hiddenDispose();
+});
+
+test('sidebar and dashboard mounts reuse data and reflect checkbox completion and manual refresh together', async () => {
+  const f = sidebarFixture(), shared = f.context.plannerTodoTrello;
+  const dispose = shared.mount(f.host, { api: '/api/', getCsrf: () => 'fixture' });
+  await flush();
+  const dashboardHost = f.make('section');
+  const disposeDashboard = f.context.plannerTodoDashboard.mount(dashboardHost, { api: '/api/', getCsrf: () => 'fixture' });
+  await flush();
+  assert.equal(f.reads, 1, 'mounting the dashboard reuses loaded sidebar data');
+  const checkbox = f.host.querySelectorAll('input').find(node => node.attrs['aria-label'] === 'Complete: Designated fixture task');
+  assert.equal(checkbox.disabled, false);
+  checkbox.checked = true; checkbox.events.change({ stopPropagation() {} });
+  await flush(); await flush();
+  assert.equal(f.writes, 1);
+  assert.equal(f.reads, 2, 'completion refreshes the shared data once');
+  for (const host of [f.host, dashboardHost]) {
+    const done = descendants(host).find(node => node.tag === 'details' && node.children[0].textContent.startsWith('DONE TODAY'));
+    assert.ok(descendants(done).some(node => node.textContent === 'Designated fixture task'));
+    assert.ok(!descendants(host).some(node => node.attrs['aria-label'] === 'Complete: Designated fixture task'));
+  }
+  descendants(f.host).find(node => node.textContent === 'Refresh').events.click(); await flush();
+  assert.equal(f.reads, 3);
+  disposeDashboard(); dispose();
+  assert.equal(f.listeners.size, 0);
+});
 
 test('write token status clearly distinguishes approaching expiry, revoked access and unknown expiry', () => {
   assert.match(writeConnectionMessage({ writeStatus: 'expiring-soon', writeExpiresAt: '2026-12-02T11:00:00Z', writeAvailable: true }),

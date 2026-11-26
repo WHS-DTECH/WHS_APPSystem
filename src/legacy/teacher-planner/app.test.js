@@ -26,7 +26,7 @@ test('shared save and feedback are above every page and external save targets th
   const feedback=html.indexOf('class="planner-feedback"');
   const save=html.indexOf('id="save-planner"');
   const status=html.indexOf('id="planner-status"');
-  const form=html.indexOf('<form id="planner-form">');
+  const form=html.indexOf('<form id="planner-form"');
   assert.ok(controls<selectors && selectors<feedback && feedback<save && save<status && status<form);
   assert.match(html,/<button type="submit" form="planner-form" id="save-planner"/);
   assert.equal([...html.matchAll(/id="save-planner"/g)].length,1);
@@ -199,7 +199,7 @@ test('normal opening resolves a term before loading its private entry, while dir
       localDate:mode==='holiday'?'2026-10-01':mode==='january'?'2026-01-05':'2026-10-18',
       save:{},retry:{},signin:{hidden:true},content:{replaceChildren(){}},yearInput:{},
       document:{querySelector:()=>({}),querySelectorAll:()=>[],getElementById:id=>nodes[id]||(nodes[id]={})},
-      renderSelectors(){},updateYearBadge(){},history:{replaceState(){}},viewFragment:()=>'',notice(){},refreshSession:async()=>{},console:{error(){}},
+      renderSelectors(){},updateTodoSidebar(){assert.equal(context.csrf,'fixture');},updateYearBadge(){},history:{replaceState(){}},viewFragment:()=>'',notice(){},refreshSession:async()=>{context.csrf='fixture';},console:{error(){}},
       updateWeekNavigation(){navigationBusy.push(context.busy);},
       loadTermDates:async year=>{
         years.push(year);
@@ -895,10 +895,10 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(embedded, /href="\/launchpad\/apps\/relief-plan"/);
   assert.match(embedded, /href="\/launchpad\/apps\/whs-unit-library"/);
   assert.match(embedded, /href="\/launchpad\/apps\/whs-assessment-manager"/);
-  assert.match(html, /planner\.css\?v=forward-planning-4/);
-  const plannerScript = html.indexOf('src="/planner/framework/planner.js?v=forward-planning-4"');
-  const todoScript = html.indexOf('src="/planner/framework/todo-trello.js?v=trello-completion-3"');
-  const dashboardScript = html.indexOf('src="/planner/framework/todo-dashboard.js?v=trello-completion-2"');
+  assert.match(html, /planner\.css\?v=module-todo-1/);
+  const plannerScript = html.indexOf('src="/planner/framework/planner.js?v=module-todo-1"');
+  const todoScript = html.indexOf('src="/planner/framework/todo-trello.js?v=module-todo-1"');
+  const dashboardScript = html.indexOf('src="/planner/framework/todo-dashboard.js?v=module-todo-1"');
   assert.ok(plannerScript >= 0 && todoScript >= 0 && dashboardScript >= 0);
   assert.ok(html.indexOf('src="/planner/framework/planner-reference.js"') < plannerScript);
   assert.ok(html.indexOf('src="/planner/framework/opening-dates-2026.js"') < plannerScript);
@@ -991,7 +991,7 @@ test('module denies anonymous/student access and accepts a supplied teacher iden
     assert.match(html, /Last Updated:/);
     assert.match(html, /id="planner-year"[^>]*value="2026"/);
     assert.match(html, /data-api="\/module\/api\/planner\/"/);
-    assert.match(html, /src="\/module\/framework\/planner\.js\?v=forward-planning-4"/);
+    assert.match(html, /src="\/module\/framework\/planner\.js\?v=module-todo-1"/);
     assert.match(html, /Weekly planner/);
     assert.match(html, /Professional learning/);
     assert.ok(!html.includes('name="whs-global-control"'));

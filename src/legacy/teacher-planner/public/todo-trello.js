@@ -59,6 +59,9 @@
     });
     return pending;
   }
+  function ensureData(api) {
+    return state.data ? Promise.resolve() : refreshData(api);
+  }
 
   async function completeCard(card) {
     if (state.completing.has(card.id) || !state.data?.writeAvailable || !completionApi || !getCsrf) return;
@@ -359,7 +362,7 @@
     return { groups, outstanding };
   }
 
-  function mount(host, { api, week, getCsrf }) {
+  function mount(host, { api, week, getWeek = () => week, getCsrf }) {
     configureCompletion(api, getCsrf);
     const storageKey = 'teacher-planner-trello-todo-sidebar';
     const widthKey = 'teacher-planner-trello-todo-width';
@@ -373,7 +376,7 @@
     }
     const aside = make('aside', '', { class: 'todo-sidebar', 'aria-label': 'Trello ToDo',
       'data-planner-navigation': '' });
-    const show = make('button', 'Trello ToDo', { type: 'button', class: 'todo-show', 'aria-controls': 'todo-sidebar-panel',
+    const show = make('button', 'Show Trello', { type: 'button', class: 'todo-show', 'aria-controls': 'todo-sidebar-panel',
       'aria-expanded': 'false', 'data-planner-navigation': '' });
     const panel = make('div', '', { id: 'todo-sidebar-panel', class: 'todo-panel' });
     const header = make('div', '', { class: 'todo-header' });
@@ -390,7 +393,7 @@
     }
     title.prepend(icon);
     const count = make('span', '', { class: 'todo-count' });
-    const hide = make('button', 'Collapse', { type: 'button', 'aria-label': 'Collapse Trello ToDo' });
+    const hide = make('button', 'Hide Trello', { type: 'button', 'aria-label': 'Hide Trello ToDo' });
     header.append(title, count, hide);
     const toolbar = make('div', '', { class: 'todo-toolbar' });
     const refresh = make('button', 'Refresh', { type: 'button' });
@@ -415,14 +418,18 @@
     scroll.append(sections, detail);
     panel.append(header, toolbar, size, liveNote, status, scroll);
     aside.append(panel); host.append(show, aside);
-    const open = saved(storageKey) !== 'closed';
+    let open = saved(storageKey) !== 'closed', available = true;
+    function updateVisibility() {
+      aside.hidden = !available || !open; show.hidden = !available || open;
+      show.setAttribute('aria-expanded', String(available && open));
+      host.classList.toggle('todo-open', available && open);
+    }
     function setOpen(value) {
-      aside.hidden = !value; show.hidden = value;
-      show.setAttribute('aria-expanded', String(value));
-      host.classList.toggle('todo-open', value);
+      open = value;
+      updateVisibility();
       remember(storageKey, value ? 'open' : 'closed');
     }
-    setOpen(open);
+    updateVisibility();
     show.addEventListener('click', () => { setOpen(true); hide.focus(); });
     hide.addEventListener('click', () => { setOpen(false); show.focus(); });
     let disposed = false;
@@ -474,12 +481,13 @@
         sections.append(box);
       }
       detail.hidden = true;
-      liveNote.textContent = 'Live Trello tasks — not a historical snapshot. Urgent tasks due today are referenced in both sections.' +
-        (week !== (() => { const d = new Date(today + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() - (d.getUTCDay() + 6) % 7); return d.toISOString().slice(0, 10); })()
+      const selectedWeek = getWeek();
+      liveNote.textContent = 'Live Trello tasks — not a historical snapshot. Dates use today in Pacific/Auckland, not the selected teaching date. Urgent tasks due today are referenced in both sections.' +
+        (selectedWeek && selectedWeek !== (() => { const d = new Date(today + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() - (d.getUTCDay() + 6) % 7); return d.toISOString().slice(0, 10); })()
           ? ' The selected week is different from the current week.' : '');
     }
     const load = () => refreshData(api);
-    load();
+    ensureData(api);
     const unsubscribe = subscribe(current => {
       if (disposed || !aside.isConnected) return;
       refresh.disabled = current.loading;
@@ -502,13 +510,18 @@
     refresh.addEventListener('click', () => { state.actionError = ''; load(); });
     const onVisible = () => {
       if (!aside.isConnected) { dispose(); return; }
-      if (!document.hidden) load();
+      if (available && !document.hidden) load();
     };
     function dispose() { disposed = true; unsubscribe(); document.removeEventListener('visibilitychange', onVisible); }
+    dispose.setAvailable = value => {
+      available = value;
+      updateVisibility();
+      if (available) render(state.data);
+    };
     document.addEventListener('visibilitychange', onVisible);
     return dispose;
   }
-  const api = { mount, groupCards, todayTasks, meetingMetadata, meetingViews, meetingNode, minedStatus, appendMinedAlerts, dateKey, dateLabel, writeConnectionMessage, make, cardNode, urgentReference, showDetail, showMeetingDetail, subscribe, refreshData, configureCompletion, completeCard, clearActionError };
+  const api = { mount, groupCards, todayTasks, meetingMetadata, meetingViews, meetingNode, minedStatus, appendMinedAlerts, dateKey, dateLabel, writeConnectionMessage, make, cardNode, urgentReference, showDetail, showMeetingDetail, subscribe, refreshData, ensureData, configureCompletion, completeCard, clearActionError };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.plannerTodoTrello = api;
 })(globalThis);

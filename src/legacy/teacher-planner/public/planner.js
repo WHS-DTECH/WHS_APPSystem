@@ -57,6 +57,7 @@
   let periodDate = '', periodSlot = 'p1', selectedDay = 0, invalidPeriodLink = false;
   let activityRecord = '';
   let sessionPlanner, sessionAddress, teachingDashboard, dashboardTermError = '', disposeTodo;
+  let todoSidebar;
   let manualSessionDraft;
   let canManageSchoolSettings = false;
   let setupTab = 0;
@@ -998,6 +999,9 @@
   function mountTeachingSession(data, legacy) {
     content.dataset.view = 'period';
     sessionAddress = 'sessions/' + periodDate + '/' + periodSlot;
+    const teachingDay = async value => {
+      await refreshSession(); return request(api + 'teaching-day-trello/' + value);
+    };
     let dashboard;
     if (dashboardMode) {
       const context = { date: periodDate, slot: periodSlot, classKey: data.event.classKey, cardId: selectedTeachingCard,
@@ -1323,9 +1327,7 @@
     notices.append(field('notices', data), el('div', '', { class: 'weekly-school-notices' }));
     sidebar.append(notices, tasksColumn, todoNotes);
     rightBody.append(days, sidebar); right.append(rightBody);
-    const workspace = el('div', '', { class: 'todo-week-workspace' });
-    const plannerPage = el('div', '', { class: 'todo-week-content' });
-    spread.append(left, right); plannerPage.append(spread); workspace.append(plannerPage); content.append(workspace);
+    spread.append(left, right); content.append(spread);
     mountDayView(spread);
     mountPeriodLinks(spread, week);
     mountGoogleTasks(taskManager, false);
@@ -1352,14 +1354,34 @@
         return request(path.startsWith('../') ? api.replace(/planner\/$/, '') + path.slice(3) : api + path);
       }
     });
+  }
+  function updateTodoSidebar() {
+    const available = ['cover', 'year', 'term', 'week'].includes(section) ||
+      section === 'period' && dashboardMode;
+    const workspace = document.getElementById('planner-workspace');
+    workspace.setAttribute('data-todo-available', String(available));
+    const previousError = workspace.querySelector('.todo-sidebar-error');
+    if (previousError) previousError.hidden = !available;
+    if (!todoSidebar && !available) return;
     try {
-      if (!globalThis.plannerTodoTrello) throw new Error('Sidebar assets unavailable.');
-      disposeTodo = globalThis.plannerTodoTrello.mount(workspace, { api, week, getCsrf: () => csrf });
+      if (!todoSidebar) {
+        if (!globalThis.plannerTodoTrello) throw new Error('Sidebar assets unavailable.');
+        todoSidebar = globalThis.plannerTodoTrello.mount(workspace, {
+          api, getWeek: () => section === 'week' ? week : null, getCsrf: () => csrf
+        });
+      }
+      todoSidebar.setAvailable(available);
+      previousError?.remove();
     } catch {
       console.warn('Trello ToDo sidebar could not start.');
-      workspace.append(el('p', 'Trello ToDo is unavailable. Your Planner is unaffected.', {
-        class: 'todo-sidebar', role: 'alert', 'data-planner-navigation': ''
-      }));
+      let message = workspace.querySelector('.todo-sidebar-error');
+      if (!message) {
+        message = el('p', 'Trello ToDo is unavailable. Your Planner is unaffected.', {
+          class: 'todo-sidebar-error', role: 'alert', 'data-planner-navigation': ''
+        });
+        workspace.append(message);
+      }
+      message.hidden = !available;
     }
   }
   function overviewSchoolEvents(events) {
@@ -2906,7 +2928,9 @@
           term = ''; dashboardTermError = error.message + ' Session Notes remain available.';
         }
       }
+      await refreshSession();
       renderSelectors();
+      updateTodoSidebar();
       history.replaceState(null, '', '#' + viewFragment());
       document.querySelector('.planner-save').hidden = ['cover', 'attendance', 'attendanceImport', 'timetable', 'todoDashboard'].includes(section);
       save.textContent = section === 'setup' ? 'Save school-wide setup' : 'Save changes';
@@ -2917,7 +2941,6 @@
         else button.removeAttribute('aria-current');
       }
       if (section === 'cover') { render({}); loaded = true; notice(openingNote || 'Your planner, familiar pages. Open the cover or choose a section above.'); return; }
-      await refreshSession();
       if (section === 'todoDashboard') {
         if (!globalThis.plannerTodoDashboard) throw new Error('Trello ToDo Dashboard assets are unavailable.');
         const host = el('section');

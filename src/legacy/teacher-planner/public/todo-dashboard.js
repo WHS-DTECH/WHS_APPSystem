@@ -272,7 +272,7 @@
       else if (selectedItem) selectedItem = null;
     }
     const load = () => shared.refreshData(api);
-    load();
+    shared.ensureData(api);
     const unsubscribe = shared.subscribe(current => {
       if (disposed || !host.isConnected) return;
       refresh.disabled = current.loading;

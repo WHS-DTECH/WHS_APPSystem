@@ -212,7 +212,7 @@ test('Teaching Dashboard loads and saves the existing session address while excl
     save: {}, retry: {}, signin: {}, content: { replaceChildren() {}, querySelectorAll: () => [] },
     clearTimeout() {}, setTimeout() { return 1; }, saveInFlight: undefined, FormData: class { *[Symbol.iterator]() {} },
     notice: text => notices.push(text), console,
-    renderSelectors() {}, updateWeekNavigation() {}, viewFragment: () => 'section=timetable',
+    renderSelectors() {}, updateTodoSidebar() {}, updateWeekNavigation() {}, viewFragment: () => 'section=timetable',
     history: { replaceState() {} }, api: '/api/planner/', csrf: 'fixture',
     refreshSession: async () => {},
     mountTeachingSession() {

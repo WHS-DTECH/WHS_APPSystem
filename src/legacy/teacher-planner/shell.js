@@ -20,7 +20,7 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
 <link rel="icon" type="image/png" href="${asset('whs-logo.png')}">
 <link rel="stylesheet" href="${asset('account-controls.css')}">
 <link rel="stylesheet" href="${asset('module-shell.css')}">
-<link rel="stylesheet" href="${asset('planner.css?v=forward-planning-4')}">
+<link rel="stylesheet" href="${asset('planner.css?v=module-todo-1')}">
 </head><body class="whs-module-shell whs-planner" data-api="${escape(baseUrl)}api/planner/" data-assets="${escape(baseUrl)}framework/" data-planner-name="${escape(displayName)}" data-user-id="${escape(userId)}" data-user-email="${escape(userEmail)}" data-core-url="${escape(coreUrl)}">
 <main class="planner-main" aria-label="${escape(title)}">
 <header class="planner-heading">
@@ -84,9 +84,11 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
 </div>
 </div>
 </div>
-<form id="planner-form">
+<div id="planner-workspace" class="todo-week-workspace">
+<form id="planner-form" class="todo-week-content">
   <div id="planner-content"></div>
 </form>
+</div>
 <noscript>This planner needs JavaScript enabled to load and save your entries.</noscript>
 </main>
 <footer class="whs-module-footer">
@@ -111,13 +113,13 @@ ${standalone ? `<script src="${asset('global-nav.js')}" defer></script>` : ''}
 <script src="${asset('reporting-schema.js?v=16')}" defer></script>
 <script src="${asset('reporting.js?v=29')}" defer></script>
 <script src="${asset('term-trello.js?v=trello-labels-1')}" defer></script>
-<script src="${asset('todo-trello.js?v=trello-completion-3')}" defer></script>
-<script src="${asset('todo-dashboard.js?v=trello-completion-2')}" defer></script>
+<script src="${asset('todo-trello.js?v=module-todo-1')}" defer></script>
+<script src="${asset('todo-dashboard.js?v=module-todo-1')}" defer></script>
 <script src="${asset('session-schema.js?v=scheduled-session-3')}" defer></script>
 <script src="${asset('teaching-slots.js?v=7')}" defer></script>
 <script src="${asset('teaching-day-trello.js?v=forward-planning-4')}" defer></script>
 <script src="${asset('teaching-session.js?v=ambiguous-timetable-1')}" defer></script>
-<script src="${asset('planner.js?v=forward-planning-4')}" defer></script>
+<script src="${asset('planner.js?v=module-todo-1')}" defer></script>
 </body></html>`;
 }
 

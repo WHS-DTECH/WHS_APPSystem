@@ -1850,7 +1850,7 @@ existing school authentication, CSRF and optimistic revisions. Conflicting saves
 return 409 and retain the browser draft. These endpoints are not MCP tools;
 MCP OAuth, its read-only tools and permissions remain unchanged.
 
-### Weekly Planner Trello ToDo sidebar
+### Shared Planner Trello ToDo sidebar
 
 The owner-only `GET /teacher-planner/api/planner/todo-trello` uses the existing
 `TEACHER_PLANNER_TRELLO_OWNER_ID`, `TEACHER_PLANNER_TRELLO_API_KEY` and
@@ -1863,9 +1863,22 @@ Trello but are absent from Planner views and counts. Only the configured school
 account can read the result, including when another account has administrator
 privileges.
 
-The Weekly Planner shows the current live board, not a historical snapshot.
-The sidebar can be collapsed, resized on wide screens and independently scrolled;
-it is omitted from printing. Due dates use Pacific/Auckland. A task in URGENT
+Planner cover, Year overview, Term plan, Weekly planner and Teaching Dashboard
+share one persistent ToDo sidebar outside the autosaving Planner form. The
+ToDo Dashboard uses the same shared state but suppresses the sidebar to avoid
+duplicating its content. Navigating between views reuses the loaded Trello data;
+manual refresh, successful completion and returning to a visible browser tab
+still refresh the live board. No records or credentials are stored in browser
+preferences.
+
+The sidebar shows the current live board, not a historical snapshot.
+Show Trello / Hide Trello retains its visibility preference across navigation
+and page reloads, together with the existing adjustable width on wide screens.
+Hiding it releases the main content's sidebar space; Show Trello remains
+accessible. Sticky positioning and independent scrolling are retained, and the
+sidebar is omitted from printing. The class-specific Trello Planner remains
+independent of this toggle. Due dates always use today's Pacific/Auckland date,
+not the selected teaching date or Planner week. A task in URGENT
 that is due today is referenced in DUE TODAY without creating another task.
 Meetings are listed separately and not counted as outstanding tasks.
 Cards marked complete in active lists are also kept separate from outstanding

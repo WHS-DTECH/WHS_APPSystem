@@ -203,7 +203,7 @@
 .term-trello-cards [data-trello-colour="black_dark"] { --trello-label-colour: #626f86; }
 .term-trello-cards h4 { margin: 0 0 6px; color: #31586c; }
 .term-trello-cards p, .term-trello-cards a { margin: 6px 0; font-size: 13px; }
-.planner-main:has(.todo-week-workspace) { width: 100%; }
+.planner-main:has(.todo-week-workspace[data-todo-available="true"]) { width: 100%; }
 .todo-week-workspace { display: flex; gap: 16px; align-items: flex-start; }
 .todo-week-content { flex: 1 1 0; min-width: 0; }
 .todo-sidebar { flex: 0 0 var(--todo-width, 340px); width: var(--todo-width, 340px); min-width: 0; position: sticky; top: 68px; }
@@ -272,7 +272,7 @@
 }
 @media print {
   .todo-week-workspace { display: block; }
-  .todo-sidebar, .todo-show { display: none !important; }
+  .todo-sidebar, .todo-show, .todo-sidebar-error { display: none !important; }
   .google-tasks-column > button { display: none; }
 }
 @media print {
