@@ -1133,11 +1133,14 @@ test('period headers are linked only for teaching slots and Day View rules do no
   assert.match(table, /inputField\(slot \+ ':' \+ i/);
   assert.doesNotMatch(table, /No classes listed|Non Contact/);
   const css = fs.readFileSync(require.resolve('./public/planner.css'), 'utf8');
-  const screen = css.slice(css.indexOf('@media screen and (max-width: 900px)'), css.indexOf('@media (max-width: 1100px)'));
+  const screenStart = css.indexOf('@media screen and (max-width: 900px)');
+  const screenEnd = css.indexOf('@media (max-width: 1100px)', screenStart);
+  assert.ok(screenStart >= 0 && screenEnd > screenStart);
+  const screen = css.slice(screenStart, screenEnd);
   assert.match(screen, /data-selected-day="4"/);
   assert.match(screen, /display: table-cell/);
   assert.doesNotMatch(screen, /\.week-sidebar \{ display: none/);
-  assert.match(css, /@media print \{\s+\.week-day-controls, \.period-plan-status, \.period-planner > button, \.period-drive-controls \{ display: none; \}/);
+  assert.match(css, /@media print \{\s+\.term-panel-navigation \{ display: none; \}\s+\.week-day-controls, \.period-plan-status, \.period-planner > button, \.period-drive-controls \{ display: none; \}/);
   assert.match(source, /addEventListener\('beforeprint', \(\) => \{\s+globalThis\.plannerTextareaAutosize\?\.refresh\(\)/);
 });
 
