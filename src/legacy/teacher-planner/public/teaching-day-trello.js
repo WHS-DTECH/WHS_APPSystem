@@ -245,9 +245,9 @@
         return;
       }
       if (!result) { selectedHost.append(el('p', 'Reading Trello...', { role: 'status' })); return; }
-      const card = result.cards.find(card => (!context.cardId || card.id === context.cardId) &&
-        card.metadata.session_slot === context.slot && (card.metadata.class_key === context.classKey ||
-          !context.classKey && context.cardId === card.id));
+      const card = result.cards.find(card => card.metadata.teaching_date === context.date &&
+        card.metadata.session_slot === context.slot && (context.classKey ?
+          card.metadata.class_key === context.classKey : context.cardId === card.id));
       if (!card) {
         if ((verifiedJunior || verifiedMiddle) && context.date < todayDate()) {
           juniorSession = historical(selectedHost, verifiedMiddle);

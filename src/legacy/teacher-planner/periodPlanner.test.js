@@ -681,6 +681,7 @@ test('Friday class boxes use the saved default while explicit buttons remain one
           const card = teachingSlotFixture(), host = node();
           const dashboard = context.plannerTeachingDayTrello.dashboard(node(), {
             date: '2026-11-23', slot: 'p2', classKey: 'JPI', title: 'PIDTECH (JPI)',
+            cardId: 'stale-card',
             savedSession: { revision: 0, content: {}, legacy: { revision: 0, content: {} } }
           }, { el: node, request: async () => ({ status: 'ok', cards: [card], issues: [] }),
             loadSchedule: async () => ({ events: [] }), todayDate: () => '2026-11-28',
@@ -979,7 +980,7 @@ test('dashboard shows unassigned Trello cards separately and only opens an expli
   vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-day-trello'), 'utf8'), context);
   const card = { id: 'a'.repeat(24), name: 'Verified card', description: 'Verified preparation', resources: [],
     url: 'https://trello.com/c/AbCd1234', updatedAt: '2026-11-22T05:00:00Z',
-    metadata: { class_key: '9WHAU', session_slot: 'whanau', display_name: 'Whanau', start_time: '08:45',
+    metadata: { teaching_date: '2026-11-26', class_key: '9WHAU', session_slot: 'whanau', display_name: 'Whanau', start_time: '08:45',
       end_time: '09:00', lesson_title: 'Routine', preparation_status: 'Ready' } };
   const dashboard = context.plannerTeachingDayTrello.dashboard(host, { date: '2026-11-26', slot: 'whanau', classKey: null, cardId: '' },
     { el: node, select() {}, request: async () => ({ status: 'ok', cards: [card], issues: [],
@@ -1000,7 +1001,7 @@ test('dashboard selects stable card IDs and shows only the selected preparation 
   const feed = { status: 'ok', issues: [], cards: ['9WHAU', 'JPI'].map((key, index) => ({
     id: String(index).repeat(24), name: key + ' original card title', description: key + ' preparation',
     resources: [{ name: 'Resource', url: 'https://example.test/resource' }], updatedAt: '2026-11-22T05:00:00Z',
-    url: 'https://trello.com/c/AbCd1234', metadata: { class_key: key, session_slot: index ? 'p2' : 'whanau',
+    url: 'https://trello.com/c/AbCd1234', metadata: { teaching_date: '2026-11-23', class_key: key, session_slot: index ? 'p2' : 'whanau',
       display_name: key, start_time: index ? '10:00' : '08:45', lesson_title: key + ' lesson',
       preparation_status: 'See card preparation' }
   })) };
@@ -1123,7 +1124,7 @@ test('dashboard retains its sidebar and Trello feed when selecting another sessi
   const feed = { status: 'ok', issues: [], cards: ['9WHAU', 'JPI'].map((key, index) => ({
     id: String(index).repeat(24), name: key, description: key + ' preparation', resources: [],
     updatedAt: '2026-11-22T05:00:00Z', url: 'https://trello.com/c/AbCd1234',
-    metadata: { class_key: key, session_slot: index ? 'p2' : 'whanau', display_name: key,
+    metadata: { teaching_date: '2026-11-23', class_key: key, session_slot: index ? 'p2' : 'whanau', display_name: key,
       start_time: index ? '10:00' : '08:45', lesson_title: key, preparation_status: 'See card' }
   })) };
   let reads = 0; const host = node();
