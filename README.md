@@ -2161,6 +2161,29 @@ Before using this pilot, apply `017_junior_teaching.sql` with
 read the board or change this progress; the integration requires the existing
 read-only Trello token, and Planner writes use CSRF and revision checks.
 
+#### MiddleDTECH shared teaching order
+
+Open **Teaching Dashboard → MiddleDTECH** to read the `MiddleDTECH` order list
+(`6b09e4b9be7e645cfc6b9650`) beside the same separate Unit Plans and Licence Kit
+Plans libraries. Order cards use the same library references and validation as
+JuniorDTECH. The `MDTECH` list remains the source for dated session cards.
+
+Choose a semester to see the `MDTECH (class)` classes in that semester's
+personal KAMAR timetable. Published school term dates determine semesters:
+terms 1–2 and 3–4. Progress is stored separately by Planner year, semester,
+class and unit or kit sequence, using stable order-card IDs. Reordering the
+shared list does not change any class's current activity; Set current and Ready
+to move on require explicit confirmation. Timetable or term-date errors are
+shown rather than guessing classes or semesters.
+
+For a verified MiddleDTECH timetable session, a matching dated `MDTECH` card
+takes precedence. Otherwise the session uses the shared order and that class's
+saved progress, with kits included only when selected for the session. An empty
+order shows “No MiddleDTECH teaching order has been set”; Notes remain separate
+and available. Apply `018_middle_teaching.sql` using
+`npm run db:migrate:planner` in the Render service shell before using this
+feature. This migration affects only the separate Teacher Planner database.
+
 The [canonical teaching preparation card contract](docs/teaching-preparation-card-format.md)
 provides a copyable master template, complete metadata/heading/resource rules,
 and Whanau, JuniorDTECH and MiddleDTECH examples for ChatGPT automation.

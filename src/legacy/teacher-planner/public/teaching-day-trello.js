@@ -12,22 +12,20 @@
     return Number(clock.slice(0, 2)) * 60 + Number(clock.slice(3, 5));
   }
   function classListReferences(sessions) {
-    const classKeys = new Set(), names = new Map(), conflicts = new Set();
+    const classKeys = new Set(), names = new Map();
     for (const session of sessions) {
       if (!session.classKey) continue;
       classKeys.add(session.classKey);
-      names.set(session.classKey, session.classKey);
+      names.set(session.classKey + '=' + session.classKey, true);
       const match = /^(.+?)\s+\(([A-Z0-9_-]+)\)$/i.exec(session.title.trim());
       if (!match || match[2].toUpperCase() !== session.classKey) continue;
       const name = match[1].trim().toUpperCase();
       if (!/^[A-Z0-9][A-Z0-9 _-]{0,39}$/.test(name)) continue;
-      if (names.has(name) && names.get(name) !== session.classKey) {
-        names.delete(name); conflicts.add(name);
-      } else if (!conflicts.has(name)) names.set(name, session.classKey);
+      names.set(name + '=' + session.classKey, true);
     }
     return {
       classKeys: [...classKeys],
-      classLists: [...names].map(([name, classKey]) => name + '=' + classKey)
+      classLists: [...names.keys()]
     };
   }
   function sessionsForDate(events, value, slots) {
@@ -82,7 +80,7 @@
       el('a', 'Open in Trello', { href: card.url, target: '_blank', rel: 'noopener noreferrer' }));
     return article;
   }
-  function dashboard(host, context, { el, request, loadSchedule, select, openNotesSession, openTrelloSession, changeDate, termControl, termError, openJunior, juniorRequest, defaultView = () => 'trello' }) {
+  function dashboard(host, context, { el, request, loadSchedule, select, openNotesSession, openTrelloSession, changeDate, termControl, termError, openJunior, juniorRequest, openMiddle, middleRequest, semesterForDate, defaultView = () => 'trello' }) {
     const page = el('section', '', { class: 'teaching-dashboard', 'aria-label': 'Teaching Dashboard' });
     const heading = el('div', '', { class: 'teaching-dashboard-heading', 'data-planner-navigation': '' });
     if (termControl) heading.append(termControl);
@@ -91,6 +89,11 @@
       const junior = el('button', 'JuniorDTECH', { type: 'button' });
       junior.addEventListener('click', openJunior);
       heading.append(junior);
+    }
+    if (openMiddle) {
+      const middle = el('button', 'MiddleDTECH', { type: 'button' });
+      middle.addEventListener('click', openMiddle);
+      heading.append(middle);
     }
     if (termError) heading.append(el('p', termError, { role: 'alert' }));
     page.append(heading);
@@ -192,10 +195,12 @@
       if (!card) {
         const verifiedJunior = context.classKey === 'JPI' && /^PIDTECH\s*\(JPI\)$/i.test(context.title || '') ||
           context.classKey === 'JSR' && /^SRDTECH\s*\(JSR\)$/i.test(context.title || '');
-        if (verifiedJunior && juniorRequest && globalThis.plannerJuniorTeaching &&
+        const verifiedMiddle = context.classKey && new RegExp('^MDTECH\\s*\\(' + context.classKey + '\\)$', 'i').test(context.title || '');
+        if ((verifiedJunior && juniorRequest || verifiedMiddle && middleRequest) && globalThis.plannerJuniorTeaching &&
             result.status !== 'not_configured' && !result.issues?.length) {
           juniorSession = globalThis.plannerJuniorTeaching.mountSession(selectedHost, context,
-            { el, request: juniorRequest, openPage: openJunior });
+            verifiedMiddle ? { el, request: middleRequest, openPage: openMiddle, name: 'MiddleDTECH', semesterForDate } :
+              { el, request: juniorRequest, openPage: openJunior });
         } else {
           selectedHost.append(el('p', 'Trello preparation is unavailable for this session. Notes remain available and unchanged.', { role: 'status' }));
         }

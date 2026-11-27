@@ -33,25 +33,28 @@ function cards() {
 }
 async function fixture(t) {
   const state = { user: { id: owner, roles: [] }, lists: lists.map(item => ({ ...item })),
-    cards: cards(), progress: new Map(), sessions: new Map(), requests: [], queries: [] };
+    cards: cards(), progress: new Map(), sessions: new Map(), middleProgress: new Map(), middleSessions: new Map(), requests: [], queries: [] };
   const env = { TEACHER_PLANNER_TRELLO_OWNER_ID: owner, TEACHER_PLANNER_TEACHING_TRELLO_BOARD_ID: board,
     TEACHER_PLANNER_TRELLO_API_KEY: 'a'.repeat(32), TEACHER_PLANNER_TRELLO_TOKEN: 'c'.repeat(64) };
   async function query(sql, params) {
     state.queries.push(sql);
-    const map = sql.includes('planner_junior_progress') ? state.progress : state.sessions;
-    const key = params?.slice(0, 4).join('|');
-    if (sql.includes('SELECT class_key')) return { rows: [...map.values()].filter(row => row.owner === params[0] && row.year === params[1]) };
+    const middle = sql.includes('planner_middle_');
+    const progress = sql.includes('_progress');
+    const map = middle ? (progress ? state.middleProgress : state.middleSessions) : (progress ? state.progress : state.sessions);
+    const semester = middle && progress ? params[sql.includes('SELECT class_key') ? 2 : sql.includes('SELECT entry_id') ? 4 : sql.includes('INSERT INTO') ? 5 : 6] : null;
+    const key = params?.slice(0, 4).join('|') + (semester ? '|' + semester : '');
+    if (sql.includes('SELECT class_key')) return { rows: [...map.values()].filter(row => row.owner === params[0] && row.year === params[1] && (!middle || row.semester === semester)) };
     if (sql.includes('SELECT entry_id') || sql.includes('SELECT kits')) return { rows: map.has(key) ? [map.get(key)] : [] };
     if (sql.includes('INSERT INTO')) {
       if (map.has(key)) return { rows: [] };
-      const row = map === state.progress ? { owner: params[0], year: params[1], class_key: params[2],
+      const row = progress ? { owner: params[0], year: params[1], class_key: params[2], semester,
         sequence_key: params[3], entry_id: params[4], revision: 1 } : { kits: JSON.parse(params[4]), revision: 1 };
       map.set(key, row); return { rows: [row] };
     }
-    if (sql.includes('UPDATE planner_junior_')) {
+    if (sql.includes('UPDATE planner_')) {
       const row = map.get(key);
       if (!row || row.revision !== params[5]) return { rows: [] };
-      if (map === state.progress) row.entry_id = params[4]; else row.kits = JSON.parse(params[4]);
+      if (progress) row.entry_id = params[4]; else row.kits = JSON.parse(params[4]);
       row.revision++; return { rows: [row] };
     }
     assert.fail('Unexpected query: ' + sql);
@@ -79,13 +82,58 @@ async function fixture(t) {
   const base = 'http://127.0.0.1:' + server.address().port + '/';
   const auth = await fetch(base + 'session'), { csrf } = await auth.json();
   const cookie = auth.headers.get('set-cookie').split(';')[0];
-  const call = (path, body, csrfValue = csrf) => fetch(base + 'junior-teaching/' + path, {
+  const call = (path, body, csrfValue = csrf, programme = 'junior') => fetch(base + programme + '-teaching/' + path, {
     method: body === undefined ? 'GET' : 'PUT',
     headers: { cookie, 'x-planner-csrf': csrfValue, 'content-type': 'application/json' },
     ...(body === undefined ? {} : { body: JSON.stringify(body) })
   });
   return { state, env, call };
 }
+
+test('MiddleDTECH keeps class, sequence, year and semester progress stable across reorder', async t => {
+    const { state, call } = await fixture(t);
+    const middleList = { id: '6b09e4b9be7e645cfc6b9650', idBoard: board, name: 'MiddleDTECH', closed: false };
+    state.lists.push(middleList);
+    const entries = [
+      card('7', middleList, 'Binary Piano', unit('Binary Piano') + '\nLibrary card: https://trello.com/c/piano', 'middlepiano'),
+      card('8', middleList, 'Encoding Binary', unit('Encoding Binary') + '\nLibrary card: https://trello.com/c/encoding', 'middleencoding'),
+      card('9', middleList, 'Blueprint', kit('Blueprint') + '\nLibrary card: https://trello.com/c/blueprint', 'middleblueprint'),
+      card('a', middleList, 'Walkthrough', kit('Walkthrough') + '\nLibrary card: https://trello.com/c/walkthrough', 'middlewalkthrough')
+    ].map((item, index) => ({ ...item, id: (index + 7).toString(16).repeat(24), pos: (index + 1) * 100 }));
+    state.cards.push(...entries);
+    const request = (path, body) => call(path, body, undefined, 'middle');
+    const change = (scope, classKey, sequenceKey, id, revision, action = 'set') =>
+      request(scope + '/progress', { classKey, sequenceKey, entryId: id.repeat(24), revision, action });
+    const unitKey = 'unit:Binary & Data', kitKey = 'kit:Minecraft Builder Kit';
+    assert.equal((await change('2026/1', '91D', unitKey, '7', 0)).status, 200);
+    assert.equal((await change('2026/1', '101D', unitKey, '8', 0)).status, 200);
+    assert.equal((await change('2026/1', '91D', kitKey, '9', 0)).status, 200);
+    assert.equal((await change('2026/1', '101D', kitKey, '9', 0)).status, 200);
+    [entries[0].pos, entries[1].pos] = [entries[1].pos, entries[0].pos];
+    assert.equal((await change('2026/1', '91D', kitKey, 'a', 1, 'advance')).status, 200);
+    const data = await (await request('2026/1')).json();
+    const saved = (classKey, key) => data.progress.find(row => row.class_key === classKey && row.sequence_key === key).entry_id;
+    assert.equal(saved('91D', unitKey), '7'.repeat(24));
+    assert.equal(saved('101D', unitKey), '8'.repeat(24));
+    assert.equal(saved('91D', kitKey), 'a'.repeat(24));
+    assert.equal(saved('101D', kitKey), '9'.repeat(24));
+    assert.deepEqual(data.entries.filter(entry => entry.kind === 'unit').map(entry => entry.id), ['8'.repeat(24), '7'.repeat(24)]);
+    assert.deepEqual((await (await request('2026/2')).json()).progress, []);
+    assert.deepEqual((await (await request('2027/1')).json()).progress, []);
+    assert.equal((await change('2026/2', '91D', unitKey, '8', 0)).status, 200);
+    assert.equal((await change('2026/1', '91D', unitKey, '8', 0)).status, 409);
+    assert.equal((await request('2026/3')).status, 400);
+    const session = 'session/2026-05-01/p2/91D';
+    assert.equal((await request(session, { kits: [kitKey], revision: 0 })).status, 200);
+    assert.deepEqual((await (await request(session)).json()).kits, [kitKey]);
+    assert.deepEqual((await (await request('session/2026-05-01/p2/101D')).json()).kits, []);
+    assert.equal((await request(session, { kits: [], revision: 0 })).status, 409);
+    assert.equal((await call('2026')).status, 200, 'JuniorDTECH remains independent');
+    state.cards = state.cards.filter(item => item.idList !== middleList.id);
+    assert.equal((await (await request('2026/1')).json()).orderCardCount, 0);
+    middleList.id = 'f'.repeat(24);
+    assert.equal((await request('2026/1')).status, 409, 'the shared list ID must match');
+});
 
 test('verified lists use Trello order and current library content without any progress writes', async t => {
   const { state, env, call } = await fixture(t);

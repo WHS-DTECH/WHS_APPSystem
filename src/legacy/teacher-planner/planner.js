@@ -151,6 +151,7 @@ function createPlannerRouter({ query, searchStandards = searchNzqaStandards, loa
   router.use('/todo-trello', require('./todoTrello').createTodoTrelloRouter({ env }));
   router.use('/teaching-day-trello', require('./teachingDayTrello').createTeachingDayTrelloRouter({ ...teachingDayTrello, env }));
   router.use('/junior-teaching', require('./juniorTeaching').createJuniorTeachingRouter({ ...teachingDayTrello, env, query }));
+  router.use('/middle-teaching', require('./juniorTeaching').createJuniorTeachingRouter({ ...teachingDayTrello, env, query, middle: true }));
   router.use('/sessions', require('./teachingSessions').createTeachingSessionsRouter({ ...teachingSessions, query }));
   router.use('/duty-roster', require('./dutyRoster').createDutyRosterRouter({ query, loadStaff }));
   router.use('/attendance', require('./attendance').createAttendanceRouter({ query, loadClasses }));

@@ -38,33 +38,43 @@
   function warnings(el, host, issues) {
     for (const issue of issues) host.append(el('p', issue.name + ': ' + issue.message, { role: 'alert' }));
   }
-  function mountPage(host, { el, year, request, openTeachingDay }) {
+  function mountPage(host, { el, year, request, openTeachingDay, name = 'JuniorDTECH', semester: initialSemester = 1, loadClasses }) {
     const page = el('section', '', { 'data-planner-navigation': '', class: 'junior-teaching' });
     const heading = el('div', '', { class: 'planner-nav-buttons' });
     const back = el('button', 'Teaching Day', { type: 'button' });
     back.addEventListener('click', openTeachingDay);
     const refresh = el('button', 'Refresh from Trello', { type: 'button' });
     heading.append(back, refresh);
-    const status = el('p', 'Loading JuniorDTECH...', { role: 'status' });
+    const middle = name === 'MiddleDTECH';
+    const semester = el('select', '', { 'aria-label': 'Semester' });
+    if (middle) {
+      semester.append(el('option', 'Semester 1', { value: '1' }), el('option', 'Semester 2', { value: '2' }));
+      semester.value = String(initialSemester);
+      heading.append(semester);
+    }
+    const status = el('p', 'Loading ' + name + '...', { role: 'status' });
     const body = el('div');
-    page.append(el('h2', 'JuniorDTECH teaching order', { class: 'paper-heading' }), heading,
+    page.append(el('h2', name + ' teaching order', { class: 'paper-heading' }), heading,
       el('p', 'Add, edit and reorder cards in Trello. Planner progress changes only when you confirm it here.'),
       status, body);
     host.append(page);
-    let data, busy = false, generation = 0;
+    let data, classes, busy = false, generation = 0;
+    const scope = () => String(year) + (middle ? '/' + semester.value : '');
     async function load() {
       const current = ++generation;
-      busy = true; refresh.disabled = true;
+      busy = true; refresh.disabled = true; semester.disabled = true;
       status.setAttribute('role', 'status'); status.textContent = 'Reading the teaching board...';
       try {
-        const result = await request(String(year));
+        const [result, classList] = await Promise.all([
+          request(scope()), middle ? loadClasses(year, Number(semester.value)) : Promise.resolve(['JPI', 'JSR'])
+        ]);
         if (current !== generation || !page.isConnected) return;
-        data = result; render();
+        data = result; classes = classList; render();
         status.textContent = 'Trello order and library content are read-only. Progress is private to your Planner.';
       } catch (error) {
         if (current !== generation || !page.isConnected) return;
         body.replaceChildren(); status.setAttribute('role', 'alert'); status.textContent = error.message;
-      } finally { if (current === generation) { busy = false; refresh.disabled = false; } }
+      } finally { if (current === generation) { busy = false; refresh.disabled = false; semester.disabled = false; } }
     }
     async function change(classKey, sequenceKey, entryId, revision, action) {
       if (busy) return;
@@ -72,14 +82,16 @@
       if (!entry || !confirm((action === 'advance' ? 'Confirm ' + classKey + ' is ready to move on to ' :
         'Set ' + classKey + ' current activity to ') + entry.title + '?')) return;
       busy = true; page.setAttribute('aria-busy', 'true'); page.setAttribute('data-preferences-busy', 'true');
+      semester.disabled = true;
       for (const button of page.querySelectorAll('button')) button.disabled = true;
       try {
-        await request(year + '/progress', { method: 'PUT', body: { classKey, sequenceKey, entryId, revision, action } });
+        await request(scope() + '/progress', { method: 'PUT', body: { classKey, sequenceKey, entryId, revision, action } });
         await load();
       } catch (error) {
         status.setAttribute('role', 'alert'); status.textContent = error.message + ' Refresh to review the current state.';
       } finally {
         busy = false; page.removeAttribute('aria-busy'); page.removeAttribute('data-preferences-busy');
+        semester.disabled = false;
         for (const button of page.querySelectorAll('button')) button.disabled = false;
       }
     }
@@ -87,8 +99,8 @@
       body.replaceChildren();
       warnings(el, body, data.issues);
       const columns = el('div', '', { class: 'teaching-dashboard-columns' });
-      const order = el('section', '', { 'aria-label': 'JuniorDTECH teaching order' });
-      order.append(el('h3', 'JuniorDTECH teaching order'));
+      const order = el('section', '', { 'aria-label': name + ' teaching order' });
+      order.append(el('h3', name + ' teaching order'));
       const list = el('ol');
       for (const entry of data.entries) {
         const item = el('li');
@@ -97,7 +109,8 @@
         list.append(item);
       }
       order.append(list);
-      if (!data.entries.length) order.append(el('p', 'No verified order entries are available.'));
+      if (!data.entries.length) order.append(el('p', middle && data.orderCardCount === 0 ?
+        'No MiddleDTECH teaching order has been set' : 'No verified order entries are available.'));
       const libraries = el('section', '', { 'aria-label': 'Teaching libraries' });
       for (const [label, items] of [['Unit Plans', data.libraries.units], ['Licence Kit Plans', data.libraries.kits]]) {
         libraries.append(el('h3', label));
@@ -118,7 +131,8 @@
       const progress = el('section', '', { class: 'session-section', 'aria-label': 'Class progress' });
       progress.append(el('h3', 'Class progress'));
       const sequences = groups(data.entries);
-      for (const classKey of ['JPI', 'JSR']) {
+      if (!classes.length) progress.append(el('p', 'No MiddleDTECH classes were found in this semester’s timetable.'));
+      for (const classKey of classes) {
         progress.append(el('h4', classKey));
         for (const [key, entries] of sequences) {
           const saved = data.progress.find(row => row.class_key === classKey && row.sequence_key === key);
@@ -134,7 +148,7 @@
           const set = el('button', 'Set current', { type: 'button' });
           set.addEventListener('click', () => change(classKey, key, choice.value, saved?.revision || 0, 'set'));
           panel.append(choice, set);
-          if (index >= 0 && data.issues.some(issue => issue.list === 'JuniorDTECH')) {
+          if (index >= 0 && data.issues.some(issue => issue.list === name)) {
             panel.append(el('p', 'Review the teaching order before identifying the next activity.', { role: 'alert' }));
           } else if (index >= 0 && entries[index + 1]) {
             const advance = el('button', 'Ready to move on', { type: 'button' });
@@ -150,19 +164,22 @@
       body.append(progress);
     }
     refresh.addEventListener('click', load);
+    if (middle) semester.addEventListener('change', load);
     load();
   }
-  function mountSession(host, context, { el, request, openPage }) {
+  function mountSession(host, context, { el, request, openPage, name = 'JuniorDTECH', semesterForDate }) {
     let disposed = false, busy = false, data, selection;
-    const panel = el('section', '', { 'data-planner-navigation': '', 'aria-label': 'JuniorDTECH shared preparation' });
-    const status = el('p', 'Reading JuniorDTECH preparation...', { role: 'status' });
+    const panel = el('section', '', { 'data-planner-navigation': '', 'aria-label': name + ' shared preparation' });
+    const status = el('p', 'Reading ' + name + ' preparation...', { role: 'status' });
     const body = el('div');
-    panel.append(el('h3', 'JuniorDTECH shared preparation'), status, body);
+    panel.append(el('h3', name + ' shared preparation'), status, body);
     host.append(panel);
     const sessionPath = 'session/' + context.date + '/' + context.slot + '/' + context.classKey;
     async function load() {
       try {
-        const [catalogue, kits] = await Promise.all([request(context.date.slice(0, 4)), request(sessionPath)]);
+        const semester = semesterForDate ? await semesterForDate(context.date) : null;
+        const scope = context.date.slice(0, 4) + (semester ? '/' + semester : '');
+        const [catalogue, kits] = await Promise.all([request(scope), request(sessionPath)]);
         if (disposed || !panel.isConnected) return;
         data = catalogue; selection = kits; render();
         status.textContent = 'Read-only Trello content; progress changes only after confirmation.';
@@ -194,6 +211,9 @@
     function render() {
       body.replaceChildren();
       warnings(el, body, data.issues);
+      if (name === 'MiddleDTECH' && data.orderCardCount === 0) {
+        body.append(el('p', 'No MiddleDTECH teaching order has been set'));
+      }
       for (const entry of data.entries.filter(item => item.kind === 'routine')) body.append(preview(el, entry.source));
       const sets = groups(data.entries);
       for (const [key, entries] of sets) {
@@ -209,11 +229,11 @@
           label.prepend(checkbox); section.append(label);
           if (!checkbox.checked) { body.append(section); continue; }
         }
-        if (!saved) section.append(el('p', 'No current activity confirmed. Set progress in JuniorDTECH.'));
+        if (!saved) section.append(el('p', 'No current activity confirmed. Set progress in ' + name + '.'));
         else if (index < 0) section.append(el('p', 'The saved current activity is missing from the verified order and needs review.', { role: 'alert' }));
         else {
           section.append(el('p', 'Current: ' + entries[index].title), preview(el, entries[index].source));
-          if (data.issues.some(issue => issue.list === 'JuniorDTECH')) {
+          if (data.issues.some(issue => issue.list === name)) {
             section.append(el('p', 'Review the teaching order before identifying the next activity.', { role: 'alert' }));
           } else if (entries[index + 1]) section.append(el('p', 'Next: ' + entries[index + 1].title));
         }
@@ -229,7 +249,7 @@
         warning.append(el('p', key + ': a kit selected for this session is unavailable and needs review.'), remove);
         body.append(warning);
       }
-      const open = el('button', 'Open JuniorDTECH teaching order and progress', { type: 'button' });
+      const open = el('button', 'Open ' + name + ' teaching order and progress', { type: 'button' });
       open.addEventListener('click', openPage); body.append(open);
     }
     load();

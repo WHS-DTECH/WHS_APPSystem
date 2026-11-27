@@ -45,6 +45,7 @@
     attendanceImport: [],
     timetable: [],
     juniorTeaching: [],
+    middleTeaching: [],
     todoDashboard: [],
     moderation: [],
     reporting: [],
@@ -985,6 +986,53 @@
     };
     return request(api + 'junior-teaching/' + path, config);
   }
+  async function middleTeachingRequest(path, options = {}) {
+    await refreshSession();
+    const config = options.body === undefined ? options : {
+      ...options, headers: { 'Content-Type': 'application/json', 'x-planner-csrf': csrf },
+      body: JSON.stringify(options.body)
+    };
+    return request(api + 'middle-teaching/' + path, config);
+  }
+  async function middleSemesterRanges(selectedYear) {
+    const { ranges } = await loadTermDates(selectedYear);
+    if (ranges.some((range, index) => !range.startDate || !range.endDate ||
+      !range.startDate.startsWith(selectedYear + '-') || !range.endDate.startsWith(selectedYear + '-') ||
+      range.startDate > range.endDate || index > 0 && ranges[index - 1].endDate >= range.startDate)) {
+      throw new Error('Complete school term dates are required to identify the MiddleDTECH semester.');
+    }
+    return ranges;
+  }
+  async function middleSemesterForDate(value) {
+    const ranges = await middleSemesterRanges(Number(value.slice(0, 4)));
+    const matches = [0, 1].filter(index => ranges[index * 2].startDate <= value && ranges[index * 2 + 1].endDate >= value);
+    if (matches.length !== 1) throw new Error('The MiddleDTECH semester cannot be verified for this date.');
+    return matches[0] + 1;
+  }
+  async function middleTimetableClasses(selectedYear, semester) {
+    const ranges = await middleSemesterRanges(selectedYear);
+    const terms = ranges.slice((semester - 1) * 2, semester * 2);
+    const months = new Set();
+    for (const range of terms) {
+      for (let month = Number(range.startDate.slice(5, 7)); month <= Number(range.endDate.slice(5, 7)); month++) months.add(month);
+    }
+    const feeds = await Promise.all([...months].map(month => loadTeachingDayTimetable(selectedYear + '-' + String(month).padStart(2, '0') + '-01')));
+    const events = feeds.flatMap(feed => {
+      if (!Array.isArray(feed.events)) throw new Error('The MiddleDTECH timetable could not be verified.');
+      return feed.events;
+    });
+    const dateOf = value => value.endsWith('Z') ?
+      new Intl.DateTimeFormat('en-CA', { timeZone: 'Pacific/Auckland', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(value)) : value.slice(0, 10);
+    const dates = new Set(events.filter(event => !event.allDay && typeof event.start === 'string').map(event => dateOf(event.start))
+      .filter(value => terms.some(range => range.startDate <= value && value <= range.endDate)));
+    const classes = new Set();
+    for (const day of dates) {
+      for (const session of globalThis.plannerTeachingDayTrello.sessionsForDate(events, day, globalThis.plannerSessionSchema.slots)) {
+        if (session.classKey && /^MDTECH\s*\([A-Z0-9_-]+\)$/i.test(session.title)) classes.add(session.classKey);
+      }
+    }
+    return [...classes].sort();
+  }
   function mountEmptyTeachingDashboard(value, schedule) {
     dashboardNoSession = true;
     sessionPlanner = undefined; sessionAddress = undefined; loaded = true; dirty = false;
@@ -998,6 +1046,7 @@
       loadSchedule: loadTeachingDayTimetable, termControl, termError: dashboardTermError,
       defaultView: () => dashboardClassView,
       juniorRequest: juniorTeachingRequest, openJunior: () => navigatePlannerSection('juniorTeaching'),
+      middleRequest: middleTeachingRequest, openMiddle: () => navigatePlannerSection('middleTeaching'), semesterForDate: middleSemesterForDate,
       changeDate: changeTeachingDay,
       openNotesSession: session => openSessionPlan(session.date, session.slot, undefined, undefined, false),
       openTrelloSession: session => openSessionPlan(session.date, session.slot, undefined, undefined, true),
@@ -1029,6 +1078,7 @@
           }, loadSchedule: loadTeachingDayTimetable, termControl, termError: dashboardTermError,
           defaultView: () => dashboardClassView,
           juniorRequest: juniorTeachingRequest, openJunior: () => navigatePlannerSection('juniorTeaching'),
+          middleRequest: middleTeachingRequest, openMiddle: () => navigatePlannerSection('middleTeaching'), semesterForDate: middleSemesterForDate,
           changeDate: changeTeachingDay,
           openNotesSession: session => openSessionPlan(session.date, session.slot, undefined, undefined, false),
           openTrelloSession: session => openSessionPlan(session.date, session.slot, undefined, undefined, true),
@@ -1371,7 +1421,7 @@
     });
   }
   function updateTodoSidebar() {
-    const available = ['cover', 'year', 'term', 'week', 'juniorTeaching'].includes(section) ||
+    const available = ['cover', 'year', 'term', 'week', 'juniorTeaching', 'middleTeaching'].includes(section) ||
       section === 'period' && dashboardMode;
     const workspace = document.getElementById('planner-workspace');
     workspace.setAttribute('data-todo-available', String(available));
@@ -3007,7 +3057,7 @@
       renderSelectors();
       updateTodoSidebar();
       history.replaceState(null, '', '#' + viewFragment());
-      document.querySelector('.planner-save').hidden = ['cover', 'attendance', 'attendanceImport', 'timetable', 'todoDashboard', 'dashboardSetup', 'juniorTeaching'].includes(section);
+      document.querySelector('.planner-save').hidden = ['cover', 'attendance', 'attendanceImport', 'timetable', 'todoDashboard', 'dashboardSetup', 'juniorTeaching', 'middleTeaching'].includes(section);
       save.textContent = section === 'setup' ? 'Save school-wide setup' : 'Save changes';
       document.getElementById('save-note').textContent = section === 'setup' ? 'These settings are shared by all planners for this year.' :
         'Private Planner edits autosave. Wait for Autosaved before closing.';
@@ -3022,12 +3072,14 @@
         notice('Dashboard settings save separately from Planner notes, privately to your account.');
         return;
       }
-      if (section === 'juniorTeaching') {
-        if (!globalThis.plannerJuniorTeaching) throw new Error('JuniorDTECH assets are unavailable.');
-        globalThis.plannerJuniorTeaching.mountPage(content, { el, year, request: juniorTeachingRequest,
+      if (section === 'juniorTeaching' || section === 'middleTeaching') {
+        const middle = section === 'middleTeaching', name = middle ? 'MiddleDTECH' : 'JuniorDTECH';
+        if (!globalThis.plannerJuniorTeaching) throw new Error(name + ' assets are unavailable.');
+        globalThis.plannerJuniorTeaching.mountPage(content, { el, year, request: middle ? middleTeachingRequest : juniorTeachingRequest,
+          name, semester: Number(term) >= 3 ? 2 : 1, loadClasses: middleTimetableClasses,
           openTeachingDay: () => navigatePlannerSection('timetable') });
         loaded = true;
-        notice('JuniorDTECH reads Trello; class progress is confirmed separately.');
+        notice(name + ' reads Trello; class progress is confirmed separately.');
         return;
       }
       if (section === 'period' && dashboardMode) {
@@ -3208,7 +3260,7 @@
   }
   form.addEventListener('submit', event => {
     event.preventDefault();
-    if (!['attendance', 'attendanceImport', 'timetable', 'todoDashboard', 'dashboardSetup', 'juniorTeaching'].includes(section) && !(section === 'setup' && setupTab !== 0)) saveEntry();
+    if (!['attendance', 'attendanceImport', 'timetable', 'todoDashboard', 'dashboardSetup', 'juniorTeaching', 'middleTeaching'].includes(section) && !(section === 'setup' && setupTab !== 0)) saveEntry();
   });
   document.querySelectorAll('[data-section]').forEach((button) => button.addEventListener('click', () => {
     return navigatePlannerSection(button.dataset.section);

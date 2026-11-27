@@ -151,7 +151,7 @@ function createTeachingDayTrelloRouter({ env = process.env, fetchImpl = globalTh
           }) : null;
       if (!classKeys || !classListEntries ||
         classListEntries.length > 12 || classListEntries.some(entry => !entry) ||
-        new Set(classListEntries.map(entry => entry.name)).size !== classListEntries.length ||
+        new Set(classListEntries.map(entry => entry.name + '=' + entry.classKey)).size !== classListEntries.length ||
         classListEntries.some(entry => !classKeys.includes(entry.classKey))) {
         return res.status(400).json({ error: 'Teaching class references are invalid. Refresh the selected date and try again.' });
       }
@@ -164,11 +164,12 @@ function createTeachingDayTrelloRouter({ env = process.env, fetchImpl = globalTh
           typeof item.name === 'string' && item.name.length <= 200)) {
           throw new Error('The teaching board returned invalid list data.');
         }
-        for (const entry of classListEntries) {
-          const matches = boardLists.filter(item => !item.closed && item.name.trim().toUpperCase() === entry.name);
+        for (const name of new Set(classListEntries.map(entry => entry.name))) {
+          const matches = boardLists.filter(item => !item.closed && item.name.trim().toUpperCase() === name);
           if (matches.length !== 1 || matches[0].id === listId) continue;
           sources.push({ listId: matches[0].id, listName: matches[0].name,
-            classKey: entry.classKey, cards: await read('lists/' + matches[0].id + '/cards',
+            classKeys: classListEntries.filter(entry => entry.name === name).map(entry => entry.classKey),
+            cards: await read('lists/' + matches[0].id + '/cards',
               { filter: 'open', fields: 'id,idList,name,desc,url,closed,dateLastActivity' }) });
         }
       }
@@ -199,15 +200,17 @@ function createTeachingDayTrelloRouter({ env = process.env, fetchImpl = globalTh
           parsed = { metadata: { schema_version: 1, teaching_date: '2026-11-23', ...monday,
             preparation_status: 'See card preparation', home_list: listId }, description: card.desc };
         }
-        if (sourceList.classKey && (parsed.metadata.class_key !== sourceList.classKey ||
-          parsed.legacy?.home_list && ![sourceList.listName.trim().toUpperCase(), sourceList.classKey]
+        if (parsed.metadata.teaching_date !== req.params.date) continue;
+        if (sourceList.classKeys && sourceList.listName.trim().toUpperCase() === 'MDTECH' &&
+          !sourceList.classKeys.includes(parsed.metadata.class_key)) continue;
+        if (sourceList.classKeys && (!sourceList.classKeys.includes(parsed.metadata.class_key) ||
+          parsed.legacy?.home_list && ![sourceList.listName.trim().toUpperCase(), parsed.metadata.class_key]
             .includes(parsed.legacy.home_list.toUpperCase()) ||
           !parsed.legacy && parsed.metadata.home_list !== sourceList.listId)) {
           issues.push({ cardId: card.id, message: 'The card metadata does not match its verified class home list.' });
           continue;
         }
-        if (parsed.metadata.teaching_date !== req.params.date) continue;
-        if (sourceList.classKey && !classKeys.includes(parsed.metadata.class_key)) continue;
+        if (sourceList.classKeys && !classKeys.includes(parsed.metadata.class_key)) continue;
         candidates.push({ id: card.id, name: card.name, url, metadata: parsed.metadata, description: parsed.description,
           location: parsed.metadata.room || (parsed.metadata.class_key === 'JPI' ||
             req.params.date === '2026-11-23' && parsed.metadata.class_key === '9WHAU' ? 'CW' : null),

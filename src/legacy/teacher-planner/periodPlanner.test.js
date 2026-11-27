@@ -508,6 +508,34 @@ test('Teaching Day timetable matches exact sessions in Pacific/Auckland time and
   assert.deepEqual(JSON.parse(JSON.stringify(context.plannerTeachingDayTrello.sessionsForDate(events, '2026-11-28',
     context.plannerSessionSchema.slots))), []);
 });
+test('MiddleDTECH classes and session semester follow the Planner timetable and school terms', async () => {
+  const source = fs.readFileSync(require.resolve('./public/planner'), 'utf8');
+  const ranges = [
+    { startDate: '2026-02-01', endDate: '2026-04-03' }, { startDate: '2026-04-20', endDate: '2026-07-03' },
+    { startDate: '2026-07-20', endDate: '2026-09-25' }, { startDate: '2026-10-12', endDate: '2026-12-18' }
+  ];
+  const events = [
+    { title: 'MDTECH (91D)', start: '2026-05-01T10:00:00', end: '2026-05-01T11:00:00' },
+    { title: 'MDTECH (101D)', start: '2026-05-01T11:20:00', end: '2026-05-01T12:20:00' },
+    { title: 'MDTECH (91D)', start: '2026-10-13T10:00:00', end: '2026-10-13T11:00:00' },
+    { title: 'OTHER (91D)', start: '2026-05-01T12:20:00', end: '2026-05-01T13:20:00' },
+    { title: 'MDTECH (AMBIG)', start: '2026-05-04T10:00:00', end: '2026-05-04T11:00:00' },
+    { title: 'OTHER (OTHER)', start: '2026-05-04T10:00:00', end: '2026-05-04T11:00:00' }
+  ];
+  const context = { Intl, Date, Set, plannerSessionSchema: require('./public/session-schema'),
+    loadTermDates: async () => ({ ranges }),
+    loadTeachingDayTimetable: async value => ({ events: events.filter(event => event.start.slice(0, 7) === value.slice(0, 7)) }) };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-day-trello'), 'utf8'), context);
+  vm.runInNewContext(source.slice(source.indexOf('  async function middleSemesterRanges('),
+    source.indexOf('  function mountEmptyTeachingDashboard(')), context);
+  assert.deepEqual(Array.from(await context.middleTimetableClasses(2026, 1)), ['101D', '91D']);
+  assert.deepEqual(Array.from(await context.middleTimetableClasses(2026, 2)), ['91D']);
+  assert.equal(await context.middleSemesterForDate('2026-05-01'), 1);
+  assert.equal(await context.middleSemesterForDate('2026-10-13'), 2);
+  await assert.rejects(context.middleSemesterForDate('2026-01-01'), /semester cannot be verified/);
+  ranges[2].startDate = '';
+  await assert.rejects(context.middleSemesterForDate('2026-05-01'), /term dates/);
+});
 test('Friday class boxes use the saved default while explicit buttons remain one-off, including missing preparation', async () => {
   const context = { plannerSessionSchema: require('./public/session-schema'), URLSearchParams };
   vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-day-trello'), 'utf8'), context);
@@ -548,6 +576,73 @@ test('Friday class boxes use the saved default while explicit buttons remain one
     feed.issues = [{ cardId: 'x', message: 'Ambiguous' }];
     dashboard.selectSession({ classKey: 'JPI', title: 'PIDTECH (JPI)' });
     assert.equal(calls.length, before, 'ambiguous dated data is not replaced with guessed preparation');
+  });
+  await test('MiddleDTECH uses dated cards first and otherwise selects its shared preparation', async () => {
+    const calls = [];
+    const context = { plannerSessionSchema: require('./public/session-schema'), URLSearchParams,
+      plannerJuniorTeaching: { mountSession(host, selected, options) {
+        calls.push({ classKey: selected.classKey, name: options.name });
+        host.append(node('p', 'Middle shared preparation'));
+        return { dispose() {} };
+      } } };
+    vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-day-trello'), 'utf8'), context);
+    const dated = teachingSlotFixture('91D');
+    const feed = { status: 'ok', issues: [], cards: [dated], unassigned: [] };
+    const dashboard = context.plannerTeachingDayTrello.dashboard(node(), {
+      date: '2026-11-23', slot: 'p2', classKey: '91D', title: 'MDTECH (91D)', cardId: ''
+    }, { el: node, request: async () => feed, loadSchedule: async () => ({ events: [] }),
+      middleRequest: async () => ({}), openMiddle() {}, semesterForDate: async () => 1 });
+    const selected = node(); dashboard.showTrello(selected);
+    await flush(); await flush();
+    assert.equal(calls.length, 0);
+    feed.cards = [];
+    dashboard.selectSession({ cardId: '' });
+    assert.deepEqual(calls.at(-1), { classKey: '91D', name: 'MiddleDTECH' });
+    dashboard.selectSession({ classKey: '101D', title: 'MDTECH (101D)' });
+    assert.deepEqual(calls.at(-1), { classKey: '101D', name: 'MiddleDTECH' });
+    dashboard.selectSession({ classKey: '101D', title: 'OTHER (101D)' });
+    assert.equal(calls.length, 2);
+  });
+  await test('empty MiddleDTECH order is explicit and session Notes stay separate', async () => {
+    const context = { URL, document: { createTextNode: value => node('#text', value) } };
+    vm.runInNewContext(fs.readFileSync(require.resolve('./public/junior-teaching'), 'utf8'), context);
+    const host = node(), paths = [];
+    context.plannerJuniorTeaching.mountSession(host, { date: '2026-05-01', slot: 'p2', classKey: '91D' }, {
+      el: node, name: 'MiddleDTECH', semesterForDate: async () => 1, openPage() {},
+      request: async path => {
+        paths.push(path);
+        return path.startsWith('session/') ? { kits: [], revision: 0 } :
+          { entries: [], issues: [], progress: [], libraries: { units: [], kits: [] }, orderCardCount: 0 };
+      }
+    });
+    await test('MiddleDTECH sessions show each class’s own saved unit and selected kit', async () => {
+      const context = { URL, document: { createTextNode: value => node('#text', value) } };
+      vm.runInNewContext(fs.readFileSync(require.resolve('./public/junior-teaching'), 'utf8'), context);
+      const el = (tag, text, attrs) => { const item = node(tag, text, attrs); item.prepend = child => item.children.unshift(child); return item; };
+      const entry = (id, kind, key, title) => ({ id, kind, sequenceKey: key, sequence: key, title,
+        source: { title, description: '', url: 'https://trello.com/c/source' } });
+      const entries = [entry('a', 'unit', 'unit:Data', 'Unit one'), entry('b', 'unit', 'unit:Data', 'Unit two'),
+        entry('c', 'kit', 'kit:Build', 'Kit one'), entry('d', 'kit', 'kit:Build', 'Kit two')];
+      const progress = [
+        { class_key: '91D', sequence_key: 'unit:Data', entry_id: 'a' }, { class_key: '91D', sequence_key: 'kit:Build', entry_id: 'd' },
+        { class_key: '101D', sequence_key: 'unit:Data', entry_id: 'b' }, { class_key: '101D', sequence_key: 'kit:Build', entry_id: 'c' }
+      ];
+      const request = async path => path.startsWith('session/') ? { kits: ['kit:Build'], revision: 1 } :
+        { entries, progress, issues: [], orderCardCount: 4 };
+      for (const [classKey, unit, kit] of [['91D', 'Unit one', 'Kit two'], ['101D', 'Unit two', 'Kit one']]) {
+        const host = node();
+        context.plannerJuniorTeaching.mountSession(host, { date: '2026-05-01', slot: 'p2', classKey }, {
+          el, request, name: 'MiddleDTECH', semesterForDate: async () => 1, openPage() {}
+        });
+        await flush(); await flush();
+        const nodes = slotDescendants(host);
+        assert.ok(nodes.some(item => item.textContent === 'Current: ' + unit));
+        assert.ok(nodes.some(item => item.textContent === 'Current: ' + kit));
+      }
+    });
+    await flush(); await flush();
+    assert.ok(slotDescendants(host).some(item => item.textContent === 'No MiddleDTECH teaching order has been set'));
+    assert.deepEqual(paths, ['2026/1', 'session/2026-05-01/p2/91D']);
   });
   await test('shared preparation reads separate class progress and includes kits only on explicit session selection', async () => {
     const context = { URL, document: { createTextNode: value => node('#text', value) } };

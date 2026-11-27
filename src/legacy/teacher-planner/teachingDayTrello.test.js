@@ -165,6 +165,25 @@ test('Friday V1 cards match timetable session references and selected class home
   assert.ok(!JSON.stringify(monday).includes(state.env.TEACHER_PLANNER_TRELLO_TOKEN));
 });
 
+test('one MDTECH list supplies dated cards for multiple timetable classes without selecting unrelated cards', async t => {
+  const { state, call } = await fixture(t);
+  state.cards = [];
+  const list = { id: '4'.repeat(24), idBoard: boardId, name: 'MDTECH', closed: false, cards: [] };
+  state.homeLists.push(list);
+  for (const [id, classKey, slot, date] of [['7', '91D', 'p2', '2026-11-27'], ['8', '101D', 'p3', '2026-11-27'],
+    ['9', 'OTHER', 'p4', '2026-11-27'], ['a', 'OTHER', 'p2', '2026-11-30']]) {
+    list.cards.push(dashboardCard(id, list.id, { teaching_date: date, session_slot: slot, class_key: classKey,
+      session_type: 'teaching', start_time: '10:00', display_title: 'Dated ' + classKey, home_list: 'MDTECH' }));
+  }
+  const params = new URLSearchParams({ classKeys: '91D,101D', classLists: 'MDTECH=91D,MDTECH=101D' });
+  const response = await call('teaching-day-trello/2026-11-27?' + params);
+  const feed = await response.json();
+  assert.equal(response.status, 200);
+  assert.deepEqual(feed.cards.map(item => item.metadata.class_key), ['91D', '101D']);
+  assert.deepEqual(feed.issues, []);
+  assert.equal(state.calls.filter(({ url }) => new URL(url).pathname === '/1/lists/' + list.id + '/cards').length, 1);
+});
+
 test('invalid and duplicate session metadata is reported instead of matching a card by guesswork', async t => {
   const { state, call } = await fixture(t);
   state.cards.push(card('e', metadata()), { ...card('f', metadata()), desc: 'No metadata' });

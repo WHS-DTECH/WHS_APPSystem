@@ -3,7 +3,7 @@ const { cardLink, hasReadOnlyBoardGrant, createTrelloReader } = require('./trell
 
 const ID = /^[0-9a-f]{24}$/;
 const UUID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
-const LIST_NAMES = ['JuniorDTECH', 'Unit Plans', 'Licence Kit Plans'];
+const MIDDLE_LIST_ID = '6b09e4b9be7e645cfc6b9650';
 const TYPES = { Routine: 'routine', 'Unit lesson': 'unit', 'Licence Kit activity': 'kit' };
 const publicFailure = (status, message) => Object.assign(new Error(message), { status, juniorPublic: true });
 
@@ -27,7 +27,7 @@ function metadata(description) {
 function shortLink(url) {
   return new URL(cardLink(url)).pathname.split('/')[2];
 }
-function catalogueFromLists(lists) {
+function catalogueFromLists(lists, orderName = 'JuniorDTECH') {
   const issues = [], libraries = { units: [], kits: [] }, lookup = new Map(), duplicates = new Set();
   for (const [name, key] of [['Unit Plans', 'units'], ['Licence Kit Plans', 'kits']]) {
     for (const card of lists[name]) {
@@ -48,7 +48,7 @@ function catalogueFromLists(lists) {
     }
   }
   const entries = [];
-  for (const card of lists.JuniorDTECH) {
+  for (const card of lists[orderName]) {
     try {
       const info = metadata(card.desc);
       const sourceLink = info['library card'] || info.source;
@@ -64,21 +64,25 @@ function catalogueFromLists(lists) {
       entries.push({ id: card.id, name: card.name, url: cardLink(card.url), kind: info.kind,
         sequence: info.sequence, sequenceKey: info.sequenceKey, title: info.title, source });
     } catch (error) {
-      issues.push({ list: 'JuniorDTECH', cardId: card.id, name: card.name, message: error.message });
+      issues.push({ list: orderName, cardId: card.id, name: card.name, message: error.message });
     }
   }
   const counts = new Map();
   for (const entry of entries) counts.set(entry.source.id, (counts.get(entry.source.id) || 0) + 1);
   const unique = entries.filter(entry => {
     if (counts.get(entry.source.id) === 1) return true;
-    issues.push({ list: 'JuniorDTECH', cardId: entry.id, name: entry.name, message: 'This library card appears more than once in the teaching order.' });
+    issues.push({ list: orderName, cardId: entry.id, name: entry.name, message: 'This library card appears more than once in the teaching order.' });
     return false;
   });
-  return { entries: unique, libraries, issues };
+  return { entries: unique, libraries, issues, orderCardCount: lists[orderName].length };
 }
 
-function createJuniorTeachingRouter({ query, env = process.env, fetchImpl = globalThis.fetch }) {
+function createJuniorTeachingRouter({ query, env = process.env, fetchImpl = globalThis.fetch, middle = false }) {
   const router = express.Router();
+  const orderName = middle ? 'MiddleDTECH' : 'JuniorDTECH';
+  const listNames = [orderName, 'Unit Plans', 'Licence Kit Plans'];
+  const progressTable = middle ? 'planner_middle_progress' : 'planner_junior_progress';
+  const sessionTable = middle ? 'planner_middle_session_kits' : 'planner_junior_session_kits';
   router.use((req, res, next) => {
     res.set('Cache-Control', 'no-store');
     const owner = env.TEACHER_PLANNER_TRELLO_OWNER_ID;
@@ -107,9 +111,12 @@ function createJuniorTeachingRouter({ query, env = process.env, fetchImpl = glob
       list.name.length <= 200 && typeof list.closed === 'boolean')) {
       throw new Error('Invalid teaching-board list response.');
     }
-    const selected = LIST_NAMES.map(name => {
+    const selected = listNames.map(name => {
       const matches = allLists.filter(list => !list.closed && list.name.trim().toLowerCase() === name.toLowerCase());
       if (matches.length !== 1) throw publicFailure(409, 'Expected one ' + name + ' list on the teaching board.');
+      if (middle && name === orderName && matches[0].id !== MIDDLE_LIST_ID) {
+        throw publicFailure(409, 'The MiddleDTECH teaching order list ID does not match the configured list.');
+      }
       return matches[0];
     });
     const responses = await Promise.all(selected.map(list =>
@@ -125,30 +132,33 @@ function createJuniorTeachingRouter({ query, env = process.env, fetchImpl = glob
         Number.isFinite(card.pos) && !seen.has(card.id) && seen.add(card.id))) {
         throw new Error('Invalid teaching-board card response.');
       }
-      lists[LIST_NAMES[i]] = [...cards].sort((a, b) => a.pos - b.pos);
+      lists[listNames[i]] = [...cards].sort((a, b) => a.pos - b.pos);
     }
-    return catalogueFromLists(lists);
+    return catalogueFromLists(lists, orderName);
   }
   function failure(error, res, next) {
     if (error.juniorPublic) return res.status(error.status).json({ error: error.message });
-    if (error.code === '42P01') return res.status(503).json({ error: 'JuniorDTECH needs the Teacher Planner database migration before it can load.' });
-    console.error('JuniorDTECH data could not be read or saved.');
-    return res.status(502).json({ error: 'JuniorDTECH Trello data or saved progress could not be verified. Refresh to check the saved state; Notes are separate.' });
+    if (error.code === '42P01') return res.status(503).json({ error: orderName + ' needs the Teacher Planner database migration before it can load.' });
+    console.error(orderName + ' data could not be read or saved.');
+    return res.status(502).json({ error: orderName + ' Trello data or saved progress could not be verified. Refresh to check the saved state; Notes are separate.' });
   }
   const validYear = value => /^\d{4}$/.test(value) && Number(value) >= 2000 && Number(value) <= 2100;
-  const validClass = value => ['JPI', 'JSR'].includes(value);
-  router.get('/:year', async (req, res, next) => {
-    if (!validYear(req.params.year)) return res.status(400).json({ error: 'Choose a valid Planner year.' });
+  const validClass = value => middle ? typeof value === 'string' && /^[A-Z0-9][A-Z0-9_-]{0,39}$/.test(value) : ['JPI', 'JSR'].includes(value);
+  const progressPath = middle ? '/:year/:semester' : '/:year';
+  const validScope = req => validYear(req.params.year) && (!middle || ['1', '2'].includes(req.params.semester));
+  router.get(progressPath, async (req, res, next) => {
+    if (!validScope(req)) return res.status(400).json({ error: 'Choose a valid Planner year and semester.' });
     try {
       const [data, result] = await Promise.all([catalogue(), query(`SELECT class_key,sequence_key,entry_id,revision
-        FROM planner_junior_progress WHERE owner_id=$1 AND year=$2 ORDER BY class_key,sequence_key`,
+        FROM ${progressTable} WHERE owner_id=$1 AND year=$2 ${middle ? 'AND semester=$3' : ''} ORDER BY class_key,sequence_key`,
+      middle ? [req.user.id, Number(req.params.year), Number(req.params.semester)] :
       [req.user.id, Number(req.params.year)])]);
       return res.json({ ...data, progress: result.rows });
     } catch (error) { return failure(error, res, next); }
   });
-  router.put('/:year/progress', async (req, res, next) => {
+  router.put(progressPath + '/progress', async (req, res, next) => {
     const { classKey, sequenceKey, entryId, revision, action } = req.body || {};
-    if (!validYear(req.params.year) || !validClass(classKey) || typeof sequenceKey !== 'string' ||
+    if (!validScope(req) || !validClass(classKey) || typeof sequenceKey !== 'string' ||
         sequenceKey.length > 205 || !ID.test(entryId || '') || !Number.isInteger(revision) || revision < 0 ||
         !['set', 'advance'].includes(action) || Object.keys(req.body || {}).sort().join(',') !== 'action,classKey,entryId,revision,sequenceKey') {
       return res.status(400).json({ error: 'The requested progress action is invalid.' });
@@ -159,13 +169,15 @@ function createJuniorTeachingRouter({ query, env = process.env, fetchImpl = glob
       const target = entries.find(entry => entry.id === entryId);
       if (!target) return res.status(409).json({ error: 'The selected entry is unavailable or needs review. No progress changed.' });
       const params = [req.user.id, Number(req.params.year), classKey, sequenceKey];
-      const current = (await query(`SELECT entry_id,revision FROM planner_junior_progress
-        WHERE owner_id=$1 AND year=$2 AND class_key=$3 AND sequence_key=$4`, params)).rows[0];
+      const semester = Number(req.params.semester);
+      const current = (await query(`SELECT entry_id,revision FROM ${progressTable}
+        WHERE owner_id=$1 AND year=$2 AND class_key=$3 AND sequence_key=$4 ${middle ? 'AND semester=$5' : ''}`,
+      middle ? [...params, semester] : params)).rows[0];
       if ((current?.revision || 0) !== revision) {
         return res.status(409).json({ error: 'Progress changed in another tab. Refresh before trying again.' });
       }
       if (action === 'advance') {
-        if (data.issues.some(issue => issue.list === 'JuniorDTECH')) {
+        if (data.issues.some(issue => issue.list === orderName)) {
           return res.status(409).json({ error: 'The teaching order contains entries that need review. No progress changed.' });
         }
         const index = entries.findIndex(entry => entry.id === current?.entry_id);
@@ -174,11 +186,12 @@ function createJuniorTeachingRouter({ query, env = process.env, fetchImpl = glob
         }
       }
       const result = revision === 0
-        ? await query(`INSERT INTO planner_junior_progress(owner_id,year,class_key,sequence_key,entry_id)
-          VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING RETURNING entry_id,revision`, [...params, entryId])
-        : await query(`UPDATE planner_junior_progress SET entry_id=$5,revision=revision+1,updated_at=NOW()
-          WHERE owner_id=$1 AND year=$2 AND class_key=$3 AND sequence_key=$4 AND revision=$6
-          RETURNING entry_id,revision`, [...params, entryId, revision]);
+        ? await query(`INSERT INTO ${progressTable}(owner_id,year,class_key,sequence_key,entry_id${middle ? ',semester' : ''})
+          VALUES ($1,$2,$3,$4,$5${middle ? ',$6' : ''}) ON CONFLICT DO NOTHING RETURNING entry_id,revision`,
+        middle ? [...params, entryId, semester] : [...params, entryId])
+        : await query(`UPDATE ${progressTable} SET entry_id=$5,revision=revision+1,updated_at=NOW()
+          WHERE owner_id=$1 AND year=$2 AND class_key=$3 AND sequence_key=$4 AND revision=$6 ${middle ? 'AND semester=$7' : ''}
+          RETURNING entry_id,revision`, middle ? [...params, entryId, revision, semester] : [...params, entryId, revision]);
       if (!result.rows.length) return res.status(409).json({ error: 'Progress changed in another tab. Refresh before trying again.' });
       return res.json(result.rows[0]);
     } catch (error) { return failure(error, res, next); }
@@ -190,9 +203,9 @@ function createJuniorTeachingRouter({ query, env = process.env, fetchImpl = glob
       /^p[1-5]$/.test(req.params.slot) && validClass(req.params.classKey);
   }
   router.get('/session/:date/:slot/:classKey', async (req, res, next) => {
-    if (!validSession(req)) return res.status(400).json({ error: 'Invalid JuniorDTECH session.' });
+    if (!validSession(req)) return res.status(400).json({ error: 'Invalid ' + orderName + ' session.' });
     try {
-      const result = await query(`SELECT kits,revision FROM planner_junior_session_kits
+      const result = await query(`SELECT kits,revision FROM ${sessionTable}
         WHERE owner_id=$1 AND session_date=$2 AND slot_key=$3 AND class_key=$4`,
       [req.user.id, req.params.date, req.params.slot, req.params.classKey]);
       return res.json(result.rows[0] || { kits: [], revision: 0 });
@@ -209,7 +222,7 @@ function createJuniorTeachingRouter({ query, env = process.env, fetchImpl = glob
     try {
       const data = await catalogue();
       const params = [req.user.id, req.params.date, req.params.slot, req.params.classKey];
-      const current = (await query(`SELECT kits,revision FROM planner_junior_session_kits
+      const current = (await query(`SELECT kits,revision FROM ${sessionTable}
         WHERE owner_id=$1 AND session_date=$2 AND slot_key=$3 AND class_key=$4`, params)).rows[0];
       if ((current?.revision || 0) !== revision) {
         return res.status(409).json({ error: 'This session changed in another tab. Refresh before trying again.' });
@@ -220,9 +233,9 @@ function createJuniorTeachingRouter({ query, env = process.env, fetchImpl = glob
       }
       params.push(JSON.stringify(kits));
       const result = revision === 0
-        ? await query(`INSERT INTO planner_junior_session_kits(owner_id,session_date,slot_key,class_key,kits)
+        ? await query(`INSERT INTO ${sessionTable}(owner_id,session_date,slot_key,class_key,kits)
           VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING RETURNING kits,revision`, params)
-        : await query(`UPDATE planner_junior_session_kits SET kits=$5,revision=revision+1,updated_at=NOW()
+        : await query(`UPDATE ${sessionTable} SET kits=$5,revision=revision+1,updated_at=NOW()
           WHERE owner_id=$1 AND session_date=$2 AND slot_key=$3 AND class_key=$4 AND revision=$6
           RETURNING kits,revision`, [...params, revision]);
       if (!result.rows.length) return res.status(409).json({ error: 'This session changed in another tab. Refresh before trying again.' });
