@@ -43,9 +43,10 @@ const calendarsSchema = z.object({
 }).strict();
 
 function settings(env, integration = 'teacher-planner') {
-  if (!['teacher-planner', 'student-tracker'].includes(integration)) throw new Error('Unknown MCP integration.');
+  if (!['teacher-planner', 'student-tracker', 'dtech-catalogue'].includes(integration)) throw new Error('Unknown MCP integration.');
   const base = new URL(env.APP_BASE_URL || env.RENDER_EXTERNAL_URL || config.appBaseUrl);
-  const redirect = integration === 'teacher-planner' ? env.TEACHER_PLANNER_MCP_REDIRECT_URI : env.STUDENT_TRACKER_MCP_REDIRECT_URI;
+  const redirect = { 'teacher-planner': env.TEACHER_PLANNER_MCP_REDIRECT_URI,
+    'student-tracker': env.STUDENT_TRACKER_MCP_REDIRECT_URI, 'dtech-catalogue': env.DTECH_CATALOGUE_MCP_REDIRECT_URI }[integration];
   const callback = redirect ? new URL(redirect) : null;
   if (base.protocol !== 'https:' || base.username || base.password || base.pathname !== '/' || base.search || base.hash ||
       (callback && (callback.protocol !== 'https:' || callback.hostname !== 'chatgpt.com' || callback.username || callback.password ||
@@ -57,14 +58,21 @@ function settings(env, integration = 'teacher-planner') {
 }
 
 function createReadOnlyMcpProvider({ query, authorizeUser, origin, resource, callback, integration = 'teacher-planner' }) {
-  if (!['teacher-planner', 'student-tracker'].includes(integration)) throw new Error('Unknown MCP integration.');
-  const tracker = integration === 'student-tracker';
-  const clientId = tracker ? 'student-tracker-chatgpt' : CLIENT_ID;
-  const scope = tracker ? 'tracker:read' : SCOPE;
-  const table = tracker ? 'student_tracker_mcp' : 'teacher_planner_mcp';
-  const label = tracker ? 'Student Tracker' : 'Planner';
-  const consentKey = tracker ? 'studentTrackerMcpConsent' : 'teacherPlannerMcpConsent';
-  const client = { client_id: clientId, client_name: tracker ? 'WHS Student Tracker' : 'ChatGPT Teacher Planner',
+  const integrations = {
+    'teacher-planner': { clientId: CLIENT_ID, scope: SCOPE, table: 'teacher_planner_mcp', label: 'Planner',
+      consentKey: 'teacherPlannerMcpConsent', clientName: 'ChatGPT Teacher Planner',
+      denied: 'An active school account with Teacher Planner access is required.' },
+    'student-tracker': { clientId: 'student-tracker-chatgpt', scope: 'tracker:read', table: 'student_tracker_mcp', label: 'Student Tracker',
+      consentKey: 'studentTrackerMcpConsent', clientName: 'WHS Student Tracker',
+      denied: 'An active school account with verified department HoLA or Global ADMIN Student Tracker access is required.' },
+    'dtech-catalogue': { clientId: 'dtech-catalogue-chatgpt', scope: 'dtech-catalogue:read', table: 'dtech_catalogue_mcp',
+      label: 'DTECH catalogue', consentKey: 'dtechCatalogueMcpConsent', clientName: 'WHS DTECH Catalogue',
+      denied: 'An active school account with DTECH teacher access is required.' }
+  };
+  const selected = integrations[integration];
+  if (!selected) throw new Error('Unknown MCP integration.');
+  const { clientId, scope, table, label, consentKey } = selected;
+  const client = { client_id: clientId, client_name: selected.clientName,
     redirect_uris: [callback], token_endpoint_auth_method: 'none',
     grant_types: ['authorization_code'], response_types: ['code'], scope };
   const guard = work => async (...args) => {
@@ -98,9 +106,7 @@ function createReadOnlyMcpProvider({ query, authorizeUser, origin, resource, cal
         return res.redirect('/auth/google?next=' + encodeURIComponent(req.originalUrl));
       }
       const user = await authorizeUser(req.user.id);
-      if (!user) throw new AccessDeniedError(tracker
-        ? 'An active school account with verified department HoLA or Global ADMIN Student Tracker access is required.'
-        : 'An active school account with Teacher Planner access is required.');
+      if (!user) throw new AccessDeniedError(selected.denied);
       const binding = hash(JSON.stringify([user.id, registered.client_id, params.redirectUri, params.codeChallenge, params.state, resource.href]));
       if (req.method === 'GET') {
         const csrf = crypto.randomBytes(32).toString('base64url');

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Connect ChatGPT to the WHS DTECH Catalogue</title>
+  <link rel="stylesheet" href="/account-controls.css">
+</head>
+<body>
+  <main>
+    <h1>Connect ChatGPT to the WHS DTECH Catalogue</h1>
+    <p>Approve read-only access for eight hours to published Licence Kits, their activity titles, and published unit and lesson catalogue links.</p>
+    <p>Student records, completion data, unpublished resources and changes are excluded. Access is checked against your current DTECH teaching permissions.</p>
+    <p>Information returned to ChatGPT is processed by OpenAI under your ChatGPT workspace's policies. Only approve this connection in a school-authorised workspace.</p>
+    <form method="post" action="/integrations/dtech-catalogue/oauth/authorize">
+      <% for (const [name, value] of Object.entries(fields)) { %>
+        <input type="hidden" name="<%= name %>" value="<%= value %>">
+      <% } %>
+      <input type="hidden" name="csrf" value="<%= csrf %>">
+      <button type="submit" name="decision" value="allow">Approve read-only connection</button>
+      <button type="submit" name="decision" value="deny">Cancel</button>
+    </form>
+  </main>
+</body>
+</html>

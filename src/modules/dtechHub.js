@@ -92,16 +92,14 @@ function effectiveDtechView(access, session, currentPath = '') {
 
 function createDtechRouter({ env = process.env, dbQuery = query, createLegacy, archive = createArchiveService({ env }) } = {}) {
   const router = express.Router({ caseSensitive: true });
-  let legacy;
+  let legacy, files;
   let ready = false;
   let initialization;
   let initializationError = '';
   const access = (email) => accessForEmail(email, dbQuery);
 
-  async function initialize() {
-    if (ready) return;
-    if (initialization) return initialization;
-    initialization = (async () => {
+  function getLegacy() {
+    if (!legacy) {
       if (!env.DTECH_DATABASE_URL) throw new Error('DTECH_DATABASE_URL is not configured. Connect the existing DTECH-DB in Render.');
       if (env.DTECH_DATABASE_URL === env.DATABASE_URL) throw new Error('DTECH must use its separate legacy database, not the WHS APPSystem database.');
       const factory = createLegacy || require('../legacy/dtech-hub/server');
@@ -140,7 +138,16 @@ function createDtechRouter({ env = process.env, dbQuery = query, createLegacy, a
           )`, [kind === 'certificate' ? ['lead-teacher'] : ['lead-teacher', 'teacher'], kind !== 'certificate'])).rows.map((row) => row.email),
         saveTeachingFile: (...args) => files.save(...args)
       });
-      const files = createTeachingFileStore({ pool: legacy.pool, directory: path.join(SOURCE, 'TeacherFiles'), archive });
+      files = createTeachingFileStore({ pool: legacy.pool, directory: path.join(SOURCE, 'TeacherFiles'), archive });
+    }
+    return legacy;
+  }
+
+  async function initialize() {
+    if (ready) return;
+    if (initialization) return initialization;
+    initialization = (async () => {
+      getLegacy();
       await files.initialize();
       await legacy.initialize();
       ready = true;
@@ -264,6 +271,7 @@ function createDtechRouter({ env = process.env, dbQuery = query, createLegacy, a
     if (res.headersSent) return next(error);
     return res.status(500).json({ error: 'DTECH could not complete this request. Please retry or contact an administrator.' });
   });
+  router.readPublishedCatalogue = () => getLegacy().readPublishedCatalogue();
   return router;
 }
 

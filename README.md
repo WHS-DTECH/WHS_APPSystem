@@ -677,6 +677,11 @@ Class Training is the first capsule with integrated Teacher View / Student View:
 
 ## DTECH Hub: original site, separate database and private files
 
+The read-only ChatGPT teaching-resource catalogue is documented in
+[DTECH catalogue MCP](docs/dtech-catalogue-mcp.md). It uses the published Hub
+catalogues and a separate school-authorised OAuth grant, and excludes student
+records, completion data and write operations.
+
 The legacy URL adapter prefixes API paths without rewriting template expressions
 or encoded query values (including comma-separated Trello connection lookups).
 If Trello progress cannot load, the student table retains its Trello link and

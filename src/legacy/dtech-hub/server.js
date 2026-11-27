@@ -5528,13 +5528,13 @@ async function ensurePracticalSkillsKitContentSchema() {
   await pool.query(`ALTER TABLE practical_skills_kit_content ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
 }
 
-async function getPracticalSkillsKitContent(kitId) {
-  const content = await getStoredPracticalSkillsKitContent(kitId);
+async function getPracticalSkillsKitContent(kitId, options) {
+  const content = await getStoredPracticalSkillsKitContent(kitId, options);
   if (!content) return null;
   return normalizePracticalSkillsKitContentForDisplay(kitId, content);
 }
 
-async function getStoredPracticalSkillsKitContent(kitId) {
+async function getStoredPracticalSkillsKitContent(kitId, { readOnly = false } = {}) {
   const safeKitId = String(kitId || "").trim();
   if (!safeKitId) return null;
 
@@ -5543,12 +5543,12 @@ async function getStoredPracticalSkillsKitContent(kitId) {
     let content = stored || getDefaultPracticalSkillsKitContent(safeKitId);
     if (safeKitId === "kit-google-search") {
       content = addSearchKitPenguinMission(content);
-      if (stored) memoryPracticalSkillsKitContent.set(safeKitId, content);
+      if (stored && !readOnly) memoryPracticalSkillsKitContent.set(safeKitId, content);
     }
     return withShortLoginKit(safeKitId, withLearningSitesActivity(safeKitId, withLoginAppsActivity(safeKitId, withLoginIdentityActivity(safeKitId, withPasswordProblemsActivity(safeKitId, content)))));
   }
 
-  await ensurePracticalSkillsKitContentSchema();
+  if (!readOnly) await ensurePracticalSkillsKitContentSchema();
   const result = await pool.query(`SELECT content FROM practical_skills_kit_content WHERE kit_id = $1 LIMIT 1`, [safeKitId]);
   const stored = result.rows?.[0]?.content;
   const defaults = getDefaultPracticalSkillsKitContent(safeKitId);
@@ -5565,7 +5565,7 @@ async function getStoredPracticalSkillsKitContent(kitId) {
     const migrated = addSearchKitPenguinMission(merged);
     if (migrated !== merged) {
       merged = migrated;
-      await pool.query(
+      if (!readOnly) await pool.query(
         `UPDATE practical_skills_kit_content SET content = $1::jsonb, updated_at = NOW() WHERE kit_id = $2`,
         [JSON.stringify(merged), safeKitId]
       );
@@ -6384,10 +6384,10 @@ async function ensurePracticalSkillsLibrarySchema() {
 
 // The deployed library.json is reset on every Render deploy/restart, so the
 // published library lives in Postgres and the file is only the first-run seed.
-async function readPracticalSkillsLibraryFile() {
+async function readPracticalSkillsLibraryFile({ readOnly = false } = {}) {
   if (!hasDatabase) return readPracticalSkillsLibrarySeedFile();
 
-  await ensurePracticalSkillsLibrarySchema();
+  if (!readOnly) await ensurePracticalSkillsLibrarySchema();
   const result = await pool.query(`SELECT cards FROM practical_skills_library_store WHERE id = 'default' LIMIT 1`);
   const stored = result.rows?.[0]?.cards;
   if (Array.isArray(stored)) {
@@ -6395,6 +6395,7 @@ async function readPracticalSkillsLibraryFile() {
       .map((item, index) => normalizePracticalSkillLibraryItem(item, index))
       .filter(Boolean);
   }
+  if (readOnly) throw new Error("The published Practical Skills library has not been initialized.");
 
   const cards = await readPracticalSkillsLibrarySeedFile();
   await ensurePracticalSkillsKitContentSchema();
@@ -6466,11 +6467,11 @@ function buildPracticalSkillsKitLibraryCard(kitId, content) {
   });
 }
 
-async function buildPracticalSkillsActivityLibraryCards(kitCard) {
+async function buildPracticalSkillsActivityLibraryCards(kitCard, { readOnly = false, knownKit = false } = {}) {
   const kitId = String(kitCard?.id || "").trim();
-  if (!kitId || !getPracticalSkillsKitDefinition(kitId)) return [];
+  if (!kitId || !(knownKit || getPracticalSkillsKitDefinition(kitId))) return [];
 
-  const content = await getPracticalSkillsKitContent(kitId);
+  const content = await getPracticalSkillsKitContent(kitId, { readOnly });
   const worksheets = Array.isArray(content?.worksheets) ? content.worksheets : [];
   const activities = Array.isArray(content?.activities) ? content.activities : [];
   const themeIcon = String(content?.theme?.icon || kitCard.visual?.icon || "PS").trim() || "PS";
@@ -17820,6 +17821,22 @@ app.get("*", (_req, res) => {
 return {
   app,
   pool,
+  async readPublishedCatalogue() {
+    if (!hasDatabase) throw new Error("The DTECH catalogue database is not configured.");
+    const [kitCards, custom, pathways] = await Promise.all([
+      readPracticalSkillsLibraryFile({ readOnly: true }),
+      pool.query("SELECT kit_id FROM practical_skills_kit_content WHERE content ->> 'customKit' = 'true'"),
+      pool.query("SELECT cards FROM learning_pathways_library_store WHERE id = 'default'")
+    ]);
+    if (!Array.isArray(pathways.rows[0]?.cards)) throw new Error("The published Learning Pathways library has not been initialized.");
+    const customIds = new Set(custom.rows.map(row => row.kit_id));
+    const kits = kitCards.filter(card => card.status === "active" &&
+      (PRACTICAL_SKILLS_KIT_DEFINITIONS.some(kit => kit.id === card.id) || customIds.has(card.id)));
+    const activities = await Promise.all(kits.map(card =>
+      buildPracticalSkillsActivityLibraryCards(card, { readOnly: true, knownKit: true })));
+    return { kits: kits.map((card, index) => ({ ...card, activities: activities[index] })),
+      pathways: require("./learning-pathways/library-store").normalizeCards(pathways.rows[0].cards) };
+  },
   async initialize() {
     if (hasDatabase && await legacyLessons.initialize()) lessonTable = "whs_dtech_lessons";
     await ensureSchema();
