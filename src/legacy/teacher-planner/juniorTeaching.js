@@ -146,6 +146,10 @@ function createJuniorTeachingRouter({ query, env = process.env, fetchImpl = glob
   const validClass = value => middle ? typeof value === 'string' && /^[A-Z0-9][A-Z0-9_-]{0,39}$/.test(value) : ['JPI', 'JSR'].includes(value);
   const progressPath = middle ? '/:year/:semester' : '/:year';
   const validScope = req => validYear(req.params.year) && (!middle || ['1', '2'].includes(req.params.semester));
+  router.get('/catalogue', async (req, res, next) => {
+    try { return res.json(await catalogue()); }
+    catch (error) { return failure(error, res, next); }
+  });
   router.get(progressPath, async (req, res, next) => {
     if (!validScope(req)) return res.status(400).json({ error: 'Choose a valid Planner year and semester.' });
     try {

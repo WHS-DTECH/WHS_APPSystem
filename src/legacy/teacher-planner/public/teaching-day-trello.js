@@ -80,7 +80,8 @@
       el('a', 'Open in Trello', { href: card.url, target: '_blank', rel: 'noopener noreferrer' }));
     return article;
   }
-  function dashboard(host, context, { el, request, loadSchedule, select, openNotesSession, openTrelloSession, changeDate, termControl, termError, openJunior, juniorRequest, openMiddle, middleRequest, semesterForDate, defaultView = () => 'trello' }) {
+  function dashboard(host, context, { el, request, loadSchedule, select, openNotesSession, openTrelloSession, changeDate, termControl, termError, openJunior, juniorRequest, openMiddle, middleRequest, semesterForDate, defaultView = () => 'trello',
+    todayDate = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Pacific/Auckland', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()) }) {
     const page = el('section', '', { class: 'teaching-dashboard', 'aria-label': 'Teaching Dashboard' });
     const heading = el('div', '', { class: 'teaching-dashboard-heading', 'data-planner-navigation': '' });
     if (termControl) heading.append(termControl);
@@ -183,19 +184,75 @@
       switching = value; workspace.inert = value; workspace.setAttribute('aria-busy', String(value));
       updateControls();
     }
+    function historical(host, middle) {
+      let disposed = false;
+      const saved = context.savedSession, content = saved?.revision > 0 ? saved.content : null;
+      const legacy = saved?.legacy?.revision > 0 ? saved.legacy.content : null;
+      const activities = content?.activities || [];
+      const legacyPlan = legacy && ['title', 'priorities', 'activities', 'resources'].some(key => legacy[key]?.trim());
+      if (activities.length) {
+        const slot = globalThis.plannerSessionSchema.slots.find(item => item[0] === context.slot);
+        const plan = { metadata: { class_key: context.classKey, display_title: 'Saved session plan',
+          teaching_date: context.date, start_time: slot[2], room: context.location || '' },
+          preparation: '', continuation: '', slots: activities.map((item, index) => ({
+            number: String(index + 1), type: 'Activity', colour: 'activity', title: item.title,
+            details: item.teachingNote || '', reminder: item.status || '', unit: '', lesson: '',
+            resource: '', resourceUrl: '', resources: []
+          })) };
+        host.append(globalThis.plannerTeachingSlots.renderPlan(el, plan, { id: 'saved-' + context.date + '-' + context.slot }));
+      } else if (!legacyPlan) host.append(el('p', 'No saved plan for this session', { role: 'status' }));
+      if (legacy && ['title', 'priorities', 'activities', 'resources', 'reflection'].some(key => legacy[key]?.trim())) {
+        const original = el('section', '', { class: 'session-section', 'aria-label': 'Saved original period plan' });
+        original.append(el('h3', legacyPlan ? 'Saved original period plan' : 'Saved original period notes'));
+        for (const [key, label] of [['title', 'Title'], ['priorities', 'Priorities'], ['activities', 'Activities'], ['resources', 'Resources'], ['reflection', 'Reflection']]) {
+          if (legacy[key]?.trim()) original.append(el('h4', label), el('p', legacy[key], { class: 'session-preserved-text' }));
+        }
+        host.append(original);
+      }
+      if (content?.note || content?.evaluation) {
+        const notes = el('section', '', { class: 'session-section', 'aria-label': 'Saved session notes' });
+        notes.append(el('h3', 'Saved session notes'));
+        if (content.note) notes.append(el('p', content.note, { class: 'session-preserved-text' }));
+        if (content.evaluation) notes.append(el('h4', 'Evaluation'), el('p', content.evaluation, { class: 'session-preserved-text' }));
+        host.append(notes);
+      }
+      if (middle && middleRequest) {
+        const status = el('p', 'Checking the current MiddleDTECH order...', { role: 'status' });
+        const open = el('button', 'Open MiddleDTECH teaching order and progress', { type: 'button' });
+        open.addEventListener('click', openMiddle);
+        host.append(status, open);
+        middleRequest('catalogue').then(data => {
+          if (disposed || !host.isConnected) return;
+          status.textContent = data.orderCardCount === 0 ? 'No MiddleDTECH teaching order has been set' :
+            'The current MiddleDTECH order does not establish a past plan.';
+        }).catch(error => {
+          if (disposed || !host.isConnected) return;
+          status.setAttribute('role', 'alert'); status.textContent = error.message + ' Notes remain available.';
+        });
+      }
+      return { dispose() { disposed = true; } };
+    }
     function renderSelected() {
       if (!selectedHost?.isConnected) return;
       juniorSession?.dispose(); juniorSession = undefined;
       selectedHost.replaceChildren();
-      if (error) { selectedHost.append(el('p', error + ' Notes remain available.', { role: 'alert' })); return; }
+      const verifiedJunior = context.classKey === 'JPI' && /^PIDTECH\s*\(JPI\)$/i.test(context.title || '') ||
+        context.classKey === 'JSR' && /^SRDTECH\s*\(JSR\)$/i.test(context.title || '');
+      const verifiedMiddle = context.classKey && new RegExp('^MDTECH\\s*\\(' + context.classKey + '\\)$', 'i').test(context.title || '');
+      if (error) {
+        selectedHost.append(el('p', error + ' Notes remain available.', { role: 'alert' }));
+        if ((verifiedJunior || verifiedMiddle) && context.date < todayDate()) juniorSession = historical(selectedHost, verifiedMiddle);
+        return;
+      }
       if (!result) { selectedHost.append(el('p', 'Reading Trello...', { role: 'status' })); return; }
       const card = result.cards.find(card => (!context.cardId || card.id === context.cardId) &&
         card.metadata.session_slot === context.slot && (card.metadata.class_key === context.classKey ||
           !context.classKey && context.cardId === card.id));
       if (!card) {
-        const verifiedJunior = context.classKey === 'JPI' && /^PIDTECH\s*\(JPI\)$/i.test(context.title || '') ||
-          context.classKey === 'JSR' && /^SRDTECH\s*\(JSR\)$/i.test(context.title || '');
-        const verifiedMiddle = context.classKey && new RegExp('^MDTECH\\s*\\(' + context.classKey + '\\)$', 'i').test(context.title || '');
+        if ((verifiedJunior || verifiedMiddle) && context.date < todayDate()) {
+          juniorSession = historical(selectedHost, verifiedMiddle);
+          return;
+        }
         if ((verifiedJunior && juniorRequest || verifiedMiddle && middleRequest) && globalThis.plannerJuniorTeaching &&
             result.status !== 'not_configured' && !result.issues?.length) {
           juniorSession = globalThis.plannerJuniorTeaching.mountSession(selectedHost, context,
@@ -356,6 +413,7 @@
     refresh.addEventListener('click', load); renderSchedule(); load();
     return { get date() { return context.date; }, workspace, selectSession, setBusy,
       setDate, readSchedule, noSessions, refresh: load,
+      updateSavedSession: (content, revision) => { if (context.savedSession) Object.assign(context.savedSession, { content, revision }); },
       showTrello: host => { selectedHost = host; renderSelected(); } };
   }
   function mount(host, context, { el, request }) {

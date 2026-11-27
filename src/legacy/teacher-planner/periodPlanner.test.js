@@ -61,6 +61,7 @@ function node(tag = 'div', text = '', attrs = {}) {
   return {
     tag, textContent: text, attrs, children: [], events: {}, dataset: {}, isConnected: true,
     append(...children) { this.children.push(...children); },
+    prepend(...children) { this.children.unshift(...children); },
     replaceChildren(...children) { this.children = children; },
     before(...children) { this.beforeNodes = [...(this.beforeNodes || []), ...children]; },
     addEventListener(type, handler) { this.events[type] = handler; },
@@ -560,7 +561,7 @@ test('Friday class boxes use the saved default while explicit buttons remain one
     const dashboard = context.plannerTeachingDayTrello.dashboard(node(), {
       date: '2026-11-23', slot: 'p2', classKey: 'JPI', title: 'PIDTECH (JPI)', cardId: ''
     }, { el: node, request: async () => feed, loadSchedule: async () => ({ events: [] }),
-      juniorRequest: async () => ({}), openJunior() {} });
+      juniorRequest: async () => ({}), openJunior() {}, todayDate: () => '2026-11-20' });
     const selected = node(); dashboard.showTrello(selected);
     await flush(); await flush();
     assert.equal(calls.length, 0, 'dated preparation takes precedence');
@@ -591,7 +592,7 @@ test('Friday class boxes use the saved default while explicit buttons remain one
     const dashboard = context.plannerTeachingDayTrello.dashboard(node(), {
       date: '2026-11-23', slot: 'p2', classKey: '91D', title: 'MDTECH (91D)', cardId: ''
     }, { el: node, request: async () => feed, loadSchedule: async () => ({ events: [] }),
-      middleRequest: async () => ({}), openMiddle() {}, semesterForDate: async () => 1 });
+      middleRequest: async () => ({}), openMiddle() {}, semesterForDate: async () => 1, todayDate: () => '2026-11-20' });
     const selected = node(); dashboard.showTrello(selected);
     await flush(); await flush();
     assert.equal(calls.length, 0);
@@ -604,7 +605,8 @@ test('Friday class boxes use the saved default while explicit buttons remain one
     assert.equal(calls.length, 2);
   });
   await test('empty MiddleDTECH order is explicit and session Notes stay separate', async () => {
-    const context = { URL, document: { createTextNode: value => node('#text', value) } };
+    const context = { URL, plannerTeachingSlots: require('./public/teaching-slots'),
+      plannerSessionSchema: require('./public/session-schema'), document: { createTextNode: value => node('#text', value) } };
     vm.runInNewContext(fs.readFileSync(require.resolve('./public/junior-teaching'), 'utf8'), context);
     const host = node(), paths = [];
     context.plannerJuniorTeaching.mountSession(host, { date: '2026-05-01', slot: 'p2', classKey: '91D' }, {
@@ -616,7 +618,8 @@ test('Friday class boxes use the saved default while explicit buttons remain one
       }
     });
     await test('MiddleDTECH sessions show each class’s own saved unit and selected kit', async () => {
-      const context = { URL, document: { createTextNode: value => node('#text', value) } };
+      const context = { URL, plannerTeachingSlots: require('./public/teaching-slots'),
+        plannerSessionSchema: require('./public/session-schema'), document: { createTextNode: value => node('#text', value) } };
       vm.runInNewContext(fs.readFileSync(require.resolve('./public/junior-teaching'), 'utf8'), context);
       const el = (tag, text, attrs) => { const item = node(tag, text, attrs); item.prepend = child => item.children.unshift(child); return item; };
       const entry = (id, kind, key, title) => ({ id, kind, sequenceKey: key, sequence: key, title,
@@ -634,6 +637,106 @@ test('Friday class boxes use the saved default while explicit buttons remain one
         context.plannerJuniorTeaching.mountSession(host, { date: '2026-05-01', slot: 'p2', classKey }, {
           el, request, name: 'MiddleDTECH', semesterForDate: async () => 1, openPage() {}
         });
+        await test('upcoming JSR shared sequence uses the Monday slot layout with clickable source resources', async () => {
+          const context = { URL, plannerTeachingSlots: require('./public/teaching-slots'),
+            plannerSessionSchema: require('./public/session-schema'), URLSearchParams,
+            document: { createTextNode: value => node('#text', value) } };
+          vm.runInNewContext(fs.readFileSync(require.resolve('./public/junior-teaching'), 'utf8'), context);
+          vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-day-trello'), 'utf8'), context);
+          const entry = (id, kind, sequence, title, description) => ({ id, kind, sequence, title,
+            sequenceKey: kind + ':' + sequence, source: { title, description, url: 'https://trello.com/c/' + id } });
+          const entries = [
+            entry('routine', 'routine', 'Typing', 'Typing Kit', 'Type: Routine\nSource: https://example.test/typing\nPreparation: Headphones'),
+            entry('unit', 'unit', 'Binary', 'Binary Piano', 'Type: Unit lesson\nUnit: Binary\nLesson: Binary Piano\nSource: https://example.test/lesson\nPrint resource: https://example.test/worksheet'),
+            entry('kit', 'kit', 'Minecraft', 'Walkthrough', 'Type: Licence Kit activity\nSource: https://example.test/kit\nContinuation: Review the submission')
+          ];
+          const data = { entries, orderCardCount: 3, issues: [], progress: [
+            { class_key: 'JSR', sequence_key: 'unit:Binary', entry_id: 'unit' },
+            { class_key: 'JSR', sequence_key: 'kit:Minecraft', entry_id: 'kit' }
+          ] };
+          const host = node(), dashboard = context.plannerTeachingDayTrello.dashboard(node(), {
+            date: '2026-12-01', slot: 'p5', classKey: 'JSR', title: 'SRDTECH (JSR)'
+          }, { el: node, request: async () => ({ status: 'empty', cards: [], issues: [] }),
+            loadSchedule: async () => ({ events: [] }), todayDate: () => '2026-11-28', openJunior() {},
+            juniorRequest: async path => path.startsWith('session/') ? { kits: ['kit:Minecraft'], revision: 1 } : data });
+          dashboard.showTrello(host);
+          await flush(); await flush();
+          const nodes = slotDescendants(host), plan = nodes.find(item => item.attrs['aria-label'] === 'Draft teaching slots');
+          assert.ok(plan);
+          assert.ok(slotDescendants(plan).some(item => item.textContent === 'Draft proposal'));
+          assert.ok(slotDescendants(plan).some(item => item.textContent === 'Headphones'));
+          assert.ok(slotDescendants(plan).some(item => item.textContent === 'Review the submission'));
+          const buttons = slotDescendants(plan).filter(item => item.attrs.class === 'teaching-slot');
+          assert.equal(buttons.length, 3);
+          buttons[1].events.click();
+          const panel = slotDescendants(plan).find(item => item.attrs['aria-label'] === 'Selected teaching activity');
+          assert.ok(slotDescendants(panel).some(item => item.tag === 'a' && item.attrs.href === 'https://example.test/worksheet'));
+          assert.ok(slotDescendants(panel).some(item => item.tag === 'a' && item.attrs.href === 'https://example.test/lesson'));
+          assert.equal(buttons[1].attrs['aria-pressed'], 'true');
+        });
+        await test('past Monday dated plan takes precedence and all four slots remain selectable', async () => {
+          const context = { plannerSessionSchema: require('./public/session-schema'),
+            plannerTeachingSlots: require('./public/teaching-slots'), URLSearchParams };
+          vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-day-trello'), 'utf8'), context);
+          const card = teachingSlotFixture(), host = node();
+          const dashboard = context.plannerTeachingDayTrello.dashboard(node(), {
+            date: '2026-11-23', slot: 'p2', classKey: 'JPI', title: 'PIDTECH (JPI)',
+            savedSession: { revision: 0, content: {}, legacy: { revision: 0, content: {} } }
+          }, { el: node, request: async () => ({ status: 'ok', cards: [card], issues: [] }),
+            loadSchedule: async () => ({ events: [] }), todayDate: () => '2026-11-28',
+            juniorRequest: async () => { assert.fail('Dated plan must take precedence'); } });
+          dashboard.showTrello(host); await flush(); await flush();
+          const plan = slotDescendants(host).find(item => item.attrs['aria-label'] === 'Trello teaching slots');
+          const buttons = slotDescendants(plan).filter(item => item.attrs.class === 'teaching-slot');
+          assert.equal(buttons.length, 4);
+          for (const button of buttons) {
+            button.events.click();
+            assert.equal(button.attrs['aria-pressed'], 'true');
+          }
+          assert.ok(!slotDescendants(host).some(item => item.textContent === 'No saved plan for this session'));
+        });
+        await test('past Tuesday sessions never use current shared progress and retain saved notes', async () => {
+          const calls = [];
+          const context = { plannerSessionSchema: require('./public/session-schema'), plannerTeachingSlots: require('./public/teaching-slots'),
+            URLSearchParams, plannerJuniorTeaching: { mountSession() { assert.fail('Past sessions must not load current progress'); } } };
+          vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-day-trello'), 'utf8'), context);
+          for (const [slot, classKey, title] of [['p5', 'JSR', 'SRDTECH (JSR)'], ['p3', '81D', 'MDTECH (81D)'],
+            ['p4', '81D', 'MDTECH (81D)']]) {
+            const selected = node();
+            const dashboard = context.plannerTeachingDayTrello.dashboard(node(), { date: '2026-11-24', slot, classKey, title,
+              savedSession: { revision: 0, content: { activities: [{ title: 'Unconfirmed automatic draft' }] }, legacy: { revision: 0, content: {} } }
+            }, { el: node, request: async () => ({ status: 'empty', cards: [], issues: [] }),
+              loadSchedule: async () => ({ events: [] }), todayDate: () => '2026-11-28',
+              juniorRequest: async path => { calls.push(path); return {}; },
+              middleRequest: async path => { calls.push(path); return { orderCardCount: 0 }; }, openMiddle() {} });
+            dashboard.showTrello(selected); await flush(); await flush();
+            const nodes = slotDescendants(selected);
+            assert.ok(nodes.some(item => item.textContent === 'No saved plan for this session'), slot);
+            assert.ok(!nodes.some(item => item.textContent === 'Unconfirmed automatic draft'));
+            if (classKey === '81D') {
+              assert.ok(nodes.some(item => item.textContent === 'No MiddleDTECH teaching order has been set'));
+              assert.ok(nodes.some(item => item.textContent === 'Open MiddleDTECH teaching order and progress'));
+            }
+          }
+          assert.deepEqual(calls, ['catalogue', 'catalogue']);
+          const host = node();
+          const dashboard = context.plannerTeachingDayTrello.dashboard(node(), { date: '2026-11-24', slot: 'p5',
+            classKey: 'JSR', title: 'SRDTECH (JSR)', savedSession: { revision: 1,
+              content: { note: 'Saved private session note', evaluation: '', activities: [] }, legacy: { revision: 0, content: {} } }
+          }, { el: node, request: async () => ({ status: 'empty', cards: [], issues: [] }),
+            loadSchedule: async () => ({ events: [] }), todayDate: () => '2026-11-28' });
+          dashboard.showTrello(host); await flush(); await flush();
+          assert.ok(slotDescendants(host).some(item => item.textContent === 'Saved private session note'));
+          assert.ok(slotDescendants(host).some(item => item.textContent === 'No saved plan for this session'));
+          dashboard.selectSession({ savedSession: { revision: 1, content: {
+            note: 'Saved private session note', evaluation: '', activities: [{ title: 'Saved activity', status: 'partial', teachingNote: 'Saved teaching note' }]
+          }, legacy: { revision: 0, content: {} } } });
+          const savedNodes = slotDescendants(host);
+          assert.ok(savedNodes.some(item => item.attrs['aria-label'] === 'Saved teaching slots'));
+          assert.ok(savedNodes.some(item => item.textContent === 'Saved activity'));
+          assert.ok(savedNodes.some(item => item.textContent === 'Saved teaching note'));
+          assert.ok(!savedNodes.some(item => item.textContent === 'No saved plan for this session'));
+        });
         await flush(); await flush();
         const nodes = slotDescendants(host);
         assert.ok(nodes.some(item => item.textContent === 'Current: ' + unit));
@@ -645,7 +748,8 @@ test('Friday class boxes use the saved default while explicit buttons remain one
     assert.deepEqual(paths, ['2026/1', 'session/2026-05-01/p2/91D']);
   });
   await test('shared preparation reads separate class progress and includes kits only on explicit session selection', async () => {
-    const context = { URL, document: { createTextNode: value => node('#text', value) } };
+    const context = { URL, plannerTeachingSlots: require('./public/teaching-slots'),
+      plannerSessionSchema: require('./public/session-schema'), document: { createTextNode: value => node('#text', value) } };
     vm.runInNewContext(fs.readFileSync(require.resolve('./public/junior-teaching'), 'utf8'), context);
     const el = (tag, text, attrs) => {
       const item = node(tag, text, attrs);

@@ -119,15 +119,25 @@
       if (metadata[field] !== card.metadata[field]) throw new FormatError('Card metadata does not match this teaching session.');
     }
     if (!Number.isFinite(Date.parse(card.updatedAt))) throw new FormatError('The Trello update timestamp is unavailable.');
-    const article = el('article', '', { class: 'teaching-slot-plan', 'aria-label': 'Trello teaching slots' });
+    return renderPlan(el, plan, { id: card.id, programme, source: card });
+  }
+  function renderPlan(el, plan, { id, programme, source, draft = false } = {}) {
+    const metadata = plan.metadata;
+    const article = el('article', '', { class: 'teaching-slot-plan',
+      'aria-label': source ? 'Trello teaching slots' : draft ? 'Draft teaching slots' : 'Saved teaching slots' });
     const header = el('header', '', { class: 'teaching-slot-header' }), title = el('div');
     title.append(el('h3', metadata.class_key + ' - ' + metadata.display_title),
       el('p', [metadata.room && 'Room ' + metadata.room, sessionSchema.dateLabel(metadata.teaching_date),
         metadata.start_time + ' NZ'].filter(Boolean).join(' | ')));
-    const trello = el('div', '', { class: 'teaching-slot-source' });
-    trello.append(el('a', 'Open Trello', { href: card.url, target: '_blank', rel: 'noopener noreferrer' }),
-      el('p', 'Trello updated'), el('time', sessionSchema.timestampLabel(card.updatedAt), { datetime: card.updatedAt }));
-    header.append(title, trello); article.append(header);
+    if (draft) title.append(el('p', 'Draft proposal'));
+    header.append(title);
+    if (source) {
+      const trello = el('div', '', { class: 'teaching-slot-source' });
+      trello.append(el('a', 'Open Trello', { href: source.url, target: '_blank', rel: 'noopener noreferrer' }),
+        el('p', 'Trello updated'), el('time', sessionSchema.timestampLabel(source.updatedAt), { datetime: source.updatedAt }));
+      header.append(trello);
+    }
+    article.append(header);
     const supporting = el('div', '', { class: 'teaching-slot-session-support' });
     for (const [key, label] of [['preparation', 'Preparation & Reminders'], ['continuation', 'Continuation']]) {
       if (!plan[key]) continue;
@@ -140,7 +150,7 @@
     const workspace = el('div', '', { class: 'teaching-slot-workspace' });
     const left = el('div', '', { class: 'teaching-slot-column' }), right = el('div', '', { class: 'teaching-slot-column' });
     const sequence = el('div', '', { class: 'teaching-slot-list', role: 'group', 'aria-label': 'Select a teaching slot' });
-    const panelId = 'teaching-slot-details-' + card.id;
+    const panelId = 'teaching-slot-details-' + id;
     const details = el('section', '', { class: 'teaching-slot-detail', id: panelId,
       'aria-label': 'Selected teaching activity', 'aria-live': 'polite', 'aria-atomic': 'true' });
     const buttons = [];
@@ -202,7 +212,7 @@
     select(plan.slots[0], buttons[0]);
     workspace.append(left, right); article.append(workspace); return article;
   }
-  const api = { parse, render, resolveResource, FormatError };
+  const api = { parse, render, renderPlan, resolveResource, FormatError };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.plannerTeachingSlots = api;
 })(globalThis);

@@ -1067,6 +1067,7 @@
     let dashboard;
     if (dashboardMode) {
       const context = { date: periodDate, slot: periodSlot, classKey: data.event.classKey, title: data.event.title, cardId: selectedTeachingCard,
+        location: data.event.location, savedSession: { revision: data.revision, content: data.content, legacy },
         programme: data.teaching ? { teaching: data.teaching, routine: data.routine } : null };
       if (teachingDashboard?.workspace.isConnected) {
         dashboard = teachingDashboard; dashboard.workspace.replaceChildren(); dashboard.selectSession(context);
@@ -3233,6 +3234,7 @@
       const result = await request(address() + (sessionPlanner && confirmProgress ? '?confirm=true' : ''), { method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-planner-csrf': csrf }, body: JSON.stringify({ content: data, revision }) });
       revision = result.revision; dirty = version !== editVersion; succeeded = true;
       sessionPlanner?.saved(result);
+      if (sessionPlanner && dashboardMode) teachingDashboard?.updateSavedSession?.(data, revision);
       if (section === 'term') savedTermContent = data;
       if (autosaves()) autosavePaused = false;
       const savedTime = section === 'period' && dashboardMode ? globalThis.plannerSessionSchema.timestampLabel(result.updated_at) :

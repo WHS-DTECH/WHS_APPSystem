@@ -38,6 +38,25 @@
   function warnings(el, host, issues) {
     for (const issue of issues) host.append(el('p', issue.name + ': ' + issue.message, { role: 'alert' }));
   }
+  function draftSlot(entry, number) {
+    const source = entry.source;
+    const details = source.description.split(/\r?\n/)
+      .filter(line => !/^(?:Type|Unit|Lesson|Plan|Activity|Scheduling|Library card):/i.test(line)).join('\n').trim();
+    const resources = [{ category: 'Web Links', resource: 'Open library card in Trello', resourceUrl: source.url }];
+    const links = /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<>()]+)/g;
+    for (const line of details.split('\n')) {
+      for (const match of line.matchAll(links)) {
+        const label = match[1] || line.slice(0, match.index).replace(/[:\s-]+$/, '').trim() || 'Resource';
+        const category = /^unit plan$/i.test(label) ? 'Unit Plan' : /^lesson plan$/i.test(label) ? 'Lesson Plan' :
+          /^print resource/i.test(label) ? 'Print Resources' : 'Web Links';
+        resources.push({ category, resource: label, resourceUrl: match[2] || match[3] });
+      }
+    }
+    const type = { routine: 'Routine', unit: 'Unit Library', kit: 'Kit' }[entry.kind];
+    return { number: String(number), type, colour: { routine: 'routine', unit: 'unit-library', kit: 'kit' }[entry.kind],
+      title: entry.title, unit: entry.kind === 'unit' ? entry.sequence : '', lesson: entry.kind === 'unit' ? entry.title : '',
+      details, reminder: '', resource: '', resourceUrl: '', resources };
+  }
   function mountPage(host, { el, year, request, openTeachingDay, name = 'JuniorDTECH', semester: initialSemester = 1, loadClasses }) {
     const page = el('section', '', { 'data-planner-navigation': '', class: 'junior-teaching' });
     const heading = el('div', '', { class: 'planner-nav-buttons' });
@@ -214,8 +233,9 @@
       if (name === 'MiddleDTECH' && data.orderCardCount === 0) {
         body.append(el('p', 'No MiddleDTECH teaching order has been set'));
       }
-      for (const entry of data.entries.filter(item => item.kind === 'routine')) body.append(preview(el, entry.source));
       const sets = groups(data.entries);
+      const chosen = new Set(data.entries.filter(item => item.kind === 'routine').map(item => item.id));
+      const continuation = [];
       for (const [key, entries] of sets) {
         const first = entries[0], saved = data.progress.find(row => row.class_key === context.classKey && row.sequence_key === key);
         const index = entries.findIndex(item => item.id === saved?.entry_id);
@@ -232,10 +252,14 @@
         if (!saved) section.append(el('p', 'No current activity confirmed. Set progress in ' + name + '.'));
         else if (index < 0) section.append(el('p', 'The saved current activity is missing from the verified order and needs review.', { role: 'alert' }));
         else {
-          section.append(el('p', 'Current: ' + entries[index].title), preview(el, entries[index].source));
+          chosen.add(entries[index].id);
+          section.append(el('p', 'Current: ' + entries[index].title));
           if (data.issues.some(issue => issue.list === name)) {
             section.append(el('p', 'Review the teaching order before identifying the next activity.', { role: 'alert' }));
-          } else if (entries[index + 1]) section.append(el('p', 'Next: ' + entries[index + 1].title));
+          } else if (entries[index + 1]) {
+            section.append(el('p', 'Next: ' + entries[index + 1].title));
+            continuation.push(first.sequence + ': possible next activity ' + entries[index + 1].title + '.');
+          }
         }
         body.append(section);
       }
@@ -248,6 +272,19 @@
         remove.addEventListener('click', () => toggle(key, false));
         warning.append(el('p', key + ': a kit selected for this session is unavailable and needs review.'), remove);
         body.append(warning);
+      }
+      const entries = data.entries.filter(entry => chosen.has(entry.id));
+      if (entries.length) {
+        const slot = globalThis.plannerSessionSchema.slots.find(item => item[0] === context.slot);
+        const plan = { metadata: { class_key: context.classKey, display_title: name + ' proposed session',
+          teaching_date: context.date, start_time: slot[2], room: context.location || '' },
+          slots: entries.map((entry, index) => draftSlot(entry, index + 1)),
+          preparation: entries.flatMap(entry => entry.source.description.split(/\r?\n/)
+            .filter(line => /^Preparation(?: & reminders)?:\s*\S/i.test(line)).map(line => line.replace(/^[^:]+:\s*/, ''))).join('\n'),
+          continuation: [...continuation, ...entries.flatMap(entry => entry.source.description.split(/\r?\n/)
+            .filter(line => /^Continuation:\s*\S/i.test(line)).map(line => line.replace(/^[^:]+:\s*/, '')))].join('\n') };
+        body.prepend(globalThis.plannerTeachingSlots.renderPlan(el, plan,
+          { id: 'draft-' + context.date + '-' + context.slot, draft: true }));
       }
       const open = el('button', 'Open ' + name + ' teaching order and progress', { type: 'button' });
       open.addEventListener('click', openPage); body.append(open);

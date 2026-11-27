@@ -117,11 +117,11 @@ ${standalone ? `<script src="${asset('global-nav.js')}" defer></script>` : ''}
 <script src="${asset('todo-trello.js?v=module-todo-1')}" defer></script>
 <script src="${asset('todo-dashboard.js?v=responsibility-expansion-1')}" defer></script>
 <script src="${asset('session-schema.js?v=scheduled-session-3')}" defer></script>
-<script src="${asset('teaching-slots.js?v=7')}" defer></script>
-<script src="${asset('junior-teaching.js?v=middle-teaching-1')}" defer></script>
-<script src="${asset('teaching-day-trello.js?v=middle-teaching-1')}" defer></script>
+<script src="${asset('teaching-slots.js?v=shared-draft-1')}" defer></script>
+<script src="${asset('junior-teaching.js?v=shared-draft-1')}" defer></script>
+<script src="${asset('teaching-day-trello.js?v=shared-draft-1')}" defer></script>
 <script src="${asset('teaching-session.js?v=ambiguous-timetable-1')}" defer></script>
-<script src="${asset('planner.js?v=middle-teaching-1')}" defer></script>
+<script src="${asset('planner.js?v=shared-draft-1')}" defer></script>
 </body></html>`;
 }
 

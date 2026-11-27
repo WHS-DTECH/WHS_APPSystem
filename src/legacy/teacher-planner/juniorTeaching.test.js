@@ -38,6 +38,7 @@ async function fixture(t) {
     TEACHER_PLANNER_TRELLO_API_KEY: 'a'.repeat(32), TEACHER_PLANNER_TRELLO_TOKEN: 'c'.repeat(64) };
   async function query(sql, params) {
     state.queries.push(sql);
+    if (state.missingMiddleTables && sql.includes('planner_middle_')) throw Object.assign(new Error('Missing table'), { code: '42P01' });
     const middle = sql.includes('planner_middle_');
     const progress = sql.includes('_progress');
     const map = middle ? (progress ? state.middleProgress : state.middleSessions) : (progress ? state.progress : state.sessions);
@@ -133,6 +134,17 @@ test('MiddleDTECH keeps class, sequence, year and semester progress stable acros
     assert.equal((await (await request('2026/1')).json()).orderCardCount, 0);
     middleList.id = 'f'.repeat(24);
     assert.equal((await request('2026/1')).status, 409, 'the shared list ID must match');
+});
+
+test('MiddleDTECH order can be checked without reading unavailable progress tables', async t => {
+  const { state, call } = await fixture(t);
+  state.lists.push({ id: '6b09e4b9be7e645cfc6b9650', idBoard: board, name: 'MiddleDTECH', closed: false });
+  state.missingMiddleTables = true;
+  const request = path => call(path, undefined, undefined, 'middle');
+  assert.equal((await request('2026/2')).status, 503);
+  const response = await request('catalogue');
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).orderCardCount, 0);
 });
 
 test('verified lists use Trello order and current library content without any progress writes', async t => {

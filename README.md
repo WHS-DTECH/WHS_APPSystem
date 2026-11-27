@@ -2184,6 +2184,20 @@ and available. Apply `018_middle_teaching.sql` using
 `npm run db:migrate:planner` in the Render service shell before using this
 feature. This migration affects only the separate Teacher Planner database.
 
+For today and future JuniorDTECH and MiddleDTECH sessions without a dated
+card, verified shared routines and confirmed current activities appear as a
+**Draft proposal** in the same selectable-slot layout as dated plans. The
+library descriptions and their supplied links remain read-only; inclusion of
+a kit is a separate per-session choice. Showing a draft does not save a dated
+plan or confirm teaching outcomes.
+
+Past sessions never use today's class progress to reconstruct a plan. A
+matching dated card is shown first; otherwise the pane displays the saved
+session activities and notes or original period plan, when present. If there
+is no saved plan it says **No saved plan for this session**; Notes remain
+available. A current MiddleDTECH order, including an empty one, is identified
+only as current and does not establish a past plan.
+
 The [canonical teaching preparation card contract](docs/teaching-preparation-card-format.md)
 provides a copyable master template, complete metadata/heading/resource rules,
 and Whanau, JuniorDTECH and MiddleDTECH examples for ChatGPT automation.
