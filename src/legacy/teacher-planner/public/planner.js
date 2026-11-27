@@ -44,6 +44,7 @@
     attendance: [],
     attendanceImport: [],
     timetable: [],
+    juniorTeaching: [],
     todoDashboard: [],
     moderation: [],
     reporting: [],
@@ -976,6 +977,14 @@
     await refreshSession();
     return request(api + 'kamar-timetable/' + Number(value.slice(0, 4)) + '/' + Number(value.slice(5, 7)));
   }
+  async function juniorTeachingRequest(path, options = {}) {
+    await refreshSession();
+    const config = options.body === undefined ? options : {
+      ...options, headers: { 'Content-Type': 'application/json', 'x-planner-csrf': csrf },
+      body: JSON.stringify(options.body)
+    };
+    return request(api + 'junior-teaching/' + path, config);
+  }
   function mountEmptyTeachingDashboard(value, schedule) {
     dashboardNoSession = true;
     sessionPlanner = undefined; sessionAddress = undefined; loaded = true; dirty = false;
@@ -988,6 +997,7 @@
       },
       loadSchedule: loadTeachingDayTimetable, termControl, termError: dashboardTermError,
       defaultView: () => dashboardClassView,
+      juniorRequest: juniorTeachingRequest, openJunior: () => navigatePlannerSection('juniorTeaching'),
       changeDate: changeTeachingDay,
       openNotesSession: session => openSessionPlan(session.date, session.slot, undefined, undefined, false),
       openTrelloSession: session => openSessionPlan(session.date, session.slot, undefined, undefined, true),
@@ -1007,7 +1017,7 @@
     };
     let dashboard;
     if (dashboardMode) {
-      const context = { date: periodDate, slot: periodSlot, classKey: data.event.classKey, cardId: selectedTeachingCard,
+      const context = { date: periodDate, slot: periodSlot, classKey: data.event.classKey, title: data.event.title, cardId: selectedTeachingCard,
         programme: data.teaching ? { teaching: data.teaching, routine: data.routine } : null };
       if (teachingDashboard?.workspace.isConnected) {
         dashboard = teachingDashboard; dashboard.workspace.replaceChildren(); dashboard.selectSession(context);
@@ -1018,6 +1028,7 @@
             await refreshSession(); return request(api + 'teaching-day-trello/' + day + (query ? '?' + query : ''));
           }, loadSchedule: loadTeachingDayTimetable, termControl, termError: dashboardTermError,
           defaultView: () => dashboardClassView,
+          juniorRequest: juniorTeachingRequest, openJunior: () => navigatePlannerSection('juniorTeaching'),
           changeDate: changeTeachingDay,
           openNotesSession: session => openSessionPlan(session.date, session.slot, undefined, undefined, false),
           openTrelloSession: session => openSessionPlan(session.date, session.slot, undefined, undefined, true),
@@ -1360,7 +1371,7 @@
     });
   }
   function updateTodoSidebar() {
-    const available = ['cover', 'year', 'term', 'week'].includes(section) ||
+    const available = ['cover', 'year', 'term', 'week', 'juniorTeaching'].includes(section) ||
       section === 'period' && dashboardMode;
     const workspace = document.getElementById('planner-workspace');
     workspace.setAttribute('data-todo-available', String(available));
@@ -2996,7 +3007,7 @@
       renderSelectors();
       updateTodoSidebar();
       history.replaceState(null, '', '#' + viewFragment());
-      document.querySelector('.planner-save').hidden = ['cover', 'attendance', 'attendanceImport', 'timetable', 'todoDashboard', 'dashboardSetup'].includes(section);
+      document.querySelector('.planner-save').hidden = ['cover', 'attendance', 'attendanceImport', 'timetable', 'todoDashboard', 'dashboardSetup', 'juniorTeaching'].includes(section);
       save.textContent = section === 'setup' ? 'Save school-wide setup' : 'Save changes';
       document.getElementById('save-note').textContent = section === 'setup' ? 'These settings are shared by all planners for this year.' :
         'Private Planner edits autosave. Wait for Autosaved before closing.';
@@ -3009,6 +3020,14 @@
         const host = el('section');
         content.append(host); mountDashboardSetup(host); loaded = true;
         notice('Dashboard settings save separately from Planner notes, privately to your account.');
+        return;
+      }
+      if (section === 'juniorTeaching') {
+        if (!globalThis.plannerJuniorTeaching) throw new Error('JuniorDTECH assets are unavailable.');
+        globalThis.plannerJuniorTeaching.mountPage(content, { el, year, request: juniorTeachingRequest,
+          openTeachingDay: () => navigatePlannerSection('timetable') });
+        loaded = true;
+        notice('JuniorDTECH reads Trello; class progress is confirmed separately.');
         return;
       }
       if (section === 'period' && dashboardMode) {
@@ -3189,7 +3208,7 @@
   }
   form.addEventListener('submit', event => {
     event.preventDefault();
-    if (!['attendance', 'attendanceImport', 'timetable', 'todoDashboard', 'dashboardSetup'].includes(section) && !(section === 'setup' && setupTab !== 0)) saveEntry();
+    if (!['attendance', 'attendanceImport', 'timetable', 'todoDashboard', 'dashboardSetup', 'juniorTeaching'].includes(section) && !(section === 'setup' && setupTab !== 0)) saveEntry();
   });
   document.querySelectorAll('[data-section]').forEach((button) => button.addEventListener('click', () => {
     return navigatePlannerSection(button.dataset.section);

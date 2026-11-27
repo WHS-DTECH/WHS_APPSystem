@@ -518,6 +518,129 @@ test('Friday class boxes use the saved default while explicit buttons remain one
     card.metadata.teaching_date = '2026-11-27';
     return card;
   });
+  await test('verified JuniorDTECH classes use shared preparation only when a dated card is absent', async () => {
+    const calls = [], disposed = [];
+    const context = { plannerSessionSchema: require('./public/session-schema'), URLSearchParams,
+      plannerJuniorTeaching: { mountSession(host, selected) {
+        calls.push({ classKey: selected.classKey, title: selected.title });
+        host.append(node('p', 'Shared preparation'));
+        return { dispose() { disposed.push(true); } };
+      } } };
+    vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-day-trello'), 'utf8'), context);
+    const dated = teachingSlotFixture('JPI');
+    const feed = { status: 'ok', issues: [], cards: [dated], unassigned: [] };
+    const dashboard = context.plannerTeachingDayTrello.dashboard(node(), {
+      date: '2026-11-23', slot: 'p2', classKey: 'JPI', title: 'PIDTECH (JPI)', cardId: ''
+    }, { el: node, request: async () => feed, loadSchedule: async () => ({ events: [] }),
+      juniorRequest: async () => ({}), openJunior() {} });
+    const selected = node(); dashboard.showTrello(selected);
+    await flush(); await flush();
+    assert.equal(calls.length, 0, 'dated preparation takes precedence');
+    feed.cards = [];
+    dashboard.selectSession({ cardId: '' });
+    assert.equal(calls.at(-1).classKey, 'JPI');
+    dashboard.selectSession({ classKey: 'JSR', title: 'SRDTECH (JSR)', slot: 'p3' });
+    assert.equal(calls.at(-1).classKey, 'JSR');
+    assert.ok(disposed.length, 'switching sessions disposes the earlier read');
+    const before = calls.length;
+    dashboard.selectSession({ classKey: 'JPI', title: 'OTHER (JPI)' });
+    assert.equal(calls.length, before, 'a class code alone does not establish the teaching course');
+    feed.issues = [{ cardId: 'x', message: 'Ambiguous' }];
+    dashboard.selectSession({ classKey: 'JPI', title: 'PIDTECH (JPI)' });
+    assert.equal(calls.length, before, 'ambiguous dated data is not replaced with guessed preparation');
+  });
+  await test('shared preparation reads separate class progress and includes kits only on explicit session selection', async () => {
+    const context = { URL, document: { createTextNode: value => node('#text', value) } };
+    vm.runInNewContext(fs.readFileSync(require.resolve('./public/junior-teaching'), 'utf8'), context);
+    const el = (tag, text, attrs) => {
+      const item = node(tag, text, attrs);
+      item.prepend = (...children) => item.children.unshift(...children);
+      return item;
+    };
+    const sourceCard = title => ({ title, url: 'https://trello.com/c/source', description: 'Type: Unit lesson\nInstructions: ' + title });
+    const entries = [
+      { id: 'a', title: 'Typing Kit', kind: 'routine', source: sourceCard('Typing Kit') },
+      { id: 'b', title: 'Binary Piano', kind: 'unit', sequence: 'Binary & Data', sequenceKey: 'unit:Binary & Data', source: sourceCard('Binary Piano') },
+      { id: 'c', title: 'Encoding Binary', kind: 'unit', sequence: 'Binary & Data', sequenceKey: 'unit:Binary & Data', source: sourceCard('Encoding Binary') },
+      { id: 'd', title: 'Blueprint', kind: 'kit', sequence: 'Minecraft', sequenceKey: 'kit:Minecraft', source: sourceCard('Blueprint') },
+      { id: 'e', title: 'Walkthrough', kind: 'kit', sequence: 'Minecraft', sequenceKey: 'kit:Minecraft', source: sourceCard('Walkthrough') }
+    ];
+    const data = { entries, issues: [], progress: [
+      { class_key: 'JPI', sequence_key: 'unit:Binary & Data', entry_id: 'c', revision: 1 },
+      { class_key: 'JSR', sequence_key: 'unit:Binary & Data', entry_id: 'b', revision: 1 },
+      { class_key: 'JSR', sequence_key: 'kit:Minecraft', entry_id: 'e', revision: 2 }
+    ] };
+    const writes = [], host = node();
+    const request = async (path, options) => {
+      if (options) { writes.push({ path, body: options.body }); return { kits: options.body.kits, revision: 1 }; }
+      return path === '2026' ? data : { kits: [], revision: 0 };
+    };
+    context.plannerJuniorTeaching.mountSession(host, { date: '2026-11-27', slot: 'p3', classKey: 'JSR' },
+      { el, request, openPage() {} });
+    await flush(); await flush();
+    let nodes = slotDescendants(host);
+    assert.ok(nodes.some(item => item.textContent === 'Current: Binary Piano'));
+    assert.ok(nodes.some(item => item.textContent === 'Typing Kit'));
+    assert.ok(!nodes.some(item => item.textContent === 'Current: Walkthrough'));
+    assert.equal(writes.length, 0, 'opening a session never writes progress or kit selection');
+    const checkbox = nodes.find(item => item.tag === 'input');
+    checkbox.checked = true; await checkbox.events.change();
+    await flush();
+    nodes = slotDescendants(host);
+    assert.ok(nodes.some(item => item.textContent === 'Current: Walkthrough'));
+    assert.ok(nodes.some(item => item.textContent === 'Current: Binary Piano'));
+    assert.equal(writes.length, 1);
+    assert.equal(writes[0].path, 'session/2026-11-27/p3/JSR');
+    assert.equal(JSON.stringify(writes[0].body), JSON.stringify({ kits: ['kit:Minecraft'], revision: 0 }));
+    const jpi = node();
+    context.plannerJuniorTeaching.mountSession(jpi, { date: '2026-11-27', slot: 'p2', classKey: 'JPI' },
+      { el, request, openPage() {} });
+    await flush(); await flush();
+    assert.ok(slotDescendants(jpi).some(item => item.textContent === 'Current: Encoding Binary'));
+    assert.equal(writes.length, 1);
+  });
+  await test('JuniorDTECH progress controls require confirmation and prevent duplicate submissions', async () => {
+    let confirmed = false, finish;
+    const context = { URL, confirm: () => confirmed, document: { createTextNode: value => node('#text', value) } };
+    vm.runInNewContext(fs.readFileSync(require.resolve('./public/junior-teaching'), 'utf8'), context);
+    const el = (tag, text, attrs) => {
+      const item = node(tag, text, attrs);
+      item.prepend = (...children) => item.children.unshift(...children);
+      return item;
+    };
+    const sourceCard = title => ({ id: title, title, url: 'https://trello.com/c/source', description: 'Instructions: ' + title });
+    const entries = [
+      { id: 'b', name: 'Binary Piano', title: 'Binary Piano', kind: 'unit', sequence: 'Binary & Data',
+        sequenceKey: 'unit:Binary & Data', url: 'https://trello.com/c/piano', source: sourceCard('Binary Piano') },
+      { id: 'c', name: 'Encoding Binary', title: 'Encoding Binary', kind: 'unit', sequence: 'Binary & Data',
+        sequenceKey: 'unit:Binary & Data', url: 'https://trello.com/c/encoding', source: sourceCard('Encoding Binary') }
+    ];
+    const data = { entries, issues: [], progress: [], libraries: { units: entries.map(entry => entry.source), kits: [] } };
+    const writes = [], host = node();
+    const request = async (_path, options) => {
+      if (!options) return data;
+      writes.push(options.body);
+      await new Promise(resolve => { finish = resolve; });
+      data.progress.push({ class_key: options.body.classKey, sequence_key: options.body.sequenceKey,
+        entry_id: options.body.entryId, revision: 1 });
+      return { revision: 1 };
+    };
+    context.plannerJuniorTeaching.mountPage(host, { el, year: 2026, request, openTeachingDay() {} });
+    await flush(); await flush();
+    const progress = slotDescendants(host).find(item => item.attrs['aria-label'] === 'Class progress');
+    const panel = progress.children.find(item => item.attrs.class === 'teaching-day-card');
+    const choice = panel.children.find(item => item.tag === 'select');
+    const set = panel.children.find(item => item.textContent === 'Set current');
+    choice.value = 'c'; await set.events.click();
+    assert.equal(writes.length, 0, 'cancelling confirmation does not write');
+    confirmed = true;
+    const pending = set.events.click(); set.events.click();
+    assert.equal(writes.length, 1, 'a pending request cannot be submitted twice');
+    finish(); await pending;
+    assert.equal(writes[0].classKey, 'JPI');
+    assert.equal(writes[0].entryId, 'c');
+    assert.equal(writes[0].action, 'set');
+  });
   const dashboard = context.plannerTeachingDayTrello.dashboard(host, {
     date: '2026-11-27', slot: 'whanau', classKey: '9WHAU', cardId: ''
   }, { el: node, request: async () => ({ status: 'ok', issues: [], cards, unassigned: [] }),

@@ -82,11 +82,16 @@
       el('a', 'Open in Trello', { href: card.url, target: '_blank', rel: 'noopener noreferrer' }));
     return article;
   }
-  function dashboard(host, context, { el, request, loadSchedule, select, openNotesSession, openTrelloSession, changeDate, termControl, termError, defaultView = () => 'trello' }) {
+  function dashboard(host, context, { el, request, loadSchedule, select, openNotesSession, openTrelloSession, changeDate, termControl, termError, openJunior, juniorRequest, defaultView = () => 'trello' }) {
     const page = el('section', '', { class: 'teaching-dashboard', 'aria-label': 'Teaching Dashboard' });
     const heading = el('div', '', { class: 'teaching-dashboard-heading', 'data-planner-navigation': '' });
     if (termControl) heading.append(termControl);
     heading.append(el('h2', 'Teaching Dashboard', { class: 'paper-heading' }));
+    if (openJunior) {
+      const junior = el('button', 'JuniorDTECH', { type: 'button' });
+      junior.addEventListener('click', openJunior);
+      heading.append(junior);
+    }
     if (termError) heading.append(el('p', termError, { role: 'alert' }));
     page.append(heading);
     const columns = el('div', '', { class: 'teaching-dashboard-columns' });
@@ -108,7 +113,7 @@
     const refresh = el('button', 'Refresh Trello information', { type: 'button' });
     left.append(el('h3', 'Teaching Day'), dateLabel, dateControls, scheduleMessage, sessions, refresh, message, cards);
     columns.append(left, workspace); page.append(columns); host.append(page);
-    let result, error, scheduleError, selectedHost, generation = 0, switching = false, reading = false, dateChanging = false;
+    let result, error, scheduleError, selectedHost, juniorSession, generation = 0, switching = false, reading = false, dateChanging = false;
     let scheduledSessions = [];
     function updateControls() {
       const dateDisabled = switching || dateChanging;
@@ -177,13 +182,25 @@
     }
     function renderSelected() {
       if (!selectedHost?.isConnected) return;
+      juniorSession?.dispose(); juniorSession = undefined;
       selectedHost.replaceChildren();
       if (error) { selectedHost.append(el('p', error + ' Notes remain available.', { role: 'alert' })); return; }
       if (!result) { selectedHost.append(el('p', 'Reading Trello...', { role: 'status' })); return; }
       const card = result.cards.find(card => (!context.cardId || card.id === context.cardId) &&
         card.metadata.session_slot === context.slot && (card.metadata.class_key === context.classKey ||
           !context.classKey && context.cardId === card.id));
-      if (!card) { selectedHost.append(el('p', 'Trello preparation is unavailable for this session. Notes remain available and unchanged.', { role: 'status' })); return; }
+      if (!card) {
+        const verifiedJunior = context.classKey === 'JPI' && /^PIDTECH\s*\(JPI\)$/i.test(context.title || '') ||
+          context.classKey === 'JSR' && /^SRDTECH\s*\(JSR\)$/i.test(context.title || '');
+        if (verifiedJunior && juniorRequest && globalThis.plannerJuniorTeaching &&
+            result.status !== 'not_configured' && !result.issues?.length) {
+          juniorSession = globalThis.plannerJuniorTeaching.mountSession(selectedHost, context,
+            { el, request: juniorRequest, openPage: openJunior });
+        } else {
+          selectedHost.append(el('p', 'Trello preparation is unavailable for this session. Notes remain available and unchanged.', { role: 'status' }));
+        }
+        return;
+      }
       selectedHost.append(renderCard(el, card, false, true, context.programme));
     }
     function sessionCard(card, unavailable = false) {

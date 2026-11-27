@@ -2127,6 +2127,40 @@ service shell. It adds `preferences` to the existing section constraint without
 changing any saved records. The command uses `TEACHER_PLANNER_DATABASE_URL`;
 do not run Core or KAMAR migrations for this setting.
 
+#### JuniorDTECH shared teaching order
+
+Open **Teaching Dashboard → JuniorDTECH** to read the `JuniorDTECH`, `Unit Plans`
+and `Licence Kit Plans` lists on the configured teaching board. The Planner does
+not add, edit or reorder Trello cards: maintain their content and order in Trello,
+then use **Refresh from Trello**. Each order card must link to its original
+library card using `Library card: https://trello.com/c/...` (or `Source:` when
+that is the Trello library card). Matching `Type`, `Unit`/`Plan` and
+`Lesson`/`Activity` fields identify the source. Supported types are `Routine`,
+`Unit lesson` and `Licence Kit activity`. Missing, mismatched and duplicate
+references are reported instead of guessed; instructions and links come from
+the current library card.
+
+Use **Set current** to confirm or correct a homeroom's current activity, and
+**Ready to move on** to explicitly advance to the next item in that sequence.
+JPI and JSR, unit lessons and each licence kit have separate progress. Progress
+uses the stable order-card ID, not its position; a removed or invalid current
+card requires review. Opening or previewing a class, changing date, editing
+Trello, or refreshing never advances progress. These decisions do not alter
+existing session Notes or the earlier JPI confirmed-session records.
+
+For verified `PIDTECH (JPI)` and `SRDTECH (JSR)` timetable sessions, an existing
+dated preparation card takes precedence. Otherwise the Trello Planner shows
+the shared routines and each class's confirmed unit activity. Select **Include
+this kit in this session** to show a kit's confirmed activity for that date,
+period and class. Notes remain independent and usable if Trello is unavailable.
+Ambiguous dated-card data is not replaced with guessed shared preparation.
+
+Before using this pilot, apply `017_junior_teaching.sql` with
+`npm run db:migrate:planner` in the Render service shell. This uses the separate
+`TEACHER_PLANNER_DATABASE_URL`. Only the configured teaching-board owner can
+read the board or change this progress; the integration requires the existing
+read-only Trello token, and Planner writes use CSRF and revision checks.
+
 The [canonical teaching preparation card contract](docs/teaching-preparation-card-format.md)
 provides a copyable master template, complete metadata/heading/resource rules,
 and Whanau, JuniorDTECH and MiddleDTECH examples for ChatGPT automation.
