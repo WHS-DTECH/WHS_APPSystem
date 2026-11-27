@@ -117,7 +117,8 @@
     const refresh = el('button', 'Refresh Trello information', { type: 'button' });
     left.append(el('h3', 'Teaching Day'), dateLabel, dateControls, scheduleMessage, sessions, refresh, message, cards);
     columns.append(left, workspace); page.append(columns); host.append(page);
-    let result, error, scheduleError, selectedHost, juniorSession, generation = 0, switching = false, reading = false, dateChanging = false;
+    let result, error, scheduleError, selectedHost, juniorSession, plannedTitles, generation = 0, titlesGeneration = 0,
+      switching = false, reading = false, dateChanging = false;
     let scheduledSessions = [];
     function updateControls() {
       const dateDisabled = switching || dateChanging;
@@ -170,6 +171,7 @@
       }
     }
     function selectSession(next) {
+      plannedTitles = undefined;
       Object.assign(context, next);
       dateInput.value = context.date;
       dateLabel.textContent = globalThis.plannerSessionSchema.dateLabel(context.date);
@@ -179,6 +181,43 @@
       }
       renderSchedule();
       renderSelected();
+    }
+    function updatePlannedTitles() {
+      if (!plannedTitles) return;
+      const current = ++titlesGeneration, callback = plannedTitles;
+      const card = result?.cards.find(item => item.metadata.teaching_date === context.date &&
+        item.metadata.session_slot === context.slot && context.classKey && item.metadata.class_key === context.classKey);
+      if (card?.description?.includes('[TEACHING_DASHBOARD_V1]') && globalThis.plannerTeachingSlots) {
+        try {
+          const plan = globalThis.plannerTeachingSlots.parse(card.description);
+          if (['teaching_date', 'session_slot', 'class_key', 'session_type'].every(key => plan.metadata[key] === card.metadata[key])) {
+            plannedTitles(plan.slots.map(slot => slot.title), 'Dated Trello plan (reference only):');
+            return;
+          }
+        } catch (failure) {
+          if (!(failure instanceof globalThis.plannerTeachingSlots.FormatError)) throw failure;
+          console.warn('Planned activity titles could not be read from the dated Trello card.');
+        }
+      }
+      callback([], '');
+      const junior = context.classKey === 'JPI' && /^PIDTECH\s*\(JPI\)$/i.test(context.title || '') ||
+        context.classKey === 'JSR' && /^SRDTECH\s*\(JSR\)$/i.test(context.title || '');
+      const middle = context.classKey && new RegExp('^MDTECH\\s*\\(' + context.classKey + '\\)$', 'i').test(context.title || '');
+      const read = middle ? middleRequest : junior ? juniorRequest : null;
+      if (card || !result || error || context.date < todayDate() || !read ||
+          result.status === 'not_configured' || result.issues?.length || !globalThis.plannerJuniorTeaching?.proposedEntries) return;
+      const selected = { date: context.date, slot: context.slot, classKey: context.classKey };
+      (async () => {
+        const semester = middle ? await semesterForDate(selected.date) : null;
+        const scope = selected.date.slice(0, 4) + (semester ? '/' + semester : '');
+        const [catalogue, kits] = await Promise.all([read(scope), read('session/' + selected.date + '/' + selected.slot + '/' + selected.classKey)]);
+        if (current !== titlesGeneration || callback !== plannedTitles || !page.isConnected) return;
+        const titles = globalThis.plannerJuniorTeaching.proposedEntries(catalogue, kits, selected.classKey).map(entry => entry.title);
+        callback(titles, 'Shared sequence draft (reference only):');
+      })().catch(failure => {
+        if (current !== titlesGeneration || callback !== plannedTitles || !page.isConnected) return;
+        callback([], '', failure.message + ' Planned activity titles could not be loaded; Notes remain available.');
+      });
     }
     function setBusy(value) {
       switching = value; workspace.inert = value; workspace.setAttribute('aria-busy', String(value));
@@ -304,6 +343,7 @@
       dateInput.value = value;
       dateLabel.textContent = globalThis.plannerSessionSchema.dateLabel(value);
       result = undefined; error = undefined; cards.replaceChildren();
+      updatePlannedTitles();
       scheduledSessions = schedule;
       scheduleError = failure;
       renderSchedule(); renderSelected();
@@ -323,6 +363,7 @@
     }
     async function load() {
       const current = ++generation; reading = true; updateControls(); result = undefined; error = undefined;
+      updatePlannedTitles();
       message.setAttribute('role', 'status'); message.textContent = 'Reading Trello...'; cards.replaceChildren(); renderSelected();
       const schedule = await readSchedule(context.date);
       if (current !== generation || !page.isConnected) {
@@ -365,7 +406,7 @@
         error = failure.message; message.setAttribute('role', 'alert'); message.textContent = error + ' Notes remain available.';
       } finally {
         if (current === generation && page.isConnected) {
-          renderSchedule(); reading = false; updateControls(); renderSelected();
+          renderSchedule(); reading = false; updateControls(); updatePlannedTitles(); renderSelected();
         }
       }
     }
@@ -414,6 +455,8 @@
     return { get date() { return context.date; }, workspace, selectSession, setBusy,
       setDate, readSchedule, noSessions, refresh: load,
       updateSavedSession: (content, revision) => { if (context.savedSession) Object.assign(context.savedSession, { content, revision }); },
+      plannedTitles: callback => { plannedTitles = callback; updatePlannedTitles(); },
+      refreshPlannedTitles: updatePlannedTitles,
       showTrello: host => { selectedHost = host; renderSelected(); } };
   }
   function mount(host, context, { el, request }) {

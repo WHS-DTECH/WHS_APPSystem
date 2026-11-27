@@ -8,6 +8,16 @@
     }
     return result;
   }
+  function proposedEntries(data, selection, classKey) {
+    const chosen = new Set(data.entries.filter(item => item.kind === 'routine').map(item => item.id));
+    for (const [key, entries] of groups(data.entries)) {
+      if (entries[0].kind === 'kit' && !selection.kits.includes(key)) continue;
+      const saved = data.progress.find(row => row.class_key === classKey && row.sequence_key === key);
+      const entry = entries.find(item => item.id === saved?.entry_id);
+      if (entry) chosen.add(entry.id);
+    }
+    return data.entries.filter(entry => chosen.has(entry.id));
+  }
   function textWithLinks(el, text) {
     const container = el('p', '', { class: 'session-preserved-text' });
     const lines = text.split(/\r?\n/).filter(line => !/^(?:Type|Unit|Lesson|Plan|Activity|Library card):/i.test(line));
@@ -234,7 +244,6 @@
         body.append(el('p', 'No MiddleDTECH teaching order has been set'));
       }
       const sets = groups(data.entries);
-      const chosen = new Set(data.entries.filter(item => item.kind === 'routine').map(item => item.id));
       const continuation = [];
       for (const [key, entries] of sets) {
         const first = entries[0], saved = data.progress.find(row => row.class_key === context.classKey && row.sequence_key === key);
@@ -252,7 +261,6 @@
         if (!saved) section.append(el('p', 'No current activity confirmed. Set progress in ' + name + '.'));
         else if (index < 0) section.append(el('p', 'The saved current activity is missing from the verified order and needs review.', { role: 'alert' }));
         else {
-          chosen.add(entries[index].id);
           section.append(el('p', 'Current: ' + entries[index].title));
           if (data.issues.some(issue => issue.list === name)) {
             section.append(el('p', 'Review the teaching order before identifying the next activity.', { role: 'alert' }));
@@ -273,7 +281,7 @@
         warning.append(el('p', key + ': a kit selected for this session is unavailable and needs review.'), remove);
         body.append(warning);
       }
-      const entries = data.entries.filter(entry => chosen.has(entry.id));
+      const entries = proposedEntries(data, selection, context.classKey);
       if (entries.length) {
         const slot = globalThis.plannerSessionSchema.slots.find(item => item[0] === context.slot);
         const plan = { metadata: { class_key: context.classKey, display_title: name + ' proposed session',
@@ -292,5 +300,5 @@
     load();
     return { dispose() { disposed = true; } };
   }
-  globalThis.plannerJuniorTeaching = { mountPage, mountSession };
+  globalThis.plannerJuniorTeaching = { mountPage, mountSession, proposedEntries };
 })();

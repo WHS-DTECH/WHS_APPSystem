@@ -17,8 +17,10 @@ function validDate(value) {
 function validContent(content) {
   const minutes = value => value === null || typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1440;
   const string = (value, limit) => typeof value === 'string' && value.length <= limit;
-  if (!content || Array.isArray(content) || Object.keys(content).sort().join(',') !== 'activities,evaluation,note' ||
+  if (!content || Array.isArray(content) ||
+      !['activities,evaluation,note', 'activities,actualProgress,evaluation,note'].includes(Object.keys(content).sort().join(',')) ||
       !string(content.note, 20000) || !string(content.evaluation, 20000) ||
+      (content.actualProgress !== undefined && !string(content.actualProgress, 20000)) ||
       !Array.isArray(content.activities) || content.activities.length > 50) return false;
   return content.activities.every(item => item && !Array.isArray(item) &&
     Object.keys(item).sort().join(',') === 'actualMinutes,id,plannedMinutes,sourceId,status,teachingNote,title' &&
@@ -30,11 +32,13 @@ function validContent(content) {
 function validSessionContent(content, slot) {
   const time = value => typeof value === 'string' && (value === '' || /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value));
   const session = content?.session;
-  return Boolean(content && Object.keys(content).sort().join(',') === 'activities,evaluation,note,session' &&
+  return Boolean(content && ['activities,evaluation,note,session', 'activities,actualProgress,evaluation,note,session'].includes(Object.keys(content).sort().join(',')) &&
     typeof content.note === 'string' && content.note.length <= 20000 &&
+    (content.actualProgress === undefined || typeof content.actualProgress === 'string' && content.actualProgress.length <= 20000) &&
     typeof content.evaluation === 'string' && content.evaluation.length <= 20000 &&
     Array.isArray(content.activities) && content.activities.length === 0 &&
-    session && Object.keys(session).sort().join(',') === 'endTime,startTime,title,type' &&
+    session && ['endTime,startTime,title,type', 'classKey,endTime,startTime,title,type'].includes(Object.keys(session).sort().join(',')) &&
+    (session.classKey === undefined || typeof session.classKey === 'string' && /^[A-Z0-9][A-Z0-9_-]{0,39}$/.test(session.classKey)) &&
     typeof session.title === 'string' && session.title.trim() && session.title.length <= 200 &&
     types.includes(session.type) && (slot !== 'whanau' || session.type === 'whanau') &&
     time(session.startTime) && time(session.endTime) &&
@@ -120,17 +124,39 @@ function createTeachingSessionsRouter({ query, timetable = loadTimetable, conten
     return { id: event.id, date: value, start: event.start, end: event.end, location: 'CW',
       title: event.title, className: 'JPI', classKey: 'JPI', course: 'JuniorDTECH', groupKey: GROUP, type: 'teaching', slot: 'p2' };
   }
+  async function previousJpiSession(owner, year, value, slot) {
+    const slotOrder = slots.map(item => item[0]);
+    const groups = slotOrder.map(key => 'session:' + key + ':JPI');
+    const result = await query(`SELECT session_date::text AS session_date,slot_key,content,confirmed_content
+      FROM planner_sessions WHERE owner_id=$1 AND year=$2 AND (group_key=$3 OR group_key=ANY($4::text[])
+        OR (group_key=ANY($8::text[]) AND upper(trim(content->'session'->>'title'))='PIDTECH (JPI)'))
+        AND (session_date<$5 OR (session_date=$5 AND array_position($6::text[],slot_key)<array_position($6::text[],$7)))
+      ORDER BY session_date DESC,array_position($6::text[],slot_key) DESC LIMIT 1`,
+    [owner, year, GROUP, groups, value, slotOrder, slot, slotOrder.map(key => 'session:' + key)]);
+    return result.rows[0] || null;
+  }
   async function genericPlan(req, res) {
     const { date: value, slot } = req.params, owner = req.user.id, year = Number(value.slice(0, 4));
-    const group = 'session:' + slot, id = 'session:' + value + ':' + slot;
+    const legacyGroup = 'session:' + slot, legacyId = 'session:' + value + ':' + slot;
     const definition = slots.find(item => item[0] === slot);
     if (req.method === 'GET') {
-      const record = await query(`SELECT content,revision,updated_at FROM planner_sessions
-        WHERE owner_id=$1 AND year=$2 AND session_date=$3 AND group_key=$4 AND slot_key=$5`, [owner, year, value, group, slot]);
       const events = definition ? await timetableEvents(owner, value) : null;
       const matches = definition ? (events || []).filter(event => clock(event.start) === definition[2] && clock(event.end) === definition[3]) : [];
       const ambiguous = matches.length > 1;
-      const event = ambiguous ? null : matches[0], row = record.rows[0];
+      const event = ambiguous ? null : matches[0];
+      const classKey = event && /^[^(]+\(([A-Z0-9][A-Z0-9_-]{0,39})\)$/i.exec(event.title.trim())?.[1].toUpperCase() || null;
+      const group = classKey ? legacyGroup + ':' + classKey : legacyGroup;
+      const record = await query(`SELECT content,revision,updated_at FROM planner_sessions
+        WHERE owner_id=$1 AND year=$2 AND session_date=$3 AND group_key=$4 AND slot_key=$5`, [owner, year, value, group, slot]);
+      const legacy = classKey ? await query(`SELECT content,revision,updated_at FROM planner_sessions
+        WHERE owner_id=$1 AND year=$2 AND session_date=$3 AND group_key=$4 AND slot_key=$5`, [owner, year, value, legacyGroup, slot]) : null;
+      const otherClasses = await query(`SELECT group_key,content FROM planner_sessions
+        WHERE owner_id=$1 AND year=$2 AND session_date=$3 AND LEFT(group_key,LENGTH($4))=$4 AND slot_key=$5
+        ORDER BY group_key`, [owner, year, value, legacyGroup + ':', slot]);
+      const previousSession = classKey === 'JPI' ? await previousJpiSession(owner, year, value, slot) : null;
+      const old = legacy?.rows[0];
+      const adopted = old && old.content.session?.title.trim().toUpperCase() === event.title.trim().toUpperCase();
+      const row = record.rows[0] || (adopted ? old : null);
       const session = row?.content.session || {
         title: event?.title || definition?.[1] || 'Manual commitment',
         type: slot === 'whanau' ? 'whanau' : event ? 'teaching' : 'meeting',
@@ -141,9 +167,14 @@ function createTeachingSessionsRouter({ query, timetable = loadTimetable, conten
         title: event?.title || session.title,
         location: /^PIDTECH\s*\(JPI\)$/i.test(event?.title || '') ||
           value === '2026-11-23' && slot === 'whanau' && /^WHANAU\s*\(9WHAU\)$/i.test(event?.title || '') ? 'CW' : event?.location || '',
-        classKey: event && /^[^(]+\(([A-Z0-9_-]+)\)$/i.exec(event.title.trim())?.[1].toUpperCase() || null,
+        classKey,
         source: ambiguous ? 'ambiguous' : event ? 'KAMAR' : 'manual' },
-        content: row?.content || { note: '', evaluation: '', activities: [], session },
+        content: { ...(row?.content || { note: '', evaluation: '', activities: [], session }),
+          session: { ...session, ...(classKey ? { classKey } : {}) } },
+        unassignedNotes: old && (!adopted || record.rows.length) ? old.content : null,
+        otherClassNotes: otherClasses.rows.filter(item => item.group_key !== group)
+          .map(item => ({ classKey: item.group_key.slice((legacyGroup + ':').length), content: item.content })),
+        previousSession,
         revision: row?.revision || 0, updated_at: row?.updated_at || null });
     }
     const body = req.body;
@@ -153,7 +184,35 @@ function createTeachingSessionsRouter({ query, timetable = loadTimetable, conten
       console.warn('Session notes rejected.');
       return res.status(400).json({ error: 'Check the session title, type, times and notes. Class-progress confirmation is available only in the verified JPI teaching pilot.' });
     }
+    const classKey = body.content.session.classKey;
+    if (classKey) {
+      const events = definition ? await timetableEvents(owner, value, true) : [];
+      const matches = events.filter(event => clock(event.start) === definition[2] && clock(event.end) === definition[3]);
+      const match = matches.length === 1 && /^[^(]+\(([A-Z0-9][A-Z0-9_-]{0,39})\)$/i.exec(matches[0].title.trim());
+      if (!match || match[1].toUpperCase() !== classKey) {
+        return res.status(409).json({ error: 'The timetable class has changed or is ambiguous. Your draft was not saved; copy it and reload.' });
+      }
+    }
+    const group = classKey ? legacyGroup + ':' + classKey : legacyGroup;
+    const id = classKey ? legacyId + ':' + classKey : legacyId;
     const params = [owner, year, id, value, group, JSON.stringify(body.content), slot, body.content.session.type];
+    if (classKey && body.revision > 0) {
+      const current = await query(`SELECT content,revision,updated_at FROM planner_sessions
+        WHERE owner_id=$1 AND year=$2 AND session_date=$3 AND group_key=$4 AND slot_key=$5`, [owner, year, value, group, slot]);
+      if (!current.rows.length) {
+        const old = await query(`SELECT content,revision,updated_at FROM planner_sessions
+          WHERE owner_id=$1 AND year=$2 AND session_date=$3 AND group_key=$4 AND slot_key=$5`, [owner, year, value, legacyGroup, slot]);
+        const events = await timetableEvents(owner, value);
+        const event = events.find(item => clock(item.start) === definition[2] && clock(item.end) === definition[3]);
+        if (old.rows[0]?.content.session?.title.trim().toUpperCase() === event?.title.trim().toUpperCase()) {
+          const moved = await query(`UPDATE planner_sessions SET content=$6,occurrence_id=$3,group_key=$5,session_type=$8,revision=revision+1,updated_at=NOW()
+            WHERE owner_id=$1 AND year=$2 AND session_date=$4 AND group_key=$10 AND slot_key=$7 AND revision=$9
+            RETURNING content,revision,updated_at`, [...params, body.revision, legacyGroup]);
+          if (!moved.rows.length) return res.status(409).json({ error: 'This session changed in another tab. Your draft is retained; copy it and reload before saving.' });
+          return res.json(moved.rows[0]);
+        }
+      }
+    }
     const result = body.revision === 0
       ? await query(`INSERT INTO planner_sessions(owner_id,year,occurrence_id,session_date,group_key,content,slot_key,session_type)
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT DO NOTHING RETURNING content,revision,updated_at`, params)
@@ -212,7 +271,7 @@ function createTeachingSessionsRouter({ query, timetable = loadTimetable, conten
       const event = existingRoutine ? await occurrence(owner, value, undefined, req.method === 'PUT') : null;
       if (!event) return await genericPlan(req, res);
       if (req.method === 'GET') {
-        const [record, checkpoint, history, teaching] = await Promise.all([
+        const [record, checkpoint, history, teaching, previousSession, oldSession, otherClasses] = await Promise.all([
           query(`SELECT content,revision,updated_at,confirmed_content,confirmed_at FROM planner_sessions
             WHERE owner_id=$1 AND year=$2 AND session_date=$3 AND group_key=$4 AND slot_key='p2'`, [owner, 2026, value, GROUP]),
           query('SELECT checkpoint_note,revision,confirmed_at FROM planner_class_contexts WHERE owner_id=$1 AND year=$2 AND group_key=$3', [owner, 2026, GROUP]),
@@ -220,12 +279,22 @@ function createTeachingSessionsRouter({ query, timetable = loadTimetable, conten
             WHERE owner_id=$1 AND year=$2 AND group_key=$3 AND session_date < $4
               AND session_type='teaching' AND slot_key='p2' AND unit_id='binary-and-data' AND lesson_id='lesson-binary-piano'
             ORDER BY session_date,occurrence_id`, [owner, 2026, GROUP, value]),
-          content()
+          content(),
+          previousJpiSession(owner, 2026, value, 'p2'),
+          query(`SELECT content,revision,updated_at FROM planner_sessions
+            WHERE owner_id=$1 AND year=$2 AND session_date=$3 AND group_key=$4 AND slot_key=$5`,
+          [owner, 2026, value, 'session:p2', 'p2']),
+          query(`SELECT group_key,content FROM planner_sessions
+            WHERE owner_id=$1 AND year=$2 AND session_date=$3 AND LEFT(group_key,LENGTH($4))=$4 AND slot_key=$5
+            ORDER BY group_key`, [owner, 2026, value, 'session:p2:', 'p2'])
         ]);
         const row = record.rows[0];
         return res.json({ available: true, event, teaching,
           routine: { id: ROUTINE, ...existingRoutine },
           checkpoint: checkpoint.rows[0] || { checkpoint_note: INITIAL_NOTE, revision: 0, confirmed_at: null },
+          unassignedNotes: oldSession.rows[0]?.content || null,
+          otherClassNotes: otherClasses.rows.map(item => ({ classKey: item.group_key.slice('session:p2:'.length), content: item.content })),
+          previousSession,
           previous: history.rows.filter(item => item.confirmed_content).map(item => ({ ...item, session_date: sessionDay(item.session_date) })),
           awaitingConfirmation: history.rows.filter(item => !item.confirmed_content ||
             JSON.stringify(progressContent(item.content)) !== JSON.stringify(progressContent(item.confirmed_content))).map(item => sessionDay(item.session_date)),

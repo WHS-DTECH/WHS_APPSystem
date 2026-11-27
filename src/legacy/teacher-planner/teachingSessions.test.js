@@ -16,6 +16,7 @@ const OTHER = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 async function fixture(t) {
   const records = new Map(), checkpoints = new Map(), statements = [];
   let clock = new Date('2026-11-24T00:00:00Z'), sourceVersion = 1, timetableReads = 0, classAvailable = true, ambiguousWhanau = false;
+  let whanauClass = '9WHAU';
   const query = async (sql, params) => {
     statements.push(sql);
     if (sql.includes('teacher_calendar_settings')) return { rows: [{ subscription_url: 'https://synthetic.invalid/timetable' }] };
@@ -27,8 +28,19 @@ async function fixture(t) {
     if (sql.includes("slot_key LIKE 'manual-%'")) return { rows: [...records.values()]
       .filter(row => row.owner_id === params[0] && row.date === params[1] && row.slot_key.startsWith('manual-'))
       .map(row => ({ slot_key: row.slot_key, title: row.content.session.title, session_type: row.session_type })) };
+    if (sql.includes('LEFT(group_key')) return { rows: [...records.values()]
+      .filter(row => row.owner_id === params[0] && row.date === params[2] &&
+        row.group_key.startsWith(params[3]) && row.slot_key === params[4]).map(row => structuredClone(row)) };
+    if (sql.includes('array_position')) return { rows: [...records.values()]
+      .filter(row => row.owner_id === params[0] && Number(row.date.slice(0, 4)) === params[1] &&
+        (row.group_key === params[2] || params[3].includes(row.group_key) ||
+          params[7].includes(row.group_key) && row.content.session?.title.trim().toUpperCase() === 'PIDTECH (JPI)') &&
+        (row.date < params[4] || row.date === params[4] && params[5].indexOf(row.slot_key) < params[5].indexOf(params[6])))
+      .sort((a, b) => b.date.localeCompare(a.date) || params[5].indexOf(b.slot_key) - params[5].indexOf(a.slot_key))
+      .slice(0, 1).map(row => ({ ...structuredClone(row), session_date: row.date })) };
     const select = sql.startsWith('SELECT');
-    const key = context ? params.slice(0, 3).join('|') : [params[0], params[1], params[select ? 2 : 3], params[select ? 3 : 4]].join('|');
+    let key = context ? params.slice(0, 3).join('|') : [params[0], params[1], params[select ? 2 : 3], params[select ? 3 : 4]].join('|');
+    if (sql.includes('group_key=$10')) key = [params[0], params[1], params[3], params[9]].join('|');
     const existing = store.get(key);
     if (sql.startsWith('SELECT')) {
       if (!context && sql.includes('session_date <')) return { rows: [...records.values()]
@@ -48,6 +60,10 @@ async function fixture(t) {
       confirmed_at: !generic && params[6] ? clock.toISOString() : existing?.confirmed_at || null
     };
     row.revision = (existing?.revision || 0) + 1;
+    if (sql.includes('group_key=$10')) {
+      store.delete(key);
+      key = [params[0], params[1], params[3], params[4]].join('|');
+    }
     store.set(key, structuredClone(row));
     return { rows: [row] };
   };
@@ -62,7 +78,7 @@ async function fixture(t) {
     timetable: async () => { timetableReads++; return { events: ['2026-11-23', '2026-11-30'].flatMap(day => [{
       id: day + '-jpi-' + sourceVersion, title: 'PIDTECH (JPI)', allDay: false,
       start: day + 'T10:00:00', end: day + 'T11:00:00', location: '05'
-    }, { id: day + '-whanau', title: 'WHANAU (9WHAU)', start: day + 'T08:45:00', end: day + 'T09:00:00', location: 'CW' },
+    }, { id: day + '-whanau', title: 'WHANAU (' + whanauClass + ')', start: day + 'T08:45:00', end: day + 'T09:00:00', location: 'CW' },
     ...(ambiguousWhanau ? [{ id: day + '-other', title: 'WHANAU (9OTHER)', start: day + 'T08:45:00', end: day + 'T09:00:00', location: 'CW' }] : [])])
       .filter(event => classAvailable || !event.title.includes('JPI')) }; }
   } }));
@@ -83,7 +99,8 @@ async function fixture(t) {
   return { records, checkpoints, statements, base, headers, get, put,
     timetableReads: () => timetableReads, removeClass: () => { classAvailable = false; },
     time: value => { clock = new Date(value); }, changeSource: () => { sourceVersion++; },
-    makeWhanauAmbiguous: () => { ambiguousWhanau = true; clock = new Date(clock.getTime() + 31000); } };
+    makeWhanauAmbiguous: () => { ambiguousWhanau = true; clock = new Date(clock.getTime() + 31000); },
+    setWhanauClass: value => { whanauClass = value; clock = new Date(clock.getTime() + 31000); } };
 }
 
 test('activity timing is explicit and optional, with unique activities and validated outcomes', () => {
@@ -243,13 +260,84 @@ test('ambiguous timetable events leave date-and-slot notes available without sel
   assert.equal(plan.event.source, 'ambiguous');
   assert.equal(plan.event.classKey, null);
   assert.equal(plan.event.location, '');
-  assert.equal(plan.content.note, 'Existing date and slot notes');
-  assert.equal(plan.revision, 1);
-  plan.content.note += ' updated';
-  assert.equal((await f.put(path, plan.content, 1)).status, 200);
-  assert.equal((await f.get(path)).content.note, 'Existing date and slot notes updated');
+  assert.equal(plan.content.note, '');
+  assert.equal(plan.otherClassNotes[0].content.note, 'Existing date and slot notes');
+  assert.equal(plan.revision, 0);
+  plan.content.note = 'Unassigned period note';
+  assert.equal((await f.put(path, plan.content, 0)).status, 200);
+  assert.equal((await f.get(path)).content.note, 'Unassigned period note');
+  assert.equal(f.records.size, 2);
+});
+
+test('session notes and actual progress follow class, date and period without overwriting earlier classes', async t => {
+  const f = await fixture(t), path = 'sessions/2026-11-23/whanau';
+  const first = await f.get(path);
+  first.content.actualProgress = 'Students completed the check-in';
+  first.content.note = 'Start with notices next time';
+  assert.equal((await f.put(path, first.content, 0)).status, 200);
+  f.setWhanauClass('9OTHER');
+  assert.equal((await f.put(path, first.content, 1)).status, 409, 'a stale class cannot save against the new timetable');
+  const second = await f.get(path);
+  assert.equal(second.content.note, '');
+  assert.equal(second.otherClassNotes[0].content.actualProgress, first.content.actualProgress);
+  second.content.actualProgress = 'Different class progress';
+  second.content.note = 'Different reminder';
+  assert.equal((await f.put(path, second.content, 0)).status, 200);
+  f.setWhanauClass('9WHAU');
+  const reopened = await f.get(path);
+  assert.equal(reopened.content.actualProgress, first.content.actualProgress);
+  assert.equal(reopened.content.note, first.content.note);
+  assert.equal(reopened.otherClassNotes[0].content.note, second.content.note);
+  assert.equal((await f.get('sessions/2026-11-30/whanau')).content.note, '');
+});
+
+test('legacy period notes are adopted only for a matching timetable title and remain available otherwise', async t => {
+  const f = await fixture(t), path = 'sessions/2026-11-23/whanau';
+  const legacy = await f.get(path);
+  delete legacy.content.session.classKey;
+  legacy.content.note = 'Existing original notes';
+  assert.equal((await f.put(path, legacy.content, 0)).status, 200);
+  f.setWhanauClass('9OTHER');
+  const other = await f.get(path);
+  assert.equal(other.content.note, '');
+  assert.equal(other.unassignedNotes.note, legacy.content.note);
+  f.setWhanauClass('9WHAU');
+  const matching = await f.get(path);
+  assert.equal(matching.content.note, legacy.content.note);
+  matching.content.actualProgress = 'Recorded now';
+  assert.equal((await f.put(path, matching.content, matching.revision)).status, 200);
+  const reopened = await f.get(path);
+  assert.equal(reopened.content.note, legacy.content.note);
+  assert.equal(reopened.content.actualProgress, 'Recorded now');
   assert.equal(f.records.size, 1);
-  assert.equal([...f.records.values()][0].group_key, 'session:whanau');
+});
+
+test('JPI previous recorded progress includes unconfirmed notes without confirming outcomes', async t => {
+  const f = await fixture(t), first = await f.get('sessions/2026-11-23/p2');
+  first.content.actualProgress = 'Reached the second example';
+  first.content.note = 'Start with a recap';
+  assert.equal((await f.put('sessions/2026-11-23/p2', first.content, 0)).status, 200);
+  const later = await f.get('sessions/2026-11-30/p2');
+  assert.equal(later.previousSession.content.actualProgress, first.content.actualProgress);
+  assert.equal(later.previous.length, 0);
+  assert.equal(later.previousSession.confirmed_content, null);
+});
+
+test('JPI previous session chooses the latest earlier period and never crosses class or year', async t => {
+  const f = await fixture(t);
+  const record = (date, slot, group, title, actualProgress) => {
+    const row = { owner_id: OWNER, date, session_date: date, slot_key: slot, group_key: group,
+      content: { session: { title }, actualProgress }, confirmed_content: null };
+    f.records.set([OWNER, date.slice(0, 4), date, group].join('|'), row);
+  };
+  record('2026-11-22', 'p2', 'session:p2:JPI', 'PIDTECH (JPI)', 'Earlier day');
+  record('2026-11-23', 'p1', 'session:p1', 'PIDTECH (JPI)', 'Earlier period');
+  record('2026-11-23', 'p3', 'session:p3:JPI', 'PIDTECH (JPI)', 'Later period');
+  record('2026-11-23', 'whanau', 'session:whanau:OTHER', 'OTHER', 'Different class');
+  record('2025-11-23', 'p2', 'session:p2:JPI', 'PIDTECH (JPI)', 'Different year');
+  const plan = await f.get('sessions/2026-11-23/p2');
+  assert.equal(plan.previousSession.content.actualProgress, 'Earlier period');
+  assert.equal(plan.previousSession.slot_key, 'p1');
 });
 
 test('manual commitments use independent stable IDs, can be reopened and never write calendar or class records', async t => {

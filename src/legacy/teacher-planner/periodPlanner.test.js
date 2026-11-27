@@ -398,7 +398,8 @@ test('Whanau and observation workspaces keep independent Notes drafts through th
     return { host, workspace, nodes: descend(host) };
   };
   const whanau = render('whanau', 'whanau', 'WHANAU (9WHAU)'), p1 = render('p1', 'observation', 'Observation');
-  const input = whanau.nodes.find(item => item.tag === 'textarea');
+  const input = whanau.nodes.find(item => item.tag === 'label' && item.children[0]?.textContent ===
+    'Changes, reminders and where to start next time').children[1];
   input.value = 'Unsaved Whanau notices';
   whanau.nodes.find(item => item.tag === 'button' && item.textContent === 'Trello').events.click();
   assert.equal(whanau.nodes.find(item => item.attrs['aria-label'] === 'Session Notes').hidden, true);
@@ -435,7 +436,8 @@ test('compact activity rows preserve progress and collapsed timing without chang
   assert.equal(descend(header).filter(item => item.tag === 'input').length, 1);
   assert.equal(details.tag, 'details');
   assert.equal(Boolean(details.open), false);
-  assert.deepEqual(JSON.parse(JSON.stringify(workspace.read())), content, 'mounting and collapsing do not erase saved timings or notes');
+  assert.deepEqual(JSON.parse(JSON.stringify(workspace.read())), { ...content, actualProgress: '' },
+    'mounting and collapsing do not erase saved timings or notes');
   descend(header).find(item => item.tag === 'select').value = 'completed';
   details.open = true;
   descend(details).find(item => item.tag === 'input' && item.attrs.type === 'number').value = '15';
@@ -446,6 +448,66 @@ test('compact activity rows preserve progress and collapsed timing without chang
   assert.equal(activity.plannedMinutes, 15);
   assert.equal(activity.actualMinutes, 7.5);
   assert.equal(activity.teachingNote, 'Two examples completed');
+});
+test('Notes shows JPI previous session and keeps actual progress separate from existing reminders', () => {
+  const context = { plannerSessionSchema: require('./public/session-schema') };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-session'), 'utf8'), context);
+  const host = node();
+  const data = {
+    event: { date: '2026-11-30', slot: 'p2', classKey: 'JPI', className: 'JPI', course: 'JuniorDTECH', location: 'CW' },
+    teaching: { unit: { title: 'Data', url: '/unit' }, lesson: { id: 'lesson-binary-piano', title: 'Piano', url: '/lesson' },
+      resources: [], preparation: [] },
+    routine: { priorities: '', instructions: '' }, checkpoint: { checkpoint_note: '', revision: 0 },
+    previous: [], awaitingConfirmation: [], canConfirm: true, legacy: { content: {} },
+    previousSession: { session_date: '2026-11-23', slot_key: 'p2', content: { actualProgress: 'Reached example two', note: 'Review first' },
+      confirmed_content: null },
+    content: { note: 'Existing reminder', evaluation: 'Existing evaluation', activities: [] }, revision: 1
+  };
+  let show;
+  const workspace = context.plannerTeachingSession.mount(host, data,
+    { el: node, legacy() {}, confirm() {}, plannedTitles: callback => { show = callback; } });
+  const nodes = slotDescendants(host);
+  assert.ok(nodes.some(item => item.tag === 'h3' && item.textContent === 'Previous progress — JPI'));
+  assert.ok(nodes.some(item => item.textContent === 'Reached example two'));
+  assert.ok(nodes.some(item => item.textContent === 'Review first'));
+  show(['Typing Kit', 'Encoding Binary'], 'Dated Trello plan (reference only):');
+  assert.ok(slotDescendants(host).some(item => item.textContent === 'Encoding Binary'));
+  const actual = nodes.find(item => item.tag === 'label' && item.children[0]?.textContent ===
+    'What students actually did and where they got up to').children[1];
+  actual.value = 'Completed example three';
+  assert.equal(workspace.read().actualProgress, 'Completed example three');
+  assert.equal(workspace.read().note, 'Existing reminder');
+  assert.equal(workspace.read().evaluation, 'Existing evaluation');
+});
+
+test('Notes references dated slots first and shared proposals only for current or upcoming sessions', async () => {
+  const context = { URLSearchParams, plannerSessionSchema: require('./public/session-schema'),
+    plannerTeachingSlots: require('./public/teaching-slots'),
+    plannerJuniorTeaching: { proposedEntries: (data, kits, key) => data.entries.filter(entry => entry.classKey === key) } };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-day-trello'), 'utf8'), context);
+  const dated = teachingSlotFixture(), feed = { status: 'ok', issues: [], cards: [dated], unassigned: [] }, paths = [];
+  const dashboard = context.plannerTeachingDayTrello.dashboard(node(), {
+    date: '2026-11-23', slot: 'p2', classKey: 'JPI', title: 'PIDTECH (JPI)'
+  }, { el: node, request: async () => feed, loadSchedule: async () => ({ events: [] }),
+    todayDate: () => '2026-11-20', juniorRequest: async path => {
+      paths.push(path);
+      return path.startsWith('session/') ? { kits: [] } : { entries: [{ classKey: 'JPI', title: 'Shared draft' }] };
+    } });
+  const results = [];
+  dashboard.plannedTitles((titles, label) => results.push({ titles: [...titles], label }));
+  await flush(); await flush();
+  assert.deepEqual(results.at(-1).titles, ['Typing Kit', 'Minecraft', 'Binary Piano — Review', 'Binary Piano — Decoding']);
+  assert.equal(paths.length, 0);
+  feed.cards = [];
+  dashboard.selectSession({ date: '2026-11-30' });
+  dashboard.plannedTitles((titles, label) => results.push({ titles: [...titles], label }));
+  await flush(); await flush();
+  assert.deepEqual(results.at(-1), { titles: ['Shared draft'], label: 'Shared sequence draft (reference only):' });
+  dashboard.selectSession({ date: '2026-11-01' });
+  dashboard.plannedTitles((titles, label) => results.push({ titles: [...titles], label }));
+  await flush();
+  assert.deepEqual(results.at(-1).titles, []);
+  assert.equal(paths.length, 2, 'past sessions do not reconstruct plans from current progress');
 });
 test('Current Teaching Day matches JPI and Whanau references independently and preserves Notes on refresh failure', async () => {
   const context = { plannerSessionSchema: require('./public/session-schema') };
@@ -470,7 +532,8 @@ test('Current Teaching Day matches JPI and Whanau references independently and p
   const descend = host => [host, ...host.children.filter(child => typeof child === 'object').flatMap(descend)];
   assert.equal(requests, 0, 'Notes loads without any Trello request');
   let nodes = descend(host);
-  nodes.find(item => item.tag === 'textarea').value = 'Unsaved Notes remain separate';
+  nodes.find(item => item.tag === 'label' && item.children[0]?.textContent ===
+    'Changes, reminders and where to start next time').children[1].value = 'Unsaved Notes remain separate';
   nodes.find(item => item.tag === 'button' && item.textContent === 'Trello').events.click();
   await flush(); nodes = descend(host);
   const selected = nodes.find(item => item.attrs.class === 'teaching-day-card teaching-day-card-current');

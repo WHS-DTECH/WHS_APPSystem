@@ -1817,13 +1817,27 @@ an editable draft, not evidence of completed learning. The teacher-reported
 starting checkpoint must be corrected/confirmed explicitly and is not assigned
 an invented historical teaching date.
 
-**Notes** is always the initial tab. **Trello** displays the optional read-only
-Current Teaching Day feed described below; it does not request the Term board,
-create cards or add browser-side Trello credentials.
-Switching tabs preserves the same draft controls and normal Planner autosaving.
-Activity titles and status controls use compact rows; existing timing and
-teaching-note controls are under expandable details. This presentation adds no
-fields and does not change saved content or progress confirmation.
+On the Teaching Dashboard, Teaching Day stays alongside the selected session.
+**Notes** shows Period Planner with previous progress for JPI only, planned
+activity titles for reference, an actual-progress box, and an adjustments and
+reminders box. JPI's previous session is the latest earlier saved JPI session
+in the same year, including an earlier period on the same day. Its recorded
+text and explicitly confirmed activity outcomes are labelled separately; an
+empty outcome is not inferred from a plan. Linked lesson and confirmation
+controls remain available under expandable details. Existing session notes,
+evaluation and original Period Planner records are retained.
+
+Both text boxes autosave with the selected date, period and
+verified timetable class. Older date-and-period notes are retained: a matching
+original timetable title can be adopted by that class; otherwise the notes are
+shown separately without assigning them to a class. A changed or ambiguous
+timetable cannot save a class-specific draft under another class. Other class
+notes for the same date and period are available separately.
+
+Planned titles may be read-only dated Trello slots, a labelled current/future
+shared-sequence draft, or saved session activities. Current progress is never
+used to reconstruct a past plan. The **Trello Planner** tab remains read-only;
+switching tabs preserves the same draft controls and normal Planner autosaving.
 
 Planner Notes, lesson records and confirmed classroom progress remain
 authoritative. Trello data must not populate, overwrite or confirm them, and

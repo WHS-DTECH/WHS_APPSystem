@@ -1091,7 +1091,9 @@
     }
     sessionPlanner = globalThis.plannerTeachingSession.mount(dashboard?.workspace || content, { ...data, legacy }, {
       el,
-      teachingDay, showTrello: dashboard?.showTrello, initialTrello: dashboardMode && dashboardTrello,
+      teachingDay, showTrello: dashboard?.showTrello, plannedTitles: dashboard?.plannedTitles,
+      refreshPlannedTitles: dashboard?.refreshPlannedTitles,
+      initialTrello: dashboardMode && dashboardTrello,
       viewChanged: useNotes => {
         if (!dashboardMode) return;
         dashboardTrello = !useNotes; history.replaceState(null, '', '#' + viewFragment());

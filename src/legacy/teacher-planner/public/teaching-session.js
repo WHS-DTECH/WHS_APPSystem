@@ -33,6 +33,7 @@
       notesButton.setAttribute('aria-pressed', String(useNotes));
       trelloButton.setAttribute('aria-pressed', String(!useNotes));
       helpers.viewChanged?.(useNotes);
+      if (useNotes) helpers.refreshPlannedTitles?.();
       if (!useNotes && helpers.showTrello) helpers.showTrello(trello);
       else if (!useNotes && helpers.teachingDay) {
         if (!teachingDay) teachingDay = globalThis.plannerTeachingDayTrello.mount(trello, () => ({
@@ -65,9 +66,89 @@
       const editLegacy = el('button', 'Edit original Period notes', { type: 'button', 'data-planner-navigation': '' });
       editLegacy.addEventListener('click', helpers.legacy);
       legacy.append(editLegacy); notes.append(legacy);
+      if (data.unassignedNotes) {
+        const unassigned = el('details');
+        unassigned.append(el('summary', 'Earlier date and period notes (class not verified)'),
+          el('p', 'These notes were saved before class-specific sessions. They have not been assigned to this class.'));
+        if (data.unassignedNotes.session?.title) unassigned.append(el('h4', 'Session title'),
+          el('p', data.unassignedNotes.session.title, { class: 'session-preserved-text' }));
+        for (const [label, value] of [['Session notes', data.unassignedNotes.note], ['Later evaluation', data.unassignedNotes.evaluation],
+          ['Actual progress', data.unassignedNotes.actualProgress]]) {
+          if (value) unassigned.append(el('h4', label), el('p', value, { class: 'session-preserved-text' }));
+        }
+        notes.append(unassigned);
+      }
+      if (data.otherClassNotes?.length) {
+        const other = el('details');
+        other.append(el('summary', 'Other saved class notes for this date and period'),
+          el('p', 'These notes are kept separately and do not overwrite this session.'));
+        for (const item of data.otherClassNotes) {
+          other.append(el('h4', item.classKey));
+          for (const [label, value] of [['Actual progress', item.content.actualProgress], ['Session notes', item.content.note],
+            ['Later evaluation', item.content.evaluation]]) {
+            if (value) other.append(el('h5', label), el('p', value, { class: 'session-preserved-text' }));
+          }
+        }
+        notes.append(other);
+      }
     }
+    function plannedReference(host) {
+      const reference = el('div', '', { 'aria-label': 'Planned activity titles' });
+      host.append(reference);
+      const saved = (data.revision > 0 || data.event.date >= new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Pacific/Auckland', year: 'numeric', month: '2-digit', day: '2-digit'
+      }).format(new Date())) ? data.content.activities.map(item => item.title).filter(Boolean) : [];
+      function show(titles, source, error) {
+        reference.replaceChildren();
+        const values = titles.length ? titles : saved;
+        if (!values.length) reference.append(el('p', 'No planned activity titles are available.'));
+        else {
+          reference.append(el('p', titles.length ? source : data.revision > 0 ? 'Saved session activities:' : 'Draft session activities:'));
+          const list = el('ul');
+          values.forEach(title => list.append(el('li', title)));
+          reference.append(list);
+        }
+        if (error) reference.append(el('p', error, { role: 'alert' }));
+      }
+      show([], '');
+      helpers.plannedTitles?.(show);
+    }
+    function previousProgress() {
+      if (data.event.classKey !== 'JPI' && !pilot) return;
+      const name = data.event.className || data.event.classKey;
+      const previous = section('Previous progress — ' + name);
+      const last = data.previousSession;
+      if (!last) {
+        previous.append(el('p', 'No earlier saved session was found for ' + name + '.'));
+        return;
+      }
+      const period = globalThis.plannerSessionSchema.slots.find(item => item[0] === last.slot_key)?.[1] || last.slot_key;
+      previous.append(el('p', 'Previous session: ' + String(last.session_date).slice(0, 10) + ' | ' + period));
+      const actual = last.content?.actualProgress?.trim();
+      const outcomes = last.confirmed_content?.activities?.filter(item => item.status !== 'planned') || [];
+      if (actual) previous.append(el('p', actual, { class: 'session-preserved-text' }));
+      if (last.content?.note?.trim()) previous.append(el('h4', 'Previous session notes'),
+        el('p', last.content.note, { class: 'session-preserved-text' }));
+      if (outcomes.length) {
+        previous.append(el('p', 'Confirmed activity outcomes:'));
+        const list = el('ul');
+        for (const activity of outcomes) list.append(el('li',
+          activity.title + ' - ' + activity.status + (activity.teachingNote ? ': ' + activity.teachingNote : '')));
+        previous.append(list);
+      }
+      if (!actual && !outcomes.length) previous.append(el('p', 'No actual progress was recorded for this session.'));
+    }
+    previousProgress();
     if (!pilot) {
-      const settings = section('Session details');
+      const planning = section('Planned activities and actual progress');
+      plannedReference(planning);
+      const actual = field(planning, 'What students actually did and where they got up to', data.content.actualProgress);
+      actual.maxLength = 20000;
+      const note = field(section('Session adjustments and reminders'),
+        'Changes, reminders and where to start next time', data.content.note); note.maxLength = 20000;
+      const settings = el('details');
+      settings.append(el('summary', 'Session details'));
+      notes.append(settings);
       settings.append(el('p', data.event.source === 'ambiguous' ?
         'Multiple timetable events match this time. No class has been selected; check the timetable. These notes belong to the date and slot, not a class.' :
         data.event.source === 'KAMAR' ? 'Timetable context: ' + data.event.title + '. Your plan does not change KAMAR.' :
@@ -91,20 +172,30 @@
         meeting: 'Agenda, preparation, decisions and follow-up.',
         duty: 'Location, responsibilities and reminders.'
       };
-      const planning = section('Notes');
-      const hint = el('p', prompts[type.value]); planning.append(hint);
+      const hint = el('p', prompts[type.value]); settings.append(hint);
       type.addEventListener('change', () => { hint.textContent = prompts[type.value]; data.content.session.type = type.value; });
-      const note = field(planning, 'Session notes', data.content.note); note.maxLength = 20000;
       const evaluation = el('details'); evaluation.append(el('summary', 'Review and follow-up - complete later'));
       const reflection = field(evaluation, 'Later evaluation', data.content.evaluation); reflection.maxLength = 20000;
       notes.append(evaluation);
       originalNotes(); host.append(page);
       if (helpers.initialTrello) select(false);
-      return { selectView: select, read: () => ({ note: note.value, evaluation: reflection.value, activities: [],
-        session: { title: title.value, type: type.value, startTime: startTime.value, endTime: endTime.value } }),
+      return { selectView: select, read: () => ({ note: note.value, actualProgress: actual.value, evaluation: reflection.value, activities: [],
+        session: { title: title.value, type: type.value, startTime: startTime.value, endTime: endTime.value,
+          ...(data.event.classKey ? { classKey: data.event.classKey } : {}) } }),
         saved: () => {} };
     }
-    const routine = section('Regular class routine');
+    const activities = section('Planned activities and actual progress');
+    plannedReference(activities);
+    const actualProgress = field(activities, 'What students actually did and where they got up to', data.content.actualProgress);
+    actualProgress.maxLength = 20000;
+    const note = field(section('Session adjustments and reminders'),
+      'Changes, reminders and where to start next time', data.content.note); note.maxLength = 20000;
+
+    const advanced = el('details');
+    advanced.append(el('summary', 'Linked lesson, routine and confirmed progress'));
+    notes.append(advanced);
+    const routine = el('section', '', { class: 'session-section' });
+    routine.append(el('h3', 'Regular class routine')); advanced.append(routine);
     routine.append(el('p', data.routine.priorities));
     const routineList = el('ul');
     for (const line of data.routine.instructions.split('\n').map(value => value.replace(/^[\s\u2022]+/, '').trim()).filter(Boolean)) {
@@ -118,7 +209,6 @@
     openRoutine.addEventListener('click', () => helpers.openRoutine(data.routine.id));
     routine.append(openRoutine, el('p', 'Routine content is reused, not copied. It does not automatically advance the unit.'));
 
-    const previous = section('Previous progress - JPI only');
     const checkpoint = el('details', '', { 'data-planner-navigation': '' });
     const checkpointHeading = el('summary', data.checkpoint.confirmed_at ? 'Confirmed starting checkpoint' : 'Starting checkpoint - awaiting your confirmation');
     checkpoint.append(checkpointHeading);
@@ -140,21 +230,13 @@
       catch (error) { checkpointStatus.setAttribute('role', 'alert'); checkpointStatus.textContent = error.message; }
       finally { confirmCheckpoint.disabled = false; }
     });
-    checkpoint.append(confirmCheckpoint, checkpointStatus); previous.append(checkpoint);
-    if (data.awaitingConfirmation.length) previous.append(el('p',
+    checkpoint.append(confirmCheckpoint, checkpointStatus); advanced.append(checkpoint);
+    if (data.awaitingConfirmation.length) advanced.append(el('p',
       'Earlier sessions awaiting confirmation: ' + data.awaitingConfirmation.join(', ') + '. Suggestions use confirmed outcomes only.', { class: 'session-warning' }));
-    if (data.previous.length) {
-      const last = data.previous.at(-1), list = el('ul');
-      previous.append(el('p', 'Last confirmed session: ' + String(last.session_date).slice(0, 10)));
-      for (const activity of last.confirmed_content.activities) list.append(el('li',
-        activity.title + ' - ' + activity.status + (activity.teachingNote ? ': ' + activity.teachingNote : '')));
-      previous.append(list);
-    } else previous.append(el('p', 'No dated teaching-session outcomes have been confirmed for JPI.'));
 
-    const activities = section('Planned activities and actual progress');
-    activities.append(el('p', 'Plan a flexible sequence. Status and actual-time edits autosave as a draft; use Confirm session progress to confirm outcomes. Blank actual time means not recorded, never the period length.'));
+    advanced.append(el('p', 'Plan a flexible sequence. Status and actual-time edits autosave as a draft; use Confirm session progress to confirm outcomes. Blank actual time means not recorded, never the period length.'));
     const activityList = el('div', '', { class: 'session-activities' });
-    activities.append(activityList);
+    advanced.append(activityList);
     const rows = [];
     function dirty(node) { node.dispatchEvent(new Event('input', { bubbles: true })); }
     function addActivity(activity) {
@@ -189,14 +271,15 @@
         plannedMinutes: null, actualMinutes: null, status: 'planned', teachingNote: '' });
       dirty(activityList); rows.at(-1).title.focus();
     });
-    activities.append(add);
+    advanced.append(add);
     const outcomeStatus = el('p', '', { role: 'status', 'aria-live': 'polite' });
     const confirm = el('button', 'Confirm session progress', { type: 'button', 'data-planner-navigation': '' });
     confirm.disabled = !data.canConfirm;
     confirm.addEventListener('click', helpers.confirm);
-    activities.append(confirm, outcomeStatus);
-    if (!data.canConfirm) activities.append(el('p', 'This is a future session. Prepare the plan now; confirm actual outcomes on the teaching day or later.'));
-    const resources = section('Resources and preparation');
+    advanced.append(confirm, outcomeStatus);
+    if (!data.canConfirm) advanced.append(el('p', 'This is a future session. Prepare the plan now; confirm actual outcomes on the teaching day or later.'));
+    const resources = el('section', '', { class: 'session-section' });
+    resources.append(el('h3', 'Resources and preparation')); advanced.append(resources);
     resources.append(link('Open original Binary Piano lesson', data.teaching.lesson.url));
     const resourceList = el('ul');
     for (const resource of data.teaching.resources) {
@@ -207,7 +290,6 @@
     const reminders = el('ul');
     data.teaching.preparation.forEach(value => reminders.append(el('li', value)));
     preparation.append(reminders); resources.append(preparation);
-    const note = field(section('Session adjustments and reminders'), 'Session notes', data.content.note); note.maxLength = 20000;
     const evaluation = el('details'); evaluation.append(el('summary', 'Detailed evaluation - complete later'));
     const reflection = field(evaluation, 'Later evaluation', data.content.evaluation); reflection.maxLength = 20000;
     notes.append(evaluation);
@@ -215,7 +297,7 @@
     host.append(page);
     if (helpers.initialTrello) select(false);
     function read() {
-      return { note: note.value, evaluation: reflection.value, activities: rows.map(row => ({
+      return { note: note.value, actualProgress: actualProgress.value, evaluation: reflection.value, activities: rows.map(row => ({
         id: row.activity.id, sourceId: row.activity.sourceId, title: row.title.value,
         plannedMinutes: row.planned.value === '' ? null : Number(row.planned.value),
         actualMinutes: row.actual.value === '' ? null : Number(row.actual.value),
