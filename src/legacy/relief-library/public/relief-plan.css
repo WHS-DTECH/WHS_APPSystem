@@ -1,0 +1,203 @@
+.relief-plan {
+  display: block;
+  width: min(100%, 1100px);
+  margin: 0 auto;
+  color: #14213d;
+}
+
+.relief-plan-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.relief-plan-heading h1,
+.relief-plan-calendar-heading h2,
+.relief-plan-course-links h2 {
+  margin: 0;
+  font-family: Georgia, serif;
+}
+
+.relief-plan-heading h1 {
+  font-size: clamp(2rem, 4vw, 3rem);
+}
+
+.relief-plan-eyebrow {
+  margin: 0 0 0.3rem;
+  color: #68479a;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.relief-plan-intro,
+.relief-plan-status,
+.relief-plan-detail-date {
+  color: #625c70;
+}
+
+.relief-plan-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 1.25rem;
+}
+
+.relief-plan-controls label {
+  margin-left: auto;
+  color: #625c70;
+  font-size: 0.88rem;
+}
+
+.relief-plan-controls input,
+.relief-plan-button {
+  min-height: 2.5rem;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid #d9d4e2;
+  border-radius: 0.55rem;
+  color: #14213d;
+  background: #fff;
+  font: inherit;
+}
+
+.relief-plan-button {
+  cursor: pointer;
+}
+
+.relief-plan-button:hover,
+.relief-plan-button:focus-visible {
+  border-color: #68479a;
+  background: #f3eff8;
+}
+
+.relief-plan-calendar-heading {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.relief-plan-calendar-heading h2 {
+  font-size: clamp(1.4rem, 3vw, 2rem);
+}
+
+.relief-plan-calendar {
+  margin-top: 1.25rem;
+}
+
+.relief-plan-month,
+.relief-plan-details,
+.relief-plan-description,
+.relief-plan-course-links {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid #e1dce8;
+  border-radius: 0.8rem;
+  background: #fff;
+  box-shadow: 0 6px 22px rgba(20, 33, 61, 0.06);
+}
+
+.relief-plan-weekdays,
+.relief-plan-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.2rem;
+}
+
+.relief-plan-weekdays {
+  padding-bottom: 0.4rem;
+  color: #625c70;
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.relief-plan-day {
+  min-height: 7rem;
+  padding: 0.28rem;
+  overflow: hidden;
+  border: 1px solid rgba(72, 34, 116, 0.12);
+  background: #fbfaff;
+}
+
+.relief-plan-day time {
+  display: block;
+  margin-bottom: 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.relief-plan-day-today {
+  outline: 2px solid #68479a;
+  outline-offset: -2px;
+}
+
+.relief-plan-day-empty {
+  border-color: transparent;
+  background: transparent;
+}
+
+.relief-plan-no-event {
+  display: block;
+  color: #8a8397;
+  font-size: 0.62rem;
+}
+
+.relief-plan-event {
+  display: block;
+  width: 100%;
+  margin-top: 0.16rem;
+  padding: 0.2rem;
+  border: 0;
+  border-radius: 4px;
+  color: #fff;
+  background: #4f3575;
+  font: inherit;
+  font-size: 0.62rem;
+  line-height: 1.15;
+  text-align: left;
+  cursor: pointer;
+}
+
+.relief-plan-event:hover,
+.relief-plan-event:focus-visible {
+  background: #68479a;
+}
+
+.relief-plan-details h2,
+.relief-plan-description h2,
+.relief-plan-course-links h2 {
+  margin-top: 0;
+}
+
+.relief-plan-description {
+  white-space: normal;
+  line-height: 1.55;
+}
+
+.relief-plan-course-links ul {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem 2rem;
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.relief-plan-course-links a {
+  color: #4f3575;
+}
+
+@media (max-width: 620px) {
+  .relief-plan-controls label {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .relief-plan-course-links ul {
+    grid-template-columns: 1fr;
+  }
+
+  .relief-plan-day {
+    min-height: 5rem;
+  }
+}

@@ -1473,6 +1473,31 @@ are not yet implemented.
 
 Tests: `node --test tests\kamar-assessment.test.js tests\kamar-history.test.js tests\kamar-uploader-legacy.test.js`.
 
+## Relief Library integration
+
+The embedded Relief Library is available at `/relief-plan/`. It imports the
+standalone release `fbc170d`, including its read-only 2027 calendar snapshot
+and 2026 recurring events, calendar controls and six Relief Lessons links.
+The signed-in Core user must have the current `relief-plan` module assignment
+or an authorised module role; global ADMIN access is also supported. Access
+is rechecked on every request.
+
+The standalone Relief database stores isolated sign-in sessions, not calendar
+events or lesson records. The embedded module uses Core's existing sign-in and
+session store instead; it does not connect to, migrate, copy or delete the
+standalone database. Existing standalone sessions remain in that database and
+are not transferred. The calendar remains the same versioned snapshot, not a
+live database or editable calendar.
+
+Before changing the existing launch destination, verify the embedded calendar,
+event details, lesson links, Core sign-in and assigned-teacher access. Retain
+the standalone web service and its database for rollback. If no `relief-plan`
+module is registered, register it without replacing the existing role grants;
+change only the verified destination. The old Learning Sites Relief Plan is
+independent and is not removed by this integration.
+
+Tests: `node --test tests\relief-library-integration.test.js src\legacy\relief-library\app.test.js`.
+
 ## Assessment Manager integration
 
 The embedded Assessment Manager is at `/whs-assessment-manager/`. It uses the

@@ -54,12 +54,13 @@ function createModuleAccessGuard({ dbQuery = query } = {}) {
       const module = matching[0];
       if (!module) return next();
       res.set('Cache-Control', 'no-store');
-      const embeddedApi = /^\/(?:teacher-planner|whs-assessment-manager)\/api(?:\/|$)/.test(requestPath);
+      const embeddedApi = /^\/(?:teacher-planner|whs-assessment-manager|relief-plan)\/api(?:\/|$)/.test(requestPath);
       if (!req.user && embeddedApi) return res.status(401).json({ error: 'School sign-in required. Copy unsaved work before signing in again.' });
       if (!req.user) return res.redirect('/auth/google?next=' + encodeURIComponent(req.originalUrl));
       if ((!module.is_active && module.module_key !== 'core') || !module.has_access || req.user.is_active === false) {
         if (embeddedApi) {
-          const name = requestPath.startsWith('/teacher-planner/') ? 'Teacher Planner' : 'Assessment Manager';
+          const name = requestPath.startsWith('/teacher-planner/') ? 'Teacher Planner'
+            : requestPath.startsWith('/relief-plan/') ? 'Relief Library' : 'Assessment Manager';
           return res.status(403).json({ error: `${name} is inactive or has not been assigned to your active school account.` });
         }
         return res.status(403).render('error', { title: 'App access denied', message: 'This app is inactive or has not been assigned to your active school account.' });

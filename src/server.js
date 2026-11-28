@@ -41,6 +41,7 @@ const { accessibleModules, createModuleAccessGuard } = require('./moduleAccess')
 const { appDestination } = require('./appAddresses');
 const { createTeacherPlannerRouter } = require('./modules/teacherPlanner');
 const { createAssessmentManagerRouter } = require('./modules/assessmentManager');
+const { createReliefLibraryRouter } = require('./modules/reliefLibrary');
 const { createTypingAttendanceRouter } = require('./modules/typingAttendance');
 const { createBusControllerRouter, renderFirebaseUsers } = require('./busController');
 const { createTeacherPlannerMcpRouter } = require('./teacherPlannerMcp');
@@ -109,6 +110,7 @@ app.use(createModuleAccessGuard());
 const teacherPlanner = createTeacherPlannerRouter();
 app.use('/teacher-planner', teacherPlanner);
 app.use('/whs-assessment-manager', createAssessmentManagerRouter());
+app.use('/relief-plan', createReliefLibraryRouter());
 
 app.get('/healthz', (req, res) => {
   res.status(200).json({ ok: true });
