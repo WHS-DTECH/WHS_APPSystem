@@ -127,7 +127,7 @@
 .teaching-day-session p { margin: 6px 0; }
 .teaching-day-session-actions button { font-size: 13px; padding: 5px 10px; }
 .planner-main:has(.teaching-dashboard) { width: 100%; }
-@media (max-width: 800px) { .teaching-dashboard-columns { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 1100px) { .teaching-dashboard-columns { grid-template-columns: minmax(0, 1fr); } }
 .teaching-slot-plan { min-width: 0; overflow-wrap: anywhere; }
 .teaching-slot-header { display: flex; justify-content: space-between; align-items: start; gap: 20px; padding: 20px; border-radius: 5px; background: #173e54; color: #fff; }
 .teaching-slot-header h3 { margin: 0 0 10px; font-size: 24px; color: #fff; }

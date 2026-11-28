@@ -895,7 +895,7 @@ test('paper planner shell retains nested assets, private identity escaping and a
   assert.match(embedded, /href="\/launchpad\/apps\/whs-relief-library"/);
   assert.match(embedded, /href="\/launchpad\/apps\/whs-unit-library"/);
   assert.match(embedded, /href="\/launchpad\/apps\/whs-assessment-manager"/);
-  assert.match(html, /planner\.css\?v=period-links-1/);
+  assert.match(html, /planner\.css\?v=period-links-2/);
   const plannerScript = html.indexOf('src="/planner/framework/planner.js?v=period-links-2"');
   const todoScript = html.indexOf('src="/planner/framework/todo-trello.js?v=module-todo-1"');
   const dashboardScript = html.indexOf('src="/planner/framework/todo-dashboard.js?v=responsibility-expansion-1"');
