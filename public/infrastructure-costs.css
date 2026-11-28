@@ -237,22 +237,25 @@
 }
 
 .cost-category-heading {
-  align-items: baseline;
+  align-items: flex-start;
   display: flex;
-  flex-wrap: wrap;
   gap: 0.35rem 1rem;
   justify-content: space-between;
   margin: 1.5rem 0 0.6rem;
 }
 
 .cost-provider .cost-category-heading h3 {
+  flex: 1 1 auto;
   margin: 0;
+  min-width: 0;
 }
 
 .cost-category-heading p {
+  flex: 0 1 60%;
   font-size: 0.88rem;
   font-variant-numeric: tabular-nums;
   margin: 0 0 0 auto;
+  min-width: 0;
   text-align: right;
 }
 
