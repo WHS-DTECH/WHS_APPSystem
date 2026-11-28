@@ -389,8 +389,12 @@ and accounts, organisations and repositories visible to the GitHub token. The re
 is not limited to Module Builder projects. Pagination includes Render previews
 and database replicas, with duplicate IDs counted once. Provider access defines
 the scope: resources outside the configured credentials' permissions cannot appear.
-The dashboard highlights the known monthly subtotal, indicative NZD, unknown costs
-and unpriced workspaces; provider sections show check status and detailed inventories.
+The dashboard separates Render and GitHub known monthly estimates and indicative NZD,
+unknown costs and unpriced workspaces. The workspace card links to per-workspace
+inventory and compute details; Render resources are grouped by type. Administrators
+can categorise visible GitHub accounts as student accounts; that designation is
+stored in the Core report across refreshes and does not establish a free plan or
+turn unknown billing into zero. Provider sections show check status and inventories.
 
 Optional `INFRA_COST_GITHUB_TOKEN` and `INFRA_COST_RENDER_API_KEY` provide reporting
 access; otherwise the existing Module Builder credentials are reused. Prefer

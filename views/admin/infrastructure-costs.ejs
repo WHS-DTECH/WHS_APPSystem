@@ -23,29 +23,29 @@
     </div>
     <div class="cost-metrics">
       <article class="cost-metric cost-metric-primary">
-        <h3>Known subtotal</h3>
-        <strong><%= money(summary.usd) %></strong>
-        <span>per month · <%= summary.known %> priced resources/accounts</span>
+        <h3>Render known estimate</h3>
+        <strong><%= money(summary.render.usd) %></strong>
+        <span><%= nzd(summary.render.usd) %> per month · <%= summary.render.known %> priced resources · <%= summary.render.unknown %> unknown</span>
       </article>
       <article class="cost-metric">
-        <h3>Indicative NZD</h3>
-        <strong><%= nzd(summary.usd) %></strong>
-        <span>per month · not a settlement rate</span>
+        <h3>GitHub known estimate</h3>
+        <strong><%= money(summary.github.usd) %></strong>
+        <span><%= nzd(summary.github.usd) %> per month · <%= summary.github.known %> priced accounts · <%= summary.github.unknown %> unknown</span>
       </article>
       <article class="cost-metric cost-metric-attention">
         <h3>Unknown costs</h3>
         <strong><%= summary.unknown %></strong>
         <span>resource/account costs not priced</span>
       </article>
-      <article class="cost-metric">
+      <a class="cost-metric cost-metric-link" href="#<%= snapshot.render?.data ? 'render-workspaces' : 'render-costs' %>">
         <h3>Render workspaces</h3>
         <strong><%= summary.workspaces %></strong>
-        <span>workspace subscriptions not priced</span>
-      </article>
+        <span>View workspace details →<br>Subscriptions not priced</span>
+      </a>
     </div>
     <div class="cost-notice">
       <strong>Not the total bill or an invoice.</strong>
-      Unknown costs are not treated as free. The subtotal can include stale data and excludes storage, usage extras,
+      Unknown costs are not treated as free. The estimates can include stale data and exclude storage, usage extras,
       discounts, tax, proration and currency conversion fees. Provider billing is authoritative.
     </div>
     <% const incompleteProviders = ['render', 'github'].filter(key => !snapshot[key] || snapshot[key].error); %>
@@ -96,14 +96,20 @@
     <% if (section?.data) { const data = section.data; %>
       <p class="cost-provider-warning"><%= data.warning %></p>
       <% if (key === 'render') { %>
-        <h3>Services and PostgreSQL databases</h3>
         <% if (!data.resources.length) { %><p>No services or PostgreSQL databases were returned for this key.</p><% } %>
-        <div class="user-role-table-wrap cost-table-wrap" role="region" aria-label="Render cost table" tabindex="0">
+        <% const renderGroups = [
+          ['Web Services', data.resources.filter(resource => resource.type === 'web_service')],
+          ['PostgreSQL databases', data.resources.filter(resource => resource.type === 'postgres')],
+          ['Other services', data.resources.filter(resource => !['web_service', 'postgres'].includes(resource.type))]
+        ]; %>
+        <% renderGroups.forEach(([heading, resources]) => { if (!resources.length) return; %>
+        <h3><%= heading %> (<%= resources.length %>)</h3>
+        <div class="user-role-table-wrap cost-table-wrap" role="region" aria-label="Render <%= heading %> cost table" tabindex="0">
           <table>
-            <caption>Render full-month compute estimates (USD and indicative NZD)</caption>
+            <caption><%= heading %> — full-month compute estimates (USD and indicative NZD)</caption>
             <thead><tr><th scope="col">Resource / workspace</th><th scope="col">Type / region</th><th scope="col">Plan / status</th><th scope="col">Monthly USD</th><th scope="col">Indicative NZD</th><th scope="col">Coverage</th></tr></thead>
             <tbody>
-            <% data.resources.forEach(resource => { %>
+            <% resources.forEach(resource => { %>
               <tr><td><strong><%= resource.name %></strong><br><code><%= resource.id %></code><br><%= data.workspaces.find(w => w.id === resource.owner)?.name || resource.owner %></td>
                 <td><%= resource.type %><br><%= resource.region %></td>
                 <td><%= resource.plan %><br><%= resource.status %><% if (resource.instances !== null) { %><br><%= resource.instances %> instance(s)<% } %></td>
@@ -113,33 +119,77 @@
             </tbody>
           </table>
         </div>
-        <h3>Workspace subscription costs — Unknown</h3>
-        <ul><% data.workspaces.forEach(workspace => { %><li><%= workspace.name %> (<%= workspace.id %>): check Render billing; not counted per app.</li><% }) %></ul>
+        <% }) %>
+        <section id="render-workspaces" aria-labelledby="render-workspaces-heading">
+          <h3 id="render-workspaces-heading">Render workspace details</h3>
+          <p>These details cover only resources returned by the reporting key; subscriptions and other usage are not included.</p>
+          <% if (!data.workspaces.length) { %><p>No workspaces were returned for this key.</p><% } %>
+          <% data.workspaces.forEach(workspace => {
+            const resources = data.resources.filter(resource => resource.owner === workspace.id);
+            const known = resources.filter(resource => Number.isFinite(resource.monthlyUsd));
+            const subtotal = known.length ? known.reduce((sum, resource) => sum + resource.monthlyUsd, 0) : null;
+          %>
+            <div class="cost-workspace">
+              <h4><%= workspace.name %></h4>
+              <p><code><%= workspace.id %></code><br>
+                <%= resources.length %> returned resources: <%= resources.filter(resource => resource.type === 'web_service').length %> web services,
+                <%= resources.filter(resource => resource.type === 'postgres').length %> PostgreSQL databases,
+                <%= resources.filter(resource => !['web_service', 'postgres'].includes(resource.type)).length %> other services.</p>
+              <p>Known resource compute: <strong><%= money(subtotal) %></strong> / <%= nzd(subtotal) %> per month;
+                <%= resources.length - known.length %> resource costs unknown. Workspace subscription: <strong>Unknown</strong> — check Render billing.</p>
+              <% if (resources.length) { %>
+              <details class="cost-explanation">
+                <summary>View resources in <%= workspace.name %></summary>
+                <ul><% resources.forEach(resource => { %>
+                  <li><strong><%= resource.name %></strong> — <%= resource.type %>; <%= money(resource.monthlyUsd) %> per month</li>
+                <% }) %></ul>
+              </details>
+              <% } %>
+            </div>
+          <% }) %>
+        </section>
         <a class="button" href="https://dashboard.render.com" target="_blank" rel="noopener noreferrer">Open Render for actual invoices</a>
       <% } else { %>
-        <h3>Account subscriptions</h3>
-        <div class="user-role-table-wrap cost-table-wrap" role="region" aria-label="GitHub cost table" tabindex="0">
+        <form action="/admin/infrastructure-costs/student-accounts" method="post">
+        <input type="hidden" name="csrf" value="<%= csrf %>">
+        <p>Mark student accounts to group them below. This is a local category, not verification of a free plan; unknown costs stay unknown.</p>
+        <% const githubGroups = [
+          ['Student Accounts - Free Subscriptions', data.accounts.filter(account => studentAccounts.has(account.login.toLowerCase()))],
+          ['Other accounts', data.accounts.filter(account => !studentAccounts.has(account.login.toLowerCase()))]
+        ]; %>
+        <% githubGroups.forEach(([heading, accounts]) => { %>
+        <h3><%= heading %> (<%= accounts.length %>)</h3>
+        <% if (!accounts.length) { %><p>No accounts in this category.</p><% } else { %>
+        <div class="user-role-table-wrap cost-table-wrap" role="region" aria-label="GitHub <%= heading %> cost table" tabindex="0">
           <table>
             <caption>GitHub subscriptions are counted per account, not per repository</caption>
-            <thead><tr><th scope="col">Account</th><th scope="col">Plan / seats</th><th scope="col">Visible repositories</th><th scope="col">Monthly USD</th><th scope="col">Indicative NZD</th><th scope="col">Coverage</th></tr></thead>
+            <thead><tr><th scope="col">Student account</th><th scope="col">Account</th><th scope="col">Plan / seats</th><th scope="col">Visible repositories</th><th scope="col">Monthly USD</th><th scope="col">Indicative NZD</th><th scope="col">Coverage</th></tr></thead>
             <tbody>
-            <% data.accounts.forEach(account => { %>
-              <tr><td><strong><%= account.login %></strong><br><%= account.type %></td><td><%= account.plan %><br>Seats: <%= account.seats === null ? 'Unknown' : account.seats %></td>
+            <% accounts.forEach(account => { %>
+              <tr><td><input type="checkbox" name="studentAccounts" value="<%= account.login %>" aria-label="Student account: <%= account.login %>" <%= studentAccounts.has(account.login.toLowerCase()) ? 'checked' : '' %>></td>
+                <td><strong><%= account.login %></strong><br><%= account.type %></td><td><%= account.plan %><br>Seats: <%= account.seats === null ? 'Unknown' : account.seats %></td>
                 <td><%= account.repositoryCount %></td><td class="cost-amount"><%= money(account.monthlyUsd) %></td><td class="cost-amount"><%= nzd(account.monthlyUsd) %></td><td><%= account.note %></td></tr>
             <% }) %>
             </tbody>
           </table>
         </div>
+        <% } %>
+        <% }) %>
+        <button class="button" type="submit">Save student account categories</button>
+        </form>
         <h3>Provider-reported metered usage <span class="cost-subheading">(not an invoice)</span></h3>
         <p>Month-to-date organisation usage is shown separately and is not added to the monthly subscription estimate.
           These are different periods and may overlap with included allowances. Personal-account usage is unavailable.</p>
-        <ul><% data.accounts.forEach(account => { %>
+        <% githubGroups.forEach(([heading, accounts]) => { if (!accounts.length) return; %>
+        <h4><%= heading %></h4>
+        <ul><% accounts.forEach(account => { %>
           <li><strong><%= account.login %>:</strong>
             <% if (Number.isFinite(account.reportedUsageUsd)) { %>
               <%= money(account.reportedUsageUsd) %> / indicative <%= nzd(account.reportedUsageUsd) %> — <%= account.usagePeriod %> month-to-date (UTC).
             <% } else { %>Unavailable. <%= account.usageError || 'Billing access or supported usage reporting is not available for this account.' %><% } %>
           </li>
         <% }) %></ul>
+        <% }) %>
         <details class="cost-explanation"><summary>Visible repository inventory (<%= data.repositories.length %>)</summary>
           <ul><% data.repositories.forEach(repository => { %><li><%= repository.name %> — <%= repository.private ? 'Private' : 'Public' %>; no separate repository subscription assumed.</li><% }) %></ul>
         </details>

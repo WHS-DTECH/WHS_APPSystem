@@ -136,11 +136,12 @@ test('NZD rate requires valid recent USD data and never sends provider credentia
   }
 });
 
-test('subtotal includes only known estimates and never adds actual usage to full-month estimates', () => {
-  assert.equal(costSummary({}).usd, null);
+test('provider subtotals include only known estimates and never add actual usage', () => {
+  assert.equal(costSummary({}).render.usd, null);
   const summary = costSummary({ render: { data: { resources: [{ monthlyUsd: 7 }, { monthlyUsd: null }], workspaces: [{}] } },
     github: { data: { accounts: [{ monthlyUsd: 4, reportedUsageUsd: 20 }] } } });
-  assert.deepEqual(summary, { usd: 11, unknown: 1, known: 2, workspaces: 1 });
+  assert.deepEqual(summary, { render: { usd: 7, unknown: 1, known: 1 },
+    github: { usd: 4, unknown: 0, known: 1 }, unknown: 1, workspaces: 1 });
 });
 
 test('new development policy blocks free/other regions before provider calls and preserves live database plans', async () => {
@@ -190,18 +191,28 @@ test('cost report enforces admin/CSRF, persists snapshots, labels stale data and
   let stored, writes = 0, fail = false;
   const dbQuery = async (sql, params) => {
     if (sql.startsWith('SELECT')) return { rows: stored ? [{ snapshot: stored }] : [] };
-    writes++; stored = JSON.parse(params[0]); return { rows: [] };
+    writes++;
+    if (sql.startsWith('UPDATE')) stored.studentAccounts = JSON.parse(params[0]);
+    else {
+      const studentAccounts = stored?.studentAccounts;
+      stored = JSON.parse(params[0]);
+      if (studentAccounts) stored.studentAccounts = studentAccounts;
+    }
+    return { rows: [] };
   };
   const providers = {
     render: async () => {
       if (fail) throw new CostReportError('Render reporting returned HTTP 403.');
       return { checkedAt: now().toISOString(), warning: 'Compute only', resources: [
-        renderServiceCost({ ...service, name: '<script>unsafe</script>' }), renderDatabaseCost(database)
+        renderServiceCost({ ...service, name: '<script>unsafe</script>' }), renderDatabaseCost(database),
+        renderServiceCost({ ...service, id: 'wrk-other', name: 'Worker', type: 'background_worker' })
       ], workspaces: [{ id: 'tea-one', name: 'School' }] };
     },
     github: async () => ({ checkedAt: now().toISOString(), accounts: [
       { login: 'School', type: 'Organization', plan: 'Unknown', seats: null, monthlyUsd: null,
-        repositoryCount: 1, note: 'Subscription unavailable', reportedUsageUsd: 12, usagePeriod: '2026-11' }
+        repositoryCount: 1, note: 'Subscription unavailable', reportedUsageUsd: 12, usagePeriod: '2026-11' },
+      { login: 'StudentExample', type: 'Repository owner', plan: 'Unknown', seats: null, monthlyUsd: null,
+        repositoryCount: 1, note: 'Subscription unavailable' }
     ], repositories: [{ name: 'School/example', private: true }], warning: 'Not an invoice' }),
     exchange: async () => {
       if (fail) throw new CostReportError('NZD rate unavailable.');
@@ -231,7 +242,7 @@ test('cost report enforces admin/CSRF, persists snapshots, labels stale data and
   assert.match(html, /Not checked yet/);
   assert.match(html, /Inventory needs attention:[\s\S]*?Render: not checked · GitHub: not checked/);
   assert.match(html, /infrastructure-costs\.css/);
-  assert.match(html, /Known subtotal[\s\S]*?Unknown/);
+  assert.match(html, /Render known estimate[\s\S]*?GitHub known estimate/);
   assert.match(html, /NZD conversion unavailable/);
   const csrf = html.match(/name="csrf" value="([^"]+)"/)[1];
   const headers = { 'x-role': 'ADMIN', cookie, 'Content-Type': 'application/x-www-form-urlencoded' };
@@ -240,20 +251,47 @@ test('cost report enforces admin/CSRF, persists snapshots, labels stale data and
   let response = await fetch(base + '/refresh', { method: 'POST', headers, body: new URLSearchParams({ csrf }), redirect: 'manual' });
   assert.equal(response.status, 302); assert.equal(writes, 1);
   let report = await (await fetch(base, { headers })).text();
-  assert.match(report, /USD 20.00/); assert.match(report, /NZD 34.00/);
-  assert.match(report, /Unknown costs[\s\S]*?<strong>1<\/strong>/);
+  assert.match(report, /Render known estimate[\s\S]*?USD 34.00[\s\S]*?NZD 57.80/);
+  assert.match(report, /GitHub known estimate[\s\S]*?<strong>Unknown<\/strong>/);
+  assert.match(report, /Unknown costs[\s\S]*?<strong>2<\/strong>/);
   assert.match(report, /Render workspaces[\s\S]*?<strong>1<\/strong>/);
+  assert.match(report, /href="#render-workspaces"/);
+  assert.match(report, /Web Services \(1\)[\s\S]*?PostgreSQL databases \(1\)[\s\S]*?Other services \(1\)/);
+  assert.match(report, /Render workspace details[\s\S]*?School[\s\S]*?3 returned resources[\s\S]*?USD 34.00/);
   assert.match(report, /Provider-reported metered usage[\s\S]*?USD 12.00/);
   assert.match(report, /not added to the monthly subscription estimate/);
   assert.match(report, /Last check succeeded/);
   assert.match(report, /&lt;script&gt;unsafe&lt;\/script&gt;/);
   assert.doesNotMatch(report, /<script>unsafe<\/script>/);
+  assert.equal((await fetch(base + '/student-accounts', { method: 'POST', headers,
+    body: new URLSearchParams({ csrf: 'invalid', studentAccounts: 'StudentExample' }) })).status, 403);
+  assert.equal((await fetch(base + '/student-accounts', { method: 'POST', headers,
+    body: new URLSearchParams({ csrf, studentAccounts: 'NotVisible' }) })).status, 400);
+  response = await fetch(base + '/student-accounts', { method: 'POST', headers,
+    body: new URLSearchParams({ csrf, studentAccounts: 'StudentExample' }), redirect: 'manual' });
+  assert.equal(response.status, 302);
+  assert.deepEqual(stored.studentAccounts, ['studentexample']);
+  report = await (await fetch(base, { headers })).text();
+  assert.match(report, /Student Accounts - Free Subscriptions \(1\)[\s\S]*?StudentExample[\s\S]*?Unknown/);
+  assert.match(report, /Student account: StudentExample" checked/);
+  stored.studentAccounts.push('previously-visible');
+  response = await fetch(base + '/refresh', { method: 'POST', headers, body: new URLSearchParams({ csrf }), redirect: 'manual' });
+  assert.equal(response.status, 302);
+  assert.deepEqual(stored.studentAccounts, ['studentexample', 'previously-visible']);
+  response = await fetch(base + '/student-accounts', { method: 'POST', headers,
+    body: new URLSearchParams({ csrf }), redirect: 'manual' });
+  assert.equal(response.status, 302);
+  assert.deepEqual(stored.studentAccounts, ['previously-visible']);
+  response = await fetch(base + '/student-accounts', { method: 'POST', headers,
+    body: new URLSearchParams({ csrf, studentAccounts: 'StudentExample' }), redirect: 'manual' });
+  assert.equal(response.status, 302);
   fail = true;
   response = await fetch(base + '/refresh', { method: 'POST', headers, body: new URLSearchParams({ csrf }), redirect: 'manual' });
   assert.equal(response.status, 302);
   assert.equal(stored.render.data.resources[0].monthlyUsd, 14);
+  assert.deepEqual(stored.studentAccounts, ['previously-visible', 'studentexample']);
   report = await (await fetch(base, { headers })).text();
   assert.match(report, /Stale data/); assert.match(report, /showing stale data/); assert.match(report, /NZD conversion unavailable/);
   assert.match(report, /Inventory needs attention:[\s\S]*?Render: stale data/);
-  assert.match(report, /USD 20.00/); assert.doesNotMatch(report, /NZD 34.00/);
+  assert.match(report, /USD 34.00/); assert.doesNotMatch(report, /NZD 57.80/);
 });

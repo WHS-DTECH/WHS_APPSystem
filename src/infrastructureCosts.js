@@ -175,11 +175,15 @@ function createCostProviders({ env = process.env, fetchImpl = fetch, now = () =>
 }
 
 function costSummary(snapshot) {
-  const rows = [...(snapshot.render?.data?.resources || []), ...(snapshot.github?.data?.accounts || [])];
-  const amounts = rows.filter(row => Number.isFinite(row.monthlyUsd));
-  const usd = amounts.reduce((total, row) => total + row.monthlyUsd, 0);
-  return { usd: amounts.length ? usd : null, unknown: rows.length - amounts.length,
-    known: amounts.length, workspaces: snapshot.render?.data?.workspaces?.length || 0 };
+  const summarize = rows => {
+    const amounts = rows.filter(row => Number.isFinite(row.monthlyUsd));
+    return { usd: amounts.length ? amounts.reduce((total, row) => total + row.monthlyUsd, 0) : null,
+      unknown: rows.length - amounts.length, known: amounts.length };
+  };
+  const render = summarize(snapshot.render?.data?.resources || []);
+  const github = summarize(snapshot.github?.data?.accounts || []);
+  return { render, github, unknown: render.unknown + github.unknown,
+    workspaces: snapshot.render?.data?.workspaces?.length || 0 };
 }
 
 function createInfrastructureCostsRouter({ dbQuery = query, providers = createCostProviders(), now = () => new Date() } = {}) {
@@ -204,6 +208,8 @@ function createInfrastructureCostsRouter({ dbQuery = query, providers = createCo
       const nzd = value => Number.isFinite(value) && Number.isFinite(rate) ? `NZD ${(value * rate).toFixed(2)}` : 'Unavailable';
       res.render('admin/infrastructure-costs', { title: 'GitHub & Render Costs', snapshot,
         summary: costSummary(snapshot), rate, money, nzd, sources: SOURCES, priceChecked: PRICE_CHECKED,
+        studentAccounts: new Set((Array.isArray(snapshot.studentAccounts) ? snapshot.studentAccounts : [])
+          .filter(login => typeof login === 'string').map(login => login.toLowerCase())),
         pageStylesheet: '/infrastructure-costs.css' });
     } catch (error) { next(error); }
   });
@@ -226,11 +232,36 @@ function createInfrastructureCostsRouter({ dbQuery = query, providers = createCo
       }));
       await dbQuery(`INSERT INTO infrastructure_cost_report (id, snapshot, updated_by, updated_at)
         VALUES (1,$1::jsonb,$2,NOW()) ON CONFLICT (id) DO UPDATE
-        SET snapshot=EXCLUDED.snapshot, updated_by=EXCLUDED.updated_by, updated_at=EXCLUDED.updated_at`,
+        SET snapshot=EXCLUDED.snapshot || jsonb_build_object('studentAccounts',
+          COALESCE(infrastructure_cost_report.snapshot->'studentAccounts', '[]'::jsonb)),
+          updated_by=EXCLUDED.updated_by, updated_at=EXCLUDED.updated_at`,
       [JSON.stringify(Object.fromEntries(entries)), req.user.id]);
       res.redirect('/admin/infrastructure-costs');
     } catch (error) { next(error); }
     finally { refreshing = false; }
+  });
+  router.post('/student-accounts', async (req, res, next) => {
+    const supplied = Buffer.from(String(req.body.csrf || '')), expected = Buffer.from(req.session.infrastructureCostsCsrf);
+    if (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) {
+      return res.status(403).render('error', { title: 'Form expired', message: 'Reload the cost report and try again.' });
+    }
+    try {
+      const snapshot = await load();
+      if (!snapshot.github?.data) return res.status(400).render('error', {
+        title: 'GitHub inventory unavailable', message: 'Refresh the GitHub inventory before categorising accounts.'
+      });
+      const visible = new Set(snapshot.github.data.accounts.map(account => account.login.toLowerCase()));
+      const selected = req.body.studentAccounts === undefined ? [] : [].concat(req.body.studentAccounts);
+      if (selected.some(login => typeof login !== 'string' || !visible.has(login.toLowerCase()))) {
+        return res.status(400).render('error', { title: 'Invalid accounts', message: 'Reload the report and select accounts from the current inventory.' });
+      }
+      const previous = Array.isArray(snapshot.studentAccounts) ? snapshot.studentAccounts : [];
+      const retained = previous.filter(login => typeof login === 'string' && !visible.has(login.toLowerCase()));
+      const accounts = [...new Set([...retained.map(login => login.toLowerCase()), ...selected.map(login => login.toLowerCase())])];
+      await dbQuery(`UPDATE infrastructure_cost_report SET snapshot=jsonb_set(snapshot, '{studentAccounts}', $1::jsonb),
+        updated_by=$2, updated_at=NOW() WHERE id=1`, [JSON.stringify(accounts), req.user.id]);
+      res.redirect('/admin/infrastructure-costs#github-costs');
+    } catch (error) { next(error); }
   });
   return router;
 }
