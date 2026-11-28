@@ -174,12 +174,13 @@
           const list = el('div', '', { class: 'session-slot-rows' });
           const occurrences = new Map();
           values.forEach((title, index) => {
+            const number = slots[index]?.number || String(index + 1);
             const occurrence = (occurrences.get(title) || 0) + 1;
             occurrences.set(title, occurrence);
             const row = el('div', '', { class: 'session-slot-row' });
             const label = el('label', '', { class: 'session-slot-status' });
-            label.append(el('span', 'Slot ' + (index + 1) + ' status', { class: 'session-slot-status-label' }));
-            const status = el('select', '', { 'aria-label': 'Slot ' + (index + 1) + ' status for ' + title });
+            label.append(el('span', 'Slot ' + number + ' status', { class: 'session-slot-status-label' }));
+            const status = el('select', '', { 'aria-label': 'Slot ' + number + ' status for ' + title });
             for (const [value, text] of [['', 'Select status'], ['taught', 'Taught'],
               ['partial', 'Partially taught'], ['not_taught', 'Not taught']]) status.append(el('option', text, { value }));
             status.value = slotOutcomes.find(item => item.title === title && item.occurrence === occurrence)?.status || '';
@@ -193,7 +194,7 @@
               if (status.value) slotOutcomes.push({ title, occurrence, status: status.value });
             });
             label.append(status);
-            row.append(el('strong', 'Slot ' + (index + 1)), el('span', title, { class: 'session-slot-name' }), label);
+            row.append(el('strong', 'Slot ' + number), el('span', title, { class: 'session-slot-name' }), label);
             list.append(row);
           });
           reference.append(list);

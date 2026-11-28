@@ -1884,6 +1884,9 @@ unit or kit progress; carrying an activity forward is separate. Statuses follow
 the activity title (and occurrence when titles repeat), not its displayed
 position. Renamed titles require a new selection; saved earlier statuses remain
 in the session record.
+Trello Planner and Notes use the same dated card matched by class, date and
+period. Refresh rereads its teaching slots, including their order and numbers,
+without replacing Session notes or saved outcomes, even when a slot is removed.
 
 **Unit plans & lessons for this period** groups the active catalogue resources
 explicitly linked by the selected session's dated teaching slots, shared draft,

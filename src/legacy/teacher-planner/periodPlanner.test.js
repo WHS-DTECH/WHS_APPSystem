@@ -614,6 +614,51 @@ test('Class Roll uses the selected session and returning to Notes retains unsave
   assert.equal(workspace.read().note, 'Unsaved edit');
 });
 
+test('refresh keeps dated Trello slots and Notes in sync after reopening the same session without losing outcomes', async () => {
+  const context = { URLSearchParams, plannerSessionSchema: require('./public/session-schema'),
+    plannerTeachingSlots: require('./public/teaching-slots') };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-day-trello'), 'utf8') +
+    fs.readFileSync(require.resolve('./public/teaching-session'), 'utf8'), context);
+  let card = teachingSlotFixture(), requests = 0;
+  const host = node();
+  const dashboard = context.plannerTeachingDayTrello.dashboard(host, {
+    date: '2026-11-23', slot: 'p2', classKey: 'JPI', title: 'PIDTECH (JPI)'
+  }, { el: node, request: async () => {
+    requests++;
+    return { status: 'ok', issues: [], cards: [card], unassigned: [] };
+  }, loadSchedule: async () => ({ events: [] }) });
+  const savedOutcomes = [{ title: 'Minecraft', occurrence: 1, status: 'partial' },
+    { title: 'Binary Piano — Review', occurrence: 1, status: 'taught' }];
+  const workspace = context.plannerTeachingSession.mount(dashboard.workspace, {
+    event: { date: '2026-11-23', slot: 'p2', label: 'Period 2', classKey: 'JPI', title: 'PIDTECH (JPI)' },
+    revision: 1, legacy: { content: {} }, content: { note: 'Recorded outcome', evaluation: '', activities: [],
+      slotOutcomes: savedOutcomes, session: { title: 'JPI', type: 'teaching', startTime: '', endTime: '' } }
+  }, { el: node, legacy() {}, showTrello: dashboard.showTrello, plannedTitles: dashboard.plannedTitles,
+    refreshPlannedTitles: dashboard.refreshPlannedTitles });
+  await flush(); await flush();
+  const note = slotDescendants(host).find(item => item.tag === 'textarea');
+  note.value = 'Unsaved actual progress';
+  dashboard.selectSession({ cardId: card.id });
+  workspace.selectView(false); workspace.selectView(true);
+  const plan = context.plannerTeachingSlots.parse(card.description);
+  card = { ...card, description: card.description.split('## Teaching slots')[0] + '## Teaching slots\n\n' +
+    [plan.slots[3], plan.slots[0], plan.slots[2]].map((slot, index) =>
+      `### SLOT ${index + 5} | ${slot.type} | ${slot.title}\nDetails: Updated from Trello.`).join('\n\n') };
+  await dashboard.refresh(); await flush();
+  const rows = slotDescendants(host).filter(item => item.attrs.class === 'session-slot-row');
+  assert.deepEqual(rows.map(row => row.children[1].textContent),
+    ['Binary Piano — Decoding', 'Typing Kit', 'Binary Piano — Review']);
+  assert.deepEqual(rows.map(row => row.children[0].textContent), ['Slot 5', 'Slot 6', 'Slot 7']);
+  assert.deepEqual(rows.map(row => slotDescendants(row).find(item => item.tag === 'select').value), ['', '', 'taught']);
+  workspace.selectView(false);
+  const buttons = slotDescendants(host).filter(item => item.attrs.class === 'teaching-slot');
+  assert.deepEqual(buttons.map(button => button.children[0].children[0].textContent), rows.map(row => row.children[1].textContent));
+  assert.equal(workspace.read().note, 'Unsaved actual progress');
+  assert.deepEqual(JSON.parse(JSON.stringify(workspace.read().slotOutcomes)), savedOutcomes,
+    'removed slots retain their earlier outcomes without assigning them to new slots');
+  assert.equal(requests, 2, 'refresh reads the updated Trello source');
+});
+
 test('Class Roll matches the signed-in teacher, class subject, weekday and period without guessing', async () => {
   const source = fs.readFileSync(require.resolve('./public/planner'), 'utf8');
   const directory = { classes: [

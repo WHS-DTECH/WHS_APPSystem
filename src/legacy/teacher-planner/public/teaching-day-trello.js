@@ -187,7 +187,10 @@
       ensureSelectedVisible();
     }
     function selectSession(next) {
-      plannedTitles = undefined;
+      if (['date', 'slot', 'classKey'].some(key => Object.hasOwn(next, key) && next[key] !== context[key])) {
+        plannedTitles = undefined;
+        titlesGeneration++;
+      }
       Object.assign(context, next);
       if (next.date) selectedDate = next.date;
       dateInput.value = context.date;
@@ -198,12 +201,17 @@
       }
       renderSchedule();
       renderSelected();
+      updatePlannedTitles();
+    }
+    function selectedCard() {
+      return result?.cards.find(card => card.metadata.teaching_date === context.date &&
+        card.metadata.session_slot === context.slot && (context.classKey ?
+          card.metadata.class_key === context.classKey : context.cardId === card.id));
     }
     function updatePlannedTitles() {
       if (!plannedTitles) return;
       const current = ++titlesGeneration, callback = plannedTitles;
-      const card = result?.cards.find(item => item.metadata.teaching_date === context.date &&
-        item.metadata.session_slot === context.slot && context.classKey && item.metadata.class_key === context.classKey);
+      const card = selectedCard();
       if (card?.description?.includes('[TEACHING_DASHBOARD_V1]') && globalThis.plannerTeachingSlots) {
         try {
           const plan = globalThis.plannerTeachingSlots.parse(card.description);
@@ -302,9 +310,7 @@
         return;
       }
       if (!result) { selectedHost.append(el('p', 'Reading Trello...', { role: 'status' })); return; }
-      const card = result.cards.find(card => card.metadata.teaching_date === context.date &&
-        card.metadata.session_slot === context.slot && (context.classKey ?
-          card.metadata.class_key === context.classKey : context.cardId === card.id));
+      const card = selectedCard();
       if (!card) {
         if ((verifiedJunior || verifiedMiddle) && context.date < todayDate()) {
           juniorSession = historical(selectedHost, verifiedMiddle);
