@@ -1824,20 +1824,26 @@ an invented historical teaching date.
 
 On the Teaching Dashboard, Teaching Day stays alongside the selected session.
 **Notes** shows Period Planner with previous progress for JPI only, planned
-activity titles for reference, an actual-progress box, and an adjustments and
-reminders box. JPI's previous session is the latest earlier saved JPI session
+activity titles for reference, and one Session notes box. Existing actual
+progress and reminders are combined verbatim, separated by a blank line when
+both exist. JPI's previous session is the latest earlier saved JPI session
 in the same year, including an earlier period on the same day. Its recorded
 text and explicitly confirmed activity outcomes are labelled separately; an
 empty outcome is not inferred from a plan. Linked lesson and confirmation
 controls remain available under expandable details. Existing session notes,
 evaluation and original Period Planner records are retained.
 
-Both text boxes autosave with the selected date, period and
+Session notes autosave with the selected date, period and
 verified timetable class. Older date-and-period notes are retained: a matching
 original timetable title can be adopted by that class; otherwise the notes are
 shown separately without assigning them to a class. A changed or ambiguous
 timetable cannot save a class-specific draft under another class. Other class
 notes for the same date and period are available separately.
+
+**Class Roll** reads the signed-in teacher's KAMAR class list for the matching
+subject, weekday and period. It requires an unambiguous class and term. The
+term snapshot is the latest available upload and may not reflect membership on a
+past teaching date; no attendance is changed.
 
 Planned titles may be read-only dated Trello slots, a labelled current/future
 shared-sequence draft, or saved session activities. Current progress is never

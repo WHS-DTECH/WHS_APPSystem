@@ -87,7 +87,8 @@
   }
   let week = monday(localDate.startsWith('2026') ? localDate : '2026-01-05');
   const restored = new URLSearchParams(location.hash.slice(1));
-  let dashboardMode = restored.get('dashboard') === '1', dashboardTrello = restored.get('view') === 'trello';
+  let dashboardMode = restored.get('dashboard') === '1', dashboardTrello = restored.get('view') === 'trello',
+    dashboardRoll = restored.get('view') === 'roll';
   let dashboardNoSession = dashboardMode && restored.get('noSession') === '1';
   let selectedTeachingCard = /^[0-9a-f]{24}$/.test(restored.get('card') || '') ? restored.get('card') : '';
   if (/^[0-6]$/.test(restored.get('setupTab') || '')) setupTab = Number(restored.get('setupTab'));
@@ -143,7 +144,7 @@
     return new URLSearchParams({ section, year, week, term, day: selectedDay,
       ...(section === 'setup' ? { setupTab } : {}),
       ...(['period', 'activity'].includes(section) ? { date: periodDate, slot: periodSlot } : {}),
-      ...(dashboardMode && section === 'period' ? { dashboard: '1', view: dashboardTrello ? 'trello' : 'notes',
+      ...(dashboardMode && section === 'period' ? { dashboard: '1', view: dashboardRoll ? 'roll' : dashboardTrello ? 'trello' : 'notes',
         ...(selectedTeachingCard ? { card: selectedTeachingCard } : {}),
         ...(dashboardNoSession ? { noSession: '1' } : {}) } : {}),
       ...(section === 'activity' ? { activity: activityRecord } : {}),
@@ -978,6 +979,33 @@
     await refreshSession();
     return request(api + 'kamar-timetable/' + Number(value.slice(0, 4)) + '/' + Number(value.slice(5, 7)));
   }
+  async function loadSessionClassRoll(event) {
+    const match = event.classKey && /^([^()]+)\s*\(([A-Z0-9_-]+)\)$/i.exec(event.title || '');
+    const day = new Date(event.date + 'T00:00:00Z').getUTCDay();
+    if (!match || match[2].toUpperCase() !== event.classKey || day < 1 || day > 5 || !/^p[1-5]$/.test(event.slot)) {
+      throw new Error('A unique scheduled class and teaching period are needed.');
+    }
+    const selectedYear = Number(event.date.slice(0, 4));
+    const { ranges } = await loadTermDates(selectedYear);
+    const terms = ranges.filter(range => range.startDate && range.endDate &&
+      range.startDate <= event.date && event.date <= range.endDate);
+    if (terms.length !== 1) throw new Error('The school term for this date cannot be verified.');
+    await refreshSession();
+    const directory = await request(api + 'attendance/classes/' + selectedYear + '?term=' + encodeURIComponent(terms[0].term));
+    if (!Array.isArray(directory.classes)) throw new Error('The school class list is invalid.');
+    const subject = match[1].trim().toUpperCase();
+    const slot = ['mon', 'tue', 'wed', 'thu', 'fri'][day - 1] + '_' + event.slot;
+    const candidates = directory.classes.filter(group => {
+      const code = String(group.code || '').trim().toUpperCase();
+      const parts = /^[^-]+-(.+)-[^-]+$/.exec(code);
+      return parts?.[1] === subject && Array.isArray(group.slots) &&
+        (group.slots.includes(slot) || event.slot === 'p1' && group.slots.includes(slot + '_2'));
+    });
+    if (candidates.length !== 1 || !Array.isArray(candidates[0].students)) {
+      throw new Error('The school timetable does not identify exactly one matching class list for this period.');
+    }
+    return { term: terms[0].term, students: candidates[0].students };
+  }
   async function juniorTeachingRequest(path, options = {}) {
     await refreshSession();
     const config = options.body === undefined ? options : {
@@ -1044,12 +1072,13 @@
         await refreshSession(); return request(api + 'teaching-day-trello/' + day + (query ? '?' + query : ''));
       },
       loadSchedule: loadTeachingDayTimetable, termControl, termError: dashboardTermError,
-      defaultView: () => dashboardClassView,
+      defaultView: () => dashboardRoll ? 'roll' : dashboardClassView,
       juniorRequest: juniorTeachingRequest, openJunior: () => navigatePlannerSection('juniorTeaching'),
       middleRequest: middleTeachingRequest, openMiddle: () => navigatePlannerSection('middleTeaching'), semesterForDate: middleSemesterForDate,
       changeDate: changeTeachingDay,
       openNotesSession: session => openSessionPlan(session.date, session.slot, undefined, undefined, false),
       openTrelloSession: session => openSessionPlan(session.date, session.slot, undefined, undefined, true),
+      openRollSession: session => openSessionPlan(session.date, session.slot, undefined, undefined, 'roll'),
       select: (card, trello) => openSessionPlan(card.metadata.teaching_date, card.metadata.session_slot,
         undefined, card.id, trello)
     });
@@ -1077,12 +1106,13 @@
           el, request: async (day, query = '') => {
             await refreshSession(); return request(api + 'teaching-day-trello/' + day + (query ? '?' + query : ''));
           }, loadSchedule: loadTeachingDayTimetable, termControl, termError: dashboardTermError,
-          defaultView: () => dashboardClassView,
+          defaultView: () => dashboardRoll ? 'roll' : dashboardClassView,
           juniorRequest: juniorTeachingRequest, openJunior: () => navigatePlannerSection('juniorTeaching'),
           middleRequest: middleTeachingRequest, openMiddle: () => navigatePlannerSection('middleTeaching'), semesterForDate: middleSemesterForDate,
           changeDate: changeTeachingDay,
           openNotesSession: session => openSessionPlan(session.date, session.slot, undefined, undefined, false),
           openTrelloSession: session => openSessionPlan(session.date, session.slot, undefined, undefined, true),
+          openRollSession: session => openSessionPlan(session.date, session.slot, undefined, undefined, 'roll'),
           select: (card, trello) =>
             openSessionPlan(card.metadata.teaching_date, card.metadata.session_slot, undefined, card.id, trello)
         });
@@ -1091,12 +1121,15 @@
     }
     sessionPlanner = globalThis.plannerTeachingSession.mount(dashboard?.workspace || content, { ...data, legacy }, {
       el,
-      teachingDay, showTrello: dashboard?.showTrello, plannedTitles: dashboard?.plannedTitles,
+      teachingDay, classRoll: loadSessionClassRoll, showTrello: dashboard?.showTrello, plannedTitles: dashboard?.plannedTitles,
       refreshPlannedTitles: dashboard?.refreshPlannedTitles,
       initialTrello: dashboardMode && dashboardTrello,
-      viewChanged: useNotes => {
+      initialRoll: dashboardMode && dashboardRoll,
+      viewChanged: (useNotes, view) => {
         if (!dashboardMode) return;
-        dashboardTrello = !useNotes; history.replaceState(null, '', '#' + viewFragment());
+        dashboardRoll = view === 'roll';
+        if (!dashboardRoll) dashboardTrello = !useNotes;
+        history.replaceState(null, '', '#' + viewFragment());
       },
       openRoutine: async id => {
         if (!await ensureSaved()) return;
@@ -1139,7 +1172,8 @@
       dashboardNoSession = false;
       year = Number(value.slice(0, 4)); yearInput.value = year; updateYearBadge();
       week = monday(value); selectedDay = (date(value).getUTCDay() + 6) % 7;
-      if (typeof trello === 'boolean') dashboardTrello = trello;
+      if (typeof trello === 'boolean') { dashboardTrello = trello; dashboardRoll = false; }
+      else if (trello === 'roll') dashboardRoll = true;
       revision = pilot.revision;
       mountTeachingSession(pilot, legacy); loaded = true;
       history.replaceState(null, '', '#' + viewFragment());
@@ -1165,7 +1199,7 @@
     teachingDashboard.setDate(value, schedule.sessions, schedule.error);
     if (schedule.sessions.length) {
       const session = schedule.sessions[0];
-      if (await switchDashboardSession(value, session.slot, '', false)) return true;
+      if (await switchDashboardSession(value, session.slot, '', dashboardRoll ? 'roll' : false)) return true;
       const previous = await teachingDashboard.readSchedule(previousDate);
       teachingDashboard.setDate(previousDate, previous.sessions, previous.error);
       return false;
@@ -1198,6 +1232,7 @@
         selectedTeachingCard = cardId || '';
         teachingDashboard.selectSession({ cardId: selectedTeachingCard });
         if (typeof trello === 'boolean') sessionPlanner.selectView(!trello);
+        else if (trello === 'roll') sessionPlanner.selectView('roll');
         history.replaceState(null, '', '#' + viewFragment());
       } else {
         if (value !== periodDate && ![1, 2, 3, 4, 5].includes(date(value).getUTCDay())) {
@@ -3002,7 +3037,7 @@
       year = Number(periodDate.slice(0, 4)); yearInput.value = year; updateYearBadge();
       week = monday(periodDate); selectedDay = (date(periodDate).getUTCDay() + 6) % 7;
     } else if (section !== 'period') {
-      dashboardMode = false; dashboardTrello = false; selectedTeachingCard = '';
+      dashboardMode = false; dashboardTrello = false; dashboardRoll = false; selectedTeachingCard = '';
       dashboardNoSession = false;
     }
     sessionPlanner = undefined; sessionAddress = undefined;

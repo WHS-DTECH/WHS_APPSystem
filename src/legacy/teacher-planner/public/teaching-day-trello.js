@@ -80,7 +80,7 @@
       el('a', 'Open in Trello', { href: card.url, target: '_blank', rel: 'noopener noreferrer' }));
     return article;
   }
-  function dashboard(host, context, { el, request, loadSchedule, select, openNotesSession, openTrelloSession, changeDate, termControl, termError, openJunior, juniorRequest, openMiddle, middleRequest, semesterForDate, defaultView = () => 'trello',
+  function dashboard(host, context, { el, request, loadSchedule, select, openNotesSession, openTrelloSession, openRollSession, changeDate, termControl, termError, openJunior, juniorRequest, openMiddle, middleRequest, semesterForDate, defaultView = () => 'trello',
     todayDate = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Pacific/Auckland', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()) }) {
     const page = el('section', '', { class: 'teaching-dashboard', 'aria-label': 'Teaching Dashboard' });
     const heading = el('div', '', { class: 'teaching-dashboard-heading', 'data-planner-navigation': '' });
@@ -142,7 +142,8 @@
         const item = el('article', '', { class: 'teaching-day-session', 'data-selected': String(selected) });
         const openTrello = () => { if (!switching && !dateChanging) return card ? select(card, true) : openTrelloSession(session); };
         const openNotesView = () => { if (!switching && !dateChanging) return openNotesSession(session); };
-        const openDefault = () => defaultView() === 'notes' ? openNotesView() : openTrello();
+        const openDefault = () => defaultView() === 'roll' && openRollSession ? openRollSession(session) :
+          defaultView() === 'notes' ? openNotesView() : openTrello();
         const title = el('button', session.title, { type: 'button', class: 'teaching-day-session-title', 'aria-pressed': String(selected) });
         title.addEventListener('click', openDefault);
         item.addEventListener('click', event => {

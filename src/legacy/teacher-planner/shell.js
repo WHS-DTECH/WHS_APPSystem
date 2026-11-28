@@ -20,7 +20,7 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
 <link rel="icon" type="image/png" href="${asset('whs-logo.png')}">
 <link rel="stylesheet" href="${asset('account-controls.css')}">
 <link rel="stylesheet" href="${asset('module-shell.css')}">
-<link rel="stylesheet" href="${asset('planner.css?v=dashboard-default-1')}">
+<link rel="stylesheet" href="${asset('planner.css?v=session-notes-roll-1')}">
 </head><body class="whs-module-shell whs-planner" data-api="${escape(baseUrl)}api/planner/" data-assets="${escape(baseUrl)}framework/" data-planner-name="${escape(displayName)}" data-user-id="${escape(userId)}" data-user-email="${escape(userEmail)}" data-core-url="${escape(coreUrl)}">
 <main class="planner-main" aria-label="${escape(title)}">
 <header class="planner-heading">
@@ -119,9 +119,9 @@ ${standalone ? `<script src="${asset('global-nav.js')}" defer></script>` : ''}
 <script src="${asset('session-schema.js?v=scheduled-session-3')}" defer></script>
 <script src="${asset('teaching-slots.js?v=shared-draft-1')}" defer></script>
 <script src="${asset('junior-teaching.js?v=notes-progress-1')}" defer></script>
-<script src="${asset('teaching-day-trello.js?v=notes-progress-1')}" defer></script>
-<script src="${asset('teaching-session.js?v=notes-progress-1')}" defer></script>
-<script src="${asset('planner.js?v=notes-progress-1')}" defer></script>
+<script src="${asset('teaching-day-trello.js?v=session-notes-roll-1')}" defer></script>
+<script src="${asset('teaching-session.js?v=session-notes-roll-1')}" defer></script>
+<script src="${asset('planner.js?v=session-notes-roll-1')}" defer></script>
 </body></html>`;
 }
 

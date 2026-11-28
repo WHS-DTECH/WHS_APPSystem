@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const express = require('express');
 const session = require('express-session');
 const { createModuleRouter } = require('./app');
-const { validContent, draft, nextActivities } = require('./teachingSessions');
+const { validContent, validSessionContent, draft, nextActivities } = require('./teachingSessions');
 const { loadTeachingContent } = require('./teachingContent');
 const { Client, Pool } = require('pg');
 const crypto = require('crypto');
@@ -117,6 +117,12 @@ test('activity timing is explicit and optional, with unique activities and valid
     { ...content, activities: [{ ...content.activities[0], sourceId: 'student-record' }] },
     { ...content, activities: [{ ...content.activities[0], status: 'elapsed' }] }
   ]) assert.equal(validContent(invalid), false);
+});
+test('combined session notes can hold both original maximum-length fields', () => {
+  const note = 'a'.repeat(20000) + '\n\n' + 'b'.repeat(20000);
+  assert.equal(validContent({ ...draft([]), note, actualProgress: '' }), true);
+  assert.equal(validSessionContent({ note, actualProgress: '', evaluation: '', activities: [],
+    session: { title: 'Class', type: 'teaching', startTime: '', endTime: '' } }, 'p2'), true);
 });
 test('Friday preparation remains saved under Friday after opening Thursday notes', async t => {
   const f = await fixture(t);

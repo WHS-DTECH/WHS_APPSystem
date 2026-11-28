@@ -70,6 +70,7 @@
 .session-field { display: grid; gap: 5px; margin: 10px 0; min-width: 0; }
 .session-field input, .session-field select, .session-field textarea { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #b3c4cb; border-radius: 4px; font: inherit; color: #31586c; background: #fff; }
 .session-field textarea { min-height: 70px; }
+.session-field textarea.session-note { min-height: 0; }
 .session-timing { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .session-activity { border-left: 4px solid #376783; padding: 8px 12px; margin: 8px 0; background: #f4f8fa; }
 .session-activity-header { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 15rem); gap: 12px; }

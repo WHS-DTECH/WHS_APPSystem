@@ -18,24 +18,47 @@
       page.append(programme);
     }
     const toggle = el('div', '', { class: 'term-notes-toggle planner-nav-buttons', role: 'group',
-      'aria-label': 'Session Notes or Trello', 'data-planner-navigation': '' });
+      'aria-label': 'Session views', 'data-planner-navigation': '' });
     const notesButton = el('button', 'Notes', { type: 'button', 'aria-pressed': 'true' });
+    const rollButton = el('button', 'Class Roll', { type: 'button', 'aria-pressed': 'false' });
     const trelloButton = el('button', helpers.showTrello ? 'Trello Planner' : 'Trello', { type: 'button', 'aria-pressed': 'false' });
-    toggle.append(notesButton, trelloButton);
+    toggle.append(notesButton, rollButton, trelloButton);
     const notes = el('section', '', { 'aria-label': 'Session Notes' });
+    const roll = el('section', '', { 'aria-label': 'Class Roll' });
+    roll.hidden = true;
     const trello = el('section', '', { 'aria-label': 'Session Trello', 'data-planner-navigation': '' });
     trello.hidden = true;
     trello.append(el('h3', 'Trello is not configured'),
       el('p', 'A session-tracker source has not been agreed. No Trello data is loaded and no cards are created. Your plan and progress remain in Notes.'));
     let teachingDay;
-    function select(useNotes) {
-      notes.hidden = !useNotes; trello.hidden = useNotes;
-      notesButton.setAttribute('aria-pressed', String(useNotes));
-      trelloButton.setAttribute('aria-pressed', String(!useNotes));
-      helpers.viewChanged?.(useNotes);
-      if (useNotes) helpers.refreshPlannedTitles?.();
-      if (!useNotes && helpers.showTrello) helpers.showTrello(trello);
-      else if (!useNotes && helpers.teachingDay) {
+    async function showRoll() {
+      roll.replaceChildren(el('h3', 'Class Roll'), el('p', 'Loading the school class list...', { role: 'status' }));
+      try {
+        if (!helpers.classRoll) throw new Error('The school class-list connection is unavailable.');
+        const roster = await helpers.classRoll(data.event);
+        roll.replaceChildren(el('h3', 'Class Roll'),
+          el('p', 'Term ' + roster.term + ' KAMAR timetable snapshot. Membership may have changed since this teaching date.'));
+        if (!roster.students.length) roll.append(el('p', 'No students were found in this class list.'));
+        else {
+          const list = el('ul');
+          roster.students.forEach(student => list.append(el('li', student.name)));
+          roll.append(list);
+        }
+      } catch (error) {
+        roll.replaceChildren(el('h3', 'Class Roll'), el('p', 'Class roll unavailable: ' + error.message, { role: 'alert' }));
+      }
+    }
+    function select(view) {
+      const current = view === 'roll' ? 'roll' : view ? 'notes' : 'trello';
+      notes.hidden = current !== 'notes'; roll.hidden = current !== 'roll'; trello.hidden = current !== 'trello';
+      notesButton.setAttribute('aria-pressed', String(current === 'notes'));
+      rollButton.setAttribute('aria-pressed', String(current === 'roll'));
+      trelloButton.setAttribute('aria-pressed', String(current === 'trello'));
+      helpers.viewChanged?.(current === 'notes', current);
+      if (current === 'notes') helpers.refreshPlannedTitles?.();
+      if (current === 'roll') void showRoll();
+      if (current === 'trello' && helpers.showTrello) helpers.showTrello(trello);
+      else if (current === 'trello' && helpers.teachingDay) {
         if (!teachingDay) teachingDay = globalThis.plannerTeachingDayTrello.mount(trello, () => ({
           date: data.event.date, slot: data.event.slot, classKey: data.event.classKey,
           sessionType: pilot ? 'teaching' : data.content.session.type
@@ -45,8 +68,9 @@
       globalThis.plannerTextareaAutosize?.refresh();
     }
     notesButton.addEventListener('click', () => select(true));
+    rollButton.addEventListener('click', () => select('roll'));
     trelloButton.addEventListener('click', () => select(false));
-    page.append(toggle, notes, trello);
+    page.append(toggle, notes, roll, trello);
     function section(title) {
       const node = el('section', '', { class: 'session-section' });
       node.append(el('h3', title)); notes.append(node); return node;
@@ -57,6 +81,9 @@
       const input = el(type === 'textarea' ? 'textarea' : 'input', '', type === 'textarea' ? { rows: '3' } : { type });
       input.value = value ?? '';
       wrapper.append(input); host.append(wrapper); return input;
+    }
+    function combinedNotes(content) {
+      return [content?.actualProgress, content?.note].filter(value => typeof value === 'string' && value.length).join('\n\n');
     }
     function originalNotes() {
       const legacy = el('details'); legacy.append(el('summary', 'Original Period Planner records'));
@@ -124,11 +151,9 @@
       }
       const period = globalThis.plannerSessionSchema.slots.find(item => item[0] === last.slot_key)?.[1] || last.slot_key;
       previous.append(el('p', 'Previous session: ' + String(last.session_date).slice(0, 10) + ' | ' + period));
-      const actual = last.content?.actualProgress?.trim();
+      const actual = combinedNotes(last.content);
       const outcomes = last.confirmed_content?.activities?.filter(item => item.status !== 'planned') || [];
       if (actual) previous.append(el('p', actual, { class: 'session-preserved-text' }));
-      if (last.content?.note?.trim()) previous.append(el('h4', 'Previous session notes'),
-        el('p', last.content.note, { class: 'session-preserved-text' }));
       if (outcomes.length) {
         previous.append(el('p', 'Confirmed activity outcomes:'));
         const list = el('ul');
@@ -142,10 +167,8 @@
     if (!pilot) {
       const planning = section('Planned activities and actual progress');
       plannedReference(planning);
-      const actual = field(planning, 'What students actually did and where they got up to', data.content.actualProgress);
-      actual.maxLength = 20000;
-      const note = field(section('Session adjustments and reminders'),
-        'Changes, reminders and where to start next time', data.content.note); note.maxLength = 20000;
+      const note = field(planning, 'Session notes', combinedNotes(data.content));
+      note.rows = 1; note.maxLength = 40002; note.setAttribute('class', 'session-note');
       const settings = el('details');
       settings.append(el('summary', 'Session details'));
       notes.append(settings);
@@ -178,18 +201,17 @@
       const reflection = field(evaluation, 'Later evaluation', data.content.evaluation); reflection.maxLength = 20000;
       notes.append(evaluation);
       originalNotes(); host.append(page);
-      if (helpers.initialTrello) select(false);
-      return { selectView: select, read: () => ({ note: note.value, actualProgress: actual.value, evaluation: reflection.value, activities: [],
+      if (helpers.initialRoll) select('roll');
+      else if (helpers.initialTrello) select(false);
+      return { selectView: select, read: () => ({ note: note.value, actualProgress: '', evaluation: reflection.value, activities: [],
         session: { title: title.value, type: type.value, startTime: startTime.value, endTime: endTime.value,
           ...(data.event.classKey ? { classKey: data.event.classKey } : {}) } }),
         saved: () => {} };
     }
     const activities = section('Planned activities and actual progress');
     plannedReference(activities);
-    const actualProgress = field(activities, 'What students actually did and where they got up to', data.content.actualProgress);
-    actualProgress.maxLength = 20000;
-    const note = field(section('Session adjustments and reminders'),
-      'Changes, reminders and where to start next time', data.content.note); note.maxLength = 20000;
+    const note = field(activities, 'Session notes', combinedNotes(data.content));
+    note.rows = 1; note.maxLength = 40002; note.setAttribute('class', 'session-note');
 
     const advanced = el('details');
     advanced.append(el('summary', 'Linked lesson, routine and confirmed progress'));
@@ -295,9 +317,10 @@
     notes.append(evaluation);
     originalNotes();
     host.append(page);
-    if (helpers.initialTrello) select(false);
+    if (helpers.initialRoll) select('roll');
+    else if (helpers.initialTrello) select(false);
     function read() {
-      return { note: note.value, actualProgress: actualProgress.value, evaluation: reflection.value, activities: rows.map(row => ({
+      return { note: note.value, actualProgress: '', evaluation: reflection.value, activities: rows.map(row => ({
         id: row.activity.id, sourceId: row.activity.sourceId, title: row.title.value,
         plannedMinutes: row.planned.value === '' ? null : Number(row.planned.value),
         actualMinutes: row.actual.value === '' ? null : Number(row.actual.value),

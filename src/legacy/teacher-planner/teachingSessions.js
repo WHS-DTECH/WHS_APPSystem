@@ -19,7 +19,7 @@ function validContent(content) {
   const string = (value, limit) => typeof value === 'string' && value.length <= limit;
   if (!content || Array.isArray(content) ||
       !['activities,evaluation,note', 'activities,actualProgress,evaluation,note'].includes(Object.keys(content).sort().join(',')) ||
-      !string(content.note, 20000) || !string(content.evaluation, 20000) ||
+      !string(content.note, 40002) || !string(content.evaluation, 20000) ||
       (content.actualProgress !== undefined && !string(content.actualProgress, 20000)) ||
       !Array.isArray(content.activities) || content.activities.length > 50) return false;
   return content.activities.every(item => item && !Array.isArray(item) &&
@@ -33,7 +33,7 @@ function validSessionContent(content, slot) {
   const time = value => typeof value === 'string' && (value === '' || /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value));
   const session = content?.session;
   return Boolean(content && ['activities,evaluation,note,session', 'activities,actualProgress,evaluation,note,session'].includes(Object.keys(content).sort().join(',')) &&
-    typeof content.note === 'string' && content.note.length <= 20000 &&
+    typeof content.note === 'string' && content.note.length <= 40002 &&
     (content.actualProgress === undefined || typeof content.actualProgress === 'string' && content.actualProgress.length <= 20000) &&
     typeof content.evaluation === 'string' && content.evaluation.length <= 20000 &&
     Array.isArray(content.activities) && content.activities.length === 0 &&
