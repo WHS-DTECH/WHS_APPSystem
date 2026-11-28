@@ -389,8 +389,10 @@ and accounts, organisations and repositories visible to the GitHub token. The re
 is not limited to Module Builder projects. Pagination includes Render previews
 and database replicas, with duplicate IDs counted once. Provider access defines
 the scope: resources outside the configured credentials' permissions cannot appear.
-The dashboard separates Render and GitHub known monthly estimates and indicative NZD,
-unknown costs and unpriced workspaces. The workspace card links to per-workspace
+The dashboard shows Render known monthly estimates and indicative NZD,
+unknown Render compute costs and unpriced workspaces. GitHub development costs
+are not displayed or included in the estimates; GitHub account and repository
+inventory remains available. The workspace card links to per-workspace
 inventory and compute details; Render resources are grouped by type. Administrators
 can categorise visible GitHub accounts as student accounts; that designation is
 stored in the Core report across refreshes and does not establish a free plan or
@@ -403,14 +405,11 @@ seats and billing usage require appropriate owner/billing access; repository
 access alone does not provide it. Missing credentials and permission failures
 are shown explicitly, never as zero costs.
 
-USD full-month compute estimates and GitHub subscriptions use a published-price
-catalogue checked on 2 November 2026 ([Render](https://render.com/pricing),
-[GitHub](https://github.com/pricing)). These prices are not automatically updated.
-GitHub subscription fees are counted per account, not per repository.
-Organisation month-to-date metered usage is requested separately through GitHub's
-billing usage summary endpoint, when permitted; it is not added to monthly
-subscription estimates. Actual invoices and personal GitHub metered usage are
-not imported. Render workspace subscriptions, database storage, persistent disks,
+USD full-month Render compute estimates use a published-price catalogue checked
+on 2 November 2026 ([Render](https://render.com/pricing)); prices are not automatically
+updated. Refresh may still retrieve GitHub subscription and organisation metered
+usage data where permitted, but the dashboard does not display it. Actual invoices
+and personal GitHub metered usage are not imported. Render workspace subscriptions, database storage, persistent disks,
 Key Value, cron, bandwidth/build usage, tax, proration and discounts are excluded
 or marked Unknown. This is a **partial planning subtotal, not the total bill**.
 High-availability and unrecognised database plans are not given invented prices.

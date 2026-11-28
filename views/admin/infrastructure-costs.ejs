@@ -4,7 +4,7 @@
     <div>
       <p class="eyebrow"><a href="/admin">Core Administration</a> / Cost reporting</p>
       <h1>GitHub &amp; Render Costs</h1>
-      <p>Planning estimates for all resources visible to the configured reporting accounts, including apps outside Module Builder.</p>
+      <p>Render planning estimates and GitHub inventory for resources visible to the configured reporting accounts, including apps outside Module Builder.</p>
     </div>
     <form action="/admin/infrastructure-costs/refresh" method="post">
       <input type="hidden" name="csrf" value="<%= csrf %>">
@@ -17,7 +17,7 @@
       <div>
         <p class="cost-kicker">Monthly overview</p>
         <h2 id="estimate-heading">Planning estimate</h2>
-        <p>Full-month subscription and compute costs at observed plans and instance counts.</p>
+        <p>Full-month Render compute costs at observed plans and instance counts. GitHub development costs are not included.</p>
       </div>
       <span class="cost-badge cost-badge-warning">Partial estimate</span>
     </div>
@@ -27,15 +27,10 @@
         <strong><%= money(summary.render.usd) %></strong>
         <span><%= nzd(summary.render.usd) %> per month · <%= summary.render.known %> priced resources · <%= summary.render.unknown %> unknown</span>
       </article>
-      <article class="cost-metric">
-        <h3>GitHub known estimate</h3>
-        <strong><%= money(summary.github.usd) %></strong>
-        <span><%= nzd(summary.github.usd) %> per month · <%= summary.github.known %> priced accounts · <%= summary.github.unknown %> unknown</span>
-      </article>
       <article class="cost-metric cost-metric-attention">
-        <h3>Unknown costs</h3>
-        <strong><%= summary.unknown %></strong>
-        <span>resource/account costs not priced</span>
+        <h3>Unknown Render costs</h3>
+        <strong><%= summary.render.unknown %></strong>
+        <span>resource compute costs not priced</span>
       </article>
       <a class="cost-metric cost-metric-link" href="#<%= snapshot.render?.data ? 'render-workspaces' : 'render-costs' %>">
         <h3>Render workspaces</h3>
@@ -61,9 +56,8 @@
     <% } else { %><p class="cost-rate" role="status">NZD conversion unavailable. Refresh to obtain a valid rate; USD estimates are still shown.</p><% } %>
     <details class="cost-explanation">
       <summary>About these estimates and refresh</summary>
-      <p>Published USD price catalogue checked <%= priceChecked %>:
-        <a href="<%= sources.render %>" target="_blank" rel="noopener noreferrer">Render pricing</a> ·
-        <a href="<%= sources.github %>" target="_blank" rel="noopener noreferrer">GitHub pricing</a>. Prices may change.</p>
+      <p>Published Render USD price catalogue checked <%= priceChecked %>:
+        <a href="<%= sources.render %>" target="_blank" rel="noopener noreferrer">Render pricing</a>. Prices may change.</p>
       <p>Refresh makes read-only provider requests. It does not create, upgrade, delete or reconnect resources.
         No credentials, connection strings or environment-variable values are saved in this report.</p>
     </details>
@@ -94,8 +88,8 @@
       </div>
     <% } %>
     <% if (section?.data) { const data = section.data; %>
-      <p class="cost-provider-warning"><%= data.warning %></p>
       <% if (key === 'render') { %>
+        <p class="cost-provider-warning"><%= data.warning %></p>
         <% if (!data.resources.length) { %><p>No services or PostgreSQL databases were returned for this key.</p><% } %>
         <% const renderGroups = [
           ['Web Services', data.resources.filter(resource => resource.type === 'web_service')],
@@ -150,6 +144,8 @@
         </section>
         <a class="button" href="https://dashboard.render.com" target="_blank" rel="noopener noreferrer">Open Render for actual invoices</a>
       <% } else { %>
+        <p class="cost-provider-warning">Only accounts and repositories visible to this token are reported.
+          GitHub development costs are not shown in this report. Repository access does not establish billing access.</p>
         <form action="/admin/infrastructure-costs/student-accounts" method="post">
         <input type="hidden" name="csrf" value="<%= csrf %>">
         <p>Mark student accounts to group them below. This is a local category, not verification of a free plan; unknown costs stay unknown.</p>
@@ -160,15 +156,15 @@
         <% githubGroups.forEach(([heading, accounts]) => { %>
         <h3><%= heading %> (<%= accounts.length %>)</h3>
         <% if (!accounts.length) { %><p>No accounts in this category.</p><% } else { %>
-        <div class="user-role-table-wrap cost-table-wrap" role="region" aria-label="GitHub <%= heading %> cost table" tabindex="0">
+        <div class="user-role-table-wrap cost-table-wrap cost-account-table" role="region" aria-label="GitHub <%= heading %> account table" tabindex="0">
           <table>
-            <caption>GitHub subscriptions are counted per account, not per repository</caption>
-            <thead><tr><th scope="col">Student account</th><th scope="col">Account</th><th scope="col">Plan / seats</th><th scope="col">Visible repositories</th><th scope="col">Monthly USD</th><th scope="col">Indicative NZD</th><th scope="col">Coverage</th></tr></thead>
+            <caption>GitHub accounts and visible repositories</caption>
+            <thead><tr><th scope="col">Student account</th><th scope="col">Account</th><th scope="col">Plan / seats</th><th scope="col">Visible repositories</th></tr></thead>
             <tbody>
             <% accounts.forEach(account => { %>
               <tr><td><input type="checkbox" name="studentAccounts" value="<%= account.login %>" aria-label="Student account: <%= account.login %>" <%= studentAccounts.has(account.login.toLowerCase()) ? 'checked' : '' %>></td>
                 <td><strong><%= account.login %></strong><br><%= account.type %></td><td><%= account.plan %><br>Seats: <%= account.seats === null ? 'Unknown' : account.seats %></td>
-                <td><%= account.repositoryCount %></td><td class="cost-amount"><%= money(account.monthlyUsd) %></td><td class="cost-amount"><%= nzd(account.monthlyUsd) %></td><td><%= account.note %></td></tr>
+                <td><%= account.repositoryCount %></td></tr>
             <% }) %>
             </tbody>
           </table>
@@ -177,24 +173,9 @@
         <% }) %>
         <button class="button" type="submit">Save student account categories</button>
         </form>
-        <h3>Provider-reported metered usage <span class="cost-subheading">(not an invoice)</span></h3>
-        <p>Month-to-date organisation usage is shown separately and is not added to the monthly subscription estimate.
-          These are different periods and may overlap with included allowances. Personal-account usage is unavailable.</p>
-        <% githubGroups.forEach(([heading, accounts]) => { if (!accounts.length) return; %>
-        <h4><%= heading %></h4>
-        <ul><% accounts.forEach(account => { %>
-          <li><strong><%= account.login %>:</strong>
-            <% if (Number.isFinite(account.reportedUsageUsd)) { %>
-              <%= money(account.reportedUsageUsd) %> / indicative <%= nzd(account.reportedUsageUsd) %> — <%= account.usagePeriod %> month-to-date (UTC).
-            <% } else { %>Unavailable. <%= account.usageError || 'Billing access or supported usage reporting is not available for this account.' %><% } %>
-          </li>
-        <% }) %></ul>
-        <% }) %>
         <details class="cost-explanation"><summary>Visible repository inventory (<%= data.repositories.length %>)</summary>
-          <ul><% data.repositories.forEach(repository => { %><li><%= repository.name %> — <%= repository.private ? 'Private' : 'Public' %>; no separate repository subscription assumed.</li><% }) %></ul>
+          <ul><% data.repositories.forEach(repository => { %><li><%= repository.name %> — <%= repository.private ? 'Private' : 'Public' %></li><% }) %></ul>
         </details>
-        <a class="button" href="https://github.com/settings/billing" target="_blank" rel="noopener noreferrer">Open GitHub personal billing</a>
-        <p>For organisations, open that organisation's Settings → Billing. Repository access alone does not grant billing access.</p>
       <% } %>
     <% } %>
   </section>
@@ -205,8 +186,7 @@
       <h2 id="development-heading">New development app policy</h2>
       <p>Each newly provisioned app must be a Render Web Service with its own connected PostgreSQL database,
         both in Oregon. The lowest paid compute tiers are 0.5c-512mb and 0.1c-256mb:
-        <strong>USD 13/month compute-only per app</strong>, plus database storage and any account/workspace or usage charges.
-        GitHub subscription fees are account-level, not a new subscription for each app.</p>
+        <strong>USD 13/month compute-only per app</strong>, plus database storage and any account/workspace or usage charges.</p>
     </div>
     <a class="button" href="/module-builder">Open Module Builder</a>
   </section>

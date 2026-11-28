@@ -107,7 +107,7 @@
 .cost-metrics {
   display: grid;
   gap: 0.8rem;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   margin: 1.4rem 0 1rem;
 }
 
@@ -247,12 +247,6 @@
   margin-top: 0.35rem;
 }
 
-.cost-subheading {
-  color: #52645c;
-  font-size: 0.85rem;
-  font-weight: 400;
-}
-
 .cost-table-wrap {
   border: 1px solid #dce5df;
   border-radius: 8px;
@@ -263,6 +257,10 @@
   font-size: 0.86rem;
   min-width: 850px;
   width: 100%;
+}
+
+.cost-account-table table {
+  min-width: 500px;
 }
 
 .cost-table-wrap caption {

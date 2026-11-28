@@ -181,9 +181,7 @@ function costSummary(snapshot) {
       unknown: rows.length - amounts.length, known: amounts.length };
   };
   const render = summarize(snapshot.render?.data?.resources || []);
-  const github = summarize(snapshot.github?.data?.accounts || []);
-  return { render, github, unknown: render.unknown + github.unknown,
-    workspaces: snapshot.render?.data?.workspaces?.length || 0 };
+  return { render, workspaces: snapshot.render?.data?.workspaces?.length || 0 };
 }
 
 function createInfrastructureCostsRouter({ dbQuery = query, providers = createCostProviders(), now = () => new Date() } = {}) {
