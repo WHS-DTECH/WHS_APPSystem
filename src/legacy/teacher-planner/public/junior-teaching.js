@@ -67,13 +67,229 @@
       title: entry.title, unit: entry.kind === 'unit' ? entry.sequence : '', lesson: entry.kind === 'unit' ? entry.title : '',
       details, reminder: '', resource: '', resourceUrl: '', resources };
   }
-  function mountPage(host, { el, year, request, openTeachingDay, name = 'JuniorDTECH', semester: initialSemester = 1, loadClasses }) {
+  function mountOrderEditor(host, { el, request, openTeachingDay, year }) {
+    const page = el('section', '', { class: 'junior-teaching junior-order-editor', 'data-planner-navigation': '' });
+    const tools = el('div', '', { class: 'junior-order-tools' });
+    const back = el('button', 'Teaching Day', { type: 'button' });
+    const refresh = el('button', 'Refresh from Trello', { type: 'button' });
+    const save = el('button', 'Save order', { type: 'button', hidden: '' });
+    const status = el('p', 'Reading the teaching order...', { role: 'status', 'aria-live': 'polite' });
+    tools.append(back, refresh, save);
+    const columns = el('div', '', { class: 'junior-order-columns' });
+    const order = el('section', '', { 'aria-label': 'JuniorDTECH teaching order', class: 'junior-order-main' });
+    const orderList = el('ol', '', { class: 'junior-order-list' });
+    order.append(el('h3', 'Teaching order'), orderList);
+    const library = el('section', '', { 'aria-label': 'Add to teaching order', class: 'junior-order-library' });
+    library.append(el('h3', 'Add to teaching order'));
+    const libraryBody = el('div');
+    library.append(libraryBody);
+    const checks = el('details', '', { class: 'junior-order-checks', hidden: '' });
+    const progress = el('details', '', { class: 'junior-order-progress' });
+    const progressBody = el('div');
+    progress.append(el('summary', 'Class progress'), progressBody);
+    progress.addEventListener('toggle', () => {
+      if (progress.open && !progressBody.children.length) {
+        mountPage(progressBody, { el, year, request, openTeachingDay, progressOnly: true });
+      }
+    });
+    columns.append(order, library);
+    page.append(el('h2', 'JuniorDTECH', { class: 'paper-heading' }), tools, status, columns, checks, progress);
+    host.append(page);
+    const types = { routine: ['↻', 'Routine'], unit: ['▤', 'Unit lesson'], kit: ['◆', 'Licence Kit activity'] };
+    let data, draft = [], busy = false, dirty = false, dragged, addButtons = [];
+    function announce(message, error = false) {
+      status.setAttribute('role', error ? 'alert' : 'status');
+      status.textContent = message;
+    }
+    function updateControls() {
+      save.hidden = !dirty; save.disabled = busy;
+      refresh.disabled = busy; back.disabled = busy;
+      page.setAttribute('data-teaching-order-dirty', String(dirty));
+      page.setAttribute('data-preferences-busy', String(busy));
+      for (const { button, source } of addButtons) {
+        const added = draft.some(entry => entry.source.id === source.id);
+        button.disabled = busy || added;
+        button.textContent = added ? 'Added' : 'Add';
+      }
+    }
+    function details(source) {
+      const control = el('details', '', { class: 'junior-order-details' });
+      control.append(el('summary', 'Details'));
+      const slot = draftSlot({ ...source, source }, 1);
+      const urls = new Set();
+      for (const resource of slot.resources) {
+        if (urls.has(resource.resourceUrl)) continue;
+        try {
+          const url = new URL(resource.resourceUrl);
+          if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) continue;
+          urls.add(resource.resourceUrl);
+          const label = resource.category === 'Print Resources' ? 'Print worksheet' :
+            resource.category === 'Unit Plan' ? 'Open unit plan' :
+            resource.resource === 'Open library card in Trello' ? 'Open library card' :
+            resource.resource === 'Source' || resource.category === 'Lesson Plan' ?
+              (source.parent ? 'Open plan' : source.kind === 'unit' ? 'Open lesson' : 'Open activity') : resource.resource;
+          control.append(el('a', label, { href: url.href, target: '_blank', rel: 'noopener noreferrer' }));
+        } catch { control.append(el('span', 'Resource link needs review.', { role: 'alert' })); }
+      }
+      return control;
+    }
+    function badge(kind) {
+      const [icon, label] = types[kind];
+      return el('span', icon, { class: 'junior-type-icon', 'aria-label': label, title: label });
+    }
+    function move(from, to, focusLabel) {
+      if (busy || from === to || from < 0 || to < 0 || to >= draft.length) return;
+      const [entry] = draft.splice(from, 1);
+      draft.splice(to, 0, entry);
+      dirty = true; renderOrder(); updateControls();
+      announce(entry.title + ' moved to position ' + (to + 1) + '. Save order to apply.');
+      if (focusLabel) orderList.querySelector?.('[aria-label="' + focusLabel + '"]')?.focus();
+    }
+    function renderOrder() {
+      orderList.replaceChildren();
+      for (const [index, entry] of draft.entries()) {
+        const card = el('li', '', { class: 'junior-order-card junior-kind-' + entry.kind });
+        const handle = el('button', '⠿', { type: 'button', draggable: 'true', class: 'junior-drag-handle',
+          'aria-label': 'Drag ' + entry.title + ' to reorder', title: 'Drag to reorder, or use Move up and Move down' });
+        handle.disabled = busy;
+        handle.addEventListener('dragstart', event => {
+          if (busy) { event.preventDefault(); return; }
+          dragged = entry.source.id;
+          event.dataTransfer.effectAllowed = 'move';
+          event.dataTransfer.setData('text/plain', dragged);
+        });
+        handle.addEventListener('dragend', () => { dragged = undefined; });
+        card.addEventListener('dragover', event => { if (!busy && dragged) event.preventDefault(); });
+        card.addEventListener('drop', event => {
+          event.preventDefault();
+          if (!busy && dragged) move(draft.findIndex(item => item.source.id === dragged), index);
+          dragged = undefined;
+        });
+        const text = el('div', '', { class: 'junior-order-title' });
+        text.append(el('strong', entry.title), el('small', entry.sequence));
+        const actions = el('div', '', { class: 'junior-order-actions' });
+        for (const [label, to] of [['Move up', index - 1], ['Move down', index + 1]]) {
+          const aria = label + ' activity ' + (index + 1);
+          const button = el('button', label, { type: 'button', 'aria-label': aria });
+          button.disabled = busy || to < 0 || to >= draft.length;
+          button.addEventListener('click', () => move(index, to, label + ' activity ' + (to + 1)));
+          actions.append(button);
+        }
+        card.append(handle, badge(entry.kind), text, actions, details(entry.source));
+        orderList.append(card);
+      }
+      if (!draft.length) orderList.append(el('li', 'No JuniorDTECH teaching order has been set.'));
+    }
+    function renderLibrary() {
+      libraryBody.replaceChildren(); addButtons = [];
+      const tabs = el('div', '', { role: 'tablist', 'aria-label': 'Teaching libraries', class: 'junior-library-tabs' });
+      const panels = [];
+      for (const [index, [label, items]] of [['Unit Plans', data.libraries.units], ['Licence Kits', data.libraries.kits]].entries()) {
+        const id = 'junior-library-' + index;
+        const tab = el('button', label, { type: 'button', role: 'tab', id: id + '-tab',
+          'aria-selected': String(index === 0), 'aria-controls': id, tabindex: index === 0 ? '0' : '-1' });
+        const panel = el('div', '', { role: 'tabpanel', id, 'aria-labelledby': id + '-tab' });
+        panel.hidden = index !== 0;
+        const select = () => {
+          for (const item of panels) {
+            item.panel.hidden = item.tab !== tab;
+            item.tab.setAttribute('aria-selected', String(item.tab === tab));
+            item.tab.setAttribute('tabindex', item.tab === tab ? '0' : '-1');
+          }
+        };
+        tab.addEventListener('click', select);
+        tab.addEventListener('keydown', event => {
+          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+          event.preventDefault();
+          const target = event.key === 'Home' ? panels[0] : event.key === 'End' ? panels[panels.length - 1] : panels[1 - index];
+          target.tab.click(); target.tab.focus();
+        });
+        panels.push({ tab, panel }); tabs.append(tab);
+        const sets = new Map();
+        for (const item of items) {
+          if (!sets.has(item.sequence)) sets.set(item.sequence, []);
+          sets.get(item.sequence).push(item);
+        }
+        for (const [name, cards] of sets) {
+          const group = el('details', '', { class: 'junior-library-group' });
+          const summary = el('summary', '', { class: 'junior-library-tile' });
+          const children = cards.filter(card => !card.parent);
+          summary.append(badge(cards[0].kind), el('strong', name), el('small', children.length + ' activities'));
+          group.append(summary);
+          for (const card of cards.filter(card => card.parent)) group.append(details(card));
+          for (const source of children) {
+            const tile = el('div', '', { class: 'junior-library-item junior-kind-' + source.kind });
+            const add = el('button', 'Add', { type: 'button', 'aria-label': 'Add ' + source.title + ' to teaching order' });
+            add.addEventListener('click', () => {
+              if (busy || draft.some(entry => entry.source.id === source.id)) return;
+              draft.push({ ...source, id: null, source }); dirty = true;
+              renderOrder(); updateControls();
+              announce(source.title + ' added to draft. Save order to apply.');
+            });
+            addButtons.push({ button: add, source });
+            tile.append(el('strong', source.title), add, details(source));
+            group.append(tile);
+          }
+          if (!children.length) group.append(el('p', 'No linked lessons or activities are available yet.'));
+          panel.append(group);
+        }
+        if (!items.length) panel.append(el('p', 'No library items are available.'));
+      }
+      libraryBody.append(tabs, ...panels.map(item => item.panel));
+    }
+    function render() {
+      renderOrder(); renderLibrary();
+      checks.replaceChildren(el('summary', 'Items to check (' + data.issues.length + ')'));
+      checks.hidden = data.issues.length === 0;
+      warnings(el, checks, data.issues);
+      updateControls();
+    }
+    async function load() {
+      if (busy || dirty && !confirm('Refresh Trello and keep your draft? Review any changes before saving.')) return;
+      busy = true; updateControls();
+      try {
+        const current = await request('catalogue');
+        if (!page.isConnected) return;
+        if (dirty) {
+          const sources = [...current.libraries.units, ...current.libraries.kits];
+          draft = draft.map(entry => current.entries.find(item => item.source.id === entry.source.id) ||
+            { ...entry, source: sources.find(source => source.id === entry.source.id) || entry.source });
+          for (const entry of current.entries) if (!draft.some(item => item.source.id === entry.source.id)) draft.push(entry);
+        } else draft = [...current.entries];
+        data = current; render();
+        announce(dirty ? 'Trello refreshed. Your draft is retained; review it before saving.' : 'Live Trello teaching order.');
+      } catch (error) { announce(error.message, true); }
+      finally { busy = false; renderOrder(); updateControls(); }
+    }
+    async function saveOrder() {
+      if (busy || !dirty) return;
+      busy = true; updateControls(); renderOrder(); announce('Saving order to Trello...');
+      try {
+        const saved = await request('order', { method: 'PUT',
+          body: { version: data.orderVersion, sourceIds: draft.map(entry => entry.source.id) } });
+        if (!page.isConnected) return;
+        data = saved; draft = [...saved.entries]; dirty = false; render();
+        progress.open = false; progressBody.replaceChildren();
+        announce('Teaching order saved and verified in Trello.');
+      } catch (error) {
+        if (error.result?.recovery?.orderVersion) data.orderVersion = error.result.recovery.orderVersion;
+        announce(error.message + ' Your draft has been kept.', true);
+      } finally { busy = false; renderOrder(); updateControls(); }
+    }
+    back.addEventListener('click', openTeachingDay);
+    refresh.addEventListener('click', load);
+    save.addEventListener('click', saveOrder);
+    load();
+  }
+  function mountPage(host, { el, year, request, openTeachingDay, name = 'JuniorDTECH', semester: initialSemester = 1, loadClasses, progressOnly = false }) {
+    if (name === 'JuniorDTECH' && !progressOnly) return mountOrderEditor(host, { el, request, openTeachingDay, year });
     const page = el('section', '', { 'data-planner-navigation': '', class: 'junior-teaching' });
     const heading = el('div', '', { class: 'planner-nav-buttons' });
     const back = el('button', 'Teaching Day', { type: 'button' });
     back.addEventListener('click', openTeachingDay);
     const refresh = el('button', 'Refresh from Trello', { type: 'button' });
-    heading.append(back, refresh);
+    if (!progressOnly) heading.append(back);
+    heading.append(refresh);
     const middle = name === 'MiddleDTECH';
     const semester = el('select', '', { 'aria-label': 'Semester' });
     if (middle) {
@@ -83,9 +299,9 @@
     }
     const status = el('p', 'Loading ' + name + '...', { role: 'status' });
     const body = el('div');
-    page.append(el('h2', name + ' teaching order', { class: 'paper-heading' }), heading,
-      el('p', 'Add, edit and reorder cards in Trello. Planner progress changes only when you confirm it here.'),
-      status, body);
+    if (!progressOnly) page.append(el('h2', name + ' teaching order', { class: 'paper-heading' }),
+      el('p', 'Add, edit and reorder cards in Trello. Planner progress changes only when you confirm it here.'));
+    page.append(heading, status, body);
     host.append(page);
     let data, classes, busy = false, generation = 0;
     const scope = () => String(year) + (middle ? '/' + semester.value : '');
@@ -156,7 +372,7 @@
         }
         if (!items.length) libraries.append(el('p', 'No verified library cards are available.'));
       }
-      columns.append(order, libraries); body.append(columns);
+      if (!progressOnly) { columns.append(order, libraries); body.append(columns); }
       const progress = el('section', '', { class: 'session-section', 'aria-label': 'Class progress' });
       progress.append(el('h3', 'Class progress'));
       const sequences = groups(data.entries);

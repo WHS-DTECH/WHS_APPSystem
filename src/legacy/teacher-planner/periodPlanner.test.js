@@ -100,6 +100,75 @@ const slotProgramme = { teaching: { unit: { title: 'Binary & Data', url: '/dtech
   lesson: { title: 'Binary Piano', url: '/dtech-hub/learning-pathways/lesson-binary-piano.html' } },
 routine: { instructions: 'TypingTest.com - AKA Typing Kit\n[Minecraft Player Kit](https://dtech-hub2.onrender.com/practical-skills/kit-worksheet.html?kit=kit-minecraft)' } };
 const slotDescendants = host => [host, ...host.children.filter(child => typeof child === 'object').flatMap(slotDescendants)];
+test('JuniorDTECH editor adds, moves and saves library identities while keeping failed drafts available', async () => {
+  const context = { URL, confirm: () => true };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/junior-teaching'), 'utf8'), context);
+  const source = (id, title, kind = 'unit', sequence = 'Binary & Data') => ({
+    id, title, name: title, kind, sequence, sequenceKey: kind + ':' + sequence, parent: false,
+    url: 'https://trello.com/c/source' + id,
+    description: `Type: Unit lesson\nUnit: ${sequence}\nLesson: ${title}\nSource: https://example.com/lesson/${id}\nPrint resource: https://example.com/worksheet/${id}`
+  });
+  const piano = source('a', 'Binary Piano'), encoding = source('b', 'Encoding Binary'),
+    decoding = source('c', 'Decoding Binary'), kit = source('d', 'Blueprint', 'kit', 'Minecraft Builder Kit');
+  let data = { orderVersion: '1'.repeat(64), issues: [{ name: 'Invalid card', message: 'Needs review' }],
+    entries: [piano, encoding, kit].map(item => ({ ...item, id: 'order-' + item.id, source: item })),
+    libraries: { units: [piano, encoding, decoding], kits: [kit,
+      { ...source('e', 'Login Kit', 'kit', 'Login Kit'), parent: true }] } };
+  const writes = [], host = node();
+  let fail = true, release;
+  context.plannerJuniorTeaching.mountPage(host, { el: node, year: 2026, openTeachingDay() {},
+    request: async (path, options) => {
+      if (!options) { assert.equal(path, 'catalogue'); return data; }
+      assert.equal(path, 'order'); writes.push(options.body);
+      await new Promise(resolve => { release = resolve; });
+      if (fail) throw Object.assign(new Error('Trello save failed'), { result: { recovery: { orderVersion: '2'.repeat(64) } } });
+      const sources = [piano, encoding, decoding, kit];
+      data = { ...data, orderVersion: '3'.repeat(64), entries: options.body.sourceIds.map(id =>
+        data.entries.find(entry => entry.source.id === id) || { ...sources.find(item => item.id === id),
+          id: 'new-' + id, source: sources.find(item => item.id === id) }) };
+      return data;
+    } });
+  await flush();
+  const find = predicate => slotDescendants(host).find(predicate);
+  const rows = () => slotDescendants(host).filter(item => item.attrs.class?.startsWith('junior-order-card '));
+  const titles = () => rows().map(row => row.children[2].children[0].textContent);
+  const save = find(item => item.textContent === 'Save order');
+  assert.equal(save.hidden, true);
+  assert.ok(find(item => item.textContent === 'Login Kit'));
+  assert.ok(find(item => item.textContent === 'Items to check (1)'));
+  const add = find(item => item.attrs['aria-label'] === 'Add Decoding Binary to teaching order');
+  add.events.click();
+  assert.equal(save.hidden, false);
+  assert.equal(add.disabled, true);
+  find(item => item.attrs['aria-label'] === 'Move up activity 4').events.click();
+  assert.deepEqual(titles(), ['Binary Piano', 'Encoding Binary', 'Decoding Binary', 'Blueprint']);
+  const handle = rows()[2].children[0];
+  handle.events.dragstart({ dataTransfer: { setData() {} } });
+  rows()[0].events.drop({ preventDefault() {} });
+  assert.deepEqual(titles(), ['Decoding Binary', 'Binary Piano', 'Encoding Binary', 'Blueprint']);
+  find(item => item.attrs['aria-label'] === 'Move down activity 1').events.click();
+  find(item => item.attrs['aria-label'] === 'Move down activity 2').events.click();
+  assert.deepEqual(titles(), ['Binary Piano', 'Encoding Binary', 'Decoding Binary', 'Blueprint']);
+  const pending = save.events.click();
+  save.events.click();
+  assert.equal(writes.length, 1);
+  release(); await pending;
+  assert.equal(save.hidden, false);
+  assert.equal(save.disabled, false);
+  assert.deepEqual(titles(), ['Binary Piano', 'Encoding Binary', 'Decoding Binary', 'Blueprint']);
+  assert.ok(find(item => item.attrs.role === 'alert' && item.textContent.includes('draft has been kept')));
+  fail = false;
+  const retry = save.events.click(); release(); await retry;
+  assert.equal(writes[1].version, '2'.repeat(64));
+  assert.deepEqual(Array.from(writes[1].sourceIds), ['a', 'b', 'c', 'd']);
+  assert.equal(save.hidden, true);
+  assert.ok(find(item => item.textContent === 'Teaching order saved and verified in Trello.'));
+  assert.deepEqual(Array.from(data.entries, entry => entry.id), ['order-a', 'order-b', 'new-c', 'order-d']);
+  for (const row of rows()) {
+    assert.equal(row.children[row.children.length - 1].tag, 'details');
+    assert.ok(!row.children.some(child => child.tag === 'a'), 'resource links are behind Details');
+  }
+});
 const typingCopy = 'Students practice their keyboarding skills by logging their results from TypingTest.com.';
 const activityDescription = panel => slotDescendants(panel).find(item => item.attrs.class?.includes('teaching-activity-description'))?.textContent;
 test('teaching workspaces render both four-slot sequences with the first activity selected and no progress controls', () => {
@@ -1088,7 +1157,7 @@ test('Friday class boxes use the saved default while explicit buttons remain one
         entry_id: options.body.entryId, revision: 1 });
       return { revision: 1 };
     };
-    context.plannerJuniorTeaching.mountPage(host, { el, year: 2026, request, openTeachingDay() {} });
+    context.plannerJuniorTeaching.mountPage(host, { el, year: 2026, request, openTeachingDay() {}, progressOnly: true });
     await flush(); await flush();
     const progress = slotDescendants(host).find(item => item.attrs['aria-label'] === 'Class progress');
     const panel = progress.children.find(item => item.attrs.class === 'teaching-day-card');

@@ -175,7 +175,7 @@
     if (blobResponse && response.ok && response.headers.get('content-type')?.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document')) return response.blob();
     if (!response.headers.get('content-type')?.includes('application/json')) throw new Error('Sign-in or connection unavailable. Keep this page open and sign in again in another tab.');
     const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'The planner could not be loaded or saved.');
+    if (!response.ok) throw Object.assign(new Error(result.error || 'The planner could not be loaded or saved.'), { result });
     return result;
   }
   async function refreshSession() {
@@ -188,7 +188,7 @@
     canManageSchoolSettings = session.canManageSchoolSettings === true;
     signin.hidden = true;
   }
-  function hasUnsavedChanges() { return dirty || Boolean(content.querySelector('[data-timetable-dirty="true"]')); }
+  function hasUnsavedChanges() { return dirty || Boolean(content.querySelector('[data-timetable-dirty="true"],[data-teaching-order-dirty="true"]')); }
   function canLeave() {
     if (busy) { notice('The Planner is loading or saving. Please wait, then try again.', true); return false; }
     const pending = [...content.querySelectorAll('[data-timetable-busy="true"],[data-moderation-busy="true"],[data-preferences-busy="true"],[data-activity-busy="true"],[data-attendance-loading="true"]')]
@@ -3213,7 +3213,8 @@
           name, semester: Number(term) >= 3 ? 2 : 1, loadClasses: middleTimetableClasses,
           openTeachingDay: () => navigatePlannerSection('timetable') });
         loaded = true;
-        notice(name + ' reads Trello; class progress is confirmed separately.');
+        notice(middle ? 'MiddleDTECH reads Trello; class progress is confirmed separately.' :
+          'Edit the shared JuniorDTECH sequence here. Dated plans and class progress stay separate.');
         return;
       }
       if (section === 'period' && dashboardMode) {

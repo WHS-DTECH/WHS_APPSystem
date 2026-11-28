@@ -2225,10 +2225,30 @@ do not run Core or KAMAR migrations for this setting.
 
 #### JuniorDTECH shared teaching order
 
-Open **Teaching Dashboard → JuniorDTECH** to read the `JuniorDTECH`, `Unit Plans`
-and `Licence Kit Plans` lists on the configured teaching board. The Planner does
-not add, edit or reorder Trello cards: maintain their content and order in Trello,
-then use **Refresh from Trello**. Each order card must link to its original
+Open **Teaching Dashboard → JuniorDTECH** directly into the shared sequence.
+The main **Teaching order** panel reads the existing Trello list
+`6b08c7950c803f3d6de1804f`. Drag its handles or use **Move up / Move down**.
+The right-hand **Unit Plans / Licence Kits** tabs group library activities under
+their parent plans; open a tile and **Add** an individual lesson or activity.
+Resource links are behind **Details**, and **Items to check** contains validation
+issues. Top-level `Type: Unit Plan` and `Type: Licence Kit Plan` cards use their
+`Unit` or `Plan` heading (or their card name) and do not require `Lesson` or
+`Activity`. They are library parents, not teaching-order activities.
+
+**Save order** appears for draft changes. Owner-only, CSRF-protected
+`PUT /junior-teaching/order` checks the current order version and the optional
+server-side `TEACHER_PLANNER_TRELLO_WRITE_TOKEN` grant on the teaching board.
+Keep the separate read-only token unchanged. Writes can only create cards in
+the fixed JuniorDTECH list or change positions of cards verified in that list;
+existing cards cannot be removed, renamed or moved to another list. Success
+requires rereading and verifying the complete Trello order. Failed saves retain
+the draft; verified partial saves can be retried without duplicating additions.
+If the order changes elsewhere, refresh and review the retained draft first.
+Navigation/reloading warns about unsaved changes. Dated PI/SR cards, their
+outcomes and all class progress are untouched. ChatGPT continues to manage dated
+plans independently.
+
+Each order card must link to its original
 library card using `Library card: https://trello.com/c/...` (or `Source:` when
 that is the Trello library card). Matching `Type`, `Unit`/`Plan` and
 `Lesson`/`Activity` fields identify the source. Supported types are `Routine`,
@@ -2236,7 +2256,8 @@ that is the Trello library card). Matching `Type`, `Unit`/`Plan` and
 references are reported instead of guessed; instructions and links come from
 the current library card.
 
-Use **Set current** to confirm or correct a homeroom's current activity, and
+Expand the separate **Class progress** control and use **Set current** to
+confirm or correct a homeroom's current activity, and
 **Ready to move on** to explicitly advance to the next item in that sequence.
 JPI and JSR, unit lessons and each licence kit have separate progress. Progress
 uses the stable order-card ID, not its position; a removed or invalid current

@@ -7,7 +7,7 @@ const { createPlannerRouter } = require('./planner');
 const owner = '11111111-1111-4111-8111-111111111111';
 const board = 'b'.repeat(24);
 const lists = [
-  { id: '1'.repeat(24), idBoard: board, name: 'JuniorDTECH', closed: false },
+  { id: '6b08c7950c803f3d6de1804f', idBoard: board, name: 'JuniorDTECH', closed: false },
   { id: '2'.repeat(24), idBoard: board, name: 'Unit Plans', closed: false },
   { id: '3'.repeat(24), idBoard: board, name: 'Licence Kit Plans', closed: false }
 ];
@@ -35,7 +35,8 @@ async function fixture(t) {
   const state = { user: { id: owner, roles: [] }, lists: lists.map(item => ({ ...item })),
     cards: cards(), progress: new Map(), sessions: new Map(), middleProgress: new Map(), middleSessions: new Map(), requests: [], queries: [] };
   const env = { TEACHER_PLANNER_TRELLO_OWNER_ID: owner, TEACHER_PLANNER_TEACHING_TRELLO_BOARD_ID: board,
-    TEACHER_PLANNER_TRELLO_API_KEY: 'a'.repeat(32), TEACHER_PLANNER_TRELLO_TOKEN: 'c'.repeat(64) };
+    TEACHER_PLANNER_TRELLO_API_KEY: 'a'.repeat(32), TEACHER_PLANNER_TRELLO_TOKEN: 'c'.repeat(64),
+    TEACHER_PLANNER_TRELLO_WRITE_TOKEN: 'w'.repeat(64) };
   async function query(sql, params) {
     state.queries.push(sql);
     if (state.missingMiddleTables && sql.includes('planner_middle_')) throw Object.assign(new Error('Missing table'), { code: '42P01' });
@@ -64,14 +65,37 @@ async function fixture(t) {
     state.requests.push({ url, options });
     if (state.networkError) throw Object.assign(new Error(env.TEACHER_PLANNER_TRELLO_TOKEN), { status: 403 });
     const path = new URL(url).pathname;
-    if (path.startsWith('/1/tokens/')) return Response.json({ permissions: [
-      { modelType: 'Board', idModel: state.wrongGrant ? 'f'.repeat(24) : board, read: true, write: Boolean(state.writeGrant) }
+    if (path.startsWith('/1/tokens/')) return Response.json({ dateExpires: null, permissions: [
+      { modelType: 'Board', idModel: state.wrongGrant ? 'f'.repeat(24) : board, read: true,
+        write: options.headers.Authorization.includes(env.TEACHER_PLANNER_TRELLO_WRITE_TOKEN) ?
+          state.writerGrant !== false : Boolean(state.writeGrant) }
     ] });
     if (path === '/1/boards/' + board) return Response.json({ id: board, closed: false });
     if (path === '/1/boards/' + board + '/lists') return Response.json(state.lists);
     const list = state.lists.find(item => path === '/1/lists/' + item.id + '/cards');
     if (list) return Response.json(state.cards.filter(item => item.idList === list.id));
-    assert.fail('Unexpected read: ' + path);
+    const existing = state.cards.find(item => path === '/1/cards/' + item.id);
+    if (existing && options.method === 'GET') return Response.json({ ...existing, idBoard: board });
+    if (options.method === 'PUT' || options.method === 'POST') {
+      state.writeCount = (state.writeCount || 0) + 1;
+      if (state.failWrite === state.writeCount) return Response.json({}, { status: 500 });
+      const fields = JSON.parse(options.body);
+      if (existing && options.method === 'PUT') {
+        assert.equal(existing.idList, lists[0].id, 'writes never reach dated cards or another list');
+        assert.deepEqual(Object.keys(fields), ['pos']);
+        existing.pos = fields.pos;
+        return Response.json(existing);
+      }
+      if (path === '/1/cards' && options.method === 'POST') {
+        assert.equal(fields.idList, lists[0].id);
+        const created = { ...fields, id: '9'.repeat(23) + (state.newCards = (state.newCards || 0) + 1),
+          closed: false, url: 'https://trello.com/c/new' + state.newCards };
+        state.cards.push(created);
+        if (state.loseCreateResponse) { state.loseCreateResponse = false; throw new Error('Lost create response'); }
+        return Response.json(created);
+      }
+    }
+    assert.fail('Unexpected Trello request: ' + path);
   };
   const app = express();
   app.use(session({ secret: 'junior-test-secret', resave: false, saveUninitialized: false }));
@@ -90,6 +114,95 @@ async function fixture(t) {
   });
   return { state, env, call };
 }
+
+test('parent unit and licence kit plans are valid library entries but not teaching activities', async t => {
+  const { state, call } = await fixture(t);
+  state.cards.push(card('7', lists[1], 'Binary - TECHNOLOGY Unit Plan - DT', 'Type: Unit Plan\nUnit: Binary & Data\nSource: https://example.com/unit', 'unitparent'));
+  for (const [index, title] of ['Login Kit', 'Search Kit', 'Files & Folders Kit'].entries()) {
+    state.cards.push(card(String(index + 1), lists[2], title, 'Type: Licence Kit Plan\nPlan: ' + title, 'parent' + index));
+  }
+  let data = await (await call('catalogue')).json();
+  assert.equal(data.issues.length, 0);
+  assert.deepEqual(data.libraries.units.filter(item => item.parent).map(item => item.title), ['Binary & Data']);
+  assert.deepEqual(data.libraries.kits.filter(item => item.parent).map(item => item.title), ['Login Kit', 'Search Kit', 'Files & Folders Kit']);
+  state.cards.push(card('8', lists[0], 'Parent in order', 'Type: Unit Plan\nUnit: Binary & Data\nLibrary card: https://trello.com/c/unitparent', 'badparent'));
+  data = await (await call('catalogue')).json();
+  assert.equal(data.entries.length, 5);
+  assert.match(data.issues[0].message, /not a parent plan/);
+});
+
+test('saving shared order adds Decoding after Encoding and retains original IDs, sources and class records', async t => {
+  const { state, call } = await fixture(t);
+  state.cards.push(card('7', lists[1], 'Decoding Binary', unit('Decoding Binary') + '\nSource: https://example.com/decoding', 'decoding'));
+  const change = { classKey: 'JPI', sequenceKey: 'unit:Binary & Data', entryId: 'c'.repeat(24), revision: 0, action: 'set' };
+  assert.equal((await call('2026/progress', change)).status, 200);
+  assert.equal((await call('2026/progress', { ...change, classKey: 'JSR', entryId: 'b'.repeat(24) })).status, 200);
+  assert.equal((await call('session/2026-11-23/p2/JPI', { kits: [], revision: 0 })).status, 200);
+  const records = JSON.stringify([[...state.progress], [...state.sessions]]);
+  const dated = card('8', { id: 'f'.repeat(24) }, 'Dated PI / SR plan', 'Saved outcomes and plan', 'dated');
+  state.cards.push(dated);
+  const before = await (await call('catalogue')).json();
+  const sourceIds = before.entries.map(entry => entry.source.id);
+  sourceIds.splice(3, 0, '7'.repeat(24));
+  const response = await call('order', { version: before.orderVersion, sourceIds });
+  assert.equal(response.status, 200);
+  const saved = await response.json();
+  assert.deepEqual(saved.entries.map(entry => entry.title), ['Typing Kit', 'Binary Piano', 'Encoding Binary', 'Decoding Binary', 'Blueprint', 'Walkthrough']);
+  assert.deepEqual(saved.entries.filter(entry => entry.title !== 'Decoding Binary').map(entry => entry.id), before.entries.map(entry => entry.id));
+  assert.match(saved.entries[3].source.description, /https:\/\/example.com\/decoding/);
+  assert.equal(JSON.stringify([[...state.progress], [...state.sessions]]), records);
+  assert.equal(state.cards.find(item => item.id === dated.id), dated);
+  assert.deepEqual((await (await call('catalogue')).json()).entries, saved.entries);
+  assert.equal((await call('order', { version: before.orderVersion, sourceIds })).status, 409);
+});
+
+test('order writes require owner, CSRF, fixed list and write grant and reject omissions and parent IDs', async t => {
+  const { state, env, call } = await fixture(t);
+  const data = await (await call('catalogue')).json();
+  const body = { version: data.orderVersion, sourceIds: data.entries.map(entry => entry.source.id) };
+  state.user.id = '22222222-2222-4222-8222-222222222222';
+  assert.equal((await call('order', body)).status, 403);
+  state.user.id = owner;
+  assert.equal((await call('order', body, 'invalid')).status, 403);
+  assert.equal((await call('order', { ...body, sourceIds: body.sourceIds.slice(1) })).status, 409);
+  assert.equal((await call('order', { ...body, sourceIds: [...body.sourceIds, body.sourceIds[0]] })).status, 400);
+  state.cards.push(card('7', lists[1], 'Binary & Data', 'Type: Unit Plan\nUnit: Binary & Data', 'parent'));
+  assert.equal((await call('order', { ...body, sourceIds: [...body.sourceIds, '7'.repeat(24)] })).status, 409);
+  state.writerGrant = false;
+  assert.equal((await call('order', body)).status, 403);
+  state.writerGrant = true;
+  delete env.TEACHER_PLANNER_TRELLO_WRITE_TOKEN;
+  assert.equal((await call('order', body)).status, 503);
+  env.TEACHER_PLANNER_TRELLO_WRITE_TOKEN = 'w'.repeat(64);
+  const oldId = state.lists[0].id;
+  state.lists[0].id = '1'.repeat(24);
+  for (const item of state.cards) if (item.idList === oldId) item.idList = state.lists[0].id;
+  const changed = await (await call('catalogue')).json();
+  assert.equal((await call('order', { ...body, version: changed.orderVersion })).status, 409);
+  assert.ok(!state.requests.some(({ options }) => options.method !== 'GET'));
+});
+
+test('partial save and lost create response can be retried without duplicating source cards', async t => {
+  const { state, call } = await fixture(t);
+  state.cards.push(card('7', lists[1], 'Decoding Binary', unit('Decoding Binary'), 'decoding'));
+  const data = await (await call('catalogue')).json();
+  const sourceIds = ['7'.repeat(24), ...data.entries.map(entry => entry.source.id).reverse()];
+  state.loseCreateResponse = true;
+  let response = await call('order', { version: data.orderVersion, sourceIds });
+  assert.equal(response.status, 502);
+  const failed = await response.json();
+  assert.match(failed.error, /draft is still visible/);
+  assert.ok(failed.recovery.orderVersion);
+  state.failWrite = state.writeCount + 2;
+  response = await call('order', { version: failed.recovery.orderVersion, sourceIds });
+  assert.equal(response.status, 502);
+  const second = await response.json();
+  response = await call('order', { version: second.recovery.orderVersion, sourceIds });
+  assert.equal(response.status, 200);
+  assert.equal(state.newCards, 1);
+  assert.deepEqual((await response.json()).entries.map(entry => entry.source.id), sourceIds);
+  assert.equal(state.queries.length, 0, 'editing order never queries or writes Planner records');
+});
 
 test('MiddleDTECH keeps class, sequence, year and semester progress stable across reorder', async t => {
     const { state, call } = await fixture(t);

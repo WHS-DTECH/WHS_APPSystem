@@ -1,13 +1,16 @@
 const express = require('express');
+const { createHash } = require('node:crypto');
 const { cardLink, hasReadOnlyBoardGrant, createTrelloReader } = require('./trelloRead');
+const { writeGrantStatus } = require('./todoTrello');
 
 const ID = /^[0-9a-f]{24}$/;
 const UUID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 const MIDDLE_LIST_ID = '6b09e4b9be7e645cfc6b9650';
+const JUNIOR_LIST_ID = '6b08c7950c803f3d6de1804f';
 const TYPES = { Routine: 'routine', 'Unit lesson': 'unit', 'Licence Kit activity': 'kit' };
 const publicFailure = (status, message) => Object.assign(new Error(message), { status, juniorPublic: true });
 
-function metadata(description) {
+function metadata(description, parentName) {
   const result = Object.create(null);
   for (const line of description.split(/\r?\n/)) {
     const match = /^(Type|Unit|Lesson|Plan|Activity|Library card|Source):\s*(.*?)\s*$/i.exec(line);
@@ -16,13 +19,15 @@ function metadata(description) {
     if (Object.hasOwn(result, key)) throw new Error('Duplicate ' + key + ' field.');
     result[key] = match[2];
   }
-  const type = TYPES[result.type];
-  const sequence = type === 'unit' ? result.unit : result.plan;
-  const title = type === 'unit' ? result.lesson : result.activity;
+  const parent = /^(?:Unit Plan|Licence Kit Plan)$/i.test(result.type || '');
+  const type = parent ? (/^Unit Plan$/i.test(result.type) ? 'unit' : 'kit') :
+    Object.entries(TYPES).find(([label]) => label.toLowerCase() === result.type?.toLowerCase())?.[1];
+  const sequence = (type === 'unit' ? result.unit : result.plan) || (parent ? parentName : '');
+  const title = parent ? sequence : type === 'unit' ? result.lesson : result.activity;
   if (!type || !sequence || !title || sequence.length > 200 || title.length > 200) {
     throw new Error('A valid Type, Unit or Plan, and Lesson or Activity are required.');
   }
-  return { ...result, kind: type, sequence, title, sequenceKey: type + ':' + sequence };
+  return { ...result, kind: type, sequence, title, sequenceKey: type + ':' + sequence, parent };
 }
 function shortLink(url) {
   return new URL(cardLink(url)).pathname.split('/')[2];
@@ -32,14 +37,15 @@ function catalogueFromLists(lists, orderName = 'JuniorDTECH') {
   for (const [name, key] of [['Unit Plans', 'units'], ['Licence Kit Plans', 'kits']]) {
     for (const card of lists[name]) {
       try {
-        const info = metadata(card.desc);
+        const info = metadata(card.desc, card.name);
         if (key === 'units' ? info.kind !== 'unit' : !['routine', 'kit'].includes(info.kind)) {
           throw new Error('The Type does not belong in this library.');
         }
         const link = shortLink(card.url);
         const item = { id: card.id, name: card.name, url: cardLink(card.url), description: card.desc,
-          kind: info.kind, sequence: info.sequence, sequenceKey: info.sequenceKey, title: info.title };
+          kind: info.kind, sequence: info.sequence, sequenceKey: info.sequenceKey, title: info.title, parent: info.parent };
         libraries[key].push(item);
+        if (info.parent) continue;
         if (lookup.has(link)) duplicates.add(link);
         lookup.set(link, item);
       } catch (error) {
@@ -51,6 +57,7 @@ function catalogueFromLists(lists, orderName = 'JuniorDTECH') {
   for (const card of lists[orderName]) {
     try {
       const info = metadata(card.desc);
+      if (info.parent) throw new Error('Teaching order entries must identify a lesson or activity, not a parent plan.');
       const sourceLink = info['library card'] || info.source;
       if (!sourceLink) throw new Error('A Trello library card reference is required.');
       let link;
@@ -83,6 +90,7 @@ function createJuniorTeachingRouter({ query, env = process.env, fetchImpl = glob
   const listNames = [orderName, 'Unit Plans', 'Licence Kit Plans'];
   const progressTable = middle ? 'planner_middle_progress' : 'planner_junior_progress';
   const sessionTable = middle ? 'planner_middle_session_kits' : 'planner_junior_session_kits';
+  let savingOrder = false;
   router.use((req, res, next) => {
     res.set('Cache-Control', 'no-store');
     const owner = env.TEACHER_PLANNER_TRELLO_OWNER_ID;
@@ -134,7 +142,8 @@ function createJuniorTeachingRouter({ query, env = process.env, fetchImpl = glob
       }
       lists[listNames[i]] = [...cards].sort((a, b) => a.pos - b.pos);
     }
-    return catalogueFromLists(lists, orderName);
+    return { ...catalogueFromLists(lists, orderName), orderListId: selected[0].id,
+      orderVersion: createHash('sha256').update(JSON.stringify(lists[orderName])).digest('hex') };
   }
   function failure(error, res, next) {
     if (error.juniorPublic) return res.status(error.status).json({ error: error.message });
@@ -149,6 +158,94 @@ function createJuniorTeachingRouter({ query, env = process.env, fetchImpl = glob
   router.get('/catalogue', async (req, res, next) => {
     try { return res.json(await catalogue()); }
     catch (error) { return failure(error, res, next); }
+  });
+  if (!middle) router.put('/order', async (req, res, next) => {
+    const { version, sourceIds } = req.body || {};
+    if (!/^[0-9a-f]{64}$/.test(version || '') || !Array.isArray(sourceIds) || sourceIds.length > 200 ||
+        !sourceIds.every(id => typeof id === 'string' && ID.test(id)) || new Set(sourceIds).size !== sourceIds.length ||
+        Object.keys(req.body || {}).sort().join(',') !== 'sourceIds,version') {
+      return res.status(400).json({ error: 'The teaching order is invalid. Your draft has not been saved.' });
+    }
+    if (savingOrder) return res.status(409).json({ error: 'Another teaching order save is in progress. Keep your draft and retry.' });
+    savingOrder = true;
+    let original, started = false;
+    try {
+      original = await catalogue();
+      if (original.orderListId !== JUNIOR_LIST_ID) {
+        throw publicFailure(409, 'The JuniorDTECH list does not match the authorised list. No order was saved.');
+      }
+      if (original.orderVersion !== version) {
+        throw publicFailure(409, 'The Trello order changed. Refresh and review your draft before saving.');
+      }
+      const sources = [...original.libraries.units, ...original.libraries.kits].filter(item => !item.parent);
+      if (original.issues.some(issue => issue.list === orderName) ||
+          original.entries.some(entry => !sourceIds.includes(entry.source.id)) ||
+          !sourceIds.every(id => sources.filter(item => item.id === id).length === 1)) {
+        throw publicFailure(409, 'The order contains missing, duplicate or unverified activities. No order was saved.');
+      }
+      const key = env.TEACHER_PLANNER_TRELLO_API_KEY, token = env.TEACHER_PLANNER_TRELLO_WRITE_TOKEN;
+      if (!/^[0-9a-f]{32}$/i.test(key || '') || !/^[A-Za-z0-9_-]{32,512}$/.test(token || '')) {
+        throw publicFailure(503, 'Trello order saving needs the server-side write credential. Your draft remains available.');
+      }
+      const read = createTrelloReader({ key, token, fetchImpl });
+      const grant = await read('tokens/' + encodeURIComponent(token), { fields: 'permissions,dateExpires' });
+      if (!writeGrantStatus(grant, env.TEACHER_PLANNER_TEACHING_TRELLO_BOARD_ID).writeAvailable) {
+        throw publicFailure(403, 'The Trello write credential is not authorised for the teaching board. Your draft remains available.');
+      }
+      const write = async (path, method, body) => {
+        const response = await fetchImpl('https://api.trello.com/1/' + path, {
+          method, redirect: 'error', signal: AbortSignal.timeout(10000),
+          headers: { Accept: 'application/json', 'Content-Type': 'application/json',
+            Authorization: `OAuth oauth_consumer_key="${key}", oauth_token="${token}"` },
+          body: JSON.stringify(body)
+        });
+        if (!response.ok) throw new Error('Trello order write failed.');
+        return response.json();
+      };
+      const targetIds = [];
+      for (const [index, sourceId] of sourceIds.entries()) {
+        const source = sources.find(item => item.id === sourceId);
+        let entry = original.entries.find(item => item.source.id === sourceId);
+        const pos = (index + 1) * 16384;
+        if (entry) {
+          const actual = await read('cards/' + entry.id, { fields: 'id,idBoard,idList,closed' });
+          if (actual.id !== entry.id || actual.idList !== JUNIOR_LIST_ID || actual.closed !== false ||
+              actual.idBoard !== env.TEACHER_PLANNER_TEACHING_TRELLO_BOARD_ID) {
+            throw new Error('Teaching order card membership changed.');
+          }
+          started = true;
+          await write('cards/' + entry.id, 'PUT', { pos });
+        } else {
+          started = true;
+          const desc = source.description.split(/\r?\n/).filter(line => !/^Library card:/i.test(line)).join('\n') +
+            '\nLibrary card: ' + source.url;
+          entry = await write('cards', 'POST', { idList: JUNIOR_LIST_ID, name: source.name, desc, pos });
+          if (!ID.test(entry?.id || '') || entry.idList !== JUNIOR_LIST_ID) throw new Error('New order card could not be verified.');
+        }
+        targetIds.push(entry.id);
+      }
+      const saved = await catalogue();
+      if (saved.issues.some(issue => issue.list === orderName) ||
+          JSON.stringify(saved.entries.map(entry => entry.id)) !== JSON.stringify(targetIds) ||
+          JSON.stringify(saved.entries.map(entry => entry.source.id)) !== JSON.stringify(sourceIds)) {
+        throw new Error('Saved Trello order could not be verified.');
+      }
+      return res.json(saved);
+    } catch (error) {
+      if (!started) return failure(error, res, next);
+      console.error('JuniorDTECH order save failed or could not be verified.');
+      let recovery;
+      try {
+        const current = await catalogue();
+        if (current.orderListId === JUNIOR_LIST_ID && !current.issues.some(issue => issue.list === orderName) &&
+            original.entries.every(entry => current.entries.some(item => item.id === entry.id && item.source.id === entry.source.id)) &&
+            current.entries.every(entry => sourceIds.includes(entry.source.id))) {
+          recovery = { orderVersion: current.orderVersion };
+        }
+      } catch { console.error('JuniorDTECH partial order state could not be read.'); }
+      return res.status(502).json({ error: 'Trello did not confirm the complete order. Your draft is still visible; ' +
+        (recovery ? 'retry Save order to complete it.' : 'refresh and review before retrying.'), recovery });
+    } finally { savingOrder = false; }
   });
   router.get(progressPath, async (req, res, next) => {
     if (!validScope(req)) return res.status(400).json({ error: 'Choose a valid Planner year and semester.' });
