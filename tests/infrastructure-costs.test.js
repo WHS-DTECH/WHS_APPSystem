@@ -379,6 +379,7 @@ test('cost report enforces admin/CSRF, persists snapshots, labels stale data and
   const githubSection = report.slice(report.indexOf('id="github-costs"'), report.indexOf('id="development-policy"'));
   assert.match(githubSection, /GitHub accounts and visible repositories/);
   assert.match(githubSection, /Main GitHub account \(1\)[\s\S]*?WhS-DtEcH[\s\S]*?Student Accounts - Free Subscriptions \(0\)[\s\S]*?Other accounts \(2\)/);
+  assert.ok(githubSection.indexOf('Main GitHub account (1)') < githubSection.indexOf('id="github-private-repositories"'));
   assert.doesNotMatch(githubSection, /Student account: WhS-DtEcH/);
   assert.doesNotMatch(githubSection, /Monthly USD|Indicative NZD|USD 77\.77|USD 12\.00|Provider-reported metered usage/);
   assert.match(report, /Last check succeeded/);

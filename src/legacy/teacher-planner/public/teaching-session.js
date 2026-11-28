@@ -84,35 +84,44 @@
       return slotOutcomes.length || data.content.slotOutcomes ? { slotOutcomes: slotOutcomes.map(item => ({ ...item })) } : {};
     }
     function pathwayUnits() {
-      const box = el('section', '', { class: 'session-pathway-units', 'aria-label': 'Pathway Units' });
-      box.append(el('h3', 'Pathway Units'));
+      const heading = 'Unit plans & lessons for this period';
+      const box = el('section', '', { class: 'session-pathway-units', 'aria-label': heading });
+      box.append(el('h3', heading));
       notes.append(box);
-      function show(units, warning) {
-        const list = el('ul');
+      let generation = 0;
+      function show(units) {
+        const list = el('div', '', { class: 'session-pathway-list' });
         for (const unit of units) {
-          const item = el('li', '', unit.current ? { class: 'session-pathway-current' } : {});
+          const item = el('div', '', { class: 'session-pathway-unit' });
           item.append(link(unit.title, unit.url));
-          if (unit.current) item.append(el('span', 'Current unit', { class: 'session-pathway-current-label' }));
-          if (unit.lesson) {
-            const lesson = el('p');
-            lesson.append(link(unit.lesson.title, unit.lesson.url));
-            item.append(lesson);
+          if (unit.lessons.length) {
+            const lessons = el('ul');
+            for (const lesson of unit.lessons) {
+              const row = el('li');
+              row.append(link(lesson.title, lesson.url)); lessons.append(row);
+            }
+            item.append(lessons);
           }
           list.append(item);
         }
-        box.replaceChildren(el('h3', 'Pathway Units'), ...(units.length ? [list] :
-          [el('p', 'No pathway units are available for this course.')]),
-        ...(warning ? [el('p', warning, { role: 'alert' })] : []));
+        box.replaceChildren(el('h3', heading), units.length ? list :
+          el('p', 'No unit plans or lessons linked for this period.'));
       }
-      if (pilot) show([{ ...data.teaching.unit, current: true, lesson: data.teaching.lesson }]);
-      else box.append(el('p', 'Loading pathway units...', { role: 'status' }));
-      if (helpers.pathwayUnits) {
-        helpers.pathwayUnits(data).then(result => show(result.units, result.warning)).catch(error => {
-          const warning = el('p', 'Pathway units unavailable: ' + error.message, { role: 'alert' });
-          if (!pilot) box.replaceChildren(el('h3', 'Pathway Units'), warning);
-          else box.append(warning);
+      return (slots, activities, failure) => {
+        const current = ++generation;
+        if (failure) {
+          box.replaceChildren(el('h3', heading), el('p', 'Linked resources unavailable: ' + failure, { role: 'alert' }));
+          return;
+        }
+        if (!helpers.pathwayUnits) { show([]); return; }
+        box.replaceChildren(el('h3', heading), el('p', 'Loading linked unit plans and lessons...', { role: 'status' }));
+        helpers.pathwayUnits(slots, data.teaching ? { teaching: data.teaching, routine: data.routine } : null, activities).then(result => {
+          if (current === generation) show(result.units);
+        }).catch(error => {
+          if (current === generation) box.replaceChildren(el('h3', heading),
+            el('p', 'Linked resources unavailable: ' + error.message, { role: 'alert' }));
         });
-      } else if (!pilot) show([]);
+      };
     }
     function originalNotes() {
       const legacy = el('details'); legacy.append(el('summary', 'Original Period Planner records'));
@@ -151,11 +160,13 @@
     function plannedReference(host) {
       const reference = el('div', '', { 'aria-label': 'Planned activity titles' });
       host.append(reference);
-      const saved = (data.revision > 0 || data.event.date >= new Intl.DateTimeFormat('en-CA', {
+      const savedActivities = (data.revision > 0 || data.event.date >= new Intl.DateTimeFormat('en-CA', {
         timeZone: 'Pacific/Auckland', year: 'numeric', month: '2-digit', day: '2-digit'
-      }).format(new Date())) ? data.content.activities.map(item => item.title).filter(Boolean) : [];
-      function show(titles, source, error) {
+      }).format(new Date())) ? data.content.activities : [];
+      const saved = savedActivities.map(item => item.title).filter(Boolean);
+      function show(titles, source, error, slots = []) {
         reference.replaceChildren();
+        updatePathways(slots, titles.length ? [] : savedActivities, error);
         const values = titles.length ? titles : saved;
         if (!values.length) reference.append(el('p', 'No planned activity titles are available.'));
         else {
@@ -215,7 +226,7 @@
       }
       if (!actual && !outcomes.length) previous.append(el('p', 'No actual progress was recorded for this session.'));
     }
-    pathwayUnits();
+    const updatePathways = pathwayUnits();
     previousProgress();
     if (!pilot) {
       const planning = section('Planned activities and actual progress');

@@ -385,31 +385,55 @@ test('session mounting keeps its class preparation reader independent of the adm
   assert.deepEqual(requests, ['/api/planner/teaching-day-trello/2026-11-30']);
   assert.equal(context.sessionAddress, 'sessions/2026-11-27/p2');
 });
-test('Pathway Units use the selected course and only verified class progress', async () => {
+test('period resource links use explicit slot URLs and saved IDs, not titles or class progress', async () => {
   const source = fs.readFileSync(require.resolve('./public/planner'), 'utf8');
-  const cards = [
-    { id: 'binary', title: 'Binary & Data', cardType: 'unit', yearLevel: 'Junior DTECH', status: 'active', href: '/dtech-hub/learning-pathways/binary.html' },
-    { id: 'piano', title: 'Binary Piano', cardType: 'lesson', unit: 'binary', yearLevel: 'Junior DTECH', status: 'active', href: '/dtech-hub/learning-pathways/piano.html' },
-    { id: 'middle', title: 'Middle Unit', cardType: 'unit', yearLevel: 'Junior DTECH, MiddleDTECH', status: 'active', href: '' },
-    { id: 'archived', title: 'Old', cardType: 'unit', yearLevel: 'Junior DTECH', status: 'archive', href: '' }
-  ];
-  const context = { URL, request: async () => cards,
-    middleSemesterForDate: async () => 2, middleTeachingRequest: async () => ({ progress: [], entries: [] }),
-    juniorTeachingRequest: async () => ({
-      progress: [{ class_key: 'JSR', sequence_key: 'unit:Binary & Data', entry_id: 'piano-card' }],
-      entries: [{ id: 'piano-card', kind: 'unit', sequenceKey: 'unit:Binary & Data', sequence: 'Binary & Data', title: 'Binary Piano' }]
-    }) };
+  const cards = require('../dtech-hub/learning-pathways/library.json');
+  const context = { URL, plannerTeachingSlots: require('./public/teaching-slots'), request: async () => cards };
   vm.runInNewContext(source.slice(source.indexOf('  async function loadSessionPathwayUnits('),
     source.indexOf('  function mountTeachingSession(')), context);
-  const junior = await context.loadSessionPathwayUnits({ event: { title: 'SRDTECH (JSR)', classKey: 'JSR', date: '2026-11-24' } });
-  assert.equal(junior.units.length, 2);
-  assert.equal(junior.units[0].current, true);
-  assert.equal(junior.units[0].lesson.url, '/dtech-hub/learning-pathways/piano.html');
-  const unrelated = await context.loadSessionPathwayUnits({ event: { title: 'SRDTECH (JPI)', classKey: 'JPI', date: '2026-11-24' } });
-  assert.equal(unrelated.units[0].current, undefined);
-  const middle = await context.loadSessionPathwayUnits({ event: { title: 'MDTECH (81D)', classKey: '81D', date: '2026-11-24' } });
-  assert.equal(middle.units[0].title, 'Middle Unit');
-  assert.match(middle.units[0].url, /#card-middle$/);
+  const slots = context.plannerTeachingSlots.parse(teachingSlotFixture().description).slots;
+  const result = await context.loadSessionPathwayUnits(slots, slotProgramme, []);
+  assert.deepEqual(JSON.parse(JSON.stringify(result.units)), [{
+    title: 'Binary & Data', url: '/dtech-hub/learning-pathways/binary-and-data.html',
+    lessons: [{ title: 'Binary Piano', url: '/dtech-hub/learning-pathways/lesson-binary-piano.html' }]
+  }]);
+  const url = 'https://whs-appsystem.onrender.com/dtech-hub/learning-pathways/lesson-encoding-binary.html';
+  const explicit = [{ type: 'Routine', title: 'Minecraft', resources: [{ resource: 'lesson', resourceUrl: url }] },
+    { type: 'Unit Library', title: 'Binary Piano', resources: [] },
+    { type: 'Unit Library', title: 'Encoding Binary', resources: [{ resource: 'bad', resourceUrl: 'https://evil.example/learning-pathways/lesson-binary-piano.html' }] }];
+  const linked = await context.loadSessionPathwayUnits(explicit, null, []);
+  assert.deepEqual(JSON.parse(JSON.stringify(linked.units[0].lessons.map(item => item.title))), ['Encoding Binary']);
+  const saved = await context.loadSessionPathwayUnits([], null, [{ sourceId: 'lesson-binary-piano' }]);
+  assert.equal(saved.units[0].lessons[0].title, 'Binary Piano');
+  const ids = await context.loadSessionPathwayUnits([{ unit: 'binary-and-data', lesson: 'lesson-encoding-binary', resources: [] },
+    { type: 'Routine', resources: [{ resourceUrl: '/dtech-hub/learning-pathways/lesson-binary-piano.html' }] }], null, []);
+  assert.deepEqual(JSON.parse(JSON.stringify(ids.units[0].lessons.map(item => item.title))), ['Encoding Binary', 'Binary Piano']);
+  assert.equal((await context.loadSessionPathwayUnits([{ title: 'Binary Piano', resources: [] }], null, [])).units.length, 0);
+});
+test('period resource panel follows the latest activity source and ignores late responses', async () => {
+  const context = { plannerSessionSchema: require('./public/session-schema') };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-session'), 'utf8'), context);
+  const host = node(), pending = [];
+  let update;
+  context.plannerTeachingSession.mount(host, {
+    event: { date: '2026-11-23', slot: 'p2', label: 'Period 2', classKey: 'JPI', title: 'PIDTECH (JPI)' },
+    content: { note: '', evaluation: '', activities: [], session: { title: 'JPI', type: 'teaching', startTime: '', endTime: '' } },
+    legacy: { content: {} }
+  }, { el: node, legacy() {}, plannedTitles: callback => { update = callback; },
+    pathwayUnits: (slots, programme, activities) => new Promise(resolve => pending.push({ slots, activities, resolve })) });
+  const box = slotDescendants(host).find(item => item.attrs['aria-label'] === 'Unit plans & lessons for this period');
+  update(['First'], 'Dated:', '', [{ title: 'First' }]);
+  update(['Second'], 'Dated:', '', [{ title: 'Second' }]);
+  pending.at(-1).resolve({ units: [{ title: 'Second unit', url: '/second', lessons: [{ title: 'Second lesson', url: '/second-lesson' }] }] });
+  await flush();
+  pending.at(-2).resolve({ units: [{ title: 'Old unit', url: '/old', lessons: [] }] });
+  await flush();
+  assert.ok(slotDescendants(box).some(item => item.textContent === 'Second unit'));
+  assert.ok(slotDescendants(box).some(item => item.textContent === 'Second lesson' && item.attrs.href === '/second-lesson'));
+  assert.ok(!slotDescendants(box).some(item => item.textContent === 'Old unit'));
+  update([], '', 'Could not load the source.');
+  assert.ok(slotDescendants(box).some(item => item.attrs.role === 'alert'));
+  assert.ok(!slotDescendants(box).some(item => item.textContent === 'Second unit'));
 });
 test('Whanau and observation workspaces keep independent Notes drafts through the shared Trello toggle', () => {
   const context = { plannerSessionSchema: require('./public/session-schema') };
@@ -529,9 +553,8 @@ test('Notes records the four dated slots separately from confirmed progress and 
   let nodes = slotDescendants(first.host);
   const tabs = nodes.find(item => item.attrs['aria-label'] === 'Session views');
   assert.deepEqual(tabs.children.map(item => item.textContent), ['Notes', 'Trello', 'Class Roll']);
-  const box = nodes.find(item => item.attrs['aria-label'] === 'Pathway Units');
-  assert.ok(slotDescendants(box).some(item => item.textContent === 'Binary & Data' && item.attrs.href === '/unit'));
-  assert.ok(slotDescendants(box).some(item => item.textContent === 'Binary Piano' && item.attrs.href === '/lesson'));
+  const box = nodes.find(item => item.attrs['aria-label'] === 'Unit plans & lessons for this period');
+  assert.ok(slotDescendants(box).some(item => item.textContent === 'No unit plans or lessons linked for this period.'));
   const rows = nodes.filter(item => item.attrs.class === 'session-slot-row');
   assert.deepEqual(rows.map(row => row.children[0].textContent), ['Slot 1', 'Slot 2', 'Slot 3', 'Slot 4']);
   assert.deepEqual(rows.map(row => row.children[1].textContent), titles);
@@ -597,7 +620,8 @@ test('Class Roll matches the signed-in teacher, class subject, weekday and perio
 test('Notes references dated slots first and shared proposals only for current or upcoming sessions', async () => {
   const context = { URLSearchParams, plannerSessionSchema: require('./public/session-schema'),
     plannerTeachingSlots: require('./public/teaching-slots'),
-    plannerJuniorTeaching: { proposedEntries: (data, kits, key) => data.entries.filter(entry => entry.classKey === key) } };
+    plannerJuniorTeaching: { proposedEntries: (data, kits, key) => data.entries.filter(entry => entry.classKey === key),
+      draftSlot: entry => ({ title: entry.title, resources: [] }) } };
   vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-day-trello'), 'utf8'), context);
   const dated = teachingSlotFixture(), feed = { status: 'ok', issues: [], cards: [dated], unassigned: [] }, paths = [];
   const dashboard = context.plannerTeachingDayTrello.dashboard(node(), {

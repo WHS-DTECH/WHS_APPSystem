@@ -89,36 +89,6 @@
         Last attempted: <%= new Date(section.attemptedAt).toLocaleString('en-NZ') %>
       </div>
     <% } %>
-    <% if (key === 'github') { %>
-      <section id="github-private-repositories" aria-labelledby="github-private-heading">
-        <h3 id="github-private-heading">Private Repositories (<%= privateRepositories.length %>)</h3>
-        <p>These are recorded as private. Module Builder repositories are added automatically. A repository that is not visible may still exist; the reporting token may not have access.</p>
-        <% const privateMismatches = privateRepositories.filter(repo => ['Not visible', 'Visible as public'].includes(repo.status)); %>
-        <% if (privateMismatches.length) { %>
-          <div class="cost-alert" role="alert"><strong>Private repository inventory needs review:</strong>
-            <%= privateMismatches.length %> recorded repositories do not match the visible GitHub inventory. Check GitHub access and update this register if needed.</div>
-        <% } %>
-        <% if (snapshot.privateRepositoryAlerts?.error) { %>
-          <div class="cost-alert" role="alert">Email alert not sent: <%= snapshot.privateRepositoryAlerts.error %> It will be retried on refresh.</div>
-        <% } %>
-        <% if (privateRepositories.length) { %>
-          <ul><% privateRepositories.forEach(repo => { %><li><%= repo.name %> — <%= repo.status %><%= managedRepositories.some(name => name.toLowerCase() === repo.name.toLowerCase()) ? ' (Module Builder)' : '' %></li><% }) %></ul>
-        <% } else { %><p>No private repositories recorded.</p><% } %>
-        <form action="/admin/infrastructure-costs/private-repositories" method="post">
-          <input type="hidden" name="csrf" value="<%= csrf %>">
-          <label for="private-repository-list">Manually recorded private repositories (owner/repository, one per line)</label>
-          <textarea id="private-repository-list" name="repositories" rows="6"><%= (snapshot.privateRepositories || []).join('\n') %></textarea>
-          <p>Repositories created by Module Builder are included separately and do not need to be entered here.</p>
-          <label for="private-repository-email">Email mismatch alerts on refresh</label>
-          <select id="private-repository-email" name="emailAlerts">
-            <option value="no" <%= !snapshot.privateRepositoryAlerts?.userId ? 'selected' : '' %>>Off</option>
-            <option value="yes" <%= snapshot.privateRepositoryAlerts?.userId ? 'selected' : '' %>><%= privateAlertUser ? 'On for my administrator account' : snapshot.privateRepositoryAlerts?.userId ? 'On — save to use my administrator account' : 'On for my administrator account' %></option>
-          </select>
-          <p>Checks happen only when the report is refreshed. Emails are sent when a mismatch changes; failed delivery is shown here and retried on refresh.</p>
-          <button class="button" type="submit">Save private repository settings</button>
-        </form>
-      </section>
-    <% } %>
     <% if (section?.data) { const data = section.data; %>
       <% if (key === 'render') { %>
         <p class="cost-provider-warning"><%= data.warning %></p>
@@ -226,6 +196,36 @@
           <ul><% data.repositories.forEach(repository => { %><li><%= repository.name %> — <%= repository.private ? 'Private' : 'Public' %></li><% }) %></ul>
         </details>
       <% } %>
+    <% } %>
+    <% if (key === 'github') { %>
+      <section id="github-private-repositories" aria-labelledby="github-private-heading">
+        <h3 id="github-private-heading">Private Repositories (<%= privateRepositories.length %>)</h3>
+        <p>These are recorded as private. Module Builder repositories are added automatically. A repository that is not visible may still exist; the reporting token may not have access.</p>
+        <% const privateMismatches = privateRepositories.filter(repo => ['Not visible', 'Visible as public'].includes(repo.status)); %>
+        <% if (privateMismatches.length) { %>
+          <div class="cost-alert" role="alert"><strong>Private repository inventory needs review:</strong>
+            <%= privateMismatches.length %> recorded repositories do not match the visible GitHub inventory. Check GitHub access and update this register if needed.</div>
+        <% } %>
+        <% if (snapshot.privateRepositoryAlerts?.error) { %>
+          <div class="cost-alert" role="alert">Email alert not sent: <%= snapshot.privateRepositoryAlerts.error %> It will be retried on refresh.</div>
+        <% } %>
+        <% if (privateRepositories.length) { %>
+          <ul><% privateRepositories.forEach(repo => { %><li><%= repo.name %> — <%= repo.status %><%= managedRepositories.some(name => name.toLowerCase() === repo.name.toLowerCase()) ? ' (Module Builder)' : '' %></li><% }) %></ul>
+        <% } else { %><p>No private repositories recorded.</p><% } %>
+        <form action="/admin/infrastructure-costs/private-repositories" method="post">
+          <input type="hidden" name="csrf" value="<%= csrf %>">
+          <label for="private-repository-list">Manually recorded private repositories (owner/repository, one per line)</label>
+          <textarea id="private-repository-list" name="repositories" rows="6"><%= (snapshot.privateRepositories || []).join('\n') %></textarea>
+          <p>Repositories created by Module Builder are included separately and do not need to be entered here.</p>
+          <label for="private-repository-email">Email mismatch alerts on refresh</label>
+          <select id="private-repository-email" name="emailAlerts">
+            <option value="no" <%= !snapshot.privateRepositoryAlerts?.userId ? 'selected' : '' %>>Off</option>
+            <option value="yes" <%= snapshot.privateRepositoryAlerts?.userId ? 'selected' : '' %>><%= privateAlertUser ? 'On for my administrator account' : snapshot.privateRepositoryAlerts?.userId ? 'On — save to use my administrator account' : 'On for my administrator account' %></option>
+          </select>
+          <p>Checks happen only when the report is refreshed. Emails are sent when a mismatch changes; failed delivery is shown here and retried on refresh.</p>
+          <button class="button" type="submit">Save private repository settings</button>
+        </form>
+      </section>
     <% } %>
   </section>
   <% } %>

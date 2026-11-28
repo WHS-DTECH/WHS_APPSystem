@@ -300,5 +300,5 @@
     load();
     return { dispose() { disposed = true; } };
   }
-  globalThis.plannerJuniorTeaching = { mountPage, mountSession, proposedEntries };
+  globalThis.plannerJuniorTeaching = { mountPage, mountSession, proposedEntries, draftSlot };
 })();

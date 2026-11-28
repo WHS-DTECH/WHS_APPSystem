@@ -1885,9 +1885,10 @@ the activity title (and occurrence when titles repeat), not its displayed
 position. Renamed titles require a new selection; saved earlier statuses remain
 in the session record.
 
-Pathway Units lists active catalogue units for the selected DTECH course. A
-current lesson is shown only when supported by the linked JPI pilot or the
-class's saved teaching-order progress. Catalogue or progress failures are
+**Unit plans & lessons for this period** groups the active catalogue resources
+explicitly linked by the selected session's dated teaching slots, shared draft,
+or saved activity IDs. It does not infer lessons from activity titles or use
+current progress to reconstruct past plans. Catalogue and source failures are
 shown rather than guessed. Existing actual
 progress and reminders are combined verbatim, separated by a blank line when
 both exist. JPI's previous session is the latest earlier saved JPI session

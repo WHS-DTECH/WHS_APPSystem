@@ -1087,16 +1087,24 @@
     teachingDashboard.noSessions(value, schedule.error);
     history.replaceState(null, '', '#' + viewFragment());
   }
-  async function loadSessionPathwayUnits(data) {
-    const event = data.event;
-    const junior = /^(?:PIDTECH|SRDTECH)\s*\([A-Z0-9_-]+\)$/i.test(event.title || '');
-    const middle = /^MDTECH\s*\([A-Z0-9_-]+\)$/i.test(event.title || '');
-    if (!junior && !middle && !data.teaching) return { units: [] };
+  async function loadSessionPathwayUnits(slots, programme, activities) {
+    const references = [];
+    for (const slot of slots) {
+      for (const id of [slot.unit, slot.lesson]) {
+        if (typeof id === 'string' && /^[a-z0-9][a-z0-9-]*$/.test(id)) references.push({ id });
+      }
+      for (const resource of [...(slot.resource || slot.resourceUrl ? [slot] : []), ...(slot.resources || [])]) {
+        const relative = typeof resource.resourceUrl === 'string' &&
+          /^\/(?:dtech-hub\/)?learning-pathways\//.test(resource.resourceUrl) && !/[\\\s]/.test(resource.resourceUrl);
+        const url = relative ? resource.resourceUrl :
+          globalThis.plannerTeachingSlots.resolveResource({ ...resource, type: slot.type }, programme);
+        if (url) references.push({ url });
+      }
+    }
+    for (const activity of activities) if (activity.sourceId) references.push({ id: activity.sourceId });
+    if (!references.length) return { units: [] };
     const cards = await request('/dtech-hub/learning-pathways/library.json');
     if (!Array.isArray(cards)) throw new Error('The Learning Pathways catalogue returned invalid data.');
-    const course = middle ? 'middledtech' : 'juniordtech';
-    const matchesCourse = card => typeof card.yearLevel === 'string' &&
-      card.yearLevel.split(',').some(value => value.toLowerCase().replace(/\s+/g, '') === course);
     function cardUrl(card) {
       if (typeof card.href === 'string' && /^\/(?:dtech-hub\/)?learning-pathways\//.test(card.href) &&
           !/[\\\s]/.test(card.href)) return card.href.startsWith('/dtech-hub/') ? card.href : '/dtech-hub' + card.href;
@@ -1106,35 +1114,49 @@
       }
       return '/dtech-hub/learning-pathways/?type=' + card.cardType + '#card-' + encodeURIComponent(card.id);
     }
-    const published = cards.filter(card => card && card.status === 'active' && matchesCourse(card));
-    const units = published.filter(card => card.cardType === 'unit' && typeof card.id === 'string' &&
-      typeof card.title === 'string' && card.title.trim()).map(card => ({
-      id: card.id, title: card.title, url: cardUrl(card)
-    }));
-    if (data.teaching) {
-      const current = units.find(unit => unit.id === data.teaching.unit.id);
-      if (current) { current.current = true; current.lesson = data.teaching.lesson; }
-      else units.push({ ...data.teaching.unit, current: true, lesson: data.teaching.lesson });
-      return { units };
-    }
-    if (!event.classKey) return { units };
-    try {
-      const semester = middle ? await middleSemesterForDate(event.date) : null;
-      const scope = event.date.slice(0, 4) + (semester ? '/' + semester : '');
-      const progress = await (middle ? middleTeachingRequest : juniorTeachingRequest)(scope);
-      for (const row of progress.progress) {
-        if (row.class_key !== event.classKey) continue;
-        const entry = progress.entries.find(item => item.id === row.entry_id && item.kind === 'unit' && item.sequenceKey === row.sequence_key);
-        const unit = entry && units.find(item => item.title === entry.sequence);
-        if (!unit) continue;
-        const lessons = published.filter(card => card.cardType === 'lesson' && card.unit === unit.id && card.title === entry.title);
-        unit.current = true;
-        if (lessons.length === 1) unit.lesson = { title: lessons[0].title, url: cardUrl(lessons[0]) };
+    const published = cards.filter(card => card && card.status === 'active' && typeof card.id === 'string' &&
+      typeof card.title === 'string' && card.title.trim() && ['unit', 'lesson', 'activity'].includes(card.cardType));
+    const byId = id => {
+      const matches = published.filter(card => card.id === id);
+      return matches.length === 1 ? matches[0] : null;
+    };
+    function canonical(value) {
+      try {
+        const base = globalThis.location?.origin || 'https://whs-appsystem.onrender.com';
+        const url = new URL(value, base);
+        if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return '';
+        if (url.origin === base || url.origin === 'https://dtech-hub2.onrender.com') {
+          const path = url.pathname.replace(/^\/dtech-hub(?=\/learning-pathways\/)/, '');
+          return 'hub:' + path + url.search + url.hash;
+        }
+        return url.href;
+      } catch (error) {
+        if (error instanceof TypeError) return '';
+        throw error;
       }
-      return { units };
-    } catch (error) {
-      return { units, warning: 'Current class unit could not be checked: ' + error.message };
     }
+    const units = [], groups = new Map(), seenLessons = new Set();
+    for (const ref of references) {
+      const matches = ref.id ? [byId(ref.id)].filter(Boolean) :
+        published.filter(card => canonical(cardUrl(card)) === canonical(ref.url));
+      if (matches.length !== 1) continue;
+      let card = matches[0];
+      if (card.cardType === 'activity') card = byId(card.lesson);
+      if (!card || !['unit', 'lesson'].includes(card.cardType)) continue;
+      const lesson = card.cardType === 'lesson' ? card : null;
+      const unit = lesson ? byId(lesson.unit) : card;
+      if (!unit || unit.cardType !== 'unit') continue;
+      let group = groups.get(unit.id);
+      if (!group) {
+        group = { title: unit.title, url: cardUrl(unit), lessons: [] };
+        groups.set(unit.id, group); units.push(group);
+      }
+      if (lesson && !seenLessons.has(lesson.id)) {
+        seenLessons.add(lesson.id);
+        group.lessons.push({ title: lesson.title, url: cardUrl(lesson) });
+      }
+    }
+    return { units };
   }
   function mountTeachingSession(data, legacy) {
     content.dataset.view = 'period';

@@ -97,13 +97,13 @@
 .teaching-dashboard-workspace .term-notes-toggle button { font-size: 18px; padding: 10px 20px; }
 .teaching-dashboard-workspace .term-notes-toggle { display: flex; width: 100%; margin: 0 0 12px; }
 .teaching-dashboard-workspace .term-notes-toggle > button:last-child { margin-left: auto; }
-.session-pathway-units { box-sizing: border-box; width: min(100%, 480px); margin: 0 0 16px auto; padding: 14px 16px; border: 2px solid #376783; border-radius: 5px; background: #f4f8fa; overflow-wrap: anywhere; }
-.session-pathway-units h3 { margin: 0 0 10px; }
-.session-pathway-units ul { margin: 0; padding-left: 20px; }
-.session-pathway-units li { padding: 4px; }
-.session-pathway-current { border-left: 4px solid #376783; background: #e3eff7; font-weight: 700; }
-.session-pathway-current p { margin: 6px 0 0 12px; font-weight: 400; }
-.session-pathway-current-label { display: inline-block; margin-left: 8px; font-size: 12px; color: #245a81; }
+.session-pathway-units { box-sizing: border-box; width: 100%; margin: 0 0 16px; padding: 16px; border: 1px solid #b3cbd6; border-left: 4px solid #008b85; border-radius: 5px; background: #eaf5fa; overflow-wrap: anywhere; }
+.session-pathway-units h3 { margin: 0 0 10px; color: #173e54; }
+.session-pathway-units p { margin: 0; }
+.session-pathway-list { display: grid; gap: 12px; }
+.session-pathway-unit > a { color: #173e54; font-weight: 700; font-size: 1.05em; }
+.session-pathway-unit ul { list-style: none; margin: 6px 0 0 12px; padding: 0; }
+.session-pathway-unit li a { display: block; padding: 4px 0; font-size: .9em; }
 .session-slot-rows { display: grid; gap: 8px; }
 .session-slot-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px; border: 1px solid #b3c4cb; border-radius: 4px; }
 .session-slot-name { flex: 1 1 180px; min-width: 0; overflow-wrap: anywhere; }
@@ -268,6 +268,7 @@
 .todo-detail h3 { margin: 0 0 8px; }
 .todo-description { white-space: pre-wrap; }
 .todo-show { position: fixed; right: 12px; top: 35%; z-index: 20; }
+.todo-week-workspace:has(.todo-show:not([hidden])) > .todo-week-content:has(.teaching-dashboard) { padding-right: 120px; }
 .todo-dashboard { background: #f5f9fb; border: 1px solid #aac2ce; border-radius: 8px; padding: 16px; }
 .todo-dashboard h2, .todo-dashboard h3 { color: #31586c; }
 .todo-dashboard-toolbar, .todo-dashboard-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }

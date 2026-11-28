@@ -208,7 +208,7 @@
         try {
           const plan = globalThis.plannerTeachingSlots.parse(card.description);
           if (['teaching_date', 'session_slot', 'class_key', 'session_type'].every(key => plan.metadata[key] === card.metadata[key])) {
-            plannedTitles(plan.slots.map(slot => slot.title), 'Dated Trello plan (reference only):');
+            plannedTitles(plan.slots.map(slot => slot.title), 'Dated Trello plan (reference only):', '', plan.slots);
             return;
           }
         } catch (failure) {
@@ -216,7 +216,7 @@
           console.warn('Planned activity titles could not be read from the dated Trello card.');
         }
       }
-      callback([], '');
+      callback([], '', error ? error + ' Planned activities could not be loaded.' : '');
       const junior = context.classKey === 'JPI' && /^PIDTECH\s*\(JPI\)$/i.test(context.title || '') ||
         context.classKey === 'JSR' && /^SRDTECH\s*\(JSR\)$/i.test(context.title || '');
       const middle = context.classKey && new RegExp('^MDTECH\\s*\\(' + context.classKey + '\\)$', 'i').test(context.title || '');
@@ -229,8 +229,9 @@
         const scope = selected.date.slice(0, 4) + (semester ? '/' + semester : '');
         const [catalogue, kits] = await Promise.all([read(scope), read('session/' + selected.date + '/' + selected.slot + '/' + selected.classKey)]);
         if (current !== titlesGeneration || callback !== plannedTitles || !page.isConnected) return;
-        const titles = globalThis.plannerJuniorTeaching.proposedEntries(catalogue, kits, selected.classKey).map(entry => entry.title);
-        callback(titles, 'Shared sequence draft (reference only):');
+        const entries = globalThis.plannerJuniorTeaching.proposedEntries(catalogue, kits, selected.classKey);
+        const slots = entries.map((entry, index) => globalThis.plannerJuniorTeaching.draftSlot(entry, index + 1));
+        callback(entries.map(entry => entry.title), 'Shared sequence draft (reference only):', '', slots);
       })().catch(failure => {
         if (current !== titlesGeneration || callback !== plannedTitles || !page.isConnected) return;
         callback([], '', failure.message + ' Planned activity titles could not be loaded; Notes remain available.');
