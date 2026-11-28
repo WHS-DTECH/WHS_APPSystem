@@ -174,6 +174,22 @@ test('Teacher Planner pages use the same menu script as Core, with Teacher Plann
   assert.match(core, /section\('Modules', \[[^\]]*'Teacher Planner'/);
 });
 
+test('Relief Library is listed under Modules even when its display name is customised', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'global-nav.js'), 'utf8');
+  const start = source.indexOf('var modules = data.modules || [];');
+  const end = source.indexOf("nav.appendChild(el('div', { 'class': 'gn-spacer' }));", start);
+  const entries = [];
+  const renderSections = new Function('data', 'nav', 'el', 'link', source.slice(start, end));
+  renderSections({ modules: [{ name: 'Relief', path: '/relief-plan/', launchPath: '/launchpad/apps/whs-relief-library' }] },
+    { appendChild(node) { entries.push(node); } }, (tag, attrs, text) => ({ text }),
+    (nav, text, href) => entries.push({ text, href }));
+  const moduleHeading = entries.findIndex(entry => entry.text === 'Modules');
+  const relief = entries.findIndex(entry => entry.href === '/launchpad/apps/whs-relief-library');
+  const studentHeading = entries.findIndex(entry => entry.text === 'Student Apps');
+  assert.ok(moduleHeading < relief && relief < studentHeading);
+  assert.equal(entries.filter(entry => entry.href === '/launchpad/apps/whs-relief-library').length, 1);
+});
+
 test('HUB Dashboard, DTECH and Class Training use the requested navigation groups', async () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'global-nav.js'), 'utf8');
   const start = source.indexOf('var modules = data.modules || [];');
