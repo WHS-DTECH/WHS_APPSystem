@@ -172,8 +172,16 @@
     const sheetId = '1ugLHLfv_VtSraRdqG3pUFCevv7udzLLp';
     const sheetUrl = 'https://docs.google.com/spreadsheets/d/' + sheetId + '/edit?usp=sharing';
     const page = el('section', '', { class: 'paper-page assessment-audit-page' });
-    page.append(el('h2', 'Audit Standards', { class: 'paper-heading' }),
-      el('p', 'Read-only view of the WHS standards audit spreadsheet. Sign in with the school account if Google requests it.'));
+    page.append(el('h2', 'Audit Standards', { class: 'paper-heading' }));
+    const tabs = el('div', '', { class: 'assessment-audit-tabs', role: 'tablist', 'aria-label': 'Audit Standards pages' });
+    const spreadsheetTab = el('button', 'Spreadsheet', { type: 'button', role: 'tab', 'aria-selected': 'true' });
+    const trackerTab = el('button', 'Senior Audit Tracker', { type: 'button', role: 'tab', 'aria-selected': 'false' });
+    const departmentTab = el('button', 'Department Standards', { type: 'button', role: 'tab', 'aria-selected': 'false' });
+    const studentsTab = el('button', 'Students Audit', { type: 'button', role: 'tab', 'aria-selected': 'false' });
+    const enrolmentTab = el('button', 'Enrolment Summary', { type: 'button', role: 'tab', 'aria-selected': 'false' });
+    tabs.append(spreadsheetTab, trackerTab, departmentTab, studentsTab, enrolmentTab);
+    const spreadsheet = el('section', '', { role: 'tabpanel', 'aria-label': 'Spreadsheet' });
+    spreadsheet.append(el('p', 'Read-only view of the WHS standards audit spreadsheet. Sign in with the school account if Google requests it.'));
     const actions = el('div', '', { class: 'assessment-audit-actions' });
     actions.append(el('a', 'Open spreadsheet', {
       href: sheetUrl, target: '_blank', rel: 'noopener noreferrer', class: 'assessment-audit-open'
@@ -185,8 +193,51 @@
       loading: 'lazy',
       referrerpolicy: 'strict-origin-when-cross-origin'
     });
-    page.append(actions, frame);
+    spreadsheet.append(actions, frame);
+    const tracker = el('section', '', { role: 'tabpanel', 'aria-label': 'Senior Audit Tracker', hidden: '' });
+    const students = el('section', '', { role: 'tabpanel', 'aria-label': 'Students Audit', hidden: '' });
+    const enrolments = el('section', '', { role: 'tabpanel', 'aria-label': 'Enrolment Summary', hidden: '' });
+    let mounted = false, auditView, studentsMounted = false, enrolmentsMounted = false, studentsView, enrolmentsView;
+    function selectTracker(selectedPage, updateUrl = true) {
+      const studentPage = selectedPage === 'students-audit';
+      const enrolmentPage = selectedPage === 'enrolment-summary';
+      const selected = selectedPage !== 'overview' && !studentPage && !enrolmentPage, department = selectedPage === 'department-standards';
+      spreadsheet.hidden = selected || studentPage || enrolmentPage;
+      tracker.hidden = !selected;
+      students.hidden = !studentPage;
+      enrolments.hidden = !enrolmentPage;
+      tracker.setAttribute('aria-label', department ? 'Department Standards' : 'Senior Audit Tracker');
+      spreadsheetTab.setAttribute('aria-selected', String(!selected && !studentPage && !enrolmentPage));
+      trackerTab.setAttribute('aria-selected', String(selected && !department));
+      departmentTab.setAttribute('aria-selected', String(department));
+      studentsTab.setAttribute('aria-selected', String(studentPage));
+      enrolmentTab.setAttribute('aria-selected', String(enrolmentPage));
+      if (updateUrl) {
+        const params = new URLSearchParams(location.hash.slice(1));
+        params.set('page', selectedPage);
+        history.replaceState(history.state, '', '#' + params.toString());
+      }
+      if (selected && !mounted) {
+        mounted = true;
+        auditView = globalThis.seniorAudit.mount(tracker, { el, request, year: route.year, department });
+      } else if (selected) auditView?.setDepartment(department);
+      if (studentPage && !studentsMounted) {
+        studentsMounted = true;
+        studentsView = globalThis.studentsAudit.mount(students, { el, request, year: route.year });
+      } else if (studentPage) studentsView?.refresh();
+      if (enrolmentPage && !enrolmentsMounted) {
+        enrolmentsMounted = true;
+        enrolmentsView = globalThis.studentsAudit.mount(enrolments, { el, request, year: route.year, summaryOnly: true });
+      } else if (enrolmentPage) enrolmentsView?.refresh();
+    }
+    spreadsheetTab.addEventListener('click', () => selectTracker('overview'));
+    trackerTab.addEventListener('click', () => selectTracker('senior-audit'));
+    departmentTab.addEventListener('click', () => selectTracker('department-standards'));
+    studentsTab.addEventListener('click', () => selectTracker('students-audit'));
+    enrolmentTab.addEventListener('click', () => selectTracker('enrolment-summary'));
+    page.append(tabs, spreadsheet, tracker, students, enrolments);
     host.append(page);
+    selectTracker(['senior-audit', 'department-standards', 'students-audit', 'enrolment-summary'].includes(route.page) ? route.page : 'overview', false);
   }
 
   async function renderStandards(route, version) {

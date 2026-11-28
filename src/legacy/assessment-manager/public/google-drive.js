@@ -253,7 +253,7 @@
     function chooseFiles(multiple = true) { return pick({ resources: true, multiple }); }
     function metadata(id) {
       if (!/^[\w-]{10,200}$/.test(id)) throw new Error('Choose a valid Google Drive file or folder.');
-      return drive('drive/v3/files/' + id + '?supportsAllDrives=true&fields=id,name,mimeType,modifiedTime,parents,trashed,capabilities(canEdit,canAddChildren)');
+      return drive('drive/v3/files/' + id + '?supportsAllDrives=true&fields=id,name,mimeType,modifiedTime,version,parents,trashed,appProperties,capabilities(canEdit,canAddChildren)');
     }
     async function find(folderId, properties) {
       const clauses = ["trashed=false", "'" + folderId + "' in parents",
@@ -413,6 +413,61 @@
       const suffix = index < 26 ? String.fromCharCode(65 + index) : 'A' + String.fromCharCode(65 + index - 26);
       return ensureFolder(standardFolderId, 'Student ' + suffix);
     }
+    async function ensureAdditionalStudentFolder(standardFolderId, record, initials) {
+      if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(record)) {
+        throw new Error('Choose a valid student marking record.');
+      }
+      if (typeof initials !== 'string' || !/^\p{L}{1,10}$/u.test(initials)) {
+        throw new Error('Enter valid student initials before preparing the student folder.');
+      }
+      const additional = await ensureFolder(standardFolderId, 'Additional Student Marking');
+      const result = await drive('drive/v3/files?' + new URLSearchParams({
+        q: "trashed=false and mimeType='application/vnd.google-apps.folder' and '" + additional.id +
+          "' in parents and appProperties has { key='plannerStudentRecord' and value='" + record + "' }",
+        fields: 'files(id,name),nextPageToken', pageSize: '100', supportsAllDrives: 'true', includeItemsFromAllDrives: 'true'
+      }));
+      if (result.nextPageToken || result.files.length > 1) {
+        throw new Error('More than one folder is linked to this student record. Resolve the duplicate folders in Drive before retrying.');
+      }
+      const legacy = await ensureFolder(additional.id, record, false);
+      if (result.files[0] && legacy && result.files[0].id !== legacy.id) {
+        throw new Error('Both an ID-named folder and a different linked folder exist for this student. Review them in Drive before retrying.');
+      }
+      if (result.files[0]) return result.files[0];
+      let name = 'Student - ' + initials.toUpperCase();
+      if (await ensureFolder(additional.id, name, false)) name += ' (' + record.slice(0, 8) + ')';
+      if (await ensureFolder(additional.id, name, false)) {
+        throw new Error('The student folder name is already in use. Review the folders in Drive before retrying.');
+      }
+      if (legacy) {
+        const existing = await metadata(legacy.id);
+        if (existing.trashed || existing.mimeType !== 'application/vnd.google-apps.folder' ||
+            !existing.parents?.includes(additional.id) || existing.name !== record || !existing.capabilities?.canEdit ||
+            existing.appProperties?.plannerStudentRecord && existing.appProperties.plannerStudentRecord !== record) {
+          throw new Error('The existing ID-named folder could not be safely verified for renaming. Review it in Drive; no documents were changed.');
+        }
+        let etag = existing.etag;
+        if (!etag) {
+          const revision = await drive('drive/v2/files/' + legacy.id +
+            '?supportsAllDrives=true&fields=id,title,mimeType,parents(id),labels(trashed),capabilities(canEdit),etag,version');
+          if (!existing.version || revision.version !== existing.version || revision.title !== record ||
+              revision.mimeType !== existing.mimeType || !revision.parents?.some(parent => parent.id === additional.id) ||
+              revision.labels?.trashed || !revision.capabilities?.canEdit || !revision.etag) {
+            throw new Error('The existing ID-named folder could not be safely verified for renaming. Review it in Drive; no documents were changed.');
+          }
+          etag = revision.etag;
+        }
+        return drive('drive/v3/files/' + existing.id + '?supportsAllDrives=true&fields=id,name', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json', 'If-Match': etag },
+          body: JSON.stringify({ name, appProperties: { ...existing.appProperties, plannerStudentRecord: record } })
+        });
+      }
+      return drive('drive/v3/files?supportsAllDrives=true&fields=id,name', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, mimeType: 'application/vnd.google-apps.folder', parents: [additional.id],
+          appProperties: { plannerStudentRecord: record } })
+      });
+    }
     function upload(blob, { id, name, folderId, properties, mimeType, etag, mediaType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }) {
       const boundary = 'planner_' + crypto.randomUUID().replace(/-/g, '');
       const metadata = { name, appProperties: properties, ...(id ? {} : { parents: [folderId] }),
@@ -447,7 +502,7 @@
     }
     return { authorize, choose, chooseFiles, metadata, find, upload, download, savePdf, ensureAssessmentFolders,
       ensureAssessmentTopicFolder, ensureTopicStandardFolder, syncAssessmentYearFolders, assessmentFolderLinks,
-      assessmentYearFolderLinks, ensureStudentFolder };
+      assessmentYearFolderLinks, ensureStudentFolder, ensureAdditionalStudentFolder };
   }
   globalThis.plannerGoogleDrive = { mount, mountSetup, appendFiles, resourceLink, prepareDocumentAccess };
 })();

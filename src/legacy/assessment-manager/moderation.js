@@ -2,7 +2,7 @@ const { common, documents, documentResources } = require('./public/moderation-sc
 const { validSnapshot } = require('./public/resource-library-schema');
 const UUID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 const DRIVE_ID = /^[\w-]{10,200}$/;
-const fields = [...common.map(([key]) => key), 'resourceLibrary', 'resourceLibraryId', 'courseLibraryInitialized', 'standardType', 'folderId', 'folderName', 'folderTopics', 'folderLinks', 'topic', 'standardFolder', 'driveDocuments', 'parentRecord', ...Object.keys(documents)];
+const fields = [...common.map(([key]) => key), 'resourceLibrary', 'resourceLibraryId', 'courseLibraryInitialized', 'standardType', 'folderId', 'folderName', 'folderTopics', 'folderLinks', 'topic', 'standardFolder', 'driveDocuments', 'parentRecord', 'markingStudents', 'additionalMarking', ...Object.keys(documents)];
 function validTopicName(value) {
   return typeof value === 'string' && value === value.trim() && value.length > 0 && value.length <= 80 &&
     value !== '.' && value !== '..' && !/[\/\\\u0000-\u001f\u007f]/.test(value);
@@ -31,6 +31,30 @@ function validValues(values, definitions) {
     });
 }
 function validModeration(content) {
+  if (content.additionalMarking !== undefined &&
+      (content.additionalMarking !== 'Yes' || !content.parentRecord)) return false;
+  if (content.markingStudents !== undefined) {
+    let students;
+    try { students = JSON.parse(content.markingStudents); } catch { return false; }
+    if (content.parentRecord || !Array.isArray(students) || students.length > 1000 ||
+        !students.every(item => item && typeof item === 'object' && !Array.isArray(item) &&
+          Object.keys(item).every(key => ['email', 'id', 'initials', 'name', 'record', 'classes', 'courses', 'enteredKamar'].includes(key)) &&
+          (item.enteredKamar === undefined || typeof item.enteredKamar === 'boolean') &&
+          typeof item.id === 'string' && (!item.id || /^k:[A-Za-z0-9_-]{1,60}$/.test(item.id)) &&
+          typeof item.email === 'string' && item.email === item.email.trim().toLowerCase() &&
+          item.email.length <= 254 && /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(item.email) &&
+          typeof item.name === 'string' && item.name.trim() === item.name && item.name.length > 0 && item.name.length <= 200 &&
+          !/[\u0000-\u001f\u007f]/.test(item.name) &&
+          typeof item.initials === 'string' && /^\p{L}{1,10}$/u.test(item.initials) &&
+          typeof item.record === 'string' && UUID.test(item.record) &&
+          [item.classes, item.courses].every(values => values === undefined || Array.isArray(values) && values.length <= 30 &&
+            values.every(value => typeof value === 'string' && value === value.trim() &&
+              value.length > 0 && value.length <= 80 && !/[\u0000-\u001f\u007f]/.test(value)) &&
+            new Set(values).size === values.length)) ||
+        new Set(students.map(item => item.email)).size !== students.length ||
+        new Set(students.map(item => item.record.toLowerCase())).size !== students.length ||
+        new Set(students.filter(item => item.id).map(item => item.id)).size !== students.filter(item => item.id).length) return false;
+  }
   if (content.resourceLibraryId !== undefined && (typeof content.resourceLibraryId !== 'string' ||
       content.resourceLibraryId && !UUID.test(content.resourceLibraryId))) return false;
   if (content.courseLibraryInitialized !== undefined && (typeof content.courseLibraryInitialized !== 'string' ||

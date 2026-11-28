@@ -99,8 +99,10 @@
       groups: [
         ['Authenticity declaration', [['signatureName', 'Name recorded for authenticity declaration (not a digital signature)'],
           ['signatureDate', 'Declaration date', 'date']]],
-        ['Result acknowledgement', [['achieved', 'Achievement criteria', 'area'], ['higherGrades', 'Merit / Excellence availability or criteria', 'area'],
-          ['grade', 'Overall level of performance', grades], ['acknowledgedDate', 'Date result received / acknowledged', 'date']]],
+        ['Achievement criteria', [['achieved', 'Achieved criteria', 'area'], ['merit', 'Merit criteria', 'area'],
+          ['excellence', 'Excellence criteria', 'area'], ['higherGrades', 'Previous combined Merit / Excellence criteria', 'area']]],
+        ['Result acknowledgement', [['grade', 'Overall level of performance', grades],
+          ['acknowledgedDate', 'Date result received / acknowledged', 'date']]],
         ['Appeal', [['appeal', 'Student wishes to appeal', yesNo], ['feedbackReceived', 'Feedback and grade notification received', yesNo],
           ['headReview', 'Head of Learning Area review requested / process explained', yesNo], ['appealReasons', 'Reasons for appeal', 'area']]]
       ]
@@ -166,7 +168,9 @@
       Object.keys(row).every(key => ['requirement', 'grade', 'evidence', 'judgement'].includes(key));
   }
   function nzqaCriteriaCitation(line, number) {
-    const match = /^Source: NZQA, Achievement Standard (\d{4,8}), version \d{1,3} — https:\/\/www\.nzqa\.govt\.nz\/nqfdocs\/ncea-resource\/achievements\/\d{4}\/as(\d{4,8})\.pdf$/.exec(line);
+    const achievement = /^Source: NZQA, Achievement Standard (\d{4,8}), version \d{1,3} — https:\/\/www\.nzqa\.govt\.nz\/nqfdocs\/ncea-resource\/achievements\/\d{4}\/as(\d{4,8})\.pdf$/.exec(line);
+    const unit = /^Source: NZQA, Unit Standard (\d{4,8}), version \d{1,3} — https:\/\/www\.nzqa\.govt\.nz\/nqfdocs\/units\/pdf\/(\d{4,8})\.pdf$/.exec(line);
+    const match = achievement || unit;
     return Boolean(match && match[1] === number && match[2] === number);
   }
   function nzqaCriteriaCitations(notes, number) {

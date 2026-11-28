@@ -7,7 +7,7 @@ function pdfVersion(text, number) {
   return match[1];
 }
 
-async function standardDetails(number, { search = searchNzqaStandards, fetchImpl = fetch, extract = parsePdf, achievementPreview = false } = {}) {
+async function standardDetails(number, { search = searchNzqaStandards, fetchImpl = fetch, extract = parsePdf, achievementPreview = false, unitPreview = false } = {}) {
   if (!/^\d{4,8}$/.test(number)) throw new Error('Invalid standard number.');
   const results = await search({ query: number, view: 'all', level: 'all' });
   const standard = results.standards.find(item => item.number === number);
@@ -34,8 +34,10 @@ async function standardDetails(number, { search = searchNzqaStandards, fetchImpl
   if (!kind) throw new Error('The NZQA PDF did not identify the standard type.');
   const version = pdfVersion(text, number);
   if (achievementPreview && kind.toLowerCase() !== 'achievement') throw new Error('This is not an Achievement Standard.');
+  if (unitPreview && kind.toLowerCase() !== 'unit') throw new Error('This is not a Unit Standard.');
   return { ...standard, standardType: kind.toLowerCase() === 'unit' ? 'Unit' : 'Achievement', version,
     ...(achievementPreview ? achievementDetails(pages) : {}),
+    ...(unitPreview ? { criteria: { achieved: unitOutcomes(text).join('\n\n') }, requirements: unitPerformanceCriteria(text) } : {}),
     ...(kind.toLowerCase() === 'unit' ? { outcomes: unitOutcomes(text) } : {}) };
 }
 
@@ -161,6 +163,40 @@ function unitOutcomes(text) {
   return outcomes;
 }
 
+function unitPerformanceCriteria(text) {
+  const section = text.split(/Outcomes and performance criteria/i)[1];
+  if (!section || !/Performance criteria/i.test(section)) throw new Error('The Unit Standard performance criteria could not be located.');
+  const content = section.split(/\n\s*(?:Replacement information|Planned review date|Status information|Consent and Moderation Requirements|Comments on this unit standard)\b/i)[0]
+    .replace(/\n\s*NZQA unit standard\s+\d+\s+version\s+\d+[^\n]*\n[\s\S]*?©[^\n]*(?:\n|$)/gi, '\n');
+  if (/NZQA unit standard|[\ue000-\uf8ff]/i.test(content)) throw new Error('The Unit Standard performance criteria could not be extracted reliably.');
+  const outcomes = [...content.matchAll(/(?:^|\n)\s*Outcome\s+(\d{1,2})[ \t]*(?=\n)/gi)];
+  if (!outcomes.length || new Set(outcomes.map(item => item[1])).size !== outcomes.length) {
+    throw new Error('The Unit Standard outcomes are ambiguous.');
+  }
+  const requirements = [];
+  for (const [index, outcome] of outcomes.entries()) {
+    const block = content.slice(outcome.index, outcomes[index + 1]?.index);
+    const heading = /(?:^|\n)\s*Performance criteria\s*(?=\n)/i.exec(block);
+    if (!heading) throw new Error('The Unit Standard performance criteria could not be located.');
+    const criteria = block.slice(heading.index + heading[0].length);
+    const pattern = /(?:^|\n)\s*(\d{1,2})\.(\d{1,2})[ \t]+([\s\S]*?)(?=\n\s*\d{1,2}\.\d{1,2}[ \t]+|$)/g;
+    const matches = [...criteria.matchAll(pattern)];
+    if (!matches.length || criteria.slice(0, matches[0].index).trim()) throw new Error('The Unit Standard performance criteria are ambiguous.');
+    for (const [position, match] of matches.entries()) {
+      const [statement, ...range] = match[3].split(/\n\s*Range\s+/i);
+      const value = match[1] + '.' + match[2] + ' ' + statement.replace(/\s+/g, ' ').trim() +
+        (range.length === 1 ? '\nRange: ' + range[0].replace(/\s+/g, ' ').trim() : '');
+      if (match[1] !== outcome[1] || Number(match[2]) !== position + 1 || range.length > 1 ||
+          !statement.trim() || value.length > 8000 || value.length < 10) {
+        throw new Error('The Unit Standard performance criteria are ambiguous.');
+      }
+      requirements.push(value);
+    }
+  }
+  if (!requirements.length || requirements.length > 50) throw new Error('The Unit Standard performance criteria could not be extracted reliably.');
+  return requirements;
+}
+
 async function officialPdfText(url, { fetchImpl = fetch, extract = parsePdf, maxPages = 0, pagerender } = {}) {
   const resource = new URL(url);
   if (resource.protocol !== 'https:' || !['www.nzqa.govt.nz', 'www2.nzqa.govt.nz'].includes(resource.hostname) ||
@@ -187,4 +223,4 @@ async function officialPdfText(url, { fetchImpl = fetch, extract = parsePdf, max
   return pdf.text;
 }
 
-module.exports = { standardDetails, pdfVersion, officialPdfText, unitOutcomes, achievementDetails };
+module.exports = { standardDetails, pdfVersion, officialPdfText, unitOutcomes, unitPerformanceCriteria, achievementDetails };

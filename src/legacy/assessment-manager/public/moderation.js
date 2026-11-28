@@ -215,6 +215,16 @@
       if (data.parentRecord) {
         const parent = await request(year + '/moderation/' + data.parentRecord);
         const samples = JSON.parse(parent.content.internal || '{}').samples || [];
+        if (data.additionalMarking === 'Yes') {
+          const students = JSON.parse(parent.content.markingStudents || '[]');
+          const matches = students.filter(item => item.record === record);
+          if (matches.length !== 1) {
+            throw new Error('This student must match exactly one entry in the parent marking record before preparing a folder.');
+          }
+          const student = await access.ensureAdditionalStudentFolder(standard.id, record, matches[0].initials);
+          rememberStandardFolder(standard, folderId);
+          return student;
+        }
         const matches = samples.map((item, index) => item.markingScheduleRecord === record ? index : -1).filter(index => index >= 0);
         if (matches.length !== 1) throw new Error('This schedule must match exactly one entry in its parent moderation record before preparing a student folder.');
         const student = await access.ensureStudentFolder(standard.id, matches[0]);
@@ -525,7 +535,7 @@
       folder.append(el('h3', 'My Assessment and Moderation folder'));
       area.append(folder, feedback); showFolder(folder); prepareDrive(); return { openYear };
     }
-    const contentsPage = documents[page] ? page : 'internal';
+    const contentsPage = page === 'marking' ? 'overview' : documents[page] ? page : 'internal';
     const tabs = el('nav', '', { class: 'moderation-tabs', 'aria-label': 'Year moderation contents', 'data-planner-navigation': '' });
     for (const [key, title] of [['overview', 'Records'], ['internal', 'Internal Moderation'],
       ['schedule', 'Marking Schedule'], ['feedback', 'Marking Confirmation & Feedback'], ['coversheet', 'WHS Coversheet'], ['verifiers', 'Verifiers']]) {
@@ -538,7 +548,7 @@
         feedback: { title: 'Confirmation & Feedback', url: options.feedbackTemplateUrl, filename: 'confirmation-feedback-template.docx',
           action: 'Create / open Confirmation & Feedback', existing: 'Existing assessment-level feedback remains available through Records.' },
         schedule: { title: 'Marking Schedule', url: options.scheduleTemplateUrl, filename: 'marking-schedule-template.docx',
-          action: 'Create / open marking schedule', existing: 'Existing standard-specific instructions and criteria remain available through Records → Marking Schedules. Fill in the correct criteria for each standard before using a completed schedule.' },
+          action: 'Create / open marking schedule', existing: 'Existing standard-specific instructions and criteria remain available through Records → Internal Moderation Marking Schedules. Fill in the correct criteria for each standard before using a completed schedule.' },
         coversheet: { title: 'WHS Coversheet', url: options.coversheetTemplateUrl, filename: 'whs-coversheet-template.docx',
           existing: 'Existing assessment-level coversheets remain available through Records.' }
       }[page];
@@ -619,7 +629,7 @@
         finally { delete area.dataset.moderationBusy; area.inert = false; working = false; createButton.disabled = false; }
       }, create);
       const listing = el('section', '', { class: 'moderation-panel' });
-      const listTitle = page === 'verifiers' ? 'Verifiers' : page === 'overview' ? 'My moderation records'
+      const listTitle = page === 'verifiers' ? 'Verifiers' : page === 'overview' ? 'Marking Records'
         : (reusable ? 'Student ' + reusable.title + ' forms' : page === 'internal' ? 'Internal Moderation' : documents[page].title) + ' — ' + year;
       listing.append(el('h3', listTitle), el('p', 'Loading records…', { role: 'status' }));
       if (page === 'overview') area.append(create);
@@ -766,9 +776,9 @@
           if (page === 'overview' && records.length) {
             const wrapper = el('div', '', { class: 'moderation-records-table-scroll', tabindex: '0', role: 'region', 'aria-label': 'Moderation records by standard' });
             const table = el('table', '', { class: 'moderation-records-table' });
-            table.append(el('caption', 'My moderation records — ' + year));
+            table.append(el('caption', 'Marking Records — ' + year));
             const head = el('thead'), headings = el('tr');
-            for (const title of ['Standard Number', 'Internal Moderation Sheet', 'Marking Schedules']) {
+            for (const title of ['Standard Number', 'Standard Marking Record', 'Internal Moderation Sheet', 'Internal Moderation Marking Schedules']) {
               headings.append(el('th', title, { scope: 'col' }));
             }
             head.append(headings); table.append(head);
@@ -784,6 +794,14 @@
               if (!assessments.length) standard.append(el('span', number));
               if (title) standard.append(el('p', title));
               row.append(standard);
+              const marking = el('td'), markingList = el('ul');
+              for (const assessment of assessments) {
+                const entry = el('li');
+                entry.append(recordLink(assessment, 'marking', assessments.length === 1 ? 'Open' : 'Open — ' + (assessment.title || 'Untitled assessment')));
+                markingList.append(entry);
+              }
+              marking.append(assessments.length ? markingList : el('p', 'No assessment record'));
+              row.append(marking);
               const internal = el('td'), internalList = el('ul');
               for (const assessment of assessments) {
                 const entry = el('li');
@@ -792,9 +810,17 @@
               }
               internal.append(assessments.length ? internalList : el('p', 'No assessment record'));
               row.append(internal);
+              const linkedAdditional = new Set();
+              for (const assessment of assessments.filter(parent =>
+                students.some(item => item.parent_record === parent.entry_key && item.additional_marking === 'Yes'))) {
+                const parent = await request(year + '/moderation/' + assessment.entry_key);
+                const samples = JSON.parse(parent.content.internal || '{}').samples || [];
+                for (const sample of samples) if (sample.markingScheduleRecord) linkedAdditional.add(sample.markingScheduleRecord);
+              }
               for (const target of ['schedule']) {
                 const cell = el('td'), list = el('ul');
-                for (const item of [...assessments, ...students]) {
+                for (const item of [...assessments, ...students.filter(item =>
+                  item.additional_marking !== 'Yes' || linkedAdditional.has(item.entry_key))]) {
                   const label = item.parent_record ? item.student_name || item.title || 'Individual student' : 'Standard marking schedule template' +
                     (assessments.length > 1 ? ' — ' + (item.title || 'Untitled assessment') : '');
                   const entry = el('li');
@@ -932,6 +958,7 @@
       Promise.resolve().then(() => { if (area.isConnected && !hidden.assessors.value) update('assessors', assessorName); });
     }
     field('driveDocuments', JSON.stringify(links));
+    if (page === 'marking' && !data.parentRecord) field('markingStudents', data.markingStudents || '[]');
     const contactEmail = (options.userEmail || '').trim();
     const fillContactEmail = page === 'feedback' && !values.feedback.contactEmail?.trim() && contactEmail;
     if (fillContactEmail) values.feedback.contactEmail = contactEmail;
@@ -955,8 +982,602 @@
     });
     Promise.resolve().then(() => { if (area.isConnected) fillRetentionLocation(); });
     fillSetupFolderLink();
-    const heading = el('h2', data.title || 'Moderation record', { class: 'paper-heading' });
+    const documentHeading = ['coversheet', 'feedback'].includes(page) ? documents[page].title : '';
+    const headingTitle = documentHeading && data.title
+      ? data.title.replace(/ — Marking Schedule$/, ' — ' + documentHeading) : data.title;
+    const heading = el('h2', headingTitle || documentHeading || 'Moderation record', { class: 'paper-heading' });
     area.append(heading);
+    if (data.parentRecord) {
+      button('Back to Standard Marking Record', () => navigate(data.parentRecord, 'marking'));
+    }
+    if (page === 'marking' && !data.parentRecord) {
+      let students;
+      try {
+        students = JSON.parse(hidden.markingStudents.value);
+        if (!Array.isArray(students)) throw new Error('Invalid marking list');
+      } catch {
+        area.append(el('p', 'The saved marking list could not be read. Existing records are unchanged.', { role: 'alert' }));
+        return;
+      }
+      const layout = el('div', '', { class: 'moderation-marking-layout' });
+      const left = el('section', '', { class: 'moderation-panel' });
+      const right = el('section', '', { class: 'moderation-panel' });
+      const setup = el('section', '', { class: 'moderation-panel' });
+      const roster = el('div'), moderation = el('div'), setupBody = el('div');
+      left.append(el('h3', 'Standard Marking Record'),
+        el('p', 'A linked Drive document shows that a link was saved, not that the file has been checked or is complete.'), roster);
+      right.append(el('h3', 'Internal Moderation'), moderation);
+      layout.append(left, right);
+      setup.append(el('h3', 'Setup Marking'), el('p',
+        'Load saved markbook PDF students, review the suggested initials and tick the students to add. The PDF is the source for this list; missing or ambiguous identities require review. Existing students and documents are never removed by a sync.'), setupBody);
+      const markingTabs = el('nav', '', { class: 'moderation-tabs', 'aria-label': 'Standard marking pages' });
+      const listTab = button('Standard Marking Record', () => showSetup(false), markingTabs);
+      const setupTab = button('Setup Marking', () => showSetup(true), markingTabs);
+      function showSetup(show) {
+        layout.hidden = show; setup.hidden = !show;
+        if (show) { setupTab.setAttribute('aria-current', 'page'); listTab.removeAttribute('aria-current'); }
+        else { listTab.setAttribute('aria-current', 'page'); setupTab.removeAttribute('aria-current'); }
+      }
+      showSetup(false);
+      area.append(markingTabs, layout, setup, feedback);
+      for (const type of ['input', 'change']) {
+        layout.addEventListener(type, event => event.stopPropagation());
+        setup.addEventListener(type, event => event.stopPropagation());
+      }
+      const samples = () => values.internal.samples || [];
+      let latestIds = null;
+      let documentLinks = null, documentError = '';
+      let documentStatuses = [];
+      let linkedOnly = false;
+      let markingSort = { key: 'last', direction: 'ascending' };
+      let focusSort = '';
+      const selectedForModeration = new Set();
+      const filterLabel = el('label'), filter = el('input', '', { type: 'checkbox', 'aria-label': 'Show only students with linked documents' });
+      const filterStatus = el('span', 'Checking document links…', { role: 'status' });
+      filter.type = 'checkbox'; filter.disabled = true;
+      filter.addEventListener('change', () => { linkedOnly = filter.checked; renderMarking(); });
+      filterLabel.append(filter, el('span', 'Show only students with linked documents'));
+      left.insertBefore(filterLabel, roster);
+      left.insertBefore(filterStatus, roster);
+      const compareMarking = (a, b) => a.localeCompare(b, 'en-NZ', { numeric: true, sensitivity: 'base' });
+      function markingName(student) {
+        const comma = student.name.indexOf(',');
+        return comma < 0 ? { last: student.name, first: '' } :
+          { last: student.name.slice(0, comma).trim(), first: student.name.slice(comma + 1).trim() };
+      }
+      function markingClass(student) {
+        return [...(student.classes || [])].sort(compareMarking).join(', ');
+      }
+      function sortedMarkingStudents() {
+        return [...students].sort((a, b) => {
+          const aName = markingName(a), bName = markingName(b);
+          const key = markingSort.key;
+          const primary = key === 'class' ? compareMarking(markingClass(a), markingClass(b)) :
+            compareMarking(aName[key], bName[key]);
+          return (markingSort.direction === 'ascending' ? primary : -primary) ||
+            compareMarking(aName.last, bName.last) || compareMarking(aName.first, bName.first) ||
+            compareMarking(a.name, b.name);
+        });
+      }
+      function renderDocumentStatus(node, student, target) {
+        node.replaceChildren();
+        if (documentError) { node.append(el('span', 'Document links unavailable; retry by reopening this page.', { role: 'alert' })); return; }
+        if (!documentLinks) { node.append(el('span', 'Checking saved links…')); return; }
+        const file = documentLinks.get(student.record)?.[target];
+        if (!file) { node.append(el('span', 'No Drive document linked')); return; }
+        if (!/^[\w-]{10,200}$/.test(file.id) || ![GOOGLE_DOC, DOCX].includes(file.mimeType)) {
+          node.append(el('span', 'Saved document link is invalid; review the form.', { role: 'alert' })); return;
+        }
+        const href = file.mimeType === GOOGLE_DOC ? 'https://docs.google.com/document/d/' + file.id + '/edit' :
+          'https://drive.google.com/file/d/' + file.id + '/view';
+        node.append(el('a', 'Linked Drive document', { href, target: '_blank', rel: 'noopener noreferrer',
+          'aria-label': 'Open linked ' + target + ' document for ' + student.name }));
+      }
+      function showDocumentStatus(parent, student, target) {
+        const node = el('div');
+        parent.append(node); documentStatuses.push({ node, student, target });
+        renderDocumentStatus(node, student, target);
+      }
+      function savedStudents() { update('markingStudents', JSON.stringify(students)); }
+      function sampleIndex(student) {
+        const found = samples().map((sample, index) => sample.markingScheduleRecord === student.record ? index : -1)
+          .filter(index => index >= 0);
+        if (found.length > 1) throw new Error('This marking record is linked to more than one moderation entry. Resolve the duplicate in Internal Moderation.');
+        return found.length ? found[0] : -1;
+      }
+      async function openStudent(student, target) {
+        if (working) return;
+        working = true;
+        try {
+          await persist();
+          const parent = await request(year + '/moderation/' + record);
+          const roster = JSON.parse(parent.content.markingStudents || '[]');
+          const current = roster.filter(item => item.record === student.record && item.email === student.email);
+          if (current.length !== 1) throw new Error('The student list changed. Reload this marking record.');
+          const parentSamples = JSON.parse(parent.content.internal || '{}').samples || [];
+          const matches = parentSamples.map((sample, index) => sample.markingScheduleRecord === student.record ? index : -1).filter(index => index >= 0);
+          if (matches.length > 1) throw new Error('This student is linked to more than one moderation entry.');
+          const path = year + '/moderation/' + student.record;
+          const existing = await request(path);
+          if (existing.revision && existing.content.parentRecord !== record) {
+            throw new Error('The linked student record belongs to another assessment. No changes were made.');
+          }
+          if (!existing.revision) {
+            const label = matches.length ? parentSamples[matches[0]].student : 'Student - ' + student.initials;
+            const content = Object.fromEntries(common.map(([key]) => [key, parent.content[key] || '']));
+            Object.assign(content, {
+              title: (parent.content.standardNumber + ' — ' + label + ' — Marking Schedule').slice(0, 500),
+              studentName: label, studentId: '', parentRecord: record,
+              folderId: parent.content.folderId || '', folderName: parent.content.folderName || '',
+              topic: parent.content.topic || '', standardFolder: parent.content.standardFolder || '',
+              ...(parent.content.resourceLibrary ? { resourceLibrary: parent.content.resourceLibrary } : {}),
+              ...(!matches.length ? { additionalMarking: 'Yes' } : {}),
+              schedule: JSON.stringify({ ...sourceScheduleLinks(JSON.parse(parent.content.internal || '{}').source),
+                ...scheduleTemplate(JSON.parse(parent.content.schedule || '{}')) })
+            });
+            await mutate(path, { content, revision: 0 });
+          }
+          await navigate(student.record, target);
+        } catch (error) {
+          console.error('Student marking form could not be opened.');
+          message(error.message, true);
+        } finally { working = false; }
+      }
+      async function openExistingSample(sample, target) {
+        try {
+          await persist();
+          const existing = await request(year + '/moderation/' + sample.markingScheduleRecord);
+          if (!existing.revision || existing.content.parentRecord !== record) {
+            throw new Error('The sample form is not available. Open Internal Moderation to create or review it.');
+          }
+          await navigate(sample.markingScheduleRecord, target);
+        } catch (error) { message(error.message, true); }
+      }
+      function renderMarking() {
+        documentStatuses = [];
+        roster.replaceChildren();
+        moderation.replaceChildren();
+        if (!students.length) roster.append(el('p', 'No students have been added. Use Setup Marking below.'));
+        const table = el('table', '', { class: 'moderation-records-table' });
+        const head = el('thead'), headings = el('tr'), sortControls = new Map();
+        for (const [label, key] of [['Last name', 'last'], ['First name', 'first'], ['Class', 'class'],
+          ['Marking Schedule'], ['Marking Confirmation & Feedback'], ['WHS Coversheet'], ['Moderation'], ['Entered KAMAR']]) {
+          const heading = el('th', '', { scope: 'col' });
+          if (key) {
+            if (markingSort.key === key) heading.setAttribute('aria-sort', markingSort.direction);
+            const control = button(label + (markingSort.key === key ? markingSort.direction === 'ascending' ? ' ▲' : ' ▼' : ''), () => {
+              markingSort = { key, direction: markingSort.key === key && markingSort.direction === 'ascending' ? 'descending' : 'ascending' };
+              focusSort = key;
+              renderMarking();
+            }, heading);
+            sortControls.set(key, control);
+          } else heading.append(el('span', label));
+          headings.append(heading);
+        }
+        head.append(headings); table.append(head);
+        const body = el('tbody'), selections = [];
+        const visible = sortedMarkingStudents().filter(student => !linkedOnly ||
+          ['schedule', 'feedback', 'coversheet'].some(key => documentLinks.get(student.record)?.[key]));
+        for (const student of visible) {
+          const parts = markingName(student);
+          const row = el('tr'), name = el('th', parts.last || '—', { scope: 'row' });
+          const warnings = [];
+          if (!parts.last || !parts.first) warnings.push('Name not in Last, First format; review.');
+          if (!student.id) warnings.push('Manually added; identity not verified against KAMAR.');
+          else if (latestIds && !latestIds.has(student.id)) warnings.push('Not found in the latest loaded PDFs; review. Saved marking is retained.');
+          if (warnings.length) {
+            name.setAttribute('title', warnings.join(' '));
+            name.setAttribute('aria-description', warnings.join(' '));
+          }
+          const first = el('td', parts.first || '—');
+          first.append(el('p', 'Initials: ' + student.initials));
+          const classCell = el('td', markingClass(student) || '—');
+          row.append(name, first, classCell);
+          for (const [target, label] of [['schedule', 'Open schedule'], ['feedback', 'Open feedback'], ['coversheet', 'Open coversheet']]) {
+            const cell = el('td');
+            button(label, () => openStudent(student, target), cell);
+            showDocumentStatus(cell, student, target); row.append(cell);
+          }
+          const cell = el('td'), index = sampleIndex(student);
+          if (index >= 0) cell.append(el('span', 'Student ' + (index < 26 ? String.fromCharCode(65 + index) : 'A' + String.fromCharCode(65 + index - 26))));
+          else {
+            const box = el('input', '', { type: 'checkbox', 'aria-label': 'Select ' + student.name + ' for moderation' });
+            box.type = 'checkbox'; box.checked = selectedForModeration.has(student.record);
+            box.addEventListener('change', () => {
+              if (box.checked) selectedForModeration.add(student.record);
+              else selectedForModeration.delete(student.record);
+            });
+            selections.push({ box, student }); cell.append(box);
+          }
+          const kamar = el('td'), entered = el('input', '', { type: 'checkbox', 'aria-label': 'Entered KAMAR for ' + student.name });
+          entered.type = 'checkbox'; entered.checked = student.enteredKamar === true;
+          const answer = el('span', entered.checked ? 'Yes' : 'No');
+          entered.addEventListener('change', () => {
+            if (entered.checked) student.enteredKamar = true;
+            else delete student.enteredKamar;
+            answer.textContent = entered.checked ? 'Yes' : 'No';
+            savedStudents();
+          });
+          kamar.append(entered, answer);
+          row.append(cell, kamar); body.append(row);
+        }
+        table.append(body);
+        if (students.length) {
+          const scroll = el('div', '', { class: 'moderation-records-table-scroll' });
+          scroll.append(table); roster.append(scroll);
+          if (linkedOnly && !visible.length) roster.append(el('p', 'No students have a saved document link.'));
+          if (focusSort) { sortControls.get(focusSort).focus(); focusSort = ''; }
+          const assignButton = button('Assign selected students to moderation', async () => {
+            if (working) return;
+            working = true; assignButton.disabled = true;
+            try {
+              const chosen = selections.filter(item => item.box.checked).map(item => item.student);
+              if (!chosen.length) throw new Error('Tick the students selected for moderation first.');
+              if (chosen.some(student => sampleIndex(student) >= 0)) throw new Error('A selected student is already linked to moderation. Reload and review the selection.');
+              const entries = samples();
+              const available = ['A', 'B', 'C', 'D'].flatMap((letter, index) =>
+                !values.internal['randomInitials' + letter] &&
+                (!entries[index] || !Object.values(entries[index]).some(Boolean)) ? [index] : []);
+              if (chosen.length > available.length) throw new Error('There are not enough empty A–D slots. Existing moderation entries are unchanged.');
+              if (!confirm('Assign ' + chosen.length + ' selected student(s) randomly to the available moderation slots? Existing entries and documents will be kept.')) return;
+              for (let i = chosen.length - 1; i > 0; i--) {
+                const random = new Uint32Array(1);
+                crypto.getRandomValues(random);
+                const j = random[0] % (i + 1);
+                [chosen[i], chosen[j]] = [chosen[j], chosen[i]];
+              }
+              values.internal.samples ||= [];
+              chosen.forEach((student, position) => {
+                const index = available[position], letter = String.fromCharCode(65 + index);
+                while (values.internal.samples.length <= index) values.internal.samples.push({});
+                values.internal.samples[index] = { student: 'Student ' + letter + ' - ' + student.initials,
+                  randomSlot: letter, markingScheduleRecord: student.record };
+                values.internal['randomInitials' + letter] = student.initials;
+              });
+              update('internal', JSON.stringify(values.internal));
+              await persist();
+              for (const student of chosen) selectedForModeration.delete(student.record);
+              renderMarking();
+              message('Moderation selection saved. The students remain in the full marking list.');
+            } catch (error) { message(error.message, true); }
+            finally { working = false; assignButton.disabled = false; }
+          }, roster);
+        }
+        moderation.append(el('p', 'Selected students link to the same marking records and documents shown on the left.'));
+        button('Open Internal Moderation Sheet', () => navigate(record, 'internal'), moderation);
+        const list = el('ul', '', { class: 'moderation-sample-list' });
+        for (const [index, sample] of samples().entries()) {
+          const entry = el('li', '', { class: 'moderation-sample' });
+          const linked = students.filter(student => student.record === sample.markingScheduleRecord);
+          entry.append(el('strong', sample.student || 'Entry ' + (index + 1)));
+          if (linked.length === 1) {
+            entry.append(el('p', linked[0].name, { class: 'moderation-sample-description' }));
+          } else {
+            entry.append(el('p', 'Existing sample not linked to this marking list.', { class: 'moderation-sample-description' }));
+          }
+          if (linked.length === 1 || sample.markingScheduleRecord) {
+            const reference = linked.length === 1 ? linked[0] :
+              { record: sample.markingScheduleRecord, name: sample.student || 'moderation sample' };
+            const documents = el('div', '', { class: 'moderation-sample-documents' });
+            for (const [target, label] of [['schedule', 'Schedule'], ['feedback', 'Feedback'], ['coversheet', 'Coversheet']]) {
+              const row = el('div', '', { class: 'moderation-sample-document' });
+              button(label, () => linked.length === 1 ? openStudent(reference, target) : openExistingSample(sample, target), row);
+              showDocumentStatus(row, reference, target);
+              documents.append(row);
+            }
+            entry.append(documents);
+          }
+          if (linked.length !== 1) {
+            const review = el('div', '', { class: 'moderation-sample-review' });
+            const labelMatch = (sample.student || '').trim().match(/^Student\s+[A-Z]{1,2}\s*[-–—]\s*(\p{L}{1,10})$/iu);
+            const slot = index < 4 ? String.fromCharCode(65 + index) : '';
+            const savedInitials = slot && values.internal['randomInitials' + slot];
+            const initials = labelMatch && (!savedInitials || savedInitials.toUpperCase() === labelMatch[1].toUpperCase()) ?
+              labelMatch[1].toUpperCase() : '';
+            const available = sortedMarkingStudents().filter(item => sampleIndex(item) < 0);
+            const matches = initials ? available.filter(item => item.initials.toUpperCase() === initials) : [];
+            if (matches.length) review.append(el('p', matches.length === 1 ?
+              'Possible match by initials only; check the sample and documents before linking.' :
+              'Multiple students have these initials; check the sample and documents before linking.'));
+            else review.append(el('p', 'No match suggested. Review the sample and documents before linking.'));
+            const select = el('select', '', { 'aria-label': 'Link existing sample ' + (index + 1) });
+            select.append(el('option', 'Choose a student', { value: '' }));
+            for (const student of available) {
+              select.append(el('option', (matches.includes(student) ? 'Possible match: ' : '') +
+                student.name + ' (' + student.initials + ')', { value: student.record }));
+            }
+            review.append(el('span', 'Review and link to marking list'), select);
+            const linkButton = button('Link reviewed student', async () => {
+              if (working) return;
+              working = true; linkButton.disabled = true;
+              try {
+                const student = students.find(item => item.record === select.value);
+                if (!student) throw new Error('Choose a student to link.');
+                if (sampleIndex(student) >= 0) throw new Error('This student is already linked to a moderation entry.');
+                if (!confirm('Link ' + student.name + ' to the existing ' + (sample.student || 'moderation entry ' + (index + 1)) +
+                    '? Check the existing sample and documents first. Nothing will be overwritten or moved.')) return;
+                await persist();
+                if (sample.markingScheduleRecord && sample.markingScheduleRecord !== student.record) {
+                  const [current, existing] = await Promise.all([
+                    request(year + '/moderation/' + student.record),
+                    request(year + '/moderation/' + sample.markingScheduleRecord)
+                  ]);
+                  if (current.revision && current.content.parentRecord !== record) throw new Error('The student record belongs to another assessment.');
+                  if (existing.revision && existing.content.parentRecord !== record) throw new Error('The sample record belongs to another assessment.');
+                  if (students.some(other => other !== student && other.record === sample.markingScheduleRecord)) {
+                    throw new Error('This sample is already linked to another student.');
+                  }
+                  if (current.revision) {
+                    if (!confirm('Both records are saved separately. Use the marking-list record for this moderation sample? ' +
+                        'Its schedule, feedback and coversheet will be shown in moderation. The previous sample record and its documents remain unchanged and can be opened from Records. Nothing will be combined.')) return;
+                    sample.markingScheduleRecord = student.record;
+                  } else {
+                    student.record = sample.markingScheduleRecord;
+                    savedStudents();
+                  }
+                } else if (!sample.markingScheduleRecord) {
+                  sample.markingScheduleRecord = student.record;
+                }
+                update('internal', JSON.stringify(values.internal));
+                await persist(); renderMarking();
+                message('Existing moderation sample linked. Its documents were not moved or changed.');
+              } catch (error) { message(error.message, true); }
+              finally { working = false; linkButton.disabled = false; }
+            }, review);
+            entry.append(review);
+          }
+          list.append(entry);
+        }
+        if (!samples().length) moderation.append(el('p', 'No moderation students selected.'));
+        else moderation.append(list);
+      }
+      const dept = el('select', '', { 'aria-label': 'Marking department' });
+      const status = el('p', 'Loading authorised departments…', { role: 'status' });
+      const suggestions = el('div');
+      setupBody.append(dept, status, suggestions);
+      let departments = [];
+      dept.addEventListener('change', () => {
+        suggestions.replaceChildren(); latestIds = null; renderMarking();
+        status.textContent = 'Load saved PDF evidence for the selected department.';
+      });
+      request('students-audit?year=' + year).then(result => {
+        departments = result.departments.filter(item => item.markbookEvidence);
+        dept.replaceChildren(el('option', 'Choose department', { value: '' }));
+        for (const item of departments) dept.append(el('option', item.name, { value: item.id }));
+        if (departments.length === 1) dept.value = departments[0].id;
+        status.textContent = departments.length ? 'Load saved PDF evidence for this assessment.' : 'No authorised markbook department is available.';
+      }).catch(error => { status.setAttribute('role', 'alert'); status.textContent = error.message; });
+      let loadingStudents = false;
+      const loadStudentsButton = button('Load markbook students', async () => {
+        if (loadingStudents) return;
+        loadingStudents = true; loadStudentsButton.disabled = true;
+        try {
+          if (!departments.some(item => item.id === dept.value)) throw new Error('Choose an authorised department.');
+          await persist();
+          const departmentId = dept.value, number = hidden.standardNumber.value, version = hidden.version.value;
+          const result = await request('students-audit/marking?' + new URLSearchParams({
+            year: String(year), departmentId, record
+          }));
+          if (dept.value !== departmentId || hidden.standardNumber.value !== number || hidden.version.value !== version ||
+              result.standardNumber !== number || result.version !== version) {
+            throw new Error('The department, standard or version changed while loading. Load the markbook students again.');
+          }
+          suggestions.replaceChildren();
+          status.setAttribute('role', 'status');
+          status.textContent = 'PDF sync: ' + result.syncedAt + (result.complete ? '' : ' — incomplete sources; review before adding.') +
+            '. ' + result.issues.length + ' unmatched or conflicting PDF row(s) require review.';
+          if (!result.summary) suggestions.append(el('p', 'Enrolled List summary has not been synced; totals cannot be compared.'));
+          else {
+            suggestions.append(el('p', 'Enrolled List summary synced: ' + result.summary.syncedAt + '.'));
+            if (!result.summary.entries.length) suggestions.append(el('p', 'This standard and version were not found in the Enrolled List summary; counts cannot be compared.', { role: 'alert' }));
+            for (const entry of result.summary.entries) {
+              const sources = result.evidence.filter(item => item.course === entry.course);
+              const count = new Set(sources.flatMap(item => item.students.map(person => person.id))).size;
+              if (!sources.length || sources.some(item => item.conflict || item.unmatched) || entry.enrolled == null) {
+                suggestions.append(el('p', entry.course + ': PDF student total cannot be compared reliably with the Enrolled List.'));
+              } else if (count !== entry.enrolled) {
+                suggestions.append(el('p', entry.course + ': ' + count + ' distinct PDF students; Enrolled List count ' +
+                  entry.enrolled + '. Review the difference.', { role: 'alert' }));
+              }
+            }
+          }
+          for (const issue of result.issues) {
+            const warning = el('p', issue.name + ' — ' + issue.reason + ' ', { role: 'alert' });
+            warning.append(el('a', 'Open source PDF', { href: issue.url, target: '_blank', rel: 'noopener noreferrer' }));
+            suggestions.append(warning);
+          }
+          if (!result.evidence.length) suggestions.append(el('p', 'No saved PDF matches this standard and version.'));
+          const candidates = new Map();
+          for (const source of result.evidence) {
+            suggestions.append(el('p', source.course + (source.teachers?.length ? ' — markbook teacher(s): ' + source.teachers.join(', ') : '') +
+              (source.modifiedTime ? ' — updated ' + source.modifiedTime : '') + (source.conflict ? ' — conflicting PDFs' : '')),
+              el('a', 'Open source PDF', { href: source.url, target: '_blank', rel: 'noopener noreferrer' }));
+            for (const person of source.students) {
+              if (!candidates.has(person.id)) candidates.set(person.id, { ...person, courses: [], classes: [] });
+              const candidate = candidates.get(person.id);
+              candidate.courses.push(source.course);
+              candidate.classes.push(...(person.classCodes || []));
+            }
+          }
+          latestIds = result.complete && result.evidence.length && !result.issues.length &&
+            result.evidence.every(source => !source.conflict && !source.unmatched) ? new Set(candidates.keys()) : null;
+          renderMarking();
+          async function verifyEvidence() {
+            const fresh = await request('students-audit/marking?' + new URLSearchParams({
+              year: String(year), departmentId, record
+            }));
+            if (dept.value !== departmentId || hidden.standardNumber.value !== number || hidden.version.value !== version ||
+                fresh.standardNumber !== number || fresh.version !== version || fresh.syncedAt !== result.syncedAt ||
+                fresh.complete !== result.complete || JSON.stringify(fresh.evidence) !== JSON.stringify(result.evidence) ||
+                JSON.stringify(fresh.issues) !== JSON.stringify(result.issues)) {
+              throw new Error('The PDF evidence or KAMAR identity changed. Load and review the students again.');
+            }
+            return fresh;
+          }
+          async function verifyCandidate(person) {
+            const fresh = await verifyEvidence();
+            if (!fresh.evidence.some(source => source.students.some(item =>
+              item.id === person.id && item.email === person.email && item.name === person.name))) {
+              throw new Error('The PDF evidence or KAMAR identity changed. Load and review the students again.');
+            }
+          }
+          const choices = [];
+          for (const person of candidates.values()) {
+            const row = el('div', '', { class: 'moderation-marking-candidate' });
+            const byId = students.find(student => student.id === person.id);
+            const byEmail = person.email && students.find(student => student.email === person.email);
+            const already = Boolean(byId || byEmail);
+            const box = el('input', '', { type: 'checkbox', 'aria-label': 'Add ' + person.name });
+            box.type = 'checkbox'; box.checked = Boolean(person.email && !already); box.disabled = !person.email || already;
+            const parts = person.name.split(',');
+            const initials = (parts.length === 2 ? [parts[1], parts[0]] : person.name.split(/\s+/))
+              .map(part => part.trim().match(/^\p{L}/u)?.[0] || '').join('').toUpperCase().slice(0, 10);
+            const control = el('input', '', { type: 'text', 'aria-label': 'Initials for ' + person.name, maxlength: '10' });
+            control.value = initials; control.maxLength = 10;
+            row.append(box, el('span', person.name + ' — ' + [...new Set(person.courses)].join(', ') +
+              (person.classes.length ? ' — classes: ' + [...new Set(person.classes)].join(', ') : '') +
+              (person.email ? ' — school email: ' + person.email : '') +
+              (byId && byId.email !== person.email ? ' — school email changed or unavailable; review identity' :
+                byId && byId.name !== person.name ? ' — saved name differs; review identity' :
+                byEmail && byEmail.id && byEmail.id !== person.id ? ' — email conflicts with another saved identity' :
+                  already ? ' — already added' : !person.email ? ' — missing or duplicate school email; review manually' : '')), control);
+            if (person.email && byId && byId.email !== person.email && !byEmail) {
+              button('Review changed email for ' + person.name, async () => {
+                try {
+                  if (students.some(item => item !== byId && item.email === person.email)) throw new Error('This school email is already used by another marking student.');
+                  if (!confirm('Update the saved school email for ' + byId.name + '? Check the KAMAR identity and address first. Existing marking documents remain unchanged.')) return;
+                  await verifyCandidate(person);
+                  byId.email = person.email; savedStudents(); await persist(); renderMarking();
+                  message('School email updated; marking documents are unchanged.');
+                } catch (error) { message(error.message, true); }
+              }, row);
+            } else if (person.email && byEmail && !byEmail.id && !byId) {
+              button('Verify manual student ' + person.name, async () => {
+                try {
+                  if (!confirm('Link the manually added ' + byEmail.name + ' to ' + person.name + ' in KAMAR? Check both names and the school email first.')) return;
+                  await verifyCandidate(person);
+                  byEmail.id = person.id;
+                  byEmail.courses = [...new Set(person.courses)].sort(compareMarking);
+                  byEmail.classes = [...new Set(person.classes)];
+                  savedStudents(); await persist(); renderMarking();
+                  message('Manual student linked to the reviewed KAMAR identity.');
+                } catch (error) { message(error.message, true); }
+              }, row);
+            }
+            suggestions.append(row); choices.push({ box, control, person });
+          }
+          let addingStudents = false;
+          const addStudentsButton = button('Add ticked students', async () => {
+            if (addingStudents) return;
+            addingStudents = true; addStudentsButton.disabled = true;
+            try {
+              const selected = choices.filter(item => item.box.checked && !item.box.disabled);
+              if (!selected.length) throw new Error('Tick at least one student to add.');
+              if (dept.value !== departmentId || hidden.standardNumber.value !== number || hidden.version.value !== version) {
+                throw new Error('The department, standard or version changed. Load and review the students again.');
+              }
+              const fresh = await request('students-audit/marking?' + new URLSearchParams({
+                year: String(year), departmentId, record
+              }));
+              const freshPeople = fresh.evidence.flatMap(source => source.students);
+              if (dept.value !== departmentId || hidden.standardNumber.value !== number || hidden.version.value !== version ||
+                  fresh.standardNumber !== number || fresh.version !== version || fresh.syncedAt !== result.syncedAt ||
+                  fresh.complete !== result.complete || JSON.stringify(fresh.evidence) !== JSON.stringify(result.evidence) ||
+                  JSON.stringify(fresh.issues) !== JSON.stringify(result.issues) || selected.some(({ person }) => !freshPeople.some(item =>
+                    item.id === person.id && item.email === person.email && item.name === person.name))) {
+                throw new Error('The PDF evidence or KAMAR identity changed. Load and review the students again.');
+              }
+              const additions = selected.map(({ person, control }) => ({ id: person.id, email: person.email,
+                name: person.name.trim(), initials: control.value.trim().toUpperCase(), record: crypto.randomUUID(),
+                classes: [...new Set(person.classes)], courses: [...new Set(person.courses)].sort(compareMarking) }));
+              if (additions.some(item => !/^\p{L}{1,10}$/u.test(item.initials))) throw new Error('Enter one to ten letters for each student’s initials.');
+              if (students.length + additions.length > 1000 ||
+                  new Set([...students, ...additions].map(item => item.email)).size !== students.length + additions.length ||
+                  new Set([...students, ...additions].map(item => item.id).filter(Boolean)).size !== students.filter(item => item.id).length + additions.length) {
+                throw new Error('The list contains a duplicate student or school email, or exceeds 1,000 students.');
+              }
+              students.push(...additions); savedStudents(); await persist(); renderMarking();
+              for (const item of selected) { item.box.checked = false; item.box.disabled = true; }
+              message('Students added to the marking list. No moderation selection or documents were created.');
+            } catch (error) { message(error.message, true); }
+            finally { addingStudents = false; addStudentsButton.disabled = false; }
+          }, suggestions);
+          if (students.some(student => student.id && candidates.has(student.id))) {
+            let updatingMarkbooks = false;
+            const updateMarkbooksButton = button('Update markbooks for saved students', async () => {
+              if (updatingMarkbooks) return;
+              updatingMarkbooks = true; updateMarkbooksButton.disabled = true;
+              try {
+                if (!result.complete || result.issues.length || result.evidence.some(source => source.conflict || source.unmatched)) {
+                  throw new Error('The PDF evidence is incomplete or conflicting. Resolve the issues and load it again before updating saved markbooks.');
+                }
+                const updates = students.flatMap(student => {
+                  const person = candidates.get(student.id);
+                  if (!person || !person.email || student.email !== person.email || student.name !== person.name) return [];
+                  const courses = [...new Set(person.courses)].sort(compareMarking);
+                  return JSON.stringify(student.courses || []) === JSON.stringify(courses) ? [] : [{ student, courses }];
+                });
+                const skipped = students.filter(student => {
+                  const person = candidates.get(student.id);
+                  return person && (!person.email || student.email !== person.email || student.name !== person.name);
+                }).length;
+                if (!updates.length) throw new Error('No matching saved students need a markbook update. Check any unmatched names and emails.');
+                if (!confirm('Update the markbook courses for ' + updates.length +
+                    ' saved student(s) using the reviewed PDFs? Marking records and documents will not be changed.')) return;
+                await verifyEvidence();
+                for (const update of updates) update.student.courses = update.courses;
+                savedStudents(); await persist(); renderMarking();
+                message('Saved students’ markbooks updated. Marking documents are unchanged.' +
+                  (skipped ? ' ' + skipped + ' saved student(s) had differing names or emails and were not updated; review their identities.' : ''));
+              } catch (error) { message(error.message, true); }
+              finally { updatingMarkbooks = false; updateMarkbooksButton.disabled = false; }
+            }, suggestions);
+          }
+        } catch (error) { status.setAttribute('role', 'alert'); status.textContent = error.message; }
+        finally { loadingStudents = false; loadStudentsButton.disabled = false; }
+      }, setupBody);
+      const manual = el('div', '', { class: 'moderation-fields' });
+      manual.append(el('h4', 'Add a student manually'));
+      const manualName = input(['name', 'Student name'], '', () => {}, manual, 'marking-manual-');
+      const manualEmail = input(['email', 'School email'], '', () => {}, manual, 'marking-manual-');
+      manualEmail.type = 'email';
+      const manualInitials = input(['initials', 'Initials'], '', () => {}, manual, 'marking-manual-');
+      setupBody.append(manual, el('p', 'Manual entries are not verified against KAMAR. Check the name and school email before saving.'));
+      button('Add manual student', async () => {
+        try {
+          const name = manualName.value.trim(), email = manualEmail.value.trim().toLowerCase();
+          const initials = manualInitials.value.trim().toUpperCase();
+          if (!name || name.length > 200 || /[\u0000-\u001f\u007f]/.test(name) ||
+              email.length > 254 || !/^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(email) ||
+              !/^\p{L}{1,10}$/u.test(initials)) throw new Error('Enter a student name, school email and one to ten letters for initials.');
+          if (students.length >= 1000 || students.some(item => item.email === email)) throw new Error('This email is already in the list or the list is full.');
+          if (!confirm('Add ' + name + ' with this school email? This manual identity has not been verified against KAMAR.')) return;
+          students.push({ id: '', name, email, initials, record: crypto.randomUUID() });
+          savedStudents(); await persist(); renderMarking();
+          manualName.value = ''; manualEmail.value = ''; manualInitials.value = '';
+          message('Manual student added. No moderation selection or documents were created.');
+        } catch (error) { message(error.message, true); }
+      }, setupBody);
+      renderMarking();
+      request('moderation/' + year + '/' + record + '/marking-documents').then(result => {
+        if (!Array.isArray(result.records) || result.records.some(item => !item || typeof item.record !== 'string' ||
+            !item.documents || typeof item.documents !== 'object')) throw new Error('Invalid marking document links.');
+        documentLinks = new Map(result.records.map(item => [item.record, item.documents]));
+        if (area.isConnected) {
+          filter.disabled = false; filterStatus.textContent = '';
+          for (const item of documentStatuses) renderDocumentStatus(item.node, item.student, item.target);
+        }
+      }).catch(() => {
+        console.error('Marking document links could not be loaded.');
+        documentError = 'unavailable';
+        if (area.isConnected) {
+          filterStatus.textContent = 'Document links could not be loaded; reopen the page to retry.';
+          filterStatus.setAttribute('role', 'alert');
+          for (const item of documentStatuses) renderDocumentStatus(item.node, item.student, item.target);
+        }
+      });
+      return;
+    }
     if (!documents[page]) {
       area.append(el('h3', 'Record details'),
         el('p', 'These details populate the four documents. Work with the assessment standard here; student names will be handled in a later workflow. Any previously saved student details are retained.'));
@@ -1436,11 +2057,16 @@
     }
     refreshLink();
     const feedbackDetails = new Map();
-    if (page === 'feedback') {
+    if (page === 'feedback' || page === 'coversheet') {
       const details = el('div', '', { class: 'moderation-fields' });
-      for (const key of ['standardNumber', 'level', 'credits', 'version', 'studentName']) {
-        const control = input(common.find(def => def[0] === key), hidden[key].value, value => update(key, value), details, 'feedback-details-');
+      if (page === 'coversheet') documentPanel.append(el('h4', 'Standard information'));
+      for (const key of (page === 'coversheet'
+        ? ['standardNumber', 'standardTitle', 'standardType', 'level', 'credits', 'version', 'studentName']
+        : ['standardNumber', 'level', 'credits', 'version', 'studentName'])) {
+        const definition = key === 'standardType' ? ['standardType', 'Standard type'] : common.find(def => def[0] === key);
+        const control = input(definition, hidden[key].value, value => update(key, value), details, page + '-details-');
         feedbackDetails.set(key, control);
+        if (page === 'coversheet') control.readOnly = true;
         if (key === 'version') { control.readOnly = true; versionControls.add(control); }
       }
       documentPanel.append(details);
@@ -1725,6 +2351,7 @@
       update('feedback', JSON.stringify(feedback));
       return true;
     }
+    let standardTypeVerified = false;
     function renderEditor() {
       editor.replaceChildren();
       decisionControls.clear(); fieldControls.clear();
@@ -1871,7 +2498,8 @@
         }
         for (const def of definitions) {
           if (page === 'internal' && ['resultsDate', 'retentionLocation'].includes(def[0])) continue;
-          if (page === 'schedule' && hidden.standardType.value === 'Unit' && ['merit', 'excellence'].includes(def[0])) continue;
+          if (['schedule', 'coversheet'].includes(page) && hidden.standardType.value === 'Unit' && ['merit', 'excellence'].includes(def[0])) continue;
+          if (page === 'coversheet' && def[0] === 'higherGrades' && !(state.higherGrades || '').trim()) continue;
           if (def[2] === yesNo || def[2] === 'url' && def[3]) continue;
           if (page === 'schedule' && def[0] === 'tourReportLink') continue;
           if (def[2] === 'drive') {
@@ -2106,10 +2734,14 @@
           if (page === 'schedule') {
             list.setAttribute('class', 'moderation-requirements-scroll');
             const table = el('table', '', { class: 'moderation-requirements-table' });
-            table.append(el('caption', 'Record the requirements, evidence and judgements here. Select the overall grade under Marking decision.'));
+            const graded = standardTypeVerified && hidden.standardType.value === 'Achievement';
+            const grades = graded ? ['N', 'A', 'M', 'E'] : [];
+            table.append(el('caption', graded
+              ? 'Choose each requirement level, then tick N if not met or its level if met. Untick to clear. Set the overall grade separately.'
+              : 'Record the requirements, evidence and judgements here. Select the overall grade under Marking decision.'));
             const head = el('thead'), headings = el('tr');
-            for (const label of ['Key requirements (list)', 'Describe or attach the evidence considered', 'Explain how the judgement was made']) {
-              headings.append(el('th', label, { scope: 'col' }));
+            for (const label of ['Key requirements (list)', ...grades, 'Describe or attach the evidence considered', 'Explain how the judgement was made']) {
+              headings.append(el('th', label, { scope: 'col', ...(grades.includes(label) ? { class: 'moderation-grade-heading' } : {}) }));
             }
             head.append(headings); table.append(head);
             const body = el('tbody');
@@ -2118,11 +2750,38 @@
               requirement.append(el('strong', 'Requirement ' + (i + 1)));
               input(rows.fields.find(def => def[0] === 'requirement'), item.requirement,
                 value => { item.requirement = value; sync(); }, requirement, page + '-' + i + '-', true);
+              if (graded) input(rows.metadata.find(def => def[0] === 'level'), item.level,
+                value => { item.level = value; sync(); renderRows(); }, requirement, page + '-' + i + '-');
               button('Remove requirement ' + (i + 1), () => {
                 if (!confirm('Remove this requirement?')) return;
                 state[rows.key].splice(i, 1); sync(); renderRows();
               }, requirement, 'danger');
+              const allowed = ['N', ...(item.level ? [item.level] : [])];
+              if (graded && item.grade && !allowed.includes(item.grade)) {
+                requirement.append(el('p', 'Saved grade: ' + item.grade + '. Review the level, select an available tick, or clear the saved grade.'));
+                button('Clear saved grade for requirement ' + (i + 1), () => {
+                  item.grade = ''; sync(); renderRows();
+                }, requirement, 'danger');
+              }
               row.append(requirement);
+              const boxes = [];
+              for (const grade of grades) {
+                const cell = el('td', '', { class: 'moderation-grade-tick' });
+                if (allowed.includes(grade)) {
+                  const box = el('input', '', { type: 'checkbox', 'aria-label': grade + ' for requirement ' + (i + 1) });
+                  box.type = 'checkbox'; box.checked = item.grade === grade;
+                  boxes.push({ box, grade });
+                  box.addEventListener('change', () => {
+                    const hadConflict = item.grade && !allowed.includes(item.grade);
+                    item.grade = box.checked ? grade : '';
+                    for (const entry of boxes) entry.box.checked = item.grade === entry.grade;
+                    sync();
+                    if (hadConflict) renderRows();
+                  });
+                  cell.append(box);
+                } else cell.append(el('span', '—'));
+                row.append(cell);
+              }
               for (const key of ['evidence', 'judgement']) {
                 const cell = el('td');
                 input(rows.fields.find(def => def[0] === key), item[key],
@@ -2223,7 +2882,13 @@
               }
             }
             button('Remove entry ' + (i + 1), () => {
-              if (!confirm('Remove this evidence entry?' + (item.markingScheduleRecord ? ' Its individual marking schedule will remain saved in My moderation records.' : ''))) return;
+              const markingStudents = JSON.parse(data.markingStudents || '[]');
+              if (state[rows.key].slice(i).some(sample => sample.markingScheduleRecord &&
+                  markingStudents.some(student => student.record === sample.markingScheduleRecord))) {
+                message('This entry cannot be removed because it would remove or shift a sample linked to a Standard Marking Record. Existing marking and folders must be preserved.', true);
+                return;
+              }
+              if (!confirm('Remove this evidence entry?' + (item.markingScheduleRecord ? ' Its individual marking schedule will remain saved in Marking Records.' : ''))) return;
               state[rows.key].splice(i, 1); refreshRandomSelection(); sync(true); renderRows();
             }, row, 'danger');
             list.append(row);
@@ -2384,6 +3049,13 @@
         }
       }
       if (page === 'internal') {
+        const markingStudents = JSON.parse(data.markingStudents || '[]');
+        const replacementSamples = imported.document.samples || [];
+        if ((state.samples || []).some((sample, index) => sample.markingScheduleRecord &&
+            markingStudents.some(student => student.record === sample.markingScheduleRecord) &&
+            replacementSamples[index]?.markingScheduleRecord !== sample.markingScheduleRecord)) {
+          throw new Error('This import would remove or shift a sample linked to a Standard Marking Record. Existing marking and folders were left unchanged.');
+        }
         const formOnly = ['notes', 'resources', ...definition.groups.flatMap(([, fields]) => fields)
           .filter(([key, , kind]) => kind === 'url' || key === 'signatoryPosition').map(([key]) => key),
           ...['A', 'B', 'C', 'D'].map(letter => 'randomInitials' + letter)];
@@ -2392,6 +3064,7 @@
         }
       }
       for (const [key, value] of Object.entries(imported.common)) if (key !== 'version' && hidden[key] && value) update(key, value);
+      for (const [key, control] of feedbackDetails) control.value = hidden[key].value;
       for (const key of Object.keys(state)) delete state[key];
       Object.assign(state, imported.document); fillSourceLinks(); sync(true); renderEditor(); fillSightedBy();
       await fillSetupFolderLink();
@@ -2472,36 +3145,49 @@
     driveButton('Create / update Google Drive document', () => writeDocument(), actions);
     driveButton('Create a replacement document', () => writeDocument(true), actions)
       .setAttribute('class', 'moderation-button-warning');
+    if (data.additionalMarking === 'Yes') driveButton('Prepare / rename student folder', async () => {
+      if (!hidden.folderId.value || !hidden.level.value || !hidden.standardNumber.value) {
+        throw new Error('Choose the assessment folder and standard details before preparing the student folder.');
+      }
+      await persist();
+      const folder = await prepareRecordFolders();
+      await persist();
+      message('Student folder ready: ' + folder.name + '. Existing documents were not moved or changed.');
+    }, actions);
     documentPanel.append(actions);
     area.append(documentPanel, feedback);
     if (['internal', 'schedule'].includes(page)) area.append(libraryPanel);
-    if (page === 'schedule') {
+    let refreshNzqaPreview = () => {};
+    if (page === 'schedule' || page === 'coversheet') {
       const panel = el('section', '', { class: 'moderation-panel' });
       const preview = el('div');
-      panel.append(el('h3', 'NZQA Achievement Standard details'),
-        el('p', 'Preview the official criteria and select any explanatory notes relevant to this assessment. Check the PDF: some notes or layouts may not be extracted. Existing criteria and marking are never replaced.'),
-        preview);
+      const heading = el('h3'), description = el('p');
+      panel.append(heading, description, preview);
       let loading = false;
-      button('Preview NZQA Achievement Standard', async () => {
+      const previewButton = button('Preview NZQA Standard', async () => {
         if (loading) return;
         loading = true;
         preview.replaceChildren();
         try {
           const number = hidden.standardNumber.value;
           if (!number) throw new Error('Choose a standard in Record details first.');
-          const details = await request('standards/' + encodeURIComponent(number) + '/achievement-preview');
+          const type = hidden.standardType.value;
+          if (!['Unit', 'Achievement'].includes(type)) throw new Error('The standard type is not verified. Reopen the form and retry.');
+          const path = 'standards/' + encodeURIComponent(number) + '/' + (type === 'Unit' ? 'unit-preview' : 'achievement-preview');
+          const details = await request(path);
           if (!area.isConnected) return;
-          if (number !== hidden.standardNumber.value || details.number !== number || details.standardType !== 'Achievement' ||
+          if (number !== hidden.standardNumber.value || type !== hidden.standardType.value || details.number !== number || details.standardType !== type ||
               details.version !== hidden.version.value || !details.criteria || !Array.isArray(details.requirements)) {
-            throw new Error('The standard or PDF version changed. Reopen the schedule and retry.');
+            throw new Error('The standard or PDF version changed. Check Record details and retry.');
           }
           const snapshot = JSON.stringify(state);
-          const citation = 'Source: NZQA, Achievement Standard ' + number + ', version ' + details.version + ' — ' + details.url;
+          const citation = 'Source: NZQA, ' + type + ' Standard ' + number + ', version ' + details.version + ' — ' + details.url;
           preview.append(el('p', 'NZQA standard ' + number + ', version ' + details.version + '. Review each selection before applying.'),
             el('a', 'Open official NZQA standard PDF', { href: details.url, target: '_blank', rel: 'noopener noreferrer' }));
           const selections = [];
-          for (const [key, label] of [['achieved', 'Achieved'], ['merit', 'Merit'], ['excellence', 'Excellence']]) {
-            if (typeof details.criteria[key] !== 'string' || !details.criteria[key].trim()) throw new Error('The PDF did not contain all three grade criteria.');
+          const criteria = type === 'Unit' ? [['achieved', 'Outcome']] : [['achieved', 'Achieved'], ['merit', 'Merit'], ['excellence', 'Excellence']];
+          for (const [key, label] of criteria) {
+            if (typeof details.criteria[key] !== 'string' || !details.criteria[key].trim()) throw new Error('The PDF did not contain the expected criteria.');
             const row = el('div'), box = el('input', '', { type: 'checkbox', 'aria-label': 'Import ' + label + ' criteria' });
             box.type = 'checkbox'; box.checked = !(state[key] || '').trim();
             box.disabled = !box.checked;
@@ -2509,41 +3195,44 @@
               el('pre', details.criteria[key], { class: 'moderation-nzqa-preview' }));
             selections.push({ box, key, text: details.criteria[key] }); preview.append(row);
           }
-          preview.append(el('h4', 'Possible standard requirements'),
-            el('p', 'Select individual requirements appropriate to this assessment. They are standard-wide guidance, not a complete assessment-specific checklist. Previously saved grouped requirements remain unchanged.'));
-          button('Select all requirements', () => {
-            for (const selection of selections) if (!selection.key && !selection.box.disabled) selection.box.checked = true;
-          }, preview);
-          if (!details.requirements.length) preview.append(el('p', 'No explanatory notes could be extracted reliably. Use the official PDF to add requirements manually.'));
-          let previousContext;
-          details.requirements.forEach((text, index) => {
-            const separator = text.indexOf('\n');
-            const context = separator < 0 ? '' : text.slice(0, separator);
-            const level = context ? requirementLevel(context, details.criteria) : '';
-            if (context && context !== previousContext) {
-              const label = { A: 'Achieved', M: 'Merit', E: 'Excellence' }[level];
-              preview.append(el('h5', label ? label + ' requirements' : 'Standard requirements'), el('p', context));
-            }
-            previousContext = context;
-            const row = el('div'), box = el('input', '', { type: 'checkbox', 'aria-label': 'Import proposed requirement ' + (index + 1) });
-            box.type = 'checkbox';
-            row.append(box, el('strong', 'Proposed requirement ' + (index + 1)),
-              el('pre', separator < 0 ? text : text.slice(separator + 1), { class: 'moderation-nzqa-preview' }));
-            selections.push({ box, text: separator < 0 ? text : text.slice(separator + 1).replace(/^[\u2022\u25cf\uf0b7]\s*/, ''), level }); preview.append(row);
-          });
+          if (page === 'schedule') {
+            preview.append(el('h4', type === 'Unit' ? 'Performance criteria' : 'Possible standard requirements'),
+              el('p', type === 'Unit' ? 'Review the criteria and ranges against the official PDF. Select those relevant to this assessment; existing requirements and marking are retained.' :
+                'Select individual requirements appropriate to this assessment. They are standard-wide guidance, not a complete assessment-specific checklist. Previously saved grouped requirements remain unchanged.'));
+            button('Select all requirements', () => {
+              for (const selection of selections) if (!selection.key && !selection.box.disabled) selection.box.checked = true;
+            }, preview);
+            if (!details.requirements.length) preview.append(el('p', 'No requirements could be extracted reliably. Use the official PDF to add requirements manually.'));
+            let previousContext;
+            details.requirements.forEach((text, index) => {
+              const separator = type === 'Unit' ? -1 : text.indexOf('\n');
+              const context = separator < 0 ? '' : text.slice(0, separator);
+              const level = context ? requirementLevel(context, details.criteria) : '';
+              if (context && context !== previousContext) {
+                const label = { A: 'Achieved', M: 'Merit', E: 'Excellence' }[level];
+                preview.append(el('h5', label ? label + ' requirements' : 'Standard requirements'), el('p', context));
+              }
+              previousContext = context;
+              const row = el('div'), box = el('input', '', { type: 'checkbox', 'aria-label': 'Import proposed requirement ' + (index + 1) });
+              box.type = 'checkbox';
+              row.append(box, el('strong', 'Proposed requirement ' + (index + 1)),
+                el('pre', separator < 0 ? text : text.slice(separator + 1), { class: 'moderation-nzqa-preview' }));
+              selections.push({ box, text: separator < 0 ? text : text.slice(separator + 1).replace(/^[\u2022\u25cf\uf0b7]\s*/, ''), level }); preview.append(row);
+            });
+          }
           button('Apply selected NZQA details', async () => {
             if (loading) return;
             loading = true;
             try {
-              const latest = await request('standards/' + encodeURIComponent(number) + '/achievement-preview');
+              const latest = await request(path);
               if (!area.isConnected) return;
-              if (number !== hidden.standardNumber.value || details.version !== hidden.version.value ||
+              if (number !== hidden.standardNumber.value || type !== hidden.standardType.value || latest.standardType !== type || details.version !== hidden.version.value ||
                   JSON.stringify(state) !== snapshot || latest.number !== number || latest.version !== details.version ||
                   latest.url !== details.url || JSON.stringify(latest.criteria) !== JSON.stringify(details.criteria) ||
                   JSON.stringify(latest.requirements) !== JSON.stringify(details.requirements)) {
-                throw new Error('The schedule or NZQA standard changed while the preview was open. Preview again before applying.');
+                throw new Error('The form or NZQA standard changed while the preview was open. Preview again before applying.');
               }
-              const next = { ...state, requirements: [...(state.requirements || [])] };
+              const next = page === 'schedule' ? { ...state, requirements: [...(state.requirements || [])] } : { ...state };
               let added = 0;
               for (const selection of selections.filter(item => item.box.checked && !item.box.disabled)) {
                 const text = selection.text;
@@ -2561,13 +3250,14 @@
                 }
               }
               if (!added) throw new Error('Select at least one new item to apply.');
-              if (next.requirements.length > 50 || (next.notes || '').length > 8000 || JSON.stringify(next).length > 20000) {
-                throw new Error('The selected items exceed the schedule limit. Select fewer requirements.');
+              if ((next.requirements || []).length > 50 || (next.notes || '').length > 8000 || JSON.stringify(next).length > 20000) {
+                throw new Error(page === 'schedule' ? 'The selected items exceed the schedule limit. Select fewer requirements.' :
+                  'The selected items exceed the coversheet limit. Select fewer criteria.');
               }
               Object.assign(state, next); sync(); renderEditor();
               preview.replaceChildren();
               await persist();
-              message('Selected NZQA details saved. Existing marking and Drive documents are unchanged; review the schedule before updating Drive.');
+              message('Selected NZQA details saved. Existing marking and Drive documents are unchanged; review the form before updating Drive.');
             } catch (error) {
               console.error('NZQA details could not be applied.');
               message(error.message, true);
@@ -2575,10 +3265,21 @@
           }, preview);
         } catch (error) {
           preview.replaceChildren();
-          console.error('NZQA Achievement Standard preview failed.');
+          preview.append(el('p', error.message, { role: 'alert' }));
+          console.error('NZQA standard preview failed.');
           message(error.message, true);
         } finally { loading = false; }
       }, panel);
+      refreshNzqaPreview = () => {
+        const type = hidden.standardType.value;
+        const label = ['Unit', 'Achievement'].includes(type) ? type + ' Standard' : 'Standard';
+        heading.textContent = 'NZQA ' + label + ' details';
+        previewButton.textContent = 'Preview NZQA ' + label;
+        description.textContent = page === 'schedule'
+          ? 'Preview the official criteria and select requirements relevant to this assessment. Check the PDF: some details or layouts may not be extracted. Existing criteria and marking are never replaced.'
+          : 'Preview the official criteria and check them against the PDF before applying. Existing criteria and results are never replaced.';
+      };
+      refreshNzqaPreview();
       area.append(panel);
     }
     area.append(editor);
@@ -2639,12 +3340,14 @@
       fillPeople([sighted, { name: 'evaluationName', position: 'evaluationPosition', label: 'Evaluator' }]);
     }
     fillMarkerDetails();
-    if (page === 'schedule' && hidden.standardNumber.value) {
+    if (['schedule', 'coversheet'].includes(page) && hidden.standardNumber.value) {
       loadStandardDetails().then(details => {
         if (!area.isConnected) return;
         if (details.number !== hidden.standardNumber.value || !['Unit', 'Achievement'].includes(details.standardType)) throw new Error('NZQA did not identify the selected standard type.');
         update('standardType', details.standardType);
-        if (details.standardType === 'Unit') {
+        standardTypeVerified = true;
+        if (feedbackDetails.has('standardType')) feedbackDetails.get('standardType').value = details.standardType;
+        if (page === 'schedule' && details.standardType === 'Unit') {
           const criteria = (state.achieved || '').trim();
           if ((!criteria || /^achieved[.:]?$/i.test(criteria)) && details.outcomes?.length) {
             state.achieved = details.outcomes.join('\n\n');
@@ -2652,11 +3355,12 @@
             message('The Unit Standard PDF contains no recognised Outcome statements. Enter the Achieved Grade Criteria manually; saved marking is unchanged.', true);
           }
         }
-        if (details.standardType === 'Unit') sync();
+        if (page === 'schedule' && details.standardType === 'Unit') sync();
+        refreshNzqaPreview();
         renderEditor();
       }).catch(error => {
         console.error('Standard grade criteria could not be verified.');
-        if (area.isConnected) message('Standard type could not be verified: ' + error.message + ' Reopen the schedule to retry. Existing requirements have not been cleared.', true);
+        if (area.isConnected) message('Standard type could not be verified: ' + error.message + ' Reopen the form to retry. Existing criteria have not been cleared.', true);
       });
     }
     Promise.resolve().then(() => { if (area.isConnected && fillSourceLinks()) renderEditor(); });

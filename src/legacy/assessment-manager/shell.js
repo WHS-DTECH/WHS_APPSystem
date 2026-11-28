@@ -4,7 +4,7 @@ const escape = (value) => String(value).replace(/[&<>"']/g, (char) => ({
 }[char]));
 
 function renderShell({ baseUrl, coreUrl, standalone, displayName = '', userEmail = '', userId = '', now = new Date() }) {
-  const asset = (file) => escape(baseUrl + 'framework/' + file + '?v=audit-standards-1');
+  const asset = (file) => escape(baseUrl + 'framework/' + file + '?v=students-audit-4');
   const monthYear = new Intl.DateTimeFormat('en-NZ', {
     month: 'long', year: 'numeric', timeZone: 'Pacific/Auckland'
   }).format(now);
@@ -62,6 +62,8 @@ ${standalone ? `<script src="${asset('global-nav.js')}" defer></script>` : ''}
 <script src="${asset('verifiers.js')}" defer></script>
 <script src="${asset('moderation.js')}" defer></script>
 <script src="${asset('assessment-home.js')}" defer></script>
+<script src="${asset('senior-audit.js')}" defer></script>
+<script src="${asset('students-audit.js')}" defer></script>
 <script src="${asset('assessment-manager.js')}" defer></script>
 </body></html>`;
 }

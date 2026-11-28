@@ -16,10 +16,12 @@ function node(tag = 'div', text = '', attrs = {}) {
     tag, textContent: text, attrs, children: [], events: {}, value: attrs.value || '', dataset: {}, isConnected: true,
     get parentElement() { return this.parent; },
     append(...children) { for (const child of children) { child.parent = this; this.children.push(child); } },
+    insertBefore(child, reference) { child.parent = this; this.children.splice(this.children.indexOf(reference), 0, child); },
     replaceChildren(...children) { this.children = []; this.append(...children); },
     addEventListener(type, callback) { this.events[type] = callback; },
     dispatchEvent(event) { this.events[event.type]?.(event); if (event.bubbles && !event.cancelBubble) this.parent?.dispatchEvent(event); },
     setAttribute(key, value) { this.attrs[key] = value; },
+    getAttribute(key) { return this.attrs[key] || null; },
     removeAttribute(key) { delete this.attrs[key]; },
     focus() { this.focused = true; },
     querySelectorAll(selector) {
@@ -29,6 +31,682 @@ function node(tag = 'div', text = '', attrs = {}) {
     find(predicate) { return this.all().find(predicate); }
   };
 }
+test('Students Audit and Enrolment Summary are independent and missing summary sync never hides saved student PDF evidence', async () => {
+  const host = node(), calls = [];
+  const people = [{ id: 'k:1', name: 'Example, Alpha', yearLevel: '11' },
+    { id: 'k:2', name: 'Example, Beta', yearLevel: '12' }, { id: 'k:3', name: 'Example, Gamma', yearLevel: '13' }];
+  const base = { students: people, departments: [{ id: 'technology', name: 'Technology',
+    courses: ['11DTECH', '12COMP'], memberships: [{ course: '11DTECH', studentIds: ['k:1', 'k:2'] },
+      { course: '12COMP', studentIds: ['k:2'] }], markbookEvidence: true }] };
+  const entries = [[5, 5], [5, 3], [5, null], [0, 0]].map(([enrolled, published], index) => ({
+    course: '11DTECH', number: String(92004 + index), version: '2', kind: 'achievement', students: 17, enrolled, published
+  }));
+  const summary = { entries, file: { id: 'summary' }, syncedAt: '2026-11-25T00:00:00Z' };
+  const context = { Date, setTimeout };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/students-audit.js'), 'utf8'), context);
+  let hasSummary = false;
+  const request = async (path, options) => {
+    calls.push({ path, options });
+    if (options) { if (path === 'students-audit') hasSummary = true; return {}; }
+    return { ...base, summary: hasSummary && path.includes('departmentId=') ? summary : null, evidence: [{
+      course: '11DTECH', number: '92004', version: '2', kind: 'achievement', students: [people[0]], url: 'https://drive.google.com/file/d/report/view'
+    }], evidenceSyncedAt: summary.syncedAt, evidenceComplete: true, unresolved: 0 };
+  };
+  context.studentsAudit.mount(host, { el: node, year: 2026, request });
+  await flush();
+  assert.ok(host.find(item => item.textContent === 'Example, Gamma'), 'The initial list includes seniors outside the department');
+  const select = label => host.find(item => item.attrs['aria-label'] === label);
+  const department = select('Students Audit department');
+  department.value = 'technology'; await department.events.change();
+  assert.equal(Boolean(host.find(item => item.tag === 'h4' && item.textContent === 'Standards enrolment summary')), false);
+  assert.ok(host.find(item => item.tag === 'summary' && item.textContent === '1 standard listed'),
+    'Saved PDF evidence does not require the separate Enrolled List sync');
+  assert.equal(Boolean(host.find(item => item.textContent === 'Example, Gamma')), false);
+  const level = select('Students Audit student year');
+  level.value = '12'; level.events.change();
+  assert.equal(Boolean(host.find(item => item.tag === 'td' && item.textContent === 'Example, Alpha')), false);
+  assert.ok(host.find(item => item.tag === 'td' && item.textContent === 'Example, Beta'));
+  const sync = host.find(item => item.textContent === 'Update sync');
+  await sync.events.click();
+  assert.deepEqual(calls.filter(call => call.options).map(call => call.path), ['senior-audit']);
+  calls.length = 0;
+  const summaryHost = node();
+  context.studentsAudit.mount(summaryHost, { el: node, year: 2026, request, summaryOnly: true });
+  await flush(); await flush();
+  assert.ok(summaryHost.find(item => item.textContent.startsWith('No Enrolled List has been synced')));
+  assert.equal(Boolean(summaryHost.find(item => item.textContent === 'Senior students')), false);
+  assert.equal(Boolean(summaryHost.find(item => item.attrs['aria-label'] === 'Students Audit student year')), false);
+  assert.equal(summaryHost.find(item => item.attrs['aria-label'] === 'Enrolment Summary department').value, 'technology');
+  await summaryHost.find(item => item.textContent === 'Update sync').events.click();
+  assert.ok(summaryHost.find(item => item.textContent.startsWith('2 reconciled; 1 need follow-up; 1 unchecked')));
+  assert.ok(summaryHost.find(item => item.textContent === 'Unknown'), 'A missing published count remains unknown');
+  assert.ok(summaryHost.find(item => item.textContent.includes('2 more enrolled')));
+  assert.ok(summaryHost.find(item => item.tag === 'summary' && item.textContent === '1 student listed in markbook PDFs'));
+  assert.deepEqual(calls.filter(call => call.options).map(call => call.path), ['students-audit', 'senior-audit']);
+  assert.equal(JSON.parse(calls.find(call => call.path === 'senior-audit').options.body).compareWorkbook, false);
+  assert.ok(summaryHost.find(item => item.textContent.startsWith('Sync finished.')));
+  const subject = summaryHost.find(item => item.attrs['aria-label'] === 'Enrolment Summary subject');
+  subject.value = 'COMP'; subject.events.change();
+  assert.ok(summaryHost.find(item => item.textContent.startsWith('0 reconciled; 0 need follow-up; 0 unchecked')));
+});
+
+test('Enrolment Summary subject cards count standards across years and filter without syncing', async () => {
+  const entry = (course, number, enrolled, published, version = '1') => ({
+    course, number, version, kind: 'achievement', students: 17, enrolled, published
+  });
+  const stamp = '2026-11-25T00:00:00Z';
+  const data = { students: [], departments: [{ id: 'technology', name: 'Technology',
+    courses: ['11DTECH', '12DTECH', '13DTECH', '11COMP', '11FURN', '11HOSP', '11TEXT', '11DVC'],
+    memberships: [], markbookEvidence: true }],
+  summary: { file: { id: 'summary' }, syncedAt: stamp, entries: [
+    ...['11DTECH', '12DTECH', '13DTECH'].map(course => entry(course, '92000', 3, 3)),
+    entry('11COMP', '92001', 3, 2), entry('11COMP', '92001', 2, 2, '2'),
+    entry('11FURN', '92002', 0, 0), entry('11HOSP', '92003', 3, null),
+    entry('11TEXT', '92004', 2, 2)
+  ] },
+  workbook: { checkedAt: stamp, modifiedTime: stamp, url: 'https://example.test/workbook',
+    entries: [{ course: '11TEXT', number: '92004', version: '2', name: 'Example, Issue' }] },
+  evidence: [] };
+  const host = node(), calls = [], context = { Date, setTimeout };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/students-audit.js'), 'utf8'), context);
+  context.studentsAudit.mount(host, { el: node, year: 2026, summaryOnly: true,
+    request: async (path, options) => { calls.push({ path, options }); return data; } });
+  await flush(); await flush();
+  const card = code => host.find(item => item.tag === 'strong' && item.textContent.startsWith(code + ' — ')).parent;
+  assert.ok(card('DTECH').find(item => item.textContent === '0 unresolved · 3 resolved · 0 unchecked'),
+    'Repeated student totals across three year levels do not inflate the number of standards');
+  assert.match(card('DTECH').attrs.class, /students-reconciled/);
+  assert.ok(card('COMP').find(item => item.textContent === '1 unresolved · 1 resolved · 0 unchecked'),
+    'Different standard versions remain separate');
+  assert.match(card('COMP').attrs.class, /students-followup/);
+  assert.match(card('FURN').attrs.class, /students-reconciled/, 'An explicit zero equals zero is reconciled');
+  assert.match(card('HOSP').attrs.class, /pdf-issues/, 'Unknown counts are amber, not zero');
+  assert.ok(card('TEXT').find(item => item.textContent === '1 unresolved · 1 resolved · 0 unchecked'),
+    'Spreadsheet-only issues remain unresolved until equal counts can verify them');
+  assert.match(card('TEXT').attrs.class, /students-followup/);
+  assert.match(card('DVC').attrs.class, /pdf-issues/);
+  assert.ok(card('DVC').find(item => item.textContent === 'No standards found'));
+  const reads = calls.length;
+  card('COMP').events.click();
+  assert.equal(host.find(item => item.attrs['aria-label'] === 'Enrolment Summary subject').value, 'COMP');
+  assert.equal(card('COMP').attrs['aria-pressed'], 'true');
+  assert.ok(host.find(item => item.tag === 'td' && item.textContent === '11COMP — AS 92001 v1'));
+  assert.equal(Boolean(host.find(item => item.tag === 'td' && item.textContent.startsWith('11DTECH —'))), false);
+  assert.ok(card('DTECH').find(item => item.textContent === '0 unresolved · 3 resolved · 0 unchecked'),
+    'All subject totals remain visible while the detailed table is filtered');
+  host.find(item => item.tag === 'button' && item.textContent === 'All subjects').events.click();
+  assert.ok(host.find(item => item.tag === 'td' && item.textContent.startsWith('11DTECH —')));
+  assert.equal(calls.length, reads, 'Selecting cards does not read or write server records');
+  assert.equal(calls.some(call => call.options), false);
+});
+
+test('Enrolment Summary subject cards never report incomplete sources or class coverage as green', async () => {
+  const stamp = '2026-11-25T00:00:00Z';
+  const data = { students: [], departments: [{ id: 'technology', name: 'Technology',
+    courses: ['11FURN'], memberships: [], markbookEvidence: true }],
+  summary: { file: { id: 'summary' }, syncedAt: stamp, entries: [{
+    course: '11FURN', number: '92000', version: '1', kind: 'achievement', students: 5, enrolled: 5, published: 5
+  }] }, workbook: null, evidence: [] };
+  const host = node(), context = { Date, setTimeout };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/students-audit.js'), 'utf8'), context);
+  const view = context.studentsAudit.mount(host, { el: node, year: 2026, summaryOnly: true, request: async () => data });
+  await flush(); await flush();
+  const card = () => host.find(item => item.tag === 'strong' && item.textContent.startsWith('FURN — ')).parent;
+  assert.match(card().attrs.class, /pdf-issues/);
+  assert.ok(card().find(item => item.textContent === 'Spreadsheet not checked'));
+  data.workbook = { entries: [], checkedAt: stamp, modifiedTime: stamp, url: 'https://example.test/workbook' };
+  await view.refresh();
+  assert.match(card().attrs.class, /students-reconciled/);
+  data.departments[0].unavailableClassCount = 1;
+  await view.refresh();
+  assert.match(card().attrs.class, /pdf-issues/);
+  assert.ok(card().find(item => item.textContent === 'Department class links unavailable'));
+  data.departments[0].unavailableClassCount = 0;
+  data.summary.entries[0].published = 4;
+  await view.refresh();
+  assert.match(card().attrs.class, /students-followup/, 'A later sync reopens a reconciled subject');
+  data.summary = null;
+  await view.refresh();
+  assert.match(card().attrs.class, /pdf-issues/);
+  assert.ok(card().find(item => item.textContent.includes('Enrolled List not synced')));
+  assert.ok(card().find(item => item.textContent.includes('No standards found')));
+  data.departments[0].markbookEvidence = false;
+  data.summary = { file: { id: 'summary' }, syncedAt: stamp, entries: [{
+    course: '11FURN', number: '92000', version: '1', kind: 'achievement', students: 5, enrolled: 5, published: 5
+  }] };
+  data.workbook = null;
+  await view.refresh();
+  assert.match(card().attrs.class, /students-reconciled/, 'An unconfigured spreadsheet is not a required source');
+});
+
+test('Enrolment Summary excludes PDF-labelled externals from rows, spreadsheet issues and totals without changing Students Audit', async () => {
+  const stamp = '2026-11-25T00:00:00Z';
+  const person = { id: 'k:1', name: 'Example, Student', yearLevel: '11' };
+  const entries = [
+    { course: '11DTECH', number: '92004', version: '2', kind: 'achievement', external: false, students: 17, enrolled: 5, published: 5 },
+    { course: '11DTECH', number: '92006', version: '2', kind: 'achievement', external: true, students: 17, enrolled: 5, published: null }
+  ];
+  const data = { students: [person], departments: [{ id: 'technology', name: 'Technology', courses: ['11DTECH'],
+    memberships: [{ course: '11DTECH', studentIds: [person.id] }], markbookEvidence: true }],
+  summary: { file: { id: 'summary' }, syncedAt: stamp, entries },
+  workbook: { checkedAt: stamp, modifiedTime: stamp, url: 'https://example.test/workbook',
+    entries: [{ course: '11DTECH', number: '92006', version: '2', name: 'Example, External Issue' }] },
+  evidence: [{ course: '11DTECH', number: '92006', version: '2', kind: 'achievement', students: [person] }],
+  evidenceSyncedAt: stamp, evidenceComplete: true };
+  const host = node(), context = { Date, setTimeout };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/students-audit.js'), 'utf8'), context);
+  const view = context.studentsAudit.mount(host, { el: node, year: 2026, summaryOnly: true, request: async () => data });
+  await flush(); await flush();
+  assert.ok(host.find(item => item.tag === 'td' && item.textContent === '11DTECH — AS 92004 v2'));
+  assert.equal(Boolean(host.find(item => item.textContent.includes('92006'))), false,
+    'Spreadsheet issues cannot reintroduce a PDF-labelled external');
+  const card = () => host.find(item => item.tag === 'strong' && item.textContent.startsWith('DTECH — ')).parent;
+  assert.match(card().attrs.class, /students-reconciled/);
+  assert.ok(card().find(item => item.textContent === '0 unresolved · 1 resolved · 0 unchecked'));
+  assert.ok(host.find(item => item.textContent.startsWith('1 reconciled; 0 need follow-up; 0 unchecked')));
+  const studentsHost = node();
+  context.studentsAudit.mount(studentsHost, { el: node, year: 2026, request: async () => data });
+  await flush();
+  const department = studentsHost.find(item => item.attrs['aria-label'] === 'Students Audit department');
+  department.value = 'technology'; await department.events.change();
+  assert.ok(studentsHost.find(item => item.tag === 'li' && item.textContent === '11DTECH — AS 92006 v2'),
+    'The separate Students Audit retains its existing external PDF evidence');
+  data.workbook.entries.push({ course: '11DTECH', number: '92006', version: '1', name: 'Example, Unknown Version' });
+  await view.refresh();
+  assert.ok(host.find(item => item.tag === 'td' && item.textContent === '11DTECH — Standard 92006 v1'),
+    'A different version absent from the PDF is not guessed to be external');
+  assert.match(card().attrs.class, /students-followup/);
+  delete entries[1].external;
+  await view.refresh();
+  assert.ok(host.find(item => item.textContent.startsWith('This saved summary predates External classification.')),
+    'Old saved exports explicitly request a sync rather than guessing assessment type');
+});
+
+test('Enrolment Summary reconciles matching blank PDF cells without resolving missing or ambiguous standards', async () => {
+  const stamp = '2026-11-25T00:00:00Z';
+  const entry = (number, enrolled, published, kind = 'unit') => ({
+    course: '11FURN', number, version: '5', kind, students: 14, enrolled, published
+  });
+  const issues = [{ course: '11FURN', number: '9786', version: '5', name: 'Example, Original' }];
+  const data = { students: [], departments: [{ id: 'technology', name: 'Technology',
+    courses: ['11FURN', '12FURN'], memberships: [], markbookEvidence: true }],
+  summary: { file: { id: 'summary' }, syncedAt: stamp, entries: [entry('9786', null, null)] },
+  workbook: { entries: issues, checkedAt: stamp, modifiedTime: stamp, url: 'https://example.test/workbook' },
+  evidence: [] };
+  const host = node(), context = { Date, setTimeout };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/students-audit.js'), 'utf8'), context);
+  const view = context.studentsAudit.mount(host, { el: node, year: 2026, summaryOnly: true, request: async () => data });
+  await flush(); await flush();
+  const rowFor = (course, number, version = '5') => host.find(item => item.tag === 'tr' &&
+    item.children[0]?.textContent === course + ' — US ' + number + ' v' + version);
+  const card = () => host.find(item => item.tag === 'strong' && item.textContent.startsWith('FURN — ')).parent;
+  const row = rowFor('11FURN', '9786');
+  assert.equal(row.children[2].textContent, 'Blank');
+  assert.equal(row.children[3].textContent, 'Blank');
+  assert.ok(row.find(item => item.textContent === 'Reconciled — both blank in PDF'));
+  assert.ok(row.find(item => item.textContent === '✓ Resolved'));
+  assert.match(card().attrs.class, /students-reconciled/);
+  assert.ok(card().find(item => item.textContent === '0 unresolved · 1 resolved · 0 unchecked'));
+  assert.ok(host.find(item => item.textContent.startsWith('1 reconciled; 0 need follow-up; 0 unchecked')));
+  data.summary.entries.push(entry('9787', null, 10), entry('9788', 0, null), entry('9789', null, 0),
+    entry('9790', null, null), entry('9790', null, null, 'achievement'));
+  issues.push(
+    { course: '11FURN', number: '9786', version: '4', name: 'Example, Different Version' },
+    { course: '12FURN', number: '9786', version: '5', name: 'Example, Different Course' },
+    { course: '11FURN', number: '9791', version: '5', name: 'Example, Missing Standard' },
+    { course: '11FURN', number: '9790', version: '5', name: 'Example, Ambiguous' });
+  await view.refresh();
+  for (const number of ['9787', '9788', '9789']) {
+    assert.ok(rowFor('11FURN', number).find(item => item.textContent === 'Unchecked — missing count'),
+      'One blank is not a match, including when the other value is an explicit zero');
+    assert.equal(Boolean(rowFor('11FURN', number).find(item => item.textContent === '✓ Resolved')), false);
+  }
+  for (const issue of issues.slice(1)) {
+    const row = host.find(item => item.tag === 'tr' &&
+      item.find(child => child.tag === 'li' && child.textContent.startsWith(issue.name + ';')));
+    assert.ok(row.find(item => item.attrs.class === 'students-spreadsheet-open'));
+    assert.equal(Boolean(row.find(item => item.textContent === '✓ Resolved')), false,
+      'Missing standards, different versions/courses and ambiguous blank pairs remain unresolved');
+  }
+  assert.ok(card().find(item => item.textContent === '5 unresolved · 1 resolved · 3 unchecked'));
+  data.summary.entries[0].published = 1;
+  await view.refresh();
+  assert.equal(Boolean(rowFor('11FURN', '9786').find(item => item.textContent === '✓ Resolved')), false,
+    'A later export with just one blank reopens the issue');
+  data.summary = null;
+  await view.refresh();
+  assert.equal(Boolean(host.find(item => item.textContent === '✓ Resolved')), false,
+    'Without a saved PDF, two placeholder nulls cannot resolve any issue');
+});
+
+test('Enrolment Summary preserves spreadsheet issues and resolves only an exact standard with known equal counts', async () => {
+  const entries = [[5, 5], [5, 3], [5, null], [0, 0]].map(([enrolled, published], index) => ({
+    course: '11DTECH', number: String(92004 + index), version: '2', kind: 'achievement', students: 17, enrolled, published
+  }));
+  entries.push(...['achievement', 'unit'].map(kind => ({
+    course: '11DTECH', number: '92009', version: '2', kind, students: 17, enrolled: 2, published: 2
+  })));
+  const issues = [...entries.slice(0, 4), { course: '11DTECH', number: '92008', version: '2' },
+    { course: '11DTECH', number: '92004', version: '1' },
+    { course: '12COMP', number: '92004', version: '2' },
+    { course: '11DTECH', number: '92009', version: '2' }]
+    .map((entry, index) => ({ course: entry.course, number: entry.number, version: entry.version, name: 'Issue ' + index }));
+  const stamp = '2026-11-25T00:00:00Z';
+  const data = { students: [], departments: [{ id: 'technology', name: 'Technology',
+    courses: ['11DTECH', '12COMP'], memberships: [], markbookEvidence: true }],
+  summary: { entries, file: { id: 'summary' }, syncedAt: stamp },
+  workbook: { entries: issues, checkedAt: stamp, modifiedTime: stamp, url: 'https://example.test/workbook' },
+  identityMatching: [
+    { course: '11DTECH', classCodes: ['3-11DTECH', '6-11DTECH'], studentCount: 17, matchedRows: 15, unmatchedRows: 1,
+      issues: [{ name: 'PDF, Unmatched', number: '92004', version: '2', reason: 'not-in-course',
+        otherCourses: ['12DTECH'], url: 'https://example.test/pdf' }] },
+    { course: '12COMP', classCodes: ['4-12COMP'], studentCount: 5, matchedRows: 0, unmatchedRows: 0, issues: [] }
+  ],
+  evidence: [{ course: '11DTECH', number: '92008', version: '2', kind: 'unit',
+    students: [{ id: 'k:1', name: 'PDF, Synthetic' }] }] };
+  const context = { Date, setTimeout }, host = node();
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/students-audit.js'), 'utf8'), context);
+  const view = context.studentsAudit.mount(host, { el: node, year: 2026, summaryOnly: true, request: async () => data });
+  await flush(); await flush();
+  const dtechCard = host.find(item => item.tag === 'strong' && item.textContent.startsWith('DTECH — ')).parent;
+  assert.match(dtechCard.attrs.class, /students-followup/);
+  assert.ok(dtechCard.find(item => item.textContent === '6 unresolved · 2 resolved · 0 unchecked'),
+    'Missing counts cannot hide spreadsheet issues, and ambiguous equal counts do not resolve them');
+  assert.ok(host.find(item => item.textContent === 'KAMAR timetable identity matching'));
+  assert.ok(host.find(item => item.textContent === '3-11DTECH, 6-11DTECH'));
+  assert.ok(host.find(item => item.textContent.includes('PDF, Unmatched — 92004 v2: No exact name in the current 11DTECH timetable')));
+  const filter = host.find(item => item.attrs['aria-label'] === 'Enrolment Summary subject');
+  filter.value = 'COMP'; filter.events.change();
+  assert.equal(Boolean(host.find(item => item.textContent === '3-11DTECH, 6-11DTECH')), false);
+  assert.ok(host.find(item => item.textContent === '4-12COMP'));
+  filter.value = ''; filter.events.change();
+  const rowsFor = issue => host.all().filter(item => item.tag === 'tr' &&
+    item.find(child => child.tag === 'li' && child.textContent.startsWith(issue.name + ';')));
+  for (const [index, issue] of issues.entries()) {
+    const rows = rowsFor(issue);
+    assert.ok(rows.length, 'Original spreadsheet issue stays visible: ' + index);
+    const resolved = index === 0 || index === 3;
+    for (const row of rows) {
+      assert.equal(Boolean(row.find(item => item.textContent === '✓ Resolved')), resolved,
+        'Only known equal counts on one exact course/standard/version resolve an issue: ' + index);
+      assert.ok(row.find(item => item.attrs.class ===
+        (resolved ? 'students-spreadsheet-resolved' : 'students-spreadsheet-open')));
+    }
+  }
+  assert.ok(rowsFor(issues[4])[0].find(item => item.textContent === 'Unknown'), 'A missing PDF standard is not silently discarded');
+  assert.ok(rowsFor(issues[4])[0].find(item => item.textContent === '1 student listed in markbook PDFs'),
+    'Spreadsheet-only standards can still show independently matched PDF evidence');
+  assert.ok(rowsFor(issues[7])[0].find(item => item.textContent === 'Unresolved — ambiguous summary match'));
+  entries[0].published = 4;
+  await view.refresh();
+  assert.equal(Boolean(rowsFor(issues[0])[0].find(item => item.textContent === '✓ Resolved')), false,
+    'An issue reopens when a later count no longer matches');
+  data.workbook = null;
+  await view.refresh();
+  assert.ok(host.find(item => item.textContent.startsWith('Original spreadsheet issues have not been synced')));
+  assert.ok(host.find(item => item.textContent === 'Not checked — sync spreadsheet'));
+  data.summary = null;
+  await view.refresh();
+  assert.ok(host.find(item => item.textContent.startsWith('No Enrolled List has been synced')));
+  assert.ok(host.find(item => item.textContent === 'KAMAR timetable identity matching'));
+  assert.ok(host.find(item => item.textContent === '3-11DTECH, 6-11DTECH'),
+    'Identity review stays usable when the separate EnrolledList Drive import is missing');
+});
+
+test('senior audit keeps the saved table usable while checking in the background', async () => {
+  const host = node(), calls = [], timers = [];
+  let hold = false, finish;
+  const data = { exportDate: '2026-11-23', modifiedTime: '2026-11-23T00:00:00Z', sourceFailures: 0,
+    synced: true, workbookLoaded: true, lastSyncedAt: new Date().toISOString(),
+    workbookCheckedAt: new Date().toISOString(), sourcesComplete: false, sourceFailures: 1,
+    failureDetails: [{ name: 'example.pdf', reason: 'Unsupported report.' }], unresolved: 1,
+    unresolvedReasons: { noRoster: 1, multiple: 0, uncertain: 0 }, unresolvedWorkbook: 1,
+    unresolvedByTeacher: { TST: 1 }, unavailableClassCount: 0, missingSaved: 0,
+    folders: [{ name: 'DTECH', found: true }], teachers: [{ staffCode: 'TST', teacher: 'Synthetic Teacher' }], groups: [{
+      teacher: 'Synthetic Teacher', staffCode: 'TST', classCode: '3-13DTECH', course: '13DTECH',
+      markbooks: [{ number: '425', version: '2', title: 'Synthetic standard', kind: 'unit', printed: '',
+        url: 'https://drive.google.com/file/d/syntheticfile123/view', unmatched: 0,
+        students: [{ id: 'k:1', name: 'Synthetic Student', result: 'No grade', workbookResult: '',
+          workbookStatus: 'Grade is being moderated', state: 'outstanding', issues: [],
+          baseState: 'outstanding', baseIssues: [], notEnrolled: false, decisionRevision: 0 }] }]
+    }] };
+  const context = { console, Date, setTimeout: (callback, delay) => { const timer = { callback, delay }; timers.push(timer); return timer; },
+    clearTimeout: () => {}, document: { createTextNode: text => node('#text', text) } };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/senior-audit.js'), 'utf8'), context);
+  context.seniorAudit.mount(host, { el: node, year: 2026, request: async (path, options) => {
+    calls.push({ path, options });
+    if (path === 'senior-audit/enrolment') return { notEnrolled: true, revision: 1 };
+    if (options && hold) return new Promise(resolve => { finish = () => resolve(data); });
+    return data;
+  } });
+  await flush();
+  const button = host.find(item => item.tag === 'button');
+  await button.events.click();
+  assert.equal(calls.find(call => call.options).path, 'senior-audit');
+  assert.equal(JSON.parse(calls.find(call => call.options).options.body).compareWorkbook, false);
+  assert.ok(host.find(item => item.textContent.includes('1 unreadable PDF(s)')));
+  assert.ok(host.find(item => item.textContent.includes('example.pdf: Unsupported report.')));
+  assert.ok(host.find(item => item.textContent.includes('1 row(s) without a matching roster student')));
+  const compare = host.find(item => item.tag === 'button' && item.textContent === 'Compare workbook');
+  await compare.events.click();
+  assert.equal(JSON.parse(calls.filter(call => call.options)[1].options.body).compareWorkbook, true);
+  assert.ok(host.find(item => item.textContent === 'Digital Technologies'));
+  assert.ok(host.find(item => item.textContent.includes('Follow up')));
+  assert.ok(host.find(item => item.textContent === 'Grade is being moderated'));
+  assert.ok(host.find(item => item.tag === 'a' && item.textContent === 'Open source PDF'));
+  const subject = host.find(item => item.tag === 'select' && item.attrs['aria-label'] === 'Subject');
+  subject.value = 'DTECH'; subject.events.change();
+  const details = host.find(item => item.tag === 'details' && item.attrs.class === 'senior-audit-book');
+  details.open = true; details.events.toggle();
+  hold = true;
+  assert.ok(timers.at(-1).delay <= 15 * 60 * 1000);
+  timers.at(-1).callback();
+  await flush();
+  assert.ok(host.find(item => item.textContent.includes('last saved audit remains available')));
+  assert.ok(host.find(item => item.textContent === 'Grade is being moderated'));
+  await host.find(item => item.tag === 'button' && item.textContent === 'Mark not enrolled').events.click();
+  finish(); await flush(); await flush();
+  assert.equal(JSON.parse(calls.find(call => call.path === 'senior-audit/enrolment').options.body).studentId, 'k:1');
+  assert.ok(host.find(item => item.textContent.includes('Resolved — not enrolled')));
+  assert.ok(host.find(item => item.tag === 'button' && item.textContent === 'Undo not enrolled'));
+  assert.equal(host.find(item => item.tag === 'select' && item.attrs['aria-label'] === 'Subject').value, 'DTECH');
+  assert.equal(host.find(item => item.tag === 'details' && item.attrs.class === 'senior-audit-book').open, true);
+});
+test('senior audit follows an in-progress sync after the page is reloaded', async () => {
+  const host = node(), timers = [], calls = [];
+  let running = true;
+  const data = { synced: true, workbookLoaded: true, lastSyncedAt: new Date().toISOString(),
+    workbookCheckedAt: new Date().toISOString(), modifiedTime: '2026-11-23T00:00:00Z',
+    sourcesComplete: true, sourceFailures: 0, missingSaved: 0, unresolved: 0, unresolvedWorkbook: 0,
+    unavailableClassCount: 0, unresolvedByTeacher: {}, folders: [], teachers: [], groups: [] };
+  const context = { console, Date, setTimeout: (callback, delay) => { timers.push({ callback, delay }); return timers.at(-1); },
+    clearTimeout: () => {} };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/senior-audit.js'), 'utf8'), context);
+  context.seniorAudit.mount(host, { el: node, year: 2026, request: async (path, options) => {
+    calls.push({ path, options }); return { ...data, syncing: running };
+  } });
+  await flush();
+  assert.ok(host.find(item => item.textContent.includes('last saved audit remains available')));
+  assert.equal(timers.at(-1).delay, 5000);
+  running = false; await timers.at(-1).callback();
+  assert.ok(host.find(item => item.textContent.startsWith('Check complete')));
+  assert.ok(calls.every(call => !call.options), 'Reload follows the existing sync without starting another');
+  host.isConnected = false;
+  const count = calls.length;
+  await timers.at(-1).callback();
+  assert.equal(calls.length, count, 'Automatic checks stop when the audit page is closed');
+});
+test('senior audit colours workbook listings separately from PDF issues and unchecked reports', async () => {
+  const host = node();
+  const row = state => ({ name: 'Synthetic Student', result: 'No grade', state, issues: [],
+    baseState: state, baseIssues: [], notEnrolled: false });
+  const book = (number, state, extra = {}) => ({ number, version: '1', title: 'Synthetic standard',
+    url: 'https://drive.google.com/file/d/syntheticfile123/view', students: [row(state)], ...extra });
+  const data = { synced: true, workbookLoaded: true, lastSyncedAt: new Date().toISOString(),
+    workbookCheckedAt: new Date().toISOString(), modifiedTime: '2026-11-23T00:00:00Z',
+    sourcesComplete: true, sourceFailures: 0, missingSaved: 0, unresolved: 0, unresolvedWorkbook: 0,
+    unavailableClassCount: 0, unresolvedByTeacher: {}, folders: [], teachers: [], groups: [{
+      teacher: 'Synthetic Teacher', staffCode: 'TST', classCode: '3-13DTECH', course: '13DTECH',
+      markbooks: [book('1', 'not enrolled', { workbookListed: true }), book('2', 'outstanding'),
+        book('3', 'sorted'), book('4', 'not checked', { url: '' }),
+        book('5', 'not checked', { url: '', conflict: true, sources: [
+          { url: 'https://drive.google.com/file/d/first/view', modifiedTime: '2026-01-01T00:00:00Z' },
+          { url: 'https://drive.google.com/file/d/second/view', modifiedTime: '2026-01-01T00:00:00Z' }
+        ] }), book('6', 'not enrolled'), book('7', 'sorted', { students: [row('sorted'), row('not enrolled')] }),
+        book('8', 'sorted', { unmatched: 1 }), book('9', 'not enrolled', { olderReportWarning: true }),
+        book('10', 'not checked', { students: [row('sorted'), row('outstanding')] }),
+        book('11', 'sorted', { students: [{ ...row('sorted'), issues: ['Identity needs checking.'] }] }),
+        book('12', 'sorted', { unmatched: 1, olderReportWarning: true, students: [row('sorted'), row('not enrolled')] }),
+        book('13', 'not enrolled', { unmatched: 1, olderReportWarning: true })]
+    }] };
+  const context = { console, Date, setTimeout: () => 1, clearTimeout: () => {} };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/senior-audit.js'), 'utf8'), context);
+  const controller = context.seniorAudit.mount(host, { el: node, year: 2026, request: async () => data });
+  await flush();
+  const summary = number => host.find(item => item.tag === 'summary' && item.textContent.startsWith(number + ' v'));
+  assert.match(summary('1').attrs.class, /workbook-listed/);
+  assert.match(summary('1').textContent, /Listed in workbook/);
+  assert.match(summary('2').attrs.class, /pdf-issues/);
+  assert.match(summary('3').attrs.class, /resolved/);
+  assert.match(summary('3').textContent, /Fully resolved/);
+  assert.match(summary('4').attrs.class, /not-checked/);
+  assert.match(summary('5').attrs.class, /pdf-issues/);
+  assert.match(summary('6').attrs.class, /resolved/);
+  assert.match(summary('7').attrs.class, /resolved/);
+  assert.match(summary('8').attrs.class, /resolved/);
+  assert.match(summary('9').attrs.class, /resolved/);
+  assert.match(summary('10').attrs.class, /pdf-issues/);
+  assert.doesNotMatch(summary('11').attrs.class, /resolved/);
+  assert.match(summary('12').attrs.class, /resolved/);
+  assert.match(summary('13').attrs.class, /resolved/);
+  assert.ok(host.find(item => item.textContent === '1 PDF row(s) need matching.'));
+  assert.ok(host.find(item => item.textContent.includes('An older PDF had unmatched or additional students')));
+  assert.ok(host.find(item => item.textContent.includes('Blue does not resolve unmatched PDF rows')));
+  assert.ok(host.find(item => item.tag === 'a' && item.textContent === 'Open source PDF 2'));
+  assert.ok(host.find(item => item.textContent.includes('PDF matching warnings are shown separately')));
+  controller.setDepartment(true);
+  for (const number of ['12', '13']) {
+    const grouped = host.find(item => item.tag === 'summary' && item.textContent.startsWith(number + ' —'));
+    assert.match(grouped.attrs.class, /resolved/, 'Resolved components with matching warnings must also be blue in Department Standards');
+  }
+  for (const extra of [{ workbookLoaded: false }, { sourcesComplete: false }, { unavailableClassCount: 1 }]) {
+    const uncheckedHost = node();
+    context.seniorAudit.mount(uncheckedHost, { el: node, year: 2026,
+      request: async () => ({ ...data, ...extra }) });
+    await flush();
+    assert.ok(uncheckedHost.all().filter(item => item.tag === 'summary')
+      .every(item => !item.attrs.class.includes('resolved')), 'Incomplete checks must not appear fully resolved');
+  }
+});
+for (const department of [false, true]) test('audit level ordering and course/PDF filters in ' +
+  (department ? 'Department Standards' : 'Senior Audit Tracker'), async () => {
+  const host = node(), writes = [];
+  const person = { name: 'Synthetic Student', result: 'Achieved', state: 'sorted', issues: [] };
+  const book = (number, level, extra = {}) => ({ number, level, version: '1', title: 'Synthetic standard',
+    url: 'https://drive.google.com/file/d/syntheticfile123/view', students: [person], ...extra });
+  const data = { synced: true, workbookLoaded: true, lastSyncedAt: new Date().toISOString(),
+    workbookCheckedAt: new Date().toISOString(), modifiedTime: '2026-11-23T00:00:00Z',
+    sourcesComplete: true, sourceFailures: 0, missingSaved: 0, unresolved: 0, unresolvedWorkbook: 0,
+    unavailableClassCount: 0, unresolvedByTeacher: {}, folders: [], teachers: [], groups: [
+      { teacher: 'Teacher A', staffCode: 'AAA', classCode: '1-13DTECH', course: '13DTECH', markbooks: [
+        book('10', '3'), book('99', '1'), book('50', '2'), book('90', '1'), book('1', ''),
+        book('77', '1', { url: '' }), book('44', '2', { url: '', conflict: true, sources: [
+          { url: 'https://drive.google.com/file/d/first/view' },
+          { url: 'https://drive.google.com/file/d/second/view' }
+        ] })
+      ] },
+      { teacher: 'Teacher B', staffCode: 'BBB', classCode: '2-11COMP', course: '11COMP', markbooks: [book('20', '2')] },
+      { teacher: 'Teacher C', staffCode: 'CCC', classCode: '3-DTONLINE', course: 'DTONLINE', markbooks: [] },
+      { teacher: 'Teacher D', staffCode: 'DDD', classCode: '4-12FURN', course: '12FURN', markbooks: [book('30', '2')] }
+    ] };
+  const context = { console, Date, setTimeout: () => 1, clearTimeout: () => {} };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/senior-audit.js'), 'utf8'), context);
+  const controller = context.seniorAudit.mount(host, { el: node, year: 2026, department,
+    request: async (_path, options) => { if (options) writes.push(options); return data; } });
+  await flush();
+  const digital = () => host.find(item => item.tag === 'section' && item.children.some(child =>
+    child.tag === 'h4' && child.textContent === 'Digital Technologies'));
+  const numbers = () => digital().all().filter(item => item.tag === 'summary').map(item => item.textContent.match(/^\d+/)[0]);
+  const check = label => host.find(item => item.tag === 'input' && item.attrs['aria-label'] === label);
+  const change = (label, checked) => { const input = check(label); input.checked = checked; input.events.change(); };
+  assert.deepEqual(numbers(), department ? ['77', '90', '99', '20', '44', '50', '10', '1'] :
+    ['77', '90', '99', '44', '50', '10', '1', '20']);
+  if (department) assert.deepEqual(digital().all().filter(item => item.attrs.class === 'senior-audit-level')
+    .map(item => item.textContent), ['Level 1', 'Level 2', 'Level 3', 'Level not recorded']);
+  change('Digital Technologies: DTONLINE', false);
+  assert.equal(digital().find(item => item.textContent.includes('3-DTONLINE')), undefined);
+  assert.equal(check('Digital Technologies: All').indeterminate, true);
+  change('Digital Technologies: COMP', false);
+  assert.ok(!numbers().includes('20'));
+  assert.ok(host.find(item => item.tag === 'summary' && item.textContent.startsWith('30')));
+  change('Hide entries with no matched PDF', true);
+  assert.ok(!numbers().includes('77'));
+  assert.ok(numbers().includes('44'), 'Conflicting sources are PDFs, not unmatched-PDF placeholders');
+  await host.find(item => item.tag === 'button' && item.textContent === 'Compare workbook').events.click();
+  assert.equal(check('Hide entries with no matched PDF').checked, true);
+  assert.equal(check('Digital Technologies: COMP').checked, false);
+  controller.setDepartment(!department);
+  assert.ok(!numbers().includes('77'));
+  assert.ok(!numbers().includes('20'));
+  assert.equal(check('Digital Technologies: DTONLINE').checked, false);
+  change('Digital Technologies: All', true);
+  assert.ok(numbers().includes('20'));
+  assert.equal(digital().find(item => item.textContent.includes('3-DTONLINE')), undefined,
+    'The unmatched-PDF toggle also hides classes without any markbooks');
+  change('Hide entries with no matched PDF', false);
+  assert.ok(digital().find(item => item.textContent.includes('3-DTONLINE')));
+  assert.ok(numbers().includes('77'));
+  change('Digital Technologies: All', false);
+  assert.equal(numbers().length, 0);
+  assert.ok(check('Digital Technologies: All'), 'Course filters remain available when no courses are selected');
+  change('Digital Technologies: DTECH', true);
+  assert.ok(numbers().includes('10'));
+  assert.ok(!numbers().includes('20'));
+  assert.equal(writes.length, 1, 'Display filters never save records or start additional syncs');
+});
+
+test('automatic enrolment decisions are labelled and can be manually undone', async () => {
+  const host = node(), writes = [];
+  const data = { synced: true, workbookLoaded: true, lastSyncedAt: new Date().toISOString(),
+    workbookCheckedAt: new Date().toISOString(), modifiedTime: '2026-11-23T00:00:00Z',
+    sourcesComplete: true, sourceFailures: 0, missingSaved: 0, unresolved: 0, unresolvedWorkbook: 0,
+    unavailableClassCount: 0, unresolvedByTeacher: {}, folders: [], teachers: [], groups: [{
+      teacher: 'Synthetic Teacher', staffCode: 'TST', classCode: '3-13DTECH', course: '13DTECH',
+      markbooks: [{ number: '425', version: '2', title: 'Synthetic standard',
+        url: 'https://drive.google.com/file/d/syntheticfile123/view', students: [{
+          id: 'k:1', name: 'Synthetic Student', result: 'No grade', state: 'not enrolled', issues: [],
+          baseState: 'outstanding', baseIssues: [], notEnrolled: true, automaticNotEnrolled: true,
+          decisionRevision: 0, hasRecordedGrade: false
+        }] }]
+    }] };
+  const context = { console, Date, setTimeout: () => 1, clearTimeout: () => {} };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/senior-audit.js'), 'utf8'), context);
+  context.seniorAudit.mount(host, { el: node, year: 2026, request: async (_path, options) => {
+    if (!options) return data;
+    writes.push(JSON.parse(options.body));
+    return { notEnrolled: false, revision: 1 };
+  } });
+  await flush();
+  assert.ok(host.find(item => item.tag === 'td' && item.textContent.includes('automatic: no grade; class/subject component not listed in workbook')));
+  assert.match(host.find(item => item.tag === 'summary').attrs.class, /resolved/);
+  await host.find(item => item.tag === 'button' && item.textContent === 'Undo not enrolled').events.click();
+  assert.equal(writes[0].notEnrolled, false);
+  assert.equal(writes[0].revision, 0);
+  assert.equal(data.groups[0].markbooks[0].students[0].automaticNotEnrolled, false);
+  assert.equal(host.find(item => item.tag === 'td' && item.textContent.includes('automatic: no grade')), undefined);
+  assert.match(host.find(item => item.tag === 'summary').attrs.class, /pdf-issues/);
+});
+test('department standards groups classes and versions by number without merging student decisions', async () => {
+  const host = node(), writes = [], reads = [];
+  const person = (id, name) => ({ id, name, result: 'No grade', state: 'outstanding', issues: [],
+    baseState: 'outstanding', baseIssues: [], notEnrolled: false, decisionRevision: 0, hasRecordedGrade: false });
+  const book = (number, version, student) => ({ number, version, title: 'Synthetic standard ' + number,
+    url: 'https://drive.google.com/file/d/syntheticfile123/view', students: [student] });
+  const data = { synced: true, workbookLoaded: true, lastSyncedAt: new Date().toISOString(),
+    workbookCheckedAt: new Date().toISOString(), modifiedTime: '2026-11-23T00:00:00Z',
+    sourcesComplete: true, sourceFailures: 0, missingSaved: 0, unresolved: 0, unresolvedWorkbook: 0,
+    unavailableClassCount: 0, unresolvedByTeacher: {}, folders: [], teachers: [], groups: [
+      { teacher: 'Teacher A', staffCode: 'AAA', classCode: '1-11TEXT', course: '11TEXT',
+        markbooks: [book('92012', '3', person('k:1', 'Student Alpha')),
+          book('9786', '5', { ...person('k:3', 'Student Gamma'), result: 'Achieved', state: 'sorted', hasRecordedGrade: true })] },
+      { teacher: 'Teacher B', staffCode: 'BBB', classCode: '2-12TEXT', course: '12TEXT',
+        markbooks: [{ ...book('92012', '4', person('k:2', 'Student Beta')), workbookListed: true }] },
+      { teacher: 'Teacher C', staffCode: 'CCC', classCode: '3-11FURN', course: '11FURN',
+        markbooks: [book('92012', '3', person('k:4', 'Student Delta'))] }
+    ] };
+  const context = { console, Date, setTimeout: () => 1, clearTimeout: () => {} };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/senior-audit.js'), 'utf8'), context);
+  const controller = context.seniorAudit.mount(host, { el: node, year: 2026, department: true,
+    request: async (path, options) => {
+      if (!options) { reads.push(path); return data; }
+      writes.push(JSON.parse(options.body)); return { notEnrolled: true, revision: 1 };
+    } });
+  await flush();
+  const textiles = () => host.find(item => item.tag === 'section' && item.children.some(child => child.tag === 'h4' && child.textContent === 'Textiles'));
+  const summaries = () => textiles().all().filter(item => item.tag === 'summary');
+  assert.equal(summaries().length, 2, 'The same number appears once per subject, even across versions and classes');
+  assert.match(summaries()[0].textContent, /^9786/);
+  assert.match(summaries()[0].attrs.class, /resolved/);
+  assert.match(summaries()[1].attrs.class, /workbook-listed/, 'Any listed source keeps the grouped standard red');
+  const standard = () => textiles().find(item => item.tag === 'details' &&
+    item.children.some(child => child.tag === 'summary' && child.textContent.startsWith('92012')));
+  assert.equal(standard().open, undefined, 'Student lists start collapsed');
+  assert.ok(standard().find(item => item.textContent === 'Student Alpha'));
+  assert.ok(standard().find(item => item.textContent === 'Student Beta'));
+  assert.ok(standard().find(item => item.tag === 'h5' && item.textContent.includes('Teacher B · v4')));
+  assert.equal(standard().find(item => item.textContent === 'Student Delta'), undefined, 'Subjects remain separate');
+  standard().open = true; standard().events.toggle();
+  await standard().find(item => item.tag === 'button' && item.textContent === 'Mark not enrolled').events.click();
+  assert.equal(writes[0].classCode, '1-11TEXT');
+  assert.equal(writes[0].version, '3');
+  assert.equal(writes[0].studentId, 'k:1');
+  assert.equal(standard().open, true, 'Expanded standards remain open after a decision');
+  controller.setDepartment(false);
+  assert.ok(host.find(item => item.tag === 'h3' && item.textContent === 'Senior Audit Tracker'));
+  controller.setDepartment(true);
+  assert.equal(standard().open, true);
+  assert.equal(reads.length, 1, 'Both views share the same loaded audit and background sync');
+  const teacher = host.find(item => item.tag === 'select' && item.attrs['aria-label'] === 'Teacher');
+  teacher.value = 'BBB'; teacher.events.change();
+  assert.equal(summaries().length, 1);
+  assert.equal(standard().find(item => item.textContent === 'Student Alpha'), undefined);
+  assert.ok(standard().find(item => item.textContent === 'Student Beta'));
+});
+test('senior audit bulk enrolment confirms, skips ineligible rows, and stops visibly on failure', async () => {
+  const host = node(), writes = [], prompts = [];
+  let approved = false, failSecond = false;
+  const row = (id, extra = {}) => ({ id, name: 'Student ' + id, result: 'No grade', state: 'outstanding',
+    issues: [], baseState: 'outstanding', baseIssues: [], notEnrolled: false,
+    hasRecordedGrade: false, decisionRevision: 0, ...extra });
+  const data = { synced: true, workbookLoaded: true, lastSyncedAt: new Date().toISOString(),
+    workbookCheckedAt: new Date().toISOString(), modifiedTime: '2026-11-23T00:00:00Z',
+    sourcesComplete: true, sourceFailures: 0, missingSaved: 0, unresolved: 0, unresolvedWorkbook: 0,
+    unavailableClassCount: 0, unresolvedByTeacher: {}, folders: [], teachers: [], groups: [{
+      teacher: 'Synthetic Teacher', staffCode: 'TST', classCode: '3-13DTECH', course: '13DTECH',
+      markbooks: [{ number: '425', version: '2', title: 'Synthetic standard',
+        url: 'https://drive.google.com/file/d/syntheticfile123/view',
+        students: [row('k:1'), row('k:2'), row('k:3', { hasRecordedGrade: true }),
+          row('k:4', { notEnrolled: true }), row(undefined)] }]
+    }] };
+  const context = { console, Date, setTimeout: () => 1, clearTimeout: () => {},
+    confirm: text => { prompts.push(text); return approved; } };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/senior-audit.js'), 'utf8'), context);
+  context.seniorAudit.mount(host, { el: node, year: 2026, request: async (path, options) => {
+    if (!options) return data;
+    const body = JSON.parse(options.body); writes.push(body);
+    if (failSecond && body.studentId === 'k:2') throw new Error('Decision changed elsewhere.');
+    return { notEnrolled: true, revision: 1 };
+  } });
+  await flush();
+  const bulk = () => host.find(item => item.tag === 'button' && item.textContent === 'Mark all eligible not enrolled');
+  await bulk().events.click();
+  assert.equal(writes.length, 0, 'Cancelling does not save decisions');
+  assert.match(prompts[0], /2 eligible student/);
+  approved = true; failSecond = true;
+  await bulk().events.click();
+  assert.deepEqual(writes.map(item => item.studentId), ['k:1', 'k:2']);
+  assert.ok(writes.every(item => item.requireWorkbook === true));
+  assert.ok(host.find(item => item.textContent.includes('Stopped after 1 confirmed decision(s)')));
+  assert.equal(data.groups[0].markbooks[0].students[0].notEnrolled, true);
+  assert.equal(data.groups[0].markbooks[0].students[1].notEnrolled, false);
+  assert.equal(bulk().disabled, false);
+  failSecond = false;
+  await bulk().events.click();
+  assert.deepEqual(writes.map(item => item.studentId), ['k:1', 'k:2', 'k:2']);
+  assert.ok(host.find(item => item.textContent.includes('Marked 1 student(s) not enrolled')));
+  assert.equal(host.find(item => item.tag === 'button' && item.textContent === 'Undo not enrolled').disabled, false);
+  assert.equal(bulk().disabled, true, 'No eligible students remain');
+  const uncheckedHost = node();
+  const unchecked = { ...data, workbookLoaded: false, groups: [{
+    ...data.groups[0], markbooks: [{ ...data.groups[0].markbooks[0], students: [row('k:5')] }]
+  }] };
+  context.seniorAudit.mount(uncheckedHost, { el: node, year: 2026,
+    request: async (_path, options) => options ? new Promise(() => {}) : unchecked });
+  await flush();
+  assert.equal(uncheckedHost.find(item => item.tag === 'button' &&
+    item.textContent === 'Mark all eligible not enrolled').disabled, true);
+  assert.ok(uncheckedHost.find(item => item.textContent === 'Compare the workbook before using the bulk action.'));
+});
 async function homeFixture({ year = 2026, today = '2026-11-14', tasks = [], events = [], schoolEvents = [], nationalEvents = [],
   canEditSchool = false, warning = '', nextEvents = [], failSave = false } = {}) {
   const context = { console, Intl, Date, crypto }, host = node(), writes = [], navigation = [];
@@ -298,6 +976,71 @@ test('Manager defaults to the separate Home page', async () => {
   assert.ok(host.find(n => n.textContent === 'Home loaded'));
   assert.equal(status.textContent, '');
 });
+test('Audit Standards route displays the linked spreadsheet preview without modifying records', async () => {
+  const host = node(), status = node(), year = node('input', '', { value: '2026' }), requests = [];
+  const elements = { 'assessment-manager-content': host, 'assessment-manager-status': status, 'assessment-year': year };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/assessment-manager.js'), 'utf8'), {
+    Headers, URLSearchParams, setTimeout, clearTimeout,
+    location: { hash: '#year=2026&section=audit' }, window: { addEventListener() {} },
+    document: { body: { dataset: { api: '/api/moderation/' } }, getElementById: id => elements[id],
+      createElement: tag => node(tag), querySelectorAll: () => [] },
+    fetch: async (path, options) => {
+      requests.push({ path, method: options.method });
+      return Response.json({ csrf: 'synthetic-csrf' });
+    }
+  });
+  await flush(); await flush();
+  assert.ok(host.find(n => n.tag === 'h2' && n.textContent === 'Audit Standards'));
+  const frame = host.find(n => n.tag === 'iframe');
+  assert.equal(frame.attrs.src, 'https://docs.google.com/spreadsheets/d/1ugLHLfv_VtSraRdqG3pUFCevv7udzLLp/preview');
+  assert.equal(host.find(n => n.tag === 'a' && n.textContent === 'Open spreadsheet').attrs.target, '_blank');
+  assert.ok(requests.every(request => request.method === 'GET'));
+  assert.equal(status.textContent, '');
+});
+for (const selectedPage of ['senior-audit', 'department-standards', 'students-audit', 'enrolment-summary']) test('Audit Standards restores ' + selectedPage + ' after refresh', async () => {
+  const host = node(), status = node(), year = node('input', '', { value: '2026' });
+  const elements = { 'assessment-manager-content': host, 'assessment-manager-status': status, 'assessment-year': year };
+  const location = { hash: '#year=2026&section=audit&page=' + selectedPage };
+  let mounted = 0, studentsMounted = 0, enrolmentsMounted = 0;
+  const views = [];
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/assessment-manager.js'), 'utf8'), {
+    Headers, URLSearchParams, setTimeout, clearTimeout, location,
+    history: { state: null, replaceState: (_state, _title, hash) => { location.hash = hash; } },
+    window: { addEventListener() {} }, seniorAudit: { mount: (_host, options) => {
+      mounted++; views.push(options.department);
+      return { setDepartment: value => views.push(value) };
+    } }, studentsAudit: { mount: (_host, options) => {
+      if (options.summaryOnly) enrolmentsMounted++; else studentsMounted++;
+      return { refresh() {} };
+    } },
+    document: { body: { dataset: { api: '/api/moderation/' } }, getElementById: id => elements[id],
+      createElement: tag => node(tag), querySelectorAll: () => [] },
+    fetch: async () => Response.json({ csrf: 'synthetic-csrf' })
+  });
+  await flush(); await flush();
+  const separatePage = ['students-audit', 'enrolment-summary'].includes(selectedPage);
+  assert.equal(mounted, separatePage ? 0 : 1);
+  assert.equal(host.find(n => n.textContent === (selectedPage === 'enrolment-summary' ? 'Enrolment Summary' : selectedPage === 'students-audit' ? 'Students Audit' :
+    selectedPage === 'senior-audit' ? 'Senior Audit Tracker' : 'Department Standards') &&
+    n.attrs.role === 'tab').attrs['aria-selected'], 'true');
+  if (!separatePage) assert.equal(views[0], selectedPage === 'department-standards');
+  host.find(n => n.textContent === 'Spreadsheet' && n.attrs.role === 'tab').events.click();
+  assert.match(location.hash, /page=overview/);
+  host.find(n => n.textContent === 'Senior Audit Tracker' && n.attrs.role === 'tab').events.click();
+  assert.match(location.hash, /page=senior-audit/);
+  host.find(n => n.textContent === 'Department Standards' && n.attrs.role === 'tab').events.click();
+  assert.match(location.hash, /page=department-standards/);
+  assert.equal(views.at(-1), true);
+  assert.equal(mounted, 1);
+  host.find(n => n.textContent === 'Students Audit' && n.attrs.role === 'tab').events.click();
+  assert.match(location.hash, /page=students-audit/);
+  assert.equal(studentsMounted, 1);
+  host.find(n => n.textContent === 'Enrolment Summary' && n.attrs.role === 'tab').events.click();
+  assert.match(location.hash, /page=enrolment-summary/);
+  assert.equal(enrolmentsMounted, 1);
+  assert.equal(host.find(n => n.attrs.role === 'tabpanel' && n.attrs['aria-label'] === 'Enrolment Summary').hidden, false);
+  assert.equal(host.find(n => n.attrs.role === 'tabpanel' && n.attrs['aria-label'] === 'Students Audit').hidden, true);
+});
 test('moderation autosave warns before leaving while evaluation edits are pending', async () => {
   const host = node(), status = node(), year = node('input', '', { value: '2026' }), listeners = {};
   const elements = { 'assessment-manager-content': host, 'assessment-manager-status': status, 'assessment-year': year };
@@ -371,7 +1114,7 @@ test('Manager clears loading after each route renders but keeps request errors v
     });
   }
 });
-function fixture({ page = 'overview', id = record, data = {}, setupOnly = false, saveFails = false, staff = [], departments = [], staffRequest, standardRequest, consentRequest, previewRequest, referenceRequest, recordRequest, recordsRequest, teachingRequest, classSizeRequest, libraryRequest, verifierRequest, mutation, importResult, myStandards, selectedLevel = '3', selectedTopic = 'Database', displayName = 'Synthetic Teacher', userEmail = '', confirmResponse = true, clock = Date } = {}) {
+function fixture({ page = 'overview', id = record, data = {}, setupOnly = false, saveFails = false, staff = [], departments = [], staffRequest, standardRequest, consentRequest, previewRequest, referenceRequest, recordRequest, recordsRequest, markingRequest, markingDocumentsRequest, teachingRequest, classSizeRequest, libraryRequest, verifierRequest, mutation, importResult, myStandards, selectedLevel = '3', selectedTopic = 'Database', displayName = 'Synthetic Teacher', userEmail = '', confirmResponse = true, clock = Date } = {}) {
   const host = node(), saved = [], calls = [], notices = [], navigation = [];
   const file = { id: 'document_id_123', name: 'Existing assessment', mimeType: 'application/vnd.google-apps.document',
     modifiedTime: '2026-10-22T00:00:00Z', parents: ['student_folder_123'], capabilities: { canEdit: true, canAddChildren: true } };
@@ -400,6 +1143,10 @@ function fixture({ page = 'overview', id = record, data = {}, setupOnly = false,
     ensureStudentFolder: async (folderId, index) => {
       calls.push(['studentFolder', folderId, index]);
       return { id: 'student_folder_' + index, name: 'Student ' + String.fromCharCode(65 + index) };
+    },
+    ensureAdditionalStudentFolder: async (folderId, id, initials) => {
+      calls.push(['additionalStudentFolder', folderId, id, initials]);
+      return { id: 'additional_folder_123', name: 'Student - ' + initials };
     },
     assessmentFolderLinks: async root => {
       calls.push(['folderLinks', root]);
@@ -431,7 +1178,7 @@ function fixture({ page = 'overview', id = record, data = {}, setupOnly = false,
   };
   const context = {
     plannerModerationSchema: schema, assessmentLibrarySchema: librarySchema, crypto, Blob, Event, URL, URLSearchParams, Date: clock, console: { error: () => {} },
-    confirm: text => { calls.push(['confirm', text]); return confirmResponse; },
+    confirm: text => { calls.push(['confirm', text]); return typeof confirmResponse === 'function' ? confirmResponse(text) : confirmResponse; },
     plannerGoogleDrive: {
       prepareDocumentAccess: async () => access,
       mount: (host, options) => calls.push(['mount', options]),
@@ -455,6 +1202,7 @@ function fixture({ page = 'overview', id = record, data = {}, setupOnly = false,
     request: async path => {
       calls.push(['request', path]);
       if (path.startsWith('verifiers')) return verifierRequest ? verifierRequest(path) : { verifiers: [], linked: [], manual: [] };
+      if (path.startsWith('students-audit')) return markingRequest ? markingRequest(path) : { departments: [] };
       if (path.startsWith('resource-library')) return libraryRequest ? libraryRequest(path) : { records: [], total: 0 };
       if (/^teaching-subjects\/\d{4}$/.test(path)) return teachingRequest ? teachingRequest(path) : { classes: [] };
       if (path === 'staff') return staffRequest ? staffRequest() : { staff, departments };
@@ -465,9 +1213,10 @@ function fixture({ page = 'overview', id = record, data = {}, setupOnly = false,
       if (path.startsWith('standards/search')) return standardRequest ? standardRequest() : { standards: [{ number: '99999', level: '3', version: '2' }] };
       if (/^standards\/\d+\/details$/.test(path)) return standardRequest ? standardRequest() : { number: '99999', level: '3', version: '2', standardType: 'Achievement',
         url: 'https://www.nzqa.govt.nz/nqfdocs/ncea-resource/achievements/2026/as99999.pdf' };
-      if (/^standards\/\d+\/achievement-preview$/.test(path)) return previewRequest();
+      if (/^standards\/\d+\/(?:achievement|unit)-preview$/.test(path)) return previewRequest();
       if (/^\d{4}\/moderation\/main$/.test(path)) return recordRequest ? recordRequest(path) : { content: { folderTopics: '["Database"]' }, revision: 0 };
       if (/^\d{4}\/moderation\//.test(path)) return recordRequest ? recordRequest(path) : { content: {}, revision: 0 };
+      if (/^moderation\/\d{4}\/[^/]+\/marking-documents$/.test(path)) return markingDocumentsRequest ? markingDocumentsRequest(path) : { records: [] };
       if (path.startsWith('moderation/')) return recordsRequest ? recordsRequest(path) : { records: [{ entry_key: record, title: 'Synthetic assessment', standard_number: '99999' }] };
       return { content: { selectedStandards: JSON.stringify(myStandards || [{ number: '99999', title: 'Example Biology standard', subject: 'Biology', credits: '5 credits', level: selectedLevel, topic: selectedTopic }]) } };
     },
@@ -1477,22 +2226,22 @@ test('Records table groups standards and stacks student links in the correct doc
   const table = f.host.find(n => n.attrs.class === 'moderation-records-table');
   assert.ok(table);
   assert.deepEqual(table.children[1].children[0].children.map(n => n.textContent),
-    ['Standard Number', 'Internal Moderation Sheet', 'Marking Schedules']);
+    ['Standard Number', 'Standard Marking Record', 'Internal Moderation Sheet', 'Internal Moderation Marking Schedules']);
   const rows = table.children[2].children;
-  assert.equal(rows.length, 1); assert.equal(rows[0].children.length, 3);
+  assert.equal(rows.length, 1); assert.equal(rows[0].children.length, 4);
   const cells = rows[0].children;
   assert.equal(cells[0].children[0].textContent, '29785');
   assert.equal(cells[0].children[1].textContent, 'Integrate data into documents');
-  const targets = ['overview', 'internal', 'schedule'];
+  const targets = ['overview', 'marking', 'internal', 'schedule'];
   for (const [index, cell] of cells.entries()) {
     const links = cell.all().filter(n => n.tag === 'a');
-    assert.equal(links.length, index < 2 ? 1 : 3);
+    assert.equal(links.length, index < 3 ? 1 : 3);
     for (const link of links) {
       await link.events.click({ preventDefault() {} });
       assert.equal(f.navigation.at(-1)[1], targets[index]);
     }
   }
-  const schedules = cells[2].all().filter(n => n.tag === 'a');
+  const schedules = cells[3].all().filter(n => n.tag === 'a');
   assert.deepEqual(schedules.map(n => n.textContent), ['Standard marking schedule template', 'Student A - TV', 'Student B - CJ']);
   await schedules[1].events.click({ preventDefault() {} });
   assert.deepEqual(f.navigation.at(-1), [first, 'schedule']);
@@ -1508,8 +2257,341 @@ test('Records table preserves multiple assessments of one standard and orphaned 
   assert.equal(rows[0].children[0].all().filter(n => n.tag === 'a').length, 2);
   assert.equal(rows[0].children[1].all().filter(n => n.tag === 'a').length, 2);
   assert.ok(rows[1].children[1].all().some(n => n.textContent === 'No assessment record'));
-  assert.ok(rows[1].children[2].all().some(n => n.textContent === 'Orphan student'));
+  assert.ok(rows[1].children[3].all().some(n => n.textContent === 'Orphan student'));
 });
+test('marking setup adds reviewed PDF identities without adding moderation samples', async () => {
+  const department = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const f = fixture({ page: 'marking', markingRequest: async path => path.startsWith('students-audit/marking?')
+    ? { standardNumber: '99999', version: '2', syncedAt: '2026-11-25', complete: true, issues: [], summary: null, evidence: [{
+      course: '11DTECH', url: 'https://drive.google.com/file/d/example/view', students: [
+        { id: 'k:1', name: 'Example, Alpha', email: 'alpha@example.test' },
+        { id: 'k:2', name: 'Example, Beta', email: '' }
+      ]
+    }] }
+    : { departments: [{ id: department, name: 'Technology', markbookEvidence: true }] } });
+  await flush();
+  await f.click('Load markbook students');
+  const first = f.host.find(n => n.attrs['aria-label'] === 'Add Example, Alpha');
+  const second = f.host.find(n => n.attrs['aria-label'] === 'Add Example, Beta');
+  assert.equal(first.checked, true);
+  assert.equal(second.disabled, true);
+  await f.click('Add ticked students');
+  const saved = JSON.parse(f.host.find(n => n.attrs.name === 'markingStudents').value);
+  assert.equal(saved.length, 1);
+  assert.equal(saved[0].email, 'alpha@example.test');
+  assert.equal(saved[0].initials, 'AE');
+  assert.deepEqual(saved[0].courses, ['11DTECH']);
+  assert.equal(JSON.parse(f.host.find(n => n.attrs.name === 'internal').value).samples, undefined);
+  assert.ok(f.host.find(n => n.textContent.includes('missing or duplicate school email')));
+});
+
+test('marking setup refuses identities that change between review and save', async () => {
+  let reads = 0;
+  const department = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const f = fixture({ page: 'marking', markingRequest: async path => path.startsWith('students-audit/marking?')
+    ? { standardNumber: '99999', version: '2', syncedAt: ++reads === 1 ? 'first' : 'newer',
+      complete: true, issues: [], summary: null, evidence: [{ course: '11DTECH',
+        url: 'https://drive.google.com/file/d/example/view', students: [{ id: 'k:1', name: 'Example, Alpha', email: 'alpha@example.test' }] }] }
+    : { departments: [{ id: department, name: 'Technology', markbookEvidence: true }] } });
+  await flush(); await f.click('Load markbook students'); await f.click('Add ticked students');
+  assert.deepEqual(JSON.parse(f.host.find(n => n.attrs.name === 'markingStudents').value), []);
+  assert.ok(f.host.find(n => n.attrs.role === 'alert' && n.textContent.includes('changed')));
+});
+
+test('marking list sorts separate names and classes without changing saved order or selections', async () => {
+  const people = [
+    { id: 'k:1', name: 'Zulu, Amy', email: 'z@example.test', initials: 'AZ', record: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', classes: ['11DTECH'], courses: ['13COMP'] },
+    { id: 'k:2', name: 'Alpha, Zoe', email: 'a@example.test', initials: 'ZA', record: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', classes: ['12COMP'], courses: ['11DTECH'] },
+    { id: '', name: 'Unformatted Name', email: 'u@example.test', initials: 'UN', record: 'ffffffff-ffff-4fff-8fff-ffffffffffff' }
+  ];
+  const f = fixture({ page: 'marking', data: { markingStudents: JSON.stringify(people) } });
+  await flush();
+  const rows = () => f.host.find(n => n.attrs.class === 'moderation-records-table').children[1].children;
+  assert.deepEqual(rows().map(row => row.children[0].textContent), ['Alpha', 'Unformatted Name', 'Zulu']);
+  assert.equal(rows()[0].children[1].textContent, 'Zoe');
+  assert.equal(rows()[0].children[2].textContent, '12COMP');
+  assert.equal(rows()[0].children[2].children.length, 0);
+  assert.equal(rows()[1].children[2].textContent, '—');
+  assert.equal(rows()[1].children[0].children.length, 0);
+  assert.match(rows()[1].children[0].attrs.title, /Last, First format/);
+  assert.match(rows()[1].children[0].attrs['aria-description'], /identity not verified against KAMAR/);
+  const box = f.host.find(n => n.attrs['aria-label'] === 'Select Zulu, Amy for moderation');
+  box.checked = true; box.events.change();
+  await f.click('Class');
+  assert.deepEqual(rows().map(row => row.children[0].textContent), ['Unformatted Name', 'Zulu', 'Alpha']);
+  assert.equal(f.host.find(n => n.attrs['aria-label'] === 'Select Zulu, Amy for moderation').checked, true);
+  assert.equal(f.host.find(n => n.textContent === 'Class ▲').focused, true);
+  await f.click('Class ▲');
+  assert.deepEqual(rows().map(row => row.children[0].textContent), ['Alpha', 'Zulu', 'Unformatted Name']);
+  await f.click('First name');
+  assert.deepEqual(rows().map(row => row.children[0].textContent), ['Unformatted Name', 'Zulu', 'Alpha']);
+  assert.deepEqual(JSON.parse(f.host.find(n => n.attrs.name === 'markingStudents').value), people);
+});
+
+test('saved markbook courses require complete unchanged PDF evidence and matching identity', async () => {
+  const department = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const student = { id: 'k:1', email: 'alpha@example.test', name: 'Example, Alpha', initials: 'AE',
+    record: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', classes: ['11DTECH-A'] };
+  const mismatch = { id: 'k:2', email: 'beta@example.test', name: 'Former, Beta', initials: 'BF',
+    record: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' };
+  let version = 'first', complete = true;
+  const f = fixture({ page: 'marking', data: { markingStudents: JSON.stringify([student, mismatch]) }, markingRequest: async path =>
+    path.startsWith('students-audit/marking?') ? {
+      standardNumber: '99999', version: '2', syncedAt: version, complete, issues: [], summary: null,
+      evidence: [{ course: '11DTECH', students: [{ id: student.id, name: student.name, email: student.email },
+        { id: mismatch.id, name: 'Current, Beta', email: mismatch.email }] },
+        { course: '12COMP', students: [{ id: student.id, name: student.name, email: student.email }] }]
+    } : { departments: [{ id: department, name: 'Technology', markbookEvidence: true }] } });
+  await flush(); await f.click('Load markbook students');
+  version = 'changed'; await f.click('Update markbooks for saved students');
+  assert.equal(JSON.parse(f.host.find(n => n.attrs.name === 'markingStudents').value)[0].courses, undefined);
+  assert.ok(f.host.find(n => n.attrs.role === 'alert' && n.textContent.includes('changed')));
+  version = 'first'; await f.click('Update markbooks for saved students');
+  assert.deepEqual(JSON.parse(f.host.find(n => n.attrs.name === 'markingStudents').value)[0].courses, ['11DTECH', '12COMP']);
+  assert.equal(JSON.parse(f.host.find(n => n.attrs.name === 'markingStudents').value)[1].courses, undefined);
+  assert.ok(f.host.find(n => n.textContent.includes('were not updated; review their identities')));
+  assert.equal(f.host.find(n => n.attrs.class === 'moderation-records-table').children[1].children[0].children[2].textContent, '11DTECH-A');
+  complete = false;
+  await f.click('Load markbook students'); await f.click('Update markbooks for saved students');
+  assert.ok(f.host.find(n => n.attrs.role === 'alert' && n.textContent.includes('incomplete or conflicting')));
+});
+
+test('existing moderation initials are suggestions only, including ambiguous matches', async () => {
+  const students = [
+    { id: 'k:1', email: 'alpha@example.test', name: 'Example, Alpha', initials: 'AE', record: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd' },
+    { id: 'k:2', email: 'alex@example.test', name: 'Example, Alex', initials: 'AE', record: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' },
+    { id: 'k:3', email: 'zoe@example.test', name: 'Example, Zoe', initials: 'ZE', record: 'ffffffff-ffff-4fff-8fff-ffffffffffff' }
+  ];
+  const internal = { randomInitialsA: 'AE', randomInitialsC: 'ZE', randomInitialsD: 'XX', samples: [
+    { student: '\nStudent A - AE\n\n' }, { student: 'Student B - ZZ' },
+    { student: '\nStudent C - ZE\n' }, { student: 'Student D - ZE' }
+  ] };
+  const f = fixture({ page: 'marking', data: { markingStudents: JSON.stringify(students), internal: JSON.stringify(internal) } });
+  await flush();
+  const first = f.host.find(n => n.attrs['aria-label'] === 'Link existing sample 1');
+  assert.equal(first.value, '');
+  assert.equal(first.children.filter(n => n.textContent.startsWith('Possible match:')).length, 2);
+  assert.ok(first.parent.find(n => n.textContent.startsWith('Multiple students')));
+  const second = f.host.find(n => n.attrs['aria-label'] === 'Link existing sample 2');
+  assert.equal(second.children.filter(n => n.textContent.startsWith('Possible match:')).length, 0);
+  assert.ok(second.parent.find(n => n.textContent.startsWith('No match suggested')));
+  const third = f.host.find(n => n.attrs['aria-label'] === 'Link existing sample 3');
+  assert.equal(third.value, '');
+  assert.equal(third.children.filter(n => n.textContent.startsWith('Possible match:')).length, 1);
+  assert.ok(third.parent.find(n => n.textContent.startsWith('Possible match by initials only')));
+  const fourth = f.host.find(n => n.attrs['aria-label'] === 'Link existing sample 4');
+  assert.equal(fourth.children.filter(n => n.textContent.startsWith('Possible match:')).length, 0);
+  assert.deepEqual(JSON.parse(f.host.find(n => n.attrs.name === 'internal').value), internal);
+});
+
+test('selected marking students retain their record and existing occupied moderation slots', async () => {
+  const studentId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+  const oldId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+  const students = [{ id: 'k:1', email: 'alpha@example.test', name: 'Example, Alpha', initials: 'AE', record: studentId }];
+  const data = { standardNumber: '99999', version: '2', level: '3', markingStudents: JSON.stringify(students),
+    internal: JSON.stringify({ randomInitialsA: 'ZZ', samples: [{ student: 'Student A - ZZ', markingScheduleRecord: oldId }] }) };
+  let f;
+  f = fixture({ page: 'marking', data, recordRequest: async path => {
+    if (path.endsWith(record)) return { revision: 1, content: { ...data,
+      folderId: 'folder_id_123', folderName: 'Private assessments',
+      markingStudents: f.host.find(n => n.attrs.name === 'markingStudents').value,
+      internal: f.host.find(n => n.attrs.name === 'internal').value } };
+    return { revision: 0, content: {} };
+  } });
+  await flush();
+  f.host.find(n => n.attrs['aria-label'] === 'Select Example, Alpha for moderation').checked = true;
+  const assign = f.host.find(n => n.textContent === 'Assign selected students to moderation');
+  await Promise.all([assign.events.click(), assign.events.click()]);
+  const internal = JSON.parse(f.host.find(n => n.attrs.name === 'internal').value);
+  assert.equal(internal.samples[0].markingScheduleRecord, oldId);
+  assert.equal(internal.samples[1].markingScheduleRecord, studentId);
+  assert.equal(internal.samples[1].student, 'Student B - AE');
+  assert.equal(internal.samples.length, 2, 'Repeated clicks cannot assign the same student twice');
+  assert.equal(JSON.parse(f.host.find(n => n.attrs.name === 'markingStudents').value)[0].record, studentId);
+  await f.click('Open schedule');
+  const created = f.calls.find(call => call[0] === 'mutate' && call[1].endsWith(studentId));
+  assert.equal(created[2].content.studentName, 'Student B - AE');
+  assert.equal(created[2].content.additionalMarking, undefined);
+  assert.deepEqual(f.navigation.at(-1), [studentId, 'schedule']);
+});
+
+test('marking list filters by any linked document and records KAMAR entry per student', async () => {
+  const people = [
+    { id: 'k:1', name: 'Alpha, One', email: 'one@example.test', initials: 'AO', record: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' },
+    { id: 'k:2', name: 'Beta, Two', email: 'two@example.test', initials: 'BT', record: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', enteredKamar: true },
+    { id: 'k:3', name: 'Gamma, Three', email: 'three@example.test', initials: 'GT', record: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd' }
+  ];
+  const file = { id: 'existing_document_123', mimeType: 'application/vnd.google-apps.document' };
+  const f = fixture({ page: 'marking', data: { markingStudents: JSON.stringify(people) }, markingDocumentsRequest: async () => ({ records: [
+    { record: people[0].record, documents: { feedback: file } },
+    { record: people[1].record, documents: { coversheet: file } },
+    { record: people[2].record, documents: {} }
+  ] }) });
+  await flush();
+  const checkbox = name => f.host.find(n => n.attrs['aria-label'] === 'Entered KAMAR for ' + name);
+  assert.equal(checkbox(people[0].name).checked, false);
+  assert.equal(checkbox(people[1].name).checked, true);
+  const filter = f.host.find(n => n.attrs['aria-label'] === 'Show only students with linked documents');
+  assert.equal(filter.disabled, false);
+  filter.checked = true; filter.events.change();
+  assert.ok(checkbox(people[0].name)); assert.ok(checkbox(people[1].name));
+  assert.equal(checkbox(people[2].name), undefined);
+  const entered = checkbox(people[0].name); entered.checked = true; entered.events.change();
+  let saved = JSON.parse(f.host.find(n => n.attrs.name === 'markingStudents').value);
+  assert.equal(saved[0].enteredKamar, true);
+  assert.equal(saved[1].enteredKamar, true);
+  assert.equal(saved[2].enteredKamar, undefined);
+  filter.checked = false; filter.events.change();
+  assert.ok(checkbox(people[2].name));
+  const cleared = checkbox(people[1].name); cleared.checked = false; cleared.events.change();
+  saved = JSON.parse(f.host.find(n => n.attrs.name === 'markingStudents').value);
+  assert.equal(saved[1].enteredKamar, undefined);
+  assert.equal(f.calls.some(c => c[0] === 'mutate'), false);
+});
+test('marking filter remains unavailable if document links cannot be loaded', async () => {
+  const person = { id: 'k:1', name: 'Alpha, One', email: 'one@example.test', initials: 'AO',
+    record: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' };
+  const f = fixture({ page: 'marking', data: { markingStudents: JSON.stringify([person]) },
+    markingDocumentsRequest: async () => { throw new Error('Links unavailable'); } });
+  await flush();
+  assert.equal(f.host.find(n => n.attrs['aria-label'] === 'Show only students with linked documents').disabled, true);
+  assert.ok(f.host.find(n => n.attrs.role === 'alert' && n.textContent.includes('Document links could not be loaded')));
+  assert.ok(f.host.find(n => n.attrs['aria-label'] === 'Entered KAMAR for Alpha, One'));
+});
+test('marking page shows the same saved document links for the full list and moderation sample', async () => {
+  const studentId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+  const student = { id: 'k:1', email: 'alpha@example.test', name: 'Example, Alpha', initials: 'AE', record: studentId };
+  const f = fixture({ page: 'marking', data: { markingStudents: JSON.stringify([student]),
+    internal: JSON.stringify({ samples: [{ student: 'Student A - AE', markingScheduleRecord: studentId }] }) },
+  markingDocumentsRequest: async () => ({ records: [{ record: studentId, documents: {
+    schedule: { id: 'existing_schedule_123', mimeType: 'application/vnd.google-apps.document' }
+  } }] }) });
+  await flush();
+  const links = f.host.all().filter(n => n.attrs.href === 'https://docs.google.com/document/d/existing_schedule_123/edit');
+  assert.equal(links.length, 2);
+  const sample = f.host.find(n => n.attrs.class === 'moderation-sample');
+  assert.ok(sample.find(n => n.textContent === student.name));
+  const rows = sample.all().filter(n => n.attrs.class === 'moderation-sample-document');
+  assert.deepEqual(rows.map(row => row.children[0].textContent), ['Schedule', 'Feedback', 'Coversheet']);
+  assert.ok(rows[0].find(n => n.attrs.href === links[0].attrs.href));
+  assert.ok(rows[1].find(n => n.textContent === 'No Drive document linked'));
+  assert.equal(sample.find(n => n.attrs.class === 'moderation-sample-review'), undefined);
+  assert.ok(f.host.find(n => n.textContent === 'No Drive document linked'));
+  assert.ok(f.host.find(n => n.textContent.includes('not that the file has been checked')));
+});
+
+test('existing moderation samples link to a reviewed saved student record without merging either record', async () => {
+  const studentId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+  const oldId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+  const student = { id: 'k:1', email: 'alpha@example.test', name: 'Example, Alpha', initials: 'AE', record: studentId };
+  const data = { markingStudents: JSON.stringify([student]),
+    internal: JSON.stringify({ samples: [{ student: 'Student A - AE', markingScheduleRecord: oldId, comments: 'Existing evidence' }] }) };
+  let currentExists = false;
+  const f = fixture({ page: 'marking', data, recordRequest: async path => path.endsWith(studentId)
+    ? { revision: currentExists ? 1 : 0, content: { parentRecord: record } }
+    : { revision: 1, content: { parentRecord: record } },
+    markingDocumentsRequest: async () => ({ records: [
+      { record: studentId, documents: { schedule: { id: 'list_document_123', mimeType: 'application/vnd.google-apps.document' } } },
+      { record: oldId, documents: { schedule: { id: 'sample_document_123', mimeType: 'application/vnd.google-apps.document' } } }
+    ] }) });
+  await flush();
+  const sample = f.host.find(n => n.attrs.class === 'moderation-sample');
+  assert.ok(sample.find(n => n.textContent === 'Existing sample not linked to this marking list.'));
+  assert.deepEqual(sample.all().filter(n => n.attrs.class === 'moderation-sample-document')
+    .map(row => row.children[0].textContent), ['Schedule', 'Feedback', 'Coversheet']);
+  await sample.find(n => n.textContent === 'Schedule').events.click();
+  assert.deepEqual(f.navigation.at(-1), [oldId, 'schedule']);
+  const select = f.host.find(n => n.attrs['aria-label'] === 'Link existing sample 1');
+  assert.equal(select.parent.attrs.class, 'moderation-sample-review');
+  select.value = studentId;
+  currentExists = true;
+  await f.click('Link reviewed student');
+  assert.equal(JSON.parse(f.host.find(n => n.attrs.name === 'markingStudents').value)[0].record, studentId);
+  assert.equal(JSON.parse(f.host.find(n => n.attrs.name === 'internal').value).samples[0].markingScheduleRecord, studentId);
+  assert.equal(JSON.parse(f.host.find(n => n.attrs.name === 'internal').value).samples[0].comments, 'Existing evidence');
+  assert.ok(f.calls.some(call => call[0] === 'confirm' && call[1].includes('Nothing will be combined')));
+  const linkedSample = f.host.find(n => n.attrs.class === 'moderation-sample');
+  assert.ok(linkedSample.find(n => n.attrs.href === 'https://docs.google.com/document/d/list_document_123/edit'));
+  assert.equal(linkedSample.find(n => n.attrs.href === 'https://docs.google.com/document/d/sample_document_123/edit'), undefined);
+  assert.equal(f.calls.filter(call => call[0] === 'mutate').length, 0);
+});
+test('reviewing existing sample records rejects records belonging to another assessment', async () => {
+  for (const foreign of ['student', 'sample']) {
+    const studentId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+    const oldId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+    const f = fixture({ page: 'marking', data: {
+      markingStudents: JSON.stringify([{ name: 'Example, Alpha', initials: 'AE', record: studentId }]),
+      internal: JSON.stringify({ samples: [{ student: 'Student A - AE', markingScheduleRecord: oldId }] })
+    }, recordRequest: async path => ({ revision: 1, content: {
+      parentRecord: (path.endsWith(studentId) ? foreign === 'student' : foreign === 'sample') ? 'other-assessment' : record
+    } }) });
+    await flush();
+    f.host.find(n => n.attrs['aria-label'] === 'Link existing sample 1').value = studentId;
+    await f.click('Link reviewed student');
+    assert.ok(f.host.find(n => n.attrs.role === 'alert' && n.textContent.includes('belongs to another assessment')));
+    assert.equal(JSON.parse(f.host.find(n => n.attrs.name === 'internal').value).samples[0].markingScheduleRecord, oldId);
+  }
+});
+test('reviewing separate records can be cancelled and missing roster records still use the existing sample', async () => {
+  const studentId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+  const oldId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+  const student = { id: 'k:1', email: 'alpha@example.test', name: 'Example, Alpha', initials: 'AE', record: studentId };
+  const data = { markingStudents: JSON.stringify([student]),
+    internal: JSON.stringify({ samples: [{ student: 'Student A - AE', markingScheduleRecord: oldId, comments: 'Existing evidence' }] }) };
+  let currentExists = true;
+  const f = fixture({ page: 'marking', data, confirmResponse: text => !text.includes('Both records are saved separately'),
+    recordRequest: async path => path.endsWith(studentId)
+      ? { revision: currentExists ? 1 : 0, content: { parentRecord: record } }
+      : { revision: 1, content: { parentRecord: record } } });
+  await flush();
+  const select = f.host.find(n => n.attrs['aria-label'] === 'Link existing sample 1');
+  select.value = studentId;
+  await f.click('Link reviewed student');
+  assert.equal(JSON.parse(f.host.find(n => n.attrs.name === 'internal').value).samples[0].markingScheduleRecord, oldId);
+  assert.equal(JSON.parse(f.host.find(n => n.attrs.name === 'markingStudents').value)[0].record, studentId);
+  currentExists = false;
+  await f.click('Link reviewed student');
+  assert.equal(JSON.parse(f.host.find(n => n.attrs.name === 'markingStudents').value)[0].record, oldId);
+  assert.equal(JSON.parse(f.host.find(n => n.attrs.name === 'internal').value).samples[0].comments, 'Existing evidence');
+  assert.equal(f.calls.filter(call => call[0] === 'mutate').length, 0);
+});
+
+test('an additional student selected for moderation keeps the separate Drive destination', async () => {
+  const id = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+  const parent = { markingStudents: JSON.stringify([{ record: id, initials: 'AE' }]),
+    internal: JSON.stringify({ samples: [{ student: 'Student A - AE', markingScheduleRecord: id }] }) };
+  const f = fixture({ page: 'schedule', id, data: { parentRecord: record, additionalMarking: 'Yes', studentName: 'Student - AE' },
+    recordRequest: async () => ({ content: parent, revision: 1 }) });
+  await flush(); await f.click('Create / update Google Drive document');
+  assert.ok(f.calls.some(call => call[0] === 'additionalStudentFolder' && call[2] === id && call[3] === 'AE'));
+  assert.equal(f.calls.some(call => call[0] === 'studentFolder'), false);
+  assert.equal(f.calls.find(call => call[0] === 'upload')[1].folderId, 'additional_folder_123');
+  const writes = f.calls.filter(call => call[0] === 'upload').length;
+  await f.click('Prepare / rename student folder');
+  assert.equal(f.calls.filter(call => call[0] === 'upload').length, writes);
+  assert.ok(f.host.find(n => n.textContent.includes('Student folder ready: Student - AE')));
+});
+
+test('linked marking samples cannot be removed through the existing moderation editor', async () => {
+  const id = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+  const f = fixture({ page: 'internal', data: { markingStudents: JSON.stringify([{ record: id }]),
+    internal: JSON.stringify({ samples: [{ student: 'Student A - AE', markingScheduleRecord: id }] }) } });
+  await flush();
+  await f.click('Remove entry 1');
+  assert.equal(JSON.parse(f.host.find(n => n.attrs.name === 'internal').value).samples.length, 1);
+  assert.ok(f.host.find(n => n.attrs.role === 'alert' && n.textContent.includes('cannot be removed')));
+  const shifted = fixture({ page: 'internal', data: { markingStudents: JSON.stringify([{ record: id }]),
+    internal: JSON.stringify({ samples: [{ student: 'Earlier sample' }, { student: 'Student B - AE', markingScheduleRecord: id }] }) } });
+  await flush(); await shifted.click('Remove entry 1');
+  assert.equal(JSON.parse(shifted.host.find(n => n.attrs.name === 'internal').value).samples.length, 2);
+  const imported = fixture({ page: 'internal', data: { markingStudents: JSON.stringify([{ record: id }]),
+    internal: JSON.stringify({ samples: [{ student: 'Student A - AE', markingScheduleRecord: id }] }) },
+  importResult: { common: {}, document: { samples: [] }, warning: '' } });
+  await flush(); await imported.click('Choose existing document and import its form data');
+  assert.equal(JSON.parse(imported.host.find(n => n.attrs.name === 'internal').value).samples[0].markingScheduleRecord, id);
+  assert.ok(imported.host.find(n => n.attrs.role === 'alert' && n.textContent.includes('remove or shift')));
+});
+
 test('student panels import missing grade and comments from their linked schedules without replacing existing values', async () => {
   const first = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
   const second = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
@@ -1712,7 +2794,7 @@ test('evaluation comments grow with saved and edited content without changing th
   control.value = 'Short note'; control.events.input();
   assert.equal(mirror.textContent, 'Short note');
 });
-test('requirements show only text, evidence and judgement without altering historical grades', async () => {
+test('requirement indicators are shown only for Achievement Standards and preserve historical grades', async () => {
   for (const standardType of ['Unit', 'Achievement']) {
     const f = fixture({ page: 'schedule', data: { schedule: JSON.stringify({ requirements: [
       { requirement: 'Requirement one', level: 'A', grade: 'E', evidence: 'Evidence', judgement: 'Judgement' }
@@ -1720,10 +2802,11 @@ test('requirements show only text, evidence and judgement without altering histo
     await flush();
     let table = f.host.find(n => n.attrs.class === 'moderation-requirements-table');
     assert.deepEqual(table.children[1].children[0].children.map(n => n.textContent),
-      ['Key requirements (list)', 'Describe or attach the evidence considered', 'Explain how the judgement was made']);
-    assert.equal(table.all().some(n => n.type === 'checkbox' || n.tag === 'select'), false);
-    assert.equal(table.all().some(n => n.textContent.startsWith('Saved grade:')), false);
-    assert.equal(table.children[2].children[0].children.length, 3);
+      ['Key requirements (list)', ...(standardType === 'Achievement' ? ['N', 'A', 'M', 'E'] : []),
+        'Describe or attach the evidence considered', 'Explain how the judgement was made']);
+    assert.equal(table.children[2].children[0].children.length, standardType === 'Achievement' ? 7 : 3);
+    if (standardType === 'Achievement') assert.ok(table.all().some(n => n.textContent.startsWith('Saved grade: E')));
+    else assert.equal(table.all().some(n => n.type === 'checkbox' || n.tag === 'select'), false);
     const evidence = f.host.find(n => n.attrs.id === 'moderation-schedule-0-evidence');
     evidence.value = 'Updated evidence'; evidence.events.input();
     assert.deepEqual(JSON.parse(f.host.find(n => n.attrs.name === 'schedule').value).requirements[0],
@@ -1737,6 +2820,51 @@ test('requirements show only text, evidence and judgement without altering histo
     await f.click('Remove requirement 2');
     assert.equal(JSON.parse(f.host.find(n => n.attrs.name === 'schedule').value).requirements.length, 1);
   }
+});
+test('Achievement requirement ticks are manual and preserve evidence and the overall grade', async () => {
+  const f = fixture({ page: 'schedule', data: { standardType: 'Achievement', schedule: JSON.stringify({ grade: 'M', requirements: [
+    { requirement: 'First', level: 'A', evidence: 'Evidence', judgement: 'MET' },
+    { requirement: 'Second', level: 'M' }, { requirement: 'Third' }
+  ] }) } }); await flush();
+  const tick = label => f.host.find(n => n.attrs['aria-label'] === label);
+  assert.equal(tick('A for requirement 1').checked, false, 'written judgements do not set a grade');
+  assert.equal(tick('M for requirement 1'), undefined);
+  assert.equal(tick('N for requirement 1').checked, false);
+  tick('A for requirement 1').checked = true; tick('A for requirement 1').events.change();
+  assert.equal(tick('A for requirement 1').checked, true);
+  tick('N for requirement 1').checked = true; tick('N for requirement 1').events.change();
+  assert.equal(tick('A for requirement 1').checked, false);
+  let state = JSON.parse(f.host.find(n => n.attrs.name === 'schedule').value);
+  assert.equal(state.requirements[0].grade, 'N');
+  assert.equal(state.requirements[0].evidence, 'Evidence');
+  assert.equal(state.grade, 'M');
+  tick('N for requirement 1').checked = false; tick('N for requirement 1').events.change();
+  state = JSON.parse(f.host.find(n => n.attrs.name === 'schedule').value);
+  assert.equal(state.requirements[0].grade, '');
+  const level = f.host.find(n => n.attrs.id === 'moderation-schedule-2-level');
+  level.value = 'E'; level.events.change();
+  assert.ok(tick('E for requirement 3'));
+  assert.equal(tick('E for requirement 3').checked, false);
+});
+test('changing a requirement level keeps a conflicting historical mark until reviewed', async () => {
+  const f = fixture({ page: 'schedule', data: { schedule: JSON.stringify({ requirements: [
+    { requirement: 'First', level: 'A', grade: 'A' }
+  ] }) } }); await flush();
+  const level = f.host.find(n => n.attrs.id === 'moderation-schedule-0-level');
+  level.value = 'M'; level.events.change();
+  assert.ok(f.host.find(n => n.textContent.startsWith('Saved grade: A')));
+  assert.equal(JSON.parse(f.host.find(n => n.attrs.name === 'schedule').value).requirements[0].grade, 'A');
+  await f.click('Clear saved grade for requirement 1');
+  assert.equal(JSON.parse(f.host.find(n => n.attrs.name === 'schedule').value).requirements[0].grade, '');
+  assert.equal(f.host.find(n => n.textContent.startsWith('Saved grade:')), undefined);
+});
+test('unverified standard types do not expose requirement indicators', async () => {
+  const f = fixture({ page: 'schedule', data: { standardType: 'Achievement',
+    schedule: JSON.stringify({ requirements: [{ requirement: 'First', level: 'A', grade: 'A' }] }) },
+    standardRequest: async () => { throw new Error('NZQA unavailable'); } });
+  await flush();
+  assert.equal(f.host.find(n => n.attrs['aria-label'] === 'A for requirement 1'), undefined);
+  assert.equal(JSON.parse(f.host.find(n => n.attrs.name === 'schedule').value).requirements[0].grade, 'A');
 });
 test('four visible schedule resources independently select and save Drive links without importing or updating contents', async () => {
   const f = fixture({ page: 'schedule', data: { schedule: JSON.stringify({ instructions: 'Existing instructions', submissions: 'Existing submissions' }) } });
@@ -1930,6 +3058,66 @@ test('Unit criteria populate from PDF outcomes only when empty or the old Achiev
     assert.ok(f.host.find(n => n.tag === 'label' && n.textContent === 'Achieved Grade Criteria'));
   }
 });
+test('student feedback heading matches the form without changing the saved marking record title', async () => {
+  const title = '99999 — Example Student — Marking Schedule';
+  const f = fixture({ page: 'feedback', data: { title } });
+  await flush();
+  assert.ok(f.host.find(n => n.tag === 'h2' && n.textContent === '99999 — Example Student — Marking Confirmation & Feedback'));
+  assert.equal(f.host.find(n => n.attrs.name === 'title').value, title);
+});
+test('coversheets show standard information and the correct criteria above the result', async () => {
+  for (const standardType of ['Unit', 'Achievement']) {
+    const data = { standardType, title: '99999 — Example Student — Marking Schedule',
+      standardTitle: 'Example standard', coversheet: JSON.stringify({ higherGrades: 'Older combined criteria', grade: 'A', acknowledgedDate: '2026-03-01' }) };
+    const f = fixture({ page: 'coversheet', data, standardRequest: async () => ({ number: '99999', version: '2', standardType }) });
+    await flush();
+    assert.ok(f.host.find(n => n.tag === 'h2' && n.textContent === '99999 — Example Student — WHS Coversheet'));
+    assert.equal(f.host.find(n => n.attrs.id === 'moderation-coversheet-details-standardType').value, standardType);
+    assert.equal(f.host.find(n => n.attrs.id === 'moderation-coversheet-details-standardTitle').value, 'Example standard');
+    assert.ok(f.host.find(n => n.attrs.id === 'moderation-coversheet-achieved'));
+    assert.equal(Boolean(f.host.find(n => n.attrs.id === 'moderation-coversheet-merit')), standardType === 'Achievement');
+    assert.equal(Boolean(f.host.find(n => n.attrs.id === 'moderation-coversheet-excellence')), standardType === 'Achievement');
+    assert.equal(f.host.find(n => n.attrs.id === 'moderation-coversheet-higherGrades').value, 'Older combined criteria');
+    const panels = f.host.all().filter(n => n.tag === 'section' && n.children[0]?.tag === 'h3');
+    assert.ok(panels.findIndex(n => n.children[0].textContent === 'Achievement criteria') <
+      panels.findIndex(n => n.children[0].textContent === 'Result acknowledgement'));
+  }
+});
+test('coversheet NZQA preview fills only empty criteria and preserves results and older text', async () => {
+  for (const standardType of ['Unit', 'Achievement']) {
+    const details = { number: '99999', version: '2', standardType, url: 'https://www.nzqa.govt.nz/nqfdocs/units/pdf/99999.pdf',
+      criteria: standardType === 'Unit' ? { achieved: 'Outcome' } : { achieved: 'Achieved', merit: 'Merit', excellence: 'Excellence' },
+      requirements: ['Not part of coversheet'] };
+    const existing = { higherGrades: 'Existing combined text', grade: 'A', acknowledgedDate: '2026-03-01',
+      ...(standardType === 'Achievement' ? { merit: 'Keep my merit' } : {}) };
+    const f = fixture({ page: 'coversheet', data: { standardType, coversheet: JSON.stringify(existing) },
+      standardRequest: async () => details, previewRequest: async () => details });
+    await flush(); await f.click('Preview NZQA ' + standardType + ' Standard');
+    assert.equal(Boolean(f.host.find(n => n.textContent === 'Select all requirements')), false);
+    await f.click('Apply selected NZQA details');
+    const result = JSON.parse(f.host.find(n => n.attrs.name === 'coversheet').value);
+    assert.equal(result.achieved, details.criteria.achieved);
+    assert.equal(result.higherGrades, existing.higherGrades);
+    assert.equal(result.grade, existing.grade);
+    assert.equal(result.acknowledgedDate, existing.acknowledgedDate);
+    if (standardType === 'Achievement') { assert.equal(result.merit, existing.merit); assert.equal(result.excellence, 'Excellence'); }
+    assert.equal(result.requirements, undefined);
+    assert.equal(f.calls.filter(c => ['upload', 'savePdf'].includes(c[0])).length, 0);
+  }
+});
+test('coversheet preview refuses changed NZQA criteria without altering the form', async () => {
+  let achieved = 'First outcome';
+  const details = () => ({ number: '99999', version: '2', standardType: 'Unit',
+    url: 'https://www.nzqa.govt.nz/nqfdocs/units/pdf/99999.pdf', criteria: { achieved }, requirements: [] });
+  const f = fixture({ page: 'coversheet', data: { standardType: 'Unit', coversheet: JSON.stringify({ grade: 'A' }) },
+    standardRequest: async () => details(), previewRequest: async () => details() });
+  await flush(); await f.click('Preview NZQA Unit Standard');
+  achieved = 'Changed outcome';
+  await f.click('Apply selected NZQA details');
+  assert.deepEqual(JSON.parse(f.host.find(n => n.attrs.name === 'coversheet').value), { grade: 'A' });
+  assert.ok(f.host.find(n => n.attrs.role === 'alert' && n.textContent.includes('Preview again')));
+  assert.equal(f.saved.length, 0);
+});
 test('Achievement preview applies selected details without replacing marking or existing criteria', async () => {
   const details = { number: '99999', version: '2', standardType: 'Achievement', url: 'https://www.nzqa.govt.nz/nqfdocs/ncea-resource/achievements/2026/as99999.pdf',
     criteria: { achieved: 'Basic criteria', merit: 'Merit criteria', excellence: 'Excellent criteria' },
@@ -1955,6 +3143,30 @@ test('Achievement preview applies selected details without replacing marking or 
   assert.equal(saved.requirements.length, 3);
   assert.equal(f.calls.filter(c => ['upload', 'savePdf'].includes(c[0])).length, 0);
 });
+test('Unit preview adds reviewed performance criteria and ranges without replacing marking', async () => {
+  const details = { number: '99999', version: '2', standardType: 'Unit',
+    url: 'https://www.nzqa.govt.nz/nqfdocs/units/pdf/99999.pdf',
+    criteria: { achieved: 'Outcome 1: Example outcome.' },
+    requirements: ['1.1 Complete the task.\nRange: Include checks.', '1.2 Review the task.'] };
+  const existing = { achieved: 'Existing outcome', grade: 'A', requirements: [{ requirement: 'Existing', evidence: 'Keep', judgement: 'Keep' }] };
+  const f = fixture({ page: 'schedule', data: { standardType: 'Unit', schedule: JSON.stringify(existing) },
+    standardRequest: async () => details, previewRequest: async () => details });
+  await flush(); await f.click('Preview NZQA Unit Standard');
+  assert.ok(f.host.find(n => n.textContent === 'Performance criteria'));
+  await f.click('Select all requirements'); await f.click('Apply selected NZQA details');
+  const saved = JSON.parse(f.host.find(n => n.attrs.name === 'schedule').value);
+  assert.equal(saved.achieved, existing.achieved);
+  assert.equal(saved.grade, existing.grade);
+  assert.deepEqual(saved.requirements, [...existing.requirements, ...details.requirements.map(requirement => ({ requirement }))]);
+  assert.equal(saved.notes, 'Source: NZQA, Unit Standard 99999, version 2 — ' + details.url);
+  assert.equal(f.calls.filter(c => ['upload', 'savePdf'].includes(c[0])).length, 0);
+});
+test('NZQA preview errors are shown beside the preview button', async () => {
+  const f = fixture({ page: 'schedule', previewRequest: async () => { throw new Error('Unable to verify the PDF.'); } });
+  await flush(); await f.click('Preview NZQA Achievement Standard');
+  const panel = f.host.find(n => n.tag === 'section' && n.find(child => child.textContent === 'NZQA Achievement Standard details'));
+  assert.ok(panel.find(n => n.attrs.role === 'alert' && n.textContent === 'Unable to verify the PDF.'));
+});
 test('Select all keeps separate grade levels for identical requirement text', async () => {
   const details = { number: '99999', version: '2', standardType: 'Achievement',
     url: 'https://www.nzqa.govt.nz/nqfdocs/ncea-resource/achievements/2026/as99999.pdf',
@@ -1971,7 +3183,7 @@ test('Select all keeps separate grade levels for identical requirement text', as
   ]);
   const table = f.host.find(n => n.attrs.class === 'moderation-requirements-table');
   assert.equal(table.children[2].children.length, 3);
-  assert.equal(table.all().some(n => n.type === 'checkbox' || n.tag === 'select'), false);
+  assert.equal(table.all().filter(n => n.type === 'checkbox').every(n => !n.checked), true);
 });
 test('opening a schedule moves only generated criteria sources to notes without changing marking', async () => {
   const citation = 'Source: NZQA, Achievement Standard 99999, version 2 — https://www.nzqa.govt.nz/nqfdocs/ncea-resource/achievements/2026/as99999.pdf';

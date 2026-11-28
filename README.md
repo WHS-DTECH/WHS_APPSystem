@@ -1480,7 +1480,9 @@ for local PostgreSQL only, optionally set `ASSESSMENT_MANAGER_DATABASE_SSL=false
 The original Core owner UUIDs and assessment revisions remain unchanged. The
 database must be separate from Core, KAMAR and Teacher Planner. Missing settings,
 incomplete migrations or a database outage make only this module unavailable;
-there is no fallback. Schema changes are not run on application startup.
+there is no fallback. Schema changes are not run on application startup. The
+embedded application includes the standalone release at `37bcdd1` and requires
+Assessment Manager migrations 001 through 015.
 
 Before cutover, back up the existing database and verify the configured target.
 If migrations are needed, run `npm run db:migrate:assessment` against that
@@ -1500,9 +1502,9 @@ In Global Control's App Module Management, register or update the existing
 intended assignments and active state. Save the previous destination for
 rollback; do not shut down the standalone service until the cutover is verified.
 Both versions use the same live database, so changes in either are shared.
-KAMAR staff, teaching subjects and class sizes use the existing authorised
-Core/KAMAR services; the unfinished marking tracker and screenshot
-reconciliation are not included in this integration.
+KAMAR staff, teaching subjects, class sizes, Senior Audit and Students Audit
+use the existing authorised Core/KAMAR services; audit access is checked
+against current authority on each request.
 
 Assessment Manager is listed under **Modules**, not **In Development**. Core
 migration 056 registers its existing development destination if necessary,

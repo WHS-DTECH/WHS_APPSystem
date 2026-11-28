@@ -15,7 +15,47 @@
 #assessment-manager-content { min-width: 0; }
 #assessment-manager-content:has(> .assessment-standards-page) { width: 100%; }
 #assessment-manager-content:has(> .assessment-audit-page) { width: 100%; }
- .assessment-audit-page { min-width: 0; }
+.assessment-audit-page { min-width: 0; }
+.assessment-audit-tabs { display: flex; flex-wrap: wrap; gap: .5rem; border-bottom: 1px solid #bdccc6; margin-bottom: 1rem; }
+.assessment-audit-tabs button[aria-selected="true"] { background: #4d245e; color: #fff; border-color: #4d245e; }
+.senior-audit-controls { display: grid; gap: .8rem; padding: 1rem; background: #f2f6f7; border: 1px solid #bdccc6; border-radius: 6px; }
+.senior-audit-controls button { justify-self: start; }
+.senior-audit-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .8rem; margin: 1rem 0; }
+.senior-audit-filters label, .senior-audit-filters select { display: block; width: 100%; }
+.senior-audit-course-filters { display: flex; flex-wrap: wrap; gap: .8rem; margin: .8rem 0; border: 1px solid #bdccc6; }
+.senior-audit-checkbox, .senior-audit-filters .senior-audit-checkbox { display: inline-flex; align-items: center; gap: .4rem; width: auto; }
+.senior-audit-checkbox input { width: auto; }
+.senior-audit-level { margin: 1rem 0 .4rem; font-size: 1rem; }
+.senior-audit-disciplines { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; align-items: start; }
+@media (max-width: 800px) { .senior-audit-disciplines { grid-template-columns: 1fr; } }
+.senior-audit-discipline { min-width: 0; padding: .8rem; border: 1px solid #c8d6dd; border-radius: 6px; overflow-x: auto; }
+.senior-audit-discipline:has(.senior-audit-book[open]) { grid-column: 1 / -1; }
+.senior-audit-discipline h4 { margin: 0; }
+.senior-audit-status { display: block; padding: .5rem; border-radius: 5px; }
+.senior-audit-status.resolved { background: #eaf3ff; border: 1px solid #82a6d7; }
+.senior-audit-status.pdf-issues { background: #fff1dc; border: 1px solid #bf873c; }
+.senior-audit-status.workbook-listed { background: #ffd9d9; border: 1px solid #b94343; }
+.senior-audit-status.not-checked { background: #edf0f1; border: 1px solid #9fa9ad; }
+.senior-audit-status.students-reconciled { background: #e8f6ec; border: 1px solid #6caa7a; }
+.senior-audit-status.students-followup { background: #ffd9d9; border: 1px solid #b94343; }
+.senior-audit-table td.students-spreadsheet-open { background: #ffd9d9; color: #842626; }
+.senior-audit-table td.students-spreadsheet-resolved { background: #e8f6ec; }
+.senior-audit-warning { padding: .8rem; background: #fff5d8; border-left: 4px solid #a56b05; }
+.senior-audit-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: .6rem; margin: 1rem 0; }
+.senior-audit-summary p { margin: 0; padding: .8rem; border: 1px solid #c8d6dd; border-radius: 6px; background: #f5fafc; }
+.students-subject-summary { display: flex; flex-wrap: wrap; gap: .6rem; margin: 1rem 0; }
+.students-subject-card { display: flex; flex: 1 1 160px; min-width: 0; flex-direction: column; gap: .4rem; padding: .8rem; border: 1px solid #9fa9ad; border-radius: 6px; background: #f5fafc; color: #303d42; text-align: left; white-space: normal; cursor: pointer; font: inherit; }
+.students-subject-card:first-child { flex: 0 0 auto; align-self: flex-start; }
+.students-subject-card[aria-pressed="true"] { outline: 3px solid #75418a; outline-offset: 2px; }
+.students-subject-card:focus-visible { outline: 3px solid #376783; outline-offset: 2px; }
+.senior-audit-class { margin: 1rem 0; padding: 1rem; border: 1px solid #bdccc6; border-radius: 6px; }
+.senior-audit-book { margin: .7rem 0; padding: .7rem; border: 1px solid #d5c9e6; border-radius: 5px; }
+.senior-audit-book summary { cursor: pointer; font-weight: 700; color: #31586c; }
+.senior-audit-bulk { display: block; margin: .7rem 0; }
+.senior-audit-table { width: 100%; border-collapse: collapse; margin-top: .8rem; }
+.senior-audit-table th, .senior-audit-table td { border: 1px solid #bdccc6; padding: .5rem; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.senior-audit-table th { background: #edf3f5; }
+.senior-audit-book .senior-audit-table { min-width: 600px; }
 .assessment-audit-actions { display: flex; justify-content: flex-end; margin: 0 0 12px; }
 .assessment-audit-open { display: inline-block; padding: 9px 14px; border: 1px solid #376783; border-radius: 5px; background: #376783; color: #fff !important; font-weight: 700; text-decoration: none; }
 .assessment-audit-open:hover { background: #284c61; }
@@ -269,6 +309,28 @@
 .moderation-records-table { min-width: 760px; }
 .moderation-records-table ul { margin: 0; padding-left: 1.2rem; }
 .moderation-records-table li { margin-bottom: .6rem; }
+.assessment-manager-main:has(#assessment-manager-content .moderation-marking-layout),
+#assessment-manager-content:has(.moderation-marking-layout) { width: 100%; }
+.moderation-page:has(.moderation-marking-layout) { box-sizing: border-box; }
+.moderation-marking-layout { display: grid; grid-template-columns: minmax(0, 1fr) clamp(18rem, 23vw, 24rem); gap: 1rem; align-items: start; }
+.moderation-marking-layout[hidden] { display: none; }
+.moderation-marking-layout .moderation-records-table { min-width: 1050px; }
+.moderation-page .moderation-marking-layout th > button { padding: .2rem; background: transparent; border: 0; color: #173e59; text-align: left; }
+.moderation-marking-layout .moderation-records-table p { margin: .4rem 0 0; }
+.moderation-sample-list { display: grid; gap: .75rem; margin: 1rem 0 0; padding: 0; list-style: none; }
+.moderation-sample { min-width: 0; padding: .75rem; border: 1px solid #c4d3d9; border-radius: 5px; background: #f7fafb; }
+.moderation-sample-description { margin: .35rem 0 .75rem; overflow-wrap: anywhere; }
+.moderation-sample-documents { display: grid; gap: .4rem; }
+.moderation-sample-document { display: grid; grid-template-columns: 7rem minmax(0, 1fr); align-items: center; gap: .5rem; }
+.moderation-sample-document > div { min-width: 0; overflow-wrap: anywhere; }
+.moderation-sample-review { display: grid; gap: .4rem; margin-top: .75rem; padding-top: .75rem; border-top: 1px solid #c4d3d9; }
+.moderation-sample-review > span { font-weight: 600; }
+.moderation-sample-review > p { margin: 0; }
+.moderation-sample-review select { box-sizing: border-box; width: 100%; min-width: 0; }
+.moderation-sample-review button { justify-self: start; }
+.moderation-marking-candidate { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: .5rem 0; }
+.moderation-marking-candidate input[type="text"] { width: 7rem; }
+@media (max-width: 900px) { .moderation-marking-layout { grid-template-columns: 1fr; } }
 .moderation-contents-group li { margin: .6rem 0; }
 .moderation-email fieldset { display: grid; gap: .6rem; }
 .moderation-email-preview { margin: 1rem 0; padding: 1rem; border: 1px solid #c4d3d9; overflow-wrap: anywhere; }
@@ -299,6 +361,10 @@
 .moderation-requirements-table { min-width: 850px; table-layout: fixed; }
 .moderation-requirements-table th:first-child { width: 40%; }
 .moderation-requirements-table th:nth-last-child(-n+2) { width: 30%; }
+.moderation-requirements-table .moderation-grade-heading { width: 3rem; text-align: center; }
+.moderation-requirements-table .moderation-grade-tick { text-align: center; }
+.moderation-requirements-table:has(.moderation-grade-heading) th:first-child { width: 32%; }
+.moderation-requirements-table:has(.moderation-grade-heading) th:nth-last-child(-n+2) { width: 26%; }
 .moderation-autogrow { display: grid; grid-template-columns: minmax(0, 1fr); }
 .moderation-autogrow label { grid-area: 1 / 1; }
 .moderation-autogrow textarea, .moderation-autogrow-mirror {

@@ -67,7 +67,7 @@ function fixture() {
     console: { error: () => {} }, location: { origin: 'https://planner.example.test' },
     google: { picker, accounts: { oauth2: { hasGrantedAllScopes: (result, scope) => calls.push(['granted', scope]) && !result.missingScope, initTokenClient(value) {
       options = value;
-      return { requestAccessToken(value) { calls.push(['authorize', value]); options.callback({ access_token: 'synthetic-token', expires_in: 3600, missingScope: context.missingScope }); } };
+      return { requestAccessToken(value) { calls.push(['authorize', value]); options.callback({ access_token: 'synthetic-token', expires_in: 3600, scope: options.scope, missingScope: context.missingScope }); } };
     } } } },
     gapi: { load: (_name, handlers) => handlers.callback() },
     fetch: async (url, init) => { calls.push(['fetch', url, init]); return response(); }
@@ -252,6 +252,76 @@ test('assessment hierarchy creates all levels and a numbered standard folder, th
   await assert.rejects(access.ensureStudentFolder(result.id, 50), /valid moderation entry/);
   await assert.rejects(access.ensureStudentFolder(result.id, 'TV'), /valid moderation entry/);
   await assert.rejects(access.ensureAssessmentFolders('parent_folder_123', '4', '29785'), /Level 1, 2 or 3/);
+});
+test('additional student folders use readable names and stable record identity, including legacy folders', async () => {
+  const f = fixture(), access = await f.prepare(); await access.authorize();
+  const first = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', second = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+  const legacyRecord = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+  const unmatched = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+  const unverified = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+  const fallback = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
+  const folders = [{ id: 'additional_root_123', name: 'Additional Student Marking', parents: ['standard_folder_123'] },
+    { id: 'legacy_folder_123', name: legacyRecord, parents: ['additional_root_123'], appProperties: { retained: 'yes' } },
+    { id: 'unverified_folder_123', name: unverified, parents: ['additional_root_123'] },
+    { id: 'fallback_folder_123', name: fallback, parents: ['additional_root_123'] },
+    { id: 'unlinked_folder_123', name: 'Student - ZZ', parents: ['additional_root_123'] }];
+  f.response = () => {
+    const [, raw, init] = f.calls.at(-1), url = new URL(raw);
+    if (init.method === 'POST') {
+      const body = JSON.parse(init.body);
+      const folder = { ...body, id: 'created_folder_' + folders.length };
+      folders.push(folder); return new Response(JSON.stringify(folder));
+    }
+    if (init.method === 'PATCH') {
+      const folder = folders.find(item => url.pathname.endsWith('/' + item.id));
+      assert.equal(init.headers['If-Match'], '"revision-1"');
+      Object.assign(folder, JSON.parse(init.body));
+      return new Response(JSON.stringify(folder));
+    }
+    const q = url.searchParams.get('q');
+    if (!q) {
+      const folder = folders.find(item => url.pathname.endsWith('/' + item.id));
+      if (url.pathname.includes('/drive/v2/')) {
+        return new Response(JSON.stringify({ id: folder.id, title: folder.name, mimeType: 'application/vnd.google-apps.folder',
+          parents: folder.parents.map(id => ({ id })), labels: { trashed: false }, capabilities: { canEdit: true },
+          version: '1', ...(folder.id === 'fallback_folder_123' ? { etag: '"revision-1"' } : {}) }));
+      }
+      return new Response(JSON.stringify({ ...folder, mimeType: 'application/vnd.google-apps.folder',
+        version: '1', trashed: false, capabilities: { canEdit: true } }),
+      { headers: ['unverified_folder_123', 'fallback_folder_123'].includes(folder.id) ? {} : { etag: '"revision-1"' } });
+    }
+    const parent = q.match(/'([\w-]+)' in parents/)[1];
+    const name = q.match(/name='([^']+)'/)?.[1], record = q.match(/value='([^']+)'/)?.[1];
+    const matches = folders.filter(folder => folder.parents.includes(parent) &&
+      (name ? folder.name === name : folder.appProperties?.plannerStudentRecord === record));
+    return new Response(JSON.stringify({ files: matches }));
+  };
+  const created = await access.ensureAdditionalStudentFolder('standard_folder_123', first, 'DT');
+  assert.equal(created.name, 'Student - DT');
+  assert.equal((await access.ensureAdditionalStudentFolder('standard_folder_123', first, 'DT')).id, created.id);
+  const other = await access.ensureAdditionalStudentFolder('standard_folder_123', second, 'DT');
+  assert.equal(other.name, 'Student - DT (bbbbbbbb)');
+  assert.notEqual(other.id, created.id);
+  const unlinked = await access.ensureAdditionalStudentFolder('standard_folder_123', unmatched, 'ZZ');
+  assert.equal(unlinked.name, 'Student - ZZ (dddddddd)');
+  assert.notEqual(unlinked.id, 'unlinked_folder_123', 'initials alone never identify a folder');
+  const migrated = await access.ensureAdditionalStudentFolder('standard_folder_123', legacyRecord, 'XY');
+  assert.equal(migrated.id, 'legacy_folder_123');
+  assert.equal(migrated.name, 'Student - XY');
+  assert.equal(migrated.appProperties.retained, 'yes');
+  assert.equal(migrated.appProperties.plannerStudentRecord, legacyRecord);
+  assert.equal((await access.ensureAdditionalStudentFolder('standard_folder_123', legacyRecord, 'XY')).id, migrated.id);
+  assert.equal(f.calls.filter(call => call[2]?.method === 'PATCH').length, 1);
+  const fallbackResult = await access.ensureAdditionalStudentFolder('standard_folder_123', fallback, 'FF');
+  assert.equal(fallbackResult.name, 'Student - FF');
+  assert.equal(fallbackResult.id, 'fallback_folder_123');
+  folders.push({ id: 'duplicate_folder_123', name: 'Another folder', parents: ['additional_root_123'],
+    appProperties: { plannerStudentRecord: first } });
+  await assert.rejects(access.ensureAdditionalStudentFolder('standard_folder_123', first, 'DT'), /More than one folder is linked/);
+  await assert.rejects(access.ensureAdditionalStudentFolder('standard_folder_123', unverified, 'UV'), /could not be safely verified/);
+  assert.equal(f.calls.filter(call => call[2]?.method === 'PATCH').length, 2);
+  await assert.rejects(access.ensureAdditionalStudentFolder('standard_folder_123', 'initials', 'DT'), /valid student marking record/);
+  await assert.rejects(access.ensureAdditionalStudentFolder('standard_folder_123', first, ''), /valid student initials/);
 });
 test('assessment folder links list numeric standards under each level with pagination and numeric ordering', async () => {
   const f = fixture(), access = await f.prepare(); await access.authorize();

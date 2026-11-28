@@ -11,7 +11,8 @@ const origin = 'https://school.example.test';
 
 async function fixture(t) {
   const owner = crypto.randomUUID();
-  const state = { signedIn: true, allowed: true, unavailable: false, incomplete: false, calls: [], revision: 1, roles: ['Teacher'] };
+  const state = { signedIn: true, allowed: true, unavailable: false, incomplete: false, auditAllowed: true,
+    calls: [], auditCalls: [], revision: 1, roles: ['Teacher'] };
   const app = express();
   const globalJson = express.json({ limit: '25mb' });
   app.use((req, res, next) => req.path.startsWith('/whs-assessment-manager/') ? next() : globalJson(req, res, next));
@@ -60,6 +61,11 @@ async function fixture(t) {
       assert.equal(year, 2026);
       assert.equal(course, '11DTECH');
       return { students: 3, term: 2, linked: true, ambiguous: false };
+    },
+    seniorAudit: async (user, input) => {
+      state.auditCalls.push({ user, input });
+      if (!state.auditAllowed) throw Object.assign(new Error('Current audit access is required.'), { status: 403 });
+      return { year: input.year, students: [], departments: [] };
     }
   };
   app.use('/whs-assessment-manager', createAssessmentManagerRouter({
@@ -156,6 +162,19 @@ test('embedded Assessment Manager retains owner, assets, CSRF, revision checks a
     [{ subject: 'DTECH', course: '11DTECH' }]);
   assert.equal((await (await call('/api/moderation/class-size/2026?course=11DTECH')).json()).students, 3);
   assert.equal(state.calls.filter(({ sql }) => sql.includes('UPDATE assessment_settings')).length, 2);
+});
+
+test('embedded Students Audit uses the signed-in user and checks current Tracker authority on every request', async t => {
+  const { owner, state, call } = await fixture(t);
+  const url = '/api/moderation/students-audit?year=2026';
+  const response = await call(url);
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).students, []);
+  assert.equal(state.auditCalls[0].user.id, owner);
+  assert.deepEqual(state.auditCalls[0].input, { year: 2026, action: 'students-audit-roster' });
+  state.auditAllowed = false;
+  assert.equal((await call(url)).status, 403);
+  assert.equal(state.auditCalls.length, 2);
 });
 
 test('embedded Assessment Manager rejects unauthorised access and reports database outages without fallback', async t => {

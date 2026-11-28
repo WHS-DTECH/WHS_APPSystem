@@ -6,13 +6,768 @@ const PizZip = require('pizzip');
 const { DOMParser, XMLSerializer } = require('@xmldom/xmldom');
 const { DOCX, renderDocument, fillDocument, importDocument } = require('./moderationDocuments');
 const { createAssessmentRouter, validModerationContent, validSelectedStandards } = require('./assessment');
-const { achievementDetails } = require('./standardDetails');
+const { achievementDetails, unitPerformanceCriteria } = require('./standardDetails');
+
+test('coversheet criteria round-trip in one Unit or three Achievement columns without losing legacy text', () => {
+  const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+  for (const standardType of ['Unit', 'Achievement']) {
+    const values = { achieved: 'First line\nSecond line', merit: 'Merit wording', excellence: 'Excellence wording',
+      higherGrades: 'Previous combined wording', grade: 'A', acknowledgedDate: '2026-03-01' };
+    const data = { standardType, standardNumber: '99999', coversheet: JSON.stringify(values) };
+    assert.equal(validModerationContent(data), true);
+    const first = renderDocument('coversheet', data, 2026);
+    for (const buffer of [first, fillDocument(first, 'coversheet', data, 2026)]) {
+      const doc = new DOMParser().parseFromString(new PizZip(buffer).file('word/document.xml').asText(), 'application/xml');
+      const body = doc.getElementsByTagNameNS(W, 'body')[0];
+      const kids = (n, tag) => Array.from(n.childNodes).filter(item => item.namespaceURI === W && item.localName === tag);
+      const table = kids(body, 'tbl')[1];
+      const cells = kids(kids(table, 'tr')[2], 'tc');
+      assert.equal(cells.length, standardType === 'Unit' ? 1 : 3);
+      const result = importDocument(buffer, 'coversheet').document;
+      for (const [key, value] of Object.entries(values)) assert.equal(result[key], value, key);
+    }
+  }
+  const legacy = { standardNumber: '99999', coversheet: JSON.stringify({ achieved: 'Original', higherGrades: 'Unsplit text' }) };
+  const imported = importDocument(renderDocument('coversheet', legacy, 2026), 'coversheet').document;
+  assert.equal(imported.higherGrades, 'Unsplit text');
+  assert.equal(imported.merit, undefined);
+  assert.equal(imported.excellence, undefined);
+});
 const { checkBsas } = require('./nzqaConsent');
+const { parseSeniorAuditPdf } = require('./seniorAuditPdf');
+const { parseSeniorAuditWorkbook } = require('./seniorAuditWorkbook');
+const { reconcileSeniorAudit } = require('./seniorAuditMatch');
+const { createSeniorAuditRouter, readWorkbook } = require('./seniorAudit');
+const { createStudentsAuditRouter } = require('./studentsAudit');
+const { matchStudentsAuditIdentities } = require('./studentsAuditMatch');
+const crypto = require('node:crypto');
 
 const owner = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const otherOwner = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const record = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const child = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+
+test('Unit Standard preview extracts complete criteria and ranges and rejects ambiguous rows', () => {
+  const source = 'Outcomes and performance criteria\nOutcome 1\nExample outcome.\nPerformance criteria\n' +
+    '1.1 First criterion\ncontinued.\nRange first item,\nsecond item.\n' +
+    'NZQA unit standard 99999 version 2\n Page 2 of 3\nCouncil\n© NZQA 2026\n' +
+    '1.2 Second criterion.\nPlanned review date 2027\n';
+  assert.deepEqual(unitPerformanceCriteria(source),
+    ['1.1 First criterion continued.\nRange: first item, second item.', '1.2 Second criterion.']);
+  assert.throws(() => unitPerformanceCriteria(source.replace('1.2 Second', '1.1 Second')), /ambiguous/);
+  assert.throws(() => unitPerformanceCriteria('Outcomes and performance criteria\nOutcome 1\nNo criteria'), /could not be located/);
+});
+
+test('marking evidence is assessment-owned, version-scoped and uses verified school email identities', async t => {
+  const departmentId = otherOwner;
+  const people = [{ id: 'k:1', name: 'Example, Alpha' }, { id: 'k:2', name: 'Example, Beta' }];
+  const department = { id: departmentId, courses: ['11DTECH'], markbookEvidence: true,
+    identityMemberships: [{ course: '11DTECH', classCodes: ['11DTECH'], studentIds: people.map(p => p.id) }] };
+  let allowed = true, found = true;
+  const source = version => ({ file: { id: 'synthetic_pdf', modifiedTime: '2026-11-25T00:00:00Z' },
+    report: { course: '11DTECH', number: '92004', version, kind: 'achievement',
+      rows: [{ name: people[0].name, teachers: ['TST'] }, { name: people[1].name, teachers: ['TST'] }] } });
+  const query = async sql => {
+    if (sql.includes('FROM assessment_records')) return { rows: found ? [{ content: { standardNumber: '92004', version: '2' } }] : [] };
+    if (sql.includes('FROM senior_audit_sync')) return { rows: [{ reports: [source('1'), source('2')],
+      completed_at: '2026-11-25T00:00:00Z', sources_complete: true }] };
+    if (sql.includes('FROM students_audit_sync')) return { rows: [] };
+    throw new Error('Unexpected query');
+  };
+  const loadSeniorAudit = async (_req, input) => {
+    if (input.action === 'students-audit-roster') return { students: people, departments: allowed ? [department] : [] };
+    assert.equal(input.action, 'marking-identities');
+    assert.deepEqual(input.studentIds, ['k:1', 'k:2']);
+    return { identities: [{ id: 'k:1', email: 'alpha@example.test' }], memberships: [
+      { id: 'k:1', course: '11DTECH', classCode: '3-11DTECH' },
+      { id: 'k:2', course: '11DTECH', classCode: '6-11DTECH' }
+    ] };
+  };
+  const app = express(); app.use((req, _res, next) => { req.user = { id: owner }; next(); });
+  app.use('/audit', createStudentsAuditRouter({ query, loadSeniorAudit }));
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const url = `http://127.0.0.1:${server.address().port}/audit/marking?year=2026&departmentId=${departmentId}&record=${record}`;
+  const response = await fetch(url);
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.evidence.length, 1);
+  assert.equal(data.evidence[0].version, '2');
+  assert.deepEqual(data.evidence[0].students, [
+    { ...people[0], email: 'alpha@example.test', classCodes: ['3-11DTECH'] },
+    { ...people[1], email: '', classCodes: ['6-11DTECH'] }
+  ]);
+  found = false;
+  assert.equal((await fetch(url)).status, 404);
+  found = true; allowed = false;
+  assert.equal((await fetch(url)).status, 403);
+});
+
+test('Students Audit rechecks department access, saves summary counts and lists only actual matched PDF rows', async t => {
+  const departmentId = otherOwner;
+  const people = [{ id: 'k:1', name: 'Example, Alpha', yearLevel: '11' },
+    { id: 'k:2', name: 'Example, Beta', yearLevel: '12' }];
+  const department = { id: departmentId, name: 'Technology', courses: ['11DTECH', '13DTECH'], memberships: [],
+    identityMemberships: [{ course: '11DTECH', classCodes: ['1-11DTECH', '6-11DTECH'], studentIds: ['k:1', 'k:2'] }],
+    markbookEvidence: true };
+  let allowed = true, saved, writes = 0, conflict = false, workbookError = false, revokeSpreadsheet = false, removeCourse = false;
+  const file = { id: 'synthetic_summary', version: 'v1', name: 'TopicsSubjectEntries_20261125_112207.pdf' };
+  const entries = [
+    { course: '11DTECH', number: '92004', version: '2', kind: 'achievement', external: false, students: 17, enrolled: 5, published: 5 },
+    { course: '11DTECH', number: '92006', version: '2', kind: 'achievement', external: true, students: 17, enrolled: 5, published: null }
+  ];
+  const sync = { completed_at: '2026-11-25T00:00:00Z', sources_complete: true, reports: [{
+    file: { id: 'synthetic_markbook', modifiedTime: '2026-11-25T00:00:00Z' },
+    report: { course: '11DTECH', number: '92004', version: '2', kind: 'achievement',
+      rows: [{ name: people[0].name, status: 'Not yet assessed', grade: null, teachers: ['TST'] }] }
+  }] };
+  const query = async (sql, params) => {
+    if (sql.startsWith('SELECT * FROM students_audit_sync')) return { rows: saved ? [saved] : [] };
+    if (sql.startsWith('SELECT * FROM senior_audit_sync')) return { rows: [sync] };
+    assert.ok(sql.startsWith('INSERT INTO students_audit_sync'));
+    writes++;
+    if (conflict) return { rows: [] };
+    saved = { source: JSON.parse(params[3]), entries: JSON.parse(params[4]), workbook: JSON.parse(params[5]),
+      completed_at: sync.completed_at };
+    return { rows: [{ completed_at: sync.completed_at }] };
+  };
+  const loadSeniorAudit = async (_req, input) => {
+    if (input.action === 'students-audit-roster') return { students: people, departments: allowed ? [department] : [] };
+    assert.equal(allowed, true);
+    if (input.action === 'students-audit-enrolments') return { file, entries };
+    if (input.action === 'senior-audit-workbook') {
+      if (workbookError) throw Object.assign(new Error('Spreadsheet unavailable.'), { status: 403 });
+      if (revokeSpreadsheet) department.markbookEvidence = false;
+      if (removeCourse) department.courses = ['13DTECH'];
+      return { data: seniorWorkbook({ extraEntries: [{ zi_IDNumber: '456', Module_Enrol: '13ENGL',
+        zc_Stu_Name_Last_First_Preferred: 'Outside, Department' }] }).toString('base64'), modifiedTime: sync.completed_at };
+    }
+    assert.equal(input.action, 'senior-audit-roster');
+    return { groups: [{ staffCode: 'TST', course: '11DTECH', classCode: '1-11DTECH', term: null, students: people }] };
+  };
+  const app = express(); app.use(express.json());
+  app.use((req, _res, next) => { req.user = { id: owner }; next(); });
+  app.use('/audit', createStudentsAuditRouter({ query, loadSeniorAudit }));
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const base = `http://127.0.0.1:${server.address().port}/audit`;
+  const post = () => fetch(base, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ year: 2026, departmentId }) });
+  const withoutSummary = await (await fetch(base + '?year=2026&departmentId=' + departmentId)).json();
+  assert.equal(withoutSummary.summary, null);
+  assert.equal(withoutSummary.identityMatching[0].matchedRows, 1, 'Cached PDF identities do not depend on an EnrolledList import');
+  assert.equal((await post()).status, 200);
+  const data = await (await fetch(base + '?year=2026&departmentId=' + departmentId)).json();
+  assert.deepEqual(data.summary.entries, entries);
+  assert.deepEqual(data.evidence[0].students, [{ id: 'k:1', name: people[0].name }],
+    'The roster student absent from the PDF is not labelled as PDF evidence');
+  assert.equal(data.students.length, 2);
+  assert.equal(data.identityMatching[0].matchedRows, 1);
+  assert.equal(data.identityMatching[0].studentCount, 2);
+  const memberships = department.identityMemberships;
+  delete department.identityMemberships;
+  assert.equal((await fetch(base + '?year=2026&departmentId=' + departmentId)).status, 503,
+    'An older Core deployment must not silently fall back to teacher-line identity matching');
+  department.identityMemberships = memberships;
+  assert.equal(data.workbook.entries.length, 1, 'Only currently linked department courses leave the server');
+  assert.equal(data.workbook.entries[0].name, 'Student, Synthetic');
+  assert.equal(data.workbook.entries[0].course, '13DTECH');
+  assert.equal(saved.workbook.entries.length, 1, 'Out-of-department spreadsheet rows are not persisted');
+  department.courses = ['11DTECH'];
+  const narrowed = await (await fetch(base + '?year=2026&departmentId=' + departmentId)).json();
+  assert.deepEqual(narrowed.workbook.entries, [], 'Previously saved issues are filtered against current course permissions');
+  department.courses = ['11DTECH', '13DTECH'];
+  department.markbookEvidence = false;
+  assert.equal((await (await fetch(base + '?year=2026&departmentId=' + departmentId)).json()).workbook, null);
+  department.markbookEvidence = true;
+  const savedBefore = saved, writesBefore = writes;
+  workbookError = true;
+  assert.equal((await post()).status, 403);
+  assert.equal(writes, writesBefore, 'A failed spreadsheet read must not save a successful-looking comparison');
+  assert.equal(saved, savedBefore);
+  workbookError = false;
+  revokeSpreadsheet = true;
+  assert.equal((await post()).status, 403);
+  assert.equal(writes, writesBefore, 'Spreadsheet access must still be valid before persistence');
+  revokeSpreadsheet = false; department.markbookEvidence = true;
+  removeCourse = true;
+  assert.equal((await post()).status, 409);
+  assert.equal(writes, writesBefore, 'Losing all authorised count rows must not save an empty successful summary');
+  removeCourse = false; department.courses = ['11DTECH', '13DTECH'];
+  conflict = true;
+  assert.equal((await post()).status, 409);
+  allowed = false;
+  const before = writes;
+  assert.equal((await post()).status, 403);
+  assert.equal((await fetch(base + '?year=2026&departmentId=' + departmentId)).status, 403);
+  const namesOnly = await (await fetch(base + '?year=2026')).json();
+  assert.deepEqual(namesOnly.students, people);
+  assert.equal(namesOnly.summary, null);
+  assert.equal(namesOnly.workbook, null);
+  assert.deepEqual(namesOnly.evidence, []);
+  assert.equal(writes, before);
+});
+
+test('Students Audit matches exact identities across timetable classes without mixing courses or ambiguous students', () => {
+  const students = ['Alpha', 'Beta', 'Beta', 'Cross', 'Computing'].map((name, i) => ({ id: 'k:' + (i + 1), name: 'Student, ' + name }));
+  const memberships = [
+    { course: '11DTECH', classCodes: ['3-11DTECH', '6-11DTECH'], studentIds: ['k:1', 'k:2', 'k:3', 'k:1'] },
+    { course: '12DTECH', classCodes: ['3-12DTECH'], studentIds: ['k:4'] },
+    { course: '11COMP', classCodes: ['3-11COMP'], studentIds: ['k:5'] }
+  ];
+  const source = { file: { id: 'synthetic', modifiedTime: '2026-11-25T00:00:00Z' },
+    report: { course: '11DTECH', number: '92004', version: '2', kind: 'achievement',
+      rows: [{ name: 'student,   alpha', teachers: ['OTHER'] }, { name: students[1].name },
+        { name: students[3].name }, { name: students[4].name }] } };
+  const matched = matchStudentsAuditIdentities({ students, memberships, reports: [source,
+    { ...source, report: { ...source.report, course: '11TEXT' } }] });
+  assert.equal(matched.evidence.length, 1, 'Unapproved courses are not returned');
+  assert.deepEqual(matched.evidence[0].students, [students[0]], 'Teacher line does not override an exact course identity');
+  assert.equal(matched.identityMatching[0].studentCount, 3, 'Repeated timetable slots do not duplicate students');
+  assert.equal(matched.identityMatching[0].matchedRows, 1);
+  assert.deepEqual(matched.identityMatching[0].issues.map(issue => issue.reason),
+    ['ambiguous-name', 'not-in-course', 'not-in-course']);
+  assert.deepEqual(matched.identityMatching[0].issues[1].otherCourses, ['12DTECH']);
+  assert.deepEqual(matched.identityMatching[0].issues[2].otherCourses, ['11COMP']);
+  assert.equal(matched.unresolved, 3);
+  assert.throws(() => matchStudentsAuditIdentities({ students: [], memberships, reports: [] }), /unavailable student identity/);
+});
+
+test('Students Audit identity matching selects the latest PDF and never guesses tied sources or duplicate names', () => {
+  const students = [{ id: 'k:1', name: 'Student, Alpha' }];
+  const memberships = [{ course: '11DTECH', classCodes: ['11DTECH'], studentIds: ['k:1'] }];
+  const current = { file: { id: 'current', modifiedTime: '2026-11-25T00:00:00Z' },
+    report: { course: '11DTECH', number: '92004', version: '2', kind: 'achievement', rows: [{ name: students[0].name }] } };
+  const older = { file: { id: 'older', modifiedTime: '2026-11-24T00:00:00Z' },
+    report: { ...current.report, version: '1', rows: [{ name: 'Student, Former' }] } };
+  const run = reports => matchStudentsAuditIdentities({ students, memberships, reports });
+  assert.deepEqual(run([older, current]).evidence.map(book => book.version), ['2']);
+  assert.equal(run([older, current]).unresolved, 0, 'Superseded PDF rows do not inflate the current matching warning');
+  const separateTeachers = run([
+    { ...older, report: { ...older.report, rows: [{ name: students[0].name, teachers: ['FIRST'] }] } },
+    { ...current, report: { ...current.report, rows: [{ name: students[0].name, teachers: ['SECOND'] }] } }
+  ]);
+  assert.equal(separateTeachers.evidence.length, 2, 'A newer export for another teacher must not hide an independent class PDF');
+  assert.ok(separateTeachers.evidence.every(book => book.students[0].id === 'k:1'),
+    'PDF teacher labels do not restrict exact course identity matching');
+  const tied = run([current, { ...current, file: { ...current.file, id: 'tied' } }]);
+  assert.equal(tied.unresolved, 2);
+  assert.ok(tied.evidence.every(book => book.conflict && book.students.length === 0));
+  assert.equal(run([older, { ...current, file: { id: 'unknown-time' } }]).unresolved, 2);
+  const repeated = run([{ ...current, report: { ...current.report,
+    rows: [...current.report.rows, { name: 'Student,  Alpha' }] } }]);
+  assert.equal(repeated.evidence[0].students.length, 0);
+  assert.ok(repeated.identityMatching[0].issues.every(issue => issue.reason === 'duplicate-pdf-name'));
+});
+
+function seniorWorkbook({ secondGrade = 'Not yet assessed', duplicate = false, formula = false, extraEntries = [] } = {}) {
+  const zip = new PizZip();
+  const ns = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+  const rel = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  zip.file('xl/workbook.xml', `<workbook xmlns="${ns}" xmlns:r="${rel}"><sheets>
+    <sheet name="By Teacher" r:id="r1"/><sheet name="By curriculum area" r:id="r2"/>
+    </sheets></workbook>`);
+  zip.file('xl/_rels/workbook.xml.rels', `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+    <Relationship Id="r1" Type="${rel}/worksheet" Target="worksheets/sheet1.xml"/>
+    <Relationship Id="r2" Type="${rel}/worksheet" Target="worksheets/sheet2.xml"/>
+    </Relationships>`);
+  zip.file('xl/sharedStrings.xml', `<sst xmlns="${ns}"/>`);
+  const heading = ['zi_IDNumber', 'zc_Stu_Name_Last_First_Preferred', 'zc_Stu_Level', 'Number_AsNum',
+    'Version', 'Level', 'Title', 'zc_Module_Sub_Field', 'Teacher_Markbook', 'Module_Enrol',
+    'zc_Result_Markbook', 'zc_Result_Printouts'];
+  const values = ['123', 'Student, Synthetic', '13', '425', '2', '3', 'Synthetic standard',
+    'Technology', 'TST', '13DTECH', 'Not yet assessed', 'Not yet assessed'];
+  const row = (number, data) => `<row r="${number}">${data.map((value, i) =>
+    `<c r="${String.fromCharCode(65 + i)}${number}" t="inlineStr">${formula && number === 2 && i === 3 ? '<f>1+1</f>' : ''}<is><t>${value}</t></is></c>`).join('')}</row>`;
+  const sheet = grade => `<worksheet xmlns="${ns}"><sheetData>${row(1, heading)}${row(2, values)}
+    ${extraEntries.map((entry, i) => row(3 + i, heading.map((name, j) => entry[name] ?? values[j]))).join('')}
+    ${duplicate ? row(3, values) : ''}</sheetData></worksheet>`.replace(
+    '<t>Not yet assessed</t></is></c></row>', `<t>${grade}</t></is></c></row>`);
+  zip.file('xl/worksheets/sheet1.xml', sheet('Not yet assessed'));
+  zip.file('xl/worksheets/sheet2.xml', sheet(secondGrade));
+  return zip.generate({ type: 'nodebuffer', compression: 'DEFLATE' });
+}
+
+test('senior workbook validates both sheets and preserves ungraded results', () => {
+  const rows = parseSeniorAuditWorkbook(seniorWorkbook());
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].Number_AsNum, '425');
+  assert.equal(rows[0].zc_Result_Markbook, 'Not yet assessed');
+  assert.throws(() => parseSeniorAuditWorkbook(seniorWorkbook({ secondGrade: 'Achieved' })), /disagree/);
+  assert.throws(() => parseSeniorAuditWorkbook(seniorWorkbook({ duplicate: true })), /duplicate/);
+  assert.throws(() => parseSeniorAuditWorkbook(seniorWorkbook({ formula: true })), /calculated/);
+  assert.throws(() => parseSeniorAuditWorkbook(Buffer.from('not a workbook')), /readable Excel/);
+  const zip = new PizZip(seniorWorkbook());
+  zip.file('xl/sharedStrings.xml', '<sst>' + 'x'.repeat(2 * 1024 * 1024) + '</sst>');
+  assert.throws(() => parseSeniorAuditWorkbook(zip.generate({ type: 'nodebuffer', compression: 'DEFLATE' })), /oversized/);
+});
+
+test('senior audit flags blank PDF grades and recognises grades entered since the workbook', () => {
+  const roster = { unavailableClassCount: 0, ambiguousIds: [], conflictingYearIds: [], groups: [{
+    teacher: 'Synthetic Teacher', staffCode: 'TST', classCode: '3-13DTECH', course: '13DTECH', term: null,
+    students: ['Alpha', 'Beta', 'Gamma'].map((name, i) => ({ id: 'k:' + (i + 1), name: 'Student, ' + name }))
+  }] };
+  const report = { course: '13DTECH', number: '425', version: '2', level: '1', title: 'Synthetic standard', kind: 'unit', printed: '23 Nov 2026',
+    rows: [
+      { name: 'Student, Alpha', teachers: ['TST'], grade: 'Achieved', status: 'Achieved' },
+      { name: 'Student, Beta', teachers: ['TST'], grade: 'Achieved', status: 'Achieved' },
+      { name: 'Student, Gamma', teachers: ['TST'], grade: null, status: 'Not yet assessed' }
+    ] };
+  const entry = { zi_IDNumber: '1', Number_AsNum: '425', Version: '2', Module_Enrol: '13DTECH_x000B_2026TT',
+    zc_Stu_Name_Last_First_Preferred: 'Student, Alpha', Teacher_Markbook: 'TST',
+    zc_Result_Markbook: 'Achieved', zc_Result_Printouts: 'Grade is being moderated' };
+  const input = { roster, reports: [{ report, file: { id: 'syntheticfile123' } }],
+    entries: [entry], workbookConfirmed: true, sourcesComplete: true };
+  const rows = reconcileSeniorAudit(input).groups[0].markbooks[0].students;
+  assert.equal(reconcileSeniorAudit(input).groups[0].markbooks[0].level, '1',
+    'Standard level comes from the PDF, not the Year 13 class');
+  const workbookOnly = reconcileSeniorAudit({ ...input, reports: [], entries: [{ ...entry, Level: '2' }] });
+  assert.equal(workbookOnly.groups[0].markbooks[0].level, '2');
+  assert.equal(reconcileSeniorAudit({ ...input, reports: [], entries: [{ ...entry, Level: '' }] })
+    .groups[0].markbooks[0].level, '', 'Missing levels are not guessed from the class year or standard number');
+  assert.deepEqual(rows.map(row => row.state), ['sorted', 'sorted', 'outstanding']);
+  assert.equal(rows[0].workbookStatus, 'Grade is being moderated');
+  const updated = reconcileSeniorAudit({ ...input, entries: [{ ...entry, zc_Result_Markbook: 'Not yet assessed' }] });
+  assert.equal(updated.groups[0].markbooks[0].students[0].state, 'updated');
+  assert.equal(reconcileSeniorAudit({ ...input, sourcesComplete: false }).groups[0].markbooks[0].students[1].state, 'not checked');
+  assert.equal(reconcileSeniorAudit({ ...input, workbookConfirmed: false, entries: [] }).groups[0].markbooks[0].students[1].state, 'sorted');
+  const differentCourse = { ...entry, zi_IDNumber: '2', zc_Stu_Name_Last_First_Preferred: 'Student, Beta',
+    Module_Enrol: '13OTHER_x000B_2026TT' };
+  const changed = reconcileSeniorAudit({ ...input, entries: [entry, differentCourse] }).groups[0].markbooks[0].students[1];
+  assert.equal(changed.state, 'not checked');
+  assert.match(changed.issues.join(' '), /course differs/);
+  const duplicate = reconcileSeniorAudit({ ...input, reports: [...input.reports, ...input.reports] });
+  assert.equal(duplicate.groups[0].markbooks.length, 1);
+  assert.equal(duplicate.groups[0].markbooks[0].students[1].state, 'not checked');
+  assert.equal(duplicate.groups[0].markbooks[0].conflict, true);
+  assert.equal(duplicate.groups[0].markbooks[0].sources.length, 2);
+  assert.equal(duplicate.groups[0].markbooks[0].students[1].hasRecordedGrade, true);
+  assert.equal(duplicate.groups[0].markbooks[0].workbookListed, true);
+  const older = { report, file: { id: 'old', modifiedTime: '2026-01-01T00:00:00Z' } };
+  const newer = { report: { ...report, rows: report.rows.map(row => ({ ...row, teachers: ['TST', 'OTHER'] })),
+    version: '3' }, file: { id: 'new', modifiedTime: '2026-02-01T00:00:00Z' } };
+  const latest = reconcileSeniorAudit({ ...input, reports: [newer, older] });
+  assert.equal(latest.groups[0].markbooks.length, 2);
+  const latestBook = latest.groups[0].markbooks.find(book => book.version === '3');
+  assert.match(latestBook.url, /\/new\/view$/);
+  assert.match(latestBook.students[0].issues.join(' '), /different standard version/);
+  assert.ok(latest.groups[0].markbooks.find(book => book.version === '2').students
+    .some(row => row.issues.includes('No uniquely matched PDF result was found.')));
+  const tied = reconcileSeniorAudit({ ...input, reports: [older, { ...newer,
+    file: { ...newer.file, modifiedTime: older.file.modifiedTime } }] });
+  assert.ok(tied.groups[0].markbooks.every(book => book.conflict));
+  const partial = reconcileSeniorAudit({ ...input, reports: [older, { ...newer,
+    report: { ...newer.report, rows: newer.report.rows.slice(0, 1) } }] });
+  const partialPdf = partial.groups[0].markbooks.find(book => book.url);
+  assert.match(partialPdf.url, /\/new\/view$/);
+  assert.equal(partialPdf.olderReportWarning, true);
+  assert.equal(partialPdf.students.find(row => row.name === 'Student, Beta').state, 'not checked');
+  const sameVersion = reconcileSeniorAudit({ ...input, reports: [older, { ...newer,
+    report: { ...newer.report, version: '2', rows: [newer.report.rows[0],
+      { name: 'Unknown, Student', teachers: ['TST'], grade: null, status: '' }] } }] });
+  assert.equal(sameVersion.groups[0].markbooks.length, 1);
+  assert.match(sameVersion.groups[0].markbooks[0].url, /\/new\/view$/);
+  assert.equal(sameVersion.groups[0].markbooks[0].unmatched, 1);
+  assert.equal(sameVersion.groups[0].markbooks[0].olderReportWarning, true);
+  const sameTimestamp = reconcileSeniorAudit({ ...input, reports: [older, { ...older,
+    file: { ...older.file, id: 'other' },
+    report: { ...report, rows: report.rows.map(row => ({ ...row, grade: null, status: 'Not entered' })) }
+  }], decisions: [{ student_id: 'k:2', standard_number: '425', standard_version: '2', not_enrolled: true, revision: 1 }] });
+  const conflictBook = sameTimestamp.groups[0].markbooks[0];
+  assert.equal(sameTimestamp.groups[0].markbooks.length, 1);
+  assert.equal(conflictBook.conflict, true);
+  assert.equal(conflictBook.url, '');
+  assert.equal(conflictBook.sources.length, 2);
+  assert.equal(conflictBook.students[1].result, 'Not checked');
+  assert.equal(conflictBook.students[1].hasRecordedGrade, true);
+  assert.match(conflictBook.students[1].issues.join(' '), /conflicts with the not-enrolled decision/);
+  assert.equal(reconcileSeniorAudit({ ...input, workbookConfirmed: false }).groups[0].markbooks[0].workbookListed, false);
+  assert.equal(reconcileSeniorAudit({ ...input, entries: [{ ...entry, Number_AsNum: '999' }] })
+    .groups[0].markbooks.find(book => book.number === '425').workbookListed, false);
+  assert.equal(reconcileSeniorAudit({ ...input, entries: [{ ...entry, zi_IDNumber: '999', Version: '3' }] })
+    .groups[0].markbooks.find(book => book.number === '425').workbookListed, true,
+  'An unmatched workbook student for this course and teacher keeps the component listed, regardless of version');
+  assert.equal(reconcileSeniorAudit({ ...input, entries: [{ ...entry, Module_Enrol: '11TEXT_x000B_2026TT' }] })
+    .groups[0].markbooks.find(book => book.number === '425').workbookListed, false,
+  'The same standard in TEXT must not make its DTECH component red');
+  assert.equal(reconcileSeniorAudit({ ...input, entries: [{ ...entry, zi_IDNumber: '999', Teacher_Markbook: 'OTHER' }] })
+    .groups[0].markbooks.find(book => book.number === '425').workbookListed, false,
+  'Another teacher’s unrelated class must not make this component red');
+  assert.equal(reconcileSeniorAudit({ ...input, entries: [{ ...entry, Teacher_Markbook: 'OTHER' }] })
+    .groups[0].markbooks.find(book => book.number === '425').workbookListed, true,
+  'A linked student in the same course must remain flagged even when the workbook teacher differs');
+  const textGroup = { ...roster.groups[0], course: '11TEXT', classCode: '6-11TEXT',
+    students: [{ id: 'k:9', name: 'Student, Textile' }] };
+  const components = reconcileSeniorAudit({ ...input, roster: { ...roster, groups: [...roster.groups, textGroup] },
+    reports: [...input.reports, { file: { id: 'textsynthetic123' }, report: { ...report, course: '11TEXT',
+      rows: [{ name: 'Student, Textile', teachers: ['TST'], grade: 'Achieved', status: 'Achieved' }] } }] });
+  assert.equal(components.groups.find(group => group.course === '13DTECH').markbooks[0].workbookListed, true);
+  const textBook = components.groups.find(group => group.course === '11TEXT').markbooks[0];
+  assert.equal(textBook.workbookListed, false);
+  assert.equal(textBook.students[0].state, 'sorted', 'Resolved TEXT grades remain resolved when only DTECH is listed');
+  const ambiguous = reconcileSeniorAudit({ ...input, roster: { ...roster, ambiguousIds: ['k:2'] } });
+  assert.equal(ambiguous.groups[0].markbooks[0].unmatched, 1);
+  const missing = reconcileSeniorAudit({ ...input, reports: [{ ...input.reports[0],
+    report: { ...report, rows: report.rows.slice(0, 2) } }] });
+  assert.equal(missing.groups[0].markbooks[0].students.find(row => row.name === 'Student, Gamma').state, 'not checked');
+  const decision = { student_id: 'k:3', standard_number: '425', standard_version: '2', not_enrolled: true, revision: 1 };
+  const resolved = reconcileSeniorAudit({ ...input, decisions: [decision] }).groups[0].markbooks[0].students[2];
+  assert.equal(resolved.state, 'not enrolled');
+  assert.equal(resolved.decisionRevision, 1);
+  const changedGrade = reconcileSeniorAudit({ ...input, decisions: [decision], reports: [{ ...input.reports[0],
+    report: { ...report, rows: report.rows.map(row => ({ ...row, grade: 'Achieved', status: 'Achieved' })) } }] });
+  assert.equal(changedGrade.groups[0].markbooks[0].students[2].state, 'not checked');
+  assert.match(changedGrade.groups[0].markbooks[0].students[2].issues.join(' '), /conflicts/);
+  const ambiguousDecision = reconcileSeniorAudit({ ...input, decisions: [decision],
+    roster: { ...roster, ambiguousIds: ['k:3'] } }).groups[0].markbooks[0].students.find(row => row.name === 'Student, Gamma');
+  assert.equal(ambiguousDecision.state, 'not checked');
+  assert.equal(ambiguousDecision.id, undefined);
+  const workbookGrade = reconcileSeniorAudit({ ...input, decisions: [decision],
+    entries: [{ ...entry, zi_IDNumber: '3', zc_Stu_Name_Last_First_Preferred: 'Student, Gamma' }] });
+  assert.equal(workbookGrade.groups[0].markbooks[0].students[2].state, 'not checked');
+  const withoutTeacher = { ...report, rows: [{ ...report.rows[0], teachers: [] }] };
+  const linked = reconcileSeniorAudit({ ...input, reports: [{ report: withoutTeacher, file: { id: 'syntheticfile123' } }] });
+  assert.equal(linked.groups[0].markbooks[0].students[0].name, 'Student, Alpha');
+  const mixedLine = { ...roster.groups[0], classCode: '3-11COMP' };
+  const consolidated = reconcileSeniorAudit({ ...input, roster: { ...roster, groups: [...roster.groups, mixedLine] } });
+  assert.equal(consolidated.groups.length, 1);
+  assert.equal(consolidated.groups[0].classCode, '3-13DTECH');
+  assert.equal(consolidated.groups[0].markbooks[0].students[1].state, 'sorted');
+  const differentLine = { ...mixedLine, classCode: '4-11COMP' };
+  assert.ok(reconcileSeniorAudit({ ...input, roster: { ...roster, groups: [...roster.groups, differentLine] } }).unresolved);
+  const emptyLine = { ...mixedLine, classCode: '4-11COMP', students: [] };
+  const noPhantom = reconcileSeniorAudit({ ...input, roster: { ...roster, groups: [...roster.groups, emptyLine] } });
+  assert.equal(noPhantom.groups[1].markbooks.length, 0);
+  const differentTeacher = { ...report, rows: [{ ...report.rows[0], teachers: ['OTHER'] }] };
+  const mismatch = reconcileSeniorAudit({ ...input, reports: [{ report: differentTeacher, file: { id: 'syntheticfile123' } }] });
+  assert.equal(mismatch.groups[0].markbooks[0].students[0].state, 'not checked');
+  assert.match(mismatch.groups[0].markbooks[0].students[0].issues.join(' '), /teacher code differs/);
+  const sameName = { ...roster.groups[0], staffCode: 'OTH', teacher: 'Other Teacher' };
+  const unclear = reconcileSeniorAudit({ ...input, roster: { ...roster, groups: [...roster.groups, sameName] },
+    reports: [{ report: withoutTeacher, file: { id: 'syntheticfile123' } }] });
+  assert.equal(unclear.unresolved, 1);
+  assert.equal(unclear.groups[0].markbooks.length, 1);
+  assert.equal(unclear.groups[0].markbooks[0].students[0].state, 'not checked');
+  const unlinked = reconcileSeniorAudit({ ...input, roster: { ...roster,
+    teachers: [{ staffCode: 'TST', teacher: 'Synthetic Teacher' }] },
+    entries: [{ ...entry, zi_IDNumber: '999' }, { ...entry, zi_IDNumber: '998', Teacher_Markbook: 'OTHER' }] });
+  assert.equal(unlinked.unresolvedWorkbook, 1);
+  assert.equal(unlinked.unresolvedByTeacher.TST, 1);
+});
+
+test('automatic non-enrolment resolves ungraded students in scanned non-red components', () => {
+  const roster = { unavailableClassCount: 0, groups: [{
+    teacher: 'Synthetic Teacher', staffCode: 'TST', classCode: '3-13DTECH', course: '13DTECH', term: null,
+    students: ['Alpha', 'Beta', 'Gamma'].map((name, i) => ({ id: 'k:' + (i + 1), name: 'Student, ' + name }))
+  }] };
+  const report = { course: '13DTECH', number: '425', version: '2', title: 'Synthetic standard', kind: 'unit', rows: [
+    { name: 'Student, Alpha', teachers: ['TST'], grade: null, status: 'Not entered' },
+    { name: 'Student, Beta', teachers: ['TST'], grade: 'Not Achieved', status: 'Not Achieved' }
+  ] };
+  const input = { roster, reports: [{ report, file: { id: 'synthetic123' } }], entries: [],
+    workbookConfirmed: true, sourcesComplete: true, automaticNotEnrolled: true };
+  const first = overrides => reconcileSeniorAudit({ ...input, ...overrides }).groups[0].markbooks[0].students[0];
+  const automatic = first({});
+  assert.equal(automatic.state, 'not enrolled');
+  assert.equal(automatic.notEnrolled, true);
+  assert.equal(automatic.automaticNotEnrolled, true);
+  assert.equal(automatic.decisionRevision, 0);
+  assert.equal(automatic.baseState, 'outstanding');
+  const students = reconcileSeniorAudit(input).groups[0].markbooks[0].students;
+  assert.equal(students[1].state, 'sorted', 'Not Achieved is a grade, not an automatic non-enrolment');
+  assert.equal(students[1].automaticNotEnrolled, false);
+  assert.equal(students[2].state, 'not enrolled', 'Roster students absent from the scanned PDF are automatically resolved');
+  assert.equal(students[2].automaticNotEnrolled, true);
+  assert.deepEqual(students[2].issues, []);
+  assert.ok(students.every(row => ['sorted', 'not enrolled'].includes(row.state) && !row.issues.length),
+    'The entire component is resolved, not left yellow for students absent from the PDF');
+  for (const overrides of [{ automaticNotEnrolled: false }, { workbookConfirmed: false }, { sourcesComplete: false },
+    { roster: { ...roster, unavailableClassCount: 1 } },
+    { decisions: [{ student_id: 'k:1', standard_number: '425', standard_version: '2', not_enrolled: false, revision: 1 }] }]) {
+    assert.equal(first(overrides).automaticNotEnrolled, false);
+    assert.equal(first(overrides).state, 'outstanding');
+  }
+  const elsewhere = { zi_IDNumber: '999', Number_AsNum: '425', Version: '9', Module_Enrol: '11TEXT',
+    Teacher_Markbook: 'OTHER', zc_Stu_Name_Last_First_Preferred: 'Student, Elsewhere',
+    zc_Result_Markbook: 'Not yet assessed', zc_Result_Printouts: '' };
+  const listed = first({ entries: [elsewhere] });
+  assert.equal(listed.state, 'not enrolled', 'A red component in another subject must not block this component');
+  assert.equal(listed.automaticNotEnrolled, true);
+  const red = reconcileSeniorAudit({ ...input, entries: [{ ...elsewhere, Module_Enrol: '13DTECH', Teacher_Markbook: 'TST' }] })
+    .groups[0].markbooks[0];
+  assert.equal(red.workbookListed, true);
+  assert.equal(red.students[0].automaticNotEnrolled, false);
+  assert.equal(red.students[2].automaticNotEnrolled, false, 'Red components do not auto-resolve missing PDF students');
+  assert.equal(first({ entries: [{ ...elsewhere, Number_AsNum: '999' }] }).automaticNotEnrolled, true);
+  const mismatch = first({ reports: [{ ...input.reports[0], report: { ...report,
+    rows: report.rows.map(row => ({ ...row, teachers: ['OTHER'] })) } }] });
+  assert.equal(mismatch.automaticNotEnrolled, false, 'A teacher mismatch remains flagged');
+  const ambiguous = reconcileSeniorAudit({ ...input, roster: { ...roster, ambiguousIds: ['k:1'] } })
+    .groups[0].markbooks[0].students.find(row => row.name === 'Student, Alpha');
+  assert.equal(ambiguous.automaticNotEnrolled, false);
+  assert.equal(ambiguous.state, 'not checked');
+  const conflict = first({ reports: [...input.reports, ...input.reports] });
+  assert.equal(conflict.automaticNotEnrolled, false);
+  assert.equal(conflict.state, 'not checked');
+  const graded = first({ reports: [{ ...input.reports[0], report: { ...report,
+    rows: report.rows.map(row => ({ ...row, grade: 'Achieved', status: 'Achieved' })) } }] });
+  assert.equal(graded.automaticNotEnrolled, false);
+  assert.equal(graded.state, 'sorted');
+});
+
+test('senior workbook reads a bounded verified response from Core', async () => {
+  const buffer = seniorWorkbook();
+  const calls = [];
+  const loader = async (_req, input) => {
+    calls.push(input);
+    return { data: buffer.toString('base64'), modifiedTime: '2026-11-23T00:00:00Z' };
+  };
+  const result = await readWorkbook({}, loader, 2026);
+  assert.equal(result.entries.length, 1);
+  assert.deepEqual(calls, [{ year: 2026, action: 'senior-audit-workbook' }]);
+  await assert.rejects(readWorkbook({}, async () => ({ data: 'invalid!', modifiedTime: '2026-11-23' }), 2026), /could not be verified/);
+});
+
+function seniorPdf({ unit = false, firstStatus = 'Not yet assessed', secondStatus = 'Not Achieved' } = {}) {
+  const item = (text, x, y) => ({ text, x, y, width: 10 });
+  return { pages: [{ view: [0, 0, 595, 842], items: [
+    item('KAMAR', 46, 49), item('13DTECH', 49, 777),
+    item(unit ? 'US 29786 - Synthetic unit standard' : 'Synthetic achievement standard', 46, 746),
+    item(unit ? '29786' : '91907', 131, 659), item('2', 203, 659), item('3', 257, 659),
+    item('Student Name', 49, 640.5), item('Teacher', 200.7, 642), item('Status', 268.7, 640),
+    ...(!unit ? [item('Attempt 1', 334.5, 637)] : []),
+    item('Student, Alpha', 49, 622), item('TST, PEER', 210.5, 620), ...(firstStatus ? [item(firstStatus, 250.5, 622.5)] : []),
+    item('Student, Beta', 49, 603), item('TST', 210.5, 601), item(secondStatus, 257.1, 603.5),
+    item('Male: 1, Female: 1, Students: 2', 50, 582),
+    item('23 Nov 2026, 4:50 pm (TST)', 442.8, 50)
+  ] }] };
+}
+
+test('senior audit API authorises before reading the workbook and does not expose unmatched PDF students', async t => {
+  const buffer = seniorWorkbook();
+  let allowed = false, reads = 0, pdfReads = 0, revoke = false, workbookError = false, secondFile = false,
+    holdWorkbook = false, releaseWorkbook, workbookStarted,
+    currentUser = owner, stamp = '2026-11-23T00:00:00Z', grade = 'Not yet assessed';
+  const roster = { groups: [{ teacher: 'Synthetic Teacher', staffCode: 'TST', classCode: '3-13DTECH', course: '13DTECH',
+    term: null, students: [{ id: 'k:123', name: 'Student, Alpha' }] }], ambiguousIds: [], conflictingYearIds: [], unavailableClassCount: 0 };
+  const loadSeniorAudit = async (_req, input) => {
+    if (!allowed) throw Object.assign(new Error('Technology staff only.'), { status: 403 });
+    if (input.action === 'senior-audit-roster') return roster;
+    if (input.action === 'senior-audit-workbook') {
+      reads++;
+      if (workbookError) throw Object.assign(new Error('Workbook unavailable.'), { status: 503 });
+      if (holdWorkbook) await new Promise(resolve => { releaseWorkbook = resolve; workbookStarted(); });
+      return { data: buffer.toString('base64'), modifiedTime: '2026-11-23T00:00:00Z' };
+    }
+    if (input.action === 'senior-audit-files') {
+      if (revoke) allowed = false;
+      return { files: ['syntheticfile123', ...(secondFile ? ['syntheticfile456'] : [])]
+        .map(id => ({ id, version: id + ':' + stamp + ':aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' })), folders: [{ name: 'DTECH', found: true }] };
+    }
+    pdfReads++;
+    return { results: input.items.map(item => ({ file: { id: item.fileId, version: item.version },
+      report: seniorPdf({ firstStatus: grade }) })) };
+  };
+  const saved = new Map(), decisions = new Map(), snapshots = new Map(), jobs = new Map();
+  const query = async (sql, params) => {
+    if (sql.includes('FROM senior_audit_sync_jobs')) {
+      const job = jobs.get(JSON.stringify(params));
+      return { rows: job ? [{ ...job, active: true }] : [] };
+    }
+    if (sql.startsWith('INSERT INTO senior_audit_sync_jobs')) {
+      const [year, user, run] = params, key = JSON.stringify([year, user]), old = jobs.get(key);
+      if (old?.status === 'running') return { rows: [] };
+      jobs.set(key, { run_id: run, status: 'running' }); return { rows: [{ run_id: run }] };
+    }
+    if (sql.startsWith('UPDATE senior_audit_sync_jobs')) {
+      const [year, user, run, message] = params, job = jobs.get(JSON.stringify([year, user]));
+      if (job?.run_id === run) { job.status = message ? 'failed' : 'complete'; job.error_message = message; }
+      return { rows: [] };
+    }
+    if (sql.startsWith('SELECT * FROM senior_audit_sync')) {
+      return { rows: snapshots.has(JSON.stringify(params)) ? [snapshots.get(JSON.stringify(params))] : [] };
+    }
+    if (sql.startsWith('INSERT INTO senior_audit_sync')) {
+      const [year, user, started, complete, failures, details, missing, folders, reports, checked, modified, entries, automaticReady] = params;
+      const key = JSON.stringify([year, user]), old = snapshots.get(key);
+      if (!old || Date.parse(old.started_at) <= Date.parse(started)) snapshots.set(key, {
+        started_at: started, completed_at: started, sources_complete: complete, source_failures: failures,
+        failure_details: JSON.parse(details), missing_saved: missing, folders: JSON.parse(folders), reports: JSON.parse(reports),
+        workbook_checked_at: checked || old?.workbook_checked_at, workbook_modified_at: modified || old?.workbook_modified_at,
+        workbook_entries: entries ? JSON.parse(entries) : old?.workbook_entries, automatic_enrolment_ready: automaticReady
+      });
+      return { rows: [] };
+    }
+    if (sql.includes('FROM senior_audit_enrolment')) return { rows: [...decisions.values()] };
+    if (sql.startsWith('INSERT INTO senior_audit_enrolment') || sql.startsWith('UPDATE senior_audit_enrolment')) {
+      const [year, student, number, version, active, , revision] = params;
+      const key = JSON.stringify([year, student, number, version]), previous = decisions.get(key);
+      if (previous ? previous.revision !== revision : revision !== undefined) return { rows: [] };
+      const record = { student_id: student, standard_number: number, standard_version: version,
+        not_enrolled: active, revision: (previous?.revision || 0) + 1 };
+      decisions.set(key, record); return { rows: [record] };
+    }
+    if (sql.startsWith('INSERT INTO senior_audit_reports')) {
+      const [, key, timestamp, file, report] = params, previous = saved.get(key);
+      if (!previous || Date.parse(timestamp) > Date.parse(previous.timestamp)) {
+        saved.set(key, { timestamp, file: JSON.parse(file), report: JSON.parse(report) });
+        return { rows: [{ report_key: key }] };
+      }
+      return { rows: [] };
+    }
+    if (sql.startsWith('SELECT modified_at')) {
+      const previous = saved.get(params[1]);
+      return { rows: previous ? [{ modified_at: previous.timestamp, source: previous.file }] : [] };
+    }
+    if (sql.startsWith('DELETE FROM senior_audit_reports')) return { rows: [] };
+    return { rows: [...saved.values()] };
+  };
+  const app = express(); app.use(express.json()); app.use((req, _res, next) => { req.user = { id: currentUser }; next(); });
+  app.use('/audit', createSeniorAuditRouter({ query, loadSeniorAudit }));
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const post = (compareWorkbook = true) => fetch(`http://127.0.0.1:${server.address().port}/audit`, { method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ year: 2026, compareWorkbook }) });
+  assert.equal((await post()).status, 403);
+  assert.equal(reads, 0);
+  allowed = true;
+  const pdfOnly = await post(false);
+  assert.equal(pdfOnly.status, 200);
+  const pdfOnlyResult = await pdfOnly.json();
+  assert.equal(pdfOnlyResult.workbookLoaded, false);
+  assert.equal(pdfOnlyResult.groups[0].markbooks[0].students[0].automaticNotEnrolled, false);
+  assert.equal(reads, 0, 'PDF sync does not require Google workbook access');
+  const response = await post();
+  assert.equal(response.status, 200);
+  assert.equal(pdfReads, 1, 'Unchanged PDFs are not downloaded again');
+  const result = await response.json();
+  assert.equal(result.groups[0].markbooks[0].students[0].automaticNotEnrolled, true);
+  assert.equal(result.groups[0].markbooks[0].students[0].state, 'not enrolled');
+  assert.equal(result.groups[0].markbooks[0].unmatched, 1);
+  assert.doesNotMatch(JSON.stringify(result), /Student, Beta/);
+  const savedResponse = await fetch(`http://127.0.0.1:${server.address().port}/audit?year=2026`);
+  assert.equal(savedResponse.status, 200);
+  const savedView = await savedResponse.json();
+  assert.equal(savedView.workbookLoaded, true);
+  assert.ok(savedView.lastSyncedAt);
+  assert.ok(savedView.workbookCheckedAt);
+  assert.equal(savedView.groups[0].markbooks[0].students[0].result, 'No grade');
+  assert.equal(savedView.groups[0].markbooks[0].students[0].automaticNotEnrolled, true,
+    'Automatic results survive refresh through the saved combined comparison');
+  const cachedWorkbookOnly = await (await post(false)).json();
+  assert.equal(cachedWorkbookOnly.workbookLoaded, true);
+  assert.equal(cachedWorkbookOnly.groups[0].markbooks[0].students[0].automaticNotEnrolled, false,
+    'A PDF-only sync must not infer non-enrolment from the cached workbook');
+  assert.equal((await (await post()).json()).groups[0].markbooks[0].students[0].automaticNotEnrolled, true);
+  assert.doesNotMatch(JSON.stringify(savedView), /Student, Beta/);
+  const savedReport = [...saved.values()][0].report;
+  savedReport.rows[0].grade = 'Achieved';
+  const unchangedSnapshot = await (await fetch(`http://127.0.0.1:${server.address().port}/audit?year=2026`)).json();
+  assert.equal(unchangedSnapshot.groups[0].markbooks[0].students[0].result, 'No grade',
+    'The last completed snapshot is not replaced by a partial sync');
+  savedReport.rows[0].grade = null;
+  currentUser = otherOwner;
+  assert.equal((await (await fetch(`http://127.0.0.1:${server.address().port}/audit?year=2026`)).json()).workbookLoaded, false,
+    'Another staff member cannot read this account’s cached workbook');
+  currentUser = owner;
+  workbookError = true;
+  assert.equal((await post()).status, 503);
+  const afterFailure = await (await fetch(`http://127.0.0.1:${server.address().port}/audit?year=2026`)).json();
+  assert.equal(afterFailure.workbookLoaded, true, 'A failed check retains the previous comparison');
+  assert.equal(afterFailure.syncError, 'Workbook unavailable.');
+  workbookError = false;
+  holdWorkbook = true;
+  const started = new Promise(resolve => { workbookStarted = resolve; });
+  const firstSync = post();
+  await started;
+  const whileSyncing = await (await fetch(`http://127.0.0.1:${server.address().port}/audit?year=2026`)).json();
+  assert.equal(whileSyncing.syncing, true);
+  assert.equal(whileSyncing.workbookLoaded, true, 'A running sync preserves the last comparison');
+  assert.equal((await post()).status, 202, 'Another tab follows the existing sync instead of starting another');
+  holdWorkbook = false; releaseWorkbook();
+  assert.equal((await firstSync).status, 200);
+  const decision = { year: 2026, staffCode: 'TST', classCode: '3-13DTECH', course: '13DTECH',
+    number: '91907', version: '2', studentId: 'k:123', notEnrolled: true, revision: 0 };
+  const decide = body => fetch(`http://127.0.0.1:${server.address().port}/audit/enrolment`, { method: 'POST',
+    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  assert.equal((await decide({ ...decision, studentId: 'k:999' })).status, 409);
+  currentUser = otherOwner;
+  assert.equal((await decide({ ...decision, requireWorkbook: true })).status, 409,
+    'Bulk decisions require this staff member’s workbook comparison');
+  currentUser = owner;
+  const snapshot = snapshots.get(JSON.stringify([2026, owner]));
+  snapshot.workbook_entries.push({ ...snapshot.workbook_entries[0], Number_AsNum: '91907',
+    zc_Stu_Name_Last_First_Preferred: 'Student, Alpha', zc_Result_Markbook: 'Achieved' });
+  assert.equal((await decide({ ...decision, requireWorkbook: true })).status, 409,
+    'The server must reject a grade recorded in the workbook even if the PDF is blank');
+  snapshot.workbook_entries.pop();
+  assert.equal((await decide(decision)).status, 200);
+  assert.equal((await decide(decision)).status, 409, 'A stale decision cannot overwrite another change');
+  const resolvedView = await (await fetch(`http://127.0.0.1:${server.address().port}/audit?year=2026`)).json();
+  assert.equal(resolvedView.groups[0].markbooks[0].students[0].state, 'not enrolled');
+  assert.equal((await decide({ ...decision, notEnrolled: false, revision: 1 })).status, 200);
+  const undone = await (await fetch(`http://127.0.0.1:${server.address().port}/audit?year=2026`)).json();
+  assert.equal(undone.groups[0].markbooks[0].students[0].state, 'outstanding');
+  assert.equal(undone.groups[0].markbooks[0].students[0].automaticNotEnrolled, false);
+  const rechecked = await (await post()).json();
+  assert.equal(rechecked.groups[0].markbooks[0].students[0].state, 'outstanding',
+    'A fresh comparison does not override an explicit manual undo');
+  stamp = '2026-11-24T00:00:00Z'; grade = 'Achieved';
+  assert.equal((await (await post()).json()).groups[0].markbooks[0].students[0].result, 'Achieved');
+  assert.equal((await decide({ ...decision, revision: 2 })).status, 409, 'A recorded PDF grade cannot be marked not enrolled');
+  stamp = '2026-11-22T00:00:00Z'; grade = 'Not yet assessed';
+  assert.equal((await (await post()).json()).groups[0].markbooks[0].students[0].result, 'Achieved',
+    'An older Drive report cannot overwrite a newer saved report');
+  secondFile = true;
+  assert.equal((await post()).status, 200);
+  assert.equal(saved.size, 2, 'Separate Drive files must not overwrite each other');
+  revoke = true;
+  assert.equal((await post()).status, 403, 'Revoked Technology access is checked again before returning results');
+  assert.equal((await decide({ ...decision, revision: 2 })).status, 403);
+  assert.equal((await fetch(`http://127.0.0.1:${server.address().port}/audit?year=2026`)).status, 403);
+});
+
+test('senior KAMAR reports preserve recorded grades and distinguish not yet assessed', () => {
+  const result = parseSeniorAuditPdf(seniorPdf(), 2026);
+  assert.equal(result.kind, 'achievement');
+  assert.deepEqual(result.rows.map(row => row.grade), [null, 'Not Achieved']);
+  assert.deepEqual(result.rows[0].teachers, ['TST', 'PEER']);
+  const unit = parseSeniorAuditPdf(seniorPdf({ unit: true, firstStatus: 'Achieved' }), 2026);
+  assert.equal(unit.kind, 'unit');
+  assert.deepEqual(unit.rows.map(row => row.grade), ['Achieved', 'Not Achieved']);
+  const blank = seniorPdf({ unit: true, firstStatus: '' });
+  blank.pages[0].items.find(item => item.text.startsWith('Male:')).text = 'Male: 2, Students: 2';
+  assert.equal(parseSeniorAuditPdf(blank, 2026).rows[0].grade, null);
+  const split = seniorPdf({ firstStatus: 'not entered' });
+  const firstName = split.pages[0].items.find(item => item.text === 'Student, Alpha');
+  firstName.text = 'Student,'; firstName.width = 40;
+  split.pages[0].items.push({ text: 'Alpha', x: 89, y: 622, width: 20 });
+  split.pages[0].items.find(item => item.text === 'not entered').y = 621.5;
+  split.pages[0].items = split.pages[0].items.filter(item => item.text !== 'TST, PEER');
+  const parsedSplit = parseSeniorAuditPdf(split);
+  assert.equal(parsedSplit.rows[0].name, 'Student, Alpha');
+  assert.equal(parsedSplit.rows[0].grade, null);
+  assert.deepEqual(parsedSplit.rows[0].teachers, []);
+});
+
+test('senior KAMAR reports reject unrecognised or unverifiable evidence', () => {
+  assert.throws(() => parseSeniorAuditPdf(seniorPdf({ firstStatus: 'Unknown result' }), 2026), /unrecognised/);
+  assert.throws(() => parseSeniorAuditPdf(seniorPdf({ unit: true, firstStatus: 'Merit' }), 2026), /unexpected/);
+  assert.equal(parseSeniorAuditPdf(seniorPdf()).course, '13DTECH');
+  const report = seniorPdf();
+  report.pages[0].items.pop();
+  assert.equal(parseSeniorAuditPdf(report).course, '13DTECH');
+  const unknownKind = seniorPdf();
+  unknownKind.pages[0].items = unknownKind.pages[0].items.filter(item => item.text !== 'Attempt 1');
+  assert.throws(() => parseSeniorAuditPdf(unknownKind, 2026), /standard type/);
+  const incorrectTotal = seniorPdf();
+  incorrectTotal.pages[0].items.find(item => item.text.startsWith('Male:')).text = 'Male: 1, Female: 1, Students: 3';
+  assert.throws(() => parseSeniorAuditPdf(incorrectTotal, 2026), /student count/);
+});
 
 test('BSAS consent requires the exact NZQA classification and an eligible level', async () => {
   const framework = (level = 2, extra = '') => `<h2>Assessment Standards</h2><table>
@@ -126,6 +881,39 @@ test('schedule documents round-trip requirement text, evidence and judgement wit
   assert.deepEqual(JSON.parse(data.schedule).requirements, requirements, 'saved historical grades are unchanged');
 });
 
+test('Achievement schedules retain manual marks and levels in new and previously ungraded documents', () => {
+  const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+  const requirements = [
+    { requirement: 'Blank', level: 'A', evidence: 'Evidence', judgement: 'MET' },
+    { requirement: 'Achieved', level: 'A', grade: 'A' },
+    { requirement: 'Not achieved', level: 'M', grade: 'N' },
+    { requirement: 'Conflicting historical mark', level: 'E', grade: 'M' },
+    { requirement: 'Unknown level', grade: 'A' }
+  ];
+  const data = { standardNumber: '99999', standardType: 'Achievement',
+    schedule: JSON.stringify({ requirements, grade: 'M' }) };
+  const ungraded = renderDocument('schedule', { ...data, standardType: 'Unit' }, 2026);
+  const first = renderDocument('schedule', data, 2026);
+  const upgraded = fillDocument(ungraded, 'schedule', data, 2026);
+  for (const buffer of [first, fillDocument(first, 'schedule', data, 2026), upgraded,
+    fillDocument(upgraded, 'schedule', data, 2026)]) {
+    const result = importDocument(buffer, 'schedule').document;
+    assert.deepEqual(result.requirements, requirements.map(({ requirement, grade = '', level, evidence = '', judgement = '' }) =>
+      ({ requirement, grade, ...(level ? { level } : {}), evidence, judgement })));
+    assert.equal(result.grade, 'M');
+    const doc = new DOMParser().parseFromString(new PizZip(buffer).file('word/document.xml').asText(), 'application/xml');
+    const text = node => Array.from(node.getElementsByTagNameNS(W, 't')).map(t => t.textContent).join('');
+    const rows = Array.from(doc.getElementsByTagNameNS(W, 'tr'));
+    const columns = row => Array.from(row.childNodes).filter(node => node.namespaceURI === W && node.localName === 'tc');
+    const header = rows.map(columns).find(c => c.some(cell => text(cell) === 'Key requirements (list):'));
+    assert.deepEqual(header.map(cell => text(cell).trim()), ['Key requirements (list):', 'N', 'A', 'M', 'E',
+      'Describe or attach the evidence considered.', 'Explain how the judgment was made.']);
+    const conflict = rows.map(columns).find(c => text(c[0]) === 'Conflicting historical mark');
+    assert.equal(text(conflict[3]), 'Yes (previously saved)');
+    assert.equal(conflict.reduce((sum, cell) => sum + Number(cell.getElementsByTagNameNS(W, 'gridSpan')[0]?.getAttributeNS(W, 'val') || 1), 0), 29);
+  }
+});
+
 test('new marking schedules use the illustrated colours, class code and compact grade layout', () => {
   const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
   const data = { subject: 'Digital Technologies', course: '11DTECH', studentId: 'Student A',
@@ -218,7 +1006,40 @@ test('older schedules with and without N import their saved grades but updates u
     const result = importDocument(updated, 'schedule').document;
     assert.deepEqual(result.requirements, [{ requirement: 'Legacy requirement', evidence: 'Legacy evidence', judgement: 'Legacy judgement' }]);
     assert.equal(result.grade, 'E');
+    const achievement = fillDocument(buffer, 'schedule', { standardType: 'Achievement', schedule: JSON.stringify(imported) }, 2026);
+    const retained = importDocument(achievement, 'schedule').document.requirements[0];
+    assert.equal(retained.grade, 'M');
+    assert.equal(retained.level, withNotAchieved ? 'M' : undefined);
+    assert.equal(retained.evidence, 'Legacy evidence');
+    assert.equal(retained.judgement, 'Legacy judgement');
   }
+});
+
+test('schedule imports preserve requirement evidence when empty grade cells are merged', () => {
+  const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+  const kids = (node, tag) => Array.from(node.childNodes).filter(item => item.namespaceURI === W && item.localName === tag);
+  const set = (cell, value) => Array.from(cell.getElementsByTagNameNS(W, 't')).forEach((t, i) => { t.textContent = i ? '' : value; });
+  const zip = new PizZip(fs.readFileSync(require('node:path').join(__dirname, 'templates', 'schedule.docx')));
+  const doc = new DOMParser().parseFromString(zip.file('word/document.xml').asText(), 'application/xml');
+  const table = doc.getElementsByTagNameNS(W, 'tbl')[0];
+  const row = kids(table, 'tr')[11], columns = kids(row, 'tc');
+  set(columns[0], 'Requirement'); set(columns[1], 'Yes');
+  set(columns[2], ''); set(columns[3], '');
+  set(columns[4], 'Evidence'); set(columns[5], 'Judgement');
+  const span = cell => Number(cell.getElementsByTagNameNS(W, 'gridSpan')[0].getAttributeNS(W, 'val'));
+  columns[2].getElementsByTagNameNS(W, 'gridSpan')[0].setAttributeNS(W, 'w:val', String(span(columns[2]) + span(columns[3])));
+  row.removeChild(columns[3]);
+  const spacer = row.cloneNode(true);
+  for (const cell of kids(spacer, 'tc')) set(cell, '');
+  table.insertBefore(spacer, row.nextSibling);
+  const encode = () => {
+    zip.file('word/document.xml', new XMLSerializer().serializeToString(doc));
+    return zip.generate({ type: 'nodebuffer' });
+  };
+  assert.deepEqual(importDocument(encode(), 'schedule').document.requirements,
+    [{ requirement: 'Requirement', grade: 'A', evidence: 'Evidence', judgement: 'Judgement' }]);
+  set(columns[2], 'Yes');
+  assert.throws(() => importDocument(encode(), 'schedule'), /requirement row has unsupported columns/);
 });
 
 test('internal evaluation survives generated document export and import without duplicate sections', () => {
@@ -257,6 +1078,23 @@ test('random initials and generated sample slots are validated before saving', (
   assert.equal(internal({ randomInitialsA: 'A1' }), false);
   assert.equal(internal({ randomInitialsA: 'ABCDEFGHIJK' }), false);
   assert.equal(internal({ samples: [{ student: 'Student A - FH', randomSlot: 'E' }] }), false);
+});
+
+test('marking students require unique identities and cannot be attached to a child roster', () => {
+  const person = { id: 'k:1', name: 'Example, Alpha', email: 'alpha@example.test', initials: 'AE', record: child };
+  const valid = students => validModerationContent({ markingStudents: JSON.stringify(students) });
+  assert.equal(valid([person]), true);
+  assert.equal(valid([{ ...person, enteredKamar: true }]), true);
+  assert.equal(valid([{ ...person, enteredKamar: 'Yes' }]), false);
+  assert.equal(valid([{ ...person, courses: ['11DTECH', '12COMP'] }]), true);
+  assert.equal(valid([{ ...person, courses: ['11DTECH', '11DTECH'] }]), false);
+  assert.equal(valid([{ ...person, courses: [' 11DTECH'] }]), false);
+  assert.equal(valid([person, { ...person, id: 'k:2', record }]), false);
+  assert.equal(valid([person, { ...person, email: 'beta@example.test', id: 'k:2' }]), false);
+  assert.equal(valid([{ ...person, initials: 'A1' }]), false);
+  assert.equal(validModerationContent({ parentRecord: record, markingStudents: JSON.stringify([person]) }), false);
+  assert.equal(validModerationContent({ parentRecord: record, additionalMarking: 'Yes' }), true);
+  assert.equal(validModerationContent({ additionalMarking: 'Yes' }), false);
 });
 
 test('retention auto-processing metadata is validated before saving', () => {
@@ -365,6 +1203,12 @@ function testQuery() {
         audit.push({ ownerId, year, entry, action: 'deleted', revision });
         return { rows: [{ entry_key: entry }] };
       }
+      if (sql.includes("SELECT entry_key,content->>'driveDocuments' AS documents")) {
+        const [ownerId, year, parent] = params;
+        return { rows: [...records.entries()].filter(([address, row]) =>
+          address.startsWith(ownerId + ':' + year + ':') && row.parent_record === parent)
+          .map(([address, row]) => ({ entry_key: address.split(':')[2], documents: row.content.driveDocuments })) };
+      }
       if (sql.includes('SELECT 1 FROM assessment_records')) {
         const row = records.get(key(...params));
         return { rows: row && row.parent_record === null ? [{ one: 1 }] : [] };
@@ -432,6 +1276,24 @@ function put(base, token, year, id, content, revision) {
     body: JSON.stringify({ content, revision })
   });
 }
+
+test('marking document links are limited to the assessment owner and omit form content', async t => {
+  const store = testQuery(), app = await createServer(t, { query: store.query });
+  const token = await csrf(app.base);
+  assert.equal((await put(app.base, token, 2026, record, { title: 'Assessment' }, 0)).status, 200);
+  const links = { schedule: { id: 'document_id_123', name: 'Private file',
+    mimeType: 'application/vnd.google-apps.document' } };
+  assert.equal((await put(app.base, token, 2026, child, { parentRecord: record,
+    studentName: 'Private student', driveDocuments: JSON.stringify(links) }, 0)).status, 200);
+  const url = app.base + 'moderation/2026/' + record + '/marking-documents';
+  const result = await (await fetch(url)).json();
+  assert.deepEqual(result, { records: [{ record: child, documents: {
+    schedule: { id: 'document_id_123', mimeType: 'application/vnd.google-apps.document' }
+  } }] });
+  assert.doesNotMatch(JSON.stringify(result), /Private/);
+  app.setUser(otherOwner);
+  assert.equal((await fetch(url)).status, 404);
+});
 
 test('new years inherit only the owner main folder, preserving year-specific setup and revisions', async t => {
   const store = testQuery(), app = await createServer(t, { query: store.query });

@@ -24,10 +24,12 @@ test('module denies anonymous/student access and accepts a supplied teacher iden
     assert.match(html, /framework\/whs-logo.png/);
     assert.match(html, /href="#\?section=standards">Setup Assessment<\/a>/);
     assert.match(html, /href="#\?section=audit">Audit Standards<\/a>/);
-    assert.match(html, /v=audit-standards-1/);
+    assert.match(html, /senior-audit\.js\?v=students-audit-4/);
+    assert.match(html, /students-audit\.js\?v=students-audit-4/);
     const script = fs.readFileSync(require.resolve('./public/assessment-manager'), 'utf8');
     assert.match(script, /1ugLHLfv_VtSraRdqG3pUFCevv7udzLLp/);
     assert.match(script, /\/preview/);
+    assert.match(script, /Senior Audit Tracker/);
     assert.doesNotMatch(html, /href="#\?section=standards">My Standards<\/a>/);
     assert.match(html, /Last Updated:/);
     assert.ok(!html.includes('name="whs-global-control"'));

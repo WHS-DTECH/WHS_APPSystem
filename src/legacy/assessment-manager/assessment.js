@@ -12,6 +12,8 @@ const { createResourceLibraryRouter } = require('./resourceLibrary');
 const { createSuppliersRouter } = require('./suppliers');
 const { createAssessmentHomeRouter } = require('./assessmentHome');
 const { createVerifiersRouter } = require('./verifiers');
+const { createSeniorAuditRouter } = require('./seniorAudit');
+const { createStudentsAuditRouter } = require('./studentsAudit');
 
 const FIELD_SET = new Set(fields);
 const DOCUMENT_TYPES = new Set(Object.keys(documents));
@@ -67,7 +69,7 @@ function safeOwnerId(req) {
     ? req.user.id : null;
 }
 
-function createAssessmentRouter({ query, loadStaff, loadTeachingSubjects, loadClassSize, loadModerationAccess, checkConsent = checkBsas, env = process.env } = {}) {
+function createAssessmentRouter({ query, loadStaff, loadTeachingSubjects, loadClassSize, loadModerationAccess, loadSeniorAudit, checkConsent = checkBsas, env = process.env } = {}) {
   const router = express.Router();
   router.use('/moderation/import/:type', express.raw({ type: DOCX, limit: '8mb' }));
   router.use(express.json({ limit: '320kb' }));
@@ -97,6 +99,8 @@ function createAssessmentRouter({ query, loadStaff, loadTeachingSubjects, loadCl
   router.use('/suppliers', createSuppliersRouter({ query }));
   router.use('/verifiers', createVerifiersRouter({ query, loadModerationAccess }));
   router.use('/home', createAssessmentHomeRouter({ query, loadTeachingSubjects }));
+  router.use('/senior-audit', createSeniorAuditRouter({ query, loadSeniorAudit, env }));
+  router.use('/students-audit', createStudentsAuditRouter({ query, loadSeniorAudit }));
 
   router.get('/google-drive/config', (_req, res, next) => {
     try { res.json(pickerConfiguration(env)); }
@@ -224,6 +228,17 @@ function createAssessmentRouter({ query, loadStaff, loadTeachingSubjects, loadCl
     }
   });
 
+  router.get('/standards/:number/unit-preview', async (req, res) => {
+    if (!/^\d{4,8}$/.test(req.params.number)) return res.status(400).json({ error: 'Choose a valid NZQA standard number.' });
+    try {
+      res.set('Cache-Control', 'no-store');
+      res.json(await standardDetails(req.params.number, { unitPreview: true }));
+    } catch (error) {
+      console.error('Assessment Manager Unit Standard preview failed:', error.message);
+      res.status(502).json({ error: 'The Unit Standard could not be extracted reliably. Review the official PDF and enter its details manually.' });
+    }
+  });
+
   router.get('/standards/:number/references', async (req, res) => {
     const year = Number(req.query.year);
     if (!/^\d{4,8}$/.test(req.params.number) || !/^\d{4}$/.test(req.query.year || '') || !validYear(year)) {
@@ -274,9 +289,31 @@ function createAssessmentRouter({ query, loadStaff, loadTeachingSubjects, loadCl
     try {
       const result = await query(`SELECT entry_key,content->>'title' AS title,
         content->>'standardNumber' AS standard_number,content->>'standardTitle' AS standard_title,
-        content->>'studentName' AS student_name,content->>'parentRecord' AS parent_record,updated_at
+        content->>'studentName' AS student_name,content->>'parentRecord' AS parent_record,
+        content->>'additionalMarking' AS additional_marking,updated_at
         FROM assessment_records WHERE owner_id=$1 AND year=$2 AND entry_key<>'main' ORDER BY updated_at DESC`, [owner, year]);
       res.json({ records: result.rows });
+    } catch (error) { next(error); }
+  });
+
+  router.get('/moderation/:year/:record/marking-documents', async (req, res, next) => {
+    if (!requireDatabase(req, res)) return;
+    const owner = safeOwnerId(req), year = Number(req.params.year), { record } = req.params;
+    if (!owner || !/^\d{4}$/.test(req.params.year) || !validDocumentAddress(year, record, false)) {
+      return res.status(400).json({ error: 'Choose a valid assessment record and year.' });
+    }
+    try {
+      const parent = await query(`SELECT 1 FROM assessment_records
+        WHERE owner_id=$1 AND year=$2 AND entry_key=$3 AND parent_record IS NULL`, [owner, year, record]);
+      if (!parent.rows.length) return res.status(404).json({ error: 'The assessment record is unavailable.' });
+      const children = await query(`SELECT entry_key,content->>'driveDocuments' AS documents
+        FROM assessment_records WHERE owner_id=$1 AND year=$2 AND parent_record=$3`, [owner, year, record]);
+      const records = children.rows.map(row => {
+        const links = JSON.parse(row.documents || '{}');
+        return { record: row.entry_key, documents: Object.fromEntries(['schedule', 'feedback', 'coversheet']
+          .filter(key => links[key]).map(key => [key, { id: links[key].id, mimeType: links[key].mimeType }])) };
+      });
+      res.json({ records });
     } catch (error) { next(error); }
   });
 

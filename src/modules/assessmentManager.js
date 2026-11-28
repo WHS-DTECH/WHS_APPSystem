@@ -19,12 +19,17 @@ const TABLES = [
   'assessment_home_calendar', 'assessment_home_tasks', 'assessment_home_audit', 'assessment_calendar_cache',
   'assessment_school_calendar', 'assessment_school_calendar_history',
   'assessment_suppliers', 'assessment_supplier_reminders', 'assessment_exam_timetable_cache',
-  'assessment_verifiers', 'assessment_verifier_history'
+  'assessment_verifiers', 'assessment_verifier_history',
+  'senior_audit_reports', 'senior_audit_enrolment', 'senior_audit_sync',
+  'senior_audit_sync_jobs', 'students_audit_sync'
 ];
 const MIGRATIONS = [
   '001_initial.sql', '002_assessment_records.sql', '003_resource_library.sql',
   '004_assessment_home.sql', '005_school_calendar.sql', '006_library_drafts_and_deletion.sql',
-  '007_suppliers.sql', '008_exam_timetable_cache.sql', '009_verifiers.sql'
+  '007_suppliers.sql', '008_exam_timetable_cache.sql', '009_verifiers.sql',
+  '010_senior_audit_reports.sql', '011_senior_audit_enrolment.sql',
+  '012_senior_audit_sync.sql', '013_senior_audit_automatic_enrolment.sql',
+  '014_students_audit.sql', '015_students_audit_workbook.sql'
 ];
 
 function databaseOptions(env = process.env, coreUrl = config.databaseUrl) {
@@ -74,7 +79,8 @@ function createAssessmentManagerRouter({ env = process.env, dbQuery = coreQuery,
         loadStaff: req => staffDirectory(req.user, {}, directoryQuery, dbQuery),
         loadTeachingSubjects: (req, year) => tracker.teachingSubjects(req.user, { year }),
         loadClassSize: (req, year, course) => tracker.courseSize(req.user, { year, course }),
-        loadModerationAccess: req => assessmentModerationAccess(req.user, directoryQuery, dbQuery)
+        loadModerationAccess: req => assessmentModerationAccess(req.user, directoryQuery, dbQuery),
+        loadSeniorAudit: (req, input) => tracker.seniorAudit(req.user, input)
       });
     }).catch(error => { ready = null; throw error; });
     return ready;

@@ -331,7 +331,12 @@ function bindings(state, type) {
   } else if (type === 'coversheet') {
     bind(0, 0, 1, 'standardTitle'); bind(0, 0, 3, 'standardNumber'); bind(0, 1, 1, 'studentName');
     bind(0, 3, 1, 'signatureName'); bind(0, 3, 3, 'signatureDate');
-    bind(1, 2, 0, 'achieved'); bind(1, 2, 1, 'higherGrades'); bind(1, 3, 1, 'grade');
+    bind(1, 2, 0, 'achieved');
+    const criteria = cells(rows(table[1])[2]);
+    if (criteria.length === 2) bind(1, 2, 1, 'higherGrades');
+    else if (criteria.length === 3) { bind(1, 2, 1, 'merit'); bind(1, 2, 2, 'excellence'); }
+    else if (criteria.length !== 1) throw new Error('The coversheet criteria layout is not supported.');
+    bind(1, 3, 1, 'grade');
     bind(2, 1, 1, 'appeal'); bind(2, 2, 1, 'feedbackReceived'); bind(2, 3, 1, 'headReview');
     bind(2, 4, 0, 'appealReasons', 'Reasons for appeal: ');
   }
@@ -359,12 +364,36 @@ function removeRequirementGradeCells(c) {
   for (const cell of removed) cell.parentNode.removeChild(cell);
   return cells(c[0].parentNode);
 }
+function addRequirementGradeCells(c) {
+  if (c.length === 7) return c;
+  const first = c[0], row = first?.parentNode;
+  const span = first?.getElementsByTagNameNS(W, 'gridSpan')[0];
+  if (!span || ![3, 6].includes(c.length)) throw new Error('The marking schedule requirement columns are not supported.');
+  const width = Number(span.getAttributeNS(W, 'val'));
+  const widths = c.length === 6 ? [2] : width >= 12 ? [2, 3, 3, 3] : [1, 1, 1, 1];
+  const remaining = width - widths.reduce((sum, value) => sum + value, 0);
+  if (!Number.isInteger(width) || remaining < 1) throw new Error('The marking schedule cannot accommodate the grade columns.');
+  span.setAttributeNS(W, 'w:val', String(remaining));
+  for (const value of widths) {
+    const added = (c.length === 6 ? c[1] : first).cloneNode(true);
+    const addedSpan = added.getElementsByTagNameNS(W, 'gridSpan')[0];
+    if (!addedSpan) throw new Error('The marking schedule grade column is not supported.');
+    addedSpan.setAttributeNS(W, 'w:val', String(value));
+    setText(added, '');
+    row.insertBefore(added, c[1]);
+  }
+  return cells(row);
+}
 function appendDetails(body, data, values, definition) {
   addParagraph(body, 'Planner record details');
   for (const [key, label] of common) addParagraph(body, label + ': ' + (data[key] || ''));
   const mainFields = definition.groups.flatMap(([, fields]) => fields);
   for (const [key, label, kind] of mainFields) {
-    if (['url', 'drive'].includes(kind) || ['signatoryPosition', 'acknowledgedDate'].includes(key)) addParagraph(body, label + ': ' + (values[key] || ''));
+    if (['url', 'drive'].includes(kind) || ['signatoryPosition', 'acknowledgedDate'].includes(key) ||
+        key === 'higherGrades' && ['Unit', 'Achievement'].includes(data.standardType) ||
+        data.standardType !== 'Achievement' && ['merit', 'excellence'].includes(key) && values[key]) {
+      addParagraph(body, label + ': ' + (values[key] || ''));
+    }
   }
   addParagraph(body, 'Supporting notes: ' + (values.notes || ''));
   addParagraph(body, 'Supporting resources: ' + (values.resources || ''));
@@ -426,6 +455,32 @@ function fillDocument(buffer, type, data, year, useBuiltInScheduleDesign = false
     flat.source = sourceOptions.map(option => (ticked.has(option) ? '☒ ' : '☐ ') + option).join('   ') +
       (values.source ? '\n' + values.source : '');
   }
+  if (type === 'coversheet' && ['Unit', 'Achievement'].includes(data.standardType)) {
+    const criteriaRows = rows(state.tables[1] || { childNodes: [] });
+    const header = criteriaRows[1], content = criteriaRows[2];
+    if (!header || !content || ![1, 2, 3].includes(cells(header).length) || ![1, 2, 3].includes(cells(content).length)) {
+      throw new Error('The coversheet criteria layout is not supported.');
+    }
+    const adjust = (row, count) => {
+      let columns = cells(row);
+      while (columns.length < count) { row.appendChild(columns[columns.length - 1].cloneNode(true)); columns = cells(row); }
+      while (columns.length > count) { row.removeChild(columns[columns.length - 1]); columns = cells(row); }
+      for (const cell of columns) {
+        let properties = children(cell, 'tcPr')[0];
+        if (!properties) { properties = state.doc.createElementNS(W, 'w:tcPr'); cell.insertBefore(properties, cell.firstChild); }
+        const span = children(properties, 'gridSpan')[0];
+        if (count === 1) {
+          const item = span || state.doc.createElementNS(W, 'w:gridSpan');
+          item.setAttributeNS(W, 'w:val', '3'); properties.appendChild(item);
+        } else if (span) properties.removeChild(span);
+      }
+    };
+    const count = data.standardType === 'Unit' ? 1 : 3;
+    adjust(header, count); adjust(content, count);
+    cells(header).forEach((cell, index) => setText(cell, ['Achieved', 'Merit', 'Excellence'][index]));
+  } else if (type === 'coversheet' && (values.merit || values.excellence)) {
+    throw new Error('Verify the standard type before creating or updating the coversheet.');
+  }
   const entries = bindings(state, type);
   for (const binding of entries) {
     if (type === 'schedule' && ['instructions', 'submissions'].includes(binding.key)) {
@@ -480,7 +535,12 @@ function fillDocument(buffer, type, data, year, useBuiltInScheduleDesign = false
     });
   } else if (type === 'schedule') {
     setText(cells(rows(state.tables[0])[scheduleLayout(state).header])[0], 'Achieved Grade Criteria');
-    removeRequirementGradeCells(cells(rows(state.tables[0])[scheduleLayout(state).requirements - 1]));
+    const achievement = data.standardType === 'Achievement';
+    const requirementHeaders = cells(rows(state.tables[0])[scheduleLayout(state).requirements - 1]);
+    if (achievement) {
+      const headings = addRequirementGradeCells(requirementHeaders);
+      ['N', 'A', 'M', 'E'].forEach((grade, index) => setText(headings[index + 1], grade));
+    } else removeRequirementGradeCells(requirementHeaders);
     const marking = markingRow(state);
     const markingHeaders = cells(rows(state.tables[0])[marking]);
     setText(markingHeaders[markingHeaders.length === 3 ? 1 : 0], 'Marking Grade');
@@ -509,10 +569,15 @@ function fillDocument(buffer, type, data, year, useBuiltInScheduleDesign = false
       property.setAttributeNS(W, 'w:val', value);
     }
     replaceRows(state.tables[0], scheduleLayout(state).requirements, marking, values.requirements || [], (original, item) => {
-      const c = removeRequirementGradeCells(original);
+      const c = achievement ? addRequirementGradeCells(original) : removeRequirementGradeCells(original);
       setText(c[0], item.requirement);
-      setText(c[1], item.evidence); setText(c[2], item.judgement);
-      for (const p of paragraphs(c[1])) {
+      if (achievement) ['N', 'A', 'M', 'E'].forEach((grade, i) => {
+        const allowed = grade === 'N' || item.level === grade;
+        setText(c[i + 1], item.grade === grade ? (allowed ? 'Yes' : 'Yes (previously saved)') : allowed ? '' : '—');
+      });
+      const evidence = c[achievement ? 5 : 1], judgement = c[achievement ? 6 : 2];
+      setText(evidence, item.evidence); setText(judgement, item.judgement);
+      for (const p of paragraphs(evidence)) {
         let properties = children(p, 'pPr')[0];
         if (!properties) { properties = state.doc.createElementNS(W, 'w:pPr'); p.insertBefore(properties, p.firstChild); }
         const alignment = children(properties, 'jc')[0] || state.doc.createElementNS(W, 'w:jc');
@@ -870,19 +935,37 @@ function importDocument(buffer, type) {
     if (!ungraded && header.length !== (hasNotAchieved ? 7 : 6)) throw new Error('The marking schedule requirement columns are not supported.');
     const gradeNames = hasNotAchieved ? ['N', 'A', 'M', 'E'] : ['A', 'M', 'E'];
     values.requirements = rows(state.tables[0]).slice(scheduleLayout(state).requirements, end).map(row => {
-      const c = cells(row);
-      if (c.length !== header.length) throw new Error('The marking schedule requirement row has unsupported columns.');
+      let c = cells(row);
+      if (c.every(cell => !text(cell).trim())) return null;
+      if (c.length !== header.length) {
+        const span = cell => Number(children(children(cell, 'tcPr')[0] || { childNodes: [] }, 'gridSpan')[0]?.getAttributeNS(W, 'val') || 1);
+        const widths = header.map(span), expanded = [];
+        for (const cell of c) {
+          const start = expanded.length, width = span(cell);
+          let total = 0, count = 0;
+          while (start + count < widths.length && total < width) total += widths[start + count++];
+          if (!Number.isInteger(width) || width < 1 || total !== width ||
+              count > 1 && (ungraded || start < 1 || start + count > gradeNames.length + 1 || text(cell).trim())) {
+            throw new Error('The marking schedule requirement row has unsupported columns.');
+          }
+          expanded.push(count === 1 ? cell : null, ...Array(count - 1).fill(null));
+        }
+        if (expanded.length !== header.length) throw new Error('The marking schedule requirement row has unsupported columns.');
+        c = expanded;
+      }
       if (ungraded) return { requirement: text(c[0]), evidence: text(c[1]), judgement: text(c[2]) };
       const marks = gradeNames.filter((_, i) => /Yes|✅/.test(text(c[i + 1])));
       if (marks.length > 1) resourceWarnings.push('A requirement has multiple grade marks; choose its result manually.');
       const available = ['A', 'M', 'E'].filter(grade => {
-        const value = text(c[gradeNames.indexOf(grade) + 1]).trim();
+        const cell = c[gradeNames.indexOf(grade) + 1];
+        if (!cell) return false;
+        const value = text(cell).trim();
         return value === '' || value === 'Yes' || value === '✅';
       });
       return { requirement: text(c[0]), grade: marks.length === 1 ? marks[0] : '',
         ...(hasNotAchieved && available.length === 1 ? { level: available[0] } : {}),
         evidence: text(c[hasNotAchieved ? 5 : 4]), judgement: text(c[hasNotAchieved ? 6 : 5]) };
-    }).filter(row => Object.values(row).some(Boolean) && !isSchedulePlaceholder(row));
+    }).filter(row => row && Object.values(row).some(Boolean) && !isSchedulePlaceholder(row));
     if (!values.grade) {
       values.grade = cells(rows(state.tables[0])[end + 1]).slice(1, 5)
         .map(cell => text(cell)).find(value => /\u2705/.test(value))?.match(/[NAME]/)?.[0] || '';
