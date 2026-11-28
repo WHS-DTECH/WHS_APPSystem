@@ -140,3 +140,28 @@ test('Assessment Manager promotion preserves its destination and development reg
   assert.equal(preserved.is_active, false);
   assert.equal((await client.query("SELECT stage FROM module_builder_projects WHERE id=1")).rows[0].stage, 'development');
 });
+
+test('Assessment Manager cutover changes only the known destination', {
+  skip: !process.env.MODULE_BUILDER_TEST_DATABASE_URL
+}, async t => {
+  const { Client } = require('pg');
+  const client = new Client({ connectionString: process.env.MODULE_BUILDER_TEST_DATABASE_URL, ssl: false });
+  await client.connect();
+  t.after(() => client.end());
+  await client.query(`CREATE TEMP TABLE modules (module_key text PRIMARY KEY, display_name text,
+    description text, path text, is_active boolean);
+    INSERT INTO modules VALUES
+      ('whs-assessment-manager','Custom name','Keep description',
+       'https://whs-assessment-manager-development.onrender.com/',false),
+      ('another-module','Other','Keep other','https://whs-assessment-manager-development.onrender.com/',true)`);
+  const migration = fs.readFileSync(path.join(__dirname, '..', 'migrations', '062_assessment_manager_cutover.sql'), 'utf8');
+  await client.query(migration);
+  const rows = (await client.query('SELECT * FROM modules ORDER BY module_key')).rows;
+  assert.deepEqual(rows[1], { module_key: 'whs-assessment-manager', display_name: 'Custom name',
+    description: 'Keep description', path: '/whs-assessment-manager/', is_active: false });
+  assert.equal(rows[0].path, 'https://whs-assessment-manager-development.onrender.com/');
+  await client.query("UPDATE modules SET path='https://custom.example.test/' WHERE module_key='whs-assessment-manager'");
+  await client.query(migration);
+  assert.equal((await client.query("SELECT path FROM modules WHERE module_key='whs-assessment-manager'")).rows[0].path,
+    'https://custom.example.test/');
+});

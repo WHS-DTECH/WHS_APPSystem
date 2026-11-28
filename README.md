@@ -1497,10 +1497,12 @@ Keep the old origin and standalone service available for rollback.
 
 Verify sign-in, the existing owner records, document generation, Drive Picker
 and save/revision conflicts at the embedded address before changing navigation.
-In Global Control's App Module Management, register or update the existing
-`whs-assessment-manager` key to `/whs-assessment-manager/`, preserving the
-intended assignments and active state. Save the previous destination for
-rollback; do not shut down the standalone service until the cutover is verified.
+Core migration 062 changes the known standalone destination to
+`/whs-assessment-manager/` without changing the module's other settings or
+assignments; a customised destination is left unchanged. To roll back, change
+the module destination in App Module Management to
+`https://whs-assessment-manager-development.onrender.com/`. Do not shut down
+the standalone service until the cutover is verified.
 Both versions use the same live database, so changes in either are shared.
 KAMAR staff, teaching subjects, class sizes, Senior Audit and Students Audit
 use the existing authorised Core/KAMAR services; audit access is checked
@@ -1510,9 +1512,8 @@ Assessment Manager is listed under **Modules**, not **In Development**. Core
 migration 056 registers its existing development destination if necessary,
 without changing an existing module destination, active state or assignments.
 If there is no registered module or saved development URL, an administrator
-must register the existing destination in App Module Management. This navigation
-change does not cut over to the embedded service; follow the verification steps
-above before updating the destination.
+must register a destination in App Module Management. Follow the verification
+steps above before updating any customised destination.
 
 Embedded checks: `node --test tests\assessment-manager-integration.test.js`.
 The imported app suite is `npm test --prefix src\legacy\assessment-manager`;
