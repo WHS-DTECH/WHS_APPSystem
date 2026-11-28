@@ -1072,7 +1072,7 @@
         await refreshSession(); return request(api + 'teaching-day-trello/' + day + (query ? '?' + query : ''));
       },
       loadSchedule: loadTeachingDayTimetable, termControl, termError: dashboardTermError,
-      defaultView: () => dashboardRoll ? 'roll' : dashboardClassView,
+      defaultView: () => dashboardClassView,
       juniorRequest: juniorTeachingRequest, openJunior: () => navigatePlannerSection('juniorTeaching'),
       middleRequest: middleTeachingRequest, openMiddle: () => navigatePlannerSection('middleTeaching'), semesterForDate: middleSemesterForDate,
       changeDate: changeTeachingDay,
@@ -1155,7 +1155,7 @@
           el, request: async (day, query = '') => {
             await refreshSession(); return request(api + 'teaching-day-trello/' + day + (query ? '?' + query : ''));
           }, loadSchedule: loadTeachingDayTimetable, termControl, termError: dashboardTermError,
-          defaultView: () => dashboardRoll ? 'roll' : dashboardClassView,
+          defaultView: () => dashboardClassView,
           juniorRequest: juniorTeachingRequest, openJunior: () => navigatePlannerSection('juniorTeaching'),
           middleRequest: middleTeachingRequest, openMiddle: () => navigatePlannerSection('middleTeaching'), semesterForDate: middleSemesterForDate,
           changeDate: changeTeachingDay,
@@ -1179,6 +1179,7 @@
         if (!dashboardMode) return;
         dashboardRoll = view === 'roll';
         if (!dashboardRoll) dashboardTrello = !useNotes;
+        dashboard?.ensureSelectedVisible();
         history.replaceState(null, '', '#' + viewFragment());
       },
       openRoutine: async id => {

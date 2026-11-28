@@ -1046,8 +1046,9 @@ test('Friday class boxes use the saved default while explicit buttons remain one
   preference = 'notes';
   for (const index of [0, 1]) boxes()[index].events.click({ target: {} });
   assert.deepEqual(opened, [['9WHAU', 'notes'], ['JPI', 'notes']]);
-  slotDescendants(boxes()[0]).find(item => item.textContent === 'Open Trello preparation').events.click();
-  assert.deepEqual(selected.at(-1), ['9WHAU', true]);
+  assert.equal(boxes()[0].children.length, 1, 'unselected classes contain only their clickable row');
+  slotDescendants(boxes()[1]).find(item => item.textContent === 'Open Trello preparation').events.click();
+  assert.deepEqual(selected.at(-1), ['JPI', true]);
   preference = 'trello';
   slotDescendants(boxes()[1]).find(item => item.textContent === 'Open Notes').events.click();
   assert.deepEqual(opened.at(-1), ['JPI', 'notes']);
@@ -1064,6 +1065,75 @@ test('Friday class boxes use the saved default while explicit buttons remain one
   boxes()[0].events.click({ target: {} });
   assert.equal(opened.length, before, 'class clicks cannot interrupt a session switch');
 });
+test('Teaching Day expands only the selected dated period and scrolls the sidebar without moving the workspace', async () => {
+  const context = { plannerSessionSchema: require('./public/session-schema'), URLSearchParams }, host = node();
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-day-trello'), 'utf8'), context);
+  let list;
+  const el = (tag, text, attrs = {}) => {
+    const item = node(tag, text, attrs);
+    if (attrs.class === 'teaching-day-sessions') {
+      list = item;
+      item.scrollTop = 0; item.clientTop = 0; item.clientHeight = 120;
+      item.getBoundingClientRect = () => ({ top: 100, bottom: 220 });
+      item.querySelector = () => item.children.find(child => child.attrs['data-selected'] === 'true');
+    }
+    if (attrs.class === 'teaching-day-session') {
+      item.getBoundingClientRect = () => {
+        const index = list.children.indexOf(item);
+        const top = 100 + index * 50 - list.scrollTop;
+        return { top, bottom: top + 90, height: 90 };
+      };
+    }
+    return item;
+  };
+  const events = [
+    { title: 'PIDTECH (JPI)', start: '2026-11-27T09:00:00', end: '2026-11-27T10:00:00' },
+    { title: 'SRDTECH (JSR)', start: '2026-11-27T10:00:00', end: '2026-11-27T11:00:00' },
+    { title: 'MDTECH (81D)', start: '2026-11-27T11:20:00', end: '2026-11-27T12:20:00' },
+    { title: 'SRDTECH (JSR)', start: '2026-11-27T12:20:00', end: '2026-11-27T13:20:00' }
+  ];
+  const opened = [];
+  const dashboard = context.plannerTeachingDayTrello.dashboard(host, {
+    date: '2026-11-27', slot: 'p1', classKey: 'JPI'
+  }, {
+    el, request: async () => ({ status: 'ok', issues: [], cards: [], unassigned: [] }),
+    loadSchedule: async () => ({ events }), defaultView: () => 'notes',
+    select() {}, openNotesSession: session => {
+      opened.push(session.slot);
+      dashboard.selectSession({ date: session.date, slot: session.slot, classKey: session.classKey });
+    }, openTrelloSession: session => opened.push('trello:' + session.slot)
+  });
+  await flush(); await flush();
+  dashboard.workspace.scrollTop = 37;
+  assert.deepEqual(list.children.map(card => card.attrs['data-selected']), ['true', 'false', 'false', 'false']);
+  assert.ok(list.children.slice(1).every(card => card.children.length === 1));
+  assert.deepEqual(list.children[3].children[0].children.map(child => child.textContent),
+    ['SRDTECH (JSR)', 'Period 4 | 12:20–13:20 NZ']);
+  list.children[3].children[0].events.click();
+  assert.deepEqual(opened, ['p4']);
+  assert.deepEqual(list.children.map(card => card.attrs['data-selected']), ['false', 'false', 'false', 'true']);
+  assert.equal(list.scrollTop, 120);
+  assert.equal(dashboard.workspace.scrollTop, 37);
+  assert.ok(slotDescendants(list.children[3]).some(item => item.textContent === 'Open Notes'));
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-session'), 'utf8'), context);
+  context.plannerTeachingSession.mount(dashboard.workspace, {
+    event: { date: '2026-11-27', slot: 'p4', label: 'Period 4', classKey: 'JSR' },
+    content: { note: 'Saved', evaluation: '', activities: [],
+      session: { title: 'SRDTECH', type: 'teaching', startTime: '12:20', endTime: '13:20' } }, legacy: { content: {} }
+  }, { el, legacy() {}, showTrello() {}, viewChanged: () => dashboard.ensureSelectedVisible() });
+  const views = slotDescendants(dashboard.workspace);
+  views.find(item => item.tag === 'button' && item.textContent === 'Trello Planner').events.click();
+  views.find(item => item.tag === 'button' && item.textContent === 'Notes').events.click();
+  assert.equal(list.children[3].attrs['data-selected'], 'true');
+  assert.equal(list.scrollTop, 120, 'changing views does not scroll an already visible card');
+  assert.equal(dashboard.workspace.scrollTop, 37);
+  list.children[0].children[0].events.click();
+  assert.deepEqual(opened, ['p4', 'p1']);
+  assert.equal(list.scrollTop, 0);
+  dashboard.setDate('2026-11-30', [{ ...events[1], date: '2026-11-30', slot: 'p1', classKey: 'JPI',
+    title: 'PIDTECH (JPI)', label: 'Period 1', startTime: '09:00', endTime: '10:00' }]);
+  assert.equal(list.children[0].attrs['data-selected'], 'false', 'another date is not the selected session');
+});
 test('Teaching Day date controls refresh the selected date and leave Notes available without Trello cards', async () => {
   const context = { plannerSessionSchema: require('./public/session-schema'), URLSearchParams };
   vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-day-trello'), 'utf8'), context);
@@ -1073,13 +1143,13 @@ test('Teaching Day date controls refresh the selected date and leave Notes avail
     { title: 'Friday class (JPI)', start: '2026-11-27T09:00:00', end: '2026-11-27T10:00:00' }
   ];
   const dashboard = context.plannerTeachingDayTrello.dashboard(host, {
-    date: '2026-11-26', slot: 'p1', classKey: null, cardId: ''
+    date: '2026-11-26', slot: 'p1', classKey: 'JPI', cardId: ''
   }, {
     el: node, request: async (value, query) => {
       trelloDates.push(value); trelloQueries.push(query); return { status: 'ok', issues: [], cards: [], unassigned: [] };
     },
     loadSchedule: async value => { scheduleDates.push(value); return { events }; },
-    changeDate: async value => { changedDates.push(value); return true; },
+    changeDate: async value => { changedDates.push(value); dashboard.selectSession({ date: value, slot: 'p1', classKey: 'JPI' }); return true; },
     openNotesSession: session => opened.push(session), openTrelloSession: session => selected.push(session),
     select: (card, trello) => selected.push({ card, trello })
   });

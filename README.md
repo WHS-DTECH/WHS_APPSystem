@@ -2150,8 +2150,11 @@ duplicate weekly calendar. Rachel's Year, Term and Weekly pages are unchanged.
 The left column is **Teaching Day** and includes a date picker, previous/next-day
 arrows, and Today/Tomorrow shortcuts. It defaults to today's date in
 Pacific/Auckland and displays the selected date in NZ format. Selecting a
-timetable session opens its existing date-and-period Notes workspace on the
-right. **Notes / Trello
+timetable session opens its saved default view on the right. Unselected sessions
+remain in timetable order as compact rows; only the selected date, period and
+class expands to show preparation and one-off Notes / Trello buttons. The
+Teaching Day list scrolls independently to keep the selected session visible.
+**Notes / Trello
 Planner** switches between editable private Session Plans and the selected card's
 read-only original title, description and named resource links. The selected
 session, card and information view survive page refresh in the URL.

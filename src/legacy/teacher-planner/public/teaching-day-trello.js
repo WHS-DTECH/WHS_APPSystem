@@ -120,6 +120,16 @@
     let result, error, scheduleError, selectedHost, juniorSession, plannedTitles, generation = 0, titlesGeneration = 0,
       switching = false, reading = false, dateChanging = false;
     let scheduledSessions = [];
+    let selectedDate = context.date;
+    function ensureSelectedVisible() {
+      if (typeof sessions.querySelector !== 'function') return;
+      const selected = sessions.querySelector('[data-selected="true"]');
+      if (!selected || typeof sessions.getBoundingClientRect !== 'function') return;
+      const container = sessions.getBoundingClientRect(), card = selected.getBoundingClientRect();
+      const top = container.top + sessions.clientTop, bottom = top + sessions.clientHeight;
+      if (card.top < top || card.height > sessions.clientHeight) sessions.scrollTop += card.top - top;
+      else if (card.bottom > bottom) sessions.scrollTop += card.bottom - bottom;
+    }
     function updateControls() {
       const dateDisabled = switching || dateChanging;
       dateInput.disabled = dateDisabled;
@@ -133,25 +143,29 @@
       sessions.replaceChildren();
       scheduleMessage.setAttribute('role', scheduleError ? 'alert' : 'status');
       scheduleMessage.textContent = scheduleError || (scheduledSessions.length ?
-        'Select a class box to open your saved default view. Notes and Trello buttons open a one-off view.' :
+        'Select a class row to open your saved default view. Notes and Trello buttons open a one-off view.' :
         'No teaching sessions are scheduled for this date.');
       for (const session of scheduledSessions) {
         const card = result?.cards.find(item => item.metadata.session_slot === session.slot &&
           session.classKey && item.metadata.class_key === session.classKey);
-        const selected = context.slot === session.slot && context.classKey === session.classKey;
+        const selected = selectedDate === session.date && context.slot === session.slot && context.classKey === session.classKey;
         const item = el('article', '', { class: 'teaching-day-session', 'data-selected': String(selected) });
         const openTrello = () => { if (!switching && !dateChanging) return card ? select(card, true) : openTrelloSession(session); };
         const openNotesView = () => { if (!switching && !dateChanging) return openNotesSession(session); };
-        const openDefault = () => defaultView() === 'roll' && openRollSession ? openRollSession(session) :
-          defaultView() === 'notes' ? openNotesView() : openTrello();
-        const title = el('button', session.title, { type: 'button', class: 'teaching-day-session-title', 'aria-pressed': String(selected) });
+        const openDefault = () => {
+          if (switching || dateChanging) return;
+          return defaultView() === 'roll' && openRollSession ? openRollSession(session) :
+            defaultView() === 'notes' ? openNotesView() : openTrello();
+        };
+        const title = el('button', '', { type: 'button', class: 'teaching-day-session-title', 'aria-pressed': String(selected) });
+        title.append(el('strong', session.title), el('span', session.label + ' | ' + session.startTime + '–' + session.endTime + ' NZ'));
         title.addEventListener('click', openDefault);
         item.addEventListener('click', event => {
           if (event.target?.closest?.('button')) return;
           openDefault();
         });
-        item.append(title,
-          el('p', session.label + ' | ' + session.startTime + '–' + session.endTime + ' NZ'));
+        item.append(title);
+        if (!selected) { sessions.append(item); continue; }
         if (session.source === 'ambiguous') {
           item.append(el('p', 'Multiple KAMAR entries match this period. Notes are not assigned to a class.', { role: 'alert' }));
         }
@@ -170,10 +184,12 @@
         actions.append(trelloButton);
         item.append(actions); sessions.append(item);
       }
+      ensureSelectedVisible();
     }
     function selectSession(next) {
       plannedTitles = undefined;
       Object.assign(context, next);
+      if (next.date) selectedDate = next.date;
       dateInput.value = context.date;
       dateLabel.textContent = globalThis.plannerSessionSchema.dateLabel(context.date);
       for (const button of cards.querySelectorAll('[data-card-id]')) {
@@ -453,7 +469,7 @@
       chooseDate(value.toISOString().slice(0, 10));
     }
     refresh.addEventListener('click', load); renderSchedule(); load();
-    return { get date() { return context.date; }, workspace, selectSession, setBusy,
+    return { get date() { return context.date; }, workspace, selectSession, setBusy, ensureSelectedVisible,
       setDate, readSchedule, noSessions, refresh: load,
       updateSavedSession: (content, revision) => { if (context.savedSession) Object.assign(context.savedSession, { content, revision }); },
       plannedTitles: callback => { plannedTitles = callback; updatePlannedTitles(); },
