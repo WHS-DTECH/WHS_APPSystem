@@ -5,7 +5,7 @@ const { authorisedModuleUser } = require('../moduleIdentity');
 const { createModuleRouter } = require('../legacy/relief-library/app');
 
 const PREFIX = '/relief-plan';
-const MODULE_KEY = 'relief-plan';
+const MODULE_KEY = 'whs-relief-library';
 
 function createReliefLibraryRouter({ dbQuery = coreQuery } = {}) {
   const router = express.Router();

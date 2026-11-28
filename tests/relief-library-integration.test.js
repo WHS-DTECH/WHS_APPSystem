@@ -23,7 +23,7 @@ async function fixture(t) {
     dbQuery: async (sql, values) => {
       state.queries++;
       assert.match(sql, /FROM users u/);
-      assert.deepEqual(values, ['test-user', 'relief-plan']);
+      assert.deepEqual(values, ['test-user', 'whs-relief-library']);
       return { rows: state.allowed ? [{ id: 'test-user', roles: state.roles }] : [] };
     }
   }));
@@ -83,8 +83,8 @@ test('Relief Library navigation checks its own role management permission', asyn
     query: { path: '/relief-plan/' }, session: {} },
   { locals: {}, set() { return this; }, json(value) { result = value; } },
   error => { throw error; });
-  assert.deepEqual(checks, ['relief-plan']);
-  assert.equal(result.assignRolesUrl, '/hubs/relief-plan/roles');
+  assert.deepEqual(checks, ['whs-relief-library']);
+  assert.equal(result.assignRolesUrl, '/hubs/whs-relief-library/roles');
 });
 
 test('registered Relief API reports session expiry and revoked access as JSON', async t => {
@@ -95,7 +95,7 @@ test('registered Relief API reports session expiry and revoked access as JSON', 
     next();
   });
   app.use(createModuleAccessGuard({ dbQuery: async () => ({ rows: [{
-    module_key: 'relief-plan', path: '/relief-plan/', is_active: true, has_access: state.allowed
+    module_key: 'whs-relief-library', path: '/relief-plan/', is_active: true, has_access: state.allowed
   }] }) }));
   app.use('/relief-plan', createReliefLibraryRouter({ dbQuery: async () => ({ rows: [{
     id: 'test-user', roles: ['Teacher']
@@ -127,10 +127,10 @@ test('cutover preserves existing roles, inactive modules and customised destinat
       CREATE TABLE module_builder_environments (project_id integer, kind text, config jsonb);
       CREATE TABLE modules (module_key text PRIMARY KEY, display_name text, description text, path text, is_active boolean DEFAULT true);
       CREATE TABLE role_grants (module_key text, role_name text)`);
-    await client.query(`INSERT INTO module_builder_projects VALUES (1,'relief-plan','Relief Library','Staff planning','development');
+    await client.query(`INSERT INTO module_builder_projects VALUES (1,'whs-relief-library','Relief Library','Staff planning','development');
       INSERT INTO module_builder_environments VALUES (1,'development','{"appUrl":"https://whs-relief-library-development.onrender.com/"}');
-      INSERT INTO role_grants VALUES ('relief-plan','teacher')`);
-    const migration = fs.readFileSync(path.join(__dirname, '..', 'migrations', '064_relief_library_cutover.sql'), 'utf8');
+      INSERT INTO role_grants VALUES ('whs-relief-library','teacher')`);
+    const migration = fs.readFileSync(path.join(__dirname, '..', 'migrations', '065_relief_library_project_key.sql'), 'utf8');
     await client.query(migration);
     await client.query(migration);
     assert.deepEqual((await client.query('SELECT path, is_active FROM modules')).rows, [

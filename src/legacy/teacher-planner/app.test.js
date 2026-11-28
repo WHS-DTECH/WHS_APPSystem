@@ -887,12 +887,12 @@ test('paper planner shell retains nested assets, private identity escaping and a
     ['attendance', 'standards', 'learning', 'reporting']);
   assert.doesNotMatch(modules, /Behaviour Management|Page coming soon/);
   assert.match(modules, /<a href="https:\/\/core\.example\.test\/launchpad\/apps\/whs-techstudent-tracker" target="_blank" rel="noopener" title="Open Student Tracker in a new tab">Student Tracker<\/a>/);
-  assert.match(modules, /<a href="https:\/\/core\.example\.test\/launchpad\/apps\/relief-plan" target="_blank" rel="noopener" title="Open Relief Library in a new tab">Relief Library<\/a>/);
+  assert.match(modules, /<a href="https:\/\/core\.example\.test\/launchpad\/apps\/whs-relief-library" target="_blank" rel="noopener" title="Open Relief Library in a new tab">Relief Library<\/a>/);
   assert.match(modules, /<a href="https:\/\/core\.example\.test\/launchpad\/apps\/whs-unit-library" target="_blank" rel="noopener" title="Open WHS Unit Library in a new tab">Lesson<\/a>/);
   assert.match(modules, /<a href="https:\/\/core\.example\.test\/launchpad\/apps\/whs-assessment-manager" target="_blank" rel="noopener" title="Open WHS Assessment Manager in a new tab">Assessment<\/a>/);
   const embedded = renderShell({ baseUrl: '/teacher-planner/', coreUrl: '', standalone: false });
   assert.match(embedded, /href="\/launchpad\/apps\/whs-techstudent-tracker"/);
-  assert.match(embedded, /href="\/launchpad\/apps\/relief-plan"/);
+  assert.match(embedded, /href="\/launchpad\/apps\/whs-relief-library"/);
   assert.match(embedded, /href="\/launchpad\/apps\/whs-unit-library"/);
   assert.match(embedded, /href="\/launchpad\/apps\/whs-assessment-manager"/);
   assert.match(html, /planner\.css\?v=session-slot-status-1/);

@@ -1478,7 +1478,7 @@ Tests: `node --test tests\kamar-assessment.test.js tests\kamar-history.test.js t
 The embedded Relief Library is available at `/relief-plan/`. It imports the
 standalone release `fbc170d`, including its read-only 2027 calendar snapshot
 and 2026 recurring events, calendar controls and six Relief Lessons links.
-The signed-in Core user must have the current `relief-plan` module assignment
+The signed-in Core user must have the current `whs-relief-library` module assignment
 or an authorised module role; global ADMIN access is also supported. Access
 is rechecked on every request.
 
@@ -1489,7 +1489,7 @@ standalone database. Existing standalone sessions remain in that database and
 are not transferred. The calendar remains the same versioned snapshot, not a
 live database or editable calendar.
 
-Core migration 064 registers the verified development project or changes its
+Core migration 065 registers the verified development project or changes its
 known standalone destination to `/relief-plan/`, without changing existing
 role grants, assignments, active state or customised destinations. If there is
 no matching development project, an administrator must register the module.

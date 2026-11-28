@@ -64,7 +64,7 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
         <button type="button" data-section="standards">Teaching Standards</button>
         <button type="button" data-section="learning">Professional learning</button>
         <a href="${escape(coreUrl)}/launchpad/apps/whs-techstudent-tracker" target="_blank" rel="noopener" title="Open Student Tracker in a new tab">Student Tracker</a>
-        <a href="${escape(coreUrl)}/launchpad/apps/relief-plan" target="_blank" rel="noopener" title="Open Relief Library in a new tab">Relief Library</a>
+        <a href="${escape(coreUrl)}/launchpad/apps/whs-relief-library" target="_blank" rel="noopener" title="Open Relief Library in a new tab">Relief Library</a>
         <a href="${escape(coreUrl)}/launchpad/apps/whs-unit-library" target="_blank" rel="noopener" title="Open WHS Unit Library in a new tab">Lesson</a>
         <a href="${escape(coreUrl)}/launchpad/apps/whs-assessment-manager" target="_blank" rel="noopener" title="Open WHS Assessment Manager in a new tab">Assessment</a>
         <button type="button" data-section="reporting">Reporting</button>
