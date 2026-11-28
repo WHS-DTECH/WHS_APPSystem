@@ -203,7 +203,8 @@ function createInfrastructureCostsRouter({ dbQuery = query, providers = createCo
       const money = value => Number.isFinite(value) ? `USD ${value.toFixed(2)}` : 'Unknown';
       const nzd = value => Number.isFinite(value) && Number.isFinite(rate) ? `NZD ${(value * rate).toFixed(2)}` : 'Unavailable';
       res.render('admin/infrastructure-costs', { title: 'GitHub & Render Costs', snapshot,
-        summary: costSummary(snapshot), rate, money, nzd, sources: SOURCES, priceChecked: PRICE_CHECKED });
+        summary: costSummary(snapshot), rate, money, nzd, sources: SOURCES, priceChecked: PRICE_CHECKED,
+        pageStylesheet: '/infrastructure-costs.css' });
     } catch (error) { next(error); }
   });
   router.post('/refresh', async (req, res, next) => {

@@ -6,6 +6,9 @@
   <title><%= title %> | WHS APPSystem</title>
   <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="stylesheet" href="/styles.css">
+  <% if (typeof pageStylesheet !== 'undefined' && pageStylesheet) { %>
+    <link rel="stylesheet" href="<%= pageStylesheet %>">
+  <% } %>
 </head>
 <body class="<%= typeof legacyLearningSitesLayout !== 'undefined' && legacyLearningSitesLayout ? 'learning-sites-legacy-body' : (typeof legacySewingHubLayout !== 'undefined' && legacySewingHubLayout ? 'sewing-hub-legacy-body' : (activeRole ? 'theme-' + activeRole.toLowerCase() : 'theme-public')) %>">
   <main class="page">

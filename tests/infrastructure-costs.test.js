@@ -199,7 +199,10 @@ test('cost report enforces admin/CSRF, persists snapshots, labels stale data and
         renderServiceCost({ ...service, name: '<script>unsafe</script>' }), renderDatabaseCost(database)
       ], workspaces: [{ id: 'tea-one', name: 'School' }] };
     },
-    github: async () => ({ checkedAt: now().toISOString(), accounts: [], repositories: [], warning: 'Not an invoice' }),
+    github: async () => ({ checkedAt: now().toISOString(), accounts: [
+      { login: 'School', type: 'Organization', plan: 'Unknown', seats: null, monthlyUsd: null,
+        repositoryCount: 1, note: 'Subscription unavailable', reportedUsageUsd: 12, usagePeriod: '2026-11' }
+    ], repositories: [{ name: 'School/example', private: true }], warning: 'Not an invoice' }),
     exchange: async () => {
       if (fail) throw new CostReportError('NZD rate unavailable.');
       return { rate: 1.7, updatedAt: now().toISOString(), checkedAt: now().toISOString() };
@@ -226,6 +229,10 @@ test('cost report enforces admin/CSRF, persists snapshots, labels stale data and
   const cookie = initial.headers.get('set-cookie').split(';')[0];
   const html = await initial.text();
   assert.match(html, /Not checked yet/);
+  assert.match(html, /Inventory needs attention:[\s\S]*?Render: not checked · GitHub: not checked/);
+  assert.match(html, /infrastructure-costs\.css/);
+  assert.match(html, /Known subtotal[\s\S]*?Unknown/);
+  assert.match(html, /NZD conversion unavailable/);
   const csrf = html.match(/name="csrf" value="([^"]+)"/)[1];
   const headers = { 'x-role': 'ADMIN', cookie, 'Content-Type': 'application/x-www-form-urlencoded' };
   assert.equal((await fetch(base + '/refresh', { method: 'POST', headers, body: 'csrf=invalid' })).status, 403);
@@ -234,6 +241,11 @@ test('cost report enforces admin/CSRF, persists snapshots, labels stale data and
   assert.equal(response.status, 302); assert.equal(writes, 1);
   let report = await (await fetch(base, { headers })).text();
   assert.match(report, /USD 20.00/); assert.match(report, /NZD 34.00/);
+  assert.match(report, /Unknown costs[\s\S]*?<strong>1<\/strong>/);
+  assert.match(report, /Render workspaces[\s\S]*?<strong>1<\/strong>/);
+  assert.match(report, /Provider-reported metered usage[\s\S]*?USD 12.00/);
+  assert.match(report, /not added to the monthly subscription estimate/);
+  assert.match(report, /Last check succeeded/);
   assert.match(report, /&lt;script&gt;unsafe&lt;\/script&gt;/);
   assert.doesNotMatch(report, /<script>unsafe<\/script>/);
   fail = true;
@@ -241,6 +253,7 @@ test('cost report enforces admin/CSRF, persists snapshots, labels stale data and
   assert.equal(response.status, 302);
   assert.equal(stored.render.data.resources[0].monthlyUsd, 14);
   report = await (await fetch(base, { headers })).text();
-  assert.match(report, /showing stale data/); assert.match(report, /NZD conversion unavailable/);
+  assert.match(report, /Stale data/); assert.match(report, /showing stale data/); assert.match(report, /NZD conversion unavailable/);
+  assert.match(report, /Inventory needs attention:[\s\S]*?Render: stale data/);
   assert.match(report, /USD 20.00/); assert.doesNotMatch(report, /NZD 34.00/);
 });
