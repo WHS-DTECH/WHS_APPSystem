@@ -27,11 +27,13 @@
         <strong><%= money(summary.render.usd) %></strong>
         <span><%= nzd(summary.render.usd) %> per month · <%= summary.render.known %> priced resources · <%= summary.render.unknown %> unknown</span>
       </article>
+      <% if (summary.render.unknown > 0) { %>
       <article class="cost-metric cost-metric-attention">
         <h3>Unknown Render costs</h3>
         <strong><%= summary.render.unknown %></strong>
         <span>resource compute costs not priced</span>
       </article>
+      <% } %>
       <a class="cost-metric cost-metric-link" href="#<%= snapshot.render?.data ? 'render-workspaces' : 'render-costs' %>">
         <h3>Render workspace base rate</h3>
         <strong><%= money(summary.workspaceSubscriptions.usd) %></strong>
@@ -166,8 +168,9 @@
         <input type="hidden" name="csrf" value="<%= csrf %>">
         <p>Mark student accounts to group them below. This is a local category, not verification of a free plan; unknown costs stay unknown.</p>
         <% const githubGroups = [
-          ['Student Accounts - Free Subscriptions', data.accounts.filter(account => studentAccounts.has(account.login.toLowerCase()))],
-          ['Other accounts', data.accounts.filter(account => !studentAccounts.has(account.login.toLowerCase()))]
+          ['Main GitHub account', data.accounts.filter(account => account.login.toLowerCase() === mainGithubAccount)],
+          ['Student Accounts - Free Subscriptions', data.accounts.filter(account => account.login.toLowerCase() !== mainGithubAccount && studentAccounts.has(account.login.toLowerCase()))],
+          ['Other accounts', data.accounts.filter(account => account.login.toLowerCase() !== mainGithubAccount && !studentAccounts.has(account.login.toLowerCase()))]
         ]; %>
         <% githubGroups.forEach(([heading, accounts]) => { %>
         <h3><%= heading %> (<%= accounts.length %>)</h3>
@@ -178,7 +181,7 @@
             <thead><tr><th scope="col">Student account</th><th scope="col">Account</th><th scope="col">Plan / seats</th><th scope="col">Visible repositories</th></tr></thead>
             <tbody>
             <% accounts.forEach(account => { %>
-              <tr><td><input type="checkbox" name="studentAccounts" value="<%= account.login %>" aria-label="Student account: <%= account.login %>" <%= studentAccounts.has(account.login.toLowerCase()) ? 'checked' : '' %>></td>
+              <tr><td><% if (account.login.toLowerCase() === mainGithubAccount) { %>—<% } else { %><input type="checkbox" name="studentAccounts" value="<%= account.login %>" aria-label="Student account: <%= account.login %>" <%= studentAccounts.has(account.login.toLowerCase()) ? 'checked' : '' %>><% } %></td>
                 <td><strong><%= account.login %></strong><br><%= account.type %></td><td><%= account.plan %><br>Seats: <%= account.seats === null ? 'Unknown' : account.seats %></td>
                 <td><%= account.repositoryCount %></td></tr>
             <% }) %>

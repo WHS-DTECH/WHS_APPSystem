@@ -223,6 +223,8 @@ test('cost report enforces admin/CSRF, persists snapshots, labels stale data and
     github: async () => ({ checkedAt: now().toISOString(), accounts: [
       { login: 'School', type: 'Organization', plan: 'Unknown', seats: null, monthlyUsd: 77.77,
         repositoryCount: 1, note: 'Subscription unavailable', reportedUsageUsd: 12, usagePeriod: '2026-11' },
+      { login: 'WhS-DtEcH', type: 'User', plan: 'Unknown', seats: 1, monthlyUsd: null,
+        repositoryCount: 1, note: 'Subscription unavailable' },
       { login: 'StudentExample', type: 'Repository owner', plan: 'Unknown', seats: null, monthlyUsd: null,
         repositoryCount: 1, note: 'Subscription unavailable' }
     ], repositories: [{ name: 'School/example', private: true }], warning: 'Not an invoice' }),
@@ -263,10 +265,17 @@ test('cost report enforces admin/CSRF, persists snapshots, labels stale data and
   assert.equal(writes, 0);
   let response = await fetch(base + '/refresh', { method: 'POST', headers, body: new URLSearchParams({ csrf }), redirect: 'manual' });
   assert.equal(response.status, 302); assert.equal(writes, 1);
+  stored.studentAccounts = ['whs-dtech'];
   let report = await (await fetch(base, { headers })).text();
   assert.match(report, /Render known estimate[\s\S]*?USD 20.00[\s\S]*?NZD 34.00/);
   assert.doesNotMatch(report, /GitHub known estimate/);
   assert.match(report, /Unknown Render costs[\s\S]*?<strong>2<\/strong>/);
+  const originalResources = stored.render.data.resources;
+  stored.render.data.resources = originalResources.filter(resource => resource.monthlyUsd !== null);
+  const fullyPricedReport = await (await fetch(base, { headers })).text();
+  assert.doesNotMatch(fullyPricedReport, /Unknown Render costs/);
+  assert.match(fullyPricedReport, /Render workspace base rate/);
+  stored.render.data.resources = originalResources;
   assert.match(report, /Render workspace base rate[\s\S]*?<strong>Unknown<\/strong>[\s\S]*?1 unpriced/);
   assert.match(report, /href="#render-workspaces"/);
   assert.ok(report.indexOf('id="render-workspaces"') < report.indexOf('Web Services (3)'));
@@ -292,6 +301,8 @@ test('cost report enforces admin/CSRF, persists snapshots, labels stale data and
   assert.match(report, /Workspace base rate: <strong>USD 25\.00<\/strong> per month · manually recorded/);
   const githubSection = report.slice(report.indexOf('id="github-costs"'), report.indexOf('id="development-policy"'));
   assert.match(githubSection, /GitHub accounts and visible repositories/);
+  assert.match(githubSection, /Main GitHub account \(1\)[\s\S]*?WhS-DtEcH[\s\S]*?Student Accounts - Free Subscriptions \(0\)[\s\S]*?Other accounts \(2\)/);
+  assert.doesNotMatch(githubSection, /Student account: WhS-DtEcH/);
   assert.doesNotMatch(githubSection, /Monthly USD|Indicative NZD|USD 77\.77|USD 12\.00|Provider-reported metered usage/);
   assert.match(report, /Last check succeeded/);
   assert.match(report, /&lt;script&gt;unsafe&lt;\/script&gt;/);
@@ -300,6 +311,8 @@ test('cost report enforces admin/CSRF, persists snapshots, labels stale data and
     body: new URLSearchParams({ csrf: 'invalid', studentAccounts: 'StudentExample' }) })).status, 403);
   assert.equal((await fetch(base + '/student-accounts', { method: 'POST', headers,
     body: new URLSearchParams({ csrf, studentAccounts: 'NotVisible' }) })).status, 400);
+  assert.equal((await fetch(base + '/student-accounts', { method: 'POST', headers,
+    body: new URLSearchParams({ csrf, studentAccounts: 'WHS-DTECH' }) })).status, 400);
   response = await fetch(base + '/student-accounts', { method: 'POST', headers,
     body: new URLSearchParams({ csrf, studentAccounts: 'StudentExample' }), redirect: 'manual' });
   assert.equal(response.status, 302);

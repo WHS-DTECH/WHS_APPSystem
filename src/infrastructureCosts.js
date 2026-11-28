@@ -3,6 +3,7 @@ const express = require('express');
 const { query } = require('./db');
 
 const PRICE_CHECKED = '2026-11-02';
+const MAIN_GITHUB_ACCOUNT = 'whs-dtech';
 const SOURCES = { render: 'https://render.com/pricing', github: 'https://github.com/pricing',
   exchange: 'https://www.exchangerate-api.com' };
 const SERVICE_PRICES = { free: 0, starter: 7, '0.5c-512mb': 7, standard: 25, '1c-2g': 25,
@@ -211,6 +212,7 @@ function createInfrastructureCostsRouter({ dbQuery = query, providers = createCo
       const nzd = value => Number.isFinite(value) && Number.isFinite(rate) ? `NZD ${(value * rate).toFixed(2)}` : 'Unavailable';
       res.render('admin/infrastructure-costs', { title: 'GitHub & Render Costs', snapshot,
         summary: costSummary(snapshot), summarizeCosts, rate, money, nzd, sources: SOURCES, priceChecked: PRICE_CHECKED,
+        mainGithubAccount: MAIN_GITHUB_ACCOUNT,
         studentAccounts: new Set((Array.isArray(snapshot.studentAccounts) ? snapshot.studentAccounts : [])
           .filter(login => typeof login === 'string').map(login => login.toLowerCase())),
         pageStylesheet: '/infrastructure-costs.css' });
@@ -278,7 +280,7 @@ function createInfrastructureCostsRouter({ dbQuery = query, providers = createCo
       });
       const visible = new Set(snapshot.github.data.accounts.map(account => account.login.toLowerCase()));
       const selected = req.body.studentAccounts === undefined ? [] : [].concat(req.body.studentAccounts);
-      if (selected.some(login => typeof login !== 'string' || !visible.has(login.toLowerCase()))) {
+      if (selected.some(login => typeof login !== 'string' || login.toLowerCase() === MAIN_GITHUB_ACCOUNT || !visible.has(login.toLowerCase()))) {
         return res.status(400).render('error', { title: 'Invalid accounts', message: 'Reload the report and select accounts from the current inventory.' });
       }
       const previous = Array.isArray(snapshot.studentAccounts) ? snapshot.studentAccounts : [];
