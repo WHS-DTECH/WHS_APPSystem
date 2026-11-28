@@ -165,9 +165,80 @@ test('JuniorDTECH editor adds, moves and saves library identities while keeping 
   assert.ok(find(item => item.textContent === 'Teaching order saved and verified in Trello.'));
   assert.deepEqual(Array.from(data.entries, entry => entry.id), ['order-a', 'order-b', 'new-c', 'order-d']);
   for (const row of rows()) {
-    assert.equal(row.children[row.children.length - 1].tag, 'details');
-    assert.ok(!row.children.some(child => child.tag === 'a'), 'resource links are behind Details');
+    assert.equal(row.children[2].tag, 'button');
+    assert.ok(!slotDescendants(row).some(child => child.tag === 'a'), 'resource links are in the selected detail pane');
   }
+});
+test('lesson readiness requires recorded verification and usable HUB plan and activity links, not an Active badge or older document', () => {
+  const context = { URL };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/junior-teaching'), 'utf8'), context);
+  const source = { kind: 'unit', sequence: 'Binary & Data', title: 'Decoding Binary', readiness: { status: 'ready', gap: '' } };
+  const unit = { id: 'binary', cardType: 'unit', title: source.sequence };
+  const lesson = { id: 'decoding', cardType: 'lesson', title: source.title, unit: unit.id, status: 'active',
+    href: 'https://docs.google.com/document/d/older-lesson/edit' };
+  const activity = { id: 'practice', cardType: 'activity', title: 'Decoding practice', lesson: lesson.id, status: 'active',
+    href: '/dtech-hub/learning-pathways/activity-decoding.html' };
+  const readiness = context.plannerJuniorTeaching.lessonReadiness;
+  assert.equal(readiness(source, [unit, lesson, activity]).status, 'development');
+  const built = { ...lesson, href: '/dtech-hub/learning-pathways/lesson-decoding-binary.html' };
+  assert.equal(readiness(source, [unit, built, activity]).status, 'ready');
+  assert.equal(readiness({ ...source, readiness: undefined }, [unit, built, activity]).status, 'unconfirmed');
+  assert.equal(readiness(source, [unit, built, { ...activity, href: '' }]).status, 'unconfirmed');
+  assert.equal(readiness(source, [unit, built]).status, 'unconfirmed');
+  assert.equal(readiness(source, undefined).status, 'unconfirmed');
+  assert.equal(readiness(source, [unit, { ...unit, id: 'duplicate' }, built, activity]).status, 'unconfirmed');
+  assert.equal(readiness({ ...source, readiness: { status: 'development', gap: 'Activities unfinished.' } },
+    [unit, built, activity]).status, 'development');
+});
+test('selecting and refreshing readiness keeps Decoding in the shared order and shows HUB resources before reference documents', async () => {
+  const context = { URL, confirm: () => true };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/junior-teaching'), 'utf8'), context);
+  const source = (id, title, kind = 'unit') => ({ id, title, kind, sequence: 'Binary & Data',
+    url: 'https://trello.com/c/' + id, description: 'Source: https://docs.google.com/document/d/older-lesson/edit',
+    readiness: { status: title === 'Decoding Binary' ? 'development' : 'unconfirmed', gap: 'Lesson plan and activities still to build.' } });
+  const sources = [source('typing', 'Typing Kit', 'routine'), source('encoding', 'Encoding Binary'), source('decoding', 'Decoding Binary')];
+  let data = { entries: sources.map(item => ({ ...item, id: 'order-' + item.id, source: item })),
+    libraries: { units: sources.slice(1), kits: [sources[0]] }, issues: [], orderVersion: 'a'.repeat(64) };
+  let cards = [{ id: 'binary', cardType: 'unit', title: 'Binary & Data' },
+    { id: 'decoding', cardType: 'lesson', title: 'Decoding Binary', unit: 'binary', status: 'active', href: '' }];
+  const host = node(), calls = [];
+  context.plannerJuniorTeaching.mountPage(host, { el: node, year: 2026, openTeachingDay() {},
+    readPathways: async () => cards, request: async (path, options) => { calls.push(path); assert.equal(options, undefined); return data; } });
+  await flush();
+  const find = predicate => slotDescendants(host).find(predicate);
+  const rows = () => slotDescendants(host).filter(item => item.attrs.class?.startsWith('junior-order-card '));
+  const titles = () => rows().map(row => row.children[2].children[0].textContent);
+  assert.deepEqual(titles(), ['Typing Kit', 'Encoding Binary', 'Decoding Binary']);
+  assert.equal(rows()[2].attrs['data-readiness'], 'development');
+  find(item => item.attrs['aria-label'] === 'Select Decoding Binary').events.click();
+  const pane = find(item => item.attrs['aria-label'] === 'Selected teaching activity');
+  assert.ok(slotDescendants(pane).some(item => item.textContent === 'Open DTECH-HUB lesson card'));
+  assert.ok(slotDescendants(pane).some(item => item.textContent === 'Reference documents'));
+  assert.ok(slotDescendants(pane).some(item => item.textContent === 'Older lesson document'));
+  find(item => item.attrs['aria-label'] === 'Move up activity 3').events.click();
+  assert.equal(rows()[1].attrs['data-selected'], 'true');
+  find(item => item.attrs['aria-label'] === 'Move down activity 2').events.click();
+  assert.deepEqual(titles(), ['Typing Kit', 'Encoding Binary', 'Decoding Binary']);
+  const ready = { ...sources[2], readiness: { status: 'ready', gap: '' } };
+  data = { ...data, entries: data.entries.map(entry => entry.source.id === ready.id ? { ...entry, source: ready } : entry) };
+  cards = [cards[0], { ...cards[1], href: '/dtech-hub/learning-pathways/lesson-decoding-binary.html' },
+    { id: 'practice', cardType: 'activity', title: 'Decoding practice', lesson: 'decoding', status: 'active', sequence: 1,
+      href: '/dtech-hub/learning-pathways/activity-decoding.html' }];
+  await find(item => item.textContent === 'Refresh from Trello').events.click();
+  assert.deepEqual(titles(), ['Typing Kit', 'Encoding Binary', 'Decoding Binary']);
+  assert.equal(rows()[2].attrs['data-readiness'], 'ready');
+  assert.equal(rows()[2].attrs['data-selected'], 'true');
+  assert.ok(slotDescendants(pane).some(item => item.textContent === 'Ready to teach'));
+  const plan = pane.children.findIndex(item => item.textContent === 'Open DTECH-HUB teaching plan');
+  const references = pane.children.findIndex(item => item.tag === 'details');
+  assert.ok(plan >= 0 && references > plan);
+  assert.ok(slotDescendants(pane).some(item => item.attrs.href === cards[2].href));
+  cards = [null];
+  await find(item => item.textContent === 'Refresh from Trello').events.click();
+  assert.equal(rows()[2].attrs['data-readiness'], 'unconfirmed');
+  assert.ok(slotDescendants(pane).some(item => item.attrs.role === 'alert' && item.textContent.includes('catalogue is invalid')));
+  assert.deepEqual(titles(), ['Typing Kit', 'Encoding Binary', 'Decoding Binary']);
+  assert.deepEqual(calls, ['catalogue', 'catalogue', 'catalogue'], 'selecting or verifying readiness never writes Trello or progress');
 });
 const typingCopy = 'Students practice their keyboarding skills by logging their results from TypingTest.com.';
 test('Junior session order stays shared across views while reminders and saved outcomes belong to the selected class', async () => {

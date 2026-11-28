@@ -3213,6 +3213,7 @@
         const middle = section === 'middleTeaching', name = middle ? 'MiddleDTECH' : 'JuniorDTECH';
         if (!globalThis.plannerJuniorTeaching) throw new Error(name + ' assets are unavailable.');
         globalThis.plannerJuniorTeaching.mountPage(content, { el, year, request: middle ? middleTeachingRequest : juniorTeachingRequest,
+          readPathways: () => request('/dtech-hub/learning-pathways/library.json'),
           name, semester: Number(term) >= 3 ? 2 : 1, loadClasses: middleTimetableClasses,
           openTeachingDay: () => navigatePlannerSection('timetable') });
         loaded = true;

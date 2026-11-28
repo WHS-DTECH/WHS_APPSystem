@@ -115,6 +115,24 @@ async function fixture(t) {
   return { state, env, call };
 }
 
+test('teaching readiness is read from the source library card, independently of the shared order card', async t => {
+  const { state, call } = await fixture(t);
+  state.cards.push(card('7', lists[1], 'Decoding Binary',
+    unit('Decoding Binary') + '\nTeaching readiness: Needs development\nDevelopment gap: Lesson plan and activities still to build.', 'decoding'));
+  state.cards.push(card('8', lists[0], 'Decoding Binary',
+    unit('Decoding Binary') + '\nLibrary card: https://trello.com/c/decoding\nTeaching readiness: Ready to teach', 'orderdecoding'));
+  const before = await (await call('catalogue')).json();
+  const decoding = before.entries.find(entry => entry.title === 'Decoding Binary');
+  assert.deepEqual(decoding.source.readiness, { status: 'development', gap: 'Lesson plan and activities still to build.' });
+  state.cards.find(item => item.id === '7'.repeat(24)).desc = unit('Decoding Binary') + '\nTeaching readiness: Ready to teach';
+  const refreshed = await (await call('catalogue')).json();
+  assert.equal(refreshed.entries.find(entry => entry.title === 'Decoding Binary').source.readiness.status, 'ready');
+  assert.deepEqual(refreshed.entries.map(entry => entry.id), before.entries.map(entry => entry.id));
+  assert.ok(!state.requests.some(item => ['POST', 'PUT'].includes(item.options.method)));
+  state.cards.find(item => item.id === '7'.repeat(24)).desc = unit('Decoding Binary') + '\nTeaching readiness: Active';
+  const invalid = await (await call('catalogue')).json();
+  assert.ok(invalid.issues.some(issue => /Teaching readiness must be/.test(issue.message)));
+});
 test('parent unit and licence kit plans are valid library entries but not teaching activities', async t => {
   const { state, call } = await fixture(t);
   state.cards.push(card('7', lists[1], 'Binary - TECHNOLOGY Unit Plan - DT', 'Type: Unit Plan\nUnit: Binary & Data\nSource: https://example.com/unit', 'unitparent'));

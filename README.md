@@ -2247,8 +2247,11 @@ The main **Teaching order** panel reads the existing Trello list
 `6b08c7950c803f3d6de1804f`. Drag its handles or use **Move up / Move down**.
 The right-hand **Unit Plans / Licence Kits** tabs group library activities under
 their parent plans; open a tile and **Add** an individual lesson or activity.
-Resource links are behind **Details**, and **Items to check** contains validation
-issues. Top-level `Type: Unit Plan` and `Type: Licence Kit Plan` cards use their
+Select a stacked teaching card to open its resources beside the sequence.
+DTECH-HUB teaching plans and linked activities come first; older lesson, unit
+and worksheet documents sit under **Reference documents**. Routines have a
+separate blue style. **Items to check** contains validation issues.
+Top-level `Type: Unit Plan` and `Type: Licence Kit Plan` cards use their
 `Unit` or `Plan` heading (or their card name) and do not require `Lesson` or
 `Activity`. They are library parents, not teaching-order activities.
 
@@ -2272,6 +2275,21 @@ that is the Trello library card). Matching `Type`, `Unit`/`Plan` and
 `Unit lesson` and `Licence Kit activity`. Missing, mismatched and duplicate
 references are reported instead of guessed; instructions and links come from
 the current library card.
+
+Lesson readiness is read from the **source Unit Plans library card**, not a
+dated card or the order card. Record `Teaching readiness: Needs development`,
+`Teaching readiness: Ready to teach` or `Teaching readiness: Readiness unconfirmed`.
+An optional `Development gap:` supplies the specific unfinished work.
+The Planner shows development lessons in pale red with a red edge; a missing
+DTECH-HUB teaching page is explicitly labelled **Lesson plan and activities
+still to build**. A Pathway Lesson card, Active badge or older Google document
+does not establish readiness. **Ready to teach** requires the recorded
+verification plus a uniquely matched active DTECH-HUB lesson teaching page and
+usable active activity links belonging to that lesson. Record it only after
+checking the plan and all required activities. Otherwise readiness is neutral
+and unconfirmed, with resource-read failures reported explicitly.
+**Refresh from Trello** rereads readiness and the current DTECH-HUB catalogue
+without changing the order, selected source identity, dated plans or progress.
 
 Expand the separate **Class progress** control and use **Set current** to
 confirm or correct a homeroom's current activity, and

@@ -13,7 +13,7 @@ const publicFailure = (status, message) => Object.assign(new Error(message), { s
 function metadata(description, parentName) {
   const result = Object.create(null);
   for (const line of description.split(/\r?\n/)) {
-    const match = /^(Type|Unit|Lesson|Plan|Activity|Library card|Source):\s*(.*?)\s*$/i.exec(line);
+    const match = /^(Type|Unit|Lesson|Plan|Activity|Library card|Source|Teaching readiness|Development gap):\s*(.*?)\s*$/i.exec(line);
     if (!match) continue;
     const key = match[1].toLowerCase();
     if (Object.hasOwn(result, key)) throw new Error('Duplicate ' + key + ' field.');
@@ -27,6 +27,11 @@ function metadata(description, parentName) {
   if (!type || !sequence || !title || sequence.length > 200 || title.length > 200) {
     throw new Error('A valid Type, Unit or Plan, and Lesson or Activity are required.');
   }
+  const readiness = { 'needs development': 'development', 'ready to teach': 'ready', 'readiness unconfirmed': 'unconfirmed' };
+  const recorded = result['teaching readiness']?.toLowerCase();
+  if (recorded && !Object.hasOwn(readiness, recorded)) throw new Error('Teaching readiness must be Needs development, Ready to teach or Readiness unconfirmed.');
+  if ((result['development gap'] || '').length > 500) throw new Error('Development gap must be at most 500 characters.');
+  result.readiness = { status: recorded ? readiness[recorded] : 'unconfirmed', gap: result['development gap'] || '' };
   return { ...result, kind: type, sequence, title, sequenceKey: type + ':' + sequence, parent };
 }
 function shortLink(url) {
@@ -43,7 +48,8 @@ function catalogueFromLists(lists, orderName = 'JuniorDTECH') {
         }
         const link = shortLink(card.url);
         const item = { id: card.id, name: card.name, url: cardLink(card.url), description: card.desc,
-          kind: info.kind, sequence: info.sequence, sequenceKey: info.sequenceKey, title: info.title, parent: info.parent };
+          kind: info.kind, sequence: info.sequence, sequenceKey: info.sequenceKey, title: info.title, parent: info.parent,
+          readiness: info.readiness };
         libraries[key].push(item);
         if (info.parent) continue;
         if (lookup.has(link)) duplicates.add(link);
