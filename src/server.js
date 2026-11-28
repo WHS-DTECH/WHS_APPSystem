@@ -46,6 +46,7 @@ const { createBusControllerRouter, renderFirebaseUsers } = require('./busControl
 const { createTeacherPlannerMcpRouter } = require('./teacherPlannerMcp');
 const { createStudentTrackerMcpRouter } = require('./studentTrackerMcp');
 const { createDtechCatalogueMcpRouter } = require('./dtechCatalogueMcp');
+const { createAssessmentManagerMcpRouter } = require('./assessmentManagerMcp');
 
 const app = express();
 const dtechHub = createDtechRouter();
@@ -87,6 +88,7 @@ app.use(passport.session());
 app.use(createTeacherPlannerMcpRouter());
 app.use(createStudentTrackerMcpRouter());
 app.use(createDtechCatalogueMcpRouter({ readCatalogue: () => dtechHub.readPublishedCatalogue() }));
+app.use(createAssessmentManagerMcpRouter());
 // Must come after the session middleware so it sees the response before the session writes the headers.
 app.use(injectGlobalNav);
 

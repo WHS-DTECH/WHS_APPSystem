@@ -216,7 +216,7 @@ function setLoginReturn(req, res) {
 function safeNext(value) {
   const next = String(value || '');
   if (!next.startsWith('/') || next.startsWith('//') || next.includes('\\') || /[\r\n]/.test(next)) return null;
-  if (/^\/integrations\/(?:teacher-planner|student-tracker|dtech-catalogue)\/oauth\/authorize\?/.test(next)) {
+  if (/^\/integrations\/(?:teacher-planner|student-tracker|dtech-catalogue|assessment-manager)\/oauth\/authorize\?/.test(next)) {
     return encodeURIComponent(next).length <= 3000 ? next : null;
   }
   return next.slice(0, 500);

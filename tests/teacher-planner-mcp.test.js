@@ -9,6 +9,7 @@ const { createTeacherPlannerMcpRouter, MCP_PATH, CLIENT_ID } = require('../src/t
 const { createTeacherPlannerMcpData } = require('../src/teacherPlannerMcpData');
 const { createStudentTrackerMcpRouter } = require('../src/studentTrackerMcp');
 const { createDtechCatalogueMcpRouter } = require('../src/dtechCatalogueMcp');
+const { createAssessmentManagerMcpRouter } = require('../src/assessmentManagerMcp');
 const { safeNext } = require('../src/globalNav');
 
 const origin = 'https://school.example.test';
@@ -16,22 +17,25 @@ const callback = 'https://chatgpt.com/connector/oauth/test-callback';
 const resource = origin + MCP_PATH;
 const digest = value => crypto.createHash('sha256').update(value).digest('base64url');
 
-async function fixture(t, { configured = true, integration = 'teacher-planner', trackerData, catalogueData } = {}) {
+async function fixture(t, { configured = true, integration = 'teacher-planner', trackerData, catalogueData, assessmentData } = {}) {
   const isTracker = integration === 'student-tracker';
   const isCatalogue = integration === 'dtech-catalogue';
+  const isAssessment = integration === 'assessment-manager';
   const prefix = '/integrations/' + integration;
   const mcpPath = prefix + '/mcp';
   const resource = origin + mcpPath;
-  const clientId = isTracker ? 'student-tracker-chatgpt' : isCatalogue ? 'dtech-catalogue-chatgpt' : CLIENT_ID;
-  const scope = isTracker ? 'tracker:read' : isCatalogue ? 'dtech-catalogue:read' : 'planner:read';
+  const clientId = isTracker ? 'student-tracker-chatgpt' : isCatalogue ? 'dtech-catalogue-chatgpt' : isAssessment ? 'assessment-manager-chatgpt' : CLIENT_ID;
+  const scope = isTracker ? 'tracker:read' : isCatalogue ? 'dtech-catalogue:read' : isAssessment ? 'assessment:read' : 'planner:read';
   const owner = crypto.randomUUID();
   const codes = new Map(), grants = new Map();
   const state = { signedIn: true, allowed: true, reads: [], codes, grants };
   const query = async (sql, values = []) => {
     if (isTracker) assert.match(sql, /student_tracker_mcp_/, 'Tracker never reads or writes Planner grants');
     if (isCatalogue) assert.match(sql, /dtech_catalogue_mcp_/, 'Catalogue never reads or writes other MCP grants');
+    if (isAssessment) assert.match(sql, /assessment_manager_mcp_/, 'Assessment Manager never reads or writes other MCP grants');
     sql = sql.replaceAll('student_tracker_mcp', 'teacher_planner_mcp');
     sql = sql.replaceAll('dtech_catalogue_mcp', 'teacher_planner_mcp');
+    sql = sql.replaceAll('assessment_manager_mcp', 'teacher_planner_mcp');
     if (sql.startsWith('DELETE') && sql.includes('expires_at <= NOW()')) return { rows: [] };
     if (sql.startsWith('INSERT INTO teacher_planner_mcp_codes')) {
       codes.set(values[0], { user_id: values[1], client_id: values[2], redirect_uri: values[3],
@@ -73,13 +77,13 @@ async function fixture(t, { configured = true, integration = 'teacher-planner', 
   app.set('views', path.join(__dirname, '..', 'views'));
   app.use(session({ secret: 'synthetic-mcp-session-secret', resave: false, saveUninitialized: false }));
   app.use((req, res, next) => { if (state.signedIn) req.user = { id: owner }; next(); });
-  if (isTracker || isCatalogue) app.use(createTeacherPlannerMcpRouter({ env: { APP_BASE_URL: origin } }));
-  const createRouter = isTracker ? createStudentTrackerMcpRouter : isCatalogue ? createDtechCatalogueMcpRouter : createTeacherPlannerMcpRouter;
-  app.use(createRouter({ dbQuery: query, data: catalogueData || trackerData || data,
+  if (isTracker || isCatalogue || isAssessment) app.use(createTeacherPlannerMcpRouter({ env: { APP_BASE_URL: origin } }));
+  const createRouter = isTracker ? createStudentTrackerMcpRouter : isCatalogue ? createDtechCatalogueMcpRouter : isAssessment ? createAssessmentManagerMcpRouter : createTeacherPlannerMcpRouter;
+  app.use(createRouter({ dbQuery: query, data: assessmentData || catalogueData || trackerData || data,
     authorizeUser: async id => state.allowed && id === owner ? { id: owner } : undefined,
     env: { APP_BASE_URL: origin, STUDENT_TRACKER_MCP_APP_URL: 'https://tracker.example.test',
       ...(configured ? { [isTracker ? 'STUDENT_TRACKER_MCP_REDIRECT_URI' :
-        isCatalogue ? 'DTECH_CATALOGUE_MCP_REDIRECT_URI' : 'TEACHER_PLANNER_MCP_REDIRECT_URI']: callback } : {}) } }));
+        isCatalogue ? 'DTECH_CATALOGUE_MCP_REDIRECT_URI' : isAssessment ? 'ASSESSMENT_MANAGER_MCP_REDIRECT_URI' : 'TEACHER_PLANNER_MCP_REDIRECT_URI']: callback } : {}) } }));
   const server = app.listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
   t.after(() => new Promise(resolve => server.close(resolve)));
@@ -198,8 +202,55 @@ test('DTECH catalogue MCP uses its own school consent, read-only scope and revoc
   assert.equal((await unconfigured.consent()).response.status, 503);
 });
 
+test('Assessment Manager MCP requires separate consent, offers read-only tools and rechecks access', async t => {
+  const reads = [];
+  const assessmentData = { read: async (id, name, args) => {
+    reads.push({ id, name, args });
+    return { year: args.year, departments: [] };
+  } };
+  const f = await fixture(t, { integration: 'assessment-manager', assessmentData });
+  const prefix = '/integrations/assessment-manager';
+  const metadata = await (await f.call('/.well-known/oauth-protected-resource' + prefix + '/mcp')).json();
+  assert.deepEqual(metadata.scopes_supported, ['assessment:read']);
+  assert.equal((await f.rpc(null, 'tools/list')).status, 401);
+  const wrongScope = await f.consent({ scope: 'tracker:read' });
+  assert.ok(wrongScope.response.status === 400 || /error=/.test(wrongScope.response.headers.get('location') || ''));
+  const form = await f.consent();
+  assert.match(form.html, /Student-level records/);
+  const denied = await f.approve({ ...form.fields, csrf: 'forged' });
+  assert.equal(new URL(denied.headers.get('location')).searchParams.get('error'), 'access_denied');
+  const token = await f.link();
+  assert.equal(token.scope, 'assessment:read');
+  const listing = await (await f.rpc(token.access_token, 'tools/list')).json();
+  assert.deepEqual(listing.result.tools.map(tool => tool.name), [
+    'search_assessment_resources', 'list_my_assessments', 'list_audit_departments',
+    'get_enrolment_summary', 'get_senior_audit_summary'
+  ]);
+  assert.ok(listing.result.tools.every(tool => tool.annotations.readOnlyHint));
+  const response = await (await f.rpc(token.access_token, 'tools/call',
+    { name: 'list_audit_departments', arguments: { year: 2026 } })).json();
+  assert.deepEqual(response.result.structuredContent.departments, []);
+  assert.equal(reads[0].id, f.owner);
+  const invalid = await (await f.rpc(token.access_token, 'tools/call',
+    { name: 'list_audit_departments', arguments: { year: 2026, studentId: 'private' } })).json();
+  assert.ok(invalid.error || invalid.result.isError);
+  assert.equal(reads.length, 1);
+  const revoked = await f.call(prefix + '/oauth/revoke', {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ client_id: 'assessment-manager-chatgpt', token: token.access_token })
+  });
+  assert.equal(revoked.status, 200);
+  assert.equal((await f.rpc(token.access_token, 'tools/list')).status, 401);
+  const fresh = await f.link();
+  f.state.allowed = false;
+  assert.equal((await f.rpc(fresh.access_token, 'tools/list')).status, 401);
+  const unconfigured = await fixture(t, { integration: 'assessment-manager', configured: false });
+  assert.equal((await unconfigured.rpc(null, 'tools/list')).status, 401);
+  assert.equal((await unconfigured.consent()).response.status, 503);
+});
+
 test('signed-out MCP authorisation survives the school login return without truncating OAuth state', async t => {
-  for (const integration of ['teacher-planner', 'student-tracker', 'dtech-catalogue']) {
+  for (const integration of ['teacher-planner', 'student-tracker', 'dtech-catalogue', 'assessment-manager']) {
     const { state, consent, call } = await fixture(t, { integration });
     state.signedIn = false;
     const oauthState = 's'.repeat(300);

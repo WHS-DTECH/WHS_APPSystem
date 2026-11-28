@@ -43,10 +43,11 @@ const calendarsSchema = z.object({
 }).strict();
 
 function settings(env, integration = 'teacher-planner') {
-  if (!['teacher-planner', 'student-tracker', 'dtech-catalogue'].includes(integration)) throw new Error('Unknown MCP integration.');
+  if (!['teacher-planner', 'student-tracker', 'dtech-catalogue', 'assessment-manager'].includes(integration)) throw new Error('Unknown MCP integration.');
   const base = new URL(env.APP_BASE_URL || env.RENDER_EXTERNAL_URL || config.appBaseUrl);
   const redirect = { 'teacher-planner': env.TEACHER_PLANNER_MCP_REDIRECT_URI,
-    'student-tracker': env.STUDENT_TRACKER_MCP_REDIRECT_URI, 'dtech-catalogue': env.DTECH_CATALOGUE_MCP_REDIRECT_URI }[integration];
+    'student-tracker': env.STUDENT_TRACKER_MCP_REDIRECT_URI, 'dtech-catalogue': env.DTECH_CATALOGUE_MCP_REDIRECT_URI,
+    'assessment-manager': env.ASSESSMENT_MANAGER_MCP_REDIRECT_URI }[integration];
   const callback = redirect ? new URL(redirect) : null;
   if (base.protocol !== 'https:' || base.username || base.password || base.pathname !== '/' || base.search || base.hash ||
       (callback && (callback.protocol !== 'https:' || callback.hostname !== 'chatgpt.com' || callback.username || callback.password ||
@@ -67,7 +68,10 @@ function createReadOnlyMcpProvider({ query, authorizeUser, origin, resource, cal
       denied: 'An active school account with verified department HoLA or Global ADMIN Student Tracker access is required.' },
     'dtech-catalogue': { clientId: 'dtech-catalogue-chatgpt', scope: 'dtech-catalogue:read', table: 'dtech_catalogue_mcp',
       label: 'DTECH catalogue', consentKey: 'dtechCatalogueMcpConsent', clientName: 'WHS DTECH Catalogue',
-      denied: 'An active school account with DTECH teacher access is required.' }
+      denied: 'An active school account with DTECH teacher access is required.' },
+    'assessment-manager': { clientId: 'assessment-manager-chatgpt', scope: 'assessment:read', table: 'assessment_manager_mcp',
+      label: 'Assessment Manager', consentKey: 'assessmentManagerMcpConsent', clientName: 'WHS Assessment Manager',
+      denied: 'An active school account with Assessment Manager access is required.' }
   };
   const selected = integrations[integration];
   if (!selected) throw new Error('Unknown MCP integration.');

@@ -273,4 +273,4 @@ function createSeniorAuditRouter({ query, loadSeniorAudit } = {}) {
   return router;
 }
 
-module.exports = { createSeniorAuditRouter, readWorkbook };
+module.exports = { createSeniorAuditRouter, readWorkbook, canonical };

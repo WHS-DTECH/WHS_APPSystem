@@ -1508,6 +1508,9 @@ KAMAR staff, teaching subjects, class sizes, Senior Audit and Students Audit
 use the existing authorised Core/KAMAR services; audit access is checked
 against current authority on each request.
 
+The separate read-only ChatGPT connector and its callback configuration are
+described in [Assessment Manager MCP](docs/assessment-manager-mcp.md).
+
 Assessment Manager is listed under **Modules**, not **In Development**. Core
 migration 056 registers its existing development destination if necessary,
 without changing an existing module destination, active state or assignments.
