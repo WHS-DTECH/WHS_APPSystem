@@ -1830,7 +1830,18 @@ an invented historical teaching date.
 
 On the Teaching Dashboard, Teaching Day stays alongside the selected session.
 **Notes** shows Period Planner with previous progress for JPI only, planned
-activity titles for reference, and one Session notes box. Existing actual
+activity titles in numbered rows, and one Session notes box. Each row has an
+optional autosaved Taught, Partially taught or Not taught status for this
+class, date, period and activity. These observations do not advance or confirm
+unit or kit progress; carrying an activity forward is separate. Statuses follow
+the activity title (and occurrence when titles repeat), not its displayed
+position. Renamed titles require a new selection; saved earlier statuses remain
+in the session record.
+
+Pathway Units lists active catalogue units for the selected DTECH course. A
+current lesson is shown only when supported by the linked JPI pilot or the
+class's saved teaching-order progress. Catalogue or progress failures are
+shown rather than guessed. Existing actual
 progress and reminders are combined verbatim, separated by a blank line when
 both exist. JPI's previous session is the latest earlier saved JPI session
 in the same year, including an earlier period on the same day. Its recorded

@@ -8,17 +8,29 @@ const GROUP = 'PIDTECH:JPI';
 const ROUTINE = '33455e9a-0354-4663-bee6-d69943c4e24b';
 const UUID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 const STATUSES = ['planned', 'completed', 'partial', 'deferred'];
+const SLOT_STATUSES = ['taught', 'partial', 'not_taught'];
 const INITIAL_NOTE = 'Teacher-reported starting point: Binary Piano attached to exercise books, keys cut out, decoding worksheets attached, and 0/1 and 1-26 written on the worksheets. Decoding was deferred. Confirm or correct this starting point for JPI; it is not a dated teaching-session record.';
 
 function validDate(value) {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) &&
     Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
 }
+function validSlotOutcomes(value) {
+  return value === undefined || Array.isArray(value) && value.length <= 500 &&
+    value.every(item => item && !Array.isArray(item) &&
+      Object.keys(item).sort().join(',') === 'occurrence,status,title' &&
+      typeof item.title === 'string' && item.title.trim() && item.title.length <= 2000 &&
+      Number.isInteger(item.occurrence) && item.occurrence >= 1 && item.occurrence <= 50 &&
+      SLOT_STATUSES.includes(item.status)) &&
+    new Set(value.map(item => JSON.stringify([item.title, item.occurrence]))).size === value.length;
+}
 function validContent(content) {
   const minutes = value => value === null || typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1440;
   const string = (value, limit) => typeof value === 'string' && value.length <= limit;
   if (!content || Array.isArray(content) ||
-      !['activities,evaluation,note', 'activities,actualProgress,evaluation,note'].includes(Object.keys(content).sort().join(',')) ||
+      !['activities,evaluation,note', 'activities,actualProgress,evaluation,note',
+        'activities,evaluation,note,slotOutcomes', 'activities,actualProgress,evaluation,note,slotOutcomes'].includes(Object.keys(content).sort().join(',')) ||
+      !validSlotOutcomes(content.slotOutcomes) ||
       !string(content.note, 40002) || !string(content.evaluation, 20000) ||
       (content.actualProgress !== undefined && !string(content.actualProgress, 20000)) ||
       !Array.isArray(content.activities) || content.activities.length > 50) return false;
@@ -32,7 +44,9 @@ function validContent(content) {
 function validSessionContent(content, slot) {
   const time = value => typeof value === 'string' && (value === '' || /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value));
   const session = content?.session;
-  return Boolean(content && ['activities,evaluation,note,session', 'activities,actualProgress,evaluation,note,session'].includes(Object.keys(content).sort().join(',')) &&
+  return Boolean(content && ['activities,evaluation,note,session', 'activities,actualProgress,evaluation,note,session',
+    'activities,evaluation,note,session,slotOutcomes', 'activities,actualProgress,evaluation,note,session,slotOutcomes'].includes(Object.keys(content).sort().join(',')) &&
+    validSlotOutcomes(content.slotOutcomes) &&
     typeof content.note === 'string' && content.note.length <= 40002 &&
     (content.actualProgress === undefined || typeof content.actualProgress === 'string' && content.actualProgress.length <= 20000) &&
     typeof content.evaluation === 'string' && content.evaluation.length <= 20000 &&

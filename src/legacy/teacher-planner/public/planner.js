@@ -1087,6 +1087,55 @@
     teachingDashboard.noSessions(value, schedule.error);
     history.replaceState(null, '', '#' + viewFragment());
   }
+  async function loadSessionPathwayUnits(data) {
+    const event = data.event;
+    const junior = /^(?:PIDTECH|SRDTECH)\s*\([A-Z0-9_-]+\)$/i.test(event.title || '');
+    const middle = /^MDTECH\s*\([A-Z0-9_-]+\)$/i.test(event.title || '');
+    if (!junior && !middle && !data.teaching) return { units: [] };
+    const cards = await request('/dtech-hub/learning-pathways/library.json');
+    if (!Array.isArray(cards)) throw new Error('The Learning Pathways catalogue returned invalid data.');
+    const course = middle ? 'middledtech' : 'juniordtech';
+    const matchesCourse = card => typeof card.yearLevel === 'string' &&
+      card.yearLevel.split(',').some(value => value.toLowerCase().replace(/\s+/g, '') === course);
+    function cardUrl(card) {
+      if (typeof card.href === 'string' && /^\/(?:dtech-hub\/)?learning-pathways\//.test(card.href) &&
+          !/[\\\s]/.test(card.href)) return card.href.startsWith('/dtech-hub/') ? card.href : '/dtech-hub' + card.href;
+      if (typeof card.href === 'string' && /^https?:\/\//i.test(card.href)) {
+        const url = new URL(card.href);
+        if (!url.username && !url.password) return url.href;
+      }
+      return '/dtech-hub/learning-pathways/?type=' + card.cardType + '#card-' + encodeURIComponent(card.id);
+    }
+    const published = cards.filter(card => card && card.status === 'active' && matchesCourse(card));
+    const units = published.filter(card => card.cardType === 'unit' && typeof card.id === 'string' &&
+      typeof card.title === 'string' && card.title.trim()).map(card => ({
+      id: card.id, title: card.title, url: cardUrl(card)
+    }));
+    if (data.teaching) {
+      const current = units.find(unit => unit.id === data.teaching.unit.id);
+      if (current) { current.current = true; current.lesson = data.teaching.lesson; }
+      else units.push({ ...data.teaching.unit, current: true, lesson: data.teaching.lesson });
+      return { units };
+    }
+    if (!event.classKey) return { units };
+    try {
+      const semester = middle ? await middleSemesterForDate(event.date) : null;
+      const scope = event.date.slice(0, 4) + (semester ? '/' + semester : '');
+      const progress = await (middle ? middleTeachingRequest : juniorTeachingRequest)(scope);
+      for (const row of progress.progress) {
+        if (row.class_key !== event.classKey) continue;
+        const entry = progress.entries.find(item => item.id === row.entry_id && item.kind === 'unit' && item.sequenceKey === row.sequence_key);
+        const unit = entry && units.find(item => item.title === entry.sequence);
+        if (!unit) continue;
+        const lessons = published.filter(card => card.cardType === 'lesson' && card.unit === unit.id && card.title === entry.title);
+        unit.current = true;
+        if (lessons.length === 1) unit.lesson = { title: lessons[0].title, url: cardUrl(lessons[0]) };
+      }
+      return { units };
+    } catch (error) {
+      return { units, warning: 'Current class unit could not be checked: ' + error.message };
+    }
+  }
   function mountTeachingSession(data, legacy) {
     content.dataset.view = 'period';
     sessionAddress = 'sessions/' + periodDate + '/' + periodSlot;
@@ -1121,7 +1170,8 @@
     }
     sessionPlanner = globalThis.plannerTeachingSession.mount(dashboard?.workspace || content, { ...data, legacy }, {
       el,
-      teachingDay, classRoll: loadSessionClassRoll, showTrello: dashboard?.showTrello, plannedTitles: dashboard?.plannedTitles,
+      teachingDay, classRoll: loadSessionClassRoll, pathwayUnits: loadSessionPathwayUnits,
+      showTrello: dashboard?.showTrello, plannedTitles: dashboard?.plannedTitles,
       refreshPlannedTitles: dashboard?.refreshPlannedTitles,
       initialTrello: dashboardMode && dashboardTrello,
       initialRoll: dashboardMode && dashboardRoll,

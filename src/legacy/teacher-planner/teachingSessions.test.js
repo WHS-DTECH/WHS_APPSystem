@@ -124,6 +124,29 @@ test('combined session notes can hold both original maximum-length fields', () =
   assert.equal(validSessionContent({ note, actualProgress: '', evaluation: '', activities: [],
     session: { title: 'Class', type: 'teaching', startTime: '', endTime: '' } }, 'p2'), true);
 });
+test('slot outcomes are separately validated and persist without confirming progress', async t => {
+  const f = await fixture(t), path = 'sessions/2026-11-23/p2';
+  const plan = await f.get(path);
+  plan.content.slotOutcomes = [{ title: 'Typing Kit', occurrence: 1, status: 'taught' },
+    { title: 'Binary Piano — Review', occurrence: 1, status: 'partial' }];
+  assert.equal((await f.put(path, plan.content, plan.revision)).status, 200);
+  const saved = await f.get(path);
+  assert.deepEqual(saved.content.slotOutcomes, plan.content.slotOutcomes);
+  assert.equal(saved.confirmed_content, null);
+  assert.equal(saved.content.activities[0].status, 'planned');
+  for (const invalid of [
+    [{ title: 'Typing Kit', occurrence: 1, status: 'completed' }],
+    [{ title: 'Typing Kit', occurrence: 1, status: 'taught' }, { title: 'Typing Kit', occurrence: 1, status: 'partial' }],
+    [{ title: '', occurrence: 1, status: 'taught' }]
+  ]) {
+    assert.equal(validContent({ ...saved.content, slotOutcomes: invalid }), false);
+  }
+  const generic = await f.get('sessions/2026-11-23/whanau');
+  generic.content.slotOutcomes = [{ title: 'Notices', occurrence: 1, status: 'not_taught' }];
+  assert.equal((await f.put('sessions/2026-11-23/whanau', generic.content, generic.revision)).status, 200);
+  assert.deepEqual((await f.get('sessions/2026-11-23/whanau')).content.slotOutcomes, generic.content.slotOutcomes);
+  assert.deepEqual((await f.get(path)).content.slotOutcomes, plan.content.slotOutcomes);
+});
 test('Friday preparation remains saved under Friday after opening Thursday notes', async t => {
   const f = await fixture(t);
   const friday = await f.get('sessions/2026-11-27/p1');

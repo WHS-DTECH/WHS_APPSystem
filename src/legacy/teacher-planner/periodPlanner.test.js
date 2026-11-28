@@ -374,7 +374,8 @@ test('session mounting keeps its class preparation reader independent of the adm
   const context = {
     content, periodDate: '2026-11-27', periodSlot: 'p2', dashboardMode: false,
     api: '/api/planner/', el: node, sessionAddress: undefined, sessionPlanner: undefined,
-    refreshSession: async () => {}, loadSessionClassRoll() {}, request: async url => { requests.push(url); return { cards: [] }; },
+    refreshSession: async () => {}, loadSessionClassRoll() {}, loadSessionPathwayUnits() {},
+    request: async url => { requests.push(url); return { cards: [] }; },
     plannerTeachingSession: { mount: (host, data, value) => { assert.equal(host, content); helpers = value; return {}; } }
   };
   vm.runInNewContext(source.slice(source.indexOf('  function mountTeachingSession('),
@@ -383,6 +384,32 @@ test('session mounting keeps its class preparation reader independent of the adm
   await helpers.teachingDay('2026-11-30');
   assert.deepEqual(requests, ['/api/planner/teaching-day-trello/2026-11-30']);
   assert.equal(context.sessionAddress, 'sessions/2026-11-27/p2');
+});
+test('Pathway Units use the selected course and only verified class progress', async () => {
+  const source = fs.readFileSync(require.resolve('./public/planner'), 'utf8');
+  const cards = [
+    { id: 'binary', title: 'Binary & Data', cardType: 'unit', yearLevel: 'Junior DTECH', status: 'active', href: '/dtech-hub/learning-pathways/binary.html' },
+    { id: 'piano', title: 'Binary Piano', cardType: 'lesson', unit: 'binary', yearLevel: 'Junior DTECH', status: 'active', href: '/dtech-hub/learning-pathways/piano.html' },
+    { id: 'middle', title: 'Middle Unit', cardType: 'unit', yearLevel: 'Junior DTECH, MiddleDTECH', status: 'active', href: '' },
+    { id: 'archived', title: 'Old', cardType: 'unit', yearLevel: 'Junior DTECH', status: 'archive', href: '' }
+  ];
+  const context = { URL, request: async () => cards,
+    middleSemesterForDate: async () => 2, middleTeachingRequest: async () => ({ progress: [], entries: [] }),
+    juniorTeachingRequest: async () => ({
+      progress: [{ class_key: 'JSR', sequence_key: 'unit:Binary & Data', entry_id: 'piano-card' }],
+      entries: [{ id: 'piano-card', kind: 'unit', sequenceKey: 'unit:Binary & Data', sequence: 'Binary & Data', title: 'Binary Piano' }]
+    }) };
+  vm.runInNewContext(source.slice(source.indexOf('  async function loadSessionPathwayUnits('),
+    source.indexOf('  function mountTeachingSession(')), context);
+  const junior = await context.loadSessionPathwayUnits({ event: { title: 'SRDTECH (JSR)', classKey: 'JSR', date: '2026-11-24' } });
+  assert.equal(junior.units.length, 2);
+  assert.equal(junior.units[0].current, true);
+  assert.equal(junior.units[0].lesson.url, '/dtech-hub/learning-pathways/piano.html');
+  const unrelated = await context.loadSessionPathwayUnits({ event: { title: 'SRDTECH (JPI)', classKey: 'JPI', date: '2026-11-24' } });
+  assert.equal(unrelated.units[0].current, undefined);
+  const middle = await context.loadSessionPathwayUnits({ event: { title: 'MDTECH (81D)', classKey: '81D', date: '2026-11-24' } });
+  assert.equal(middle.units[0].title, 'Middle Unit');
+  assert.match(middle.units[0].url, /#card-middle$/);
 });
 test('Whanau and observation workspaces keep independent Notes drafts through the shared Trello toggle', () => {
   const context = { plannerSessionSchema: require('./public/session-schema') };
@@ -478,6 +505,49 @@ test('Notes combines existing progress and reminders verbatim and shows the prev
   note.value = 'Completed example three';
   assert.equal(workspace.read().note, 'Completed example three');
   assert.equal(workspace.read().evaluation, 'Existing evaluation');
+});
+
+test('Notes records the four dated slots separately from confirmed progress and restores statuses', () => {
+  const context = { plannerSessionSchema: require('./public/session-schema') };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-session'), 'utf8'), context);
+  const titles = ['Typing Kit', 'Minecraft', 'Binary Piano — Review', 'Binary Piano — Decoding'];
+  const content = { note: 'Keep this', evaluation: '', activities: [] };
+  const data = {
+    event: { date: '2026-11-23', slot: 'p2', classKey: 'JPI', className: 'JPI', course: 'JuniorDTECH', location: 'CW' },
+    teaching: { unit: { id: 'binary-and-data', title: 'Binary & Data', url: '/unit' },
+      lesson: { id: 'lesson-binary-piano', title: 'Binary Piano', url: '/lesson' }, resources: [], preparation: [] },
+    routine: { priorities: '', instructions: '' }, checkpoint: { checkpoint_note: '', revision: 0 },
+    awaitingConfirmation: [], canConfirm: true, legacy: { content: {} }, content, revision: 1
+  };
+  function mount(value) {
+    const host = node();
+    const workspace = context.plannerTeachingSession.mount(host, value,
+      { el: node, legacy() {}, confirm() {}, plannedTitles: show => show(titles, 'Dated Trello plan:') });
+    return { host, workspace };
+  }
+  const first = mount(data);
+  let nodes = slotDescendants(first.host);
+  const tabs = nodes.find(item => item.attrs['aria-label'] === 'Session views');
+  assert.deepEqual(tabs.children.map(item => item.textContent), ['Notes', 'Trello', 'Class Roll']);
+  const box = nodes.find(item => item.attrs['aria-label'] === 'Pathway Units');
+  assert.ok(slotDescendants(box).some(item => item.textContent === 'Binary & Data' && item.attrs.href === '/unit'));
+  assert.ok(slotDescendants(box).some(item => item.textContent === 'Binary Piano' && item.attrs.href === '/lesson'));
+  const rows = nodes.filter(item => item.attrs.class === 'session-slot-row');
+  assert.deepEqual(rows.map(row => row.children[0].textContent), ['Slot 1', 'Slot 2', 'Slot 3', 'Slot 4']);
+  assert.deepEqual(rows.map(row => row.children[1].textContent), titles);
+  const selects = rows.map(row => slotDescendants(row).find(item => item.tag === 'select'));
+  assert.ok(selects.every(item => item.value === ''));
+  selects[1].value = 'partial'; selects[1].events.change();
+  const saved = JSON.parse(JSON.stringify(first.workspace.read()));
+  assert.deepEqual(saved.slotOutcomes, [{ title: 'Minecraft', occurrence: 1, status: 'partial' }]);
+  assert.deepEqual(saved.activities, []);
+  assert.equal(saved.note, 'Keep this');
+  const reopened = mount({ ...data, content: saved });
+  nodes = slotDescendants(reopened.host);
+  const restored = nodes.filter(item => item.attrs.class === 'session-slot-row')
+    .map(row => slotDescendants(row).find(item => item.tag === 'select').value);
+  assert.deepEqual(restored, ['', 'partial', '', '']);
+  assert.equal(mount({ ...data, event: { ...data.event, classKey: 'JSR' }, content }).workspace.read().slotOutcomes, undefined);
 });
 
 test('Class Roll uses the selected session and returning to Notes retains unsaved edits', async () => {

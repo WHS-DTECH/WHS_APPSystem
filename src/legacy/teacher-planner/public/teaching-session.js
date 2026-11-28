@@ -11,18 +11,12 @@
     function link(name, url) {
       return el('a', name, { href: url, target: '_blank', rel: 'noopener noreferrer' });
     }
-    if (pilot) {
-      const programme = el('p');
-      programme.append(link(data.teaching.unit.title, data.teaching.unit.url), ' / ',
-        link(data.teaching.lesson.title, data.teaching.lesson.url));
-      page.append(programme);
-    }
     const toggle = el('div', '', { class: 'term-notes-toggle planner-nav-buttons', role: 'group',
       'aria-label': 'Session views', 'data-planner-navigation': '' });
     const notesButton = el('button', 'Notes', { type: 'button', 'aria-pressed': 'true' });
     const rollButton = el('button', 'Class Roll', { type: 'button', 'aria-pressed': 'false' });
     const trelloButton = el('button', helpers.showTrello ? 'Trello Planner' : 'Trello', { type: 'button', 'aria-pressed': 'false' });
-    toggle.append(notesButton, rollButton, trelloButton);
+    toggle.append(notesButton, trelloButton, rollButton);
     const notes = el('section', '', { 'aria-label': 'Session Notes' });
     const roll = el('section', '', { 'aria-label': 'Class Roll' });
     roll.hidden = true;
@@ -85,6 +79,41 @@
     function combinedNotes(content) {
       return [content?.actualProgress, content?.note].filter(value => typeof value === 'string' && value.length).join('\n\n');
     }
+    const slotOutcomes = (data.content.slotOutcomes || []).map(item => ({ ...item }));
+    function savedSlotOutcomes() {
+      return slotOutcomes.length || data.content.slotOutcomes ? { slotOutcomes: slotOutcomes.map(item => ({ ...item })) } : {};
+    }
+    function pathwayUnits() {
+      const box = el('section', '', { class: 'session-pathway-units', 'aria-label': 'Pathway Units' });
+      box.append(el('h3', 'Pathway Units'));
+      notes.append(box);
+      function show(units, warning) {
+        const list = el('ul');
+        for (const unit of units) {
+          const item = el('li', '', unit.current ? { class: 'session-pathway-current' } : {});
+          item.append(link(unit.title, unit.url));
+          if (unit.current) item.append(el('span', 'Current unit', { class: 'session-pathway-current-label' }));
+          if (unit.lesson) {
+            const lesson = el('p');
+            lesson.append(link(unit.lesson.title, unit.lesson.url));
+            item.append(lesson);
+          }
+          list.append(item);
+        }
+        box.replaceChildren(el('h3', 'Pathway Units'), ...(units.length ? [list] :
+          [el('p', 'No pathway units are available for this course.')]),
+        ...(warning ? [el('p', warning, { role: 'alert' })] : []));
+      }
+      if (pilot) show([{ ...data.teaching.unit, current: true, lesson: data.teaching.lesson }]);
+      else box.append(el('p', 'Loading pathway units...', { role: 'status' }));
+      if (helpers.pathwayUnits) {
+        helpers.pathwayUnits(data).then(result => show(result.units, result.warning)).catch(error => {
+          const warning = el('p', 'Pathway units unavailable: ' + error.message, { role: 'alert' });
+          if (!pilot) box.replaceChildren(el('h3', 'Pathway Units'), warning);
+          else box.append(warning);
+        });
+      } else if (!pilot) show([]);
+    }
     function originalNotes() {
       const legacy = el('details'); legacy.append(el('summary', 'Original Period Planner records'));
       const original = Object.entries(data.legacy.content).filter(([, value]) => value);
@@ -131,8 +160,31 @@
         if (!values.length) reference.append(el('p', 'No planned activity titles are available.'));
         else {
           reference.append(el('p', titles.length ? source : data.revision > 0 ? 'Saved session activities:' : 'Draft session activities:'));
-          const list = el('ul');
-          values.forEach(title => list.append(el('li', title)));
+          const list = el('div', '', { class: 'session-slot-rows' });
+          const occurrences = new Map();
+          values.forEach((title, index) => {
+            const occurrence = (occurrences.get(title) || 0) + 1;
+            occurrences.set(title, occurrence);
+            const row = el('div', '', { class: 'session-slot-row' });
+            const label = el('label', '', { class: 'session-slot-status' });
+            label.append(el('span', 'Slot ' + (index + 1) + ' status', { class: 'session-slot-status-label' }));
+            const status = el('select', '', { 'aria-label': 'Slot ' + (index + 1) + ' status for ' + title });
+            for (const [value, text] of [['', 'Select status'], ['taught', 'Taught'],
+              ['partial', 'Partially taught'], ['not_taught', 'Not taught']]) status.append(el('option', text, { value }));
+            status.value = slotOutcomes.find(item => item.title === title && item.occurrence === occurrence)?.status || '';
+            if (title.length > 2000 || !title.trim()) {
+              status.disabled = true;
+              row.append(el('p', 'This activity title cannot be saved as a status. Shorten it in the source plan.', { role: 'alert' }));
+            }
+            status.addEventListener('change', () => {
+              const old = slotOutcomes.findIndex(item => item.title === title && item.occurrence === occurrence);
+              if (old >= 0) slotOutcomes.splice(old, 1);
+              if (status.value) slotOutcomes.push({ title, occurrence, status: status.value });
+            });
+            label.append(status);
+            row.append(el('strong', 'Slot ' + (index + 1)), el('span', title, { class: 'session-slot-name' }), label);
+            list.append(row);
+          });
           reference.append(list);
         }
         if (error) reference.append(el('p', error, { role: 'alert' }));
@@ -163,6 +215,7 @@
       }
       if (!actual && !outcomes.length) previous.append(el('p', 'No actual progress was recorded for this session.'));
     }
+    pathwayUnits();
     previousProgress();
     if (!pilot) {
       const planning = section('Planned activities and actual progress');
@@ -203,7 +256,7 @@
       originalNotes(); host.append(page);
       if (helpers.initialRoll) select('roll');
       else if (helpers.initialTrello) select(false);
-      return { selectView: select, read: () => ({ note: note.value, actualProgress: '', evaluation: reflection.value, activities: [],
+      return { selectView: select, read: () => ({ note: note.value, actualProgress: '', evaluation: reflection.value, activities: [], ...savedSlotOutcomes(),
         session: { title: title.value, type: type.value, startTime: startTime.value, endTime: endTime.value,
           ...(data.event.classKey ? { classKey: data.event.classKey } : {}) } }),
         saved: () => {} };
@@ -320,7 +373,7 @@
     if (helpers.initialRoll) select('roll');
     else if (helpers.initialTrello) select(false);
     function read() {
-      return { note: note.value, actualProgress: '', evaluation: reflection.value, activities: rows.map(row => ({
+      return { note: note.value, actualProgress: '', evaluation: reflection.value, ...savedSlotOutcomes(), activities: rows.map(row => ({
         id: row.activity.id, sourceId: row.activity.sourceId, title: row.title.value,
         plannedMinutes: row.planned.value === '' ? null : Number(row.planned.value),
         actualMinutes: row.actual.value === '' ? null : Number(row.actual.value),
