@@ -390,14 +390,17 @@ is not limited to Module Builder projects. Pagination includes Render previews
 and database replicas, with duplicate IDs counted once. Provider access defines
 the scope: resources outside the configured credentials' permissions cannot appear.
 The dashboard shows Render known monthly estimates and indicative NZD,
-unknown Render compute costs and unpriced workspaces. GitHub development costs
+unknown Render compute costs and manually recorded workspace base rates. GitHub development costs
 are not displayed or included in the estimates; GitHub account and repository
 inventory remains available. The workspace card links to per-workspace
-inventory and compute details; Render resources are grouped by type with known
+inventory and compute details, above the Render resources grouped by type with known
 compute subtotals and unpriced counts. Administrators
 can categorise visible GitHub accounts as student accounts; that designation is
 stored in the Core report across refreshes and does not establish a free plan or
 turn unknown billing into zero. Provider sections show check status and inventories.
+Workspace base rates can be entered or cleared per workspace from Render billing;
+they are saved across refreshes, dated, and must be checked manually when plans
+change. They are separate from the resource compute estimate, not actual invoices.
 
 Optional `INFRA_COST_GITHUB_TOKEN` and `INFRA_COST_RENDER_API_KEY` provide reporting
 access; otherwise the existing Module Builder credentials are reused. Prefer

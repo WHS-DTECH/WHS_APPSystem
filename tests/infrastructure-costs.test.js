@@ -140,7 +140,11 @@ test('Render summary excludes GitHub estimates and unknown account costs', () =>
   assert.equal(costSummary({}).render.usd, null);
   const summary = costSummary({ render: { data: { resources: [{ monthlyUsd: 7 }, { monthlyUsd: null }], workspaces: [{}] } },
     github: { data: { accounts: [{ monthlyUsd: 4, reportedUsageUsd: 20 }, { monthlyUsd: null }] } } });
-  assert.deepEqual(summary, { render: { usd: 7, unknown: 1, known: 1 }, workspaces: 1 });
+  assert.deepEqual(summary, { render: { usd: 7, unknown: 1, known: 1 },
+    workspaceSubscriptions: { usd: null, unknown: 1, known: 0 } });
+  assert.deepEqual(costSummary({ render: { data: { workspaces: [{ id: 'a' }, { id: 'b' }, { id: 'c' }] } },
+    workspaceSubscriptions: { a: { monthlyUsd: 25 }, b: { monthlyUsd: 0 }, missing: { monthlyUsd: 100 } }
+  }).workspaceSubscriptions, { usd: 25, unknown: 1, known: 2 });
 });
 
 test('new development policy blocks free/other regions before provider calls and preserves live database plans', async () => {
@@ -191,11 +195,17 @@ test('cost report enforces admin/CSRF, persists snapshots, labels stale data and
   const dbQuery = async (sql, params) => {
     if (sql.startsWith('SELECT')) return { rows: stored ? [{ snapshot: stored }] : [] };
     writes++;
-    if (sql.startsWith('UPDATE')) stored.studentAccounts = JSON.parse(params[0]);
+    if (sql.startsWith('UPDATE') && sql.includes('workspaceSubscriptions')) {
+      stored.workspaceSubscriptions ||= {};
+      if (params[1] === null) delete stored.workspaceSubscriptions[params[0]];
+      else stored.workspaceSubscriptions[params[0]] = JSON.parse(params[1]);
+    } else if (sql.startsWith('UPDATE')) stored.studentAccounts = JSON.parse(params[0]);
     else {
       const studentAccounts = stored?.studentAccounts;
+      const workspaceSubscriptions = stored?.workspaceSubscriptions;
       stored = JSON.parse(params[0]);
       if (studentAccounts) stored.studentAccounts = studentAccounts;
+      if (workspaceSubscriptions) stored.workspaceSubscriptions = workspaceSubscriptions;
     }
     return { rows: [] };
   };
@@ -257,12 +267,29 @@ test('cost report enforces admin/CSRF, persists snapshots, labels stale data and
   assert.match(report, /Render known estimate[\s\S]*?USD 20.00[\s\S]*?NZD 34.00/);
   assert.doesNotMatch(report, /GitHub known estimate/);
   assert.match(report, /Unknown Render costs[\s\S]*?<strong>2<\/strong>/);
-  assert.match(report, /Render workspaces[\s\S]*?<strong>1<\/strong>/);
+  assert.match(report, /Render workspace base rate[\s\S]*?<strong>Unknown<\/strong>[\s\S]*?1 unpriced/);
   assert.match(report, /href="#render-workspaces"/);
+  assert.ok(report.indexOf('id="render-workspaces"') < report.indexOf('Web Services (3)'));
   assert.match(report, /Web Services \(3\)<\/h3>\s*<p>Known compute subtotal: <strong>USD 14\.00<\/strong> \/ NZD 23\.80 per month · 1 unpriced/);
   assert.match(report, /PostgreSQL databases \(1\)<\/h3>\s*<p>Known compute subtotal: <strong>USD 6\.00<\/strong> \/ NZD 10\.20 per month/);
   assert.match(report, /Other services \(1\)<\/h3>\s*<p>Known compute subtotal: <strong>Unknown<\/strong> \/ Unavailable per month · 1 unpriced/);
   assert.match(report, /Render workspace details[\s\S]*?School[\s\S]*?5 returned resources[\s\S]*?USD 20.00/);
+  for (const [body, status] of [
+    [{ csrf: 'invalid', workspaceId: 'tea-one', monthlyUsd: '25' }, 403],
+    [{ csrf, workspaceId: 'unknown', monthlyUsd: '25' }, 400],
+    [{ csrf, workspaceId: 'tea-one', monthlyUsd: '-1' }, 400],
+    [{ csrf, workspaceId: 'tea-one', monthlyUsd: '25.001' }, 400]
+  ]) {
+    assert.equal((await fetch(base + '/workspace-subscription', { method: 'POST', headers,
+      body: new URLSearchParams(body), redirect: 'manual' })).status, status);
+  }
+  response = await fetch(base + '/workspace-subscription', { method: 'POST', headers,
+    body: new URLSearchParams({ csrf, workspaceId: 'tea-one', monthlyUsd: '25.00' }), redirect: 'manual' });
+  assert.equal(response.status, 302);
+  assert.deepEqual(stored.workspaceSubscriptions['tea-one'], { monthlyUsd: 25, recordedAt: now().toISOString() });
+  report = await (await fetch(base, { headers })).text();
+  assert.match(report, /Render workspace base rate[\s\S]*?<strong>USD 25\.00<\/strong>/);
+  assert.match(report, /Workspace base rate: <strong>USD 25\.00<\/strong> per month · manually recorded/);
   const githubSection = report.slice(report.indexOf('id="github-costs"'), report.indexOf('id="development-policy"'));
   assert.match(githubSection, /GitHub accounts and visible repositories/);
   assert.doesNotMatch(githubSection, /Monthly USD|Indicative NZD|USD 77\.77|USD 12\.00|Provider-reported metered usage/);
@@ -284,6 +311,7 @@ test('cost report enforces admin/CSRF, persists snapshots, labels stale data and
   response = await fetch(base + '/refresh', { method: 'POST', headers, body: new URLSearchParams({ csrf }), redirect: 'manual' });
   assert.equal(response.status, 302);
   assert.deepEqual(stored.studentAccounts, ['studentexample', 'previously-visible']);
+  assert.equal(stored.workspaceSubscriptions['tea-one'].monthlyUsd, 25);
   response = await fetch(base + '/student-accounts', { method: 'POST', headers,
     body: new URLSearchParams({ csrf }), redirect: 'manual' });
   assert.equal(response.status, 302);
@@ -301,4 +329,13 @@ test('cost report enforces admin/CSRF, persists snapshots, labels stale data and
   assert.match(report, /Inventory needs attention:[\s\S]*?Render: stale data/);
   assert.match(report, /USD 20.00/); assert.doesNotMatch(report, /NZD 34.00/);
   assert.match(report, /Web Services \(3\)<\/h3>\s*<p>Known compute subtotal: <strong>USD 14\.00<\/strong> \/ Unavailable per month · 1 unpriced/);
+  response = await fetch(base + '/workspace-subscription', { method: 'POST', headers,
+    body: new URLSearchParams({ csrf, workspaceId: 'tea-one', monthlyUsd: '0' }), redirect: 'manual' });
+  assert.equal(response.status, 302);
+  assert.equal(stored.workspaceSubscriptions['tea-one'].monthlyUsd, 0);
+  response = await fetch(base + '/workspace-subscription', { method: 'POST', headers,
+    body: new URLSearchParams({ csrf, workspaceId: 'tea-one', monthlyUsd: '' }), redirect: 'manual' });
+  assert.equal(response.status, 302);
+  report = await (await fetch(base, { headers })).text();
+  assert.match(report, /Render workspace base rate[\s\S]*?<strong>Unknown<\/strong>[\s\S]*?1 unpriced/);
 });

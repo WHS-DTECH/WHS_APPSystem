@@ -33,9 +33,9 @@
         <span>resource compute costs not priced</span>
       </article>
       <a class="cost-metric cost-metric-link" href="#<%= snapshot.render?.data ? 'render-workspaces' : 'render-costs' %>">
-        <h3>Render workspaces</h3>
-        <strong><%= summary.workspaces %></strong>
-        <span>View workspace details →<br>Subscriptions not priced</span>
+        <h3>Render workspace base rate</h3>
+        <strong><%= money(summary.workspaceSubscriptions.usd) %></strong>
+        <span>Recorded monthly rate<% if (Number.isFinite(summary.workspaceSubscriptions.usd)) { %> · <%= nzd(summary.workspaceSubscriptions.usd) %><% } %><% if (summary.workspaceSubscriptions.unknown) { %> · <%= summary.workspaceSubscriptions.unknown %> unpriced<% } %><br>View workspace details →</span>
       </a>
     </div>
     <div class="cost-notice">
@@ -90,6 +90,45 @@
     <% if (section?.data) { const data = section.data; %>
       <% if (key === 'render') { %>
         <p class="cost-provider-warning"><%= data.warning %></p>
+        <section id="render-workspaces" aria-labelledby="render-workspaces-heading">
+          <h3 id="render-workspaces-heading">Render workspace details</h3>
+          <p>Workspace base rates are recorded manually from Render billing and are not included in the resource compute estimate. Check them when plans change.</p>
+          <% if (!data.workspaces.length) { %><p>No workspaces were returned for this key.</p><% } %>
+          <% data.workspaces.forEach(workspace => {
+            const resources = data.resources.filter(resource => resource.owner === workspace.id);
+            const subtotal = summarizeCosts(resources);
+            const subscription = snapshot.workspaceSubscriptions?.[workspace.id];
+            const recorded = Number.isFinite(subscription?.monthlyUsd);
+          %>
+            <div class="cost-workspace">
+              <h4><%= workspace.name %></h4>
+              <p><code><%= workspace.id %></code><br>
+                <%= resources.length %> returned resources: <%= resources.filter(resource => resource.type === 'web_service').length %> web services,
+                <%= resources.filter(resource => resource.type === 'postgres').length %> PostgreSQL databases,
+                <%= resources.filter(resource => !['web_service', 'postgres'].includes(resource.type)).length %> other services.</p>
+              <p>Workspace base rate: <strong><%= recorded ? money(subscription.monthlyUsd) : 'Unknown' %></strong><% if (recorded) { %> per month · manually recorded <%= new Date(subscription.recordedAt).toLocaleDateString('en-NZ') %><% } %>.<br>
+                Known resource compute: <strong><%= money(subtotal.usd) %></strong> / <%= nzd(subtotal.usd) %> per month;
+                <%= subtotal.unknown %> resource costs unknown.</p>
+              <form class="cost-workspace-rate" action="/admin/infrastructure-costs/workspace-subscription" method="post">
+                <input type="hidden" name="csrf" value="<%= csrf %>">
+                <input type="hidden" name="workspaceId" value="<%= workspace.id %>">
+                <label>Monthly workspace base rate (USD)
+                  <input type="number" name="monthlyUsd" min="0" max="9999999.99" step="0.01" value="<%= recorded ? subscription.monthlyUsd.toFixed(2) : '' %>" aria-label="Monthly workspace base rate (USD) for <%= workspace.name %>">
+                </label>
+                <button class="button" type="submit">Save rate</button>
+                <span>Leave blank to clear. Confirm against Render billing.</span>
+              </form>
+              <% if (resources.length) { %>
+              <details class="cost-explanation">
+                <summary>View resources in <%= workspace.name %></summary>
+                <ul><% resources.forEach(resource => { %>
+                  <li><strong><%= resource.name %></strong> — <%= resource.type %>; <%= money(resource.monthlyUsd) %> per month</li>
+                <% }) %></ul>
+              </details>
+              <% } %>
+            </div>
+          <% }) %>
+        </section>
         <% if (!data.resources.length) { %><p>No services or PostgreSQL databases were returned for this key.</p><% } %>
         <% const renderGroups = [
           ['Web Services', data.resources.filter(resource => resource.type === 'web_service')],
@@ -119,33 +158,6 @@
           </table>
         </div>
         <% }) %>
-        <section id="render-workspaces" aria-labelledby="render-workspaces-heading">
-          <h3 id="render-workspaces-heading">Render workspace details</h3>
-          <p>These details cover only resources returned by the reporting key; subscriptions and other usage are not included.</p>
-          <% if (!data.workspaces.length) { %><p>No workspaces were returned for this key.</p><% } %>
-          <% data.workspaces.forEach(workspace => {
-            const resources = data.resources.filter(resource => resource.owner === workspace.id);
-            const subtotal = summarizeCosts(resources);
-          %>
-            <div class="cost-workspace">
-              <h4><%= workspace.name %></h4>
-              <p><code><%= workspace.id %></code><br>
-                <%= resources.length %> returned resources: <%= resources.filter(resource => resource.type === 'web_service').length %> web services,
-                <%= resources.filter(resource => resource.type === 'postgres').length %> PostgreSQL databases,
-                <%= resources.filter(resource => !['web_service', 'postgres'].includes(resource.type)).length %> other services.</p>
-              <p>Known resource compute: <strong><%= money(subtotal.usd) %></strong> / <%= nzd(subtotal.usd) %> per month;
-                <%= subtotal.unknown %> resource costs unknown. Workspace subscription: <strong>Unknown</strong> — check Render billing.</p>
-              <% if (resources.length) { %>
-              <details class="cost-explanation">
-                <summary>View resources in <%= workspace.name %></summary>
-                <ul><% resources.forEach(resource => { %>
-                  <li><strong><%= resource.name %></strong> — <%= resource.type %>; <%= money(resource.monthlyUsd) %> per month</li>
-                <% }) %></ul>
-              </details>
-              <% } %>
-            </div>
-          <% }) %>
-        </section>
         <a class="button" href="https://dashboard.render.com" target="_blank" rel="noopener noreferrer">Open Render for actual invoices</a>
       <% } else { %>
         <p class="cost-provider-warning">Only accounts and repositories visible to this token are reported.

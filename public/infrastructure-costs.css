@@ -182,6 +182,29 @@
   margin-bottom: 0;
 }
 
+.cost-workspace-rate {
+  align-items: flex-end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+  margin: 0 0 1rem;
+}
+
+.cost-workspace-rate label {
+  font-size: 0.88rem;
+  max-width: 100%;
+}
+
+.cost-workspace-rate input[type='number'] {
+  width: 10rem;
+  max-width: 100%;
+}
+
+.cost-workspace-rate span {
+  color: #52645c;
+  font-size: 0.8rem;
+}
+
 .cost-notice,
 .cost-alert {
   background: #fff8e9;

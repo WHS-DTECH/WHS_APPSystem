@@ -182,7 +182,11 @@ function summarizeCosts(rows) {
 
 function costSummary(snapshot) {
   const render = summarizeCosts(snapshot.render?.data?.resources || []);
-  return { render, workspaces: snapshot.render?.data?.workspaces?.length || 0 };
+  const workspaceRates = snapshot.workspaceSubscriptions || {};
+  const workspaceSubscriptions = summarizeCosts((snapshot.render?.data?.workspaces || []).map(workspace => ({
+    monthlyUsd: workspaceRates[workspace.id]?.monthlyUsd
+  })));
+  return { render, workspaceSubscriptions };
 }
 
 function createInfrastructureCostsRouter({ dbQuery = query, providers = createCostProviders(), now = () => new Date() } = {}) {
@@ -232,12 +236,35 @@ function createInfrastructureCostsRouter({ dbQuery = query, providers = createCo
       await dbQuery(`INSERT INTO infrastructure_cost_report (id, snapshot, updated_by, updated_at)
         VALUES (1,$1::jsonb,$2,NOW()) ON CONFLICT (id) DO UPDATE
         SET snapshot=EXCLUDED.snapshot || jsonb_build_object('studentAccounts',
-          COALESCE(infrastructure_cost_report.snapshot->'studentAccounts', '[]'::jsonb)),
+          COALESCE(infrastructure_cost_report.snapshot->'studentAccounts', '[]'::jsonb),
+          'workspaceSubscriptions', COALESCE(infrastructure_cost_report.snapshot->'workspaceSubscriptions', '{}'::jsonb)),
           updated_by=EXCLUDED.updated_by, updated_at=EXCLUDED.updated_at`,
       [JSON.stringify(Object.fromEntries(entries)), req.user.id]);
       res.redirect('/admin/infrastructure-costs');
     } catch (error) { next(error); }
     finally { refreshing = false; }
+  });
+  router.post('/workspace-subscription', async (req, res, next) => {
+    const supplied = Buffer.from(String(req.body.csrf || '')), expected = Buffer.from(req.session.infrastructureCostsCsrf);
+    if (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) {
+      return res.status(403).render('error', { title: 'Form expired', message: 'Reload the cost report and try again.' });
+    }
+    try {
+      const { workspaceId, monthlyUsd } = req.body;
+      const snapshot = await load();
+      if (typeof workspaceId !== 'string' || !snapshot.render?.data?.workspaces.some(workspace => workspace.id === workspaceId)) {
+        return res.status(400).render('error', { title: 'Invalid workspace', message: 'Reload the report and select a visible workspace.' });
+      }
+      if (typeof monthlyUsd !== 'string' || (monthlyUsd !== '' && !/^\d{1,7}(?:\.\d{1,2})?$/.test(monthlyUsd))) {
+        return res.status(400).render('error', { title: 'Invalid workspace rate', message: 'Enter a non-negative USD amount with at most two decimal places, or leave it blank to clear it.' });
+      }
+      const record = monthlyUsd === '' ? null : { monthlyUsd: Number(monthlyUsd), recordedAt: now().toISOString() };
+      await dbQuery(`UPDATE infrastructure_cost_report SET snapshot=snapshot || jsonb_build_object('workspaceSubscriptions',
+        CASE WHEN $2::jsonb IS NULL THEN COALESCE(snapshot->'workspaceSubscriptions', '{}'::jsonb) - $1::text
+        ELSE COALESCE(snapshot->'workspaceSubscriptions', '{}'::jsonb) || jsonb_build_object($1::text, $2::jsonb) END),
+        updated_by=$3, updated_at=NOW() WHERE id=1`, [workspaceId, record ? JSON.stringify(record) : null, req.user.id]);
+      res.redirect('/admin/infrastructure-costs#render-workspaces');
+    } catch (error) { next(error); }
   });
   router.post('/student-accounts', async (req, res, next) => {
     const supplied = Buffer.from(String(req.body.csrf || '')), expected = Buffer.from(req.session.infrastructureCostsCsrf);
