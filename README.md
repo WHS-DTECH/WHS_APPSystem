@@ -1489,12 +1489,15 @@ standalone database. Existing standalone sessions remain in that database and
 are not transferred. The calendar remains the same versioned snapshot, not a
 live database or editable calendar.
 
-Before changing the existing launch destination, verify the embedded calendar,
-event details, lesson links, Core sign-in and assigned-teacher access. Retain
-the standalone web service and its database for rollback. If no `relief-plan`
-module is registered, register it without replacing the existing role grants;
-change only the verified destination. The old Learning Sites Relief Plan is
-independent and is not removed by this integration.
+Core migration 064 registers the verified development project or changes its
+known standalone destination to `/relief-plan/`, without changing existing
+role grants, assignments, active state or customised destinations. If there is
+no matching development project, an administrator must register the module.
+Keep the standalone web service and database for rollback; the module
+destination can be changed back to
+`https://whs-relief-library-development.onrender.com/` in App Module
+Management. The old Learning Sites Relief Plan is independent and is not
+removed by this integration.
 
 Tests: `node --test tests\relief-library-integration.test.js src\legacy\relief-library\app.test.js`.
 

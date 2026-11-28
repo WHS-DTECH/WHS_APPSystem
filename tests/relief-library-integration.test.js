@@ -1,6 +1,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
 const express = require('express');
+const { Client } = require('pg');
 const { createReliefLibraryRouter } = require('../src/modules/reliefLibrary');
 const { injectGlobalNav, navData } = require('../src/globalNav');
 const { moduleForPath } = require('../src/moduleSearch');
@@ -108,4 +112,43 @@ test('registered Relief API reports session expiry and revoked access as JSON', 
   response = await fetch(url, { redirect: 'manual' });
   assert.equal(response.status, 403);
   assert.match((await response.json()).error, /Relief Library/);
+});
+
+test('cutover preserves existing roles, inactive modules and customised destinations', {
+  skip: !process.env.MODULE_BUILDER_TEST_DATABASE_URL
+}, async () => {
+  const client = new Client({ connectionString: process.env.MODULE_BUILDER_TEST_DATABASE_URL, ssl: false });
+  const schema = 'relief_test_' + crypto.randomBytes(8).toString('hex');
+  await client.connect();
+  try {
+    await client.query(`CREATE SCHEMA ${schema}`);
+    await client.query(`SET search_path TO ${schema}`);
+    await client.query(`CREATE TABLE module_builder_projects (id integer PRIMARY KEY, slug text, name text, description text, stage text);
+      CREATE TABLE module_builder_environments (project_id integer, kind text, config jsonb);
+      CREATE TABLE modules (module_key text PRIMARY KEY, display_name text, description text, path text, is_active boolean DEFAULT true);
+      CREATE TABLE role_grants (module_key text, role_name text)`);
+    await client.query(`INSERT INTO module_builder_projects VALUES (1,'relief-plan','Relief Library','Staff planning','development');
+      INSERT INTO module_builder_environments VALUES (1,'development','{"appUrl":"https://whs-relief-library-development.onrender.com/"}');
+      INSERT INTO role_grants VALUES ('relief-plan','teacher')`);
+    const migration = fs.readFileSync(path.join(__dirname, '..', 'migrations', '064_relief_library_cutover.sql'), 'utf8');
+    await client.query(migration);
+    await client.query(migration);
+    assert.deepEqual((await client.query('SELECT path, is_active FROM modules')).rows, [
+      { path: '/relief-plan/', is_active: true }
+    ]);
+    assert.equal((await client.query('SELECT count(*)::int AS count FROM role_grants')).rows[0].count, 1);
+    await client.query("UPDATE modules SET path='https://custom.example.test/', is_active=false");
+    await client.query(migration);
+    assert.deepEqual((await client.query('SELECT path, is_active FROM modules')).rows, [
+      { path: 'https://custom.example.test/', is_active: false }
+    ]);
+    await client.query("UPDATE modules SET path='https://whs-relief-library-development.onrender.com/'");
+    await client.query(migration);
+    assert.deepEqual((await client.query('SELECT path, is_active FROM modules')).rows, [
+      { path: '/relief-plan/', is_active: false }
+    ]);
+  } finally {
+    await client.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
+    await client.end();
+  }
 });
