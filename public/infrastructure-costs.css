@@ -236,6 +236,26 @@
   margin: 1.5rem 0 0.6rem;
 }
 
+.cost-category-heading {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  justify-content: space-between;
+  margin: 1.5rem 0 0.6rem;
+}
+
+.cost-provider .cost-category-heading h3 {
+  margin: 0;
+}
+
+.cost-category-heading p {
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+  margin: 0 0 0 auto;
+  text-align: right;
+}
+
 .cost-provider-warning {
   background: #f3f7f4;
   border-radius: 8px;

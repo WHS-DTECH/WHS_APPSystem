@@ -393,7 +393,8 @@ The dashboard shows Render known monthly estimates and indicative NZD,
 unknown Render compute costs and unpriced workspaces. GitHub development costs
 are not displayed or included in the estimates; GitHub account and repository
 inventory remains available. The workspace card links to per-workspace
-inventory and compute details; Render resources are grouped by type. Administrators
+inventory and compute details; Render resources are grouped by type with known
+compute subtotals and unpriced counts. Administrators
 can categorise visible GitHub accounts as student accounts; that designation is
 stored in the Core report across refreshes and does not establish a free plan or
 turn unknown billing into zero. Provider sections show check status and inventories.

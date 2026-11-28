@@ -174,13 +174,14 @@ function createCostProviders({ env = process.env, fetchImpl = fetch, now = () =>
   return { render, github, exchange };
 }
 
+function summarizeCosts(rows) {
+  const amounts = rows.filter(row => Number.isFinite(row.monthlyUsd));
+  return { usd: amounts.length ? amounts.reduce((total, row) => total + row.monthlyUsd, 0) : null,
+    unknown: rows.length - amounts.length, known: amounts.length };
+}
+
 function costSummary(snapshot) {
-  const summarize = rows => {
-    const amounts = rows.filter(row => Number.isFinite(row.monthlyUsd));
-    return { usd: amounts.length ? amounts.reduce((total, row) => total + row.monthlyUsd, 0) : null,
-      unknown: rows.length - amounts.length, known: amounts.length };
-  };
-  const render = summarize(snapshot.render?.data?.resources || []);
+  const render = summarizeCosts(snapshot.render?.data?.resources || []);
   return { render, workspaces: snapshot.render?.data?.workspaces?.length || 0 };
 }
 
@@ -205,7 +206,7 @@ function createInfrastructureCostsRouter({ dbQuery = query, providers = createCo
       const money = value => Number.isFinite(value) ? `USD ${value.toFixed(2)}` : 'Unknown';
       const nzd = value => Number.isFinite(value) && Number.isFinite(rate) ? `NZD ${(value * rate).toFixed(2)}` : 'Unavailable';
       res.render('admin/infrastructure-costs', { title: 'GitHub & Render Costs', snapshot,
-        summary: costSummary(snapshot), rate, money, nzd, sources: SOURCES, priceChecked: PRICE_CHECKED,
+        summary: costSummary(snapshot), summarizeCosts, rate, money, nzd, sources: SOURCES, priceChecked: PRICE_CHECKED,
         studentAccounts: new Set((Array.isArray(snapshot.studentAccounts) ? snapshot.studentAccounts : [])
           .filter(login => typeof login === 'string').map(login => login.toLowerCase())),
         pageStylesheet: '/infrastructure-costs.css' });

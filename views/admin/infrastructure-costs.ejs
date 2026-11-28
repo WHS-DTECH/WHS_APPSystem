@@ -96,8 +96,13 @@
           ['PostgreSQL databases', data.resources.filter(resource => resource.type === 'postgres')],
           ['Other services', data.resources.filter(resource => !['web_service', 'postgres'].includes(resource.type))]
         ]; %>
-        <% renderGroups.forEach(([heading, resources]) => { if (!resources.length) return; %>
-        <h3><%= heading %> (<%= resources.length %>)</h3>
+        <% renderGroups.forEach(([heading, resources]) => { if (!resources.length) return;
+          const subtotal = summarizeCosts(resources);
+        %>
+        <div class="cost-category-heading">
+          <h3><%= heading %> (<%= resources.length %>)</h3>
+          <p>Known compute subtotal: <strong><%= money(subtotal.usd) %></strong> / <%= nzd(subtotal.usd) %> per month<% if (subtotal.unknown) { %> · <%= subtotal.unknown %> unpriced<% } %></p>
+        </div>
         <div class="user-role-table-wrap cost-table-wrap" role="region" aria-label="Render <%= heading %> cost table" tabindex="0">
           <table>
             <caption><%= heading %> — full-month compute estimates (USD and indicative NZD)</caption>
@@ -120,8 +125,7 @@
           <% if (!data.workspaces.length) { %><p>No workspaces were returned for this key.</p><% } %>
           <% data.workspaces.forEach(workspace => {
             const resources = data.resources.filter(resource => resource.owner === workspace.id);
-            const known = resources.filter(resource => Number.isFinite(resource.monthlyUsd));
-            const subtotal = known.length ? known.reduce((sum, resource) => sum + resource.monthlyUsd, 0) : null;
+            const subtotal = summarizeCosts(resources);
           %>
             <div class="cost-workspace">
               <h4><%= workspace.name %></h4>
@@ -129,8 +133,8 @@
                 <%= resources.length %> returned resources: <%= resources.filter(resource => resource.type === 'web_service').length %> web services,
                 <%= resources.filter(resource => resource.type === 'postgres').length %> PostgreSQL databases,
                 <%= resources.filter(resource => !['web_service', 'postgres'].includes(resource.type)).length %> other services.</p>
-              <p>Known resource compute: <strong><%= money(subtotal) %></strong> / <%= nzd(subtotal) %> per month;
-                <%= resources.length - known.length %> resource costs unknown. Workspace subscription: <strong>Unknown</strong> — check Render billing.</p>
+              <p>Known resource compute: <strong><%= money(subtotal.usd) %></strong> / <%= nzd(subtotal.usd) %> per month;
+                <%= subtotal.unknown %> resource costs unknown. Workspace subscription: <strong>Unknown</strong> — check Render billing.</p>
               <% if (resources.length) { %>
               <details class="cost-explanation">
                 <summary>View resources in <%= workspace.name %></summary>

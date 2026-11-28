@@ -204,7 +204,10 @@ test('cost report enforces admin/CSRF, persists snapshots, labels stale data and
       if (fail) throw new CostReportError('Render reporting returned HTTP 403.');
       return { checkedAt: now().toISOString(), warning: 'Compute only', resources: [
         renderServiceCost({ ...service, name: '<script>unsafe</script>' }), renderDatabaseCost(database),
-        renderServiceCost({ ...service, id: 'wrk-other', name: 'Worker', type: 'background_worker' })
+        renderServiceCost({ ...service, id: 'srv-free', serviceDetails: { plan: 'free', numInstances: 1 } }),
+        renderServiceCost({ ...service, id: 'srv-unknown', serviceDetails: { plan: 'unknown', numInstances: 1 } }),
+        renderServiceCost({ ...service, id: 'wrk-other', name: 'Worker', type: 'background_worker',
+          serviceDetails: { plan: 'unknown', numInstances: 1 } })
       ], workspaces: [{ id: 'tea-one', name: 'School' }] };
     },
     github: async () => ({ checkedAt: now().toISOString(), accounts: [
@@ -251,13 +254,15 @@ test('cost report enforces admin/CSRF, persists snapshots, labels stale data and
   let response = await fetch(base + '/refresh', { method: 'POST', headers, body: new URLSearchParams({ csrf }), redirect: 'manual' });
   assert.equal(response.status, 302); assert.equal(writes, 1);
   let report = await (await fetch(base, { headers })).text();
-  assert.match(report, /Render known estimate[\s\S]*?USD 34.00[\s\S]*?NZD 57.80/);
+  assert.match(report, /Render known estimate[\s\S]*?USD 20.00[\s\S]*?NZD 34.00/);
   assert.doesNotMatch(report, /GitHub known estimate/);
-  assert.match(report, /Unknown Render costs[\s\S]*?<strong>0<\/strong>/);
+  assert.match(report, /Unknown Render costs[\s\S]*?<strong>2<\/strong>/);
   assert.match(report, /Render workspaces[\s\S]*?<strong>1<\/strong>/);
   assert.match(report, /href="#render-workspaces"/);
-  assert.match(report, /Web Services \(1\)[\s\S]*?PostgreSQL databases \(1\)[\s\S]*?Other services \(1\)/);
-  assert.match(report, /Render workspace details[\s\S]*?School[\s\S]*?3 returned resources[\s\S]*?USD 34.00/);
+  assert.match(report, /Web Services \(3\)<\/h3>\s*<p>Known compute subtotal: <strong>USD 14\.00<\/strong> \/ NZD 23\.80 per month · 1 unpriced/);
+  assert.match(report, /PostgreSQL databases \(1\)<\/h3>\s*<p>Known compute subtotal: <strong>USD 6\.00<\/strong> \/ NZD 10\.20 per month/);
+  assert.match(report, /Other services \(1\)<\/h3>\s*<p>Known compute subtotal: <strong>Unknown<\/strong> \/ Unavailable per month · 1 unpriced/);
+  assert.match(report, /Render workspace details[\s\S]*?School[\s\S]*?5 returned resources[\s\S]*?USD 20.00/);
   const githubSection = report.slice(report.indexOf('id="github-costs"'), report.indexOf('id="development-policy"'));
   assert.match(githubSection, /GitHub accounts and visible repositories/);
   assert.doesNotMatch(githubSection, /Monthly USD|Indicative NZD|USD 77\.77|USD 12\.00|Provider-reported metered usage/);
@@ -294,5 +299,6 @@ test('cost report enforces admin/CSRF, persists snapshots, labels stale data and
   report = await (await fetch(base, { headers })).text();
   assert.match(report, /Stale data/); assert.match(report, /showing stale data/); assert.match(report, /NZD conversion unavailable/);
   assert.match(report, /Inventory needs attention:[\s\S]*?Render: stale data/);
-  assert.match(report, /USD 34.00/); assert.doesNotMatch(report, /NZD 57.80/);
+  assert.match(report, /USD 20.00/); assert.doesNotMatch(report, /NZD 34.00/);
+  assert.match(report, /Web Services \(3\)<\/h3>\s*<p>Known compute subtotal: <strong>USD 14\.00<\/strong> \/ Unavailable per month · 1 unpriced/);
 });
