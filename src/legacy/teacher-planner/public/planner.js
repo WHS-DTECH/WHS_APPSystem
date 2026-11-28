@@ -1216,6 +1216,8 @@
     sessionPlanner = globalThis.plannerTeachingSession.mount(dashboard?.workspace || content, { ...data, legacy }, {
       el,
       teachingDay, classRoll: loadSessionClassRoll, pathwayUnits: loadSessionPathwayUnits,
+      mountTrelloControl: dashboardMode ? toolbar => todoSidebar?.setControlHost(toolbar) : undefined,
+      juniorOrderRequest: dashboardMode ? juniorTeachingRequest : undefined,
       showTrello: dashboard?.showTrello, plannedTitles: dashboard?.plannedTitles,
       refreshPlannedTitles: dashboard?.refreshPlannedTitles,
       initialTrello: dashboardMode && dashboardTrello,
@@ -1570,6 +1572,7 @@
         });
       }
       todoSidebar.setAvailable(available);
+      todoSidebar.setControlHost(null);
       previousError?.remove();
     } catch {
       console.warn('Trello ToDo sidebar could not start.');

@@ -1888,6 +1888,23 @@ Trello Planner and Notes use the same dated card matched by class, date and
 period. Refresh rereads its teaching slots, including their order and numbers,
 without replacing Session notes or saved outcomes, even when a slot is removed.
 
+The session toolbar keeps **Notes**, **Trello Planner**, **Show/Hide Trello**
+and **Class Roll** together. The Trello control toggles the existing ToDo
+sidebar without changing the selected session or view; controls wrap on narrow
+screens and the sidebar stays in the page layout rather than covering lessons.
+
+Verified JuniorDTECH timetable classes also show a read-only teaching-order
+panel beside the session. It keeps the shared Trello order unchanged while
+showing class-specific dated planning and saved Notes outcomes separately.
+Only uniquely linked lessons, source links or exact routines establish
+**Planned this period**; draft proposals and ambiguous links do not.
+**Completed**, **Partially taught** and **Not taught** come from saved outcomes,
+never from the dated plan alone or current shared progress. A reminder uses the
+latest earlier saved session for that class in the same year. Notes and Trello
+Planner share this panel; it scrolls independently, stacks at narrow widths
+and has its own Show/Hide JuniorDTECH order control. Other programmes do not
+show it. Lesson selection remains with ChatGPT.
+
 **Unit plans & lessons for this period** groups the active catalogue resources
 explicitly linked by the selected session's dated teaching slots, shared draft,
 or saved activity IDs. It does not infer lessons from activity titles or use

@@ -17,6 +17,7 @@ async function fixture(t) {
   const records = new Map(), checkpoints = new Map(), statements = [];
   let clock = new Date('2026-11-24T00:00:00Z'), sourceVersion = 1, timetableReads = 0, classAvailable = true, ambiguousWhanau = false;
   let whanauClass = '9WHAU';
+  let extraTimetable = [];
   const query = async (sql, params) => {
     statements.push(sql);
     if (sql.includes('teacher_calendar_settings')) return { rows: [{ subscription_url: 'https://synthetic.invalid/timetable' }] };
@@ -31,6 +32,12 @@ async function fixture(t) {
     if (sql.includes('LEFT(group_key')) return { rows: [...records.values()]
       .filter(row => row.owner_id === params[0] && row.date === params[2] &&
         row.group_key.startsWith(params[3]) && row.slot_key === params[4]).map(row => structuredClone(row)) };
+    if (sql.includes('group_key=ANY($3::text[])')) return { rows: [...records.values()]
+      .filter(row => row.owner_id === params[0] && Number(row.date.slice(0, 4)) === params[1] &&
+        params[2].includes(row.group_key) &&
+        (row.date < params[3] || row.date === params[3] && params[4].indexOf(row.slot_key) < params[4].indexOf(params[5])))
+      .sort((a, b) => b.date.localeCompare(a.date) || params[4].indexOf(b.slot_key) - params[4].indexOf(a.slot_key))
+      .slice(0, 1).map(row => ({ ...structuredClone(row), session_date: row.date })) };
     if (sql.includes('array_position')) return { rows: [...records.values()]
       .filter(row => row.owner_id === params[0] && Number(row.date.slice(0, 4)) === params[1] &&
         (row.group_key === params[2] || params[3].includes(row.group_key) ||
@@ -75,12 +82,12 @@ async function fixture(t) {
   });
   app.use(createModuleRouter({ query, teachingSessions: {
     now: () => clock,
-    timetable: async () => { timetableReads++; return { events: ['2026-11-23', '2026-11-30'].flatMap(day => [{
+    timetable: async () => { timetableReads++; return { events: [...extraTimetable, ...['2026-11-23', '2026-11-30'].flatMap(day => [{
       id: day + '-jpi-' + sourceVersion, title: 'PIDTECH (JPI)', allDay: false,
       start: day + 'T10:00:00', end: day + 'T11:00:00', location: '05'
     }, { id: day + '-whanau', title: 'WHANAU (' + whanauClass + ')', start: day + 'T08:45:00', end: day + 'T09:00:00', location: 'CW' },
     ...(ambiguousWhanau ? [{ id: day + '-other', title: 'WHANAU (9OTHER)', start: day + 'T08:45:00', end: day + 'T09:00:00', location: 'CW' }] : [])])
-      .filter(event => classAvailable || !event.title.includes('JPI')) }; }
+      .filter(event => classAvailable || !event.title.includes('JPI'))] }; }
   } }));
   const server = app.listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
@@ -100,8 +107,34 @@ async function fixture(t) {
     timetableReads: () => timetableReads, removeClass: () => { classAvailable = false; },
     time: value => { clock = new Date(value); }, changeSource: () => { sourceVersion++; },
     makeWhanauAmbiguous: () => { ambiguousWhanau = true; clock = new Date(clock.getTime() + 31000); },
+    addTimetable: events => { extraTimetable = events; clock = new Date(clock.getTime() + 31000); },
     setWhanauClass: value => { whanauClass = value; clock = new Date(clock.getTime() + 31000); } };
 }
+
+test('Junior class reminders use the latest earlier saved class session, never another owner or future outcomes', async t => {
+  const f = await fixture(t);
+  f.addTimetable([
+    { title: 'SRDTECH (JSR)', start: '2026-11-24T14:00:00', end: '2026-11-24T15:00:00' },
+    { title: 'SRDTECH (JSR)', start: '2026-11-27T11:20:00', end: '2026-11-27T12:20:00' },
+    { title: 'SRDTECH (JSR)', start: '2026-11-30T11:20:00', end: '2026-11-30T12:20:00' },
+    { title: 'MDTECH (81D)', start: '2026-11-27T12:20:00', end: '2026-11-27T13:20:00' }
+  ]);
+  const tuesday = await f.get('sessions/2026-11-24/p5');
+  tuesday.content.slotOutcomes = [{ title: 'Binary Piano — Review', occurrence: 1, status: 'not_taught' },
+    { title: 'Encoding Binary', occurrence: 1, status: 'not_taught' }];
+  assert.equal((await f.put('sessions/2026-11-24/p5', tuesday.content, 0)).status, 200);
+  const later = await f.get('sessions/2026-11-30/p3');
+  later.content.slotOutcomes = [{ title: 'Encoding Binary', occurrence: 1, status: 'taught' }];
+  assert.equal((await f.put('sessions/2026-11-30/p3', later.content, 0)).status, 200);
+  const saved = [...f.records.values()].find(row => row.date === '2026-11-24');
+  f.records.set('other-owner', { ...saved, owner_id: OTHER, date: '2026-11-26' });
+  f.records.set('other-class', { ...saved, group_key: 'session:p5:JPI', date: '2026-11-26' });
+  const friday = await f.get('sessions/2026-11-27/p3');
+  assert.equal(friday.previousClassSession.session_date, '2026-11-24');
+  assert.deepEqual(friday.previousClassSession.content.slotOutcomes, tuesday.content.slotOutcomes);
+  assert.equal(friday.revision, 0);
+  assert.equal((await f.get('sessions/2026-11-27/p4')).previousClassSession, null);
+});
 
 test('activity timing is explicit and optional, with unique activities and validated outcomes', () => {
   const content = draft([]);

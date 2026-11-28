@@ -20,7 +20,7 @@ ${standalone ? `<meta name="whs-global-control" content="${escape(coreUrl)}">` :
 <link rel="icon" type="image/png" href="${asset('whs-logo.png')}">
 <link rel="stylesheet" href="${asset('account-controls.css')}">
 <link rel="stylesheet" href="${asset('module-shell.css')}">
-<link rel="stylesheet" href="${asset('planner.css?v=junior-order-editor-2')}">
+<link rel="stylesheet" href="${asset('planner.css?v=session-order-panel-1')}">
 </head><body class="whs-module-shell whs-planner" data-api="${escape(baseUrl)}api/planner/" data-assets="${escape(baseUrl)}framework/" data-planner-name="${escape(displayName)}" data-user-id="${escape(userId)}" data-user-email="${escape(userEmail)}" data-core-url="${escape(coreUrl)}">
 <main class="planner-main" aria-label="${escape(title)}">
 <header class="planner-heading">
@@ -114,14 +114,14 @@ ${standalone ? `<script src="${asset('global-nav.js')}" defer></script>` : ''}
 <script src="${asset('reporting-schema.js?v=16')}" defer></script>
 <script src="${asset('reporting.js?v=29')}" defer></script>
 <script src="${asset('term-trello.js?v=trello-labels-1')}" defer></script>
-<script src="${asset('todo-trello.js?v=module-todo-1')}" defer></script>
+<script src="${asset('todo-trello.js?v=session-order-panel-1')}" defer></script>
 <script src="${asset('todo-dashboard.js?v=responsibility-expansion-1')}" defer></script>
 <script src="${asset('session-schema.js?v=scheduled-session-3')}" defer></script>
 <script src="${asset('teaching-slots.js?v=shared-draft-1')}" defer></script>
-<script src="${asset('junior-teaching.js?v=junior-order-editor-1')}" defer></script>
+<script src="${asset('junior-teaching.js?v=session-order-panel-1')}" defer></script>
 <script src="${asset('teaching-day-trello.js?v=dated-slot-refresh-1')}" defer></script>
-<script src="${asset('teaching-session.js?v=dated-slot-refresh-1')}" defer></script>
-<script src="${asset('planner.js?v=junior-order-editor-1')}" defer></script>
+<script src="${asset('teaching-session.js?v=session-order-panel-1')}" defer></script>
+<script src="${asset('planner.js?v=session-order-panel-1')}" defer></script>
 </body></html>`;
 }
 

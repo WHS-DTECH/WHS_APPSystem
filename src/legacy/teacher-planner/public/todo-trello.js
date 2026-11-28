@@ -418,9 +418,10 @@
     scroll.append(sections, detail);
     panel.append(header, toolbar, size, liveNote, status, scroll);
     aside.append(panel); host.append(show, aside);
-    let open = saved(storageKey) !== 'closed', available = true;
+    let open = saved(storageKey) !== 'closed', available = true, controlHost;
     function updateVisibility() {
-      aside.hidden = !available || !open; show.hidden = !available || open;
+      aside.hidden = !available || !open; show.hidden = !available || !controlHost && open;
+      show.textContent = controlHost && open ? 'Hide Trello' : 'Show Trello';
       show.setAttribute('aria-expanded', String(available && open));
       host.classList.toggle('todo-open', available && open);
     }
@@ -430,7 +431,7 @@
       remember(storageKey, value ? 'open' : 'closed');
     }
     updateVisibility();
-    show.addEventListener('click', () => { setOpen(true); hide.focus(); });
+    show.addEventListener('click', () => { setOpen(controlHost ? !open : true); if (!controlHost) hide.focus(); });
     hide.addEventListener('click', () => { setOpen(false); show.focus(); });
     let disposed = false;
     const expanded = new Map([['urgent', true], ['today', true]]);
@@ -517,6 +518,12 @@
       available = value;
       updateVisibility();
       if (available) render(state.data);
+    };
+    dispose.setControlHost = target => {
+      controlHost = target;
+      show.classList.toggle('todo-session-toggle', Boolean(target));
+      (target || host).append(show);
+      updateVisibility();
     };
     document.addEventListener('visibilitychange', onVisible);
     return dispose;

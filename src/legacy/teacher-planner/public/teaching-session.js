@@ -11,12 +11,14 @@
     function link(name, url) {
       return el('a', name, { href: url, target: '_blank', rel: 'noopener noreferrer' });
     }
-    const toggle = el('div', '', { class: 'term-notes-toggle planner-nav-buttons', role: 'group',
+    const toggle = el('div', '', { class: 'term-notes-toggle planner-nav-buttons session-view-toolbar', role: 'group',
       'aria-label': 'Session views', 'data-planner-navigation': '' });
     const notesButton = el('button', 'Notes', { type: 'button', 'aria-pressed': 'true' });
-    const rollButton = el('button', 'Class Roll', { type: 'button', 'aria-pressed': 'false' });
+    const rollButton = el('button', 'Class Roll', { type: 'button', class: 'session-roll-control', 'aria-pressed': 'false' });
     const trelloButton = el('button', helpers.showTrello ? 'Trello Planner' : 'Trello', { type: 'button', 'aria-pressed': 'false' });
-    toggle.append(notesButton, trelloButton, rollButton);
+    toggle.append(notesButton, trelloButton);
+    helpers.mountTrelloControl?.(toggle);
+    toggle.append(rollButton);
     const notes = el('section', '', { 'aria-label': 'Session Notes' });
     const roll = el('section', '', { 'aria-label': 'Class Roll' });
     roll.hidden = true;
@@ -59,12 +61,25 @@
         }), { el, request: helpers.teachingDay });
         else teachingDay.refreshContext();
       }
+      orderPanel?.ensureCurrentVisible();
       globalThis.plannerTextareaAutosize?.refresh();
     }
     notesButton.addEventListener('click', () => select(true));
     rollButton.addEventListener('click', () => select('roll'));
     trelloButton.addEventListener('click', () => select(false));
-    page.append(toggle, notes, roll, trello);
+    const layout = el('div', '', { class: 'session-content-layout' });
+    const main = el('div', '', { class: 'session-lesson-content' });
+    main.append(notes, roll, trello);
+    layout.append(main);
+    let orderPanel;
+    if (helpers.juniorOrderRequest && globalThis.plannerJuniorTeaching?.isJuniorSession(data.event)) {
+      const aside = el('aside', '', { class: 'session-junior-order', 'aria-label': 'JuniorDTECH teaching order for selected class',
+        'data-planner-navigation': '' });
+      layout.append(aside);
+      layout.setAttribute('class', 'session-content-layout session-with-junior-order');
+      orderPanel = globalThis.plannerJuniorTeaching.mountOrderPanel(aside, data, { el, request: helpers.juniorOrderRequest });
+    }
+    page.append(toggle, layout);
     function section(title) {
       const node = el('section', '', { class: 'session-section' });
       node.append(el('h3', title)); notes.append(node); return node;
@@ -167,6 +182,7 @@
       function show(titles, source, error, slots = []) {
         reference.replaceChildren();
         updatePathways(slots, titles.length ? [] : savedActivities, error);
+        orderPanel?.updatePlan(slots, source?.startsWith('Dated Trello plan'), error);
         const values = titles.length ? titles : saved;
         if (!values.length) reference.append(el('p', 'No planned activity titles are available.'));
         else {
@@ -271,7 +287,7 @@
       return { selectView: select, read: () => ({ note: note.value, actualProgress: '', evaluation: reflection.value, activities: [], ...savedSlotOutcomes(),
         session: { title: title.value, type: type.value, startTime: startTime.value, endTime: endTime.value,
           ...(data.event.classKey ? { classKey: data.event.classKey } : {}) } }),
-        saved: () => {} };
+        saved: result => orderPanel?.saved(result) };
     }
     const activities = section('Planned activities and actual progress');
     plannedReference(activities);
@@ -394,6 +410,7 @@
     }
     function saved(result) {
       data.confirmed_at = result.confirmed_at; data.confirmed_content = result.confirmed_content;
+      orderPanel?.saved(result);
       updateOutcomeStatus();
     }
     function updateOutcomeStatus() {

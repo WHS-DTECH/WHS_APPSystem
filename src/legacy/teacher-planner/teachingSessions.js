@@ -149,6 +149,15 @@ function createTeachingSessionsRouter({ query, timetable = loadTimetable, conten
     [owner, year, GROUP, groups, value, slotOrder, slot, slotOrder.map(key => 'session:' + key)]);
     return result.rows[0] || null;
   }
+  async function previousNamedClassSession(owner, year, value, slot, classKey) {
+    const order = slots.map(item => item[0]);
+    const result = await query(`SELECT session_date::text AS session_date,slot_key,content,revision
+      FROM planner_sessions WHERE owner_id=$1 AND year=$2 AND group_key=ANY($3::text[])
+        AND (session_date<$4 OR (session_date=$4 AND array_position($5::text[],slot_key)<array_position($5::text[],$6)))
+      ORDER BY session_date DESC,array_position($5::text[],slot_key) DESC LIMIT 1`,
+    [owner, year, order.map(key => 'session:' + key + ':' + classKey), value, order, slot]);
+    return result.rows[0] || null;
+  }
   async function genericPlan(req, res) {
     const { date: value, slot } = req.params, owner = req.user.id, year = Number(value.slice(0, 4));
     const legacyGroup = 'session:' + slot, legacyId = 'session:' + value + ':' + slot;
@@ -168,6 +177,8 @@ function createTeachingSessionsRouter({ query, timetable = loadTimetable, conten
         WHERE owner_id=$1 AND year=$2 AND session_date=$3 AND LEFT(group_key,LENGTH($4))=$4 AND slot_key=$5
         ORDER BY group_key`, [owner, year, value, legacyGroup + ':', slot]);
       const previousSession = classKey === 'JPI' ? await previousJpiSession(owner, year, value, slot) : null;
+      const previousClassSession = classKey && event && /^(?:PIDTECH|SRDTECH|JUNIORDTECH)\s*\(/i.test(event.title.trim()) ?
+        classKey === 'JPI' ? previousSession : await previousNamedClassSession(owner, year, value, slot, classKey) : null;
       const old = legacy?.rows[0];
       const adopted = old && old.content.session?.title.trim().toUpperCase() === event.title.trim().toUpperCase();
       const row = record.rows[0] || (adopted ? old : null);
@@ -188,7 +199,7 @@ function createTeachingSessionsRouter({ query, timetable = loadTimetable, conten
         unassignedNotes: old && (!adopted || record.rows.length) ? old.content : null,
         otherClassNotes: otherClasses.rows.filter(item => item.group_key !== group)
           .map(item => ({ classKey: item.group_key.slice((legacyGroup + ':').length), content: item.content })),
-        previousSession,
+        previousSession, previousClassSession,
         revision: row?.revision || 0, updated_at: row?.updated_at || null });
     }
     const body = req.body;
@@ -308,7 +319,7 @@ function createTeachingSessionsRouter({ query, timetable = loadTimetable, conten
           checkpoint: checkpoint.rows[0] || { checkpoint_note: INITIAL_NOTE, revision: 0, confirmed_at: null },
           unassignedNotes: oldSession.rows[0]?.content || null,
           otherClassNotes: otherClasses.rows.map(item => ({ classKey: item.group_key.slice('session:p2:'.length), content: item.content })),
-          previousSession,
+          previousSession, previousClassSession: previousSession,
           previous: history.rows.filter(item => item.confirmed_content).map(item => ({ ...item, session_date: sessionDay(item.session_date) })),
           awaitingConfirmation: history.rows.filter(item => !item.confirmed_content ||
             JSON.stringify(progressContent(item.content)) !== JSON.stringify(progressContent(item.confirmed_content))).map(item => sessionDay(item.session_date)),

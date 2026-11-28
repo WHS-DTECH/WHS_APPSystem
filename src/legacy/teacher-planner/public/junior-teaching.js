@@ -67,6 +67,159 @@
       title: entry.title, unit: entry.kind === 'unit' ? entry.sequence : '', lesson: entry.kind === 'unit' ? entry.title : '',
       details, reminder: '', resource: '', resourceUrl: '', resources };
   }
+  function isJuniorSession(event) {
+    if (!event.classKey || event.source === 'ambiguous' || event.source === 'manual') return false;
+    if (/^JuniorDTECH(?:\s|\(|$)/i.test(event.course || '')) return true;
+    const match = /^(?:PIDTECH|SRDTECH|JUNIORDTECH)\s*\(([A-Z0-9_-]+)\)$/i.exec(event.title || '');
+    return event.source === 'KAMAR' && match?.[1].toUpperCase() === event.classKey;
+  }
+  function orderEvidence(entries, slots, content, dated) {
+    const normal = value => String(value || '').trim().toLocaleLowerCase('en-NZ');
+    const address = value => {
+      try {
+        const url = new URL(value);
+        if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) return null;
+        return url.origin === 'https://trello.com' ? url.origin + url.pathname.split('/').slice(0, 3).join('/') : url.href;
+      } catch { return null; }
+    };
+    const sources = entries.map(entry => ({
+      entry, urls: [entry.source.url, /^Source:\s*(https?:\/\/\S+)/im.exec(entry.source.description)?.[1]]
+        .map(address).filter(Boolean)
+    }));
+    const mapped = new Map();
+    const occurrences = new Map();
+    if (dated) for (const slot of slots) {
+      const occurrence = (occurrences.get(slot.title) || 0) + 1;
+      occurrences.set(slot.title, occurrence);
+      const urls = [slot.resourceUrl, ...(slot.resources || []).filter(resource => resource.category !== 'Unit Plan')
+        .map(resource => resource.resourceUrl)].map(address).filter(Boolean);
+      const explicit = sources.filter(({ entry }) => entry.kind === 'unit' && slot.type === 'Unit Library' &&
+        normal(slot.unit) === normal(entry.sequence) && normal(slot.lesson) === normal(entry.title));
+      const linked = sources.filter(source => source.urls.some(url => urls.includes(url)));
+      if (explicit.length && linked.length && !explicit.some(item => linked.some(source => source.entry.id === item.entry.id))) continue;
+      const routines = sources.filter(({ entry }) => entry.kind === 'routine' && slot.type === 'Routine' &&
+        normal(slot.title) === normal(entry.title));
+      const matches = explicit.length ? explicit : linked.length ? linked : routines;
+      if (matches.length !== 1) continue;
+      const key = matches[0].entry.id;
+      if (!mapped.has(key)) mapped.set(key, []);
+      mapped.get(key).push({ slot, occurrence });
+    }
+    return entries.map(entry => {
+      const planned = mapped.get(entry.id) || [];
+      const recorded = planned.map(({ slot, occurrence }) => content.slotOutcomes?.find(outcome =>
+        outcome.title === slot.title && outcome.occurrence === occurrence)?.status);
+      if (!planned.length && entries.filter(item => item.title === entry.title).length === 1) {
+        recorded.push(...(content.slotOutcomes || []).filter(outcome => outcome.title === entry.title).map(outcome => outcome.status));
+      }
+      const labels = entry.kind === 'routine' ? ['Routine'] : [];
+      if (planned.length) labels.push('Planned this period');
+      if (recorded.includes('not_taught')) labels.push('Not taught');
+      else if (recorded.includes('partial')) labels.push('Partially taught');
+      else if (recorded.length && recorded.every(status => status === 'taught')) labels.push('Completed');
+      else if (!recorded.some(Boolean)) {
+        const activities = (content.activities || []).filter(activity => activity.sourceId === entry.source.id);
+        if (activities.length && activities.every(activity => activity.status === 'completed')) labels.push('Completed');
+        else if (activities.some(activity => activity.status === 'partial')) labels.push('Partially taught');
+      }
+      return { entry, planned, labels };
+    });
+  }
+  function mountOrderPanel(host, session, { el, request }) {
+    const header = el('div', '', { class: 'session-order-heading' });
+    const heading = el('h3', 'JuniorDTECH teaching order');
+    const toggle = el('button', 'Hide JuniorDTECH order', { type: 'button', 'aria-expanded': 'true',
+      'aria-controls': 'session-junior-sequence' });
+    const body = el('div', '', { id: 'session-junior-sequence' });
+    const reminder = el('div', '', { class: 'session-order-reminder' });
+    const list = el('ol', '', { class: 'session-order-scroll', 'aria-label': 'Shared JuniorDTECH order', tabindex: '0' });
+    body.append(reminder, list);
+    header.append(heading, toggle); host.append(header, body);
+    let catalogue, slots = [], dated = false, planError, orderError, content = session.revision > 0 ? session.content : {};
+    function ensureCurrentVisible() {
+      const selected = list.querySelector?.('[data-current="true"]');
+      if (!selected || body.hidden || !list.clientHeight) return;
+      const target = selected.getBoundingClientRect(), bounds = list.getBoundingClientRect();
+      if (target.top < bounds.top || target.bottom > bounds.bottom) {
+        list.scrollTop += target.top - bounds.top;
+      }
+    }
+    toggle.addEventListener('click', () => {
+      body.hidden = !body.hidden;
+      toggle.textContent = body.hidden ? 'Show JuniorDTECH order' : 'Hide JuniorDTECH order';
+      toggle.setAttribute('aria-expanded', String(!body.hidden));
+      ensureCurrentVisible();
+    });
+    const statuses = { taught: 'Completed', partial: 'Partially taught', not_taught: 'Not taught' };
+    function noteSummary(value) {
+      return [value?.actualProgress, value?.note].filter(value => typeof value === 'string' && value.trim()).join('\n\n');
+    }
+    function render() {
+      reminder.replaceChildren(el('strong', session.event.className || session.event.classKey),
+        el('p', globalThis.plannerSessionSchema.dateLabel(session.event.date) + ' | ' + session.event.label));
+      const previous = session.previousClassSession || session.previousSession;
+      if (previous) {
+        const history = el('details');
+        history.append(el('summary', 'Previous saved Notes — ' + String(previous.session_date).slice(0, 10)));
+        for (const outcome of previous.content.slotOutcomes || []) {
+          history.append(el('p', outcome.title + ': ' + statuses[outcome.status]));
+        }
+        if (noteSummary(previous.content)) history.append(el('p', noteSummary(previous.content)));
+        reminder.append(history);
+      }
+      const note = noteSummary(content);
+      if (note) {
+        const notes = el('details');
+        notes.append(el('summary', 'Saved Notes for this period'), el('p', note));
+        reminder.append(notes);
+      }
+      list.replaceChildren();
+      for (const error of [planError, orderError].filter(Boolean)) reminder.append(el('p', error, { role: 'alert' }));
+      if (!catalogue) {
+        list.append(el('li', orderError ? 'Shared order unavailable.' : 'Reading shared teaching order...', { role: 'status' }));
+        return;
+      }
+      const evidence = orderEvidence(catalogue.entries, slots, content, dated);
+      const current = evidence.find(item => item.entry.kind !== 'routine' && item.planned.length);
+      const planned = slots.filter(slot => evidence.some(item => item.entry.kind !== 'routine' &&
+        item.planned.some(plan => plan.slot === slot))).map(slot => slot.title);
+      if (planned.length) reminder.append(el('p', 'Planned this period: ' + [...new Set(planned)].join('; ')));
+      const earlier = (previous?.content.slotOutcomes || []).filter(outcome => planned.includes(outcome.title));
+      if (earlier.length) reminder.append(el('p', 'Previous saved Notes (' + String(previous.session_date).slice(0, 10) +
+        '): ' + earlier.map(outcome => outcome.title + ' — ' + statuses[outcome.status]).join('; ')));
+      for (const { entry, labels, planned } of evidence) {
+        const row = el('li', '', { class: 'session-order-card junior-kind-' + entry.kind,
+          'data-current': String(current?.entry.id === entry.id) });
+        row.append(el('strong', entry.title), el('small', entry.sequence));
+        if (labels.length) row.append(el('span', labels.join(' · '), { class: 'session-order-status' }));
+        for (const plan of planned) if (plan.slot.title !== entry.title) {
+          row.append(el('small', plan.slot.title));
+        }
+        list.append(row);
+      }
+      if (!evidence.length) list.append(el('li', 'No JuniorDTECH teaching order has been set.'));
+      if (catalogue.issues.length) {
+        const checks = el('details');
+        checks.append(el('summary', 'Items to check (' + catalogue.issues.length + ')'));
+        warnings(el, checks, catalogue.issues); reminder.append(checks);
+      }
+      ensureCurrentVisible();
+    }
+    render();
+    request('catalogue').then(data => {
+      if (!host.isConnected) return;
+      catalogue = data; render();
+    }).catch(error => {
+      if (!host.isConnected) return;
+      orderError = 'JuniorDTECH order unavailable: ' + error.message;
+      render();
+    });
+    return {
+      updatePlan: (plan, isDated, error) => { slots = plan; dated = isDated; planError = error; render(); },
+      saved: result => { if (result.content) { content = result.content; render(); } },
+      ensureCurrentVisible
+    };
+  }
   function mountOrderEditor(host, { el, request, openTeachingDay, year }) {
     const page = el('section', '', { class: 'junior-teaching junior-order-editor', 'data-planner-navigation': '' });
     const tools = el('div', '', { class: 'junior-order-tools' });
@@ -516,5 +669,5 @@
     load();
     return { dispose() { disposed = true; } };
   }
-  globalThis.plannerJuniorTeaching = { mountPage, mountSession, proposedEntries, draftSlot };
+  globalThis.plannerJuniorTeaching = { mountPage, mountSession, proposedEntries, draftSlot, isJuniorSession, orderEvidence, mountOrderPanel };
 })();

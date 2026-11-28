@@ -95,7 +95,7 @@
 .teaching-dashboard-workspace { min-width: 0; }
 .teaching-dashboard-workspace .session-planner { margin: 0; max-width: none; width: 100%; box-sizing: border-box; }
 .teaching-dashboard-workspace .term-notes-toggle button { font-size: 18px; padding: 10px 20px; }
-.teaching-dashboard-workspace .term-notes-toggle { display: flex; width: 100%; margin: 0 0 12px; }
+.teaching-dashboard-workspace .term-notes-toggle { display: flex; flex-wrap: wrap; width: 100%; margin: 0 0 12px; }
 .teaching-dashboard-workspace .term-notes-toggle > button:last-child { margin-left: auto; }
 .session-pathway-units { box-sizing: border-box; width: 100%; margin: 0 0 16px; padding: 16px; border: 1px solid #b3cbd6; border-left: 4px solid #008b85; border-radius: 5px; background: #eaf5fa; overflow-wrap: anywhere; }
 .session-pathway-units h3 { margin: 0 0 10px; color: #173e54; }
@@ -110,7 +110,27 @@
 .session-slot-status { margin-left: auto; }
 .session-slot-status-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
 .session-slot-status select { max-width: 100%; }
-.teaching-dashboard-workspace .session-planner:has(> [aria-label="Session Trello"]:not([hidden])) > :is(h2, h3, p) { display: none; }
+.session-view-toolbar { flex-wrap: wrap; }
+.session-view-toolbar .todo-session-toggle { position: static; z-index: auto; margin: 0; }
+.session-view-toolbar .session-roll-control { margin-left: auto; }
+.session-planner { container-type: inline-size; }
+.session-content-layout { min-width: 0; }
+.session-with-junior-order { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 16px; align-items: start; }
+.session-lesson-content { min-width: 0; }
+.session-junior-order { min-width: 0; padding: 12px; border: 1px solid #b3cbd6; border-left: 4px solid #008b85; border-radius: 6px; background: #edf6fa; }
+.session-order-heading h3 { margin: 0 0 8px; color: #173e54; }
+.session-order-heading button { max-width: 100%; font-size: 13px; }
+.session-order-reminder { margin: 10px 0; overflow-wrap: anywhere; font-size: 13px; }
+.session-order-reminder p { margin: 6px 0; }
+.session-order-reminder details { margin: 6px 0; }
+.session-order-reminder details > p { white-space: pre-wrap; }
+.session-order-scroll { list-style: none; display: grid; gap: 7px; max-height: min(48vh, 400px); overflow-y: auto; overscroll-behavior: contain; padding: 0 3px 0 0; margin: 0; }
+.session-order-card { display: grid; gap: 3px; padding: 9px; border: 1px solid #c7d7df; border-left: 3px solid var(--order-accent); border-radius: 4px; background: #fff; overflow-wrap: anywhere; }
+.session-order-card small { color: #526a77; font-size: 12px; }
+.session-order-card[data-current="true"] { outline: 2px solid #245f85; outline-offset: -2px; background: #e1eff7; }
+.session-order-status { color: #173e54; font-size: 12px; font-weight: 600; }
+@container (max-width: 760px) { .session-with-junior-order { grid-template-columns: minmax(0, 1fr); } }
+.teaching-dashboard-workspace .session-planner:has([aria-label="Session Trello"]:not([hidden])) > :is(h2, h3, p) { display: none; }
 .teaching-dashboard-card { position: relative; margin: 10px 0; border: 1px solid #b3c4cb; border-radius: 5px; }
 .teaching-dashboard .teaching-dashboard-card-open { display: grid; gap: 6px; width: 100%; padding: 12px 12px 44px; border: 0; background: transparent; text-align: left; white-space: normal; }
 .teaching-dashboard .teaching-dashboard-card-notes { position: absolute; bottom: 8px; right: 10px; font-size: 13px; padding: 5px 10px; }
@@ -306,7 +326,7 @@
 .todo-detail h3 { margin: 0 0 8px; }
 .todo-description { white-space: pre-wrap; }
 .todo-show { position: fixed; right: 12px; top: 35%; z-index: 20; }
-.todo-week-workspace:has(.todo-show:not([hidden])) > .todo-week-content:has(.teaching-dashboard, .junior-order-editor) { padding-right: 120px; }
+.todo-week-workspace:has(.todo-show:not([hidden]):not(.todo-session-toggle)) > .todo-week-content:has(.teaching-dashboard, .junior-order-editor) { padding-right: 120px; }
 .todo-dashboard { background: #f5f9fb; border: 1px solid #aac2ce; border-radius: 8px; padding: 16px; }
 .todo-dashboard h2, .todo-dashboard h3 { color: #31586c; }
 .todo-dashboard-toolbar, .todo-dashboard-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
@@ -333,6 +353,12 @@
   .todo-week-workspace { display: block; }
   .todo-sidebar, .todo-show, .todo-sidebar-error { display: none !important; }
   .google-tasks-column > button { display: none; }
+}
+@media screen and (max-width: 1500px) {
+  .todo-week-workspace:has(.session-view-toolbar) { flex-direction: column; }
+  .todo-week-workspace:has(.session-view-toolbar) > .todo-week-content { width: 100%; }
+  .todo-week-workspace:has(.session-view-toolbar) > .todo-sidebar { position: static; width: 100%; flex: 0 1 auto; }
+  .todo-week-workspace:has(.session-view-toolbar) .todo-panel { height: auto; max-height: min(70vh, 600px); }
 }
 @media print {
   .term-notes-toggle, .term-trello-panel > button { display: none; }

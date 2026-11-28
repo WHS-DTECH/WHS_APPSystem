@@ -14,7 +14,12 @@ function sidebarFixture(preferences = new Map(), initialLists) {
     const node = { tag, textContent: text, children: [], attrs: {}, events: {}, style: {
       setProperty(key, value) { this[key] = value; }
     }, isConnected: true, hidden: false, open: false, className: '',
-    append(...items) { this.children.push(...items); }, prepend(...items) { this.children.unshift(...items); },
+    append(...items) {
+      for (const item of items) {
+        if (item.parentNode) item.parentNode.children = item.parentNode.children.filter(child => child !== item);
+        item.parentNode = this; this.children.push(item);
+      }
+    }, prepend(...items) { this.children.unshift(...items); },
     replaceChildren(...items) { this.children = items; },
     setAttribute(key, value) { this.attrs[key] = value; if (key === 'class') this.className = value; if (key === 'hidden') this.hidden = true; },
     addEventListener(key, handler) { this.events[key] = handler; }, focus() {}, scrollIntoView() {},
@@ -69,6 +74,49 @@ function sidebarFixture(preferences = new Map(), initialLists) {
   vm.runInNewContext(fs.readFileSync(require.resolve('./public/todo-dashboard'), 'utf8'), context);
   return { host, make, context, preferences, listeners, get reads() { return reads; }, get writes() { return writes; } };
 }
+
+test('the existing Trello sidebar control stays in the session toolbar and does not change class or view', async () => {
+  const f = sidebarFixture(new Map([['teacher-planner-trello-todo-sidebar', 'closed']]));
+  f.context.plannerSessionSchema = require('./public/session-schema');
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/teaching-session'), 'utf8'), f.context);
+  const sidebar = f.context.plannerTodoTrello.mount(f.host, { api: '/api/', getCsrf: () => 'fixture' });
+  let view = 'notes';
+  const selectedClass = 'JSR';
+  const workspace = f.context.plannerTeachingSession.mount(f.host, {
+    event: { date: '2026-11-27', slot: 'p3', label: 'Period 3', title: 'SRDTECH (JSR)', classKey: selectedClass, source: 'KAMAR' },
+    revision: 1, legacy: { content: {} },
+    content: { activities: [], note: 'Keep saved Notes', evaluation: '',
+      session: { title: 'SRDTECH (JSR)', type: 'teaching', startTime: '', endTime: '' } }
+  }, { el: (tag, text, attrs = {}) => {
+    const item = f.make(tag, text);
+    for (const [key, value] of Object.entries(attrs)) item.setAttribute(key, value);
+    return item;
+  }, legacy() {}, showTrello() {},
+    mountTrelloControl: toolbar => sidebar.setControlHost(toolbar), viewChanged: (_notes, selected) => { view = selected; } });
+  await flush();
+  const toolbar = descendants(f.host).find(item => item.attrs['aria-label'] === 'Session views');
+  const toggle = toolbar.children[2];
+  assert.deepEqual(toolbar.children.map(item => item.textContent), ['Notes', 'Trello Planner', 'Show Trello', 'Class Roll']);
+  toggle.events.click();
+  assert.equal(toggle.textContent, 'Hide Trello');
+  assert.equal(toggle.attrs['aria-expanded'], 'true');
+  assert.equal(toggle.hidden, false);
+  assert.equal(f.host.querySelector('aside').hidden, false);
+  assert.equal(view, 'notes');
+  workspace.selectView(false);
+  toggle.events.click();
+  assert.equal(view, 'trello');
+  assert.equal(selectedClass, 'JSR');
+  assert.equal(toggle.textContent, 'Show Trello');
+  assert.equal(toggle.attrs['aria-expanded'], 'false');
+  assert.equal(toggle.parentNode, toolbar);
+  workspace.selectView(true);
+  assert.equal(toggle.parentNode, toolbar);
+  assert.equal(workspace.read().note, 'Keep saved Notes');
+  sidebar.setControlHost(null);
+  assert.equal(toggle.parentNode, f.host);
+  sidebar();
+});
 
 test('one module sidebar persists across Planner views without refetching or affecting teaching preparation', async () => {
   const f = sidebarFixture();

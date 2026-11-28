@@ -170,6 +170,116 @@ test('JuniorDTECH editor adds, moves and saves library identities while keeping 
   }
 });
 const typingCopy = 'Students practice their keyboarding skills by logging their results from TypingTest.com.';
+test('Junior session order stays shared across views while reminders and saved outcomes belong to the selected class', async () => {
+  const context = { URL, plannerSessionSchema: require('./public/session-schema') };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/junior-teaching'), 'utf8') +
+    fs.readFileSync(require.resolve('./public/teaching-session'), 'utf8'), context);
+  const entries = [
+    ['typing', 'Typing Kit', 'routine', 'Typing Kit'], ['piano', 'Binary Piano', 'unit', 'Binary & Data'],
+    ['encoding', 'Encoding Binary', 'unit', 'Binary & Data'], ['decoding', 'Decoding Binary', 'unit', 'Binary & Data']
+  ].map(([id, title, kind, sequence]) => ({ id, title, kind, sequence, source: {
+    id: 'source-' + id, title, kind, sequence, url: 'https://trello.com/c/' + id, description: ''
+  } }));
+  const slots = [
+    { title: 'Typing Kit', type: 'Routine', resources: [] },
+    { title: 'Binary Piano — Review', type: 'Unit Library', unit: 'Binary & Data', lesson: 'Binary Piano', resources: [] },
+    { title: 'Encoding Binary', type: 'Unit Library', unit: 'Binary & Data', lesson: 'Encoding Binary', resources: [] }
+  ];
+  let reads = 0;
+  const host = node(), data = {
+    event: { date: '2026-11-27', slot: 'p3', label: 'Period 3', title: 'SRDTECH (JSR)', classKey: 'JSR', source: 'KAMAR' },
+    revision: 3, content: { session: { title: 'SRDTECH (JSR)', type: 'teaching', startTime: '', endTime: '' },
+      activities: [], note: 'Friday actual progress', evaluation: '', slotOutcomes: [
+        { title: 'Binary Piano — Review', occurrence: 1, status: 'not_taught' },
+        { title: 'Encoding Binary', occurrence: 1, status: 'not_taught' }
+      ] }, legacy: { content: {} },
+    previousClassSession: { session_date: '2026-11-24', content: { note: 'Tuesday actual progress', slotOutcomes: [
+      { title: 'Binary Piano — Review', occurrence: 1, status: 'not_taught' },
+      { title: 'Encoding Binary', occurrence: 1, status: 'not_taught' }
+    ] } }
+  };
+  const helpers = { el: node, legacy() {}, showTrello() {},
+    juniorOrderRequest: async path => { reads++; assert.equal(path, 'catalogue'); return { entries, issues: [] }; },
+    plannedTitles: callback => callback(slots.map(slot => slot.title), 'Dated Trello plan (reference only):', undefined, slots) };
+  const workspace = context.plannerTeachingSession.mount(host, data, helpers);
+  await flush();
+  const nodes = () => slotDescendants(host);
+  const panel = nodes().find(item => item.attrs.class === 'session-junior-order');
+  const rows = () => slotDescendants(panel).filter(item => item.attrs.class?.startsWith('session-order-card '));
+  const labels = () => rows().map(row => row.children.find(item => item.attrs.class === 'session-order-status')?.textContent || '');
+  assert.deepEqual(rows().map(row => row.children[0].textContent), entries.map(entry => entry.title));
+  assert.deepEqual(labels(), ['Routine · Planned this period', 'Planned this period · Not taught', 'Planned this period · Not taught', '']);
+  assert.ok(nodes().some(item => item.textContent?.includes('Previous saved Notes (2026-11-24): Binary Piano')));
+  workspace.selectView(false); workspace.selectView(true);
+  assert.equal(nodes().find(item => item.attrs.class === 'session-junior-order'), panel);
+  assert.equal(reads, 1);
+  const dropdown = nodes().find(item => item.attrs['aria-label'] === 'Slot 3 status for Encoding Binary');
+  dropdown.value = 'taught'; dropdown.events.change();
+  assert.equal(labels()[2], 'Planned this period · Not taught', 'an unsaved dropdown must not establish completion');
+  workspace.saved({ content: { ...data.content, slotOutcomes: data.content.slotOutcomes.map(outcome =>
+    ({ ...outcome, status: 'taught' })) }, revision: 4 });
+  assert.equal(labels()[2], 'Planned this period · Completed');
+  const collapse = nodes().find(item => item.textContent === 'Hide JuniorDTECH order');
+  collapse.events.click();
+  assert.equal(collapse.attrs['aria-expanded'], 'false');
+  workspace.selectView(false);
+  assert.equal(collapse.attrs['aria-expanded'], 'false', 'view switching retains the panel state');
+  const jpi = node();
+  context.plannerTeachingSession.mount(jpi, { ...data,
+    event: { ...data.event, title: 'PIDTECH (JPI)', classKey: 'JPI' },
+    previousClassSession: null, content: { ...data.content, note: 'JPI actual progress', slotOutcomes: [] }
+  }, helpers);
+  await flush();
+  assert.ok(!slotDescendants(jpi).some(item => item.textContent?.includes('Tuesday actual progress')));
+  assert.ok(!slotDescendants(jpi).some(item => item.attrs.class === 'session-order-status' && item.textContent.includes('Not taught')));
+  const middle = node();
+  context.plannerTeachingSession.mount(middle, { ...data,
+    event: { ...data.event, title: 'MDTECH (81D)', classKey: '81D' }
+  }, helpers);
+  assert.ok(!slotDescendants(middle).some(item => item.attrs.class === 'session-junior-order'));
+  assert.equal(reads, 2);
+  assert.equal(context.plannerJuniorTeaching.isJuniorSession({ title: 'PIDTECH (JXX)', classKey: 'JXX', source: 'KAMAR' }), true);
+  assert.equal(context.plannerJuniorTeaching.isJuniorSession({ title: 'PIDTECH (JPI)', classKey: 'JPI', source: 'manual' }), false);
+});
+
+test('order evidence never treats draft slots, ambiguous resource links or conflicting identities as dated teaching', () => {
+  const context = { URL };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/junior-teaching'), 'utf8'), context);
+  const entries = ['Blueprint', 'Walkthrough'].map((title, index) => ({
+    id: String(index), title, kind: 'kit', sequence: 'Minecraft Builder Kit',
+    source: { id: 'source-' + index, url: 'https://trello.com/c/card' + index,
+      description: 'Source: https://example.com/shared-kit' }
+  }));
+  const slot = { title: 'Minecraft', type: 'Routine', resources: [
+    { category: 'Web Links', resourceUrl: 'https://example.com/shared-kit' }
+  ] };
+  assert.ok(context.plannerJuniorTeaching.orderEvidence(entries, [slot], {}, true).every(item => !item.planned.length));
+  assert.ok(context.plannerJuniorTeaching.orderEvidence(entries, [slot], {}, false).every(item => !item.labels.length));
+  entries[0] = { ...entries[0], kind: 'unit', sequence: 'Binary & Data',
+    source: { ...entries[0].source, description: 'Source: https://example.com/piano' } };
+  const conflict = { ...slot, type: 'Unit Library', unit: 'Binary & Data', lesson: 'Blueprint' };
+  assert.ok(context.plannerJuniorTeaching.orderEvidence(entries, [conflict], {}, true).every(item => !item.planned.length));
+  const repeated = { title: 'Blueprint review', type: 'Unit Library', unit: 'Binary & Data', lesson: 'Blueprint', resources: [] };
+  const outcomes = { slotOutcomes: [{ title: repeated.title, occurrence: 1, status: 'taught' }],
+    activities: [{ sourceId: entries[0].source.id, status: 'completed' }] };
+  const evidence = context.plannerJuniorTeaching.orderEvidence(entries, [repeated, repeated], outcomes, true);
+  assert.equal(evidence[0].planned.length, 2);
+  assert.ok(!evidence[0].labels.includes('Completed'), 'one saved occurrence cannot complete two planned occurrences');
+});
+
+test('a delayed shared-order response cannot update a replaced session panel', async () => {
+  const context = { URL, plannerSessionSchema: require('./public/session-schema') };
+  vm.runInNewContext(fs.readFileSync(require.resolve('./public/junior-teaching'), 'utf8'), context);
+  const host = node();
+  let resolve;
+  context.plannerJuniorTeaching.mountOrderPanel(host, { revision: 0,
+    event: { date: '2026-11-27', label: 'Period 3', classKey: 'JSR' }
+  }, { el: node, request: () => new Promise(done => { resolve = done; }) });
+  host.isConnected = false;
+  resolve({ entries: [{ id: 'old', title: 'Previous class activity' }], issues: [] });
+  await flush();
+  assert.ok(!slotDescendants(host).some(item => item.textContent === 'Previous class activity'));
+});
 const activityDescription = panel => slotDescendants(panel).find(item => item.attrs.class?.includes('teaching-activity-description'))?.textContent;
 test('teaching workspaces render both four-slot sequences with the first activity selected and no progress controls', () => {
   const renderer = require('./public/teaching-slots');
