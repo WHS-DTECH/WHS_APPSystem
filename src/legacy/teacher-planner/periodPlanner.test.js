@@ -226,10 +226,18 @@ test('Junior session order stays shared across views while reminders and saved o
   assert.equal(collapse.attrs['aria-expanded'], 'false', 'view switching retains the panel state');
   const jpi = node();
   context.plannerTeachingSession.mount(jpi, { ...data,
-    event: { ...data.event, title: 'PIDTECH (JPI)', classKey: 'JPI' },
-    previousClassSession: null, content: { ...data.content, note: 'JPI actual progress', slotOutcomes: [] }
-  }, helpers);
+    event: { ...data.event, title: 'PIDTECH (JPI)', classKey: 'JPI', slot: 'p2', label: undefined },
+    previousClassSession: { session_date: '2026-11-23', content: { slotOutcomes: [
+      { title: 'Encoding Binary', occurrence: 1, status: 'taught' }
+    ] } }, content: { ...data.content, note: 'JPI actual progress', slotOutcomes: [] }
+  }, { ...helpers, plannedTitles: callback => {
+    const slot = { title: 'Decoding Binary', type: 'Unit Library', unit: 'Binary & Data', lesson: 'Decoding Binary', resources: [] };
+    callback([slot.title], 'Dated Trello plan (reference only):', undefined, [slot]);
+  } });
   await flush();
+  assert.ok(slotDescendants(jpi).some(item => item.textContent === 'Friday 27 November 2026 | Period 2'));
+  assert.ok(slotDescendants(jpi).some(item => item.textContent === 'Previous saved Notes (2026-11-23): Encoding Binary — Completed'));
+  assert.ok(!slotDescendants(jpi).some(item => item.attrs.class === 'session-order-status' && item.textContent.includes('Completed')));
   assert.ok(!slotDescendants(jpi).some(item => item.textContent?.includes('Tuesday actual progress')));
   assert.ok(!slotDescendants(jpi).some(item => item.attrs.class === 'session-order-status' && item.textContent.includes('Not taught')));
   const middle = node();

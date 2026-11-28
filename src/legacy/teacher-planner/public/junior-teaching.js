@@ -155,8 +155,9 @@
       return [value?.actualProgress, value?.note].filter(value => typeof value === 'string' && value.trim()).join('\n\n');
     }
     function render() {
+      const label = session.event.label || globalThis.plannerSessionSchema.slots.find(slot => slot[0] === session.event.slot)?.[1];
       reminder.replaceChildren(el('strong', session.event.className || session.event.classKey),
-        el('p', globalThis.plannerSessionSchema.dateLabel(session.event.date) + ' | ' + session.event.label));
+        el('p', globalThis.plannerSessionSchema.dateLabel(session.event.date) + ' | ' + label));
       const previous = session.previousClassSession || session.previousSession;
       if (previous) {
         const history = el('details');
@@ -184,7 +185,8 @@
       const planned = slots.filter(slot => evidence.some(item => item.entry.kind !== 'routine' &&
         item.planned.some(plan => plan.slot === slot))).map(slot => slot.title);
       if (planned.length) reminder.append(el('p', 'Planned this period: ' + [...new Set(planned)].join('; ')));
-      const earlier = (previous?.content.slotOutcomes || []).filter(outcome => planned.includes(outcome.title));
+      const earlier = (previous?.content.slotOutcomes || []).filter(outcome =>
+        !catalogue.entries.some(entry => entry.kind === 'routine' && entry.title === outcome.title)).slice(0, 3);
       if (earlier.length) reminder.append(el('p', 'Previous saved Notes (' + String(previous.session_date).slice(0, 10) +
         '): ' + earlier.map(outcome => outcome.title + ' — ' + statuses[outcome.status]).join('; ')));
       for (const { entry, labels, planned } of evidence) {
