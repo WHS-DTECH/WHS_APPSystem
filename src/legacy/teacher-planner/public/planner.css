@@ -138,14 +138,14 @@
 .junior-kind-routine { --order-accent: #2e7d32; }
 .junior-kind-unit { --order-accent: #a54800; }
 .junior-kind-kit { --order-accent: #00796b; }
-.junior-order-card { display: grid; grid-template-columns: auto auto minmax(0, 1fr); align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid #c7d7df; border-left: 4px solid var(--order-accent); border-radius: 6px; background: #fff; }
+.junior-order-card { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: center; gap: 6px 8px; padding: 10px 12px; border: 1px solid #c7d7df; border-left: 4px solid var(--order-accent); border-radius: 6px; background: #fff; }
 .junior-order-title { display: grid; gap: 3px; min-width: 0; overflow-wrap: anywhere; }
 .junior-order-title small, .junior-library-tile small { color: #526a77; font-size: 12px; }
 .junior-type-icon { color: var(--order-accent, #173e54); font-size: 22px; }
 .whs-planner .junior-drag-handle { padding: 4px 8px; margin: 0; cursor: grab; font-size: 22px; background: #edf4f8; color: #173e54; border-color: #c7d7df; }
-.junior-order-actions { grid-column: 3; display: flex; flex-wrap: wrap; gap: 6px; }
+.junior-order-actions { grid-column: 4; display: flex; flex-wrap: wrap; gap: 6px; }
 .whs-planner .junior-order-actions button { margin: 0; padding: 4px 8px; font-size: 12px; }
-.junior-order-details { grid-column: 3; font-size: 13px; min-width: 0; }
+.junior-order-details { grid-column: 3 / -1; font-size: 13px; min-width: 0; }
 .junior-order-details summary { color: #245a81; cursor: pointer; }
 .junior-order-details a { display: block; padding: 6px 0; overflow-wrap: anywhere; }
 .junior-library-tabs { margin-bottom: 12px; }
@@ -161,6 +161,10 @@
 .junior-order-checks, .junior-order-progress { margin-top: 16px; padding: 10px; border: 1px solid #b3cbd6; border-radius: 5px; }
 .junior-order-checks > summary, .junior-order-progress > summary { cursor: pointer; color: #173e54; }
 @media (max-width: 1100px) { .junior-order-columns { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 600px) {
+  .junior-order-card { grid-template-columns: auto auto minmax(0, 1fr); }
+  .junior-order-actions { grid-column: 3; }
+}
 @media (max-width: 1100px) { .teaching-dashboard-columns { grid-template-columns: minmax(0, 1fr); } }
 .teaching-slot-plan { min-width: 0; overflow-wrap: anywhere; }
 .teaching-slot-header { display: flex; justify-content: space-between; align-items: start; gap: 20px; padding: 20px; border-radius: 5px; background: #173e54; color: #fff; }
