@@ -293,6 +293,28 @@
   margin-top: 0.35rem;
 }
 
+#github-private-repositories {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  border: 1px solid #d5dce5;
+  border-radius: 0.75rem;
+}
+
+#github-private-repositories label {
+  display: block;
+  font-weight: 600;
+  margin: 0.75rem 0 0.35rem;
+}
+
+#github-private-repositories textarea {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 40rem;
+  padding: 0.6rem;
+  font: inherit;
+  resize: vertical;
+}
+
 .cost-table-wrap {
   border: 1px solid #dce5df;
   border-radius: 8px;

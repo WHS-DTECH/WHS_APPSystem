@@ -1,6 +1,8 @@
 const crypto = require('crypto');
 const express = require('express');
 const { query } = require('./db');
+const { sendEmail } = require('./email');
+const config = require('./config');
 
 const PRICE_CHECKED = '2026-11-02';
 const MAIN_GITHUB_ACCOUNT = 'whs-dtech';
@@ -190,7 +192,21 @@ function costSummary(snapshot) {
   return { render, workspaceSubscriptions };
 }
 
-function createInfrastructureCostsRouter({ dbQuery = query, providers = createCostProviders(), now = () => new Date() } = {}) {
+function privateRepositoryCheck(snapshot, managed) {
+  const names = new Map();
+  for (const name of [...(Array.isArray(snapshot.privateRepositories) ? snapshot.privateRepositories : []), ...managed]) {
+    if (typeof name === 'string') names.set(name.toLowerCase(), name);
+  }
+  const visible = new Map((snapshot.github?.data?.repositories || []).map(repo => [repo.name.toLowerCase(), repo]));
+  const checked = Boolean(snapshot.github?.data && !snapshot.github.error);
+  return [...names.values()].sort((a, b) => a.localeCompare(b)).map(name => ({
+    name,
+    status: !checked ? 'Not checked' : !visible.has(name.toLowerCase()) ? 'Not visible'
+      : visible.get(name.toLowerCase()).private ? 'Private' : 'Visible as public'
+  }));
+}
+
+function createInfrastructureCostsRouter({ dbQuery = query, providers = createCostProviders(), now = () => new Date(), mail = sendEmail } = {}) {
   const router = express.Router();
   let refreshing = false;
   router.use((req, res, next) => {
@@ -203,9 +219,12 @@ function createInfrastructureCostsRouter({ dbQuery = query, providers = createCo
     next();
   });
   const load = async () => (await dbQuery('SELECT snapshot FROM infrastructure_cost_report WHERE id = 1')).rows[0]?.snapshot || {};
+  const managedRepositories = async () => (await dbQuery(
+    "SELECT repository FROM module_builder_projects WHERE repository_managed=true AND repository<>'' ORDER BY repository"
+  )).rows.map(row => row.repository);
   router.get('/', async (req, res, next) => {
     try {
-      const snapshot = await load();
+      const [snapshot, managed] = await Promise.all([load(), managedRepositories()]);
       const exchange = snapshot.exchange?.data;
       const rate = !snapshot.exchange?.error && exchange && now().getTime() - Date.parse(exchange.updatedAt) <= 7 * 86400000 ? exchange.rate : null;
       const money = value => Number.isFinite(value) ? `USD ${value.toFixed(2)}` : 'Unknown';
@@ -213,6 +232,8 @@ function createInfrastructureCostsRouter({ dbQuery = query, providers = createCo
       res.render('admin/infrastructure-costs', { title: 'GitHub & Render Costs', snapshot,
         summary: costSummary(snapshot), summarizeCosts, rate, money, nzd, sources: SOURCES, priceChecked: PRICE_CHECKED,
         mainGithubAccount: MAIN_GITHUB_ACCOUNT,
+        privateRepositories: privateRepositoryCheck(snapshot, managed), managedRepositories: managed,
+        privateAlertUser: snapshot.privateRepositoryAlerts?.userId === req.user.id,
         studentAccounts: new Set((Array.isArray(snapshot.studentAccounts) ? snapshot.studentAccounts : [])
           .filter(login => typeof login === 'string').map(login => login.toLowerCase())),
         pageStylesheet: '/infrastructure-costs.css' });
@@ -239,12 +260,76 @@ function createInfrastructureCostsRouter({ dbQuery = query, providers = createCo
         VALUES (1,$1::jsonb,$2,NOW()) ON CONFLICT (id) DO UPDATE
         SET snapshot=EXCLUDED.snapshot || jsonb_build_object('studentAccounts',
           COALESCE(infrastructure_cost_report.snapshot->'studentAccounts', '[]'::jsonb),
-          'workspaceSubscriptions', COALESCE(infrastructure_cost_report.snapshot->'workspaceSubscriptions', '{}'::jsonb)),
+          'workspaceSubscriptions', COALESCE(infrastructure_cost_report.snapshot->'workspaceSubscriptions', '{}'::jsonb),
+          'privateRepositories', COALESCE(infrastructure_cost_report.snapshot->'privateRepositories', '[]'::jsonb),
+          'privateRepositoryAlerts', COALESCE(infrastructure_cost_report.snapshot->'privateRepositoryAlerts', '{}'::jsonb)),
           updated_by=EXCLUDED.updated_by, updated_at=EXCLUDED.updated_at`,
       [JSON.stringify(Object.fromEntries(entries)), req.user.id]);
+      const snapshot = await load();
+      if (!snapshot.github?.error && snapshot.github?.data && snapshot.privateRepositoryAlerts?.userId) {
+        const checks = privateRepositoryCheck(snapshot, await managedRepositories());
+        const mismatches = checks.filter(item => item.status !== 'Private');
+        const signature = mismatches.length ? crypto.createHash('sha256')
+          .update(JSON.stringify(mismatches.map(item => [item.name.toLowerCase(), item.status]))).digest('hex') : '';
+        const alerts = snapshot.privateRepositoryAlerts;
+        if (signature !== (alerts.lastSentSignature || '') || alerts.error) {
+          let error = null;
+          if (signature) {
+            const recipient = (await dbQuery(`SELECT u.email FROM users u
+              JOIN user_roles ur ON ur.user_id=u.id JOIN roles r ON r.id=ur.role_id
+              WHERE u.id=$1 AND u.is_active=true AND r.name='ADMIN'`, [alerts.userId])).rows[0];
+            if (!recipient || !/^[^\s<>@,;]+@[^\s<>@,;]+\.[^\s<>@,;]+$/.test(recipient.email)) {
+              error = 'Alert recipient is inactive, no longer an administrator, or has no valid email.';
+            } else {
+              const link = new URL('/admin/infrastructure-costs#github-private-repositories', config.appBaseUrl).href;
+              try {
+                const result = await mail({ to: recipient.email, subject: 'GitHub private repository inventory needs review',
+                  text: `The GitHub reporting inventory differs from the private repository register. Not visible does not mean deleted. Review the report: ${link}` });
+                if (!result.ok) error = result.message || result.error || 'Email delivery failed.';
+              } catch (mailError) {
+                console.error('[infrastructure-costs] Private repository alert delivery failed:', mailError);
+                error = 'Email delivery failed. Check the email service.';
+              }
+            }
+          }
+          if (error) console.warn('[infrastructure-costs] Private repository alert:', error);
+          await dbQuery(`UPDATE infrastructure_cost_report SET snapshot=jsonb_set(snapshot, '{privateRepositoryAlerts}',
+            COALESCE(snapshot->'privateRepositoryAlerts','{}'::jsonb) || $1::jsonb)
+            WHERE id=1 AND snapshot->'privateRepositoryAlerts'->>'userId'=$2`,
+          [JSON.stringify(error ? { error } : { lastSentSignature: signature, error: null }), alerts.userId]);
+        }
+      }
       res.redirect('/admin/infrastructure-costs');
     } catch (error) { next(error); }
     finally { refreshing = false; }
+  });
+  router.post('/private-repositories', async (req, res, next) => {
+    const supplied = Buffer.from(String(req.body.csrf || '')), expected = Buffer.from(req.session.infrastructureCostsCsrf);
+    if (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) {
+      return res.status(403).render('error', { title: 'Form expired', message: 'Reload the cost report and try again.' });
+    }
+    try {
+      if (typeof req.body.repositories !== 'string' || req.body.repositories.length > 20000 ||
+          !['yes', 'no'].includes(req.body.emailAlerts)) {
+        return res.status(400).render('error', { title: 'Invalid private repository settings', message: 'Check the repository list and email setting.' });
+      }
+      const names = req.body.repositories.split(/\r?\n/).map(name => name.trim()).filter(Boolean);
+      if (names.length > 200 || names.some(name => !/^[A-Za-z0-9-]+\/[A-Za-z0-9_.-]+$/.test(name)) ||
+          new Set(names.map(name => name.toLowerCase())).size !== names.length) {
+        return res.status(400).render('error', { title: 'Invalid private repository list', message: 'Enter up to 200 unique owner/repository names, one per line.' });
+      }
+      if (req.body.emailAlerts === 'yes' && !/^[^\s<>@,;]+@[^\s<>@,;]+\.[^\s<>@,;]+$/.test(req.user.email || '')) {
+        return res.status(400).render('error', { title: 'Email unavailable', message: 'Your signed-in administrator account needs a valid email address.' });
+      }
+      const previous = await load();
+      const userId = req.body.emailAlerts === 'yes' ? req.user.id : null;
+      const alerts = userId && previous.privateRepositoryAlerts?.userId === userId ? previous.privateRepositoryAlerts : { userId };
+      await dbQuery(`INSERT INTO infrastructure_cost_report (id,snapshot,updated_by,updated_at)
+        VALUES (1,$1::jsonb,$2,NOW()) ON CONFLICT (id) DO UPDATE SET
+        snapshot=infrastructure_cost_report.snapshot || $1::jsonb, updated_by=$2, updated_at=NOW()`,
+      [JSON.stringify({ privateRepositories: names, privateRepositoryAlerts: alerts }), req.user.id]);
+      res.redirect('/admin/infrastructure-costs#github-private-repositories');
+    } catch (error) { next(error); }
   });
   router.post('/workspace-subscription', async (req, res, next) => {
     const supplied = Buffer.from(String(req.body.csrf || '')), expected = Buffer.from(req.session.infrastructureCostsCsrf);

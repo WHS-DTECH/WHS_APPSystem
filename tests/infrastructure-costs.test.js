@@ -193,6 +193,7 @@ test('new database uses the lowest paid Oregon tier and service refuses an actua
 test('cost report enforces admin/CSRF, persists snapshots, labels stale data and escapes provider names', async t => {
   let stored, writes = 0, fail = false;
   const dbQuery = async (sql, params) => {
+    if (sql.startsWith('SELECT repository FROM module_builder_projects')) return { rows: [] };
     if (sql.startsWith('SELECT')) return { rows: stored ? [{ snapshot: stored }] : [] };
     writes++;
     if (sql.startsWith('UPDATE') && sql.includes('workspaceSubscriptions')) {
@@ -240,6 +241,82 @@ test('cost report enforces admin/CSRF, persists snapshots, labels stale data and
   app.use((req, res, next) => {
     req.user = req.get('x-role') ? { id: 'synthetic-admin', roles: [req.get('x-role')] } : null;
     res.locals.user = req.user; res.locals.activeRole = req.get('x-role'); res.locals.title = 'Test'; next();
+  });
+
+  await t.test('private repository register checks visibility and emails only changed mismatches on refresh', async t => {
+    let stored = {}, visible = [], emailFails = false;
+    const managed = ['School/created'];
+    const messages = [];
+    const dbQuery = async (sql, params) => {
+      if (sql.startsWith('SELECT snapshot')) return { rows: [{ snapshot: stored }] };
+      if (sql.startsWith('SELECT repository')) return { rows: managed.map(repository => ({ repository })) };
+      if (sql.includes('SELECT u.email')) return { rows: [{ email: 'admin@example.test' }] };
+      if (sql.includes("'{privateRepositoryAlerts}'")) {
+        stored.privateRepositoryAlerts = { ...stored.privateRepositoryAlerts, ...JSON.parse(params[0]) };
+      } else if (sql.includes('INSERT INTO infrastructure_cost_report')) {
+        const value = JSON.parse(params[0]);
+        if (value.github) stored = { ...value, privateRepositories: stored.privateRepositories, privateRepositoryAlerts: stored.privateRepositoryAlerts };
+        else stored = { ...stored, ...value };
+      } else throw new Error('Unexpected query');
+      return { rows: [] };
+    };
+    const providers = {
+      render: async () => ({ checkedAt: now().toISOString(), resources: [], workspaces: [] }),
+      github: async () => ({ checkedAt: now().toISOString(), accounts: [], repositories: visible }),
+      exchange: async () => ({ rate: 1.7, updatedAt: now().toISOString() })
+    };
+    const app = express();
+    app.set('views', path.join(__dirname, '..', 'views')); app.set('view engine', 'ejs');
+    app.use(express.urlencoded({ extended: false }));
+    app.use(session({ secret: 'synthetic-private-test-secret', resave: false, saveUninitialized: false }));
+    app.use((req, res, next) => {
+      req.user = { id: 'admin-id', email: 'admin@example.test', roles: ['ADMIN'] };
+      res.locals.user = req.user; res.locals.activeRole = 'ADMIN'; next();
+    });
+    app.use('/admin/infrastructure-costs', createInfrastructureCostsRouter({
+      dbQuery, providers, now, mail: async message => {
+        messages.push(message);
+        return emailFails ? { ok: false, message: 'Delivery unavailable' } : { ok: true };
+      }
+    }));
+    const server = app.listen(0, '127.0.0.1');
+    await new Promise(resolve => server.once('listening', resolve));
+    t.after(() => new Promise(resolve => server.close(resolve)));
+    const base = `http://127.0.0.1:${server.address().port}/admin/infrastructure-costs`;
+    const first = await fetch(base);
+    const cookie = first.headers.get('set-cookie').split(';')[0];
+    const csrf = (await first.text()).match(/name="csrf" value="([^"]+)"/)[1];
+    const headers = { cookie, 'Content-Type': 'application/x-www-form-urlencoded' };
+    const post = (route, data) => fetch(base + route, {
+      method: 'POST', headers, body: new URLSearchParams({ csrf, ...data }), redirect: 'manual'
+    });
+    assert.equal((await post('/private-repositories', { repositories: 'School/manual\nschool/MANUAL', emailAlerts: 'yes' })).status, 400);
+    assert.equal((await post('/private-repositories', { repositories: 'School/manual', emailAlerts: 'yes' })).status, 302);
+    assert.equal((await post('/refresh', {})).status, 302);
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].to, 'admin@example.test');
+    assert.doesNotMatch(messages[0].text, /School\/manual/);
+    let html = await (await fetch(base, { headers })).text();
+    assert.match(html, /School\/manual — Not visible/);
+    assert.match(html, /School\/created — Not visible \(Module Builder\)/);
+    await post('/refresh', {});
+    assert.equal(messages.length, 1);
+    visible = [{ name: 'school/manual', private: true }, { name: 'School/created', private: true }];
+    await post('/refresh', {});
+    html = await (await fetch(base, { headers })).text();
+    assert.match(html, /School\/manual — Private/);
+    assert.doesNotMatch(html, /Private repository inventory needs review/);
+    visible[0].private = false;
+    emailFails = true;
+    await post('/refresh', {});
+    html = await (await fetch(base, { headers })).text();
+    assert.match(html, /School\/manual — Visible as public/);
+    assert.match(html, /Email alert not sent: Delivery unavailable/);
+    emailFails = false;
+    await post('/refresh', {});
+    assert.equal(messages.length, 3);
+    await post('/refresh', {});
+    assert.equal(messages.length, 3);
   });
   app.use('/admin/infrastructure-costs', createInfrastructureCostsRouter({ dbQuery, providers, now }));
   const server = app.listen(0, '127.0.0.1');

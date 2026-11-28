@@ -399,6 +399,15 @@ can categorise visible GitHub accounts as student accounts; WHS-DTECH appears se
 as the main GitHub account. The student designation is
 stored in the Core report across refreshes and does not establish a free plan or
 turn unknown billing into zero. Provider sections show check status and inventories.
+The Private Repositories register lists administrator-entered owner/repository
+names alongside repositories created privately by Module Builder. Its statuses
+compare the register with the latest successful GitHub inventory; "Not visible"
+can mean missing permission and does not establish deletion. Administrators can
+edit the manual register and enable mismatch emails to their signed-in account.
+Checks and email retries run only when the report is refreshed; a changed mismatch
+is emailed once, and delivery failures are displayed. Private repositories created
+outside Module Builder must be added to the register manually; an inaccessible
+repository's changes cannot be independently detected.
 Workspace base rates can be entered or cleared per workspace from Render billing;
 they are saved across refreshes, dated, and must be checked manually when plans
 change. They are separate from the resource compute estimate, not actual invoices.
