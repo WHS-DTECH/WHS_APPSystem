@@ -1091,14 +1091,14 @@
     const references = [];
     for (const slot of slots) {
       for (const id of [slot.unit, slot.lesson]) {
-        if (typeof id === 'string' && /^[a-z0-9][a-z0-9-]*$/.test(id)) references.push({ id });
+        if (typeof id === 'string' && /^[a-z0-9][a-z0-9-]*$/.test(id)) references.push({ id, slot });
       }
       for (const resource of [...(slot.resource || slot.resourceUrl ? [slot] : []), ...(slot.resources || [])]) {
         const relative = typeof resource.resourceUrl === 'string' &&
           /^\/(?:dtech-hub\/)?learning-pathways\//.test(resource.resourceUrl) && !/[\\\s]/.test(resource.resourceUrl);
         const url = relative ? resource.resourceUrl :
           globalThis.plannerTeachingSlots.resolveResource({ ...resource, type: slot.type }, programme);
-        if (url) references.push({ url });
+        if (url) references.push({ url, slot, category: resource.category, name: resource.resource });
       }
     }
     for (const activity of activities) if (activity.sourceId) references.push({ id: activity.sourceId });
@@ -1135,14 +1135,36 @@
         throw error;
       }
     }
+    function matched(ref) {
+      const key = ref.url && canonical(ref.url);
+      const matches = ref.id ? [byId(ref.id)].filter(Boolean) :
+        key ? published.filter(card => canonical(cardUrl(card)) === key) : [];
+      return matches.length === 1 ? matches[0] : null;
+    }
     const units = [], groups = new Map(), seenLessons = new Set();
     for (const ref of references) {
-      const matches = ref.id ? [byId(ref.id)].filter(Boolean) :
-        published.filter(card => canonical(cardUrl(card)) === canonical(ref.url));
-      if (matches.length !== 1) continue;
-      let card = matches[0];
+      let card = matched(ref);
+      if (!card && ref.category === 'Lesson Plan' && ref.slot?.type === 'Unit Library' && ref.url) {
+        const parents = references.filter(item => item.slot === ref.slot).map(matched)
+          .filter(item => item?.cardType === 'unit');
+        const parentIds = [...new Set(parents.map(item => item.id))];
+        const unit = parentIds.length === 1 ? byId(parentIds[0]) : null;
+        const title = ref.slot.lesson?.trim() || ref.name?.replace(/^Lesson:\s*/i, '').trim();
+        const key = canonical(ref.url);
+        if (!unit || !title || !key || seenLessons.has(key)) continue;
+        let group = groups.get(unit.id);
+        if (!group) {
+          group = { title: unit.title, url: cardUrl(unit), lessons: [] };
+          groups.set(unit.id, group); units.push(group);
+        }
+        seenLessons.add(key);
+        group.lessons.push({ title, url: ref.url });
+        continue;
+      }
+      if (!card) continue;
       if (card.cardType === 'activity') card = byId(card.lesson);
       if (!card || !['unit', 'lesson'].includes(card.cardType)) continue;
+      if (card.cardType === 'unit' && ['Routine', 'Kit'].includes(ref.slot?.type)) continue;
       const lesson = card.cardType === 'lesson' ? card : null;
       const unit = lesson ? byId(lesson.unit) : card;
       if (!unit || unit.cardType !== 'unit') continue;
@@ -1151,8 +1173,9 @@
         group = { title: unit.title, url: cardUrl(unit), lessons: [] };
         groups.set(unit.id, group); units.push(group);
       }
-      if (lesson && !seenLessons.has(lesson.id)) {
-        seenLessons.add(lesson.id);
+      const lessonKey = lesson && canonical(cardUrl(lesson));
+      if (lesson && !seenLessons.has(lessonKey)) {
+        seenLessons.add(lessonKey);
         group.lessons.push({ title: lesson.title, url: cardUrl(lesson) });
       }
     }

@@ -121,7 +121,7 @@ ${standalone ? `<script src="${asset('global-nav.js')}" defer></script>` : ''}
 <script src="${asset('junior-teaching.js?v=period-links-1')}" defer></script>
 <script src="${asset('teaching-day-trello.js?v=period-links-1')}" defer></script>
 <script src="${asset('teaching-session.js?v=period-links-1')}" defer></script>
-<script src="${asset('planner.js?v=period-links-1')}" defer></script>
+<script src="${asset('planner.js?v=period-links-2')}" defer></script>
 </body></html>`;
 }
 

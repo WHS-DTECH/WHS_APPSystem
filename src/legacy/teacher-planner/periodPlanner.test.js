@@ -408,6 +408,23 @@ test('period resource links use explicit slot URLs and saved IDs, not titles or 
   const ids = await context.loadSessionPathwayUnits([{ unit: 'binary-and-data', lesson: 'lesson-encoding-binary', resources: [] },
     { type: 'Routine', resources: [{ resourceUrl: '/dtech-hub/learning-pathways/lesson-binary-piano.html' }] }], null, []);
   assert.deepEqual(JSON.parse(JSON.stringify(ids.units[0].lessons.map(item => item.title))), ['Encoding Binary', 'Binary Piano']);
+  const linkedDocuments = [
+    { type: 'Unit Library', lesson: 'Binary Piano', resources: [
+      { category: 'Lesson Plan', resource: 'Lesson: Binary Piano', resourceUrl: 'https://drive.google.com/file/d/piano/view' },
+      { category: 'Unit Plan', resourceUrl: 'https://dtech-hub2.onrender.com/learning-pathways/binary-and-data.html' }] },
+    { type: 'Unit Library', lesson: 'Encoding Binary', resources: [
+      { category: 'Lesson Plan', resource: 'Lesson: Encoding Binary', resourceUrl: 'https://drive.google.com/file/d/encoding/view' },
+      { category: 'Unit Plan', resourceUrl: 'https://dtech-hub2.onrender.com/learning-pathways/binary-and-data.html' }] },
+    { type: 'Routine', lesson: 'Not a library lesson', resources: [
+      { category: 'Lesson Plan', resourceUrl: 'https://example.test/routine' },
+      { category: 'Unit Plan', resourceUrl: 'https://dtech-hub2.onrender.com/learning-pathways/binary-and-data.html' }] }
+  ];
+  const documents = await context.loadSessionPathwayUnits(linkedDocuments, null, []);
+  assert.deepEqual(JSON.parse(JSON.stringify(documents.units[0].lessons)), [
+    { title: 'Binary Piano', url: 'https://drive.google.com/file/d/piano/view' },
+    { title: 'Encoding Binary', url: 'https://drive.google.com/file/d/encoding/view' }
+  ]);
+  assert.equal((await context.loadSessionPathwayUnits([linkedDocuments[2]], null, [])).units.length, 0);
   assert.equal((await context.loadSessionPathwayUnits([{ title: 'Binary Piano', resources: [] }], null, [])).units.length, 0);
 });
 test('period resource panel follows the latest activity source and ignores late responses', async () => {
